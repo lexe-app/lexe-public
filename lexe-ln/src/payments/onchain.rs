@@ -34,7 +34,7 @@ pub struct OnchainSendV2 {
     /// used to detect replacement transactions.
     // TODO(max): Add a serde helper to consensus encode the transaction before
     // serialization
-    pub tx: bitcoin::Transaction,
+    pub tx: Arc<bitcoin::Transaction>,
 
     pub amount: Amount,
     pub fees: Amount,
@@ -112,7 +112,7 @@ impl OnchainSendV2 {
         let os = Self {
             cid,
             txid,
-            tx,
+            tx: Arc::new(tx),
             amount,
             fees,
             status: OnchainSendStatus::Created,
@@ -122,7 +122,7 @@ impl OnchainSendV2 {
 
         let metadata = PaymentMetadata {
             id: os.id(),
-            address: Some(address),
+            address: Some(Arc::new(address)),
             invoice: None,
             offer: None,
             priority: Some(priority),

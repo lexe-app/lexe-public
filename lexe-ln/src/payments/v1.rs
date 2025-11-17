@@ -1,6 +1,8 @@
+use std::{num::NonZeroU64, sync::Arc};
+
 use anyhow::Context;
 use common::{
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
 use lexe_api::types::{
@@ -290,7 +292,6 @@ impl PaymentV1 {
     /// remains consistent with the older, known-correct version (see proptest
     /// below), until all logic has been migrated to the v2 types with proptests
     /// passing.
-    // TODO(max): Delete
     #[cfg(test)]
     pub fn into_basic_payment(
         self,
@@ -301,23 +302,29 @@ impl PaymentV1 {
             id: self.id(),
             kind: self.kind(),
             direction: self.direction(),
-            invoice: self.invoice(),
             offer_id: self.offer_id(),
-            offer: self.offer(),
             txid: self.txid(),
-            replacement: self.replacement(),
             amount: self.amount(),
-            fees: self.fees(),
+            fee: self.fees(),
             status: self.status(),
             status_str: self.status_str().to_owned(),
+            address: None,
+            invoice: self.invoice(),
+            offer: self.offer(),
+            tx: self.tx(),
             note: self.note().map(|s| s.to_owned()),
+            payer_name: self.payer_name().map(|s| s.to_owned()),
+            payer_note: self.payer_note().map(|s| s.to_owned()),
+            priority: self.priority(),
+            quantity: self.quantity(),
+            replacement_txid: self.replacement(),
+            expires_at: self.expires_at(),
             finalized_at: self.finalized_at(),
             created_at,
             updated_at,
         }
     }
 
-    // TODO(max): Delete
     pub fn index(&self) -> PaymentCreatedIndex {
         PaymentCreatedIndex {
             created_at: self.created_at(),
@@ -325,7 +332,6 @@ impl PaymentV1 {
         }
     }
 
-    // TODO(max): Delete
     pub fn id(&self) -> LxPaymentId {
         match self {
             Self::OnchainSend(os) => LxPaymentId::OnchainSend(os.cid),
@@ -341,7 +347,6 @@ impl PaymentV1 {
     }
 
     /// Whether this is an onchain payment, LN invoice payment, etc.
-    // TODO(max): Delete
     pub fn kind(&self) -> PaymentKind {
         match self {
             Self::OnchainSend(_) => PaymentKind::Onchain,
@@ -356,7 +361,6 @@ impl PaymentV1 {
     }
 
     /// Whether this payment is inbound or outbound. Useful for filtering.
-    // TODO(max): Delete
     pub fn direction(&self) -> PaymentDirection {
         match self {
             Self::OnchainSend(_) => PaymentDirection::Outbound,
@@ -371,7 +375,7 @@ impl PaymentV1 {
     }
 
     /// Returns the BOLT11 invoice corresponding to this payment, if any.
-    pub fn invoice(&self) -> Option<Box<LxInvoice>> {
+    pub fn invoice(&self) -> Option<Arc<LxInvoice>> {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
@@ -390,7 +394,6 @@ impl PaymentV1 {
 
     /// Returns the id of the BOLT12 offer associated with this payment, if
     /// there is one.
-    // TODO(max): Delete
     pub fn offer_id(&self) -> Option<LxOfferId> {
         match self {
             Self::OnchainSend(_) => None,
@@ -409,8 +412,7 @@ impl PaymentV1 {
     }
 
     /// Returns the BOLT12 offer associated with this payment, if there is one.
-    // TODO(max): Delete
-    pub fn offer(&self) -> Option<Box<LxOffer>> {
+    pub fn offer(&self) -> Option<Arc<LxOffer>> {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
@@ -425,8 +427,26 @@ impl PaymentV1 {
         }
     }
 
+    /// Returns the expiry time for invoice or offer payments.
+    pub fn expires_at(&self) -> Option<TimestampMs> {
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                invoice, ..
+            }) => invoice.expires_at().ok(),
+            Self::InboundOfferReusable(_) => None,
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
+                invoice, ..
+            }) => invoice.expires_at().ok(),
+            Self::OutboundOffer(OutboundOfferPaymentV1 { offer, .. }) =>
+                offer.expires_at(),
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
     /// Returns the original txid, if there is one.
-    // TODO(max): Delete
     pub fn txid(&self) -> Option<LxTxid> {
         match self {
             Self::OnchainSend(OnchainSendV1 { txid, .. }) => Some(*txid),
@@ -440,8 +460,22 @@ impl PaymentV1 {
         }
     }
 
+    /// Returns the on-chain transaction if this is an onchain payment.
+    pub fn tx(&self) -> Option<Arc<bitcoin::Transaction>> {
+        match self {
+            Self::OnchainSend(OnchainSendV1 { tx, .. }) => Some(tx.clone()),
+            Self::OnchainReceive(OnchainReceiveV1 { tx, .. }) =>
+                Some(tx.clone()),
+            Self::InboundInvoice(_) => None,
+            Self::InboundOfferReusable(_) => None,
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(_) => None,
+            Self::OutboundOffer(_) => None,
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
     /// Returns the txid of the replacement tx, if there is one.
-    // TODO(max): Delete
     pub fn replacement(&self) -> Option<LxTxid> {
         match self {
             Self::OnchainSend(OnchainSendV1 { replacement, .. }) =>
@@ -464,7 +498,6 @@ impl PaymentV1 {
     /// - If this is a pending or failed inbound inbound invoice payment, we
     ///   return the amount encoded in our invoice, which may be null.
     /// - For all other payment types, an amount is always returned.
-    // TODO(max): Delete
     pub fn amount(&self) -> Option<Amount> {
         match self {
             Self::OnchainSend(OnchainSendV1 { amount, .. }) => Some(*amount),
@@ -496,7 +529,6 @@ impl PaymentV1 {
     }
 
     /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Delete
     pub fn fees(&self) -> Amount {
         match self {
             Self::OnchainSend(OnchainSendV1 { fees, .. }) => *fees,
@@ -524,7 +556,6 @@ impl PaymentV1 {
     }
 
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
-    // TODO(max): Delete
     pub fn status(&self) -> PaymentStatus {
         match self {
             Self::OnchainSend(OnchainSendV1 { status, .. }) =>
@@ -555,7 +586,6 @@ impl PaymentV1 {
     }
 
     /// Get the payment status as a human-readable `&'static str`
-    // TODO(max): Delete
     pub fn status_str(&self) -> &str {
         match self {
             Self::OnchainSend(OnchainSendV1 { status, .. }) => status.as_str(),
@@ -589,7 +619,6 @@ impl PaymentV1 {
     }
 
     /// Get the payment note.
-    // TODO(max): Delete
     pub fn note(&self) -> Option<&str> {
         match self {
             Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
@@ -617,7 +646,6 @@ impl PaymentV1 {
     }
 
     /// Set the payment note to a new value.
-    // TODO(max): Delete
     pub fn set_note(&mut self, note: Option<String>) {
         let mut_ref_note: &mut Option<String> = match self {
             Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
@@ -645,7 +673,6 @@ impl PaymentV1 {
     }
 
     /// When this payment was created.
-    // TODO(max): Delete
     pub fn created_at(&self) -> TimestampMs {
         match self {
             Self::OnchainSend(OnchainSendV1 { created_at, .. }) => *created_at,
@@ -678,7 +705,6 @@ impl PaymentV1 {
     }
 
     /// When this payment was completed or failed.
-    // TODO(max): Delete
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
             Self::OnchainSend(OnchainSendV1 { finalized_at, .. }) =>
@@ -711,6 +737,55 @@ impl PaymentV1 {
             }) => *finalized_at,
         }
     }
+
+    /// Get the confirmation priority for onchain send payments.
+    pub fn priority(&self) -> Option<ConfirmationPriority> {
+        match self {
+            Self::OnchainSend(OnchainSendV1 { priority, .. }) =>
+                Some(*priority),
+            _ => None,
+        }
+    }
+
+    /// Get the quantity (number of items purchased) for offer payments.
+    pub fn quantity(&self) -> Option<NonZeroU64> {
+        match self {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                quantity,
+                ..
+            }) => *quantity,
+            Self::OutboundOffer(OutboundOfferPaymentV1 {
+                quantity, ..
+            }) => *quantity,
+            _ => None,
+        }
+    }
+
+    /// Get the payer-provided note for inbound offer reusable payments.
+    pub fn payer_note(&self) -> Option<&str> {
+        match self {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                payer_note,
+                ..
+            }) => payer_note,
+            _ => &None,
+        }
+        .as_ref()
+        .map(|s| s.as_str())
+    }
+
+    /// Get the payer name for inbound offer reusable payments.
+    pub fn payer_name(&self) -> Option<&str> {
+        match self {
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
+                payer_name,
+                ..
+            }) => payer_name,
+            _ => &None,
+        }
+        .as_ref()
+        .map(|s| s.as_str())
+    }
 }
 
 #[cfg(test)]
@@ -726,12 +801,6 @@ mod test {
     };
 
     use super::*;
-
-    // TODO(max): Delete
-    #[test]
-    fn payment_serde_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<PaymentV1>();
-    }
 
     /// During migration, we need to maintain the invariant that
     /// `PaymentV1 -> PaymentWithMetadata -> PaymentV1` is lossless, as we are

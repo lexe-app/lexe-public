@@ -1,4 +1,4 @@
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 #[cfg(test)]
@@ -39,8 +39,7 @@ use crate::payments::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundInvoicePaymentV1 {
     /// Created in [`create_invoice`].
-    // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
-    pub invoice: Box<LxInvoice>,
+    pub invoice: Arc<LxInvoice>,
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
     /// [`create_invoice`].
     pub hash: LxPaymentHash,
@@ -117,7 +116,7 @@ impl From<InboundInvoicePaymentV1>
         let metadata = PaymentMetadata {
             id: v1.id(),
             address: None,
-            invoice: Some(*v1.invoice),
+            invoice: Some(v1.invoice),
             offer: None,
             priority: None,
             quantity: None,
@@ -169,7 +168,7 @@ impl TryFrom<PaymentWithMetadata<InboundInvoicePaymentV2>>
         } = pwm.metadata;
 
         Ok(Self {
-            invoice: Box::new(invoice.context("Missing invoice")?),
+            invoice: invoice.context("Missing invoice")?,
             hash,
             secret,
             preimage,
@@ -481,7 +480,7 @@ mod arb {
                     finalized_at,
                 )| {
                     Self {
-                        invoice: Box::new(invoice.clone()),
+                        invoice: Arc::new(invoice.clone()),
                         hash: invoice.payment_hash(),
                         secret: invoice.payment_secret(),
                         preimage,

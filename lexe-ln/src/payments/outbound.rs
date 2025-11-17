@@ -1,4 +1,4 @@
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, sync::Arc};
 
 use anyhow::ensure;
 use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
@@ -6,8 +6,8 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        ClientPaymentId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        LxPaymentSecret,
+        ClientPaymentId, LxOfferId, LxPaymentHash, LxPaymentId,
+        LxPaymentPreimage, LxPaymentSecret,
     },
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
@@ -157,7 +157,7 @@ impl OutboundInvoicePaymentV2 {
         let metadata = PaymentMetadata {
             id: oip.id(),
             address: None,
-            invoice: Some(invoice),
+            invoice: Some(Arc::new(invoice)),
             offer: None,
             priority: None,
             quantity: None,
@@ -301,7 +301,7 @@ impl OutboundInvoicePaymentV2 {
 
         // If not expired yet, do nothing.
         let is_expired =
-            self.expires_at.is_some_and(|expires_at| now >= expires_at);
+            self.expires_at.is_some_and(|expires_at| expires_at < now);
         if !is_expired {
             return Err(ExpireError::Ignore);
         }
@@ -353,6 +353,8 @@ pub struct OutboundOfferPaymentV2 {
     /// The payment preimage, which serves as proof-of-payment.
     /// This field is populated iff. the status is `Completed`.
     pub preimage: Option<LxPaymentPreimage>,
+    /// Unique identifier for the original offer.
+    pub offer_id: LxOfferId,
 
     /// The amount sent in this payment excluding fees. May be greater than the
     /// intended value to meet htlc min. limits along the route.
@@ -417,12 +419,16 @@ impl OutboundOfferPaymentV2 {
         quantity: Option<NonZeroU64>,
         routing_fee: Amount,
         note: Option<String>,
+        payer_name: Option<String>,
+        payer_note: Option<String>,
     ) -> PaymentWithMetadata<Self> {
+        let offer_id = offer.id();
         let expires_at = offer.expires_at();
         let oop = Self {
             client_id,
             hash: None,
             preimage: None,
+            offer_id,
             amount,
             routing_fee,
             status: OutboundOfferPaymentStatus::Pending,
@@ -436,13 +442,13 @@ impl OutboundOfferPaymentV2 {
             id: oop.id(),
             address: None,
             invoice: None,
-            offer: Some(offer),
+            offer: Some(Arc::new(offer)),
             priority: None,
             quantity,
             replacement_txid: None,
             note,
-            payer_note: None,
-            payer_name: None,
+            payer_name,
+            payer_note,
         };
 
         PaymentWithMetadata {
@@ -574,7 +580,7 @@ impl OutboundOfferPaymentV2 {
 
         // If not expired yet, do nothing.
         let is_expired =
-            self.expires_at.is_some_and(|expires_at| now >= expires_at);
+            self.expires_at.is_some_and(|expires_at| expires_at < now);
         if !is_expired {
             return Err(ExpireError::Ignore);
         }
@@ -861,6 +867,7 @@ pub(crate) mod arbitrary_impl {
             let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
             let client_id = any::<ClientPaymentId>();
             let preimage = any::<LxPaymentPreimage>();
+            let offer_id = any::<LxOfferId>();
 
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
@@ -875,6 +882,7 @@ pub(crate) mod arbitrary_impl {
                 status,
                 client_id,
                 preimage,
+                offer_id,
                 amount,
                 routing_fee,
                 failure,
@@ -897,6 +905,7 @@ pub(crate) mod arbitrary_impl {
                     client_id,
                     hash,
                     preimage,
+                    offer_id,
                     amount,
                     routing_fee,
                     status,
@@ -911,6 +920,7 @@ pub(crate) mod arbitrary_impl {
                 status,
                 client_id,
                 preimage,
+                offer_id,
                 amount,
                 routing_fee,
                 failure,

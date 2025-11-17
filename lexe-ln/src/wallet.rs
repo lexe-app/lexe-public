@@ -1670,7 +1670,7 @@ mod test {
                 .expect("Failed to create onchain send");
             self.wallet.transaction_broadcasted_at(
                 self.now(),
-                oswm.payment.tx.clone(),
+                oswm.payment.tx.as_ref().clone(),
             );
             oswm
         }
@@ -2141,8 +2141,10 @@ mod test {
             spki1 => set! { },
         });
 
-        h.wallet
-            .transaction_broadcasted_at(h.now(), oswm.payment.tx);
+        h.wallet.transaction_broadcasted_at(
+            h.now(),
+            oswm.payment.tx.as_ref().clone(),
+        );
     }
 
     // Test that we build the expected incremental sync request in various

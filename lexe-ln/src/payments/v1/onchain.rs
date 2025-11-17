@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use bitcoin::Transaction;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
@@ -30,8 +29,11 @@ use crate::payments::{
 pub struct OnchainSendV1 {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
-    pub tx: Transaction,
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_raw_tx().prop_map(Arc::new)")
+    )]
+    pub tx: Arc<bitcoin::Transaction>,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
     pub priority: ConfirmationPriority,
@@ -138,7 +140,7 @@ pub struct OnchainReceiveV1 {
         test,
         proptest(strategy = "arbitrary::any_raw_tx().prop_map(Arc::new)")
     )]
-    pub tx: Arc<Transaction>,
+    pub tx: Arc<bitcoin::Transaction>,
     /// The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
     pub amount: Amount,

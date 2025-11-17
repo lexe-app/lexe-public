@@ -1,17 +1,22 @@
 use std::{
     cmp::Ordering,
     fmt::{self, Display},
+    num::NonZeroU64,
     str::FromStr,
+    sync::Arc,
 };
 
 use anyhow::{Context, anyhow, bail, ensure};
-use bitcoin::hashes::{Hash as _, sha256};
+use bitcoin::{
+    address::NetworkUnchecked,
+    hashes::{Hash as _, sha256},
+};
 use byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
 use common::{
     debug_panic_release_log,
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     rng::{RngCore, RngExt},
     serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
@@ -39,25 +44,17 @@ use crate::types::{invoice::LxInvoice, offer::LxOffer};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BasicPaymentV2 {
+    // --- Basic identifier and info fields --- //
+    ///
     pub id: LxPaymentId,
 
     pub kind: PaymentKind,
 
     pub direction: PaymentDirection,
 
-    /// (Invoice payments only) The BOLT11 invoice used in this payment.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub invoice: Option<Box<LxInvoice>>,
-
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer_id: Option<LxOfferId>,
-
-    /// (Outbound offer payments only) The BOLT12 offer used in this payment.
-    /// Until we store offers out-of-line, this is not yet available for
-    /// inbound offer payments.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub offer: Option<Box<LxOffer>>,
 
     /// (Onchain payments only) The original txid.
     // NOTE: we're duplicating the txid here for onchain receives because its
@@ -65,10 +62,8 @@ pub struct BasicPaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub txid: Option<LxTxid>,
 
-    /// (Onchain payments only) The txid of the replacement tx, if one exists.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub replacement: Option<LxTxid>,
-
+    // --- Amounts --- //
+    ///
     /// The amount of this payment.
     ///
     /// - If this is a completed inbound invoice payment, this is the amount we
@@ -79,16 +74,25 @@ pub struct BasicPaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<Amount>,
 
+    // --- Fees --- //
+    ///
     /// The fees for this payment.
+    ///
+    /// Use this whenever you need a singular value to display.
     ///
     /// - For outbound Lightning payments, these are the routing fees. If the
     ///   payment is not completed, this value is an estimation only. Iff the
     ///   payment completes, this value reflects actual fees paid.
-    /// - For inbound Lightning payments, the routing fees are not paid by us
-    ///   (the recipient), but if a JIT channel open was required to facilitate
-    ///   this payment, then the on-chain fee is reflected here.
-    pub fees: Amount,
+    /// - For inbound Lightning payments, this is the skimmed fee, which may
+    ///   also cover the on-chain fees incurred by a JIT channel open.
+    // Renamed in node-v0.8.10.
+    // Can be removed only after *all* payments have migrated to payments v2.
+    #[serde(rename = "fees", alias = "fee")]
+    pub fee: Amount,
 
+    // --- Status --- //
+    ///
+    /// General payment status: pending, completed, or failed.
     pub status: PaymentStatus,
 
     /// The payment status as a human-readable string. These strings are
@@ -99,6 +103,39 @@ pub struct BasicPaymentV2 {
     )]
     pub status_str: String,
 
+    // --- Payment methods --- //
+    ///
+    /// (Onchain send only) The address that we're sending to.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(
+            strategy = "arbitrary::any_option_arc_mainnet_addr_unchecked()"
+        )
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
+
+    /// (Invoice payments only) The BOLT11 invoice used in this payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invoice: Option<Arc<LxInvoice>>,
+
+    /// (Outbound offer payments only) The BOLT12 offer used in this payment.
+    /// Until we store offers out-of-line, this is not yet available for
+    /// inbound offer payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer: Option<Arc<LxOffer>>,
+
+    /// The on-chain transaction, if there is one.
+    /// Always [`Some`] for on-chain sends and receives.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_arc_raw_tx()")
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tx: Option<Arc<bitcoin::Transaction>>,
+
+    // --- Notes and sender/receiver identifiers --- //
+    ///
     /// An optional personal note which a user can attach to any payment. A
     /// note can always be added or modified when a payment already exists,
     /// but this may not always be possible at creation time. These
@@ -129,6 +166,48 @@ pub struct BasicPaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 
+    /// (Offer payments only) The payer's self-reported human-readable name.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payer_name: Option<String>,
+
+    /// (Offer payments only) A payer-provided note for this payment.
+    /// LDK truncates this to 512 bytes.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payer_note: Option<String>,
+
+    // --- Other --- //
+    ///
+    /// (Onchain send only) The confirmation priority used for this payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<ConfirmationPriority>,
+
+    /// (Inbound offer reusable only) The number of items the payer bought.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<NonZeroU64>,
+
+    /// (Onchain payments only) The txid of the replacement tx, if one exists.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    // Renamed in node-v0.8.10.
+    // Can be removed only after *all* payments have migrated to payments v2.
+    #[serde(rename = "replacement", alias = "replacement_txid")]
+    pub replacement_txid: Option<LxTxid>,
+
+    // --- Timestamps --- //
+    ///
+    /// The invoice or offer expiry time.
+    /// `None` otherwise, or if the timestamp overflows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<TimestampMs>,
+
+    /// When this payment was finalized (completed or failed).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 
@@ -140,7 +219,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 272);
+const_assert_mem_size!(BasicPaymentV2, 360);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -162,11 +241,11 @@ pub struct BasicPaymentV1 {
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub invoice: Option<Box<LxInvoice>>,
+    pub invoice: Option<Arc<LxInvoice>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer_id: Option<LxOfferId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub offer: Option<Box<LxOffer>>,
+    pub offer: Option<Arc<LxOffer>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub txid: Option<LxTxid>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -505,16 +584,23 @@ impl BasicPaymentV2 {
             id: v1.index.id,
             kind: v1.kind,
             direction: v1.direction,
-            invoice: v1.invoice,
             offer_id: v1.offer_id,
-            offer: v1.offer,
             txid: v1.txid,
-            replacement: v1.replacement,
             amount: v1.amount,
-            fees: v1.fees,
+            fee: v1.fees,
             status: v1.status,
             status_str: v1.status_str,
+            address: None,
+            invoice: v1.invoice,
+            offer: v1.offer,
+            tx: None,
             note: v1.note,
+            payer_name: None,
+            payer_note: None,
+            priority: None,
+            quantity: None,
+            replacement_txid: v1.replacement,
+            expires_at: None,
             finalized_at: v1.finalized_at,
             created_at: v1.index.created_at,
             updated_at,
@@ -662,9 +748,9 @@ impl From<BasicPaymentV2> for BasicPaymentV1 {
             offer_id: v2.offer_id,
             offer: v2.offer,
             txid: v2.txid,
-            replacement: v2.replacement,
+            replacement: v2.replacement_txid,
             amount: v2.amount,
-            fees: v2.fees,
+            fees: v2.fee,
             status: v2.status,
             status_str: v2.status_str,
             note: v2.note,

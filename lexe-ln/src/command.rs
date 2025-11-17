@@ -1118,8 +1118,10 @@ where
     )
     .await?;
 
-    // TODO(phlip9): user should choose whether to show their note to recipient
-    let payer_note = None;
+    let payer_note = oopwm.metadata.payer_note.clone();
+    // TODO(max): We should call chan_man.pay_for_offer_from_human_readable_name
+    // below if the offer was resolved via BIP353.
+    let _payer_name = oopwm.metadata.payer_name.clone();
     // Use default
     let max_total_routing_fee_msat = None;
 
@@ -1251,7 +1253,7 @@ where
 
     // Broadcast.
     tx_broadcaster
-        .broadcast_transaction(tx)
+        .broadcast_transaction(tx.as_ref().clone())
         .await
         .context("Failed to broadcast tx")?;
 
@@ -1492,6 +1494,11 @@ where
 
     let amount = route.amount();
     let routing_fee = route.fees();
+
+    // TODO(max): Include these fields in `PayOfferRequest`
+    let payer_name = None;
+    let payer_note = None;
+
     let oopwm = OutboundOfferPaymentV2::new(
         req.cid,
         offer,
@@ -1499,6 +1506,8 @@ where
         quantity,
         routing_fee,
         req.note,
+        payer_name,
+        payer_note,
     );
     Ok(PreflightedPayOffer { oopwm, route })
 }

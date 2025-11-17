@@ -3,7 +3,7 @@
 //! This module is the 'complex' counterpart to the simpler types exposed in
 //! [`lexe_api::types::payments`].
 
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 use bitcoin::address::NetworkUnchecked;
@@ -23,6 +23,7 @@ use lexe_api::types::{
         PaymentKind, PaymentStatus,
     },
 };
+use lexe_std::const_assert_mem_size;
 #[cfg(test)]
 use proptest::{option, prelude::Just};
 #[cfg(test)]
@@ -163,6 +164,9 @@ pub enum PaymentV2 {
     OutboundSpontaneous(OutboundSpontaneousPaymentV2),
 }
 
+// Debug the size_of `PaymentV2`
+const_assert_mem_size!(PaymentV2, 280);
+
 /// Optional payment metadata associated with a [`PaymentV2`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
@@ -177,16 +181,24 @@ pub struct PaymentMetadata {
     #[cfg_attr(
         test,
         proptest(
-            strategy = "option::of(arbitrary::any_mainnet_addr_unchecked())"
+            strategy = "arbitrary::any_option_arc_mainnet_addr_unchecked()"
         )
     )]
-    pub address: Option<bitcoin::Address<NetworkUnchecked>>,
+    pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
 
     /// The BOLT11 invoice corresponding to this payment, if any.
-    pub invoice: Option<LxInvoice>,
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary_helpers::any_option_arc_invoice()")
+    )]
+    pub invoice: Option<Arc<LxInvoice>>,
 
     /// The BOLT12 offer associated with this payment, if any.
-    pub offer: Option<LxOffer>,
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary_helpers::any_option_arc_offer()")
+    )]
+    pub offer: Option<Arc<LxOffer>>,
 
     /// (On-chain send only) The confirmation priority used for this payment.
     pub priority: Option<ConfirmationPriority>,
@@ -205,7 +217,7 @@ pub struct PaymentMetadata {
     )]
     pub note: Option<String>,
 
-    /// (Inbound offer reusable only) A payer-provided note for this payment.
+    /// (Offers only) A payer-provided note for this payment.
     /// LDK truncates this to PAYER_NOTE_LIMIT bytes (512 B as of 2025-04-22).
     #[cfg_attr(
         test,
@@ -222,15 +234,18 @@ pub struct PaymentMetadata {
     pub payer_name: Option<String>,
 }
 
+// Debug the size_of `PaymentMetadata`
+const_assert_mem_size!(PaymentMetadata, 176);
+
 /// An update to a [`PaymentMetadata`].
 #[must_use]
 #[derive(Debug, Default, PartialEq)]
 pub(crate) struct PaymentMetadataUpdate {
-    pub address: Option<Option<bitcoin::Address<NetworkUnchecked>>>,
+    pub address: Option<Option<Arc<bitcoin::Address<NetworkUnchecked>>>>,
 
-    pub invoice: Option<Option<LxInvoice>>,
+    pub invoice: Option<Option<Arc<LxInvoice>>>,
 
-    pub offer: Option<Option<LxOffer>>,
+    pub offer: Option<Option<Arc<LxOffer>>>,
 
     pub priority: Option<Option<ConfirmationPriority>>,
 
@@ -368,245 +383,52 @@ impl PaymentWithMetadata<PaymentV2> {
         updated_at: TimestampMs,
     ) -> BasicPaymentV2 {
         let id = self.payment.id();
+        let txid = self.payment.txid();
+        let offer_id = self.payment.offer_id();
         let kind = self.payment.kind();
         let direction = self.payment.direction();
         let status = self.payment.status();
         let status_str = self.payment.status_str().to_owned();
-        let offer_id = self.offer_id();
-        let txid = self.txid();
-        let replacement = self.replacement_txid();
-        let amount = self.amount();
-        let fees = self.fees();
-        let finalized_at = self.finalized_at();
+        let amount = self.payment.amount();
+        let fee = self.payment.fee();
+        let tx = self.payment.tx();
+        let expires_at = self.payment.expires_at();
+        let finalized_at = self.payment.finalized_at();
 
-        let invoice = self.metadata.invoice.map(Box::new);
-        let offer = self.metadata.offer.map(Box::new);
+        let invoice = self.metadata.invoice;
+        let offer = self.metadata.offer;
         let note = self.metadata.note;
+        let address = self.metadata.address;
+        let payer_name = self.metadata.payer_name;
+        let payer_note = self.metadata.payer_note;
+        let priority = self.metadata.priority;
+        let quantity = self.metadata.quantity;
+        let replacement_txid = self.metadata.replacement_txid;
 
         BasicPaymentV2 {
             id,
             kind,
             direction,
-            invoice,
             offer_id,
-            offer,
             txid,
-            replacement,
             amount,
-            fees,
+            fee,
             status,
             status_str,
+            address,
+            invoice,
+            offer,
+            tx,
             note,
+            payer_name,
+            payer_note,
+            priority,
+            quantity,
+            replacement_txid,
+            expires_at,
             finalized_at,
             created_at,
             updated_at,
-        }
-    }
-
-    /// Returns the BOLT11 invoice corresponding to this payment, if any.
-    // TODO(max): Remove fn once all matching is removed
-    pub fn invoice(&self) -> Option<&LxInvoice> {
-        match &self.payment {
-            PaymentV2::OnchainSend(_) => None,
-            PaymentV2::OnchainReceive(_) => None,
-            PaymentV2::InboundInvoice(_) => self.metadata.invoice.as_ref(),
-            PaymentV2::InboundOfferReusable(_) => None,
-            PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(_) => self.metadata.invoice.as_ref(),
-            PaymentV2::OutboundOffer(_) => None,
-            PaymentV2::OutboundSpontaneous(_) => None,
-        }
-    }
-
-    /// Returns the id of the BOLT12 offer associated with this payment, if
-    /// there is one.
-    pub fn offer_id(&self) -> Option<LxOfferId> {
-        match &self.payment {
-            PaymentV2::OnchainSend(_) => None,
-            PaymentV2::OnchainReceive(_) => None,
-            PaymentV2::InboundInvoice(_) => None,
-            PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV2 { offer_id, .. },
-            ) => Some(*offer_id),
-            PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(_) =>
-                self.metadata.offer.as_ref().map(|offer| offer.id()),
-            PaymentV2::OutboundSpontaneous(_) => None,
-        }
-    }
-
-    /// Returns the BOLT12 offer associated with this payment, if there is one.
-    // TODO(max): Remove fn once all matching is removed
-    pub fn offer(&self) -> Option<&LxOffer> {
-        match &self.payment {
-            PaymentV2::OnchainSend(_) => None,
-            PaymentV2::OnchainReceive(_) => None,
-            PaymentV2::InboundInvoice(_) => None,
-            // TODO(phlip9): out-of-line offer metadata storage
-            PaymentV2::InboundOfferReusable(_) => None,
-            PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(_) => self.metadata.offer.as_ref(),
-            PaymentV2::OutboundSpontaneous(_) => None,
-        }
-    }
-
-    /// Returns the original txid, if there is one.
-    // TODO(max): Remove fn once all matching is removed
-    pub fn txid(&self) -> Option<LxTxid> {
-        match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { txid, .. }) => Some(*txid),
-            PaymentV2::OnchainReceive(OnchainReceiveV2 { txid, .. }) =>
-                Some(*txid),
-            PaymentV2::InboundInvoice(_) => None,
-            PaymentV2::InboundOfferReusable(_) => None,
-            PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(_) => None,
-            PaymentV2::OutboundSpontaneous(_) => None,
-        }
-    }
-
-    /// Returns the transaction, if there is one.
-    /// Always [`Some`] for on-chain sends and receives.
-    pub fn tx(&self) -> Option<&bitcoin::Transaction> {
-        match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { tx, .. }) => Some(tx),
-            PaymentV2::OnchainReceive(OnchainReceiveV2 { tx, .. }) =>
-                Some(tx.as_ref()),
-            PaymentV2::InboundInvoice(_) => None,
-            PaymentV2::InboundOfferReusable(_) => None,
-            PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(_) => None,
-            PaymentV2::OutboundSpontaneous(_) => None,
-        }
-    }
-
-    /// Returns the txid of the replacement tx, if there is one.
-    pub fn replacement_txid(&self) -> Option<LxTxid> {
-        match &self.payment {
-            PaymentV2::OnchainSend(_) => self.metadata.replacement_txid,
-            PaymentV2::OnchainReceive(_) => self.metadata.replacement_txid,
-            PaymentV2::InboundInvoice(_) => None,
-            PaymentV2::InboundOfferReusable(_) => None,
-            PaymentV2::InboundSpontaneous(_) => None,
-            PaymentV2::OutboundInvoice(_) => None,
-            PaymentV2::OutboundOffer(_) => None,
-            PaymentV2::OutboundSpontaneous(_) => None,
-        }
-    }
-
-    /// The amount of this payment.
-    ///
-    /// - If this is a completed inbound invoice payment, we return the amount
-    ///   we received.
-    /// - If this is a pending or failed inbound inbound invoice payment, we
-    ///   return the amount encoded in our invoice, which may be null.
-    /// - For all other payment types, an amount is always returned.
-    // TODO(max): Remove fn once all matching is removed
-    pub fn amount(&self) -> Option<Amount> {
-        match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { amount, .. }) =>
-                Some(*amount),
-            PaymentV2::OnchainReceive(OnchainReceiveV2 { amount, .. }) =>
-                Some(*amount),
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                invoice_amount,
-                recvd_amount,
-                ..
-            }) => recvd_amount.or(*invoice_amount),
-            PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV2 { amount, .. },
-            ) => Some(*amount),
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV2 {
-                amount,
-                ..
-            }) => Some(*amount),
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
-                amount,
-                ..
-            }) => Some(*amount),
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                amount, ..
-            }) => Some(*amount),
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
-                amount,
-                ..
-            }) => Some(*amount),
-        }
-    }
-
-    /// The fees paid or expected to be paid for this payment.
-    pub fn fees(&self) -> Amount {
-        match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { fees, .. }) => *fees,
-            // We don't pay anything to receive money onchain
-            PaymentV2::OnchainReceive(OnchainReceiveV2 { .. }) => Amount::ZERO,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                skimmed_fee,
-                ..
-            }) => skimmed_fee.unwrap_or(Amount::ZERO),
-            PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV2 { skimmed_fee, .. },
-            ) => skimmed_fee.unwrap_or(Amount::ZERO),
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV2 {
-                skimmed_fee,
-                ..
-            }) => skimmed_fee.unwrap_or(Amount::ZERO),
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
-                routing_fee,
-                ..
-            }) => *routing_fee,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                routing_fee,
-                ..
-            }) => *routing_fee,
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
-                routing_fee,
-                ..
-            }) => *routing_fee,
-        }
-    }
-
-    /// Set the payment note to a new value.
-    pub fn set_note(&mut self, note: Option<String>) {
-        self.metadata.note = note;
-    }
-
-    /// When this payment was completed or failed.
-    pub fn finalized_at(&self) -> Option<TimestampMs> {
-        match &self.payment {
-            PaymentV2::OnchainSend(OnchainSendV2 { finalized_at, .. }) =>
-                *finalized_at,
-            PaymentV2::OnchainReceive(OnchainReceiveV2 {
-                finalized_at,
-                ..
-            }) => *finalized_at,
-            PaymentV2::InboundInvoice(InboundInvoicePaymentV2 {
-                finalized_at,
-                ..
-            }) => *finalized_at,
-            PaymentV2::InboundOfferReusable(
-                InboundOfferReusablePaymentV2 { finalized_at, .. },
-            ) => *finalized_at,
-            PaymentV2::InboundSpontaneous(InboundSpontaneousPaymentV2 {
-                finalized_at,
-                ..
-            }) => *finalized_at,
-            PaymentV2::OutboundInvoice(OutboundInvoicePaymentV2 {
-                finalized_at,
-                ..
-            }) => *finalized_at,
-            PaymentV2::OutboundOffer(OutboundOfferPaymentV2 {
-                finalized_at,
-                ..
-            }) => *finalized_at,
-            PaymentV2::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
-                finalized_at,
-                ..
-            }) => *finalized_at,
         }
     }
 }
@@ -729,6 +551,41 @@ impl PaymentV2 {
         }
     }
 
+    /// Returns the id of the BOLT12 offer associated with this payment, if
+    /// there is one.
+    pub fn offer_id(&self) -> Option<LxOfferId> {
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(_) => None,
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
+                offer_id,
+                ..
+            }) => Some(*offer_id),
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(_) => None,
+            Self::OutboundOffer(OutboundOfferPaymentV2 {
+                offer_id, ..
+            }) => Some(*offer_id),
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
+    /// Returns the original txid, if there is one.
+    pub fn txid(&self) -> Option<LxTxid> {
+        match self {
+            PaymentV2::OnchainSend(OnchainSendV2 { txid, .. }) => Some(*txid),
+            PaymentV2::OnchainReceive(OnchainReceiveV2 { txid, .. }) =>
+                Some(*txid),
+            PaymentV2::InboundInvoice(_) => None,
+            PaymentV2::InboundOfferReusable(_) => None,
+            PaymentV2::InboundSpontaneous(_) => None,
+            PaymentV2::OutboundInvoice(_) => None,
+            PaymentV2::OutboundOffer(_) => None,
+            PaymentV2::OutboundSpontaneous(_) => None,
+        }
+    }
+
     /// Whether this is an onchain payment, LN invoice payment, etc.
     pub fn kind(&self) -> PaymentKind {
         match self {
@@ -754,6 +611,75 @@ impl PaymentV2 {
             Self::OutboundInvoice(_) => PaymentDirection::Outbound,
             Self::OutboundOffer(_) => PaymentDirection::Outbound,
             Self::OutboundSpontaneous(_) => PaymentDirection::Outbound,
+        }
+    }
+
+    /// The amount of this payment.
+    ///
+    /// - If this is a completed inbound invoice payment, we return the amount
+    ///   we received.
+    /// - If this is a pending or failed inbound inbound invoice payment, we
+    ///   return the amount encoded in our invoice, which may be null.
+    /// - For all other payment types, an amount is always returned.
+    pub fn amount(&self) -> Option<Amount> {
+        match self {
+            Self::OnchainSend(OnchainSendV2 { amount, .. }) => Some(*amount),
+            Self::OnchainReceive(OnchainReceiveV2 { amount, .. }) =>
+                Some(*amount),
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
+                invoice_amount,
+                recvd_amount,
+                ..
+            }) => recvd_amount.or(*invoice_amount),
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
+                amount,
+                ..
+            }) => Some(*amount),
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
+                amount,
+                ..
+            }) => Some(*amount),
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
+                amount, ..
+            }) => Some(*amount),
+            Self::OutboundOffer(OutboundOfferPaymentV2 { amount, .. }) =>
+                Some(*amount),
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
+                amount,
+                ..
+            }) => Some(*amount),
+        }
+    }
+
+    /// The fees paid or expected to be paid for this payment.
+    pub fn fee(&self) -> Amount {
+        match self {
+            Self::OnchainSend(OnchainSendV2 { fees, .. }) => *fees,
+            // We don't pay anything to receive money onchain
+            Self::OnchainReceive(OnchainReceiveV2 { .. }) => Amount::ZERO,
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
+                skimmed_fee,
+                ..
+            }) => skimmed_fee.unwrap_or(Amount::ZERO),
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
+                skimmed_fee,
+                ..
+            }) => skimmed_fee.unwrap_or(Amount::ZERO),
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
+                skimmed_fee,
+                ..
+            }) => skimmed_fee.unwrap_or(Amount::ZERO),
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
+                routing_fee,
+                ..
+            }) => *routing_fee,
+            Self::OutboundOffer(OutboundOfferPaymentV2 {
+                routing_fee, ..
+            }) => *routing_fee,
+            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV2 {
+                routing_fee,
+                ..
+            }) => *routing_fee,
         }
     }
 
@@ -817,6 +743,23 @@ impl PaymentV2 {
                 status,
                 ..
             }) => status.as_str(),
+        }
+    }
+
+    /// Returns the transaction, if there is one.
+    /// Always [`Some`] for on-chain sends and receives.
+    pub fn tx(&self) -> Option<Arc<bitcoin::Transaction>> {
+        match self {
+            PaymentV2::OnchainSend(OnchainSendV2 { tx, .. }) =>
+                Some(tx.clone()),
+            PaymentV2::OnchainReceive(OnchainReceiveV2 { tx, .. }) =>
+                Some(tx.clone()),
+            PaymentV2::InboundInvoice(_) => None,
+            PaymentV2::InboundOfferReusable(_) => None,
+            PaymentV2::InboundSpontaneous(_) => None,
+            PaymentV2::OutboundInvoice(_) => None,
+            PaymentV2::OutboundOffer(_) => None,
+            PaymentV2::OutboundSpontaneous(_) => None,
         }
     }
 
@@ -892,6 +835,32 @@ impl PaymentV2 {
                 ..
             }) => field.get_or_insert(created_at),
         };
+    }
+
+    /// When this payment expires.
+    ///
+    /// For invoices, this is the invoice expiry time. For offers, this is the
+    /// offer's absolute expiry time. Returns `None` if the payment type does
+    /// not have an expiration or if the expiry timestamp overflows.
+    pub fn expires_at(&self) -> Option<TimestampMs> {
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
+                expires_at,
+                ..
+            }) => *expires_at,
+            Self::InboundOfferReusable(_) => None,
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
+                expires_at,
+                ..
+            }) => *expires_at,
+            Self::OutboundOffer(OutboundOfferPaymentV2 {
+                expires_at, ..
+            }) => *expires_at,
+            Self::OutboundSpontaneous(_) => None,
+        }
     }
 
     /// When this payment was completed or failed.
@@ -1129,6 +1098,25 @@ impl OutboundSpontaneousPaymentStatus {
             Self::Completed => "completed",
             Self::Failed => "failed",
         }
+    }
+}
+
+#[cfg(test)]
+mod arbitrary_helpers {
+    use std::sync::Arc;
+
+    use proptest::{option, prelude::any, strategy::Strategy};
+
+    use super::*;
+
+    pub fn any_option_arc_invoice()
+    -> impl Strategy<Value = Option<Arc<LxInvoice>>> {
+        option::of(any::<LxInvoice>()).prop_map(|opt| opt.map(Arc::new))
+    }
+
+    pub fn any_option_arc_offer() -> impl Strategy<Value = Option<Arc<LxOffer>>>
+    {
+        option::of(any::<LxOffer>()).prop_map(|opt| opt.map(Arc::new))
     }
 }
 

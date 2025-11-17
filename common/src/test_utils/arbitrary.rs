@@ -8,6 +8,7 @@ use std::{
     collections::HashSet,
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     ops::RangeInclusive,
+    sync::Arc,
     time::Duration,
 };
 
@@ -524,6 +525,25 @@ pub fn any_mainnet_addr() -> impl Strategy<Value = Address> {
 pub fn any_mainnet_addr_unchecked()
 -> impl Strategy<Value = Address<NetworkUnchecked>> {
     any_mainnet_addr().prop_map(|addr| addr.into_unchecked())
+}
+
+pub fn any_arc_mainnet_addr_unchecked()
+-> impl Strategy<Value = Arc<Address<NetworkUnchecked>>> {
+    any_mainnet_addr_unchecked().prop_map(Arc::new)
+}
+
+pub fn any_option_arc_mainnet_addr_unchecked()
+-> impl Strategy<Value = Option<Arc<Address<NetworkUnchecked>>>> {
+    option::of(any_arc_mainnet_addr_unchecked())
+}
+
+pub fn any_arc_raw_tx() -> impl Strategy<Value = Arc<bitcoin::Transaction>> {
+    any_raw_tx().prop_map(Arc::new)
+}
+
+pub fn any_option_arc_raw_tx()
+-> impl Strategy<Value = Option<Arc<bitcoin::Transaction>>> {
+    option::of(any_arc_raw_tx())
 }
 
 /// Generate an on-chain confirmations value that's in a reasonable range more

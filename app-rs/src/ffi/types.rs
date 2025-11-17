@@ -433,10 +433,10 @@ impl From<&BasicPaymentV2Rs> for Payment {
             offer: payment.offer.as_deref().map(Offer::from),
 
             txid: payment.txid.map(|txid| txid.to_string()),
-            replacement: payment.replacement.map(|txid| txid.to_string()),
+            replacement: payment.replacement_txid.map(|txid| txid.to_string()),
 
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),
-            fees_sat: payment.fees.sats_u64(),
+            fees_sat: payment.fee.sats_u64(),
 
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),

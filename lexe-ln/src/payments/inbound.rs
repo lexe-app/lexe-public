@@ -1,9 +1,10 @@
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, sync::Arc};
 
 use anyhow::{Context, anyhow, ensure};
 use common::{ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     invoice::LxInvoice,
+    offer::LxOffer,
     payments::{
         LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
         LxPaymentSecret, PaymentKind,
@@ -174,6 +175,7 @@ pub struct OfferClaimCtx {
     // is present.
     pub claim_id: LnClaimId,
     pub offer_id: LxOfferId,
+    pub offer: Option<Arc<LxOffer>>,
     pub quantity: Option<NonZeroU64>,
     pub payer_note: Option<String>,
     // TODO(phlip9): use newtype
@@ -185,6 +187,7 @@ impl LnClaimCtx {
         purpose: PaymentPurpose,
         hash: LxPaymentHash,
         claim_id: Option<LnClaimId>,
+        offer: Option<LxOffer>,
     ) -> anyhow::Result<Self> {
         let no_preimage_msg = "We should always let LDK handle payment preimages for us by \
              always using `ChannelManager::create_inbound_payment` instead of \
@@ -229,6 +232,7 @@ impl LnClaimCtx {
                     preimage,
                     claim_id,
                     offer_id,
+                    offer: offer.map(Arc::new),
                     quantity,
                     payer_note,
                     payer_name,
@@ -385,7 +389,7 @@ impl InboundInvoicePaymentV2 {
         let metadata = PaymentMetadata {
             id: iip.id(),
             address: None,
-            invoice: Some(invoice),
+            invoice: Some(Arc::new(invoice)),
             offer: None,
             priority: None,
             quantity: None,
@@ -591,7 +595,7 @@ impl InboundInvoicePaymentV2 {
         // If not expired yet, do nothing.
         let is_expired = self
             .expires_at
-            .map(|expires_at| now > expires_at)
+            .map(|expires_at| expires_at < now)
             .unwrap_or(false);
         if !is_expired {
             return None;
@@ -710,7 +714,7 @@ impl InboundOfferReusablePaymentV2 {
             id: iorp.id(),
             address: None,
             invoice: None,
-            offer: None,
+            offer: ctx.offer,
             priority: None,
             quantity: ctx.quantity,
             replacement_txid: None,

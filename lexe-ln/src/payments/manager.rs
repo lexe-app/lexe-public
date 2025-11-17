@@ -408,7 +408,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .await
             .context("Could not get payment to update note")?
             .context("Payment not found")?;
-        pwm.set_note(update.note);
+        pwm.metadata.note = update.note;
 
         // Persist
         let persisted = self
@@ -448,9 +448,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimable");
 
+        // TODO(max): Get offer from out-of-line storage
+        let offer = None;
+
         // The conversion can only fail if the preimage is unknown.
-        let claim_ctx =
-            LnClaimCtx::new(purpose, hash, claim_id).inspect_err(|_| {
+        let claim_ctx = LnClaimCtx::new(purpose, hash, claim_id, offer)
+            .inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
                     &hash.into(),
                     FailureCode::IncorrectOrUnknownPaymentDetails,
@@ -581,7 +584,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimed");
-        let claim_ctx = LnClaimCtx::new(purpose, hash, claim_id)?;
+
+        // TODO(max): Get offer from out-of-line storage
+        let offer = None;
+        let claim_ctx = LnClaimCtx::new(purpose, hash, claim_id, offer)?;
 
         let mut locked_data = self.data.lock().await;
 
@@ -1619,6 +1625,7 @@ mod test {
                 preimage: iorp.preimage,
                 claim_id: iorp.claim_id,
                 offer_id: iorp.offer_id,
+                offer: None,
                 quantity: None,
                 payer_note: None,
                 payer_name: None,

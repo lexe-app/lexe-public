@@ -1,4 +1,4 @@
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
@@ -49,7 +49,7 @@ use crate::{
 pub struct OutboundInvoicePaymentV1 {
     /// The invoice given by our recipient which we want to pay.
     // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
-    pub invoice: Box<LxInvoice>,
+    pub invoice: Arc<LxInvoice>,
     /// The payment hash encoded in the invoice.
     pub hash: LxPaymentHash,
     /// The payment secret encoded in the invoice.
@@ -113,7 +113,7 @@ impl From<OutboundInvoicePaymentV1>
         let metadata = PaymentMetadata {
             id: v1.id(),
             address: None,
-            invoice: Some(*v1.invoice),
+            invoice: Some(v1.invoice),
             offer: None,
             priority: None,
             quantity: None,
@@ -163,7 +163,6 @@ impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
 
         let invoice = invoice.context("Missing invoice")?;
         let created_at = created_at.context("Missing created_at")?;
-        let invoice = Box::new(invoice);
 
         Ok(Self {
             invoice,
@@ -197,7 +196,7 @@ pub struct OutboundOfferPaymentV1 {
     pub cid: ClientPaymentId,
     /// The offer we're paying.
     // LxOffer is ~568 bytes, Box to avoid the enum variant lint
-    pub offer: Box<LxOffer>,
+    pub offer: Arc<LxOffer>,
     /// The payment hash encoded in the BOLT12 invoice. Since we don't fetch
     /// the BOLT12 invoice before registering the offer payment, this field
     /// is populated iff. the status is `Completed`.
@@ -241,11 +240,13 @@ impl From<OutboundOfferPaymentV1>
     for PaymentWithMetadata<OutboundOfferPaymentV2>
 {
     fn from(v1: OutboundOfferPaymentV1) -> Self {
+        let offer_id = v1.offer.id();
         let expires_at = v1.offer.expires_at();
         let payment = OutboundOfferPaymentV2 {
             client_id: v1.cid,
             hash: v1.hash,
             preimage: v1.preimage,
+            offer_id,
             amount: v1.amount,
             routing_fee: v1.fees,
             status: v1.status,
@@ -258,7 +259,7 @@ impl From<OutboundOfferPaymentV1>
             id: v1.id(),
             address: None,
             invoice: None,
-            offer: Some(*v1.offer),
+            offer: Some(v1.offer),
             priority: None,
             quantity: v1.quantity,
             replacement_txid: None,
@@ -284,6 +285,7 @@ impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
             client_id: cid,
             hash,
             preimage,
+            offer_id: _,
             amount,
             routing_fee: fees,
             status,
@@ -307,7 +309,6 @@ impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
 
         let offer = offer.context("Missing offer")?;
         let created_at = created_at.context("Missing created_at")?;
-        let offer = Box::new(offer);
 
         Ok(Self {
             cid,
@@ -499,7 +500,7 @@ pub(crate) mod arb {
                 let preimage = (status == Completed).then_some(preimage);
                 let hash = invoice.payment_hash();
                 let secret = invoice.payment_secret();
-                let invoice = Box::new(invoice);
+                let invoice = Arc::new(invoice);
                 let failure = (status == Failed).then_some(failure);
                 let created_at: TimestampMs = created_at; // provides type hint
                 let finalized_at = created_at.saturating_add(finalized_after);
@@ -544,7 +545,7 @@ pub(crate) mod arb {
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
             let cid = any::<ClientPaymentId>();
-            let offer = any::<Box<LxOffer>>();
+            let offer = any::<LxOffer>().prop_map(Arc::new);
             let preimage = any::<LxPaymentPreimage>();
 
             let amount = any::<Amount>();
