@@ -1,8 +1,12 @@
-use std::{num::NonZeroU64, sync::Arc};
+#[cfg(test)]
+use std::num::NonZeroU64;
+use std::sync::Arc;
 
 use anyhow::Context;
+#[cfg(test)]
+use common::ln::priority::ConfirmationPriority;
 use common::{
-    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    ln::{amount::Amount, hashes::LxTxid},
     time::TimestampMs,
 };
 use lexe_api::types::{
@@ -428,6 +432,7 @@ impl PaymentV1 {
     }
 
     /// Returns the expiry time for invoice or offer payments.
+    #[cfg(test)]
     pub fn expires_at(&self) -> Option<TimestampMs> {
         match self {
             Self::OnchainSend(_) => None,
@@ -461,6 +466,7 @@ impl PaymentV1 {
     }
 
     /// Returns the on-chain transaction if this is an onchain payment.
+    #[cfg(test)]
     pub fn tx(&self) -> Option<Arc<bitcoin::Transaction>> {
         match self {
             Self::OnchainSend(OnchainSendV1 { tx, .. }) => Some(tx.clone()),
@@ -645,33 +651,6 @@ impl PaymentV1 {
         .map(|s| s.as_str())
     }
 
-    /// Set the payment note to a new value.
-    pub fn set_note(&mut self, note: Option<String>) {
-        let mut_ref_note: &mut Option<String> = match self {
-            Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
-            Self::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,
-            Self::InboundInvoice(InboundInvoicePaymentV1 { note, .. }) => note,
-            Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
-                note,
-                ..
-            }) => note,
-            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
-                note,
-                ..
-            }) => note,
-            Self::OutboundInvoice(OutboundInvoicePaymentV1 {
-                note, ..
-            }) => note,
-            Self::OutboundOffer(OutboundOfferPaymentV1 { note, .. }) => note,
-            Self::OutboundSpontaneous(OutboundSpontaneousPaymentV1 {
-                note,
-                ..
-            }) => note,
-        };
-
-        *mut_ref_note = note;
-    }
-
     /// When this payment was created.
     pub fn created_at(&self) -> TimestampMs {
         match self {
@@ -739,6 +718,7 @@ impl PaymentV1 {
     }
 
     /// Get the confirmation priority for onchain send payments.
+    #[cfg(test)]
     pub fn priority(&self) -> Option<ConfirmationPriority> {
         match self {
             Self::OnchainSend(OnchainSendV1 { priority, .. }) =>
@@ -748,6 +728,7 @@ impl PaymentV1 {
     }
 
     /// Get the quantity (number of items purchased) for offer payments.
+    #[cfg(test)]
     pub fn quantity(&self) -> Option<NonZeroU64> {
         match self {
             Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
@@ -762,6 +743,7 @@ impl PaymentV1 {
     }
 
     /// Get the payer-provided note for inbound offer reusable payments.
+    #[cfg(test)]
     pub fn payer_note(&self) -> Option<&str> {
         match self {
             Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
@@ -775,6 +757,7 @@ impl PaymentV1 {
     }
 
     /// Get the payer name for inbound offer reusable payments.
+    #[cfg(test)]
     pub fn payer_name(&self) -> Option<&str> {
         match self {
             Self::InboundOfferReusable(InboundOfferReusablePaymentV1 {
@@ -793,6 +776,7 @@ mod test {
     use std::{fs, path::Path};
 
     use common::{
+        aes::AesMasterKey,
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
@@ -801,6 +785,7 @@ mod test {
     };
 
     use super::*;
+    use crate::payments;
 
     /// During migration, we need to maintain the invariant that
     /// `PaymentV1 -> PaymentWithMetadata -> PaymentV1` is lossless, as we are
@@ -837,7 +822,7 @@ mod test {
     }
 
     #[test]
-    fn low_level_payments_serde_roundtrips() {
+    fn v1_subtypes_serde_roundtrips() {
         use roundtrip::json_value_custom;
         let config = Config::with_cases(16);
         json_value_custom(any::<OnchainSendV1>(), config.clone());
@@ -853,6 +838,35 @@ mod test {
         json_value_custom(any::<OutboundInvoicePaymentV1>(), config.clone());
         json_value_custom(any::<OutboundOfferPaymentV1>(), config.clone());
         json_value_custom(any::<OutboundSpontaneousPaymentV1>(), config);
+    }
+
+    #[test]
+    fn payment_v1_encryption_roundtrip() {
+        proptest!(|(
+            mut rng in any::<FastRng>(),
+            vfs_master_key in any::<AesMasterKey>(),
+            p1_v1 in any::<PaymentV1>(),
+            now in any::<TimestampMs>(),
+        )| {
+            let pwm = PaymentWithMetadata::from(p1_v1.clone());
+            let p1 = pwm.payment.clone();
+
+            let created_at = p1.created_at().unwrap_or(now);
+            let updated_at = now;
+
+            let encrypted = payments::encrypt_v1(
+                &mut rng,
+                &vfs_master_key,
+                &pwm,
+                created_at,
+                updated_at,
+            )
+            .unwrap();
+            let p2 = payments::decrypt_v1(&vfs_master_key, encrypted.data)
+                .map(|pwm| pwm.payment)
+                .unwrap();
+            prop_assert_eq!(p1, p2);
+        })
     }
 
     /// Dumps a JSON array of `Payment`s using the proptest strategy.
@@ -935,7 +949,7 @@ mod test {
     }
 
     #[test]
-    fn test_payment_snapshots() {
+    fn payment_v1_snapshot_test() {
         let snapshot_path = Path::new("data/payment-snapshot.v1.json");
         let snapshot = fs::read_to_string(snapshot_path)
             .expect("Failed to read payment snapshot");

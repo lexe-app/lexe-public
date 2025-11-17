@@ -143,10 +143,11 @@ pub struct PaymentWithMetadata<P = PaymentV2> {
 #[cfg_attr(test, derive(Arbitrary))]
 // TODO(max): This should derive Serialize and Deserialize, but we hold off for
 // now as we don't want to accidentally serialize using this type while we're
-// still migrating all logic.
+// locking down the serialization format.
 // TODO(max): Figure out how `class` should be represented before committing to
 // the PaymentV2 serialization scheme. Perhaps the payment should be a tagged
 // enum, like `struct PaymentV2 { payment: PaymentEnum, class: PaymentClass }`?
+// TODO(max): Gen and inspect sample data before committing to serialization
 #[cfg_attr(test, derive(Serialize, Deserialize))]
 pub enum PaymentV2 {
     OnchainSend(OnchainSendV2),
@@ -1121,10 +1122,9 @@ mod arbitrary_helpers {
 
 #[cfg(test)]
 mod test {
-    use std::cmp;
+    use std::{cmp, fs, path::Path};
 
     use common::{
-        aes::AesMasterKey,
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
@@ -1134,41 +1134,13 @@ mod test {
     };
 
     use super::*;
-    use crate::payments::{self, v1::PaymentV1};
 
     #[test]
     fn payment_serde_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<PaymentV2>();
     }
 
-    #[test]
-    fn payment_encryption_roundtrip() {
-        proptest!(|(
-            mut rng in any::<FastRng>(),
-            vfs_master_key in any::<AesMasterKey>(),
-            p1_v1 in any::<PaymentV1>(),
-            now in any::<TimestampMs>(),
-        )| {
-            let pwm = PaymentWithMetadata::from(p1_v1.clone());
-            let p1 = pwm.payment.clone();
-
-            let created_at = p1.created_at().unwrap_or(now);
-            let updated_at = now;
-
-            let encrypted = payments::encrypt_v1(
-                &mut rng,
-                &vfs_master_key,
-                &pwm,
-                created_at,
-                updated_at,
-            )
-            .unwrap();
-            let p2 = payments::decrypt_v1(&vfs_master_key, encrypted.data)
-                .map(|pwm| pwm.payment)
-                .unwrap();
-            prop_assert_eq!(p1, p2);
-        })
-    }
+    // TODO(max): Add encryption roundtrips for v2 types
 
     #[test]
     fn payment_id_equivalence() {
@@ -1187,6 +1159,25 @@ mod test {
             };
             prop_assert_eq!(id, payment.id());
         });
+    }
+
+    #[test]
+    fn v2_subtypes_serde_roundtrips() {
+        use roundtrip::json_value_custom;
+        let config = Config::with_cases(16);
+        json_value_custom(any::<OnchainSendV2>(), config.clone());
+        json_value_custom(any::<OnchainReceiveV2>(), config.clone());
+        // TODO(max): Add SpliceIn
+        // TODO(max): Add SpliceOut
+        json_value_custom(any::<InboundInvoicePaymentV2>(), config.clone());
+        json_value_custom(
+            any::<InboundOfferReusablePaymentV2>(),
+            config.clone(),
+        );
+        json_value_custom(any::<InboundSpontaneousPaymentV2>(), config.clone());
+        json_value_custom(any::<OutboundInvoicePaymentV2>(), config.clone());
+        json_value_custom(any::<OutboundOfferPaymentV2>(), config.clone());
+        json_value_custom(any::<OutboundSpontaneousPaymentV2>(), config);
     }
 
     /// Dumps a JSON array of `Payment`s using the proptest strategy.
@@ -1279,7 +1270,7 @@ mod test {
     // serialization format.
     #[test]
     #[ignore]
-    fn gen_basic_payment_sample_data() {
+    fn take_basic_payment_v2_snapshot() {
         let mut rng = FastRng::from_u64(202503031636);
         const N: usize = 3;
 
@@ -1359,5 +1350,16 @@ mod test {
                 println!("{json}");
             }
         }
+    }
+
+    // TODO(max): Enable snapshot test after v2 serialization format finalized.
+    #[ignore]
+    #[test]
+    fn payment_v2_snapshot_test() {
+        let snapshot_path = Path::new("data/payment-snapshot.v2.json");
+        let snapshot = fs::read_to_string(snapshot_path)
+            .expect("Failed to read payment snapshot");
+        serde_json::from_str::<Vec<PaymentV2>>(&snapshot)
+            .expect("Failed to deserialize payment snapshot");
     }
 }

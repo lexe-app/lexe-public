@@ -999,8 +999,7 @@ impl InboundSpontaneousPaymentV2 {
 mod arbitrary_impl {
     use common::test_utils::arbitrary;
     use lexe_api::types::{
-        invoice::arbitrary_impl::LxInvoiceParams,
-        payments::{LxPaymentPreimage, PaymentStatus},
+        invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
     };
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
@@ -1030,9 +1029,8 @@ mod arbitrary_impl {
             let skimmed_fee = any::<Amount>();
             let sender_intended_amount = any::<Amount>();
             let status = any_with::<InboundInvoicePaymentStatus>(pending_only);
-            // TODO(max): Use option::of once created_at is always set on first
-            // persist. For now, we generate payments as if already persisted.
-            let created_at = any::<TimestampMs>();
+            let maybe_created_at = any::<Option<TimestampMs>>();
+            let created_at_fallback = any::<TimestampMs>();
             let finalized_after = arbitrary::any_duration();
 
             let gen_iip = move |(
@@ -1042,7 +1040,8 @@ mod arbitrary_impl {
                 skimmed_fee,
                 sender_intended_amount,
                 status,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )| {
                 use InboundInvoicePaymentStatus::*;
@@ -1069,15 +1068,18 @@ mod arbitrary_impl {
                     InvoiceGenerated | Expired | Claiming => None,
                     Completed => Some(sender_intended_amount),
                 };
-                let created_at: TimestampMs = created_at; // provides type hint
+
+                // If finalized, ensure created_at and finalized_at are set
+                let maybe_created_at: Option<TimestampMs> = maybe_created_at;
+                let created_at = matches!(status, Completed | Expired)
+                    .then(|| maybe_created_at.unwrap_or(created_at_fallback));
+
                 let finalized_at = if pending_only {
                     None
                 } else {
-                    let finalized_at =
-                        created_at.saturating_add(finalized_after);
-                    PaymentStatus::from(status)
-                        .is_finalized()
-                        .then_some(finalized_at)
+                    created_at
+                        .map(|ts| ts.saturating_add(finalized_after))
+                        .filter(|_| matches!(status, Completed | Expired))
                 };
 
                 InboundInvoicePaymentV2 {
@@ -1092,7 +1094,7 @@ mod arbitrary_impl {
                     // TODO(phlip9): it looks like we don't implement this yet
                     onchain_fee: None,
                     status,
-                    created_at: Some(created_at),
+                    created_at,
                     expires_at,
                     finalized_at,
                 }
@@ -1105,7 +1107,8 @@ mod arbitrary_impl {
                 sender_intended_amount,
                 skimmed_fee,
                 status,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )
                 .prop_map(gen_iip)
@@ -1146,9 +1149,8 @@ mod arbitrary_impl {
             let skimmed_fee = any::<Amount>();
             let status =
                 any_with::<InboundOfferReusablePaymentStatus>(pending_only);
-            // TODO(max): Use option::of once created_at is always set on first
-            // persist. For now, we generate payments as if already persisted.
-            let created_at = any::<TimestampMs>();
+            let maybe_created_at = any::<Option<TimestampMs>>();
+            let created_at_fallback = any::<TimestampMs>();
             let finalized_after = arbitrary::any_duration();
 
             let gen_iorp = move |(
@@ -1159,7 +1161,8 @@ mod arbitrary_impl {
                 sender_intended_amount,
                 skimmed_fee,
                 status,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )| {
                 use InboundOfferReusablePaymentStatus::*;
@@ -1170,15 +1173,17 @@ mod arbitrary_impl {
                 };
                 let skimmed_fee = Some(skimmed_fee);
 
-                let created_at: TimestampMs = created_at; // provides type hint
+                // If finalized, ensure created_at and finalized_at are set
+                let maybe_created_at: Option<TimestampMs> = maybe_created_at;
+                let created_at = matches!(status, Completed)
+                    .then(|| maybe_created_at.unwrap_or(created_at_fallback));
+
                 let finalized_at = if pending_only {
                     None
                 } else {
-                    let finalized_at =
-                        created_at.saturating_add(finalized_after);
-                    PaymentStatus::from(status)
-                        .is_finalized()
-                        .then_some(finalized_at)
+                    created_at
+                        .map(|ts| ts.saturating_add(finalized_after))
+                        .filter(|_| matches!(status, Completed))
                 };
 
                 InboundOfferReusablePaymentV2 {
@@ -1190,7 +1195,7 @@ mod arbitrary_impl {
                     skimmed_fee,
                     onchain_fee: None,
                     status,
-                    created_at: Some(created_at),
+                    created_at,
                     finalized_at,
                 }
             };
@@ -1203,7 +1208,8 @@ mod arbitrary_impl {
                 sender_intended_amount,
                 skimmed_fee,
                 status,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )
                 .prop_map(gen_iorp)
@@ -1241,9 +1247,8 @@ mod arbitrary_impl {
             let skimmed_fee = any::<Amount>();
             let status =
                 any_with::<InboundSpontaneousPaymentStatus>(pending_only);
-            // TODO(max): Use option::of once created_at is always set on first
-            // persist. For now, we generate payments as if already persisted.
-            let created_at = any::<TimestampMs>();
+            let maybe_created_at = any::<Option<TimestampMs>>();
+            let created_at_fallback = any::<TimestampMs>();
             let finalized_after = arbitrary::any_duration();
 
             let gen_isp = move |(
@@ -1253,7 +1258,8 @@ mod arbitrary_impl {
                 sender_intended_amount,
                 skimmed_fee,
                 status,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )| {
                 use InboundSpontaneousPaymentStatus::*;
@@ -1264,15 +1270,17 @@ mod arbitrary_impl {
                 };
                 let skimmed_fee = Some(skimmed_fee);
 
-                let created_at: TimestampMs = created_at; // provides type hint
+                // If finalized, ensure created_at and finalized_at are set
+                let maybe_created_at: Option<TimestampMs> = maybe_created_at;
+                let created_at = matches!(status, Completed)
+                    .then(|| maybe_created_at.unwrap_or(created_at_fallback));
+
                 let finalized_at = if pending_only {
                     None
                 } else {
-                    let finalized_at =
-                        created_at.saturating_add(finalized_after);
-                    PaymentStatus::from(status)
-                        .is_finalized()
-                        .then_some(finalized_at)
+                    created_at
+                        .map(|ts| ts.saturating_add(finalized_after))
+                        .filter(|_| matches!(status, Completed))
                 };
 
                 InboundSpontaneousPaymentV2 {
@@ -1283,7 +1291,7 @@ mod arbitrary_impl {
                     skimmed_fee,
                     onchain_fee: None,
                     status,
-                    created_at: Some(created_at),
+                    created_at,
                     finalized_at,
                 }
             };
@@ -1295,7 +1303,8 @@ mod arbitrary_impl {
                 sender_intended_amount,
                 skimmed_fee,
                 status,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )
                 .prop_map(gen_isp)
@@ -1325,12 +1334,11 @@ mod arbitrary_impl {
 mod test {
     use common::{
         rng::FastRng,
-        test_utils::{arbitrary, roundtrip, snapshot},
+        test_utils::{arbitrary, roundtrip},
     };
     use proptest::arbitrary::any;
 
     use super::*;
-    use crate::payments::v1::PaymentV1;
 
     #[test]
     fn status_json_backwards_compat() {
@@ -1349,35 +1357,6 @@ mod test {
         roundtrip::json_unit_enum_backwards_compat::<
             InboundSpontaneousPaymentStatus,
         >(expected_ser);
-    }
-
-    #[test]
-    fn inbound_invoice_deser_compat() {
-        let inputs = r#"
---- node-v0.0.0+
---- InvoiceGenerated
-{"InboundInvoice":{"invoice":"lnbc7363509714019145550p1fh8xlrthp5y0ud564d7780074s2pllju2ap7jns0pfqtta9aku6t8mhwvm0j8qpp576k5h3sgt39apacz2ur7k9p50ghhjnvahmtkwuejp2309nrpwsgssp5p3wwm4cmm3a3j6uwaayhuawqf4lf290md8wjmdhpse8p9785sa3q9qyysgqcqrkyf3yxm6n8qklnqh4e3vud7wnx3rp3759up5kc3dulnvz84a0ws25qp0kh8ayymarg8qjn2cawytgztul68vf8s6zscu4x5jfpu03du2qsql3n0ea","hash":"f6ad4bc6085c4bd0f7025707eb14347a2f794d9dbed76773320aa2f2cc617411","secret":"0c5cedd71bdc7b196b8eef497e75c04d7e9515fb69dd2db6e1864e12f8f48762","preimage":"3338296898b6b57ff4bd3526977fd6bc433e5678779334bc4720239fa34214d4","invoice_amount":"736350971401914.555","recvd_amount":null,"onchain_fees":null,"status":"invoice_generated","note":null,"created_at":2395485827019270500,"finalized_at":null}}
---- Claiming
-{"InboundInvoice":{"invoice":"lnbcrt14315814875280385750p1jjk2hgxhp59f9glq0mx9xw3yvec466jjrd445rxgefj4h72agwfglale6fkl3spp5q8g0z3rpe2f6tgenkc8e0yymfdvdppt9fvsjj4kweytpz49lvzwssp5e3jdlpgvqm5jy8ffarzp4a8qgqzyrantvefdn0p9navpn88dz82q9q2sqqqqqysgqcqrr48r9yqfteetvkhuv5pc2un4605raj7zdvn055vkkpmpsvl24s04mzcvleg2m6z6mjqw93ndyaw3ufq8j8t2hkkgp60tuhjmh54h2mxygrcyquapr40gs43rad3k3thjnymarjndcl3hhwrvp4dk3vg5027gw4s6z28t596upqmrvl3n0k6hu97p97lhsu73k4jt7yn6wqmcjjxaagggeg8h2s0jxvkgx3qfgzztzuvcsn6y7je33awak9kdsmtlj29aqf25rggt582cc8tx83r0qlnwef6etnzfws9zffd7553yxl2azn5k89fwqj4a4f7tgn5xflm2q60d6zth32h5v9yaa8qyzezgmsfkn7g44gzmn9km7scd0jgm4etgpkhcq2u","hash":"01d0f14461ca93a5a333b60f97909b4b58d085654b212956cec9161154bf609d","secret":"cc64df850c06e9221d29e8c41af4e0400441f66b6652d9bc259f58199ced11d4","preimage":"780a5c91bb7dc7e6dc531cc6fc5560108e00a41b26cb4c5635fffea620589cf6","invoice_amount":"1431581487528038.575","recvd_amount":"631803834701528.778","onchain_fees":null,"status":"claiming","note":null,"created_at":1543439437847952694,"finalized_at":null}}
---- Expired
-{"InboundInvoice":{"invoice":"lntb14e0n6q4dz9xumhjup3x9j9xw26wpq5563s2dzkcdm0wuck5v35wfk8qj6kxsurz3m9xfg8yj2rwserzpp5yzwmvkcq55hdfrvjhptswwzgpw0lx9jj7s6pwpsp8pgsd885sspqsp5rzvqgh4e767pj5sw82qdy5a8hha92j8wmaa5khtjt2jype525qvs9qyysgqcqre32r9yq2y0jqz9nstk27c7khlytgt8tvffelnxmv3390uc9k9wl487p20sxew42s3m0hq8hpegg3tr5u53n5qdsypndt8h348355z546tprdkn94hlxdgrp9ggnsksqa7e96tl38k8rdggjxhykujewj6u2auydhc5r3dctfvsr4fmq4cj9hjqdgfykv4eqeujlgldu5tlkzwm3zg8gdm67kr6p8hhy63kwt85rxga2ktu4lkmzkf222udt44y37utqrkfe206wlyyu3sq285nms","hash":"209db65b00a52ed48d92b8570738480b9ff31652f4341706013851069cf48402","secret":"1898045eb9f6bc19520e3a80d253a7bdfa5548eedf7b4b5d725aa440e68aa019","preimage":"11ecd0c5af67c11fd03036c91b30a95db2ec97b2dd2ac4b8da39865215ed745a","invoice_amount":null,"recvd_amount":"1549527423313541.737","onchain_fees":null,"status":"expired","note":null,"created_at":5209058120350254120,"finalized_at":9223372036854775807}}
---- Completed
-{"InboundInvoice":{"invoice":"lntbs575933122507938450p17zdsk3uhp5hkwcx7t29pmgr9a9c2qapr994ag7fn920mz7zvs98nu20wzcgv5spp5yuq7s8fl6j56vga6806en6zvwyq28xyfx75y0v5dtuf9rau3h4gqsp5l4r892flu83tmc5apkvyrcsz5ems5222wc6wyq5m35kmxgx32kss9qyysgqcqypu4jxq8lllllllr9yqgz2dq9lhhxfau7kq0gdvm2trf0kf8th9va2flzrxvcjrwfep0zvaajemp576zdx2jhdktt3cxravhqa5qpjmfdwf49g3vakzf64t0ulppsx5c058rmsmeprtjyq7h976r4grn2mpa03xcp42yw655h4cz9pcauwcrjs6pac02yjg0hy4dy7k6eekd5vpv423u70ypp738zc8m3ze7m56d255vn96n5dugkmww32adexzx9kvk9hy8s46ngx8f6dxc4mxvas5vgptckxsl","hash":"2701e81d3fd4a9a623ba3bf599e84c7100a3988937a847b28d5f1251f791bd50","secret":"fd4672a93fe1e2bde29d0d9841e202a6770a294a7634e2029b8d2db320d155a1","preimage":"1e444fb7d12ca78ef4028adc85fd0e50f4ad51a8c12df6362a68fad4e5f60d39","invoice_amount":"57593312250793.845","recvd_amount":"57593312250793.845","onchain_fees":null,"status":"completed","note":"ZTCC2PqaX1yiZNOhvyaF618obYh0c3lGX3G5aAMf0a87pw420f4O078RKAn53C2E1hMKc1b","created_at":7040449765819823150,"finalized_at":9223372036854775807}}
-
---- node-v0.7.6+ (added `claim_id`)
---- InvoiceGenerated
-{"InboundInvoice":{"invoice":"lnbcrt18u4v0srhp5wvppc0lzl5hwytyjnkrv2qt9wwd04mhq4dsszk0q4a4z08my8knqpp5w603ulvghptxqaye9kdpcwlc3gr8cgtz5f2cws98vz56r4g2em0qsp57jvfzy0quadxwx3hux08kjnnfjlm0s2kvxp85q4v96pmhj84mzgs9q2sqqqqqysgqcqypxw4xq8lllllllfppj85qaamls8cyxwrecnq9t9aq9m8zkmlvdrzjqwvdsp6qwz0ftva6adlm4gr8e4kfskr44ww6ptccszlwn306znm6jw3209q0jzdkmpk2npd2r2jk7l4jkcmz9smrd76hmrvrzrtazawttxh7n9ey6ga52edl5nfsaa2eyzfscm9hejlnqqrw64cuwdd2lu76fjcdhgpnlxnd57wzkkz5vv4eaexup4n6exhqhfuz29mv9d4dar0n39cx35w5lj6sfyd5jlpdml4879sq33na6g2gz9luc5xcjyp8sq09jk99","hash":"769f1e7d88b8566074992d9a1c3bf88a067c2162a2558740a760a9a1d50acede","secret":"f4989111e0e75a671a37e19e7b4a734cbfb7c15661827a02ac2e83bbc8f5d891","preimage":"1988fb2aab608204d17d080fc1d76d85d5f531798806a8e86b74f5389ed181fc","claim_id":null,"invoice_amount":null,"recvd_amount":null,"onchain_fees":null,"status":"invoice_generated","note":null,"created_at":5241944617002661841,"finalized_at":null}}
---- Claiming
-{"InboundInvoice":{"invoice":"lntbs1ae0a83xhp5au9297ru6q4xchg4lac28kye2g4q8hkgj7zvzyrrvsz66uwuxqcqpp5z72avxg3x8neawwdytn7ku8g66ce79lvh3gzpd8lewg2pc4xdv3ssp5yn055esfwlahzcuaauw9kl5vrl4yzqj43s2zax4ly0fd7umkvnvq9qyysgqcqr9ttxq8lllllllfppj0t2jszfk3jtgjywd88v9plh5alcw950xrw8a4xcskq7xfvez42ynpkzgp5l92uc4dfjpukt77vsnnnk4wfqhxc3scd6jeuskzgwsecgtmzlvzducs7elggadq00vx6ltxujjxgqqkxw9es","hash":"1795d6191131e79eb9cd22e7eb70e8d6b19f17ecbc5020b4ffcb90a0e2a66b23","secret":"24df4a660977fb71639def1c5b7e8c1fea4102558c142e9abf23d2df737664d8","preimage":"0884a7153b88f6d08ec3dde69194176ac5ad2603caa6d66b9f2ffc827ae612b6","claim_id":"57f343039ffcea30c88299a724004ca22d3768256cc270448e97e95aab21a5ca","invoice_amount":null,"recvd_amount":"2075834311210901.218","onchain_fees":null,"status":"claiming","note":"0ewI4M536oYousi883jcreYK16HR7TI0YD7SmWEewDy45E19o56DKXo4BfUE4xo6F9ujLzP8Su9BSloA06RlP3Jr3MpT3U","created_at":7029197943395314647,"finalized_at":null}}
---- Expired
-{"InboundInvoice":{"invoice":"lnbc1n24v3n2d258ye4su33ff4rsjr0tgm45vr5fd25sjenwaz9gdmjw9cnzazg2eax2e6twprnyve4fejx24rcwp2rzdes23unzdektym8yjjrdpqkz4mng98ygkn4v9yn2dr3wfeywdfs2ym8xne4fqe42u2kxfhkgc2x8p95cv6nw56hsmfsve9njjpkdd5yujzh2qmnwmtzxs68gjz22fdx6n2s8q64ya20xftxjnp5tgunwen0d924gwr8gaynxa2ktpnnw4jgxat9q4p5g9h45u6s2efy6vn4t9cngdrh8pmhgdfk8pnky5628qukwdttx3jrwvrv89r8yvtkgve42necd9aqpp53utvcugefqkf60yzf3004n8s7rkc0cwsdqgypjumt62g0hsys4kssp59akhrcy7prcy5hx296gmwjh7xjyc48ke49ml2vczaz7ck8m8853s9qyysgqcqypa2sxq8lllllllnp4qvlcj2ex0xlfq0pa7sxh9ezu5uk4q8ke0kcght4z27jsydf3vs3eyr9yqwhs5u4yu5wfnrpdqstlk5m99my0sfheachgcgs7rkunyvhxxse6mzwwy6wy35qqsxadz97f62n266q4espquua7tnr4kfthzp2k88tqap582hpnfshk3sdgq29x97gart8hh4x70w6eqvrakvd2hn7zge7zk5a0hlyqwgjgcct5yxhltqggr8srg4w8v8zpksvk3d4g234nz6ukdh3j0sqjlcnkrt357zk824mulaj32s9gtc8at2hfnssdad8p8up5t7yfpssp5s0s2e","hash":"8f16cc7119482c9d3c824c5efaccf0f0ed87e1d0681040cb9b5e9487de04856d","secret":"2f6d71e09e08f04a5cca2e91b74afe34898a9ed9a977f53302e8bd8b1f673d23","preimage":"f0370488ee0641fbc4b52a8fb84e7936d05e48bad7c8fa46cdbd28679009befd","claim_id":null,"invoice_amount":null,"recvd_amount":null,"onchain_fees":null,"status":"expired","note":null,"created_at":5811472625401499252,"finalized_at":9223372036854775807}}
---- Completed
-{"InboundInvoice":{"invoice":"lntb107pekvhdzzv93nxn6w09zrq3zw24t9qdr9x9pnsetytp6nqepeffnx6dn6vah8vnpjfueycmm3wcpp5qcu9tkc4x6usl7jkftumlfcfvqsxyan3q9xqrg3gd8k6kfxkyr3qsp5s05y9zkmkf8xmuh3rwtc5fek8h232420qtqy8u2za8ng7apuffdq9q2sqqqqqysgqcqrap2xq8lllllllmpvkk3knlldp0fagwrnazjt6v6zlt028jcdnml44sh3srlskm7gq72w30wzexjqs4fpael458uav02x9lramk36rjduu20zmp858wwcztv6ulmkgq2t6rg7ptwfyly9m9s33whfq7e3ffjvg8ha7tsqad9c5w","hash":"063855db1536b90ffa564af9bfa7096020627671014c01a22869edab24d620e2","secret":"83e8428adbb24e6df2f11b978a27363dd515554f02c043f142e9e68f743c4a5a","preimage":"26071074a14d199cb7a59b2453376d8f428d226d6bc9649778ec5173a8b65c27","claim_id":"5853c5f40d1836b90f41b491442218df896737303a3bd9c7ef02b41b50b7b764","invoice_amount":null,"recvd_amount":"1184154582399605.725","onchain_fees":null,"status":"completed","note":null,"created_at":1789018149910939233,"finalized_at":9223372036854775807}}
-"#;
-        for input in snapshot::parse_sample_data(inputs) {
-            let iip: PaymentV1 = serde_json::from_str(input).unwrap();
-            let _ = serde_json::to_string(&iip).unwrap();
-        }
     }
 
     #[ignore]

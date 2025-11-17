@@ -1405,7 +1405,7 @@ impl PaymentsData {
 }
 
 #[cfg(test)]
-mod arb {
+mod arbitrary_impl {
     use proptest::{
         arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},

@@ -781,9 +781,8 @@ pub(crate) mod arbitrary_impl {
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
             let failure = any::<LxOutboundPaymentFailure>();
-            // TODO(max): Use option::of once created_at is always set on first
-            // persist. For now, we generate payments as if already persisted.
-            let created_at = any::<TimestampMs>();
+            let maybe_created_at = any::<Option<TimestampMs>>();
+            let created_at_fallback = any::<TimestampMs>();
             let finalized_after = arbitrary::any_duration();
 
             let gen_oip = move |(
@@ -792,7 +791,8 @@ pub(crate) mod arbitrary_impl {
                 amount,
                 routing_fee,
                 failure_val,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )| {
                 use OutboundInvoicePaymentStatus::*;
@@ -803,10 +803,19 @@ pub(crate) mod arbitrary_impl {
                 let secret = invoice.payment_secret();
                 let expires_at = invoice.saturating_expires_at();
                 let failure = (status == Failed).then_some(failure_val);
-                let created_at: TimestampMs = created_at; // provides type hint
-                let finalized_at = created_at.saturating_add(finalized_after);
-                let finalized_at = matches!(status, Completed | Failed)
-                    .then_some(finalized_at);
+
+                // If finalized, ensure created_at and finalized_at are set
+                let maybe_created_at: Option<TimestampMs> = maybe_created_at;
+                let created_at = matches!(status, Completed | Failed)
+                    .then(|| maybe_created_at.unwrap_or(created_at_fallback));
+
+                let finalized_at = if pending_only {
+                    None
+                } else {
+                    created_at
+                        .map(|ts| ts.saturating_add(finalized_after))
+                        .filter(|_| matches!(status, Completed | Failed))
+                };
 
                 OutboundInvoicePaymentV2 {
                     hash,
@@ -816,7 +825,7 @@ pub(crate) mod arbitrary_impl {
                     routing_fee,
                     status,
                     failure,
-                    created_at: Some(created_at),
+                    created_at,
                     expires_at: Some(expires_at),
                     finalized_at,
                 }
@@ -828,7 +837,8 @@ pub(crate) mod arbitrary_impl {
                 amount,
                 routing_fee,
                 failure,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )
                 .prop_map(gen_oip)
@@ -872,9 +882,8 @@ pub(crate) mod arbitrary_impl {
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
             let failure = any::<LxOutboundPaymentFailure>();
-            // TODO(max): Use option::of once created_at is always set on first
-            // persist. For now, we generate payments as if already persisted.
-            let created_at = any::<TimestampMs>();
+            let maybe_created_at = any::<Option<TimestampMs>>();
+            let created_at_fallback = any::<TimestampMs>();
             let expires_at = any::<Option<TimestampMs>>();
             let finalized_after = arbitrary::any_duration();
 
@@ -886,7 +895,8 @@ pub(crate) mod arbitrary_impl {
                 amount,
                 routing_fee,
                 failure,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 expires_at,
                 finalized_after,
             )| {
@@ -896,10 +906,19 @@ pub(crate) mod arbitrary_impl {
                     .then_some(preimage.compute_hash());
                 let preimage = (status == Completed).then_some(preimage);
                 let failure = (status == Failed).then_some(failure);
-                let created_at: TimestampMs = created_at; // provides type hint
-                let finalized_at = created_at.saturating_add(finalized_after);
-                let finalized_at = matches!(status, Completed | Failed)
-                    .then_some(finalized_at);
+
+                // If finalized, ensure created_at and finalized_at are set
+                let maybe_created_at: Option<TimestampMs> = maybe_created_at;
+                let created_at = matches!(status, Completed | Failed)
+                    .then(|| maybe_created_at.unwrap_or(created_at_fallback));
+
+                let finalized_at = if pending_only {
+                    None
+                } else {
+                    created_at
+                        .map(|ts| ts.saturating_add(finalized_after))
+                        .filter(|_| matches!(status, Completed | Failed))
+                };
 
                 OutboundOfferPaymentV2 {
                     client_id,
@@ -910,7 +929,7 @@ pub(crate) mod arbitrary_impl {
                     routing_fee,
                     status,
                     failure,
-                    created_at: Some(created_at),
+                    created_at,
                     expires_at,
                     finalized_at,
                 }
@@ -924,7 +943,8 @@ pub(crate) mod arbitrary_impl {
                 amount,
                 routing_fee,
                 failure,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 expires_at,
                 finalized_after,
             )
@@ -966,9 +986,8 @@ pub(crate) mod arbitrary_impl {
             let preimage = any::<LxPaymentPreimage>();
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
-            // TODO(max): Use option::of once created_at is always set on first
-            // persist. For now, we generate payments as if already persisted.
-            let created_at = any::<TimestampMs>();
+            let maybe_created_at = any::<Option<TimestampMs>>();
+            let created_at_fallback = any::<TimestampMs>();
             let finalized_after = arbitrary::any_duration();
 
             let gen_osp = move |(
@@ -976,17 +995,27 @@ pub(crate) mod arbitrary_impl {
                 preimage,
                 amount,
                 routing_fee,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )| {
                 use OutboundSpontaneousPaymentStatus::*;
 
                 let preimage: LxPaymentPreimage = preimage; // provides type hint
                 let hash = preimage.compute_hash();
-                let created_at: TimestampMs = created_at; // provides type hint
-                let finalized_at = created_at.saturating_add(finalized_after);
-                let finalized_at = matches!(status, Completed | Failed)
-                    .then_some(finalized_at);
+
+                // If finalized, ensure created_at and finalized_at are set
+                let maybe_created_at: Option<TimestampMs> = maybe_created_at;
+                let created_at = matches!(status, Completed | Failed)
+                    .then(|| maybe_created_at.unwrap_or(created_at_fallback));
+
+                let finalized_at = if pending_only {
+                    None
+                } else {
+                    created_at
+                        .map(|ts| ts.saturating_add(finalized_after))
+                        .filter(|_| matches!(status, Completed | Failed))
+                };
 
                 OutboundSpontaneousPaymentV2 {
                     hash,
@@ -994,7 +1023,7 @@ pub(crate) mod arbitrary_impl {
                     amount,
                     routing_fee,
                     status,
-                    created_at: Some(created_at),
+                    created_at,
                     finalized_at,
                 }
             };
@@ -1004,7 +1033,8 @@ pub(crate) mod arbitrary_impl {
                 preimage,
                 amount,
                 routing_fee,
-                created_at,
+                maybe_created_at,
+                created_at_fallback,
                 finalized_after,
             )
                 .prop_map(gen_osp)
