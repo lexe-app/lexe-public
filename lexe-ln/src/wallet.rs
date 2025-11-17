@@ -972,7 +972,7 @@ impl LexeWallet {
         req: PayOnchainRequest,
         network: LxNetwork,
     ) -> anyhow::Result<PaymentWithMetadata<OnchainSendV2>> {
-        let (tx, fees) = {
+        let (tx, onchain_fee) = {
             let mut locked_wallet = self.inner.write().unwrap();
 
             let address = req
@@ -995,8 +995,8 @@ impl LexeWallet {
                 .context("Failed to build onchain send tx")?;
 
             // Extract fees
-            let fee = psbt.fee().context("Bad PSBT fee")?;
-            let fee_amount = Amount::try_from_sats_u64(fee.to_sat())
+            let bitcoin_fee = psbt.fee().context("Bad PSBT fee")?;
+            let fee = Amount::try_from_sats_u64(bitcoin_fee.to_sat())
                 .context("Bad fee amount")?;
 
             // Sign tx
@@ -1004,11 +1004,11 @@ impl LexeWallet {
                 .context("Could not sign outbound tx")?;
             let tx = psbt.extract_tx().context("Could not extract tx")?;
 
-            (tx, fee_amount)
+            (tx, fee)
         };
         self.trigger_persist();
 
-        Ok(OnchainSendV2::new(tx, req, fees))
+        Ok(OnchainSendV2::new(tx, req, onchain_fee))
     }
 
     /// Estimate the network fee for a potential onchain send payment. We return

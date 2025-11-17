@@ -391,6 +391,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let status_str = self.payment.status_str().to_owned();
         let amount = self.payment.amount();
         let fee = self.payment.fee();
+        let channel_fee = self.payment.channel_fee();
         let tx = self.payment.tx();
         let expires_at = self.payment.expires_at();
         let finalized_at = self.payment.finalized_at();
@@ -413,6 +414,7 @@ impl PaymentWithMetadata<PaymentV2> {
             txid,
             amount,
             fee,
+            channel_fee,
             status,
             status_str,
             address,
@@ -654,7 +656,8 @@ impl PaymentV2 {
     /// The fees paid or expected to be paid for this payment.
     pub fn fee(&self) -> Amount {
         match self {
-            Self::OnchainSend(OnchainSendV2 { fees, .. }) => *fees,
+            Self::OnchainSend(OnchainSendV2 { onchain_fee, .. }) =>
+                *onchain_fee,
             // We don't pay anything to receive money onchain
             Self::OnchainReceive(OnchainReceiveV2 { .. }) => Amount::ZERO,
             Self::InboundInvoice(InboundInvoicePaymentV2 {
@@ -680,6 +683,31 @@ impl PaymentV2 {
                 routing_fee,
                 ..
             }) => *routing_fee,
+        }
+    }
+
+    /// The portion of the skimmed amount that was used to cover the on-chain
+    /// fees incurred by a JIT channel opened to receive this payment.
+    /// None if no channel fees were incurred.
+    pub fn channel_fee(&self) -> Amount {
+        match self {
+            Self::OnchainSend(_) => Amount::ZERO,
+            Self::OnchainReceive(_) => Amount::ZERO,
+            Self::InboundInvoice(InboundInvoicePaymentV2 {
+                channel_fee,
+                ..
+            }) => channel_fee.unwrap_or(Amount::ZERO),
+            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
+                channel_fee,
+                ..
+            }) => channel_fee.unwrap_or(Amount::ZERO),
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
+                channel_fee,
+                ..
+            }) => channel_fee.unwrap_or(Amount::ZERO),
+            Self::OutboundInvoice(_) => Amount::ZERO,
+            Self::OutboundOffer(_) => Amount::ZERO,
+            Self::OutboundSpontaneous(_) => Amount::ZERO,
         }
     }
 

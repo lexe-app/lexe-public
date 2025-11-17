@@ -326,7 +326,7 @@ pub struct InboundInvoicePaymentV2 {
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
     // TODO(max): Currently not used; implement
-    pub onchain_fee: Option<Amount>,
+    pub channel_fee: Option<Amount>,
 
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
@@ -379,7 +379,7 @@ impl InboundInvoicePaymentV2 {
             recvd_amount: None,
             sender_intended_amount: None,
             skimmed_fee: None,
-            onchain_fee: None,
+            channel_fee: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
             created_at: None,
             expires_at,
@@ -662,7 +662,7 @@ pub struct InboundOfferReusablePaymentV2 {
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
     // TODO(max): Currently not used; implement
-    pub onchain_fee: Option<Amount>,
+    pub channel_fee: Option<Amount>,
 
     /// The current payment status.
     pub status: InboundOfferReusablePaymentStatus,
@@ -704,7 +704,7 @@ impl InboundOfferReusablePaymentV2 {
             amount,
             sender_intended_amount: None,
             skimmed_fee,
-            onchain_fee: None,
+            channel_fee: None,
             status: InboundOfferReusablePaymentStatus::Claiming,
             created_at: None,
             finalized_at: None,
@@ -850,7 +850,7 @@ pub struct InboundSpontaneousPaymentV2 {
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
     // TODO(max): Currently not used; implement
-    pub onchain_fee: Option<Amount>,
+    pub channel_fee: Option<Amount>,
 
     /// The current status of the payment.
     pub status: InboundSpontaneousPaymentStatus,
@@ -893,7 +893,7 @@ impl InboundSpontaneousPaymentV2 {
             amount,
             sender_intended_amount: None,
             skimmed_fee,
-            onchain_fee: None,
+            channel_fee: None,
             status: InboundSpontaneousPaymentStatus::Claiming,
             created_at: None,
             finalized_at: None,
@@ -1092,7 +1092,7 @@ mod arbitrary_impl {
                     sender_intended_amount,
                     skimmed_fee,
                     // TODO(phlip9): it looks like we don't implement this yet
-                    onchain_fee: None,
+                    channel_fee: None,
                     status,
                     created_at,
                     expires_at,
@@ -1193,7 +1193,7 @@ mod arbitrary_impl {
                     amount,
                     sender_intended_amount,
                     skimmed_fee,
-                    onchain_fee: None,
+                    channel_fee: None,
                     status,
                     created_at,
                     finalized_at,
@@ -1289,7 +1289,7 @@ mod arbitrary_impl {
                     amount,
                     sender_intended_amount,
                     skimmed_fee,
-                    onchain_fee: None,
+                    channel_fee: None,
                     status,
                     created_at,
                     finalized_at,

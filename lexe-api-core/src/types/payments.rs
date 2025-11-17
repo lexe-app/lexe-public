@@ -88,10 +88,16 @@ pub struct BasicPaymentV2 {
     ///   payment completes, this value reflects actual fees paid.
     /// - For inbound Lightning payments, this is the skimmed fee, which may
     ///   also cover the on-chain fees incurred by a JIT channel open.
+    /// - For on-chain sends, this is the on-chain fee paid in the spending tx.
     // Renamed in node-v0.8.10.
     // Can be removed only after *all* payments have migrated to payments v2.
     #[serde(rename = "fees", alias = "fee")]
     pub fee: Amount,
+
+    /// (Inbound payments only) The portion of the skimmed amount that was used
+    /// to cover the on-chain fees incurred by a JIT channel opened to receive
+    /// this payment. Zero if no channel fees were incurred.
+    pub channel_fee: Amount,
 
     // --- Status --- //
     ///
@@ -222,7 +228,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 360);
+const_assert_mem_size!(BasicPaymentV2, 376);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -591,6 +597,7 @@ impl BasicPaymentV2 {
             txid: v1.txid,
             amount: v1.amount,
             fee: v1.fees,
+            channel_fee: Amount::ZERO,
             status: v1.status,
             status_str: v1.status_str,
             address: None,

@@ -310,6 +310,7 @@ impl PaymentV1 {
             txid: self.txid(),
             amount: self.amount(),
             fee: self.fees(),
+            channel_fee: self.channel_fee(),
             status: self.status(),
             status_str: self.status_str().to_owned(),
             address: None,
@@ -558,6 +559,27 @@ impl PaymentV1 {
                 fees,
                 ..
             }) => *fees,
+        }
+    }
+
+    /// The portion of the skimmed amount that was used to cover the on-chain
+    /// fees incurred by a JIT channel opened to receive this payment.
+    pub fn channel_fee(&self) -> Amount {
+        match self {
+            Self::OnchainSend(_) => Amount::ZERO,
+            Self::OnchainReceive(_) => Amount::ZERO,
+            Self::InboundInvoice(InboundInvoicePaymentV1 {
+                onchain_fees,
+                ..
+            }) => onchain_fees.unwrap_or(Amount::ZERO),
+            Self::InboundOfferReusable(_) => Amount::ZERO,
+            Self::InboundSpontaneous(InboundSpontaneousPaymentV1 {
+                onchain_fees,
+                ..
+            }) => onchain_fees.unwrap_or(Amount::ZERO),
+            Self::OutboundInvoice(_) => Amount::ZERO,
+            Self::OutboundOffer(_) => Amount::ZERO,
+            Self::OutboundSpontaneous(_) => Amount::ZERO,
         }
     }
 

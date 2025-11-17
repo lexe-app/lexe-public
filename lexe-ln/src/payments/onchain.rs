@@ -37,7 +37,7 @@ pub struct OnchainSendV2 {
     pub tx: Arc<bitcoin::Transaction>,
 
     pub amount: Amount,
-    pub fees: Amount,
+    pub onchain_fee: Amount,
 
     pub status: OnchainSendStatus,
 
@@ -97,7 +97,7 @@ impl OnchainSendV2 {
     pub fn new(
         tx: Transaction,
         req: PayOnchainRequest,
-        fees: Amount,
+        onchain_fee: Amount,
     ) -> PaymentWithMetadata<Self> {
         // Destructure to ensure we don't miss any fields.
         let PayOnchainRequest {
@@ -114,7 +114,7 @@ impl OnchainSendV2 {
             txid,
             tx: Arc::new(tx),
             amount,
-            fees,
+            onchain_fee,
             status: OnchainSendStatus::Created,
             created_at: None,
             finalized_at: None,
