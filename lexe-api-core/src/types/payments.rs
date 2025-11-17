@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    collections::HashSet,
     fmt::{self, Display},
     num::NonZeroU64,
     str::FromStr,
@@ -44,10 +45,13 @@ use crate::types::{invoice::LxInvoice, offer::LxOffer};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BasicPaymentV2 {
-    // --- Basic identifier and info fields --- //
+    // --- Identifier and basic info fields --- //
     ///
     /// Payment identifier; globally unique from the user's perspective.
     pub id: LxPaymentId,
+
+    /// The ids of payments related to this payment.
+    pub related_ids: HashSet<LxPaymentId>,
 
     /// Payment kind: onchain, invoice, offer, or spontaneous.
     pub kind: PaymentKind,
@@ -228,7 +232,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 376);
+const_assert_mem_size!(BasicPaymentV2, 424);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -591,6 +595,7 @@ impl BasicPaymentV2 {
     pub fn from_v1(v1: BasicPaymentV1, updated_at: TimestampMs) -> Self {
         Self {
             id: v1.index.id,
+            related_ids: HashSet::new(),
             kind: v1.kind,
             direction: v1.direction,
             offer_id: v1.offer_id,

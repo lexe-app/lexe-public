@@ -1,6 +1,6 @@
-#[cfg(test)]
-use std::num::NonZeroU64;
 use std::sync::Arc;
+#[cfg(test)]
+use std::{collections::HashSet, num::NonZeroU64};
 
 use anyhow::Context;
 #[cfg(test)]
@@ -304,6 +304,7 @@ impl PaymentV1 {
     ) -> lexe_api::types::payments::BasicPaymentV2 {
         lexe_api::types::payments::BasicPaymentV2 {
             id: self.id(),
+            related_ids: HashSet::new(),
             kind: self.kind(),
             direction: self.direction(),
             offer_id: self.offer_id(),

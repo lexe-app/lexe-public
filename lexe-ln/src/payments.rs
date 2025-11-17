@@ -3,7 +3,7 @@
 //! This module is the 'complex' counterpart to the simpler types exposed in
 //! [`lexe_api::types::payments`].
 
-use std::{num::NonZeroU64, sync::Arc};
+use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 use bitcoin::address::NetworkUnchecked;
@@ -176,8 +176,16 @@ const_assert_mem_size!(PaymentV2, 280);
 // still migrating all logic.
 #[cfg_attr(test, derive(Serialize, Deserialize))]
 pub struct PaymentMetadata {
+    // --- Identifier and basic info fields --- //
+    // -
+    /// Payment identifier; globally unique from the user's perspective.
     pub id: LxPaymentId,
 
+    /// The ids of payments related to this payment.
+    pub related_ids: HashSet<LxPaymentId>,
+
+    // --- Payment methods --- //
+    // -
     /// (On-chain send only) The address that we're sending to.
     #[cfg_attr(
         test,
@@ -201,6 +209,8 @@ pub struct PaymentMetadata {
     )]
     pub offer: Option<Arc<LxOffer>>,
 
+    // --- Notes and sender/receiver identifiers --- //
+    // -
     /// The payment note, private to the user.
     // Suppress useless unicode gibberish in tests.
     #[cfg_attr(
@@ -225,6 +235,8 @@ pub struct PaymentMetadata {
     )]
     pub payer_note: Option<String>,
 
+    // --- Other --- //
+    // -
     /// (On-chain send only) The confirmation priority used for this payment.
     pub priority: Option<ConfirmationPriority>,
 
@@ -236,29 +248,41 @@ pub struct PaymentMetadata {
 }
 
 // Debug the size_of `PaymentMetadata`
-const_assert_mem_size!(PaymentMetadata, 176);
+const_assert_mem_size!(PaymentMetadata, 224);
 
 /// An update to a [`PaymentMetadata`].
 #[must_use]
 #[derive(Debug, Default, PartialEq)]
 pub(crate) struct PaymentMetadataUpdate {
+    // --- Identifier and basic info fields --- //
+    // -
+    /// The ids of payments newly associated with this payment.
+    pub new_related_ids: HashSet<LxPaymentId>,
+
+    // TODO(max): Can keep this commented until we're sure we actually need it
+    // /// The ids of payments no longer associated with this payment.
+    // pub removed_related_ids: HashSet<LxPaymentId>,
+
+    // --- Payment methods --- //
     pub address: Option<Option<Arc<bitcoin::Address<NetworkUnchecked>>>>,
 
     pub invoice: Option<Option<Arc<LxInvoice>>>,
 
     pub offer: Option<Option<Arc<LxOffer>>>,
 
+    // --- Notes and sender/receiver identifiers --- //
+    pub note: Option<Option<String>>,
+
+    pub payer_name: Option<Option<String>>,
+
+    pub payer_note: Option<Option<String>>,
+
+    // --- Other --- //
     pub priority: Option<Option<ConfirmationPriority>>,
 
     pub quantity: Option<Option<NonZeroU64>>,
 
     pub replacement_txid: Option<Option<LxTxid>>,
-
-    pub note: Option<Option<String>>,
-
-    pub payer_note: Option<Option<String>>,
-
-    pub payer_name: Option<Option<String>>,
 }
 
 // --- Encryption --- //
@@ -396,6 +420,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let expires_at = self.payment.expires_at();
         let finalized_at = self.payment.finalized_at();
 
+        let related_ids = self.metadata.related_ids;
         let address = self.metadata.address;
         let invoice = self.metadata.invoice;
         let offer = self.metadata.offer;
@@ -408,6 +433,7 @@ impl PaymentWithMetadata<PaymentV2> {
 
         BasicPaymentV2 {
             id,
+            related_ids,
             kind,
             direction,
             offer_id,
@@ -442,15 +468,16 @@ impl PaymentMetadata {
     pub fn empty(id: LxPaymentId) -> Self {
         Self {
             id,
+            related_ids: HashSet::new(),
             address: None,
             invoice: None,
             offer: None,
+            note: None,
+            payer_name: None,
+            payer_note: None,
             priority: None,
             quantity: None,
             replacement_txid: None,
-            note: None,
-            payer_note: None,
-            payer_name: None,
         }
     }
 
@@ -461,26 +488,28 @@ impl PaymentMetadata {
         // error whenever we add another field
         let Self {
             id: _,
+            related_ids,
             address,
             invoice,
             offer,
+            note,
+            payer_name,
+            payer_note,
             priority,
             quantity,
             replacement_txid,
-            note,
-            payer_note,
-            payer_name,
         } = self;
 
-        address.is_none()
+        related_ids.is_empty()
+            && address.is_none()
             && invoice.is_none()
             && offer.is_none()
+            && note.is_none()
+            && payer_name.is_none()
+            && payer_note.is_none()
             && priority.is_none()
             && quantity.is_none()
             && replacement_txid.is_none()
-            && note.is_none()
-            && payer_note.is_none()
-            && payer_name.is_none()
     }
 
     /// Applies a metadata update to this [`PaymentMetadata`].
@@ -491,48 +520,62 @@ impl PaymentMetadata {
         // We intentionally destructure here to ensure we get a compilation
         // error whenever we add another field
         let PaymentMetadataUpdate {
+            new_related_ids,
             address,
             invoice,
             offer,
+            note,
+            payer_name,
+            payer_note,
             priority,
             quantity,
             replacement_txid,
-            note,
-            payer_note,
-            payer_name,
         } = update;
 
+        self.related_ids.extend(new_related_ids);
         self.address = address.unwrap_or(self.address);
         self.invoice = invoice.unwrap_or(self.invoice);
         self.offer = offer.unwrap_or(self.offer);
+        self.note = note.unwrap_or(self.note);
+        self.payer_name = payer_name.unwrap_or(self.payer_name);
+        self.payer_note = payer_note.unwrap_or(self.payer_note);
         self.priority = priority.unwrap_or(self.priority);
         self.quantity = quantity.unwrap_or(self.quantity);
         self.replacement_txid =
             replacement_txid.unwrap_or(self.replacement_txid);
-        self.note = note.unwrap_or(self.note);
-        self.payer_note = payer_note.unwrap_or(self.payer_note);
-        self.payer_name = payer_name.unwrap_or(self.payer_name);
 
         self
     }
 }
 
 impl PaymentMetadataUpdate {
-    const EMPTY: PaymentMetadataUpdate = PaymentMetadataUpdate {
-        address: None,
-        invoice: None,
-        offer: None,
-        priority: None,
-        quantity: None,
-        replacement_txid: None,
-        note: None,
-        payer_note: None,
-        payer_name: None,
-    };
-
     #[allow(dead_code)] // TODO(max): Remove
     pub fn is_empty(&self) -> bool {
-        self == &Self::EMPTY
+        // We intentionally destructure here to ensure we get a compilation
+        // error whenever we add another field
+        let Self {
+            new_related_ids,
+            address,
+            invoice,
+            offer,
+            note,
+            payer_name,
+            payer_note,
+            priority,
+            quantity,
+            replacement_txid,
+        } = self;
+
+        new_related_ids.is_empty()
+            && address.is_none()
+            && invoice.is_none()
+            && offer.is_none()
+            && note.is_none()
+            && payer_name.is_none()
+            && payer_note.is_none()
+            && priority.is_none()
+            && quantity.is_none()
+            && replacement_txid.is_none()
     }
 }
 

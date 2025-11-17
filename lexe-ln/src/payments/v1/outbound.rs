@@ -1,4 +1,4 @@
-use std::{num::NonZeroU64, sync::Arc};
+use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
@@ -112,6 +112,7 @@ impl From<OutboundInvoicePaymentV1>
         };
         let metadata = PaymentMetadata {
             id: v1.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: Some(v1.invoice),
             offer: None,
@@ -150,15 +151,16 @@ impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            related_ids: _,
             address: _,
             invoice,
             offer: _,
+            note,
+            payer_name: _,
+            payer_note: _,
             priority: _,
             quantity: _,
             replacement_txid: _,
-            note,
-            payer_note: _,
-            payer_name: _,
         } = pwm.metadata;
 
         let invoice = invoice.context("Missing invoice")?;
@@ -257,6 +259,7 @@ impl From<OutboundOfferPaymentV1>
         };
         let metadata = PaymentMetadata {
             id: v1.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: None,
             offer: Some(v1.offer),
@@ -296,15 +299,16 @@ impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            related_ids: _,
             address: _,
             invoice: _,
             offer,
+            note,
+            payer_name: _,
+            payer_note: _,
             priority: _,
             quantity,
             replacement_txid: _,
-            note,
-            payer_note: _,
-            payer_name: _,
         } = pwm.metadata;
 
         let offer = offer.context("Missing offer")?;
@@ -376,6 +380,7 @@ impl From<OutboundSpontaneousPaymentV1>
         };
         let metadata = PaymentMetadata {
             id: v1.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: None,
             offer: None,
@@ -410,15 +415,16 @@ impl TryFrom<PaymentWithMetadata<OutboundSpontaneousPaymentV2>>
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            related_ids: _,
             address: _,
             invoice: _,
             offer: _,
+            note,
+            payer_name: _,
+            payer_note: _,
             priority: _,
             quantity: _,
             replacement_txid: _,
-            note,
-            payer_note: _,
-            payer_name: _,
         } = pwm.metadata;
 
         let created_at = created_at.context("Missing created_at")?;

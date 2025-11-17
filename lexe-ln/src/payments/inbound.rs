@@ -1,4 +1,4 @@
-use std::{num::NonZeroU64, sync::Arc};
+use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::{Context, anyhow, ensure};
 use common::{ln::amount::Amount, time::TimestampMs};
@@ -388,6 +388,7 @@ impl InboundInvoicePaymentV2 {
 
         let metadata = PaymentMetadata {
             id: iip.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: Some(Arc::new(invoice)),
             offer: None,
@@ -712,6 +713,7 @@ impl InboundOfferReusablePaymentV2 {
 
         let metadata = PaymentMetadata {
             id: iorp.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: None,
             offer: ctx.offer,

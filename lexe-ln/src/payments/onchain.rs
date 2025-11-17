@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use anyhow::{Context, bail, ensure};
 use bitcoin::Transaction;
@@ -122,6 +122,7 @@ impl OnchainSendV2 {
 
         let metadata = PaymentMetadata {
             id: os.id(),
+            related_ids: HashSet::new(),
             address: Some(Arc::new(address)),
             invoice: None,
             offer: None,

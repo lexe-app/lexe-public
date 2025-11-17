@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use anyhow::Context;
 #[cfg(test)]
@@ -69,6 +69,7 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
         };
         let metadata = PaymentMetadata {
             id,
+            related_ids: HashSet::new(),
             address: None, // v1 doesn't store address separately
             invoice: None,
             offer: None,
@@ -103,15 +104,16 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            related_ids: _,
             address: _,
             invoice: _,
             offer: _,
+            note,
+            payer_name: _,
+            payer_note: _,
             priority,
             quantity: _,
             replacement_txid: replacement,
-            note,
-            payer_note: _,
-            payer_name: _,
         } = pwm.metadata;
 
         Ok(Self {
@@ -171,6 +173,7 @@ impl From<OnchainReceiveV1> for PaymentWithMetadata<OnchainReceiveV2> {
         };
         let metadata = PaymentMetadata {
             id: payment.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: None,
             offer: None,

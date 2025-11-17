@@ -1,4 +1,4 @@
-use std::{num::NonZeroU64, sync::Arc};
+use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 #[cfg(test)]
@@ -115,6 +115,7 @@ impl From<InboundInvoicePaymentV1>
         };
         let metadata = PaymentMetadata {
             id: v1.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: Some(v1.invoice),
             offer: None,
@@ -156,15 +157,16 @@ impl TryFrom<PaymentWithMetadata<InboundInvoicePaymentV2>>
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            related_ids: _,
             address: _,
             invoice,
             offer: _,
+            note,
+            payer_name: _,
+            payer_note: _,
             priority: _,
             quantity: _,
             replacement_txid: _,
-            note,
-            payer_note: _,
-            payer_name: _,
         } = pwm.metadata;
 
         Ok(Self {
@@ -258,6 +260,7 @@ impl From<InboundOfferReusablePaymentV1>
         };
         let metadata = PaymentMetadata {
             id: v1.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: None,
             offer: None,
@@ -296,15 +299,16 @@ impl TryFrom<PaymentWithMetadata<InboundOfferReusablePaymentV2>>
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            related_ids: _,
             address: _,
             invoice: _,
             offer: _,
+            note,
+            payer_name,
+            payer_note,
             priority: _,
             quantity,
             replacement_txid: _,
-            note,
-            payer_note,
-            payer_name,
         } = pwm.metadata;
 
         Ok(Self {
@@ -376,6 +380,7 @@ impl From<InboundSpontaneousPaymentV1>
         };
         let metadata = PaymentMetadata {
             id: v1.id(),
+            related_ids: HashSet::new(),
             address: None,
             invoice: None,
             offer: None,
@@ -413,6 +418,7 @@ impl TryFrom<PaymentWithMetadata<InboundSpontaneousPaymentV2>>
         } = pwm.payment;
         let PaymentMetadata {
             id: _,
+            related_ids: _,
             address: _,
             invoice: _,
             offer: _,
