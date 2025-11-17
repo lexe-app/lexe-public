@@ -72,12 +72,12 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
             address: None, // v1 doesn't store address separately
             invoice: None,
             offer: None,
+            note: v1.note,
+            payer_name: None,
+            payer_note: None,
             priority: Some(v1.priority),
             quantity: None,
             replacement_txid: v1.replacement,
-            note: v1.note,
-            payer_note: None,
-            payer_name: None,
         };
 
         Self { payment, metadata }
@@ -174,12 +174,12 @@ impl From<OnchainReceiveV1> for PaymentWithMetadata<OnchainReceiveV2> {
             address: None,
             invoice: None,
             offer: None,
+            note: v1.note,
+            payer_name: None,
+            payer_note: None,
             priority: None,
             quantity: None,
             replacement_txid: v1.replacement,
-            note: v1.note,
-            payer_note: None,
-            payer_name: None,
         };
 
         Self { payment, metadata }

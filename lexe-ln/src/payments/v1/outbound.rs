@@ -115,12 +115,12 @@ impl From<OutboundInvoicePaymentV1>
             address: None,
             invoice: Some(v1.invoice),
             offer: None,
+            note: v1.note,
+            payer_name: None,
+            payer_note: None,
             priority: None,
             quantity: None,
             replacement_txid: None,
-            note: v1.note,
-            payer_note: None,
-            payer_name: None,
         };
 
         Self { payment, metadata }
@@ -260,12 +260,12 @@ impl From<OutboundOfferPaymentV1>
             address: None,
             invoice: None,
             offer: Some(v1.offer),
+            note: v1.note,
+            payer_name: None,
+            payer_note: None,
             priority: None,
             quantity: v1.quantity,
             replacement_txid: None,
-            note: v1.note,
-            payer_note: None,
-            payer_name: None,
         };
 
         Self { payment, metadata }
@@ -379,12 +379,12 @@ impl From<OutboundSpontaneousPaymentV1>
             address: None,
             invoice: None,
             offer: None,
+            note: v1.note,
+            payer_name: None,
+            payer_note: None,
             priority: None,
             quantity: None,
             replacement_txid: None,
-            note: v1.note,
-            payer_note: None,
-            payer_name: None,
         };
 
         Self { payment, metadata }

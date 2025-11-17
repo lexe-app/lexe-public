@@ -46,10 +46,13 @@ use crate::types::{invoice::LxInvoice, offer::LxOffer};
 pub struct BasicPaymentV2 {
     // --- Basic identifier and info fields --- //
     ///
+    /// Payment identifier; globally unique from the user's perspective.
     pub id: LxPaymentId,
 
+    /// Payment kind: onchain, invoice, offer, or spontaneous.
     pub kind: PaymentKind,
 
+    /// Payment direction: inbound or outbound.
     pub direction: PaymentDirection,
 
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.

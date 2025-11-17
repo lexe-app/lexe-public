@@ -159,12 +159,12 @@ impl OutboundInvoicePaymentV2 {
             address: None,
             invoice: Some(Arc::new(invoice)),
             offer: None,
+            note,
+            payer_name: None,
+            payer_note: None,
             priority: None,
             quantity: None,
             replacement_txid: None,
-            note,
-            payer_note: None,
-            payer_name: None,
         };
 
         PaymentWithMetadata {
@@ -443,12 +443,12 @@ impl OutboundOfferPaymentV2 {
             address: None,
             invoice: None,
             offer: Some(Arc::new(offer)),
-            priority: None,
-            quantity,
-            replacement_txid: None,
             note,
             payer_name,
             payer_note,
+            priority: None,
+            quantity,
+            replacement_txid: None,
         };
 
         PaymentWithMetadata {

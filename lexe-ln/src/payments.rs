@@ -200,15 +200,6 @@ pub struct PaymentMetadata {
     )]
     pub offer: Option<Arc<LxOffer>>,
 
-    /// (On-chain send only) The confirmation priority used for this payment.
-    pub priority: Option<ConfirmationPriority>,
-
-    /// (Inbound offer reusable only) The number of items the payer bought.
-    pub quantity: Option<NonZeroU64>,
-
-    /// (Onchain payments only) The txid of the replacement tx, if one exists.
-    pub replacement_txid: Option<LxTxid>,
-
     /// The payment note, private to the user.
     // Suppress useless unicode gibberish in tests.
     #[cfg_attr(
@@ -216,6 +207,14 @@ pub struct PaymentMetadata {
         proptest(strategy = "option::of(Just(String::from(\"note\")))")
     )]
     pub note: Option<String>,
+
+    /// (Inbound offer reusable only)
+    /// The payer's self-reported human-readable name.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "option::of(Just(String::from(\"payer name\")))")
+    )]
+    pub payer_name: Option<String>,
 
     /// (Offers only) A payer-provided note for this payment.
     /// LDK truncates this to PAYER_NOTE_LIMIT bytes (512 B as of 2025-04-22).
@@ -225,13 +224,14 @@ pub struct PaymentMetadata {
     )]
     pub payer_note: Option<String>,
 
-    /// (Inbound offer reusable only)
-    /// The payer's self-reported human-readable name.
-    #[cfg_attr(
-        test,
-        proptest(strategy = "option::of(Just(String::from(\"payer name\")))")
-    )]
-    pub payer_name: Option<String>,
+    /// (On-chain send only) The confirmation priority used for this payment.
+    pub priority: Option<ConfirmationPriority>,
+
+    /// (Inbound offer reusable only) The number of items the payer bought.
+    pub quantity: Option<NonZeroU64>,
+
+    /// (Onchain payments only) The txid of the replacement tx, if one exists.
+    pub replacement_txid: Option<LxTxid>,
 }
 
 // Debug the size_of `PaymentMetadata`
@@ -265,12 +265,9 @@ pub(crate) struct PaymentMetadataUpdate {
 /// Serializes a given payment to JSON and encrypts the payment under the given
 /// [`AesMasterKey`], returning the [`DbPaymentV2`] which can be persisted.
 // TODO(max): Make infallible again once we use PaymentV2
-pub fn encrypt(
+pub fn encrypt_v1(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
-    // TODO(max): This should take only `&PaymentV2` once logic is migrated.
-    // There will also be a separate function `encrypt_metadata` which takes
-    // `&PaymentMetadata`.
     pwm: &PaymentWithMetadata,
     created_at: TimestampMs,
     updated_at: TimestampMs,
@@ -278,7 +275,7 @@ pub fn encrypt(
     // Serialize the payment as JSON bytes.
     let aad = &[];
     let data_size_hint = None;
-    // TODO(max): Update serialization to v2 once all logic is migrated.
+    // NOTE: This serializes using v1
     let payment_v1 = PaymentV1::try_from(pwm.clone())
         .context("Failed to convert payment to v1")?;
     let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|mut_vec_u8| {
@@ -300,10 +297,7 @@ pub fn encrypt(
 
 /// Given a [`DbPaymentV2::data`] (ciphertext), attempts to decrypt using the
 /// given [`AesMasterKey`], returning the deserialized [`PaymentV2`].
-// TODO(max): This should return only `PaymentV2` once logic is migrated.
-// There will also be a separate function `decrypt_metadata` which returns
-// `PaymentMetadata`.
-pub fn decrypt(
+pub fn decrypt_v1(
     vfs_master_key: &AesMasterKey,
     data: Vec<u8>,
 ) -> anyhow::Result<PaymentWithMetadata> {
@@ -312,11 +306,16 @@ pub fn decrypt(
         .decrypt(aad, data)
         .context("Could not decrypt Payment")?;
 
-    // TODO(max): Update deserialization to v2 once all logic is migrated.
+    // NOTE: This deserializes using v1
     serde_json::from_slice::<PaymentV1>(plaintext_bytes.as_slice())
         .map(PaymentWithMetadata::from)
         .context("Could not deserialize Payment")
 }
+
+// TODO(max): Add `encrypt_payment` which uses v2 types
+// TODO(max): Add `encrypt_metadata which uses v2 types
+// TODO(max): Add `decrypt_payment which uses v2 types
+// TODO(max): Add `decrypt_metadata which uses v2 types
 
 // --- Payment subtype -> top-level Payment type --- //
 
@@ -395,10 +394,10 @@ impl PaymentWithMetadata<PaymentV2> {
         let expires_at = self.payment.expires_at();
         let finalized_at = self.payment.finalized_at();
 
+        let address = self.metadata.address;
         let invoice = self.metadata.invoice;
         let offer = self.metadata.offer;
         let note = self.metadata.note;
-        let address = self.metadata.address;
         let payer_name = self.metadata.payer_name;
         let payer_note = self.metadata.payer_note;
         let priority = self.metadata.priority;
@@ -1156,7 +1155,7 @@ mod test {
             let created_at = p1.created_at().unwrap_or(now);
             let updated_at = now;
 
-            let encrypted = payments::encrypt(
+            let encrypted = payments::encrypt_v1(
                 &mut rng,
                 &vfs_master_key,
                 &pwm,
@@ -1164,7 +1163,7 @@ mod test {
                 updated_at,
             )
             .unwrap();
-            let p2 = payments::decrypt(&vfs_master_key, encrypted.data)
+            let p2 = payments::decrypt_v1(&vfs_master_key, encrypted.data)
                 .map(|pwm| pwm.payment)
                 .unwrap();
             prop_assert_eq!(p1, p2);

@@ -481,7 +481,7 @@ impl NodePersister {
             .context("Could not fetch `DbPaymentV1`s")?
             .payments
             .into_iter()
-            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
+            .map(|p| payments::decrypt_v1(&self.vfs_master_key, p.data))
             .map(|res| {
                 res.and_then(|pwm| {
                     PaymentV1::try_from(pwm)
@@ -509,8 +509,10 @@ impl NodePersister {
                     .context("Invalid created_at timestamp")?;
                 let updated_at = TimestampMs::try_from(db_payment.updated_at)
                     .context("Invalid updated_at timestamp")?;
-                let pwm =
-                    payments::decrypt(&self.vfs_master_key, db_payment.data)?;
+                let pwm = payments::decrypt_v1(
+                    &self.vfs_master_key,
+                    db_payment.data,
+                )?;
                 let basic_payment =
                     pwm.into_basic_payment(created_at, updated_at);
                 Ok(basic_payment)
@@ -534,8 +536,10 @@ impl NodePersister {
                     .context("Invalid created_at timestamp")?;
                 let updated_at = TimestampMs::try_from(db_payment.updated_at)
                     .context("Invalid updated_at timestamp")?;
-                let pwm =
-                    payments::decrypt(&self.vfs_master_key, db_payment.data)?;
+                let pwm = payments::decrypt_v1(
+                    &self.vfs_master_key,
+                    db_payment.data,
+                )?;
                 let basic_payment =
                     pwm.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
@@ -564,7 +568,7 @@ impl NodePersister {
                 let updated_at = TimestampMs::try_from(payment.updated_at)
                     .context("Invalid updated_at timestamp")?;
                 let pwm =
-                    payments::decrypt(&self.vfs_master_key, payment.data)?;
+                    payments::decrypt_v1(&self.vfs_master_key, payment.data)?;
                 let basic_payment =
                     pwm.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
@@ -780,7 +784,7 @@ impl LexeInnerPersister for NodePersister {
             .context("Could not fetch pending `DbPaymentV2`s")?
             .payments
             .into_iter()
-            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
+            .map(|p| payments::decrypt_v1(&self.vfs_master_key, p.data))
             .collect::<anyhow::Result<Vec<PaymentWithMetadata>>>()
     }
 
@@ -794,7 +798,7 @@ impl LexeInnerPersister for NodePersister {
         let now = TimestampMs::now();
         let created_at = pwm.payment.created_at().unwrap_or(now);
         let updated_at = now;
-        let db_payment = payments::encrypt(
+        let db_payment = payments::encrypt_v1(
             &mut rng,
             &self.vfs_master_key,
             &pwm,
@@ -831,7 +835,7 @@ impl LexeInnerPersister for NodePersister {
             .iter()
             .map(|CheckedPayment(pwm)| {
                 let created_at = pwm.payment.created_at().unwrap_or(now);
-                payments::encrypt(
+                payments::encrypt_v1(
                     &mut rng,
                     &self.vfs_master_key,
                     pwm,
@@ -877,7 +881,7 @@ impl LexeInnerPersister for NodePersister {
             .context("Could not fetch payment")?
             .maybe_payment
             // Decrypt into `Payment`
-            .map(|p| payments::decrypt(&self.vfs_master_key, p.data))
+            .map(|p| payments::decrypt_v1(&self.vfs_master_key, p.data))
             .transpose()
             .context("Could not decrypt payment")?;
 

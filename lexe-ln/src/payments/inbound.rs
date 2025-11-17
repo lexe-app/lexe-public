@@ -391,12 +391,12 @@ impl InboundInvoicePaymentV2 {
             address: None,
             invoice: Some(Arc::new(invoice)),
             offer: None,
+            note: None,
+            payer_name: None,
+            payer_note: None,
             priority: None,
             quantity: None,
             replacement_txid: None,
-            note: None,
-            payer_note: None,
-            payer_name: None,
         };
 
         PaymentWithMetadata {
@@ -715,12 +715,12 @@ impl InboundOfferReusablePaymentV2 {
             address: None,
             invoice: None,
             offer: ctx.offer,
+            note: None,
+            payer_name: ctx.payer_name,
+            payer_note: ctx.payer_note,
             priority: None,
             quantity: ctx.quantity,
             replacement_txid: None,
-            note: None,
-            payer_note: ctx.payer_note,
-            payer_name: ctx.payer_name,
         };
         PaymentWithMetadata {
             payment: iorp,

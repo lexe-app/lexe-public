@@ -125,12 +125,12 @@ impl OnchainSendV2 {
             address: Some(Arc::new(address)),
             invoice: None,
             offer: None,
+            note,
+            payer_name: None,
+            payer_note: None,
             priority: Some(priority),
             quantity: None,
             replacement_txid: None,
-            note,
-            payer_note: None,
-            payer_name: None,
         };
 
         PaymentWithMetadata {
