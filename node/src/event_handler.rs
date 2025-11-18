@@ -384,15 +384,19 @@ async fn do_handle_event(
             amount_msat,
             purpose,
             htlcs: _,
-            sender_intended_total_msat,
+            // This field was added in rust-lightning#2478 which references the
+            // PR description of rust-lightning#2062 for the reasoning behind
+            // this value - something to do with overshooting MPPs.
+            // Regardless, it looks like we can just ignore it.
+            // https://github.com/lightningdevkit/rust-lightning/pull/2478#issuecomment-1673861044
+            // https://github.com/lightningdevkit/rust-lightning/pull/2062
+            sender_intended_total_msat: _,
             onion_fields: _,
             payment_id,
         } => {
             // TODO(phlip9): unwrap once all replaying PaymentClaimable events
             // drain in prod.
             let claim_id = payment_id.map(LnClaimId::from);
-            let sender_intended_amount =
-                sender_intended_total_msat.map(Amount::from_msat);
             // NOTE: must be handled idempotently
             ctx.payments_manager
                 .payment_claimed(
@@ -400,7 +404,6 @@ async fn do_handle_event(
                     payment_hash.into(),
                     claim_id,
                     amount_msat,
-                    sender_intended_amount,
                 )
                 .await
                 .context("Error handling PaymentClaimed")

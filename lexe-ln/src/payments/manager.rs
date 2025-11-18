@@ -577,7 +577,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         hash: LxPaymentHash,
         claim_id: Option<LnClaimId>,
         amt_msat: u64,
-        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<()> {
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimed");
@@ -603,7 +602,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check
         let checked = locked_data
-            .check_payment_claimed(claim_ctx, amount, sender_intended_amount)
+            .check_payment_claimed(claim_ctx, amount)
             .context("Error validating PaymentClaimed")?;
 
         // Persist
@@ -1102,7 +1101,6 @@ impl PaymentsData {
         &self,
         claim_ctx: LnClaimCtx,
         amount: Amount,
-        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<CheckedPayment> {
         let id = claim_ctx.id();
 
@@ -1122,13 +1120,7 @@ impl PaymentsData {
                 },
             ) => {
                 let checked_iip = iip
-                    .check_payment_claimed(
-                        hash,
-                        secret,
-                        preimage,
-                        amount,
-                        sender_intended_amount,
-                    )
+                    .check_payment_claimed(hash, secret, preimage, amount)
                     .context("Error finalizing inbound invoice payment")?;
                 let iipwm = PaymentWithMetadata {
                     payment: checked_iip,
@@ -1140,9 +1132,8 @@ impl PaymentsData {
                 PaymentV2::InboundOfferReusable(iorp),
                 LnClaimCtx::Bolt12Offer(ctx),
             ) => {
-                let checked_iorp = iorp
-                    .check_payment_claimed(ctx, amount, sender_intended_amount)
-                    .context(
+                let checked_iorp =
+                    iorp.check_payment_claimed(ctx, amount).context(
                         "Error finalizing reusable inbound offer payment",
                     )?;
                 let iorpwm = PaymentWithMetadata {
@@ -1160,12 +1151,7 @@ impl PaymentsData {
                 },
             ) => {
                 let checked_isp = isp
-                    .check_payment_claimed(
-                        hash,
-                        preimage,
-                        amount,
-                        sender_intended_amount,
-                    )
+                    .check_payment_claimed(hash, preimage, amount)
                     .context("Error finalizing inbound spontaneous payment")?;
                 let ispwm = PaymentWithMetadata {
                     payment: checked_isp,
@@ -1548,9 +1534,8 @@ mod test {
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            let sender_intended_amount = None;
             let _ = data
-                .check_payment_claimed(claim_ctx, amount, sender_intended_amount)
+                .check_payment_claimed(claim_ctx, amount)
                 .unwrap();
         });
     }
@@ -1596,9 +1581,8 @@ mod test {
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            let sender_intended_amount = None;
             let _ = data
-                .check_payment_claimed(claim_ctx, recvd_amount, sender_intended_amount)
+                .check_payment_claimed(claim_ctx, recvd_amount)
                 .unwrap();
 
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
@@ -1639,9 +1623,8 @@ mod test {
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
 
-            let sender_intended_amount = None;
             let _ = data
-                .check_payment_claimed(claim_ctx, iorp.amount, sender_intended_amount)
+                .check_payment_claimed(claim_ctx, iorp.amount)
                 .unwrap();
         });
     }

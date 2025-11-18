@@ -316,9 +316,6 @@ pub struct InboundInvoicePaymentV2 {
     /// The amount that we actually received. May be greater than the invoice
     /// amount. Populated iff we received a [`PaymentClaimable`] event.
     pub recvd_amount: Option<Amount>,
-    /// The sender intended sum-total of all MPP parts.
-    /// Populated during [`PaymentClaimed`].
-    pub sender_intended_amount: Option<Amount>,
     /// The amount that was skimmed off of this payment as an extra fee taken
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
     pub skimmed_fee: Option<Amount>,
@@ -377,7 +374,6 @@ impl InboundInvoicePaymentV2 {
             claim_id: None,
             invoice_amount,
             recvd_amount: None,
-            sender_intended_amount: None,
             skimmed_fee: None,
             channel_fee: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
@@ -531,7 +527,6 @@ impl InboundInvoicePaymentV2 {
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
         amount: Amount,
-        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
 
@@ -571,7 +566,6 @@ impl InboundInvoicePaymentV2 {
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
         clone.recvd_amount = Some(amount);
-        clone.sender_intended_amount = sender_intended_amount;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -652,9 +646,6 @@ pub struct InboundOfferReusablePaymentV2 {
 
     /// The amount we received for this payment.
     pub amount: Amount,
-    /// The sender intended sum-total of all MPP parts.
-    /// Populated during [`PaymentClaimed`].
-    pub sender_intended_amount: Option<Amount>,
 
     /// The amount that was skimmed off of this payment as an extra fee taken
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
@@ -703,7 +694,6 @@ impl InboundOfferReusablePaymentV2 {
             offer_id: ctx.offer_id,
             preimage: ctx.preimage,
             amount,
-            sender_intended_amount: None,
             skimmed_fee,
             channel_fee: None,
             status: InboundOfferReusablePaymentStatus::Claiming,
@@ -793,7 +783,6 @@ impl InboundOfferReusablePaymentV2 {
         &self,
         ctx: OfferClaimCtx,
         amount: Amount,
-        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<Self> {
         use InboundOfferReusablePaymentStatus::*;
 
@@ -814,7 +803,6 @@ impl InboundOfferReusablePaymentV2 {
 
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
-        clone.sender_intended_amount = sender_intended_amount;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -841,9 +829,6 @@ pub struct InboundSpontaneousPaymentV2 {
 
     /// The amount received in this payment.
     pub amount: Amount,
-    /// The sender intended sum-total of all MPP parts.
-    /// Populated during [`PaymentClaimed`].
-    pub sender_intended_amount: Option<Amount>,
 
     /// The amount that was skimmed off of this payment as an extra fee taken
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
@@ -893,7 +878,6 @@ impl InboundSpontaneousPaymentV2 {
             hash,
             preimage,
             amount,
-            sender_intended_amount: None,
             skimmed_fee,
             channel_fee: None,
             status: InboundSpontaneousPaymentStatus::Claiming,
@@ -969,7 +953,6 @@ impl InboundSpontaneousPaymentV2 {
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
         amount: Amount,
-        sender_intended_amount: Option<Amount>,
     ) -> anyhow::Result<Self> {
         use InboundSpontaneousPaymentStatus::*;
 
@@ -989,7 +972,6 @@ impl InboundSpontaneousPaymentV2 {
 
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
-        clone.sender_intended_amount = sender_intended_amount;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -1029,7 +1011,6 @@ mod arbitrary_impl {
             let claim_id = any::<LnClaimId>();
             let recvd_amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
-            let sender_intended_amount = any::<Amount>();
             let status = any_with::<InboundInvoicePaymentStatus>(pending_only);
             let maybe_created_at = any::<Option<TimestampMs>>();
             let created_at_fallback = any::<TimestampMs>();
@@ -1040,7 +1021,6 @@ mod arbitrary_impl {
                 claim_id,
                 recvd_amount,
                 skimmed_fee,
-                sender_intended_amount,
                 status,
                 maybe_created_at,
                 created_at_fallback,
@@ -1066,10 +1046,6 @@ mod arbitrary_impl {
                     InvoiceGenerated | Expired => None,
                     Claiming | Completed => Some(skimmed_fee),
                 };
-                let sender_intended_amount = match status {
-                    InvoiceGenerated | Expired | Claiming => None,
-                    Completed => Some(sender_intended_amount),
-                };
 
                 // If finalized, ensure created_at and finalized_at are set
                 let maybe_created_at: Option<TimestampMs> = maybe_created_at;
@@ -1091,7 +1067,6 @@ mod arbitrary_impl {
                     claim_id,
                     invoice_amount,
                     recvd_amount,
-                    sender_intended_amount,
                     skimmed_fee,
                     // TODO(phlip9): it looks like we don't implement this yet
                     channel_fee: None,
@@ -1106,7 +1081,6 @@ mod arbitrary_impl {
                 preimage_invoice,
                 claim_id,
                 recvd_amount,
-                sender_intended_amount,
                 skimmed_fee,
                 status,
                 maybe_created_at,
@@ -1147,7 +1121,6 @@ mod arbitrary_impl {
             let claim_id = any::<LnClaimId>();
             let offer_id = any::<LxOfferId>();
             let amount = any::<Amount>();
-            let sender_intended_amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
             let status =
                 any_with::<InboundOfferReusablePaymentStatus>(pending_only);
@@ -1160,7 +1133,6 @@ mod arbitrary_impl {
                 claim_id,
                 offer_id,
                 amount,
-                sender_intended_amount,
                 skimmed_fee,
                 status,
                 maybe_created_at,
@@ -1169,10 +1141,6 @@ mod arbitrary_impl {
             )| {
                 use InboundOfferReusablePaymentStatus::*;
 
-                let sender_intended_amount = match status {
-                    Claiming => None,
-                    Completed => Some(sender_intended_amount),
-                };
                 let skimmed_fee = Some(skimmed_fee);
 
                 // If finalized, ensure created_at and finalized_at are set
@@ -1193,7 +1161,6 @@ mod arbitrary_impl {
                     offer_id,
                     preimage,
                     amount,
-                    sender_intended_amount,
                     skimmed_fee,
                     channel_fee: None,
                     status,
@@ -1207,7 +1174,6 @@ mod arbitrary_impl {
                 claim_id,
                 offer_id,
                 amount,
-                sender_intended_amount,
                 skimmed_fee,
                 status,
                 maybe_created_at,
@@ -1245,7 +1211,6 @@ mod arbitrary_impl {
             let hash = any::<LxPaymentHash>();
             let preimage = any::<LxPaymentPreimage>();
             let amount = any::<Amount>();
-            let sender_intended_amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
             let status =
                 any_with::<InboundSpontaneousPaymentStatus>(pending_only);
@@ -1257,7 +1222,6 @@ mod arbitrary_impl {
                 hash,
                 preimage,
                 amount,
-                sender_intended_amount,
                 skimmed_fee,
                 status,
                 maybe_created_at,
@@ -1266,10 +1230,6 @@ mod arbitrary_impl {
             )| {
                 use InboundSpontaneousPaymentStatus::*;
 
-                let sender_intended_amount = match status {
-                    Claiming => None,
-                    Completed => Some(sender_intended_amount),
-                };
                 let skimmed_fee = Some(skimmed_fee);
 
                 // If finalized, ensure created_at and finalized_at are set
@@ -1289,7 +1249,6 @@ mod arbitrary_impl {
                     hash,
                     preimage,
                     amount,
-                    sender_intended_amount,
                     skimmed_fee,
                     channel_fee: None,
                     status,
@@ -1302,7 +1261,6 @@ mod arbitrary_impl {
                 hash,
                 preimage,
                 amount,
-                sender_intended_amount,
                 skimmed_fee,
                 status,
                 maybe_created_at,
