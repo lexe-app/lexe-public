@@ -794,10 +794,15 @@ impl LexeInnerPersister for NodePersister {
     ) -> anyhow::Result<PersistedPayment> {
         let mut rng = SysRng::new();
 
-        let pwm = checked.0;
+        let mut pwm = checked.0;
         let now = TimestampMs::now();
         let created_at = pwm.payment.created_at().unwrap_or(now);
         let updated_at = now;
+
+        // Ensure the payment's created_at field is set before persisting,
+        // since it may be None if this is the payment's first persist.
+        pwm.payment.set_created_at_once(created_at);
+
         let db_payment = payments::encrypt_v1(
             &mut rng,
             &self.vfs_master_key,
@@ -822,7 +827,7 @@ impl LexeInnerPersister for NodePersister {
 
     async fn upsert_payment_batch(
         &self,
-        checked_batch: Vec<CheckedPayment>,
+        mut checked_batch: Vec<CheckedPayment>,
     ) -> anyhow::Result<Vec<PersistedPayment>> {
         if checked_batch.is_empty() {
             return Ok(Vec::new());
@@ -832,9 +837,13 @@ impl LexeInnerPersister for NodePersister {
         let now = TimestampMs::now();
         let updated_at = now;
         let payments = checked_batch
-            .iter()
+            .iter_mut()
             .map(|CheckedPayment(pwm)| {
+                // Ensure the payment's created_at field is set,
+                // as it may be None if this is the payment's first persist.
                 let created_at = pwm.payment.created_at().unwrap_or(now);
+                pwm.payment.set_created_at_once(created_at);
+
                 payments::encrypt_v1(
                     &mut rng,
                     &self.vfs_master_key,

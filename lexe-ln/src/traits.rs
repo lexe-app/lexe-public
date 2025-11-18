@@ -37,11 +37,15 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
         &self,
     ) -> anyhow::Result<Vec<PaymentWithMetadata>>;
 
+    /// NOTE: The implementor *must* call `set_created_at_once` on the payment
+    /// before persisting.
     async fn upsert_payment(
         &self,
         checked: CheckedPayment,
     ) -> anyhow::Result<PersistedPayment>;
 
+    /// NOTE: The implementor *must* call `set_created_at_once` on the payment
+    /// before persisting.
     async fn upsert_payment_batch(
         &self,
         checked_batch: Vec<CheckedPayment>,

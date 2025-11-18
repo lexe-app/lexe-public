@@ -64,7 +64,7 @@ pub mod v1;
 
 // --- Top-level payment types --- //
 
-/// Associates a payment along with its payment metadata.
+/// Associates a payment with its payment metadata.
 /// Defaults to the top-level payment type [`PaymentV2`], but can be used for
 /// any payment subtype, e.g. [`OnchainSendV2`].
 #[derive(Clone, Debug, Eq, PartialEq)]
