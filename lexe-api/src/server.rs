@@ -388,8 +388,6 @@ pub fn build_server_fut_with_listener(
         serve_result
             // See axum_server::Server::serve docs for why this can't error
             .expect("No binding + axum MakeService::poll_ready never errors");
-
-        info!("API server finished");
     };
 
     let graceful_shutdown_fut = async move {
@@ -414,7 +412,7 @@ pub fn build_server_fut_with_listener(
             _ = &mut server_fut => return error!("Server exited early"),
         }
         match tokio::time::timeout(SERVER_SHUTDOWN_TIMEOUT, server_fut).await {
-            Ok(()) => debug!("API server graceful shutdown success"),
+            Ok(()) => info!("API server finished"),
             Err(_) => warn!("API server timed out during shutdown"),
         }
     }
