@@ -736,25 +736,25 @@ impl PaymentV2 {
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no channel fees were incurred.
-    pub fn channel_fee(&self) -> Amount {
+    pub fn channel_fee(&self) -> Option<Amount> {
         match self {
-            Self::OnchainSend(_) => Amount::ZERO,
-            Self::OnchainReceive(_) => Amount::ZERO,
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
             Self::InboundInvoice(InboundInvoicePaymentV2 {
                 channel_fee,
                 ..
-            }) => channel_fee.unwrap_or(Amount::ZERO),
+            }) => *channel_fee,
             Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
                 channel_fee,
                 ..
-            }) => channel_fee.unwrap_or(Amount::ZERO),
+            }) => *channel_fee,
             Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
                 channel_fee,
                 ..
-            }) => channel_fee.unwrap_or(Amount::ZERO),
-            Self::OutboundInvoice(_) => Amount::ZERO,
-            Self::OutboundOffer(_) => Amount::ZERO,
-            Self::OutboundSpontaneous(_) => Amount::ZERO,
+            }) => *channel_fee,
+            Self::OutboundInvoice(_) => None,
+            Self::OutboundOffer(_) => None,
+            Self::OutboundSpontaneous(_) => None,
         }
     }
 

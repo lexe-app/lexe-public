@@ -105,7 +105,8 @@ pub struct BasicPaymentV2 {
     /// (Inbound payments only) The portion of the skimmed amount that was used
     /// to cover the on-chain fees incurred by a JIT channel opened to receive
     /// this payment. Zero if no channel fees were incurred.
-    pub channel_fee: Amount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel_fee: Option<Amount>,
 
     // --- Status --- //
     ///
@@ -606,7 +607,7 @@ impl BasicPaymentV2 {
             txid: v1.txid,
             amount: v1.amount,
             fee: v1.fees,
-            channel_fee: Amount::ZERO,
+            channel_fee: None,
             status: v1.status,
             status_str: v1.status_str,
             address: None,
