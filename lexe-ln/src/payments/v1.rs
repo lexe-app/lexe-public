@@ -311,7 +311,7 @@ impl PaymentV1 {
             txid: self.txid(),
             amount: self.amount(),
             fee: self.fees(),
-            channel_fee: self.channel_fee(),
+            // channel_fee: self.channel_fee(),
             status: self.status(),
             status_str: self.status_str().to_owned(),
             address: None,
@@ -563,6 +563,7 @@ impl PaymentV1 {
         }
     }
 
+    /* TODO(max): Implement JIT channel fees
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     pub fn channel_fee(&self) -> Option<Amount> {
@@ -583,6 +584,7 @@ impl PaymentV1 {
             Self::OutboundSpontaneous(_) => None,
         }
     }
+    */
 
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {

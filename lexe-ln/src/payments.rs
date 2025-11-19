@@ -166,7 +166,7 @@ pub enum PaymentV2 {
 }
 
 // Debug the size_of `PaymentV2`
-const_assert_mem_size!(PaymentV2, 264);
+const_assert_mem_size!(PaymentV2, 240);
 
 /// Optional payment metadata associated with a [`PaymentV2`].
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -419,7 +419,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let status_str = self.payment.status_str().to_owned();
         let amount = self.payment.amount();
         let fee = self.payment.fee();
-        let channel_fee = self.payment.channel_fee();
+        // let channel_fee = self.payment.channel_fee();
         let tx = self.payment.tx();
         let expires_at = self.payment.expires_at();
         let finalized_at = self.payment.finalized_at();
@@ -444,7 +444,7 @@ impl PaymentWithMetadata<PaymentV2> {
             txid,
             amount,
             fee,
-            channel_fee,
+            // channel_fee,
             status,
             status_str,
             address,
@@ -733,30 +733,31 @@ impl PaymentV2 {
         }
     }
 
-    /// The portion of the skimmed amount that was used to cover the on-chain
-    /// fees incurred by a JIT channel opened to receive this payment.
-    /// None if no channel fees were incurred.
-    pub fn channel_fee(&self) -> Option<Amount> {
-        match self {
-            Self::OnchainSend(_) => None,
-            Self::OnchainReceive(_) => None,
-            Self::InboundInvoice(InboundInvoicePaymentV2 {
-                channel_fee,
-                ..
-            }) => *channel_fee,
-            Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
-                channel_fee,
-                ..
-            }) => *channel_fee,
-            Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
-                channel_fee,
-                ..
-            }) => *channel_fee,
-            Self::OutboundInvoice(_) => None,
-            Self::OutboundOffer(_) => None,
-            Self::OutboundSpontaneous(_) => None,
-        }
-    }
+    // TODO(max): Implement JIT channel fees
+    // /// The portion of the skimmed amount that was used to cover the on-chain
+    // /// fees incurred by a JIT channel opened to receive this payment.
+    // /// None if no channel fees were incurred.
+    // pub fn channel_fee(&self) -> Option<Amount> {
+    //     match self {
+    //         Self::OnchainSend(_) => None,
+    //         Self::OnchainReceive(_) => None,
+    //         Self::InboundInvoice(InboundInvoicePaymentV2 {
+    //             channel_fee,
+    //             ..
+    //         }) => *channel_fee,
+    //         Self::InboundOfferReusable(InboundOfferReusablePaymentV2 {
+    //             channel_fee,
+    //             ..
+    //         }) => *channel_fee,
+    //         Self::InboundSpontaneous(InboundSpontaneousPaymentV2 {
+    //             channel_fee,
+    //             ..
+    //         }) => *channel_fee,
+    //         Self::OutboundInvoice(_) => None,
+    //         Self::OutboundOffer(_) => None,
+    //         Self::OutboundSpontaneous(_) => None,
+    //     }
+    // }
 
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {

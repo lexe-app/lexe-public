@@ -102,12 +102,13 @@ pub struct BasicPaymentV2 {
     #[serde(rename = "fees", alias = "fee")]
     pub fee: Amount,
 
+    /* TODO(max): Implement JIT channel fees
     /// (Inbound payments only) The portion of the skimmed amount that was used
     /// to cover the on-chain fees incurred by a JIT channel opened to receive
     /// this payment. Zero if no channel fees were incurred.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
-
+    */
     // --- Status --- //
     ///
     /// General payment status: pending, completed, or failed.
@@ -237,7 +238,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 424);
+const_assert_mem_size!(BasicPaymentV2, 408);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -607,7 +608,7 @@ impl BasicPaymentV2 {
             txid: v1.txid,
             amount: v1.amount,
             fee: v1.fees,
-            channel_fee: None,
+            // channel_fee: None,
             status: v1.status,
             status_str: v1.status_str,
             address: None,

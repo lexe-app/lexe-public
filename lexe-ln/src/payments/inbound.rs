@@ -323,13 +323,13 @@ pub struct InboundInvoicePaymentV2 {
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skimmed_fee: Option<Amount>,
+    /* TODO(max): Implement JIT channel fees
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
-    // TODO(max): Currently not used; implement
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
-
+    */
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
 
@@ -383,7 +383,7 @@ impl InboundInvoicePaymentV2 {
             invoice_amount,
             recvd_amount: None,
             skimmed_fee: None,
-            channel_fee: None,
+            // channel_fee: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
             created_at: None,
             expires_at,
@@ -659,13 +659,13 @@ pub struct InboundOfferReusablePaymentV2 {
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skimmed_fee: Option<Amount>,
+    /* TODO(max): Implement JIT channel fees
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
-    // TODO(max): Currently not used; implement
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
-
+    */
     /// The current payment status.
     pub status: InboundOfferReusablePaymentStatus,
     /// When we first learned of this payment via [`PaymentClaimable`].
@@ -707,7 +707,7 @@ impl InboundOfferReusablePaymentV2 {
             preimage: ctx.preimage,
             amount,
             skimmed_fee,
-            channel_fee: None,
+            // channel_fee: None,
             status: InboundOfferReusablePaymentStatus::Claiming,
             created_at: None,
             finalized_at: None,
@@ -846,13 +846,13 @@ pub struct InboundSpontaneousPaymentV2 {
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skimmed_fee: Option<Amount>,
+    /* TODO(max): Implement JIT channel fees
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
-    // TODO(max): Currently not used; implement
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
-
+    */
     /// The current status of the payment.
     pub status: InboundSpontaneousPaymentStatus,
 
@@ -895,7 +895,7 @@ impl InboundSpontaneousPaymentV2 {
             preimage,
             amount,
             skimmed_fee,
-            channel_fee: None,
+            // channel_fee: None,
             status: InboundSpontaneousPaymentStatus::Claiming,
             created_at: None,
             finalized_at: None,
@@ -1084,8 +1084,7 @@ mod arbitrary_impl {
                     invoice_amount,
                     recvd_amount,
                     skimmed_fee,
-                    // TODO(phlip9): it looks like we don't implement this yet
-                    channel_fee: None,
+                    // channel_fee: None,
                     status,
                     created_at,
                     expires_at,
@@ -1178,7 +1177,7 @@ mod arbitrary_impl {
                     preimage,
                     amount,
                     skimmed_fee,
-                    channel_fee: None,
+                    // channel_fee: None,
                     status,
                     created_at,
                     finalized_at,
@@ -1266,7 +1265,7 @@ mod arbitrary_impl {
                     preimage,
                     amount,
                     skimmed_fee,
-                    channel_fee: None,
+                    // channel_fee: None,
                     status,
                     created_at,
                     finalized_at,
