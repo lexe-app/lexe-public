@@ -30,6 +30,8 @@ mod gdrive_persister;
 mod gdrive_setup;
 /// Meganode run body.
 mod mega;
+/// NWC specific logic.
+mod nwc;
 /// Node-specific p2p logic
 mod p2p;
 /// `NodePeerManager`.

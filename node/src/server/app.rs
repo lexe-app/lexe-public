@@ -22,20 +22,28 @@ use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
     def::NodeBackendApi,
     error::NodeApiError,
-    models::command::{
-        BackupInfo, CloseChannelRequest, CreateOfferRequest,
-        CreateOfferResponse, GDriveStatus, GetAddressResponse, GetNewPayments,
-        GetUpdatedPayments, ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
-        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainRequest, PayOnchainResponse, PaymentAddress,
-        PaymentCreatedIndexes, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-        PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentAddress,
-        UpdatePaymentNote,
+    models::{
+        command::{
+            BackupInfo, CloseChannelRequest, CreateOfferRequest,
+            CreateOfferResponse, GDriveStatus, GetAddressResponse,
+            GetNewPayments, GetUpdatedPayments, ListChannelsResponse,
+            LxPaymentIdStruct, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOfferRequest, PreflightPayOfferResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            SetupGDrive, UpdatePaymentAddress, UpdatePaymentNote,
+        },
+        nwc::{
+            ClientNostrPkStruct, CreateNwcClientRequest,
+            CreateNwcClientResponse, GetNwcClientsParams,
+            ListNwcClientsResponse, UpdateNwcClientRequest,
+            UpdateNwcClientResponse,
+        },
     },
     server::{LxJson, extract::LxQuery},
     types::{
@@ -53,7 +61,7 @@ use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
 use super::RouterState;
-use crate::gdrive_setup;
+use crate::{gdrive_setup, nwc::NwcClient};
 
 pub(super) async fn node_info(
     State(state): State<Arc<RouterState>>,
@@ -659,4 +667,151 @@ pub(super) async fn update_payment_address(
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(payment_address))
+}
+
+/// List all NWC connections for the current user.
+/// Returns client info without the sensitive URI.
+/// List all NWC clients for the current user.
+/// Returns client info without the sensitive connection string.
+pub(super) async fn list_nwc_clients(
+    State(state): State<Arc<RouterState>>,
+) -> Result<LxJson<ListNwcClientsResponse>, NodeApiError> {
+    let token = state
+        .persister
+        .get_token()
+        .await
+        .map_err(NodeApiError::command)?;
+    let params = GetNwcClientsParams {
+        client_nostr_pk: None,
+    };
+    let vec_nwc_client = state
+        .persister
+        .backend_api()
+        .get_nwc_clients(params, token)
+        .await
+        .map_err(NodeApiError::command)?;
+
+    // Decrypt each client to get the label and expose the client info.
+    let mut clients = Vec::new();
+    for client in vec_nwc_client.nwc_clients {
+        let client_data =
+            NwcClient::from_db(state.persister.vfs_master_key(), client);
+        if let Ok(connection) = client_data {
+            clients.push(connection.to_nwc_client_info());
+        }
+    }
+
+    Ok(LxJson(ListNwcClientsResponse { clients }))
+}
+
+/// Create a new NWC client.
+/// Generates keys and returns the connection string.
+pub(super) async fn create_nwc_client(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<CreateNwcClientRequest>,
+) -> Result<LxJson<CreateNwcClientResponse>, NodeApiError> {
+    let token = state
+        .persister
+        .get_token()
+        .await
+        .map_err(NodeApiError::command)?;
+
+    let nwc_connection = NwcClient::new(req.label);
+
+    let nwc_client = state
+        .persister
+        .backend_api()
+        .upsert_nwc_client(
+            nwc_connection
+                .to_req(&mut SysRng::new(), state.persister.vfs_master_key()),
+            token,
+        )
+        .await
+        .map_err(NodeApiError::command)?;
+
+    let connection_string = nwc_connection
+        .connection_string()
+        .ok_or_else(|| {
+            NodeApiError::command(
+                "Connection string should be present for new client",
+            )
+        })?
+        .to_string();
+
+    Ok(LxJson(CreateNwcClientResponse {
+        client_nostr_pk: nwc_client.client_nostr_pk,
+        label: nwc_connection.label().to_string(),
+        connection_string,
+    }))
+}
+
+/// Update an existing NWC client's label.
+pub(super) async fn update_nwc_client(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<UpdateNwcClientRequest>,
+) -> Result<LxJson<UpdateNwcClientResponse>, NodeApiError> {
+    let token = state
+        .persister
+        .get_token()
+        .await
+        .map_err(NodeApiError::command)?;
+
+    let params = GetNwcClientsParams {
+        client_nostr_pk: Some(req.client_nostr_pk),
+    };
+
+    let vec_nwc_client = state
+        .persister
+        .backend_api()
+        .get_nwc_clients(params, token.clone())
+        .await
+        .map_err(NodeApiError::command)?;
+
+    let db_client = vec_nwc_client
+        .nwc_clients
+        .into_iter()
+        .last()
+        .ok_or_else(|| NodeApiError::command("NWC client not found"))?;
+
+    let mut nwc_connection =
+        NwcClient::from_db(state.persister.vfs_master_key(), db_client)
+            .map_err(NodeApiError::command)?;
+
+    nwc_connection.update_label(req.label);
+
+    let nwc_client = state
+        .persister
+        .backend_api()
+        .upsert_nwc_client(
+            nwc_connection
+                .to_req(&mut SysRng::new(), state.persister.vfs_master_key()),
+            token,
+        )
+        .await
+        .map_err(NodeApiError::command)?;
+
+    let mut client_info = nwc_connection.to_nwc_client_info();
+    client_info.updated_at = nwc_client.updated_at;
+    client_info.created_at = nwc_client.created_at;
+
+    Ok(LxJson(UpdateNwcClientResponse { client_info }))
+}
+
+/// Delete an NWC client.
+pub(super) async fn delete_nwc_client(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<ClientNostrPkStruct>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    let token = state
+        .persister
+        .get_token()
+        .await
+        .map_err(NodeApiError::command)?;
+    state
+        .persister
+        .backend_api()
+        .delete_nwc_client(req, token)
+        .await
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(Empty {}))
 }
