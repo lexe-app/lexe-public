@@ -150,7 +150,7 @@
     "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.8-2025_05_15#d33bd3d43eb277ca79a62fd1e0dd631d0bb53314" = "sha256-NH+bdZN1cFDQ9G4nDx4VeUFlT4G96obZlMTDaNqV0qs=";
     "git+https://github.com/lexe-app/rust-bip39?branch=lexe-v2.1.0-2025_06_12#81bdf38b89ea9542c7da849a9bba262bcb7cce34" = "sha256-0hvKvNNokzXHPNZmGEN2oqhc15khCrfsiGxDEfb3FFY=";
     "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.0-2025_06_12#3fae9cdd82ce36aca6950a5614536de98f466a69" = "sha256-kDdRH6eXljD8gULyVOQUqYo51UgNmoMxZOTHyiLuvoo=";
-    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.5-2025_10_06#51441b6765af6f87f20a4c13e0d3c778630375e0" = "sha256-rTRZE1njIPueSbV4az+p7IDhQu31h9jXowMxlXhnq3I=";
+    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.5-2025_11_14#5326ddd302c54da980b09e4f5642c5f8648d5a90" = "sha256-PF/RJP5pun79vl+HBIW8X0jXbfkrQMKDoc1GvNiZkvk=";
     "git+https://github.com/lexe-app/rust-sgx?branch=lexe-b77c27f2-2025_06_30#b77c27f24b38af183a6c0d7ef5df07cf01e84de0" = "sha256-6aBywD0ZZkhGEVMCIzHZ9uVW9QelujX/ojtRd1sw3mI=";
     "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" = "sha256-ZUoZHJC9OZthqtFKu4WdrBgyr7QSKxoQCCUtcOc9kvU=";
   };
