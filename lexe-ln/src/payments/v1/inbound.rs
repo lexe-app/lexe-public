@@ -456,46 +456,46 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            any::<(
-                LxInvoice,
-                LxPaymentPreimage,
-                Option<LnClaimId>,
-                Option<Amount>,
-                Option<Amount>,
-                InboundInvoicePaymentStatus,
-                Option<String>,
-                TimestampMs,
-                Option<TimestampMs>,
-            )>()
-            .prop_map(
-                |(
-                    invoice,
-                    preimage,
-                    claim_id,
-                    invoice_amount,
-                    recvd_amount,
-                    status,
-                    note,
-                    created_at,
-                    finalized_at,
-                )| {
-                    Self {
-                        invoice: Arc::new(invoice.clone()),
-                        hash: invoice.payment_hash(),
-                        secret: invoice.payment_secret(),
+            (
+                any::<LxInvoice>(),
+                any::<LxPaymentPreimage>(),
+                any::<Option<LnClaimId>>(),
+                any::<Option<Amount>>(),
+                any::<Option<Amount>>(),
+                any::<InboundInvoicePaymentStatus>(),
+                arbitrary::any_option_simple_string(),
+                any::<TimestampMs>(),
+                any::<Option<TimestampMs>>(),
+            )
+                .prop_map(
+                    |(
+                        invoice,
                         preimage,
                         claim_id,
                         invoice_amount,
                         recvd_amount,
-                        onchain_fees: None,
                         status,
                         note,
                         created_at,
                         finalized_at,
-                    }
-                },
-            )
-            .boxed()
+                    )| {
+                        Self {
+                            invoice: Arc::new(invoice.clone()),
+                            hash: invoice.payment_hash(),
+                            secret: invoice.payment_secret(),
+                            preimage,
+                            claim_id,
+                            invoice_amount,
+                            recvd_amount,
+                            onchain_fees: None,
+                            status,
+                            note,
+                            created_at,
+                            finalized_at,
+                        }
+                    },
+                )
+                .boxed()
         }
     }
 

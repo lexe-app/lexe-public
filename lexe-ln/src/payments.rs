@@ -182,6 +182,10 @@ pub struct PaymentMetadata {
     pub id: LxPaymentId,
 
     /// The ids of payments related to this payment.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_hashset::<LxPaymentId>()")
+    )]
     pub related_ids: HashSet<LxPaymentId>,
 
     // --- Payment methods --- //

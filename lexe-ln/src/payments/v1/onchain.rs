@@ -42,6 +42,10 @@ pub struct OnchainSendV1 {
     pub status: OnchainSendStatus,
     pub created_at: TimestampMs,
     /// An optional personal note for this payment.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
     pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
 }
@@ -150,6 +154,10 @@ pub struct OnchainReceiveV1 {
     pub created_at: TimestampMs,
     /// An optional personal note for this payment. Is set to [`None`] when the
     /// payment is first detected, but the user can add or modify it later.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
     pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
 }

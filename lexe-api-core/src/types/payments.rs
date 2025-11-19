@@ -51,6 +51,10 @@ pub struct BasicPaymentV2 {
     pub id: LxPaymentId,
 
     /// The ids of payments related to this payment.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_hashset::<LxPaymentId>()")
+    )]
     pub related_ids: HashSet<LxPaymentId>,
 
     /// Payment kind: onchain, invoice, offer, or spontaneous.
