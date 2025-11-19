@@ -55,6 +55,8 @@ use crate::{
 mod app;
 /// Handlers for commands that can only be initiated by the Lexe operators.
 mod lexe;
+/// Handlers for NWC (Nostr Wallet Connect) commands.
+mod nwc;
 
 pub(crate) struct RouterState {
     // --- Info --- //
@@ -164,6 +166,7 @@ pub(crate) fn lexe_router(state: Arc<RouterState>) -> Router<()> {
         .route("/lexe/test_event", post(lexe::test_event))
         .route("/lexe/shutdown", get(lexe::shutdown))
         .route("/lexe/create_invoice", post(shared::create_invoice))
+        .route("/lexe/nwc_request", post(lexe::nwc_request))
         .with_state(state)
 }
 

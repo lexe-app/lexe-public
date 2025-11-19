@@ -171,7 +171,6 @@ impl NwcClient {
     }
 
     /// Get the wallet service secret key for NIP-44 encryption/decryption.
-    #[allow(dead_code)]
     fn get_wallet_service_secret_key(
         &self,
     ) -> anyhow::Result<nostr::SecretKey> {
@@ -184,7 +183,6 @@ impl NwcClient {
     }
 
     /// Decrypt a NIP-44 encrypted NWC request.
-    #[allow(dead_code)]
     pub(crate) fn decrypt_nip44_request(
         &self,
         sender_pk: &NostrPk,
@@ -203,7 +201,6 @@ impl NwcClient {
     }
 
     /// Encrypt a NWC response using NIP-44.
-    #[allow(dead_code)]
     pub(crate) fn encrypt_nip44_response(
         &self,
         recipient_pk: &NostrPk,
