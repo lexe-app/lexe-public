@@ -49,20 +49,27 @@ use lexe_api::{
         BearerAuthBackendApi,
     },
     error::{BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind},
-    models::command::{
-        BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
-        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-        GetAddressResponse, GetNewPayments, GetUpdatedPayments,
-        ListChannelsResponse, LxPaymentIdStruct, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
-        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest, PreflightPayOfferResponse,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse, SetupGDrive,
-        UpdatePaymentNote,
+    models::{
+        command::{
+            BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
+            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+            GetAddressResponse, GetNewPayments, GetUpdatedPayments,
+            ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
+            PaymentCreatedIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+            PreflightPayOfferResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentNote,
+        },
+        nwc::{
+            ClientNostrPkStruct, CreateNwcClientRequest,
+            CreateNwcClientResponse, ListNwcClientsResponse,
+            UpdateNwcClientRequest, UpdateNwcClientResponse,
+        },
     },
     rest::{POST, RequestBuilderExt, RestClient},
     types::{
@@ -794,6 +801,49 @@ impl AppNodeRunApi for NodeClient {
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/payment_address");
         let req = run_rest.put(url, &req);
+        run_rest.send(req).await
+    }
+
+    async fn list_nwc_clients(
+        &self,
+    ) -> Result<ListNwcClientsResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/nwc_clients");
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
+    }
+
+    async fn create_nwc_client(
+        &self,
+        req: CreateNwcClientRequest,
+    ) -> Result<CreateNwcClientResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/nwc_clients");
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
+    }
+
+    async fn update_nwc_client(
+        &self,
+        req: UpdateNwcClientRequest,
+    ) -> Result<UpdateNwcClientResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/nwc_clients");
+        let req = run_rest.put(url, &req);
+        run_rest.send(req).await
+    }
+
+    async fn delete_nwc_client(
+        &self,
+        req: ClientNostrPkStruct,
+    ) -> Result<Empty, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/nwc_clients");
+        let req = run_rest.delete(url, &req);
         run_rest.send(req).await
     }
 }

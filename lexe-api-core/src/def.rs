@@ -98,8 +98,11 @@ use crate::{
             UpdatePaymentNote, VecLxPaymentId,
         },
         nwc::{
-            ClientNostrPkStruct, GetNwcClientsParams, NwcClient,
-            UpdateNwcClientRequest, VecNwcClient,
+            ClientNostrPkStruct, CreateNwcClientRequest,
+            CreateNwcClientResponse, DbNwcClient, GetNwcClientsParams,
+            ListNwcClientsResponse, NwcRequest, NwcResponse,
+            UpdateDbNwcClientRequest, UpdateNwcClientRequest,
+            UpdateNwcClientResponse, VecNwcClient,
         },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
@@ -447,6 +450,41 @@ pub trait AppNodeRunApi {
         &self,
         req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError>;
+
+    /// List NWC (Nostr Wallet Connect) clients for the current user.
+    /// Returns client info without sensitive data (no connection strings).
+    ///
+    /// GET /app/nwc_client [`Empty`] -> [`ListNwcClientsResponse`]
+    async fn list_nwc_clients(
+        &self,
+    ) -> Result<ListNwcClientsResponse, NodeApiError>;
+
+    /// Create a new NWC client.
+    /// Generates new keys and returns the connection string.
+    ///
+    /// POST /app/nwc_client [`CreateNwcClientRequest`] ->
+    /// [`CreateNwcClientResponse`]
+    async fn create_nwc_client(
+        &self,
+        req: CreateNwcClientRequest,
+    ) -> Result<CreateNwcClientResponse, NodeApiError>;
+
+    /// Update an existing NWC client's label.
+    ///
+    /// PUT /app/nwc_client [`UpdateNwcClientRequest`] ->
+    /// [`UpdateNwcClientResponse`]
+    async fn update_nwc_client(
+        &self,
+        req: UpdateNwcClientRequest,
+    ) -> Result<UpdateNwcClientResponse, NodeApiError>;
+
+    /// Delete an NWC client.
+    ///
+    /// DELETE /app/nwc_client [`ClientNostrPkStruct`] -> [`Empty`]
+    async fn delete_nwc_client(
+        &self,
+        req: ClientNostrPkStruct,
+    ) -> Result<Empty, NodeApiError>;
 }
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to
@@ -530,6 +568,16 @@ pub trait LexeNodeRunApi {
         &self,
         req: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError>;
+
+    /// POST /lexe/nwc_request [`NwcRequest`] -> [`NwcResponse`]
+    ///
+    /// Processes an encrypted NWC request from the nostr-bridge.
+    /// The node will decrypt the request, execute the command, and return
+    /// an encrypted response.
+    async fn nwc_request(
+        &self,
+        req: NwcRequest,
+    ) -> Result<NwcResponse, NodeApiError>;
 }
 
 /// Defines the API the runner exposes to mega nodes.
@@ -937,14 +985,14 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecNwcClient, BackendApiError>;
 
-    /// PUT /node/v1/nwc_clients [`UpdateNwcClientRequest`] -> [`NwcClient`]
+    /// PUT /node/v1/nwc_clients [`UpdateDbNwcClientRequest`] -> [`DbNwcClient`]
     ///
-    /// Upserts a NWC client.
+    /// Upserts a NWC client in the database.
     async fn upsert_nwc_client(
         &self,
-        req: UpdateNwcClientRequest,
+        req: UpdateDbNwcClientRequest,
         auth: BearerAuthToken,
-    ) -> Result<NwcClient, BackendApiError>;
+    ) -> Result<DbNwcClient, BackendApiError>;
 
     /// DELETE /node/v1/nwc_clients [`ClientNostrPkStruct`] -> [`Empty`]
     ///
