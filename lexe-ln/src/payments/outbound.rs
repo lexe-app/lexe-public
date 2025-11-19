@@ -67,6 +67,7 @@ pub struct OutboundInvoicePaymentV2 {
     pub secret: LxPaymentSecret,
     /// The preimage, which serves as a proof-of-payment.
     /// This field is populated if and only if the status is `Completed`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preimage: Option<LxPaymentPreimage>,
 
     /// The amount sent in this payment, given by [`Route::get_total_amount`].
@@ -88,15 +89,19 @@ pub struct OutboundInvoicePaymentV2 {
     /// For a failed payment, the reason why it failed.
     // Is part of the core type because (1) it's small and
     // (2) it contains information possibly of interest for later analysis.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub failure: Option<LxOutboundPaymentFailure>,
 
     /// When we initiated this payment.
     /// Set to `Some(...)` on first persist.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
     /// When the invoice expires. Computed from the invoice's timestamp +
     /// expiry duration. `None` if the expiry timestamp overflows.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<TimestampMs>,
     /// When this payment either `Completed` or `Failed`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -350,9 +355,11 @@ pub struct OutboundOfferPaymentV2 {
     /// The payment hash encoded in the BOLT12 invoice. Since we don't fetch
     /// the BOLT12 invoice before registering the offer payment, this field
     /// is populated iff. the status is `Completed`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub hash: Option<LxPaymentHash>,
     /// The payment preimage, which serves as proof-of-payment.
     /// This field is populated iff. the status is `Completed`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preimage: Option<LxPaymentPreimage>,
     /// Unique identifier for the original offer.
     pub offer_id: LxOfferId,
@@ -371,14 +378,18 @@ pub struct OutboundOfferPaymentV2 {
     /// For a failed payment, the reason why it failed.
     // Is part of the core type because (1) it's small and
     // (2) it contains information possibly of interest for later analysis.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub failure: Option<LxOutboundPaymentFailure>,
 
     /// When we initiated this payment.
     /// Set to `Some(...)` on first persist.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
     /// When the offer expires. `None` if the offer has no absolute_expiry.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<TimestampMs>,
     /// When this payment either `Completed` or `Failed`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -632,8 +643,10 @@ pub struct OutboundSpontaneousPaymentV2 {
 
     /// When we initiated this payment.
     /// Set to `Some(...)` on first persist.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
     /// When this payment either `Completed` or `Failed`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 

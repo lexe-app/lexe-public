@@ -41,7 +41,9 @@ pub struct OnchainSendV2 {
 
     pub status: OnchainSendStatus,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -280,7 +282,9 @@ pub struct OnchainReceiveV2 {
 
     pub status: OnchainReceiveStatus,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 

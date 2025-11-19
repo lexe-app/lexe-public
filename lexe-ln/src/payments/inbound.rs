@@ -309,20 +309,25 @@ pub struct InboundInvoicePaymentV2 {
     //
     // Added in node-v0.7.4
     // - Older finalized payments will not have this field.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub claim_id: Option<LnClaimId>,
 
     /// The amount encoded in our invoice, if there was one.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_amount: Option<Amount>,
     /// The amount that we actually received. May be greater than the invoice
     /// amount. Populated iff we received a [`PaymentClaimable`] event.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recvd_amount: Option<Amount>,
     /// The amount that was skimmed off of this payment as an extra fee taken
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skimmed_fee: Option<Amount>,
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
     // TODO(max): Currently not used; implement
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
 
     /// The current status of the payment.
@@ -330,11 +335,14 @@ pub struct InboundInvoicePaymentV2 {
 
     /// When we created the invoice for this payment.
     /// Set to `Some(...)` on first persist.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
     /// When the invoice expires. Computed from the invoice's timestamp +
     /// expiry duration. `None` if the expiry timestamp overflows.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<TimestampMs>,
     /// When this payment either `Completed` or `Expired`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -649,19 +657,23 @@ pub struct InboundOfferReusablePaymentV2 {
 
     /// The amount that was skimmed off of this payment as an extra fee taken
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skimmed_fee: Option<Amount>,
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
     // TODO(max): Currently not used; implement
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
 
     /// The current payment status.
     pub status: InboundOfferReusablePaymentStatus,
     /// When we first learned of this payment via [`PaymentClaimable`].
     /// Set to `Some(...)` on first persist.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
     /// When this payment reached the `Completed` state.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -832,11 +844,13 @@ pub struct InboundSpontaneousPaymentV2 {
 
     /// The amount that was skimmed off of this payment as an extra fee taken
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skimmed_fee: Option<Amount>,
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
     /// None if no on-chain fees were incurred.
     // TODO(max): Currently not used; implement
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
 
     /// The current status of the payment.
@@ -844,8 +858,10 @@ pub struct InboundSpontaneousPaymentV2 {
 
     /// When we first learned of this payment via [`PaymentClaimable`].
     /// Set to `Some(...)` on first persist.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<TimestampMs>,
     /// When this payment reached the `Completed` state.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
 
