@@ -100,7 +100,7 @@ use crate::{
         nwc::{
             CreateNwcWalletRequest, CreateNwcWalletResponse, DbNwcWallet,
             GetNwcWalletsParams, ListNwcWalletResponse, NostrPkStruct,
-            NwcRequest, NwcResponse, UpdateDbNwcWalletRequest,
+            NostrSignedEvent, NwcRequest, UpdateDbNwcWalletRequest,
             UpdateNwcWalletRequest, UpdateNwcWalletResponse, VecNwcWallet,
         },
         runner::{
@@ -568,7 +568,7 @@ pub trait LexeNodeRunApi {
         req: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError>;
 
-    /// POST /lexe/nwc_request [`NwcRequest`] -> [`NwcResponse`]
+    /// POST /lexe/nwc_request [`NwcRequest`] -> [`NostrSignedEvent`]
     ///
     /// Processes an encrypted NWC request from the nostr-bridge.
     /// The node will decrypt the request, execute the command, and return
@@ -576,7 +576,7 @@ pub trait LexeNodeRunApi {
     async fn nwc_request(
         &self,
         req: NwcRequest,
-    ) -> Result<NwcResponse, NodeApiError>;
+    ) -> Result<NostrSignedEvent, NodeApiError>;
 }
 
 /// Defines the API the runner exposes to mega nodes.

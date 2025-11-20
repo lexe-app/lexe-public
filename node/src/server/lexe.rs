@@ -12,7 +12,8 @@ use lexe_api::{
     models::{
         command::ResyncRequest,
         nwc::{
-            DbNwcWallet, GetNwcWalletsParams, NostrPk, NwcRequest, NwcResponse,
+            DbNwcWallet, GetNwcWalletsParams, NostrPk, NostrSignedEvent,
+            NwcRequest,
             nip47::{NwcRequestPayload, NwcResponsePayload},
         },
     },
@@ -70,7 +71,7 @@ pub(super) async fn shutdown(
 pub(super) async fn nwc_request(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<NwcRequest>,
-) -> Result<LxJson<NwcResponse>, NodeApiError> {
+) -> Result<LxJson<NostrSignedEvent>, NodeApiError> {
     let db_nwc_wallet = find_nwc_wallet(&state, &req.wallet_nostr_pk)
         .await
         .map_err(NodeApiError::command)?;
@@ -121,7 +122,11 @@ pub(super) async fn nwc_request(
         .encrypt_nip44_response(&response_json)
         .map_err(NodeApiError::command)?;
 
-    Ok(LxJson(NwcResponse { nip44_payload }))
+    let response = nwc_wallet
+        .build_response(req.event_id, nip44_payload)
+        .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(response))
 }
 
 /// Find an NWC wallet by the wallet service public key from the request and

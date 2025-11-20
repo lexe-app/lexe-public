@@ -1,4 +1,5 @@
 use anyhow::Context;
+use bitcoin::base64::{self, Engine};
 use common::{
     ByteArray,
     aes::AesMasterKey,
@@ -7,7 +8,8 @@ use common::{
     time::TimestampMs,
 };
 use lexe_api::models::nwc::{
-    DbNwcWallet, NostrPk, NwcWalletInfo, UpdateDbNwcWalletRequest,
+    DbNwcWallet, NostrEventId, NostrPk, NostrSignedEvent, NwcWalletInfo,
+    UpdateDbNwcWalletRequest,
 };
 use nostr::nips::nip44;
 use serde::{Deserialize, Serialize};
@@ -218,7 +220,7 @@ impl NwcWallet {
     pub(crate) fn encrypt_nip44_response(
         &self,
         response_json: &str,
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> anyhow::Result<String> {
         let wallet_nostr_sk = self.get_wallet_nostr_sk()?;
         let client_nostr_pk = self.get_client_nostr_pk()?;
 
@@ -230,7 +232,31 @@ impl NwcWallet {
         )
         .context("Failed to encrypt NIP-44 payload")?;
 
-        Ok(encrypted_string.into_bytes())
+        Ok(encrypted_string)
+    }
+
+    pub(crate) fn build_response(
+        &self,
+        event_id: NostrEventId,
+        content: String,
+    ) -> anyhow::Result<NostrSignedEvent> {
+        let keys = nostr::Keys::new(self.get_wallet_nostr_sk()?);
+        let event_id = nostr::event::EventId::from_byte_array(event_id.0);
+        let event = nostr::EventBuilder::new(
+            nostr::Kind::WalletConnectResponse,
+            content,
+        )
+        .tag(nostr::Tag::public_key(self.get_client_nostr_pk()?))
+        .tag(nostr::Tag::event(event_id))
+        .sign_with_keys(&keys)?;
+        let event = serde_json::to_string(&event)
+            .context("Failed to serialize nwc response")?;
+        let event = base64::engine::general_purpose::STANDARD_NO_PAD
+            .encode(event.as_bytes());
+
+        Ok(NostrSignedEvent {
+            event: event.into_bytes(),
+        })
     }
 }
 

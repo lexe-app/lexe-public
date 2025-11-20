@@ -18,6 +18,14 @@ pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 byte_array::impl_byte_array!(NostrPk, 32);
 
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, RefCast)]
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[repr(transparent)]
+pub struct NostrEventId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
+
+byte_array::impl_byte_array!(NostrEventId, 32);
+
 /// Upgradeable API struct for a NostrPk.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -173,18 +181,22 @@ pub struct NwcRequest {
     pub client_nostr_pk: NostrPk,
     /// The Nostr PK of the recipient (the wallet service PK).
     pub wallet_nostr_pk: NostrPk,
+    /// The nostr event hex id. Used to build the response nostr event.
+    pub event_id: NostrEventId,
     /// The NIP-44 v2 encrypted payload containing the NWC request.
     #[serde(with = "base64_or_bytes")]
     pub nip44_payload: Vec<u8>,
 }
 
-/// Response from user node back to nostr-bridge with encrypted NWC response.
+/// Generic signed nostr event.
+///
+/// Used for to forward nostr events from the node to nostr-bridge.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct NwcResponse {
-    /// The NIP-44 v2 encrypted payload containing the NWC response.
+pub struct NostrSignedEvent {
+    /// Base64 encoded string of the Json-encoded event.
     #[serde(with = "base64_or_bytes")]
-    pub nip44_payload: Vec<u8>,
+    pub event: Vec<u8>,
 }
 
 /// NIP-47 protocol structures.
@@ -371,7 +383,12 @@ mod test {
     }
 
     #[test]
-    fn nwc_response_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<NwcResponse>();
+    fn nostr_signed_event_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<NostrSignedEvent>();
+    }
+
+    #[test]
+    fn nostr_event_id_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<NostrEventId>();
     }
 }
