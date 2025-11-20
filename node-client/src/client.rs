@@ -66,9 +66,9 @@ use lexe_api::{
             PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentNote,
         },
         nwc::{
-            CreateNwcClientRequest, CreateNwcClientResponse,
-            ListNwcClientsResponse, NostrPkStruct, UpdateNwcClientRequest,
-            UpdateNwcClientResponse,
+            CreateNwcWalletRequest, CreateNwcWalletResponse,
+            ListNwcWalletResponse, NostrPkStruct, UpdateNwcWalletRequest,
+            UpdateNwcWalletResponse,
         },
     },
     rest::{POST, RequestBuilderExt, RestClient},
@@ -804,45 +804,45 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn list_nwc_clients(
+    async fn list_nwc_wallets(
         &self,
-    ) -> Result<ListNwcClientsResponse, NodeApiError> {
+    ) -> Result<ListNwcWalletResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/app/nwc_wallets");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
 
-    async fn create_nwc_client(
+    async fn create_nwc_wallet(
         &self,
-        req: CreateNwcClientRequest,
-    ) -> Result<CreateNwcClientResponse, NodeApiError> {
+        req: CreateNwcWalletRequest,
+    ) -> Result<CreateNwcWalletResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/app/nwc_wallets");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
 
-    async fn update_nwc_client(
+    async fn update_nwc_wallet(
         &self,
-        req: UpdateNwcClientRequest,
-    ) -> Result<UpdateNwcClientResponse, NodeApiError> {
+        req: UpdateNwcWalletRequest,
+    ) -> Result<UpdateNwcWalletResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/app/nwc_wallets");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
     }
 
-    async fn delete_nwc_client(
+    async fn delete_nwc_wallet(
         &self,
         req: NostrPkStruct,
     ) -> Result<Empty, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/app/nwc_wallets");
         let req = run_rest.delete(url, &req);
         run_rest.send(req).await
     }

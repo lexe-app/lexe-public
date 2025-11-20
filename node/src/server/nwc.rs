@@ -5,7 +5,7 @@ use lexe_api::models::{
     command::CreateInvoiceRequest,
     nwc::nip47::{
         GetInfoResult, MakeInvoiceParams, MakeInvoiceResult, NwcError,
-        NwcErrorCode, NwcMethod, NwcRequestPayload,
+        NwcMethod, NwcRequestPayload,
     },
 };
 use lexe_ln::command::CreateInvoiceCaller;
@@ -18,28 +18,30 @@ pub(super) async fn handle_nwc_request(
     state: &RouterState,
     request_payload: &NwcRequestPayload,
 ) -> Result<serde_json::Value, NwcError> {
-    let result: anyhow::Result<serde_json::Value> = match request_payload.method
-    {
+    match request_payload.method {
         NwcMethod::GetInfo => {
-            let result = handle_get_info(state).await?;
-            serde_json::to_value(result)
+            let result =
+                handle_get_info(state).await.map_err(NwcError::internal)?;
+            let value = serde_json::to_value(result)
                 .context("Failed to serialize get_info result")
+                .map_err(NwcError::internal)?;
+            Ok(value)
         }
         NwcMethod::MakeInvoice => {
             let params: MakeInvoiceParams =
                 serde_json::from_value(request_payload.params.clone())
-                    .context("Invalid make_invoice params")?;
-            let result = handle_make_invoice(state, params).await?;
-            serde_json::to_value(result)
+                    .context("Invalid make_invoice params")
+                    .map_err(NwcError::other)?;
+            let result = handle_make_invoice(state, params)
+                .await
+                .map_err(NwcError::internal)?;
+            let value = serde_json::to_value(result)
                 .context("Failed to serialize make_invoice result")
+                .map_err(NwcError::internal)?;
+            Ok(value)
         }
-        _ =>
-            return Err(NwcError {
-                code: NwcErrorCode::NotImplemented,
-                message: "Method not implemented".to_string(),
-            }),
-    };
-    result.map_err(NwcError::from_anyhow)
+        _ => Err(NwcError::not_implemented("Method not implemented")),
+    }
 }
 
 async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
@@ -67,8 +69,7 @@ async fn handle_make_invoice(
     state: &RouterState,
     params: MakeInvoiceParams,
 ) -> anyhow::Result<MakeInvoiceResult> {
-    let amount_msats = params.amount;
-    let amount = Amount::from_msat(amount_msats);
+    let amount = Amount::from_msat(params.amount_msat);
 
     let expiry_secs = params.expiry.unwrap_or(3600);
 

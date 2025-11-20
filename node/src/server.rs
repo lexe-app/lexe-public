@@ -140,11 +140,11 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
             get(app::get_payment_address)
             .put(app::update_payment_address)
         )
-        .route("/app/nwc_clients",
-            get(app::list_nwc_clients)
-                .post(app::create_nwc_client)
-                .put(app::update_nwc_client)
-                .delete(app::delete_nwc_client)
+        .route("/app/nwc_wallets",
+            get(app::list_nwc_wallets)
+                .post(app::create_nwc_wallet)
+                .put(app::update_nwc_wallet)
+                .delete(app::delete_nwc_wallet)
         )
         .with_state(state)
         // Send an activity notification anytime /app is hit.

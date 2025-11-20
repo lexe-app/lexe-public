@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use axum::extract::State;
 use common::{
     api::{models::Status, test_event::TestEventOp, user::UserPkStruct},
@@ -12,7 +12,7 @@ use lexe_api::{
     models::{
         command::ResyncRequest,
         nwc::{
-            DbNwcWallet, NostrPk, NwcRequest, NwcResponse,
+            DbNwcWallet, GetNwcWalletsParams, NostrPk, NwcRequest, NwcResponse,
             nip47::{NwcRequestPayload, NwcResponsePayload},
         },
     },
@@ -20,9 +20,8 @@ use lexe_api::{
     types::Empty,
 };
 use lexe_ln::test_event;
-use tracing::error;
 
-use crate::server::RouterState;
+use crate::{nwc::NwcWallet, server::RouterState};
 
 pub(super) async fn status(
     State(state): State<Arc<RouterState>>,
@@ -72,22 +71,26 @@ pub(super) async fn nwc_request(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<NwcRequest>,
 ) -> Result<LxJson<NwcResponse>, NodeApiError> {
-    use crate::nwc::NwcClient;
-    let nwc_client =
-        authenticate_nwc_connection(&state, &req.connection_nostr_pk)
-            .await
-            .map_err(|err| {
-                error!("NWC authentication failed: {err:#}");
-                NodeApiError::command(err)
-            })?;
+    let db_nwc_wallet = find_nwc_wallet(&state, &req.wallet_nostr_pk)
+        .await
+        .map_err(NodeApiError::command)?;
 
-    let connection =
-        NwcClient::from_db(state.persister.vfs_master_key(), nwc_client)
+    // This from_db call would fail if the wallet cannot be decrypted, meaning
+    // that we either the database is corrupted or the given wallet service
+    // public key is invalid or did not correspond to the node.
+    let nwc_wallet =
+        NwcWallet::from_db(state.persister.vfs_master_key(), db_nwc_wallet)
             .context("Failed to decrypt NWC client data")
             .map_err(NodeApiError::command)?;
 
-    let decrypted_json = connection
-        .decrypt_nip44_request(&req.sender_nostr_pk, &req.nip44_payload)
+    // We validate the client nostr public key here to ensure that the request
+    // was sent by the expected client.
+    nwc_wallet
+        .validate_client_nostr_pk(&req.client_nostr_pk)
+        .map_err(NodeApiError::command)?;
+
+    let decrypted_json = nwc_wallet
+        .decrypt_nip44_request(&req.nip44_payload)
         .map_err(NodeApiError::command)?;
 
     let request_payload: NwcRequestPayload =
@@ -114,25 +117,27 @@ pub(super) async fn nwc_request(
         .context("Failed to serialize NWC response")
         .map_err(NodeApiError::command)?;
 
-    let nip44_payload = connection
-        .encrypt_nip44_response(&req.sender_nostr_pk, &response_json)
+    let nip44_payload = nwc_wallet
+        .encrypt_nip44_response(&response_json)
         .map_err(NodeApiError::command)?;
 
     Ok(LxJson(NwcResponse { nip44_payload }))
 }
 
-/// Authenticate an NWC connection by fetching it from the backend.
-async fn authenticate_nwc_connection(
+/// Find an NWC wallet by the wallet service public key from the request and
+/// the user token.
+async fn find_nwc_wallet(
     state: &RouterState,
-    connection_pk: &NostrPk,
+    wallet_nostr_pk: &NostrPk,
 ) -> anyhow::Result<DbNwcWallet> {
-    let token =
-        state.persister.get_token().await.context(
-            "Failed to get auth token for NWC client authentication",
-        )?;
+    let token = state
+        .persister
+        .get_token()
+        .await
+        .context("Failed to get auth token to fetch NWC wallets")?;
 
-    let params = lexe_api::models::nwc::GetNwcWalletsParams {
-        wallet_nostr_pk: Some(*connection_pk),
+    let params = GetNwcWalletsParams {
+        wallet_nostr_pk: Some(*wallet_nostr_pk),
     };
 
     let vec_nwc_wallet = state
@@ -140,10 +145,8 @@ async fn authenticate_nwc_connection(
         .backend_api()
         .get_nwc_wallets(params, token)
         .await
-        .context("Failed to fetch NWC clients for authentication")?;
+        .context("Failed to fetch NWC wallets")?;
 
     let mut wallets = vec_nwc_wallet.nwc_wallets;
-    wallets
-        .pop()
-        .ok_or_else(|| anyhow::anyhow!("Unauthorized: Connection not found"))
+    wallets.pop().ok_or_else(|| anyhow!("Wallet not found"))
 }

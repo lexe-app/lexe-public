@@ -7,8 +7,9 @@ use common::{
     time::TimestampMs,
 };
 use lexe_api::models::nwc::{
-    DbNwcWallet, NostrPk, NwcClientInfo, UpdateDbNwcWalletRequest,
+    DbNwcWallet, NostrPk, NwcWalletInfo, UpdateDbNwcWalletRequest,
 };
+use nostr::nips::nip44;
 use serde::{Deserialize, Serialize};
 
 const NWC_AAD_PREFIX: &[u8] = b"NWC";
@@ -16,12 +17,12 @@ const NWC_AAD_PREFIX: &[u8] = b"NWC";
 // TODO(maurice): Maybe we would like to configure this in the future.
 const ENCODED_RELAY: &str = "wss%3A%2F%2Frelay.lexe.app";
 
-pub(crate) struct NwcClient {
-    /// The private client data.
+pub(crate) struct NwcWallet {
+    /// The private wallet data.
     /// This data is encrypted when stored in the DB, similarly to VFS files.
-    client_data: NwcClientCiphertextData,
+    wallet_data: NwcWalletCiphertextData,
     /// The public key of the wallet service on NIP scheme.
-    wallet_service_pubkey: NostrPk,
+    wallet_nostr_pk: NostrPk,
     /// The connection string for the NWC client.
     /// Only available on generation of keys.
     connection_string: Option<String>,
@@ -36,30 +37,33 @@ pub(crate) struct NwcClient {
     client_secret: Option<[u8; 32]>,
 }
 
-/// The NWC client data
+/// The NWC wallet data
 ///
 /// The data structure that gets encrypted and stored in the `ciphertext` field.
 /// This contains the sensitive information needed to validate and decrypt NWC
 /// requests.
+///
+/// Both the client and the wallet keys are the ones used in the nostr protocol
+/// sender and receiver keys.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct NwcClientCiphertextData {
-    /// The secret key for this NWC client (randomly generated).
+pub struct NwcWalletCiphertextData {
+    /// The secret key for this NWC wallet (randomly generated).
     /// Used to decrypt and encrypt NIP-44 encrypted requests from the NWC
     /// client.
     #[serde(with = "hexstr_or_bytes")]
-    pub wallet_service_secret_key: [u8; 32],
+    pub wallet_nostr_sk: [u8; 32],
     /// The public key corresponding to client app's `secret`.
     /// When NWC connection string is generated, Node generates a new keypair,
     /// sends the secret to the client app and persists the public key for
     /// future verification.
     #[serde(with = "hexstr_or_bytes")]
-    pub client_pubkey: [u8; 32],
+    pub client_nostr_pk: [u8; 32],
     /// Human-readable label for this client set by the user.
     pub label: String,
 }
 
-impl NwcClient {
-    /// Generate a new NWC client.
+impl NwcWallet {
+    /// Generate a new NWC wallet.
     ///
     /// Generates secp256k1 keypairs for the wallet service and client for use
     /// with NIP-44 encryption.
@@ -68,11 +72,9 @@ impl NwcClient {
         let wallet_service_keys = nostr::Keys::generate_with_rng(&mut rng);
         let client_keys = nostr::Keys::generate_with_rng(&mut rng);
 
-        let client_data = NwcClientCiphertextData {
-            wallet_service_secret_key: wallet_service_keys
-                .secret_key()
-                .secret_bytes(),
-            client_pubkey: client_keys.public_key().to_bytes(),
+        let wallet_data = NwcWalletCiphertextData {
+            wallet_nostr_sk: wallet_service_keys.secret_key().secret_bytes(),
+            client_nostr_pk: client_keys.public_key().to_bytes(),
             label,
         };
         let wallet_service_pubkey =
@@ -80,8 +82,8 @@ impl NwcClient {
         let now = TimestampMs::now();
 
         Self {
-            client_data,
-            wallet_service_pubkey,
+            wallet_data,
+            wallet_nostr_pk: wallet_service_pubkey,
             created_at: now,
             updated_at: now,
             connection_string: Some(Self::build_connection_string(
@@ -101,7 +103,7 @@ impl NwcClient {
         vfs_master_key: &AesMasterKey,
         nwc_wallet: DbNwcWallet,
     ) -> anyhow::Result<Self> {
-        let client_data = decrypt_client(
+        let wallet_data = decrypt_client(
             vfs_master_key,
             nwc_wallet.wallet_nostr_pk.as_array(),
             nwc_wallet.ciphertext,
@@ -110,8 +112,8 @@ impl NwcClient {
         let created_at = nwc_wallet.created_at;
         let updated_at = nwc_wallet.updated_at;
         Ok(Self {
-            client_data,
-            wallet_service_pubkey,
+            wallet_data,
+            wallet_nostr_pk: wallet_service_pubkey,
             created_at,
             updated_at,
             connection_string: None,
@@ -121,10 +123,10 @@ impl NwcClient {
     }
 
     fn build_connection_string(
-        wallet_service_pubkey: &NostrPk,
+        wallet_nostr_pk: &NostrPk,
         client_secret: &[u8; 32],
     ) -> String {
-        let wallet_pk_hex = hex::display(wallet_service_pubkey.as_array());
+        let wallet_pk_hex = hex::display(wallet_nostr_pk.as_array());
         let secret_hex = hex::display(client_secret);
 
         format!(
@@ -133,10 +135,10 @@ impl NwcClient {
         )
     }
 
-    pub(crate) fn to_nwc_client_info(&self) -> NwcClientInfo {
-        NwcClientInfo {
-            client_nostr_pk: self.wallet_service_pubkey,
-            label: self.client_data.label.clone(),
+    pub(crate) fn to_nwc_client_info(&self) -> NwcWalletInfo {
+        NwcWalletInfo {
+            wallet_nostr_pk: self.wallet_nostr_pk,
+            label: self.wallet_data.label.clone(),
             created_at: self.created_at,
             updated_at: self.updated_at,
         }
@@ -147,7 +149,7 @@ impl NwcClient {
     }
 
     pub(crate) fn label(&self) -> &str {
-        &self.client_data.label
+        &self.wallet_data.label
     }
 
     pub(crate) fn to_req(
@@ -158,66 +160,73 @@ impl NwcClient {
         let ciphertext = encrypt_client(
             rng,
             vfs_master_key,
-            self.wallet_service_pubkey.as_array(),
-            &self.client_data,
+            self.wallet_nostr_pk.as_array(),
+            &self.wallet_data,
         );
 
         UpdateDbNwcWalletRequest {
-            wallet_nostr_pk: self.wallet_service_pubkey,
+            wallet_nostr_pk: self.wallet_nostr_pk,
             ciphertext,
         }
     }
 
     pub(crate) fn update_label(&mut self, label: String) {
-        self.client_data.label = label;
+        self.wallet_data.label = label;
     }
 
     /// Get the wallet service secret key for NIP-44 encryption/decryption.
-    fn get_wallet_service_secret_key(
-        &self,
-    ) -> anyhow::Result<nostr::SecretKey> {
-        nostr::SecretKey::from_slice(
-            &self.client_data.wallet_service_secret_key,
-        )
-        .context(
+    fn get_wallet_nostr_sk(&self) -> anyhow::Result<nostr::SecretKey> {
+        nostr::SecretKey::from_slice(&self.wallet_data.wallet_nostr_sk).context(
             "Failed to convert wallet service secret key to Nostr secret key",
         )
+    }
+
+    fn get_client_nostr_pk(&self) -> anyhow::Result<nostr::PublicKey> {
+        nostr::PublicKey::from_slice(self.wallet_data.client_nostr_pk.as_ref())
+            .context("Invalid client nostr public key")
+    }
+
+    pub(crate) fn validate_client_nostr_pk(
+        &self,
+        client_nostr_pk: &NostrPk,
+    ) -> anyhow::Result<()> {
+        let client_nostr_pk =
+            nostr::PublicKey::from_slice(client_nostr_pk.as_ref())
+                .expect("Invalid client nostr public key");
+        let our_client_nostr_pk = self.get_client_nostr_pk()?;
+        if client_nostr_pk != our_client_nostr_pk {
+            return Err(anyhow::anyhow!(
+                "Client nostr pk does not match stored client nostr pk"
+            ));
+        }
+        Ok(())
     }
 
     /// Decrypt a NIP-44 encrypted NWC request.
     pub(crate) fn decrypt_nip44_request(
         &self,
-        sender_pk: &NostrPk,
         encrypted_payload: &[u8],
     ) -> anyhow::Result<String> {
-        let receiver_sk = self.get_wallet_service_secret_key()?;
-        let sender_nostr_pk = nostr::PublicKey::from_slice(sender_pk.as_ref())
-            .context("Invalid sender Nostr public key")?;
+        let wallet_nostr_sk = self.get_wallet_nostr_sk()?;
+        let client_nostr_pk = self.get_client_nostr_pk()?;
 
-        nostr::nips::nip44::decrypt(
-            &receiver_sk,
-            &sender_nostr_pk,
-            encrypted_payload,
-        )
-        .context("Failed to decrypt NIP-44 payload")
+        nip44::decrypt(&wallet_nostr_sk, &client_nostr_pk, encrypted_payload)
+            .context("Failed to decrypt NIP-44 payload")
     }
 
     /// Encrypt a NWC response using NIP-44.
     pub(crate) fn encrypt_nip44_response(
         &self,
-        recipient_pk: &NostrPk,
         response_json: &str,
     ) -> anyhow::Result<Vec<u8>> {
-        let sender_sk = self.get_wallet_service_secret_key()?;
-        let recipient_nostr_pk =
-            nostr::PublicKey::from_slice(recipient_pk.as_ref())
-                .context("Invalid recipient Nostr public key")?;
+        let wallet_nostr_sk = self.get_wallet_nostr_sk()?;
+        let client_nostr_pk = self.get_client_nostr_pk()?;
 
-        let encrypted_string = nostr::nips::nip44::encrypt(
-            &sender_sk,
-            &recipient_nostr_pk,
+        let encrypted_string = nip44::encrypt(
+            &wallet_nostr_sk,
+            &client_nostr_pk,
             response_json,
-            nostr::nips::nip44::Version::default(),
+            nip44::Version::default(),
         )
         .context("Failed to encrypt NIP-44 payload")?;
 
@@ -225,55 +234,53 @@ impl NwcClient {
     }
 }
 
-/// Encrypt the NWC client data using node's master key.
+/// Encrypt the NWC wallet data using node's master key.
 ///
-/// Serializes the client data into JSON, encrypts it, and returns the
+/// Serializes the wallet data into JSON, encrypts it, and returns the
 /// encrypted data bytes.
 ///
-/// We use the connection_pubkey as the AAD, to ensure that the encrypted
+/// We use the wallet_nostr_pk as the AAD, to ensure that the encrypted
 /// data is only decryptable by the node that owns the connection_pubkey.
 fn encrypt_client(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
-    connection_pubkey: &[u8; 32],
-    client_data: &NwcClientCiphertextData,
+    wallet_nostr_pk: &[u8; 32],
+    client_data: &NwcWalletCiphertextData,
 ) -> Vec<u8> {
-    let aad = &[NWC_AAD_PREFIX, connection_pubkey.as_slice()];
+    let aad = &[NWC_AAD_PREFIX, wallet_nostr_pk.as_slice()];
     vfs_master_key.encrypt(rng, aad, None, &|out: &mut Vec<u8>| {
         serde_json::to_writer(out, &client_data)
             .expect("JSON serialization was not implemented correctly");
     })
 }
 
-/// Decrypt the NWC client data using node's master key.
+/// Decrypt the NWC wallet data using node's master key.
 ///
 /// Decrypts the encrypted data bytes, deserializes the JSON, and returns the
 /// decrypted client data.
 fn decrypt_client(
     vfs_master_key: &AesMasterKey,
-    connection_pubkey: &[u8; 32],
+    wallet_nostr_pk: &[u8; 32],
     data: Vec<u8>,
-) -> anyhow::Result<NwcClientCiphertextData> {
-    let aad = &[NWC_AAD_PREFIX, connection_pubkey.as_slice()];
+) -> anyhow::Result<NwcWalletCiphertextData> {
+    let aad = &[NWC_AAD_PREFIX, wallet_nostr_pk.as_slice()];
     let value = vfs_master_key.decrypt(aad, data).with_context(|| {
         format!(
             "Failed to decrypt NWC client data {}",
-            hex::display(connection_pubkey)
+            hex::display(wallet_nostr_pk)
         )
     })?;
     serde_json::from_slice(&value).with_context(|| {
         format!(
             "Failed to deserialize NWC client data, {}",
-            hex::display(connection_pubkey)
+            hex::display(wallet_nostr_pk)
         )
     })
 }
 
 #[cfg(test)]
 mod test {
-    use common::{
-        ByteArray, aes::AesMasterKey, rng::SysRng, time::TimestampMs,
-    };
+    use common::{aes::AesMasterKey, rng::SysRng, time::TimestampMs};
     use lexe_api::models::nwc::DbNwcWallet;
 
     use super::*;
@@ -288,9 +295,9 @@ mod test {
         let mut rng = SysRng::new();
         let master_key = test_master_key();
 
-        let client_data = NwcClientCiphertextData {
-            wallet_service_secret_key: [1u8; 32],
-            client_pubkey: [2u8; 32],
+        let client_data = NwcWalletCiphertextData {
+            wallet_nostr_sk: [1u8; 32],
+            client_nostr_pk: [2u8; 32],
             label: "Test Connection".to_string(),
         };
         let connection_pubkey = [3u8; 32];
@@ -314,9 +321,9 @@ mod test {
         let master_key = test_master_key();
         let wrong_key = AesMasterKey::new(&[99u8; 32]);
 
-        let client_data = NwcClientCiphertextData {
-            wallet_service_secret_key: [1u8; 32],
-            client_pubkey: [2u8; 32],
+        let client_data = NwcWalletCiphertextData {
+            wallet_nostr_sk: [1u8; 32],
+            client_nostr_pk: [2u8; 32],
             label: "Test".to_string(),
         };
         let connection_pubkey = [3u8; 32];
@@ -336,9 +343,9 @@ mod test {
     fn test_nwc_connection_new() {
         let label = "My NWC Connection".to_string();
 
-        let connection = NwcClient::new(label.clone());
+        let connection = NwcWallet::new(label.clone());
 
-        assert_eq!(connection.client_data.label, label);
+        assert_eq!(connection.wallet_data.label, label);
         assert!(connection.connection_string.is_some());
 
         let conn_str = connection.connection_string.unwrap();
@@ -350,7 +357,7 @@ mod test {
 
     #[test]
     fn test_connection_string_format() {
-        let connection = NwcClient::new("test".to_string());
+        let connection = NwcWallet::new("test".to_string());
         let conn_str = connection
             .connection_string
             .expect("Should have connection string");
@@ -381,7 +388,7 @@ mod test {
         let master_key = test_master_key();
         let label = "Test Label".to_string();
 
-        let connection = NwcClient::new(label.clone());
+        let connection = NwcWallet::new(label.clone());
         let req = connection.to_req(&mut rng, &master_key);
 
         let nwc_wallet = DbNwcWallet {
@@ -391,44 +398,41 @@ mod test {
             updated_at: connection.updated_at,
         };
 
-        let restored = NwcClient::from_db(&master_key, nwc_wallet)
+        let restored = NwcWallet::from_db(&master_key, nwc_wallet)
             .expect("Should restore connection");
 
         assert_eq!(
-            connection.client_data.wallet_service_secret_key,
-            restored.client_data.wallet_service_secret_key
+            connection.wallet_data.wallet_nostr_sk,
+            restored.wallet_data.wallet_nostr_sk
         );
         assert_eq!(
-            connection.client_data.client_pubkey,
-            restored.client_data.client_pubkey
+            connection.wallet_data.client_nostr_pk,
+            restored.wallet_data.client_nostr_pk
         );
-        assert_eq!(connection.client_data.label, restored.client_data.label);
-        assert_eq!(
-            connection.wallet_service_pubkey,
-            restored.wallet_service_pubkey
-        );
+        assert_eq!(connection.wallet_data.label, restored.wallet_data.label);
+        assert_eq!(connection.wallet_nostr_pk, restored.wallet_nostr_pk);
         assert!(restored.connection_string.is_none());
     }
 
     #[test]
     fn test_update_label() {
-        let mut connection = NwcClient::new("Original Label".to_string());
+        let mut connection = NwcWallet::new("Original Label".to_string());
 
-        assert_eq!(connection.client_data.label, "Original Label");
+        assert_eq!(connection.wallet_data.label, "Original Label");
 
         connection.update_label("Updated Label".to_string());
-        assert_eq!(connection.client_data.label, "Updated Label");
+        assert_eq!(connection.wallet_data.label, "Updated Label");
     }
 
     #[test]
     fn test_to_nwc_client_info() {
         let label = "Test Connection".to_string();
-        let connection = NwcClient::new(label.clone());
+        let connection = NwcWallet::new(label.clone());
 
         let info = connection.to_nwc_client_info();
 
         assert_eq!(info.label, label);
-        assert_eq!(info.client_nostr_pk, connection.wallet_service_pubkey);
+        assert_eq!(info.wallet_nostr_pk, connection.wallet_nostr_pk);
         assert_eq!(info.created_at, connection.created_at);
         assert_eq!(info.updated_at, connection.updated_at);
     }
@@ -439,7 +443,7 @@ mod test {
         let master_key = test_master_key();
         let label = "Test".to_string();
 
-        let connection = NwcClient::new(label.clone());
+        let connection = NwcWallet::new(label.clone());
         let req = connection.to_req(&mut rng, &master_key);
 
         let nwc_wallet = DbNwcWallet {
@@ -449,35 +453,32 @@ mod test {
             updated_at: TimestampMs::now(),
         };
 
-        let restored = NwcClient::from_db(&master_key, nwc_wallet)
+        let restored = NwcWallet::from_db(&master_key, nwc_wallet)
             .expect("Should restore");
         let info = restored.to_nwc_client_info();
 
         assert_eq!(info.label, label);
-        assert_eq!(info.client_nostr_pk, restored.wallet_service_pubkey);
+        assert_eq!(info.wallet_nostr_pk, restored.wallet_nostr_pk);
     }
 
     #[test]
     fn test_nip44_request_response_roundtrip() {
-        let connection = NwcClient::new("Test Wallet".to_string());
+        let nwc_wallet = NwcWallet::new("Test Wallet".to_string());
 
         // Use test-only field to get client secret key
         let client_secret = nostr::SecretKey::from_slice(
-            &connection
+            &nwc_wallet
                 .client_secret
                 .expect("Should have test secret when created with new()"),
         )
         .expect("Valid client secret");
 
         let client_keys = nostr::Keys::new(client_secret);
-        let client_pk =
-            NostrPk::from_array(client_keys.public_key().to_bytes());
 
         // Get wallet service public key
-        let wallet_service_pk = nostr::PublicKey::from_slice(
-            connection.wallet_service_pubkey.as_ref(),
-        )
-        .expect("Valid wallet service public key");
+        let wallet_service_pk =
+            nostr::PublicKey::from_slice(nwc_wallet.wallet_nostr_pk.as_ref())
+                .expect("Valid wallet service public key");
 
         // Simulate a NWC request payload
         let request_payload = r#"{"method":"get_info","params":{}}"#;
@@ -492,8 +493,8 @@ mod test {
         .expect("Client encryption should succeed");
 
         // Wallet service decrypts the request
-        let decrypted_request = connection
-            .decrypt_nip44_request(&client_pk, encrypted_request.as_bytes())
+        let decrypted_request = nwc_wallet
+            .decrypt_nip44_request(encrypted_request.as_bytes())
             .expect("Wallet decryption should succeed");
 
         assert_eq!(decrypted_request, request_payload);
@@ -503,8 +504,8 @@ mod test {
             r#"{"result":{"alias":"test","network":"bitcoin"},"error":null}"#;
 
         // Wallet service encrypts response
-        let encrypted_response = connection
-            .encrypt_nip44_response(&client_pk, response_payload)
+        let encrypted_response = nwc_wallet
+            .encrypt_nip44_response(response_payload)
             .expect("Wallet response encryption should succeed");
 
         // Client decrypts response
