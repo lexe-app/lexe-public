@@ -66,9 +66,9 @@ use lexe_api::{
             PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentNote,
         },
         nwc::{
-            ClientNostrPkStruct, CreateNwcClientRequest,
-            CreateNwcClientResponse, ListNwcClientsResponse,
-            UpdateNwcClientRequest, UpdateNwcClientResponse,
+            CreateNwcClientRequest, CreateNwcClientResponse,
+            ListNwcClientsResponse, NostrPkStruct, UpdateNwcClientRequest,
+            UpdateNwcClientResponse,
         },
     },
     rest::{POST, RequestBuilderExt, RestClient},
@@ -838,7 +838,7 @@ impl AppNodeRunApi for NodeClient {
 
     async fn delete_nwc_client(
         &self,
-        req: ClientNostrPkStruct,
+        req: NostrPkStruct,
     ) -> Result<Empty, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;

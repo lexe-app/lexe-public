@@ -98,11 +98,10 @@ use crate::{
             UpdatePaymentNote, VecLxPaymentId,
         },
         nwc::{
-            ClientNostrPkStruct, CreateNwcClientRequest,
-            CreateNwcClientResponse, DbNwcClient, GetNwcClientsParams,
-            ListNwcClientsResponse, NwcRequest, NwcResponse,
-            UpdateDbNwcClientRequest, UpdateNwcClientRequest,
-            UpdateNwcClientResponse, VecNwcClient,
+            CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
+            GetNwcClientsParams, ListNwcClientsResponse, NostrPkStruct,
+            NwcRequest, NwcResponse, UpdateDbNwcClientRequest,
+            UpdateNwcClientRequest, UpdateNwcClientResponse, VecNwcClient,
         },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
@@ -483,7 +482,7 @@ pub trait AppNodeRunApi {
     /// DELETE /app/nwc_client [`ClientNostrPkStruct`] -> [`Empty`]
     async fn delete_nwc_client(
         &self,
-        req: ClientNostrPkStruct,
+        req: NostrPkStruct,
     ) -> Result<Empty, NodeApiError>;
 }
 
@@ -999,7 +998,7 @@ pub trait NodeBackendApi {
     /// Deletes a NWC client.
     async fn delete_nwc_client(
         &self,
-        req: ClientNostrPkStruct,
+        req: NostrPkStruct,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 }

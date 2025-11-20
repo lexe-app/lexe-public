@@ -39,10 +39,9 @@ use lexe_api::{
             SetupGDrive, UpdatePaymentAddress, UpdatePaymentNote,
         },
         nwc::{
-            ClientNostrPkStruct, CreateNwcClientRequest,
-            CreateNwcClientResponse, GetNwcClientsParams,
-            ListNwcClientsResponse, UpdateNwcClientRequest,
-            UpdateNwcClientResponse,
+            CreateNwcClientRequest, CreateNwcClientResponse,
+            GetNwcClientsParams, ListNwcClientsResponse, NostrPkStruct,
+            UpdateNwcClientRequest, UpdateNwcClientResponse,
         },
     },
     server::{LxJson, extract::LxQuery},
@@ -800,7 +799,7 @@ pub(super) async fn update_nwc_client(
 /// Delete an NWC client.
 pub(super) async fn delete_nwc_client(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<ClientNostrPkStruct>,
+    LxJson(req): LxJson<NostrPkStruct>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     let token = state
         .persister

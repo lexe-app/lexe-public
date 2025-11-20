@@ -21,8 +21,8 @@ byte_array::impl_byte_array!(NostrPk, 32);
 /// Upgradeable API struct for a NostrPk.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ClientNostrPkStruct {
-    pub client_nostr_pk: NostrPk,
+pub struct NostrPkStruct {
+    pub nostr_pk: NostrPk,
 }
 
 /// Information about a NWC client.
@@ -339,7 +339,7 @@ mod test {
 
     #[test]
     fn nostr_client_pk_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<ClientNostrPkStruct>();
+        roundtrip::json_value_roundtrip_proptest::<NostrPkStruct>();
     }
 
     #[test]
