@@ -14,7 +14,7 @@ import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
@@ -1039,7 +1039,7 @@ class PaymentAmountInput extends StatelessWidget {
 }
 
 /// Text entry field for a user to set a payment's note or description.
-class PaymentNoteInput extends StatelessWidget {
+class PaymentNoteInput extends StatefulWidget {
   const PaymentNoteInput({
     super.key,
     required this.fieldKey,
@@ -1056,67 +1056,182 @@ class PaymentNoteInput extends StatelessWidget {
   final bool isEnabled;
 
   @override
+  State<PaymentNoteInput> createState() => _PaymentNoteInputState();
+}
+
+class _PaymentNoteInputState extends State<PaymentNoteInput> {
+  final ValueNotifier<String> currentValue = ValueNotifier("");
+  final ValueNotifier<bool> isTextFocused = ValueNotifier(false);
+  final FocusNode textFocus = FocusNode();
+
+  void onTextFocusChange() {
+    this.isTextFocused.value = this.textFocus.hasFocus;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    this.currentValue.value = this.widget.initialNote ?? "";
+    this.textFocus.addListener(this.onTextFocusChange);
+  }
+
+  @override
+  void dispose() {
+    this.textFocus.removeListener(this.onTextFocusChange);
+    this.textFocus.dispose();
+    this.isTextFocused.dispose();
+    this.currentValue.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      key: this.fieldKey,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: TextFormField(
+                key: this.widget.fieldKey,
+                focusNode: this.textFocus,
+                // Disable the input field while the send request is pending.
+                enabled: this.widget.isEnabled,
+                initialValue: this.widget.initialNote,
 
-      // Disable the input field while the send request is pending.
-      enabled: this.isEnabled,
+                onChanged: (value) {
+                  this.currentValue.value = value;
+                },
 
-      initialValue: this.initialNote,
+                autofocus: false,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.send,
+                onEditingComplete: this.widget.onSubmit,
+                maxLines: null,
+                maxLength: 200,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
 
-      autofocus: false,
-      keyboardType: TextInputType.text,
-      textInputAction: TextInputAction.send,
-      onEditingComplete: this.onSubmit,
-      maxLines: null,
-      maxLength: 200,
-      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                // Silently limit input to 512 bytes. This could be a little
+                // confusing if the user inputs a ton of emojis or CJK characters
+                // I guess.
+                inputFormatters: const [
+                  MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
+                ],
 
-      // Silently limit input to 512 bytes. This could be a little
-      // confusing if the user inputs a ton of emojis or CJK characters
-      // I guess.
-      inputFormatters: const [
-        MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
-      ],
+                decoration: InputDecoration(
+                  hintStyle: const TextStyle(color: LxColors.grey550),
+                  hintText: this.widget.hintText,
+                  // We build the counter outside the text field, so we can
+                  // center the inline submit button.
+                  counterText: "",
+                  border: const OutlineInputBorder(),
+                  enabledBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: LxColors.fgTertiary),
+                  ),
+                  focusedBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: LxColors.foreground),
+                  ),
+                ),
 
-      decoration: InputDecoration(
-        hintStyle: const TextStyle(color: LxColors.grey550),
-        hintText: this.hintText,
-        counterStyle: const TextStyle(color: LxColors.grey550),
-        border: const OutlineInputBorder(),
-        enabledBorder: const OutlineInputBorder(
-          borderSide: BorderSide(color: LxColors.fgTertiary),
-        ),
-        focusedBorder: const OutlineInputBorder(
-          borderSide: BorderSide(color: LxColors.foreground),
-        ),
-      ),
-
-      // Only show "XX/YY" character limit counter when text area is focused.
-      buildCounter:
-          (
-            context, {
-            required int currentLength,
-            required int? maxLength,
-            required bool isFocused,
-          }) => (isFocused && maxLength != null)
-          ? Text(
-              "$currentLength/$maxLength",
-              style: const TextStyle(
-                fontSize: Fonts.size100,
-                color: LxColors.grey550,
-                height: 1.0,
+                style: Fonts.fontBody.copyWith(
+                  fontSize: Fonts.size200,
+                  height: 1.5,
+                  color: LxColors.fgSecondary,
+                  letterSpacing: -0.15,
+                ),
               ),
-            )
-          : const SizedBox(height: Fonts.size100),
+            ),
+            // Some phone keyboards are not clear how to "submit" a text field.
+            // So we use an inline submit button to make it clear that the user
+            // wants to submit the note.
+            ValueListenableBuilder(
+              valueListenable: this.isTextFocused,
+              builder: (context, isTextFocused, child) {
+                return ValueListenableBuilder<String>(
+                  valueListenable: this.currentValue,
+                  builder: (context, currentValue, child) {
+                    return AnimatedOpacity(
+                      opacity: isTextFocused ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 150),
+                      child: isTextFocused
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(width: Space.s200),
+                                SizedBox(
+                                  width: 36.0,
+                                  height: 36.0,
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    onPressed: this.widget.isEnabled
+                                        ? this.widget.onSubmit
+                                        : null,
+                                    icon: const Icon(LxIcons.next, size: 20.0),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: LxColors.moneyGoUp,
+                                      foregroundColor: LxColors.grey1000,
+                                      disabledBackgroundColor: LxColors.grey700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+        // We add a custom counter widget because we want to display the submit
+        // button centered to the text input. But, using the default counter
+        // builder, increases the height size of the input making the centering
+        // of the inline submit button difficult.
+        ValueListenableBuilder(
+          valueListenable: this.isTextFocused,
+          builder: (context, isTextFocused, child) {
+            return ValueListenableBuilder<String>(
+              valueListenable: this.currentValue,
+              builder: (context, currentValue, child) {
+                final currentLength = currentValue.length;
 
-      style: Fonts.fontBody.copyWith(
-        fontSize: Fonts.size200,
-        height: 1.5,
-        color: LxColors.fgSecondary,
-        letterSpacing: -0.15,
-      ),
+                return Row(
+                  children: [
+                    Expanded(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: isTextFocused ? 1.0 : 0.0,
+                        child: (isTextFocused && currentLength > 100)
+                            ? Padding(
+                                padding: const EdgeInsets.only(
+                                  top: Space.s100,
+                                  right: Space.s100,
+                                ),
+                                child: Text(
+                                  "$currentLength/200",
+                                  style: const TextStyle(
+                                    fontSize: Fonts.size100,
+                                    color: LxColors.grey550,
+                                    height: 1.0,
+                                  ),
+                                  textAlign: TextAlign.end,
+                                ),
+                              )
+                            : const SizedBox(
+                                height: Fonts.size100 + Space.s100,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: Space.s200 + 36.0),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      ],
     );
   }
 }
