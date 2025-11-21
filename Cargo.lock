@@ -3640,14 +3640,13 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.17.8"
-source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.8-2025_05_15#d33bd3d43eb277ca79a62fd1e0dd631d0bb53314"
+version = "0.17.14"
+source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.14-2025_11_21#635168c625c71576269cc067e8d372b9682a6472"
 dependencies = [
  "cc",
  "cfg-if 1.0.4",
  "getrandom 0.2.16",
  "libc",
- "spin",
  "untrusted",
  "windows-sys 0.52.0",
 ]

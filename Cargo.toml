@@ -229,7 +229,7 @@ mio = "=0.8.11"
 # High-level HTTP client
 reqwest = { version = "=0.12.1", default-features = false, features = ["http2", "rustls-tls-manual-roots"] }
 # Safe and small crypto primitives based on BoringSSL
-ring = "=0.17.8"
+ring = "=0.17.14"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
 sgx-isa = "=0.4.1"
 sgxs = "=0.8.0"
@@ -314,11 +314,16 @@ mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2024_10_
 reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.12.1-2024_10_11" }
 
 # * license: Add dual license information
+# * lint: allow `mismatched_lifetime_syntaxes`
+# * rand: use getrandom (rdrand) in SGX
+# * build: target_os="unknown" => LINUX_ABI (support SGX)
+# * build: windows: look for `nasm` in $PATH
 # * cpu: use static cpuid feature set in SGX enclaves
-# * rand: Use `RDRAND` implementation in SGX
-# * build: Always build from source
-# * build.rs: windows: also look for `nasm` in $PATH
-ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.8-2025_05_15" }
+# * dev: add basic tooling for testing on SGX
+# * nix: add ring-pregenerate-asm
+# * ring: pregenerate asm
+ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.14-2025_11_21" }
+# ring = { path = "../../ring" }
 
 # * license: Add dual license information
 # * fortanix: SGX port
