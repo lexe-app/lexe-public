@@ -75,20 +75,6 @@ pub struct ListNwcWalletResponse {
     pub wallets: Vec<NwcWalletInfo>,
 }
 
-/// Request to create or update an NWC connection.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct UpsertNwcRequest {
-    /// If provided, updates an existing connection. If None, creates new.
-    pub client_nostr_pk: Option<NostrPk>,
-    /// Human-readable label for this connection.
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_string()")
-    )]
-    pub label: String,
-}
-
 /// Query parameters to search for NWC wallets.
 ///
 /// This params adds optinal filtering besides the user_pk.

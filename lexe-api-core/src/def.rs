@@ -470,7 +470,7 @@ pub trait AppNodeRunApi {
 
     /// Update an existing NWC wallet's label.
     ///
-    /// PUT /app/nwc_wallets [`UpdateNwcWalletRequest`] ->
+    /// PUT /app/nwc_wallets [`UpdateNwcWalletRequest`]
     ///                   -> [`UpdateNwcWalletResponse`]
     async fn update_nwc_wallet(
         &self,
