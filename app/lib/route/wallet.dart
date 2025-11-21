@@ -1338,7 +1338,8 @@ class ClaimedPaymentAddress extends StatelessWidget {
   final VoidCallback? onTapEdit;
 
   String get username => this.paymentAddress.username!.field0;
-  String get displayUsername => "₿${this.username}@lexe.app";
+  String get emailLikeUsername => "${this.username}@lexe.app";
+  String get displayUsername => "₿${this.emailLikeUsername}";
 
   double get fontSize {
     return switch (this.username.length) {
@@ -1367,7 +1368,7 @@ class ClaimedPaymentAddress extends StatelessWidget {
 
   void onTapCopy(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
-    LxClipboard.copyTextWithFeedback(context, this.displayUsername);
+    LxClipboard.copyTextWithFeedback(context, this.emailLikeUsername);
   }
 
   @override
