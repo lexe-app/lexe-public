@@ -31,8 +31,8 @@ use lexe_api::{
             PaymentCreatedIndexes, UpdatePaymentAddress, VecLxPaymentId,
         },
         nwc::{
-            DbNwcWallet, GetNwcWalletsParams, NostrPkStruct,
-            UpdateDbNwcWalletRequest, VecNwcWallet,
+            DbNwcClient, GetNwcClients, NostrPkStruct,
+            UpdateDbNwcClientRequest, VecDbNwcClient,
         },
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
@@ -761,33 +761,33 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_nwc_wallets(
+    async fn get_nwc_clients(
         &self,
-        req: GetNwcWalletsParams,
+        req: GetNwcClients,
         auth: BearerAuthToken,
-    ) -> Result<VecNwcWallet, BackendApiError> {
+    ) -> Result<VecDbNwcClient, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .get(format!("{backend}/node/v1/nwc_wallets"), &req)
+            .get(format!("{backend}/node/v1/nwc_clients"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
 
-    async fn upsert_nwc_wallet(
+    async fn upsert_nwc_client(
         &self,
-        req: UpdateDbNwcWalletRequest,
+        req: UpdateDbNwcClientRequest,
         auth: BearerAuthToken,
-    ) -> Result<DbNwcWallet, BackendApiError> {
+    ) -> Result<DbNwcClient, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .put(format!("{backend}/node/v1/nwc_wallets"), &req)
+            .put(format!("{backend}/node/v1/nwc_clients"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
 
-    async fn delete_nwc_wallet(
+    async fn delete_nwc_client(
         &self,
         req: NostrPkStruct,
         auth: BearerAuthToken,
@@ -795,7 +795,7 @@ impl NodeBackendApi for NodeBackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .delete(format!("{backend}/node/v1/nwc_wallets"), &req)
+            .delete(format!("{backend}/node/v1/nwc_clients"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

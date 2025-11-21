@@ -98,10 +98,10 @@ use crate::{
             UpdatePaymentNote, VecLxPaymentId,
         },
         nwc::{
-            CreateNwcWalletRequest, CreateNwcWalletResponse, DbNwcWallet,
-            GetNwcWalletsParams, ListNwcWalletResponse, NostrPkStruct,
-            NostrSignedEvent, NwcRequest, UpdateDbNwcWalletRequest,
-            UpdateNwcWalletRequest, UpdateNwcWalletResponse, VecNwcWallet,
+            CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
+            GetNwcClients, ListNwcClientResponse, NostrPkStruct,
+            NostrSignedEvent, NwcRequest, UpdateDbNwcClientRequest,
+            UpdateNwcClientRequest, UpdateNwcClientResponse, VecDbNwcClient,
         },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
@@ -450,37 +450,37 @@ pub trait AppNodeRunApi {
         req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError>;
 
-    /// List NWC wallets for the current user.
+    /// List NWC clients for the current user.
     /// Returns client info without sensitive data (no connection strings).
     ///
-    /// GET /app/nwc_wallets [`Empty`] -> [`ListNwcWalletResponse`]
-    async fn list_nwc_wallets(
+    /// GET /app/nwc_clients [`Empty`] -> [`ListNwcClientResponse`]
+    async fn list_nwc_clients(
         &self,
-    ) -> Result<ListNwcWalletResponse, NodeApiError>;
+    ) -> Result<ListNwcClientResponse, NodeApiError>;
 
-    /// Create a new NWC wallet.
+    /// Create a new NWC client.
     /// Generates new keys and returns the connection string.
     ///
-    /// POST /app/nwc_wallets [`CreateNwcWalletRequest`]
-    ///                    -> [`CreateNwcWalletResponse`]
-    async fn create_nwc_wallet(
+    /// POST /app/nwc_clients [`CreateNwcClientRequest`]
+    ///                    -> [`CreateNwcClientResponse`]
+    async fn create_nwc_client(
         &self,
-        req: CreateNwcWalletRequest,
-    ) -> Result<CreateNwcWalletResponse, NodeApiError>;
+        req: CreateNwcClientRequest,
+    ) -> Result<CreateNwcClientResponse, NodeApiError>;
 
-    /// Update an existing NWC wallet's label.
+    /// Update an existing NWC client's label.
     ///
-    /// PUT /app/nwc_wallets [`UpdateNwcWalletRequest`]
-    ///                   -> [`UpdateNwcWalletResponse`]
-    async fn update_nwc_wallet(
+    /// PUT /app/nwc_clients [`UpdateNwcClientRequest`]
+    ///                   -> [`UpdateNwcClientResponse`]
+    async fn update_nwc_client(
         &self,
-        req: UpdateNwcWalletRequest,
-    ) -> Result<UpdateNwcWalletResponse, NodeApiError>;
+        req: UpdateNwcClientRequest,
+    ) -> Result<UpdateNwcClientResponse, NodeApiError>;
 
-    /// Delete an NWC wallet.
+    /// Delete an NWC client given its nostr client public key.
     ///
-    /// DELETE /app/nwc_wallets [`NostrPkStruct`] -> [`Empty`]
-    async fn delete_nwc_wallet(
+    /// DELETE /app/nwc_clients [`NostrPkStruct`] -> [`Empty`]
+    async fn delete_nwc_client(
         &self,
         req: NostrPkStruct,
     ) -> Result<Empty, NodeApiError>;
@@ -975,29 +975,29 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<GetGeneratedUsernameResponse, BackendApiError>;
 
-    /// GET /node/v1/nwc_wallets [`Empty`] -> [`VecNwcWallet`]
+    /// GET /node/v1/nwc_clients [`Empty`] -> [`VecDbNwcClient`]
     ///
-    /// Fetches the node's NWC wallets and optionally filters by
-    /// wallet_nostr_pk.
-    async fn get_nwc_wallets(
+    /// Fetches the node's NWC clients and optionally filters by
+    /// client_nostr_pk.
+    async fn get_nwc_clients(
         &self,
-        req: GetNwcWalletsParams,
+        req: GetNwcClients,
         auth: BearerAuthToken,
-    ) -> Result<VecNwcWallet, BackendApiError>;
+    ) -> Result<VecDbNwcClient, BackendApiError>;
 
-    /// PUT /node/v1/nwc_wallets [`UpdateDbNwcWalletRequest`] -> [`DbNwcWallet`]
+    /// PUT /node/v1/nwc_clients [`UpdateDbNwcClientRequest`] -> [`DbNwcClient`]
     ///
-    /// Upserts a NWC wallet in the database.
-    async fn upsert_nwc_wallet(
+    /// Upserts a NWC client in the database.
+    async fn upsert_nwc_client(
         &self,
-        req: UpdateDbNwcWalletRequest,
+        req: UpdateDbNwcClientRequest,
         auth: BearerAuthToken,
-    ) -> Result<DbNwcWallet, BackendApiError>;
+    ) -> Result<DbNwcClient, BackendApiError>;
 
-    /// DELETE /node/v1/nwc_wallets [`NostrPkStruct`] -> [`Empty`]
+    /// DELETE /node/v1/nwc_clients [`NostrPkStruct`] -> [`Empty`]
     ///
-    /// Deletes a NWC wallet.
-    async fn delete_nwc_wallet(
+    /// Deletes a NWC client given its nostr client public key.
+    async fn delete_nwc_client(
         &self,
         req: NostrPkStruct,
         auth: BearerAuthToken,

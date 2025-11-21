@@ -39,9 +39,9 @@ use lexe_api::{
             SetupGDrive, UpdatePaymentAddress, UpdatePaymentNote,
         },
         nwc::{
-            CreateNwcWalletRequest, CreateNwcWalletResponse,
-            GetNwcWalletsParams, ListNwcWalletResponse, NostrPkStruct,
-            UpdateNwcWalletRequest, UpdateNwcWalletResponse,
+            CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
+            ListNwcClientResponse, NostrPkStruct, UpdateNwcClientRequest,
+            UpdateNwcClientResponse,
         },
     },
     server::{LxJson, extract::LxQuery},
@@ -60,7 +60,7 @@ use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
 use super::RouterState;
-use crate::{gdrive_setup, nwc::NwcWallet};
+use crate::{gdrive_setup, nwc::NwcClient};
 
 pub(super) async fn node_info(
     State(state): State<Arc<RouterState>>,
@@ -668,143 +668,149 @@ pub(super) async fn update_payment_address(
     Ok(LxJson(payment_address))
 }
 
-/// List all NWC wallets for the current user.
+/// List all NWC clients for the current user.
 ///
-/// Returns wallet info without the connection string URI.
-pub(super) async fn list_nwc_wallets(
+/// Returns client info without the connection string URI.
+pub(super) async fn list_nwc_clients(
     State(state): State<Arc<RouterState>>,
-) -> Result<LxJson<ListNwcWalletResponse>, NodeApiError> {
+) -> Result<LxJson<ListNwcClientResponse>, NodeApiError> {
     let token = state
         .persister
         .get_token()
         .await
         .map_err(NodeApiError::command)?;
 
-    let params = GetNwcWalletsParams {
-        wallet_nostr_pk: None,
+    let params = GetNwcClients {
+        client_nostr_pk: None,
     };
 
-    let vec_nwc_wallet = state
+    let vec_nwc_client = state
         .persister
         .backend_api()
-        .get_nwc_wallets(params, token)
+        .get_nwc_clients(params, token)
         .await
         .map_err(NodeApiError::command)?;
 
-    // Decrypt each wallet cyphertext to get the label and expose the client
+    // Decrypt each client cyphertext to get the label and expose the client
     // info.
-    let mut wallets = Vec::new();
-    for wallet in vec_nwc_wallet.nwc_wallets {
+    let mut clients = Vec::new();
+    for client in vec_nwc_client.nwc_clients {
         let client_data =
-            NwcWallet::from_db(state.persister.vfs_master_key(), wallet);
+            NwcClient::from_db(state.persister.vfs_master_key(), client);
         if let Ok(connection) = client_data {
-            wallets.push(connection.to_nwc_client_info());
+            clients.push(connection.to_nwc_client_info());
         }
     }
 
-    Ok(LxJson(ListNwcWalletResponse { wallets }))
+    Ok(LxJson(ListNwcClientResponse { clients }))
 }
 
-/// Create a new NWC wallet.
+/// Create a new NWC client.
 ///
 /// Generates keys and returns the connection string.
-pub(super) async fn create_nwc_wallet(
+pub(super) async fn create_nwc_client(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<CreateNwcWalletRequest>,
-) -> Result<LxJson<CreateNwcWalletResponse>, NodeApiError> {
+    LxJson(req): LxJson<CreateNwcClientRequest>,
+) -> Result<LxJson<CreateNwcClientResponse>, NodeApiError> {
     let token = state
         .persister
         .get_token()
         .await
         .map_err(NodeApiError::command)?;
 
-    let nwc_wallet = NwcWallet::new(req.label);
+    let nwc_client = NwcClient::new(req.label);
 
-    let db_nwc_wallet = state
+    let db_nwc_client = state
         .persister
         .backend_api()
-        .upsert_nwc_wallet(
-            nwc_wallet
+        .upsert_nwc_client(
+            nwc_client
                 .to_req(&mut SysRng::new(), state.persister.vfs_master_key()),
             token,
         )
         .await
         .map_err(NodeApiError::command)?;
 
-    let connection_string = nwc_wallet
+    let connection_string = nwc_client
         .connection_string()
-        .ok_or_else(|| {
-            NodeApiError::command(
-                "Connection string should be present for new wallet",
-            )
-        })?
+        .ok_or("Connection string should be present for new wallet")
+        .map_err(NodeApiError::command)?
         .to_string();
 
-    Ok(LxJson(CreateNwcWalletResponse {
-        wallet_nostr_pk: db_nwc_wallet.wallet_nostr_pk,
-        label: nwc_wallet.label().to_string(),
+    Ok(LxJson(CreateNwcClientResponse {
+        wallet_nostr_pk: db_nwc_client.wallet_nostr_pk,
+        client_nostr_pk: db_nwc_client.client_nostr_pk,
+        label: nwc_client.label().to_string(),
         connection_string,
     }))
 }
 
-/// Update an existing NWC wallet's label.
-pub(super) async fn update_nwc_wallet(
+/// Update an existing NWC client's label.
+pub(super) async fn update_nwc_client(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<UpdateNwcWalletRequest>,
-) -> Result<LxJson<UpdateNwcWalletResponse>, NodeApiError> {
+    LxJson(req): LxJson<UpdateNwcClientRequest>,
+) -> Result<LxJson<UpdateNwcClientResponse>, NodeApiError> {
     let token = state
         .persister
         .get_token()
         .await
         .map_err(NodeApiError::command)?;
 
-    let params = GetNwcWalletsParams {
-        wallet_nostr_pk: Some(req.wallet_nostr_pk),
+    let params = GetNwcClients {
+        client_nostr_pk: Some(req.client_nostr_pk),
     };
 
-    // First fetch the wallet from the DB as we need to decrypt the ciphertext
+    // First fetch the client from the DB as we need to decrypt the ciphertext
     // to update the label and then encrypt it back and persist it.
-    let vec_nwc_wallet = state
+    //
+    // TODO(maurice): Add syncronization for NwcClient updates in order to avoid
+    // race conditions bugs. For exmaple, if we add tracking budgets to
+    // the NwcClient data, we could re-write the tracked budget by updating a
+    // label at the same time.
+    let vec_nwc_client = state
         .persister
         .backend_api()
-        .get_nwc_wallets(params, token.clone())
+        .get_nwc_clients(params, token.clone())
         .await
         .map_err(NodeApiError::command)?;
 
-    let db_nwc_wallet = vec_nwc_wallet
-        .nwc_wallets
-        .into_iter()
-        .last()
-        .ok_or_else(|| NodeApiError::command("NWC wallet not found"))?;
+    let db_nwc_client = {
+        let mut db_nwc_clients = vec_nwc_client.nwc_clients;
+        match db_nwc_clients.len() {
+            0 => Err(NodeApiError::command("NWC client not found")),
+            1 => Ok(db_nwc_clients.pop().unwrap()),
+            _ => Err(NodeApiError::command("More than one NWC client found")),
+        }
+    }?;
 
-    let mut nwc_wallet =
-        NwcWallet::from_db(state.persister.vfs_master_key(), db_nwc_wallet)
+    let mut nwc_client =
+        NwcClient::from_db(state.persister.vfs_master_key(), db_nwc_client)
             .map_err(NodeApiError::command)?;
 
-    nwc_wallet.update_label(req.label);
+    nwc_client.update_label(req.label);
 
-    let db_nwc_wallet = state
+    let db_nwc_client = state
         .persister
         .backend_api()
-        .upsert_nwc_wallet(
-            nwc_wallet
+        .upsert_nwc_client(
+            nwc_client
                 .to_req(&mut SysRng::new(), state.persister.vfs_master_key()),
             token,
         )
         .await
         .map_err(NodeApiError::command)?;
 
-    // We build the nwc wallet from the already decrypted ciphertext and
+    // We build the nwc client from the already decrypted ciphertext and
     // update the timestamps from the backend response.
-    let mut wallet_info = nwc_wallet.to_nwc_client_info();
-    wallet_info.updated_at = db_nwc_wallet.updated_at;
-    wallet_info.created_at = db_nwc_wallet.created_at;
+    let mut client_info = nwc_client.to_nwc_client_info();
+    client_info.updated_at = db_nwc_client.updated_at;
+    client_info.created_at = db_nwc_client.created_at;
 
-    Ok(LxJson(UpdateNwcWalletResponse { wallet_info }))
+    Ok(LxJson(UpdateNwcClientResponse { client_info }))
 }
 
 /// Delete an NWC client.
-pub(super) async fn delete_nwc_wallet(
+pub(super) async fn delete_nwc_client(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<NostrPkStruct>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
@@ -816,7 +822,7 @@ pub(super) async fn delete_nwc_wallet(
     state
         .persister
         .backend_api()
-        .delete_nwc_wallet(req, token)
+        .delete_nwc_client(req, token)
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(Empty {}))
