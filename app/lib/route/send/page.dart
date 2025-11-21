@@ -214,6 +214,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
           TextFormField(
             key: this.paymentUriFieldKey,
             autofocus: true,
+            maxLines: 1,
             // `visiblePassword` gives ready access to letters + numbers
             keyboardType: TextInputType.visiblePassword,
             textDirection: TextDirection.ltr,
@@ -230,6 +231,8 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
               // manually type in an address.
               fontFeatures: [Fonts.featDisambugation],
               letterSpacing: -0.5,
+              // Add a bit of extra height to make the text area look nicer.
+              height: 1.3,
             ),
           ),
 
