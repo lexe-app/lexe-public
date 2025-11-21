@@ -1,6 +1,6 @@
 use anyhow::Context;
 use bitcoin::hashes::Hash;
-use common::ln::amount::Amount;
+use common::ln::{amount::Amount, network::LxNetwork};
 use lexe_api::models::{
     command::CreateInvoiceRequest,
     nwc::nip47::{
@@ -51,6 +51,15 @@ async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
         .get_node_id(lightning::sign::Recipient::Node)
         .map_err(|()| anyhow::anyhow!("Failed to get node public key"))?;
 
+    // Nip47 only supports maintnet, regtest, testnet, and signet.
+    let network = match state.network {
+        LxNetwork::Mainnet => "mainnet",
+        LxNetwork::Regtest => "regtest",
+        LxNetwork::Testnet4 => "testnet",
+        LxNetwork::Testnet3 => "testnet",
+        LxNetwork::Signet => "signet",
+    };
+
     Ok(GetInfoResult {
         alias: format!(
             "lexe-{}",
@@ -58,7 +67,7 @@ async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
         ),
         color: "000000".to_string(),
         pubkey: hex::encode(&node_pk.serialize()),
-        network: state.network.to_string().to_lowercase(),
+        network: network.to_string(),
         block_height: best_block.height,
         block_hash: hex::encode(&best_block.block_hash.to_byte_array()),
         methods: vec!["get_info".to_string(), "make_invoice".to_string()],
