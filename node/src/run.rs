@@ -75,6 +75,7 @@ use lexe_tokio::{
 use lightning::{
     chain::{Watch, chainmonitor::ChainMonitor},
     ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
+    sign::{NodeSigner, Recipient},
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
@@ -775,6 +776,10 @@ impl UserNode {
             .context("Failed to serialize ephemeral issuing CA cert")?;
         let rev_ca_cert =
             Arc::new(RevocableIssuingCaCert::from_root_seed(&root_seed));
+        let node_pk = keys_manager
+            .get_node_id(Recipient::Node)
+            .map_err(|_| anyhow!("Failed to get node public key"))?;
+
         let router_state = Arc::new(RouterState {
             // --- Info --- //
             user_pk,
@@ -791,6 +796,7 @@ impl UserNode {
             gdrive_status: Arc::new(tokio::sync::Mutex::new(gdrive_status)),
             gdrive_oauth_config,
             deploy_env,
+            node_pk,
             // --- Actors --- //
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),

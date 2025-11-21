@@ -12,6 +12,7 @@ use axum::{
     Router,
     routing::{get, post, put},
 };
+use bitcoin::secp256k1::PublicKey;
 use common::{
     api::{
         revocable_clients::RevocableClients,
@@ -74,6 +75,7 @@ pub(crate) struct RouterState {
     pub gdrive_status: Arc<tokio::sync::Mutex<GDriveStatus>>,
     pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,
     pub deploy_env: DeployEnv,
+    pub node_pk: PublicKey,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,

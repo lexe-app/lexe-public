@@ -9,7 +9,6 @@ use lexe_api::models::{
     },
 };
 use lexe_ln::command::CreateInvoiceCaller;
-use lightning::sign::NodeSigner;
 
 use crate::server::RouterState;
 
@@ -46,10 +45,6 @@ pub(super) async fn handle_nwc_request(
 
 async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
     let best_block = state.channel_manager.current_best_block();
-    let node_pk = state
-        .keys_manager
-        .get_node_id(lightning::sign::Recipient::Node)
-        .map_err(|()| anyhow::anyhow!("Failed to get node public key"))?;
 
     // Nip47 only supports maintnet, regtest, testnet, and signet.
     let network = match state.network {
@@ -66,7 +61,7 @@ async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
             state.user_pk.to_string()[..8].to_lowercase()
         ),
         color: "000000".to_string(),
-        pubkey: hex::encode(&node_pk.serialize()),
+        pubkey: hex::encode(&state.node_pk.serialize()),
         network: network.to_string(),
         block_height: best_block.height,
         block_hash: hex::encode(&best_block.block_hash.to_byte_array()),
