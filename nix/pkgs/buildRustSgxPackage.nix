@@ -5,7 +5,6 @@
   #
   darwin,
   lib,
-  perl,
   protobuf,
   stdenvNoCC,
   #
@@ -64,15 +63,12 @@ let
     doCheck = false;
 
     # build-only dependencies
-    nativeBuildInputs =
-      # ring crate build.rs
-      [perl]
-      ++ lib.optionals isSgx [
-        # cross-compiling env vars
-        sgxCrossEnvBuildHook
-        # aesm-client crate build.rs
-        protobuf
-      ];
+    nativeBuildInputs = lib.optionals isSgx [
+      # cross-compiling env vars
+      sgxCrossEnvBuildHook
+      # aesm-client crate build.rs
+      protobuf
+    ];
 
     # build and runtime dependencies
     buildInputs = [];

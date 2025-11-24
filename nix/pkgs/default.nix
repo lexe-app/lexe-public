@@ -316,9 +316,6 @@
     doCheck = false;
 
     nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [
-      # ring crate build.rs
-      pkgs.perl
-
       # aesm-client crate build.rs
       pkgs.protobuf
     ];
