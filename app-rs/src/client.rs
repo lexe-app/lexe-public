@@ -1108,7 +1108,7 @@ mod test {
             lexe_auth_token: BearerAuthToken(ByteStr::from_static(
                 "9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE",
             )),
-            client_pk,
+            client_pk: *client_pk,
             rev_client_key_der,
             rev_client_cert_der,
             eph_ca_cert_der,

@@ -68,7 +68,6 @@ strum.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 x509-parser.workspace = true
-yasna.workspace = true
 
 # --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
@@ -89,6 +88,7 @@ chrono.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_urlencoded.workspace = true
+yasna.workspace = true
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX

@@ -240,9 +240,9 @@ fn get_or_generate_node_attestation_cert(
             let cert =
                 cert::AttestationCert::generate(rng, &[&dns_name], lifetime)
                     .context("Could not generate remote attestation cert")?;
-            let cert_der = cert
-                .serialize_der_self_signed()
-                .context("Failed to sign and serialize attestation cert")?;
+            let cert_der = cert.serialize_der_self_signed().context(
+                "Failed to self-sign and serialize attestation cert",
+            )?;
             let key_der = cert.serialize_key_der();
             let cert_with_key = CertWithKey {
                 cert_der,

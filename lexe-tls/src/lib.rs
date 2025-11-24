@@ -1,10 +1,11 @@
 //! Lexe TLS configs, certs, and utilities.
 
-use std::sync::LazyLock;
+use std::{str::FromStr, sync::LazyLock};
 
 use asn1_rs::FromDer;
+use byte_array::ByteArray;
 use common::ed25519;
-use rcgen::{DistinguishedName, DnType};
+use rcgen::{DistinguishedName, DnType, string::Ia5String};
 use x509_parser::{
     certificate::X509Certificate, extensions::GeneralName, time::ASN1Time,
 };
@@ -24,8 +25,6 @@ pub mod types;
 
 /// Re-export all of `lexe_tls_core`.
 pub use lexe_tls_core::*;
-
-use self::types::EdRcgenKeypair;
 
 /// Whether the given DER-encoded cert is bound to the given DNS names.
 ///
@@ -92,50 +91,77 @@ pub fn cert_is_valid_for_at_least(cert_der: &[u8], buffer_days: u16) -> bool {
 /// A safe default for [`rcgen::CertificateParams::subject_alt_names`] when
 /// there isn't a specific value that makes sense. Used for client / CA certs.
 pub static DEFAULT_SUBJECT_ALT_NAMES: LazyLock<Vec<rcgen::SanType>> =
-    LazyLock::new(|| vec![rcgen::SanType::DnsName("lexe.app".to_owned())]);
+    LazyLock::new(|| {
+        vec![rcgen::SanType::DnsName(
+            Ia5String::from_str("lexe.app").unwrap(),
+        )]
+    });
 
-/// Build a [`rcgen::Certificate`] with Lexe presets and optional overrides.
+/// Build an [`rcgen::CertificateParams`] with Lexe presets and optional
+/// overrides.
 /// - This builder function helps ensure that important fields in the inner
 ///   [`rcgen::CertificateParams`] are considered. See struct for details.
 /// - Any special fields or overrides can be specified using the `overrides`
 ///   closure. See usages for examples.
 /// - `key_pair` and `alg` cannot be overridden.
-pub fn build_rcgen_cert(
+//
+// TODO(phlip9): needs some normalizing with WebPKI
+// - <https://letsencrypt.org/docs/profiles/>
+// - <https://github.com/cabforum/servercert/blob/main/docs/BR.md>
+// - use `ExplicitNoCa` for end-entity certs, use exact `KeyUsage` and
+//   `ExtendedKeyUsage`, end-entities should just use first SAN as CN
+pub fn build_rcgen_cert_params(
     common_name: &str,
     not_before: time::OffsetDateTime,
     not_after: time::OffsetDateTime,
     subject_alt_names: Vec<rcgen::SanType>,
-    key_pair: &ed25519::KeyPair,
+    public_key: &ed25519::PublicKey,
     overrides: impl FnOnce(&mut rcgen::CertificateParams),
-) -> rcgen::Certificate {
+) -> rcgen::CertificateParams {
     let mut params = rcgen::CertificateParams::default();
 
-    // alg: (can't be overridden)
     params.not_before = not_before;
     params.not_after = not_after;
-    // serial_number: None
     params.subject_alt_names = subject_alt_names;
     params.distinguished_name = lexe_distinguished_name(common_name);
+
     // is_ca: IsCa::NoCa,
     // key_usages: Vec::new(),
     // extended_key_usages: Vec::new(),
     // name_constraints: None,
+    // crl_distribution_points: Vec::new(),
     // custom_extensions: Vec::new(),
-    // key_pair: (can't be overridden)
     // use_authority_key_identifier_extension: false,
-    // key_identifier_method: (can't be overridden)
 
+    // Custom caller overrides
     overrides(&mut params);
 
-    // Prevent alg and keypair from being overridden to make panics impossible
-    params.alg = &rcgen::PKCS_ED25519;
-    params.key_pair = Some(EdRcgenKeypair::from_ed25519(key_pair).into_inner());
+    // Preserve old `ring` pre-v0.14.0 behavior that uses
+    // `key_identifier_method := Sha256(public-key)[0..20]` instead of
+    // `key_identifier_method := Sha256(spki)[0..20]` used in newer `ring`.
+    //
+    // Conveniently also calculate the serial number at the same time, since
+    // it's almost the same thing.
+    //
+    // RFC 5280 specifies at most 20 bytes for a serial/subject key identifier
+    let pubkey_hash = {
+        let hash = sha256::digest(public_key.as_slice());
+        hash.as_slice()[0..20].to_vec()
+    };
 
-    // Use consistent method for deriving key identifiers
-    params.key_identifier_method = rcgen::KeyIdMethod::Sha256;
+    // Only CA certs (including explicit self-signed-only certs) need a
+    // `SubjectKeyIdentifier`.
+    if matches!(params.is_ca, rcgen::IsCa::Ca(_) | rcgen::IsCa::ExplicitNoCa) {
+        params.key_identifier_method =
+            rcgen::KeyIdMethod::PreSpecified(pubkey_hash.clone());
+    }
 
-    rcgen::Certificate::from_params(params)
-        .expect("Can only panic if keypair doesn't match algorithm")
+    // Use the (tweaked) pubkey hash as the cert serial number.
+    let mut serial = pubkey_hash;
+    serial[0] &= 0x7f; // MSB must be 0 to ensure encoding bignum in 20 B
+    params.serial_number = Some(rcgen::SerialNumber::from(serial));
+
+    params
 }
 
 /// Build a Lexe Distinguished Name given a Common Name.

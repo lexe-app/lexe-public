@@ -1,33 +1,4 @@
 //! TLS newtypes.
-//!
-//! # Avoiding redundant allocations
-//!
-//! The DER-encoded data in these types generally flows through the
-//! following transformations.
-//!
-//! Step 1: Into [`Vec<u8>`]
-//! - [`rcgen::Certificate::serialize_der`]
-//! - [`rcgen::Certificate::serialize_der_with_signer`]
-//! - [`rcgen::Certificate::serialize_private_key_der`]
-//! - Passed in via args, env, or read from a file
-//!
-//! Step 2: Into [`LxCertificateDer`] and [`LxPrivatePkcs8KeyDer`]
-//! - Wrap [`Vec<u8>`] with [`LxCertificateDer`] or [`LxPrivatePkcs8KeyDer`]
-//!
-//! Step 3: Into [`CertificateDer<'_>`] and [`PrivateKeyDer<'_>`]
-//! - [`CertWithKey::into_chain_and_key`]
-//! - `impl From<LxCertificateDer> for CertificateDer<'static>`
-//! - `impl From<LxPrivatePkcs8KeyDer> for PrivateKeyDer<'static>`
-//! - `impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der>`
-//! - `impl<'der> From<&'der LxPrivatePkcs8KeyDer> for PrivateKeyDer<'der>`
-//!
-//! Trying to move backwards at any step generally requires copying and
-//! re-allocation, so try not to do that. For example, avoid premature
-//! conversions into [`CertificateDer<'_>`] or [`PrivateKeyDer<'_>`].
-//!
-//! [`CertWithKey::into_chain_and_key`]: crate::types::CertWithKey::into_chain_and_key
-//! [`LxCertificateDer`]: crate::types::LxCertificateDer
-//! [`LxPrivatePkcs8KeyDer`]: crate::types::LxPrivatePkcs8KeyDer
 
 use std::path::Path;
 

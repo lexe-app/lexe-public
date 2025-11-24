@@ -1,34 +1,49 @@
 //! Contains the CA cert and end-entity certs for "shared seed" mTLS.
 
+use std::str::FromStr;
+
 use common::{ed25519, rng::Crng, root_seed::RootSeed};
+use rcgen::string::Ia5String;
 
 use crate as tls;
 use crate::types::{LxCertificateDer, LxPrivatePkcs8KeyDer};
 
 /// The "ephemeral issuing" CA cert derived from the root seed.
 /// The keypair is derived from the root seed.
-pub struct EphemeralIssuingCaCert(rcgen::Certificate);
+pub struct EphemeralIssuingCaCert {
+    key_pair: ed25519::KeyPair,
+    cert_params: rcgen::CertificateParams,
+}
 
 /// The ephemeral end-entity cert used by the client.
 /// Signed by the "ephemeral issuing" CA cert.
 ///
 /// The key pair for the client cert is sampled.
-pub struct EphemeralClientCert(rcgen::Certificate);
+pub struct EphemeralClientCert {
+    key_pair: ed25519::KeyPair,
+    cert_params: rcgen::CertificateParams,
+}
 
 /// The ephemeral end-entity cert used by the server.
 /// Signed by the "ephemeral issuing" CA cert.
 ///
 /// The key pair for the server cert is sampled.
-pub struct EphemeralServerCert(rcgen::Certificate);
+pub struct EphemeralServerCert {
+    key_pair: ed25519::KeyPair,
+    cert_params: rcgen::CertificateParams,
+}
 
 /// The "revocable issuing" CA cert derived from the root seed.
-pub struct RevocableIssuingCaCert(rcgen::Certificate);
+pub struct RevocableIssuingCaCert {
+    key_pair: ed25519::KeyPair,
+    cert_params: rcgen::CertificateParams,
+}
 
 /// The revocable end-entity cert used by the client.
 /// Signed by the "revocable issuing" CA cert.
 pub struct RevocableClientCert {
-    pubkey: ed25519::PublicKey,
-    cert: rcgen::Certificate,
+    key_pair: ed25519::KeyPair,
+    cert_params: rcgen::CertificateParams,
 }
 
 // --- impl ephemeral certs --- //
@@ -47,25 +62,37 @@ impl EphemeralIssuingCaCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        Self(tls::build_rcgen_cert(
+        let cert_params = tls::build_rcgen_cert_params(
             Self::COMMON_NAME,
             not_before,
             not_after,
             crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-            &key_pair,
+            key_pair.public_key(),
             |params: &mut rcgen::CertificateParams| {
                 // This is a CA cert, and there should be 0 intermediate certs.
                 params.is_ca =
                     rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
             },
-        ))
+        );
+
+        Self {
+            key_pair,
+            cert_params,
+        }
     }
 
-    /// DER-encode and self-sign the CA cert.
+    /// Self-sign and DER-encode the CA cert.
     pub fn serialize_der_self_signed(
         &self,
     ) -> Result<LxCertificateDer, rcgen::Error> {
-        self.0.serialize_der().map(LxCertificateDer)
+        self.cert_params
+            .self_signed(&self.key_pair)
+            .map(|cert| LxCertificateDer(cert.der().to_vec()))
+    }
+
+    /// [`rcgen::Issuer`] that can sign child certs.
+    fn issuer(&self) -> rcgen::Issuer<'_, &ed25519::KeyPair> {
+        rcgen::Issuer::from_params(&self.cert_params, &self.key_pair)
     }
 }
 
@@ -88,30 +115,35 @@ impl EphemeralClientCert {
         let not_after = now + (90 * time::Duration::DAY);
         // let not_after = now + time::Duration::HOUR;
 
-        Self(tls::build_rcgen_cert(
+        let cert_params = tls::build_rcgen_cert_params(
             Self::COMMON_NAME,
             not_before,
             not_after,
             // Client auth fails without a SAN, even though it is ignored..
             crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-            &key_pair,
+            key_pair.public_key(),
             |_| (),
-        ))
+        );
+
+        Self {
+            key_pair,
+            cert_params,
+        }
     }
 
-    /// DER-encode the cert and sign it using the CA cert.
+    /// CA-sign and DER-encode the cert.
     pub fn serialize_der_ca_signed(
         &self,
         ca_cert: &EphemeralIssuingCaCert,
     ) -> Result<LxCertificateDer, rcgen::Error> {
-        self.0
-            .serialize_der_with_signer(&ca_cert.0)
-            .map(LxCertificateDer)
+        self.cert_params
+            .signed_by(&self.key_pair, &ca_cert.issuer())
+            .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 
     /// DER-encode the cert's private key.
     pub fn serialize_key_der(&self) -> LxPrivatePkcs8KeyDer {
-        LxPrivatePkcs8KeyDer(self.0.serialize_private_key_der())
+        LxPrivatePkcs8KeyDer(self.key_pair.serialize_pkcs8_der().to_vec())
     }
 }
 
@@ -120,7 +152,10 @@ impl EphemeralServerCert {
     const COMMON_NAME: &'static str = "Lexe ephemeral server cert";
 
     /// Generate an ephemeral server cert with a randomly-sampled keypair.
-    pub fn from_rng(rng: &mut impl Crng, dns_names: &[&str]) -> Self {
+    pub fn from_rng(
+        rng: &mut impl Crng,
+        dns_names: &[&str],
+    ) -> anyhow::Result<Self> {
         let key_pair = ed25519::KeyPair::from_rng(rng);
         let now = time::OffsetDateTime::now_utc();
         let not_before = now - time::Duration::HOUR;
@@ -135,32 +170,39 @@ impl EphemeralServerCert {
 
         let subject_alt_names = dns_names
             .iter()
-            .map(|&dns_name| rcgen::SanType::DnsName(dns_name.to_owned()))
-            .collect();
+            .map(|&dns_name| {
+                Ia5String::from_str(dns_name).map(rcgen::SanType::DnsName)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
-        Self(tls::build_rcgen_cert(
+        let cert_params = tls::build_rcgen_cert_params(
             Self::COMMON_NAME,
             not_before,
             not_after,
             subject_alt_names,
-            &key_pair,
+            key_pair.public_key(),
             |_| (),
-        ))
+        );
+
+        Ok(Self {
+            key_pair,
+            cert_params,
+        })
     }
 
-    /// DER-encode the cert and sign it using the CA cert.
+    /// CA-sign and DER-encode the cert.
     pub fn serialize_der_ca_signed(
         &self,
         ca_cert: &EphemeralIssuingCaCert,
     ) -> Result<LxCertificateDer, rcgen::Error> {
-        self.0
-            .serialize_der_with_signer(&ca_cert.0)
-            .map(LxCertificateDer)
+        self.cert_params
+            .signed_by(&self.key_pair, &ca_cert.issuer())
+            .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 
     /// DER-encode the cert's private key.
     pub fn serialize_key_der(&self) -> LxPrivatePkcs8KeyDer {
-        LxPrivatePkcs8KeyDer(self.0.serialize_private_key_der())
+        LxPrivatePkcs8KeyDer(self.key_pair.serialize_pkcs8_der().to_vec())
     }
 }
 
@@ -177,25 +219,37 @@ impl RevocableIssuingCaCert {
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        Self(tls::build_rcgen_cert(
+        let cert_params = tls::build_rcgen_cert_params(
             Self::COMMON_NAME,
             not_before,
             not_after,
             crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-            &key_pair,
+            key_pair.public_key(),
             |params: &mut rcgen::CertificateParams| {
                 // This is a CA cert, and there should be 0 intermediate certs.
                 params.is_ca =
                     rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
             },
-        ))
+        );
+
+        Self {
+            key_pair,
+            cert_params,
+        }
     }
 
     /// DER-encode and self-sign the CA cert.
     pub fn serialize_der_self_signed(
         &self,
     ) -> Result<LxCertificateDer, rcgen::Error> {
-        self.0.serialize_der().map(LxCertificateDer)
+        self.cert_params
+            .self_signed(&self.key_pair)
+            .map(|cert| LxCertificateDer(cert.der().to_vec()))
+    }
+
+    /// [`rcgen::Issuer`] that can sign child certs.
+    fn issuer(&self) -> rcgen::Issuer<'_, &ed25519::KeyPair> {
+        rcgen::Issuer::from_params(&self.cert_params, &self.key_pair)
     }
 }
 
@@ -206,43 +260,45 @@ impl RevocableClientCert {
     /// Generate an revocable client cert with a randomly-sampled keypair.
     pub fn generate_from_rng(rng: &mut impl Crng) -> Self {
         let key_pair = ed25519::KeyPair::from_rng(rng);
-        let pubkey = *key_pair.public_key();
         // Since the certs are revocable they should also have no hard-coded
         // expiration, so SDK integrators can avoid the hassle of having to
         // rotate their client certs when it is not needed.
         let not_before = rcgen::date_time_ymd(1975, 1, 1);
         let not_after = rcgen::date_time_ymd(4096, 1, 1);
 
-        let cert = tls::build_rcgen_cert(
+        let cert_params = tls::build_rcgen_cert_params(
             Self::COMMON_NAME,
             not_before,
             not_after,
             // Client auth fails without a SAN, even though it is ignored..
             crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-            &key_pair,
+            key_pair.public_key(),
             |_| (),
         );
 
-        Self { cert, pubkey }
+        Self {
+            key_pair,
+            cert_params,
+        }
     }
 
-    pub fn public_key(&self) -> ed25519::PublicKey {
-        self.pubkey
+    pub fn public_key(&self) -> &ed25519::PublicKey {
+        self.key_pair.public_key()
     }
 
-    /// DER-encode the cert and sign it using the CA cert.
+    /// CA-sign and DER-encode the cert.
     pub fn serialize_der_ca_signed(
         &self,
         ca_cert: &RevocableIssuingCaCert,
     ) -> Result<LxCertificateDer, rcgen::Error> {
-        self.cert
-            .serialize_der_with_signer(&ca_cert.0)
-            .map(LxCertificateDer)
+        self.cert_params
+            .signed_by(&self.key_pair, &ca_cert.issuer())
+            .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 
     /// DER-encode the cert's private key.
     pub fn serialize_key_der(&self) -> LxPrivatePkcs8KeyDer {
-        LxPrivatePkcs8KeyDer(self.cert.serialize_private_key_der())
+        LxPrivatePkcs8KeyDer(self.key_pair.serialize_pkcs8_der().to_vec())
     }
 }
 
@@ -274,7 +330,7 @@ mod test {
 
         let dns_names = &["run.lexe.app"];
         let eph_server_cert =
-            EphemeralServerCert::from_rng(&mut rng, dns_names);
+            EphemeralServerCert::from_rng(&mut rng, dns_names).unwrap();
         let eph_server_cert_der = eph_server_cert
             .serialize_der_ca_signed(&eph_ca_cert)
             .unwrap();
@@ -345,6 +401,7 @@ mod test {
     fn ca_cert_snapshot_test() {
         let root_seed = RootSeed::from_u64(20240514);
 
+        #[track_caller]
         fn do_ca_cert_snapshot_test(
             derived_cert_der: LxCertificateDer,
             snapshot_cert_der_hex: &str,
@@ -356,11 +413,17 @@ mod test {
             // println!("---");
 
             let snapshot_cert_der = hex::decode(snapshot_cert_der_hex).unwrap();
-
-            assert_eq!(
-                derived_cert_der.as_slice(),
-                snapshot_cert_der.as_slice(),
-            );
+            if derived_cert_der.as_slice() != snapshot_cert_der.as_slice() {
+                let snapshot_cert_pem =
+                    LxCertificateDer(snapshot_cert_der.clone()).serialize_pem();
+                let derived_cert_pem = derived_cert_der.serialize_pem();
+                panic!(
+                    "ca cert is different:\
+                     \n\nsnapshot:\n{snapshot_cert_pem}\n\
+                     ~~~\n\
+                     derived:\n{derived_cert_pem}"
+                )
+            }
         }
 
         {

@@ -1719,7 +1719,7 @@ pub async fn create_revocable_client(
     // and most clients shouldn't have the ability to create clients.
 
     let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
-    let pubkey = rev_client_cert.public_key();
+    let pubkey = *rev_client_cert.public_key();
     let now = TimestampMs::now();
     let revocable_client = RevocableClient {
         pubkey,

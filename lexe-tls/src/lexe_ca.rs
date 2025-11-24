@@ -1,6 +1,6 @@
 //! Certs and utilities related to Lexe's CA.
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use common::{constants, ed25519, env::DeployEnv};
 use rustls::{
@@ -84,8 +84,10 @@ pub fn lexe_client_verifier(
     .expect("Checked in tests")
 }
 
-fn dummy_lexe_ca_key_pair() -> ed25519::KeyPair {
-    ed25519::KeyPair::from_seed_owned([69; 32])
+pub fn dummy_lexe_ca_key_pair() -> &'static ed25519::KeyPair {
+    static DUMMY_LEXE_CA_KEY_PAIR: LazyLock<ed25519::KeyPair> =
+        LazyLock::new(|| ed25519::KeyPair::from_seed_owned([69; 32]));
+    &DUMMY_LEXE_CA_KEY_PAIR
 }
 
 /// Get a dummy Lexe CA cert along with its corresponding private key.
@@ -111,22 +113,28 @@ mod test {
     /// Generate a dummy Lexe CA cert along with its corresponding private key.
     fn gen_dummy_lexe_ca_cert() -> CertWithKey {
         let dummy_key_pair = dummy_lexe_ca_key_pair();
-        let dummy_cert = crate::build_rcgen_cert(
+        let dummy_cert_params = crate::build_rcgen_cert_params(
             "Lexe CA cert",
             rcgen::date_time_ymd(1975, 1, 1),
             rcgen::date_time_ymd(4096, 1, 1),
             crate::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-            &dummy_key_pair,
+            dummy_key_pair.public_key(),
             |params: &mut rcgen::CertificateParams| {
                 params.is_ca =
                     rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
                 params.name_constraints = None;
             },
         );
-        let dummy_cert_der =
-            dummy_cert.serialize_der().map(LxCertificateDer).unwrap();
+
+        let issuer =
+            rcgen::Issuer::from_params(&dummy_cert_params, &dummy_key_pair);
+
+        let dummy_cert = dummy_cert_params
+            .signed_by(&dummy_key_pair, &issuer)
+            .unwrap();
+        let dummy_cert_der = LxCertificateDer(dummy_cert.der().to_vec());
         let dummy_cert_key_der =
-            LxPrivatePkcs8KeyDer(dummy_cert.serialize_private_key_der());
+            LxPrivatePkcs8KeyDer(dummy_key_pair.serialize_pkcs8_der().to_vec());
 
         CertWithKey {
             cert_der: dummy_cert_der,
@@ -166,7 +174,10 @@ mod test {
     #[test]
     fn dump_dummy_lexe_ca_cert() {
         let cert = gen_dummy_lexe_ca_cert().cert_der;
-        std::fs::write("../common/data/lexe-dummy-root-ca-cert.der", &cert.0)
-            .unwrap();
+        std::fs::write(
+            "../common/data/lexe-dummy-root-ca-cert.new.der",
+            &cert.0,
+        )
+        .unwrap();
     }
 }

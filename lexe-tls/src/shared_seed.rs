@@ -119,7 +119,8 @@ pub fn node_run_server_config(
 ) -> anyhow::Result<(Arc<rustls::ServerConfig>, String)> {
     // Build ephemeral server cert and sign with derived CA
     let dns_name = constants::NODE_RUN_DNS;
-    let eph_server_cert = EphemeralServerCert::from_rng(rng, &[dns_name]);
+    let eph_server_cert = EphemeralServerCert::from_rng(rng, &[dns_name])
+        .context("Failed to generate ephemeral server cert")?;
     let eph_server_cert_der = eph_server_cert
         .serialize_der_ca_signed(eph_ca_cert)
         .context("Failed to sign and serialize ephemeral server cert")?;
@@ -672,7 +673,7 @@ mod test {
         let rev_client_cert_pk = rev_client_cert.public_key();
 
         let rev_client = RevocableClient {
-            pubkey: rev_client_cert_pk,
+            pubkey: *rev_client_cert_pk,
             created_at: TimestampMs::from_secs_u32(420),
             expires_at: expiration,
             label: Some("hullo".to_owned()),
@@ -685,7 +686,7 @@ mod test {
                 .write()
                 .unwrap()
                 .clients
-                .insert(rev_client_cert_pk, rev_client);
+                .insert(*rev_client_cert_pk, rev_client);
             store
         };
 
