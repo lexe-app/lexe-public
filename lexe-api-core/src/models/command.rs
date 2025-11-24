@@ -526,6 +526,14 @@ pub struct UpdatePaymentAddress {
     pub offer: LxOffer,
 }
 
+/// Claims a payment address with a random username.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct ClaimPaymentAddress {
+    /// Offer to be used to fetch invoices on BIP-353.
+    pub offer: LxOffer,
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentAddress {
@@ -607,6 +615,11 @@ mod test {
     #[test]
     fn payment_address_request_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<UpdatePaymentAddress>();
+    }
+
+    #[test]
+    fn claim_payment_address_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<ClaimPaymentAddress>();
     }
 
     #[test]

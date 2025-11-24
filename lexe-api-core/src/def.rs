@@ -79,14 +79,15 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
-            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetAddressResponse, GetNewPayments, GetUpdatedPaymentMetadata,
-            GetUpdatedPayments, ListChannelsResponse, LxPaymentIdStruct,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-            PayOfferResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentAddress, PaymentCreatedIndexStruct, PaymentCreatedIndexes,
+            BackupInfo, ClaimPaymentAddress, CloseChannelRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, GetAddressResponse, GetNewPayments,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
+            PaymentCreatedIndexStruct, PaymentCreatedIndexes,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -904,6 +905,17 @@ pub trait NodeBackendApi {
         &self,
         auth: BearerAuthToken,
     ) -> Result<PaymentAddress, BackendApiError>;
+
+    /// POST /node/v1/claim_payment_address [`ClaimPaymentAddress`]
+    ///                                  -> [`Empty`]
+    ///
+    /// Generates a new payment address with random username given an
+    /// offer. In case node already has a payment address, it will return ok.
+    async fn claim_payment_address(
+        &self,
+        req: ClaimPaymentAddress,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
 
     /// GET /node/v1/nwc_clients [`Empty`] -> [`Vec<NwcClient>`]
     ///
