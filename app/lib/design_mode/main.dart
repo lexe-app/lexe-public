@@ -65,6 +65,7 @@ import 'package:lexeapp/gdrive_auth.dart'
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/app_load_error.dart' show AppLoadErrorPage;
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelButton, ChannelsList, ChannelsPage;
 import 'package:lexeapp/route/clients.dart' show ClientsPage;
@@ -270,6 +271,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 restoreApi: mockRestoreApi,
                 uriEvents: this.widget.uriEvents,
                 fixedShaderTime: null,
+              ),
+            ),
+            Component(
+              "AppLoadErrorPage",
+              (context) => const AppLoadErrorPage(
+                errorMessage:
+                    "Failed to load app: Error starting node: Something wrong happened",
               ),
             ),
             Component(

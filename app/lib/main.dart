@@ -10,6 +10,8 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/feature_flags.dart';
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart' show Err, Ok, Result;
+import 'package:lexeapp/route/app_load_error.dart' show AppLoadErrorPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/restore.dart' show RestoreApi;
 import 'package:lexeapp/route/signup.dart' show SignupApi;
@@ -35,7 +37,22 @@ Future<void> main() async {
   final Config config = await cfg.build(userAgent);
   info("Build config: $config");
 
-  final maybeApp = await AppHandle.load(config: config);
+  final resultApp = await Result.tryAsync<AppHandle?, Exception>(
+    () => AppHandle.load(config: config),
+  );
+  final AppHandle? maybeApp;
+  final String? loadErrorMessage;
+
+  switch (resultApp) {
+    case Ok(:final ok):
+      maybeApp = ok;
+      loadErrorMessage = null;
+    case Err(:final err):
+      error("Failed to load app: $err");
+      loadErrorMessage = err.toString();
+      maybeApp = null;
+  }
+
   final uriEvents = await UriEvents.prod();
 
   // Determine the current system locale and set the global `Intl.systemLocale`.
@@ -52,7 +69,9 @@ Future<void> main() async {
   };
 
   final Widget child;
-  if (maybeApp != null) {
+  if (loadErrorMessage != null) {
+    child = AppLoadErrorPage(errorMessage: loadErrorMessage);
+  } else if (maybeApp != null) {
     final app = maybeApp;
     final settings = LxSettings(app.settingsDb());
     final appData = LxAppData(app.appDb());
