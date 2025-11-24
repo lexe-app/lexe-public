@@ -32,9 +32,12 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
-    models::{command::GDriveStatus, runner::UserLeaseRenewalRequest},
+    models::{
+        command::{ClaimPaymentAddress, GDriveStatus},
+        runner::UserLeaseRenewalRequest,
+    },
     server::LayerConfig,
-    types::{ports::RunPorts, sealed_seed::SealedSeedId},
+    types::{offer::LxOffer, ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_ln::{
@@ -547,6 +550,43 @@ impl UserNode {
         )
         .context("Could not init NodeChannelManager")?;
 
+        // Spawn a task to claim a payment address concurrently.
+        // The backend handles username collision retries internally, so we only
+        // need a single attempt here. This task is joined before init returns.
+        let claim_payment_address_task: LxTask<anyhow::Result<()>> = {
+            let persister = persister.clone();
+            let channel_manager = channel_manager.clone();
+
+            const SPAN_NAME: &str = "(claim-payment-address)";
+            LxTask::spawn_with_span(
+                SPAN_NAME,
+                info_span!(SPAN_NAME),
+                async move {
+                    let builder = channel_manager
+                        .create_offer_builder(None)
+                        .map_err(|e| {
+                            anyhow!("Failed to create offer builder: {e:?}")
+                        })?;
+
+                    let offer = builder
+                        .description("Hey There! I'm using Lexe".to_owned())
+                        .build()
+                        .map_err(|e| anyhow!("Failed to build offer: {e:?}"))?;
+                    let lx_offer = LxOffer(offer);
+
+                    let req = ClaimPaymentAddress { offer: lx_offer };
+                    let token = persister.get_token().await?;
+                    persister
+                        .backend_api()
+                        .claim_payment_address(req, token)
+                        .await
+                        .context("claim_payment_address failed")?;
+
+                    Ok(())
+                },
+            )
+        };
+
         // Move the channel monitors into the chain monitor so that it can watch
         // the chain for closing transactions, fraudulent transactions, etc.
         for (_blockhash, monitor) in channel_monitors {
@@ -917,7 +957,7 @@ impl UserNode {
         info!("Node initialization complete. <{elapsed}ms>");
 
         // Build and return the UserNode
-        Ok(Self {
+        let user_node = Self {
             // General
             args,
             deploy_env,
@@ -955,7 +995,16 @@ impl UserNode {
                 user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
             run: Some(RunContext { eph_tasks_rx }),
-        })
+        };
+
+        // Wait for the payment address claim task to complete.
+        match claim_payment_address_task.await {
+            Ok(Ok(_)) => info!("Successfully claimed payment address"),
+            Ok(Err(e)) => warn!("Failed to claim payment address: {e:#}"),
+            Err(e) => warn!("Payment address task panicked: {e}"),
+        }
+
+        Ok(user_node)
     }
 
     pub async fn sync(&mut self) -> anyhow::Result<()> {
