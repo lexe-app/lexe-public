@@ -139,7 +139,7 @@ quick_cache = "0.6"
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Easily generate x509 certs with ring
-rcgen = { version = "0.14", default-features = false, features = ["ring", "zeroize"] }
+rcgen = { version = "0.14", default-features = false }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
 # Pure Rust RSA implementation by RustCrypto. Used for SGX .sigstruct signing.

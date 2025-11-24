@@ -2,11 +2,11 @@
 
 use std::path::Path;
 
-use anyhow::{Context, ensure};
+use anyhow::Context;
 use base64::Engine as _;
+use common::serde_helpers::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
-use common::{ed25519, serde_helpers::hexstr_or_bytes};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use rustls::pki_types::{
@@ -83,11 +83,6 @@ pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] pub Vec<u8>);
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
 pub struct LxPrivatePkcs8KeyDer(#[serde(with = "hexstr_or_bytes")] pub Vec<u8>);
-
-/// Simple newtype for a [`rcgen::KeyPair`] whose signature algorithm has been
-/// verified to be [`ed25519`] (its OID matches the standard [`ed25519`] OID).
-/// Its primary purpose is to prevent unnecessary error handling.
-pub struct EdRcgenKeypair(rcgen::KeyPair);
 
 // --- impl CertWithKey --- //
 
@@ -242,52 +237,6 @@ impl From<LxPrivatePkcs8KeyDer> for PrivatePkcs8KeyDer<'static> {
 impl<'der> From<&'der LxPrivatePkcs8KeyDer> for PrivatePkcs8KeyDer<'der> {
     fn from(lx_key: &'der LxPrivatePkcs8KeyDer) -> Self {
         Self::from(lx_key.as_bytes())
-    }
-}
-
-// --- impl Ed25519KeyPair --- //
-
-impl EdRcgenKeypair {
-    /// Equivalent to [`ed25519::KeyPair::to_rcgen`] or using the [`From`] impl.
-    pub fn from_ed25519(key_pair: &ed25519::KeyPair) -> Self {
-        Self(key_pair.to_rcgen())
-    }
-
-    /// Errors if the [`rcgen::KeyPair`] doesn't match the standard ed25519 OID.
-    /// Equivalent to using the [`TryFrom`] impl.
-    pub fn try_from_rcgen(key_pair: rcgen::KeyPair) -> anyhow::Result<Self> {
-        ensure!(
-            *key_pair.algorithm() == rcgen::PKCS_ED25519,
-            "rcgen::KeyPair doesn't match ed25519 OID",
-        );
-
-        Ok(Self(key_pair))
-    }
-
-    pub fn as_inner(&self) -> &rcgen::KeyPair {
-        &self.0
-    }
-
-    pub fn into_inner(self) -> rcgen::KeyPair {
-        self.0
-    }
-}
-
-impl From<ed25519::KeyPair> for EdRcgenKeypair {
-    fn from(key_pair: ed25519::KeyPair) -> Self {
-        Self::from_ed25519(&key_pair)
-    }
-}
-impl From<&ed25519::KeyPair> for EdRcgenKeypair {
-    fn from(key_pair: &ed25519::KeyPair) -> Self {
-        Self::from_ed25519(key_pair)
-    }
-}
-
-impl TryFrom<rcgen::KeyPair> for EdRcgenKeypair {
-    type Error = anyhow::Error;
-    fn try_from(key_pair: rcgen::KeyPair) -> Result<Self, Self::Error> {
-        Self::try_from_rcgen(key_pair)
     }
 }
 

@@ -294,15 +294,6 @@ impl KeyPair {
         Self::from_seed_owned(rng.gen_bytes())
     }
 
-    /// Convert the current `ed25519::KeyPair` into an [`rcgen::KeyPair`].
-    pub fn to_rcgen(&self) -> rcgen::KeyPair {
-        let pkcs8_bytes = self.serialize_pkcs8_der();
-        rcgen::KeyPair::try_from(pkcs8_bytes.as_slice()).expect(
-            "Deserializing a freshly serialized \
-                ed25519 key pair should never fail",
-        )
-    }
-
     /// Convert the current `ed25519::KeyPair` into a
     /// [`ring::signature::Ed25519KeyPair`].
     ///
@@ -523,18 +514,6 @@ impl rcgen::PublicKeyData for PublicKey {
 
     fn algorithm(&self) -> &'static rcgen::SignatureAlgorithm {
         &rcgen::PKCS_ED25519
-    }
-}
-
-impl TryFrom<&rcgen::KeyPair> for PublicKey {
-    type Error = Error;
-
-    fn try_from(key_pair: &rcgen::KeyPair) -> Result<Self, Self::Error> {
-        if !key_pair.is_compatible(&rcgen::PKCS_ED25519) {
-            return Err(Error::UnexpectedAlgorithm);
-        }
-
-        Self::try_from(key_pair.public_key_raw())
     }
 }
 
@@ -884,13 +863,8 @@ fn deserialize_keypair_pkcs8_der(
 #[cfg(test)]
 mod test {
     use lexe_std::array;
-    use proptest::{
-        arbitrary::any, prop_assert_eq, prop_assume, proptest,
-        strategy::Strategy,
-    };
+    use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
     use proptest_derive::Arbitrary;
-    use rcgen::{PublicKeyData, SigningKey};
-    use yasna::{ASN1Error, ASN1ErrorKind, models::ObjectIdentifier};
 
     use super::*;
     use crate::{
@@ -911,98 +885,6 @@ mod test {
             f.debug_tuple("SignableBytes")
                 .field(&hex::display(&self.0))
                 .finish()
-        }
-    }
-
-    impl PublicKey {
-        /// Serialize to the DER-encoded X.509 SubjectPublicKeyInfo struct.
-        ///
-        /// Adapted from [`rcgen::KeyPair::public_key_der`].
-        ///
-        /// [RFC 5280 section 4.1](https://tools.ietf.org/html/rfc5280#section-4.1)
-        ///
-        /// ```not_rust
-        /// SubjectPublicKeyInfo  ::=  SEQUENCE  {
-        ///     algorithm            AlgorithmIdentifier,
-        ///     subjectPublicKey     BIT STRING
-        /// }
-        /// AlgorithmIdentifier  ::=  SEQUENCE  {
-        ///     algorithm               OBJECT IDENTIFIER,
-        ///     parameters              ANY DEFINED BY algorithm OPTIONAL
-        /// }
-        /// ```
-        fn serialize_spki_der(&self) -> Vec<u8> {
-            // TODO(max): Nerd bait: Optimize like `serialize_keypair_pkcs8_der`
-            // below, which should allow us to remove the `yasna` dependency.
-            // The current impl can be the reference impl for differential
-            // fuzzing.
-            yasna::construct_der(|writer: yasna::DERWriter<'_>| {
-                // `spki: SubjectPublicKeyInfo`
-                writer.write_sequence(|writer| {
-                    // `algorithm: AlgorithmIdentifier` (id-Ed25519)
-                    writer.next().write_sequence(|writer| {
-                        // `algorithm: OBJECT IDENTIFIER`
-                        let oid = ObjectIdentifier::from_slice(PKCS_OID_SLICE);
-                        writer.next().write_oid(&oid);
-                        // `parameters: ANY DEFINED BY algorithm OPTIONAL`
-                        // (none)
-                    });
-
-                    // `subjectPublicKey: BIT STRING`
-                    writer.next().write_bitvec_bytes(
-                        self.as_slice(),
-                        // 32 byte pubkey, 8 bits per byte
-                        32 * 8,
-                    );
-                })
-            })
-        }
-
-        /// Deserialize from the DER-encoded X.509 SubjectPublicKeyInfo struct.
-        ///
-        /// [RFC 5280 section 4.1](https://tools.ietf.org/html/rfc5280#section-4.1)
-        ///
-        /// ```not_rust
-        /// SubjectPublicKeyInfo  ::=  SEQUENCE  {
-        ///     algorithm            AlgorithmIdentifier,
-        ///     subjectPublicKey     BIT STRING
-        /// }
-        /// AlgorithmIdentifier  ::=  SEQUENCE  {
-        ///     algorithm               OBJECT IDENTIFIER,
-        ///     parameters              ANY DEFINED BY algorithm OPTIONAL
-        /// }
-        /// ```
-        fn deserialize_spki_der(data: &[u8]) -> Result<Self, ASN1Error> {
-            // TODO(max): Nerd bait: Optimize like
-            // `deserialize_keypair_pkcs8_der` below, which should
-            // allow us to remove the `yasna` dependency.
-            // The current impl can be the reference impl for differential
-            // fuzzing.
-            yasna::parse_der(data, |reader| {
-                // `spki: SubjectPublicKeyInfo`
-                reader.read_sequence(|reader| {
-                    // `algorithm: AlgorithmIdentifier` (id-Ed25519)
-                    reader.next().read_sequence(|reader| {
-                        // `algorithm: OBJECT IDENTIFIER`
-                        let actual_oid = reader.next().read_oid()?;
-                        let expected_oid =
-                            ObjectIdentifier::from_slice(PKCS_OID_SLICE);
-                        if actual_oid != expected_oid {
-                            return Err(ASN1Error::new(ASN1ErrorKind::Invalid));
-                        }
-
-                        // `parameters: ANY DEFINED BY algorithm OPTIONAL`
-                        // (none)
-                        Ok(())
-                    })?;
-
-                    // `subjectPublicKey: BIT STRING`
-                    let (pubkey_bytes, _num_bits) =
-                        reader.next().read_bitvec_bytes()?;
-                    Self::try_from(pubkey_bytes.as_slice())
-                        .map_err(|_| ASN1Error::new(ASN1ErrorKind::Invalid))
-                })
-            })
         }
     }
 
@@ -1055,88 +937,12 @@ mod test {
         }
     }
 
-    /// [`KeyPair`] -> [`rcgen::KeyPair`] -> DER bytes -> [`KeyPair`]
-    #[test]
-    fn test_rcgen_der_roundtrip() {
-        proptest!(|(seed in any::<[u8;32]>())| {
-            let key_pair1 = KeyPair::from_seed(&seed);
-            let rcgen_key_pair = key_pair1.to_rcgen();
-            let key_der = rcgen_key_pair.serialize_der();
-            let key_pair2 = KeyPair::deserialize_pkcs8_der(&key_der).unwrap();
-            prop_assert_eq!(key_pair1.secret_key(), key_pair2.secret_key());
-            prop_assert_eq!(key_pair1.public_key(), key_pair2.public_key());
-        });
-    }
-
     #[test]
     fn test_deserialize_pkcs8_different_lengths() {
         for size in 0..=256 {
             let bytes = vec![0x42_u8; size];
             let _ = deserialize_keypair_pkcs8_der(&bytes);
         }
-    }
-
-    #[test]
-    fn test_to_rcgen() {
-        proptest!(|(key_pair in any::<KeyPair>())| {
-            let rcgen_key_pair = key_pair.to_rcgen();
-            assert_eq!(
-                rcgen_key_pair.public_key_raw(),
-                key_pair.public_key().as_slice()
-            );
-            assert_eq!(
-                rcgen_key_pair.public_key_raw(),
-                key_pair.public_key().der_bytes()
-            );
-            assert_eq!(
-                rcgen_key_pair.der_bytes(),
-                key_pair.public_key().der_bytes()
-            );
-            assert!(rcgen_key_pair.is_compatible(&rcgen::PKCS_ED25519));
-        });
-    }
-
-    #[test]
-    fn test_rcgen_signing_key_equiv() {
-        proptest!(|(key_pair in any::<KeyPair>(), msg in any::<Vec<u8>>())| {
-            let sig1 = key_pair.sign_raw(&msg);
-            key_pair.public_key().verify_raw(&msg, &sig1).unwrap();
-
-            let sig2 = key_pair.to_rcgen().sign(&msg).unwrap();
-
-            // Conveniently, ed25519 signatures are deterministic
-            assert_eq!(sig1.as_slice(), &sig2);
-        });
-    }
-
-    #[test]
-    fn test_rcgen_public_key_data_equiv() {
-        proptest!(|(key_pair in any::<KeyPair>())| {
-            let pubkey1 = key_pair.public_key();
-            let keypair_rcgen = key_pair.to_rcgen();
-            let keypair_spki_der_rcgen = keypair_rcgen.subject_public_key_info();
-            let keypair_spki_der_lexe = key_pair.subject_public_key_info();
-            let pubkey_spki_der_lexe1 = key_pair.public_key().subject_public_key_info();
-            let pubkey_spki_der_lexe2 = key_pair.public_key().serialize_spki_der();
-
-            // Ensure our SPKI DER encodings are equivalent to rcgen's.
-            prop_assert_eq!(&keypair_spki_der_rcgen, &keypair_spki_der_lexe);
-            prop_assert_eq!(&keypair_spki_der_rcgen, &pubkey_spki_der_lexe1);
-            prop_assert_eq!(&keypair_spki_der_rcgen, &pubkey_spki_der_lexe2);
-
-            // Ensure our .der_bytes() are equivalent
-            let keypair_pubkey_der_rcgen = keypair_rcgen.der_bytes();
-            let keypair_pubkey_der_lexe = key_pair.der_bytes();
-            let pubkey_der_lexe = key_pair.public_key().der_bytes();
-            prop_assert_eq!(keypair_pubkey_der_rcgen, keypair_pubkey_der_lexe);
-            prop_assert_eq!(keypair_pubkey_der_rcgen, pubkey_der_lexe);
-
-            // Ensure deserialization recovers the pubkey.
-            let pubkey2 =
-                PublicKey::deserialize_spki_der(&keypair_spki_der_rcgen)
-                    .unwrap();
-            prop_assert_eq!(pubkey1, &pubkey2);
-        });
     }
 
     // See: [RFC 8032 (EdDSA) > Test Vectors](https://www.rfc-editor.org/rfc/rfc8032.html#page-25)
