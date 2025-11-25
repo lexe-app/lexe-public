@@ -16,8 +16,7 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
-import 'package:lexeapp/logger.dart' show info;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/payment_address.dart'
     show PaymentAddressService;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;

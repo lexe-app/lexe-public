@@ -1,8 +1,7 @@
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
-import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 
 /// [AppHandle.syncPayments] but instrumented with various signals for UI
 /// consumption.

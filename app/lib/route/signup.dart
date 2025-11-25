@@ -24,8 +24,7 @@ import 'package:lexeapp/components.dart'
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
-import 'package:lexeapp/logger.dart' show error, info;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;

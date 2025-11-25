@@ -4,8 +4,7 @@ library;
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:share_plus/share_plus.dart'
     show Share, ShareResult, ShareResultStatus;
 import 'package:url_launcher/url_launcher.dart' as url_launcher;

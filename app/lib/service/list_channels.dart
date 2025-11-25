@@ -1,9 +1,8 @@
 import 'package:app_rs_dart/ffi/api.dart' show ListChannelsResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
-import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 
 /// [AppHandle.listChannels] but instrumented with various signals for UI
 /// consumption.

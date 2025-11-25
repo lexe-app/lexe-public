@@ -1,10 +1,9 @@
 import 'package:app_rs_dart/ffi/api.dart' show NodeInfo;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
-import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart'
     show AlwaysValueNotifier, LxChangeNotifier;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 
 /// [AppHandle.nodeInfo] but instrumented with various signals for UI
 /// consumption.

@@ -1,8 +1,7 @@
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show RevocableClient;
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 
 /// [RevocableClient] CRUD APIs but instrumented with various signals for UI
 /// consumption.

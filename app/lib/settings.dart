@@ -2,7 +2,7 @@ import 'package:app_rs_dart/ffi/settings.dart'
     show OnboardingStatus, Settings, SettingsDb;
 import 'package:flutter/foundation.dart';
 import 'package:lexeapp/notifier_ext.dart' show ValueNotifierExt;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 
 /// Lexe App settings
 class LxSettings {

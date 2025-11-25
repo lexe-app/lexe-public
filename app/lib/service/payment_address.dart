@@ -6,9 +6,8 @@ import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, ValueNotifier;
 import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
-import 'package:lexeapp/logger.dart' show debug, error;
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
-import 'package:lexeapp/result.dart' show Err, Ok, Result;
+import 'package:lexeapp/prelude.dart';
 
 /// Merge states from [AppHandle.getPaymentAddress] and [AppData.paymentAddress] but instrumented
 /// with various signals for UI consumption.

@@ -16,8 +16,7 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SeedWordsCard,
         SubheadingText;
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart' show Err, Ok, Result;
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 

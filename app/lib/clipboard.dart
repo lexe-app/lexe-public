@@ -7,8 +7,7 @@ import 'package:device_info_plus/device_info_plus.dart'
     show AndroidDeviceInfo, DeviceInfoPlugin;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 
 abstract final class LxClipboard {
   const LxClipboard._();

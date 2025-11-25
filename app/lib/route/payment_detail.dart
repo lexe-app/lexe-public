@@ -28,9 +28,8 @@ import 'package:lexeapp/components.dart'
         SliverPullToRefresh;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:lexeapp/url.dart' as url;
 

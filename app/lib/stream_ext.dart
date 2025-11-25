@@ -1,8 +1,7 @@
 import 'dart:async' show FutureOr, Stream, StreamController, StreamSubscription;
 
 import 'package:flutter/foundation.dart';
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 extension StreamControllerExt<T> on StreamController<T> {

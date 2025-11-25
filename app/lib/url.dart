@@ -1,8 +1,7 @@
 /// URL helpers
 library;
 
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 /// Open [url] in an external application. If the url is http(s) then this is

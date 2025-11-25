@@ -1,7 +1,6 @@
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
-import 'package:lexeapp/logger.dart' show error, info;
-import 'package:lexeapp/result.dart' show Err, Ok, Result;
+import 'package:lexeapp/prelude.dart';
 
 /// Derived from [AppHandle}. Knows if we're currently provisioned or not.
 class ProvisionService {

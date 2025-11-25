@@ -34,8 +34,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentStatus;
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/logger.dart' show error, info;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 
 /// The outcome of a successful send flow.
 @immutable

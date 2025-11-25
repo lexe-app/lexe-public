@@ -5,9 +5,8 @@ import 'package:app_rs_dart/ffi/api.ext.dart' show FiatRatesExt;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
 import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
-import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart' show AlwaysValueNotifier;
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/settings.dart' show LxSettings;
 
 /// Maintains the user's current preferred [FiatRate] stream and periodically

@@ -14,8 +14,7 @@ import 'package:app_rs_dart/ffi/types.dart' show Config, DeployEnv, Network;
 import 'package:flutter/foundation.dart'
     show immutable, kDebugMode, kReleaseMode;
 import 'package:flutter/services.dart' show appFlavor;
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:package_info_plus/package_info_plus.dart' show PackageInfo;
 import 'package:path_provider/path_provider.dart' as path_provider;
 

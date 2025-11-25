@@ -62,9 +62,8 @@ import 'package:lexeapp/gdrive_auth.dart'
         GDriveServerAuthCode,
         MockGDriveRestoreCandidate,
         MockRootSeed;
-import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/notifier_ext.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/app_load_error.dart' show AppLoadErrorPage;
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelButton, ChannelsList, ChannelsPage;

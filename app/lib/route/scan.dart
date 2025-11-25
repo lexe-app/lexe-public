@@ -5,8 +5,7 @@ import 'package:flutter_zxing/flutter_zxing.dart'
     show Code, FixedScannerOverlay, Format, ReaderWidget;
 import 'package:lexeapp/components.dart'
     show LxBackButton, LxCloseButton, LxCloseButtonKind, showModalAsyncFlow;
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show SendFlowResult, SendState, SendState_NeedUri;

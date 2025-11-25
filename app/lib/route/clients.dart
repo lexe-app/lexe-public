@@ -24,8 +24,7 @@ import 'package:lexeapp/components.dart'
         SubheadingText,
         showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/clients.dart' show ClientsService;
 import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
 

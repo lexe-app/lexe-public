@@ -30,8 +30,7 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
-import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/result.dart';
+import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/receive/state.dart'
     show
         AmountDescription,
