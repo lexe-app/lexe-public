@@ -36,6 +36,7 @@ fn main() {
     match command {
         "sgx" => test_sgx(),
         "panic" => test_panic(),
+        "do_panic" => do_panic(),
         "oom" => test_oom(),
         _ => {
             eprintln!("unrecognized command: '{command}'");

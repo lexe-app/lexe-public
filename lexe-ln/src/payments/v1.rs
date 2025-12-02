@@ -974,6 +974,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn payment_v1_snapshot_test() {
         let snapshot_path = Path::new("data/payment-snapshot.v1.json");
         let snapshot = fs::read_to_string(snapshot_path)

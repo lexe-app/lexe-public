@@ -5,6 +5,12 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+# Config for testing in SGX
+# Need more threads and more stack for tokio. See: common/Cargo.toml.
+[package.metadata.fortanix-sgx]
+stack-size = 0x20_0000
+threads = 4
+
 [features]
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.

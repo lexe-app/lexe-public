@@ -1617,6 +1617,7 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
     // NOTE: see `lexe_ln::payments::test::gen_basic_payment_sample_data` to
     // generate new sample data.
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn basic_payment_deser_compat() {
         let snapshot =
             fs::read_to_string("data/basic_payment_snapshot.txt").unwrap();

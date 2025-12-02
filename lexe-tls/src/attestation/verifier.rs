@@ -881,10 +881,9 @@ mod test {
     #[ignore]
     fn dump_attest_cert() {
         use base64::Engine;
+        use common::{enclave, rng::FastRng};
 
-        use crate::{
-            attestation::cert::AttestationCert, enclave, rng::FastRng,
-        };
+        use crate::attestation::cert::AttestationCert;
 
         let mut rng = FastRng::new();
         let dns_name = "localhost".to_owned();

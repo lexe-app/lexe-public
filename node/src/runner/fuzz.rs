@@ -350,6 +350,7 @@ mod helpers {
     }
 }
 
+#[cfg_attr(target_env = "sgx", ignore = "threads=2 not enough to start_paused")]
 #[tokio::test(start_paused = true)]
 async fn test_random_commands() {
     let seed = match env::var("USERRUNNER_SEED") {

@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+# Default config for testing in SGX
+[package.metadata.fortanix-sgx]
+
 [features]
 default = []
 webpki-roots = ["dep:webpki-roots"]

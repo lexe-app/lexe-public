@@ -64,7 +64,7 @@ mod sgx {
         cert::SgxAttestationExtension, verifier::EnclavePolicy,
     };
 
-    #[cfg(not(target_feature = "aes"))]
+    #[cfg(all(not(target_feature = "aes"), not(doc)))]
     std::compile_error!(
         "Intel AES-NI intrinsics must be enabled at compile time via RUSTFLAGS"
     );

@@ -153,6 +153,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_dummy_lexe_ca_cert_eq() {
         let cert1 = gen_dummy_lexe_ca_cert().cert_der.0;
         let cert2 = std::fs::read("../common/data/lexe-dummy-root-ca-cert.der")
