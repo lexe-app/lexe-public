@@ -19,6 +19,7 @@ members = [
     "node",
     "payment-uri",
     "payment-uri-core",
+    "petname",
     "run-sgx",
     "sdk-core",
     "sdk-sidecar",

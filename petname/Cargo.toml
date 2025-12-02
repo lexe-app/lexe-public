@@ -1,0 +1,16 @@
+[package]
+name = "petname"
+authors.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+version.workspace = true
+
+[dependencies]
+
+# --- LEXE --- #
+
+# --- WORKSPACE --- #
+
+[dev-dependencies]
+byte-array = { path = "../byte-array" }
+common = { path = "../common" }

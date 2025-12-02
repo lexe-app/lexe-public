@@ -19,6 +19,7 @@ ${PODS_TARGET_SRCROOT}/../../logger/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../node/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../payment-uri-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../payment-uri/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../petname/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../run-sgx/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../rust-toolchain.toml
 ${PODS_TARGET_SRCROOT}/../../rustfmt.toml
