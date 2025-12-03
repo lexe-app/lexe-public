@@ -206,15 +206,15 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 #   leading to it becoming incompatible with our patch.
 
 # A client for the Intel AESM service. Used during attestation to get quoted.
-aesm-client = { version = "=0.6.0", default-features = false }
+aesm-client = { version = "=0.6.2", default-features = false }
 # High level webserver based on axum, tokio, hyper, and tower
 axum-server = "=0.6.0"
 # BIP39 mnemonic codes
 bip39 = { version = "=2.1.0", default-features = false }
 # SGX Quote types
-dcap-ql = { version = "=0.4.0", default-features = false }
+dcap-ql = { version = "=0.4.1", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
-enclave-runner = { version = "=0.6.0", default-features = false }
+enclave-runner = { version = "=0.7.3", default-features = false }
 # Async Esplora client
 esplora-client = { version = "=0.12", default-features = false, features = ["async", "tokio"] }
 # Hyper-related utilities
@@ -233,7 +233,7 @@ ring = "=0.17.14"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
 sgx-isa = "=0.4.1"
 sgxs = "=0.8.0"
-sgxs-loaders = "=0.4.0"
+sgxs-loaders = "=0.5.0"
 # Asynchronous runtime
 tokio = { version = "=1.36.0", default-features = false }
 
@@ -242,26 +242,25 @@ tokio = { version = "=1.36.0", default-features = false }
 
 # Fortanix EDP (rust-sgx) crates:
 # These patches remain licensed under MPL 2.0.
-# * rust-sgx: hide all fortanixvme crates
-# * ftx-sgx-tools: can build just `ftxsgx-elf2sgxs` on non-x86_64
-# * enclave-runner: allow redirecting enclave standard input/output
+# * rust-sgx: exclude all non-core crates (VME, examples, DCAP)
 # * enclave-runner: tighten tokio+futures features
-# * Fix compile error introduced by the new toolchain (cherry-pick)
-# * lint: silence warnings on rust 1.87.0
-aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
-async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
-dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
-enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
-sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
-sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
-sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b77c27f2-2025_06_30" }
-# aesm-client.path = "../../rust-sgx/intel-sgx/aesm-client"
-# async-usercalls.path = "../../rust-sgx/intel-sgx/async-usercalls"
-# dcap-ql.path = "../../rust-sgx/intel-sgx/dcap-ql"
-# enclave-runner.path = "../../rust-sgx/intel-sgx/enclave-runner"
-# sgx-isa.path = "../../rust-sgx/intel-sgx/sgx-isa"
-# sgxs.path = "../../rust-sgx/intel-sgx/sgxs"
-# sgxs-loaders.path = "../../rust-sgx/intel-sgx/sgxs-loaders"
+# * ftx-sgx-tools: support building `ftxsgx-elf2sgxs` on non-x86_64
+# * lint: fix warnings on recent compiler (+1.90)
+# * just: some basic dev tooling
+aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+# aesm-client.path = "../rust-sgx/intel-sgx/aesm-client"
+# async-usercalls.path = "../rust-sgx/intel-sgx/async-usercalls"
+# dcap-ql.path = "../rust-sgx/intel-sgx/dcap-ql"
+# enclave-runner.path = "../rust-sgx/intel-sgx/enclave-runner"
+# sgx-isa.path = "../rust-sgx/intel-sgx/sgx-isa"
+# sgxs.path = "../rust-sgx/intel-sgx/sgxs"
+# sgxs-loaders.path = "../rust-sgx/intel-sgx/sgxs-loaders"
 
 # * license: Add dual license information
 # * server: Propagate current span across `tokio::spawn`
@@ -306,7 +305,11 @@ lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch =
 # * test: fix testing script
 # * net: add `TcpStream::try_into_std`, used by our `tokio` SGX patchset
 # * Revert "Support compilers with stdlibs that don't have `Send` `User<T>` types"
-mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2024_10_11" }
+# * lint: silence unexpected_cfgs lints
+# * dep: update to newest version of `async-usercalls`
+# * fortanix: replacing `insecure_time` with `free` usercall in `Waker`
+mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2025_12_02" }
+# mio = { path = "../mio" }
 
 # * license: Add dual license information
 # * proxy: Expose `ProxyScheme`, `set_custom_http_auth`
