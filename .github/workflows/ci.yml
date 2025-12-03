@@ -65,9 +65,13 @@ jobs:
       - uses: arduino/setup-protoc@v3
       - run: rustup target add x86_64-fortanix-unknown-sgx
       # SGX
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
+      - run: |
+          RUSTC_BOOTSTRAP=1 CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS="-Zoom=panic -Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes -D warnings" \
+          cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
       # SGX + tests
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
+      - run: |
+          RUSTC_BOOTSTRAP=1 CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS="-Zoom=panic -Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes -D warnings" \
+          cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
@@ -80,7 +84,9 @@ jobs:
       # Utils
       - run: cargo check --release --locked -p run-sgx
       # Node
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" RUSTC_BOOTSTRAP=1 cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
+      - run: |
+          RUSTC_BOOTSTRAP=1 CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS="-Zoom=panic -Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes -D warnings" \
+          cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
 
   test:
     runs-on: ubuntu-latest

@@ -1,6 +1,13 @@
+# Set our baseline x86-64 support to CPUs 2015+ with standard crypto intrinsics.
+
 [target.x86_64-fortanix-unknown-sgx]
 # Use our custom SGX runner
 runner = "run-sgx-cargo"
-# Build with AES-NI intrinsics required at compile time. Needed by `aes` crate
-# to avoid runtime feature detection (which doesn't work in an SGX enclave).
-rustflags = ["-Ctarget-feature=+aes,+ssse3", "-Zoom=panic"]
+# Build with crypto intrinsics required at compile time. SGX enclaves don't
+# support runtime feature detection with cpuid.
+rustflags = ["-Zoom=panic", "-Ctarget-cpu=x86-64-v3", "-Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes"]
+
+# Might as well do the same for everything else. `vaes` is too aggressive
+# (Ice Lake 2021+) to mandate outside of our enclaves.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Ctarget-cpu=x86-64-v3", "-Ctarget-feature=+adx,+aes,+pclmulqdq,+sha"]
