@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cmp::Ordering,
     collections::HashSet,
     fmt::{self, Display},
@@ -327,6 +328,14 @@ pub struct VecDbPaymentV1 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DbPaymentV2 {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<Cow<'static, str>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub direction: Option<Cow<'static, str>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<Amount>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fee: Option<Amount>,
     pub status: String,
     #[serde(with = "base64_or_bytes")]
     pub data: Vec<u8>,
@@ -338,6 +347,10 @@ impl DbPaymentV2 {
     pub fn from_v1(v1: DbPaymentV1, updated_at: i64) -> Self {
         Self {
             id: v1.id,
+            class: None,
+            direction: None,
+            amount: None,
+            fee: None,
             status: v1.status,
             data: v1.data,
             created_at: v1.created_at,
@@ -353,6 +366,10 @@ impl PartialEq<DbPaymentV2> for DbPaymentV1 {
             && self.status == other.status
             && self.data == other.data
             && self.created_at == other.created_at
+            && other.class.is_none()
+            && other.direction.is_none()
+            && other.amount.is_none()
+            && other.fee.is_none()
     }
 }
 #[cfg(any(test, feature = "test-utils"))]
@@ -362,6 +379,10 @@ impl PartialEq<DbPaymentV1> for DbPaymentV2 {
             && self.status == other.status
             && self.data == other.data
             && self.created_at == other.created_at
+            && self.class.is_none()
+            && self.direction.is_none()
+            && self.amount.is_none()
+            && self.fee.is_none()
     }
 }
 
@@ -1255,7 +1276,7 @@ impl Serialize for PaymentClass {
 // --- impl PaymentDirection --- //
 
 impl PaymentDirection {
-    fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Inbound => "inbound",
             Self::Outbound => "outbound",

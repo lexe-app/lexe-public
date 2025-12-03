@@ -3,7 +3,7 @@
 //! This module is the 'complex' counterpart to the simpler types exposed in
 //! [`lexe_api::types::payments`].
 
-use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 use bitcoin::address::NetworkUnchecked;
@@ -317,6 +317,10 @@ pub fn encrypt_v1(
 
     Ok(DbPaymentV2 {
         id: pwm.payment.id().to_string(),
+        class: Some(Cow::Borrowed(pwm.payment.class().as_str())),
+        direction: Some(Cow::Borrowed(pwm.payment.direction().as_str())),
+        amount: pwm.payment.amount(),
+        fee: Some(pwm.payment.fee()),
         status: pwm.payment.status().to_string(),
         data,
         created_at: created_at.to_i64(),
