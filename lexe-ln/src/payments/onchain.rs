@@ -9,7 +9,9 @@ use common::{
 };
 use lexe_api::{
     models::command::PayOnchainRequest,
-    types::payments::{ClientPaymentId, LxPaymentId},
+    types::payments::{
+        ClientPaymentId, LxPaymentId, PaymentClass, PaymentKind,
+    },
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -30,6 +32,8 @@ pub(crate) const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 pub struct OnchainSendV2 {
     pub cid: ClientPaymentId,
     pub txid: LxTxid,
+
+    pub class: PaymentClass,
 
     /// The tx must stay in the payment state machine because its inputs are
     /// used to detect replacement transactions.
@@ -99,8 +103,11 @@ impl OnchainSendV2 {
     pub fn new(
         tx: Transaction,
         req: PayOnchainRequest,
+        class: PaymentClass,
         onchain_fee: Amount,
-    ) -> PaymentWithMetadata<Self> {
+    ) -> anyhow::Result<PaymentWithMetadata<Self>> {
+        class.expect_parent_kind(PaymentKind::Onchain)?;
+
         // Destructure to ensure we don't miss any fields.
         let PayOnchainRequest {
             cid,
@@ -114,6 +121,7 @@ impl OnchainSendV2 {
         let os = Self {
             cid,
             txid,
+            class,
             tx: Arc::new(tx),
             amount,
             onchain_fee,
@@ -136,10 +144,10 @@ impl OnchainSendV2 {
             replacement_txid: None,
         };
 
-        PaymentWithMetadata {
+        Ok(PaymentWithMetadata {
             payment: os,
             metadata,
-        }
+        })
     }
 
     #[inline]
@@ -276,6 +284,8 @@ impl OnchainSendV2 {
 pub struct OnchainReceiveV2 {
     pub txid: LxTxid,
 
+    pub class: PaymentClass,
+
     #[serde(with = "consensus_encode_tx")]
     pub tx: Arc<bitcoin::Transaction>,
 
@@ -329,11 +339,15 @@ impl OnchainReceiveV2 {
     // - `PaymentsManager::spawn_onchain_recv_checker` task
     pub(crate) fn new(
         tx: Arc<bitcoin::Transaction>,
+        class: PaymentClass,
         amount: Amount,
-    ) -> PaymentWithMetadata<Self> {
+    ) -> anyhow::Result<PaymentWithMetadata<Self>> {
+        class.expect_parent_kind(PaymentKind::Onchain)?;
+
         let txid = LxTxid(tx.compute_txid());
         let or = Self {
             txid,
+            class,
             tx,
             amount,
             // Start at zeroconf and let the checker update it later.
@@ -344,10 +358,10 @@ impl OnchainReceiveV2 {
 
         let metadata = PaymentMetadata::empty(or.id());
 
-        PaymentWithMetadata {
+        Ok(PaymentWithMetadata {
             payment: or,
             metadata,
-        }
+        })
     }
 
     #[inline]
@@ -455,6 +469,7 @@ mod arbitrary_impl {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let any_tx = arbitrary::any_raw_tx();
             let any_req = any::<PayOnchainRequest>();
+            let any_class = PaymentKind::Onchain.any_child_class();
             let any_fees = any::<Amount>();
             let any_is_broadcasted = proptest::bool::weighted(0.8);
             // TODO(max): Make optional once payment_encryption_roundtrip tests
@@ -468,6 +483,7 @@ mod arbitrary_impl {
             (
                 any_tx,
                 any_req,
+                any_class,
                 any_fees,
                 any_created_at,
                 any_is_broadcasted,
@@ -477,12 +493,14 @@ mod arbitrary_impl {
                     |(
                         tx,
                         req,
+                        class,
                         fees,
                         created_at,
                         is_broadcasted,
                         conf_status,
                     )| {
-                        let mut pwm = OnchainSendV2::new(tx, req, fees);
+                        let mut pwm = OnchainSendV2::new(tx, req, class, fees)
+                            .expect("Valid class");
                         // Set created_at for test purposes
                         pwm.payment.created_at = Some(created_at);
                         if !is_broadcasted {
@@ -518,6 +536,7 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let any_tx = arbitrary::any_raw_tx();
+            let any_class = PaymentKind::Onchain.any_child_class();
             let any_amount = any::<Amount>();
             // TODO(max): Make optional once payment_encryption_roundtrip tests
             // with PaymentV2 only. Currently must be non-optional because the
@@ -527,9 +546,17 @@ mod arbitrary_impl {
 
             // Generate valid `OnchainReceive` instances by actually running
             // through the state machine.
-            (any_tx, any_amount, any_created_at, any_conf_status)
-                .prop_map(|(tx, amount, created_at, conf_status)| {
-                    let mut orwm = OnchainReceiveV2::new(Arc::new(tx), amount);
+            (
+                any_tx,
+                any_class,
+                any_amount,
+                any_created_at,
+                any_conf_status,
+            )
+                .prop_map(|(tx, class, amount, created_at, conf_status)| {
+                    let mut orwm =
+                        OnchainReceiveV2::new(Arc::new(tx), class, amount)
+                            .expect("Valid class");
                     // Set created_at for test purposes
                     orwm.payment.created_at = Some(created_at);
                     if let Some(conf_status) = conf_status

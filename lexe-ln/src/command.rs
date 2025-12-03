@@ -46,7 +46,7 @@ use lexe_api::{
         Empty,
         invoice::LxInvoice,
         offer::{LxOffer, MaxQuantity},
-        payments::{LxPaymentId, PaymentDirection},
+        payments::{LxPaymentId, PaymentClass, PaymentDirection},
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
 };
@@ -867,12 +867,16 @@ where
         .map(LxInvoice)
         .context("Invoice was semantically incorrect")?;
 
+    let class = PaymentClass::Invoice;
+
     let iipwm = InboundInvoicePaymentV2::new(
         invoice.clone(),
         hash.into(),
         secret.into(),
         preimage.into(),
-    );
+        class,
+    )
+    .context("Failed to create payment")?;
     let pwm = iipwm.into_enum();
     let created_index = payments_manager
         .new_payment(pwm)
@@ -1376,9 +1380,13 @@ where
     let payment_secret = invoice.payment_secret().into();
     let recipient_fields = RecipientOnionFields::secret_only(payment_secret);
 
+    let class = PaymentClass::Invoice;
     let amount = route.amount();
     let fees = route.fees();
-    let oipwm = OutboundInvoicePaymentV2::new(invoice, amount, fees, req.note);
+    let oipwm =
+        OutboundInvoicePaymentV2::new(invoice, class, amount, fees, req.note)
+            .context("Failed to create payment")?;
+
     Ok(PreflightedPayInvoice {
         oipwm,
         route,
@@ -1494,6 +1502,7 @@ where
 
     let amount = route.amount();
     let routing_fee = route.fees();
+    let class = PaymentClass::Offer;
 
     // TODO(max): Include these fields in `PayOfferRequest`
     let payer_name = None;
@@ -1502,13 +1511,16 @@ where
     let oopwm = OutboundOfferPaymentV2::new(
         req.cid,
         offer,
+        class,
         amount,
         quantity,
         routing_fee,
         req.note,
         payer_name,
         payer_note,
-    );
+    )
+    .context("Failed to create payment")?;
+
     Ok(PreflightedPayOffer { oopwm, route })
 }
 

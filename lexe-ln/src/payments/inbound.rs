@@ -7,7 +7,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        LxPaymentSecret, PaymentKind,
+        LxPaymentSecret, PaymentClass, PaymentKind,
     },
 };
 use lightning::events::PaymentPurpose;
@@ -312,6 +312,8 @@ pub struct InboundInvoicePaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub claim_id: Option<LnClaimId>,
 
+    pub class: PaymentClass,
+
     /// The amount encoded in our invoice, if there was one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_amount: Option<Amount>,
@@ -371,7 +373,10 @@ impl InboundInvoicePaymentV2 {
         hash: LxPaymentHash,
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
-    ) -> PaymentWithMetadata<Self> {
+        class: PaymentClass,
+    ) -> anyhow::Result<PaymentWithMetadata<Self>> {
+        class.expect_parent_kind(PaymentKind::Invoice)?;
+
         let invoice_amount =
             invoice.0.amount_milli_satoshis().map(Amount::from_msat);
         let expires_at = invoice.expires_at().ok();
@@ -380,6 +385,7 @@ impl InboundInvoicePaymentV2 {
             secret,
             preimage,
             claim_id: None,
+            class,
             invoice_amount,
             recvd_amount: None,
             skimmed_fee: None,
@@ -404,10 +410,10 @@ impl InboundInvoicePaymentV2 {
             replacement_txid: None,
         };
 
-        PaymentWithMetadata {
+        Ok(PaymentWithMetadata {
             payment: iip,
             metadata,
-        }
+        })
     }
 
     #[inline]
@@ -652,6 +658,8 @@ pub struct InboundOfferReusablePaymentV2 {
     /// The payment preimage for this offer payment.
     pub preimage: LxPaymentPreimage,
 
+    pub class: PaymentClass,
+
     /// The amount we received for this payment.
     pub amount: Amount,
 
@@ -698,13 +706,17 @@ impl InboundOfferReusablePaymentV2 {
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn new(
         ctx: OfferClaimCtx,
+        class: PaymentClass,
         amount: Amount,
         skimmed_fee: Option<Amount>,
-    ) -> PaymentWithMetadata<Self> {
+    ) -> anyhow::Result<PaymentWithMetadata<Self>> {
+        class.expect_parent_kind(PaymentKind::Offer)?;
+
         let iorp = Self {
             claim_id: ctx.claim_id,
             offer_id: ctx.offer_id,
             preimage: ctx.preimage,
+            class,
             amount,
             skimmed_fee,
             // channel_fee: None,
@@ -726,10 +738,10 @@ impl InboundOfferReusablePaymentV2 {
             quantity: ctx.quantity,
             replacement_txid: None,
         };
-        PaymentWithMetadata {
+        Ok(PaymentWithMetadata {
             payment: iorp,
             metadata,
-        }
+        })
     }
 
     /// ## Precondition
@@ -839,6 +851,8 @@ pub struct InboundSpontaneousPaymentV2 {
     /// Given by [`PaymentPurpose`].
     pub preimage: LxPaymentPreimage,
 
+    pub class: PaymentClass,
+
     /// The amount received in this payment.
     pub amount: Amount,
 
@@ -887,12 +901,16 @@ impl InboundSpontaneousPaymentV2 {
     pub(crate) fn new(
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
+        class: PaymentClass,
         amount: Amount,
         skimmed_fee: Option<Amount>,
-    ) -> PaymentWithMetadata<Self> {
+    ) -> anyhow::Result<PaymentWithMetadata<Self>> {
+        class.expect_parent_kind(PaymentKind::Spontaneous)?;
+
         let isp = Self {
             hash,
             preimage,
+            class,
             amount,
             skimmed_fee,
             // channel_fee: None,
@@ -903,10 +921,10 @@ impl InboundSpontaneousPaymentV2 {
 
         let metadata = PaymentMetadata::empty(isp.id());
 
-        PaymentWithMetadata {
+        Ok(PaymentWithMetadata {
             payment: isp,
             metadata,
-        }
+        })
     }
 
     #[inline]
@@ -1024,6 +1042,7 @@ mod arbitrary_impl {
                 })
             });
 
+            let class = PaymentKind::Invoice.any_child_class();
             let claim_id = any::<LnClaimId>();
             let recvd_amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
@@ -1034,6 +1053,7 @@ mod arbitrary_impl {
 
             let gen_iip = move |(
                 preimage_invoice,
+                class,
                 claim_id,
                 recvd_amount,
                 skimmed_fee,
@@ -1081,6 +1101,7 @@ mod arbitrary_impl {
                     secret,
                     preimage,
                     claim_id,
+                    class,
                     invoice_amount,
                     recvd_amount,
                     skimmed_fee,
@@ -1094,6 +1115,7 @@ mod arbitrary_impl {
 
             (
                 preimage_invoice,
+                class,
                 claim_id,
                 recvd_amount,
                 skimmed_fee,
@@ -1135,6 +1157,7 @@ mod arbitrary_impl {
             let preimage = any::<LxPaymentPreimage>();
             let claim_id = any::<LnClaimId>();
             let offer_id = any::<LxOfferId>();
+            let class = PaymentKind::Offer.any_child_class();
             let amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
             let status =
@@ -1147,6 +1170,7 @@ mod arbitrary_impl {
                 preimage,
                 claim_id,
                 offer_id,
+                class,
                 amount,
                 skimmed_fee,
                 status,
@@ -1175,6 +1199,7 @@ mod arbitrary_impl {
                     claim_id,
                     offer_id,
                     preimage,
+                    class,
                     amount,
                     skimmed_fee,
                     // channel_fee: None,
@@ -1188,6 +1213,7 @@ mod arbitrary_impl {
                 preimage,
                 claim_id,
                 offer_id,
+                class,
                 amount,
                 skimmed_fee,
                 status,
@@ -1225,6 +1251,7 @@ mod arbitrary_impl {
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let hash = any::<LxPaymentHash>();
             let preimage = any::<LxPaymentPreimage>();
+            let class = PaymentKind::Spontaneous.any_child_class();
             let amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
             let status =
@@ -1236,6 +1263,7 @@ mod arbitrary_impl {
             let gen_isp = move |(
                 hash,
                 preimage,
+                class,
                 amount,
                 skimmed_fee,
                 status,
@@ -1263,6 +1291,7 @@ mod arbitrary_impl {
                 InboundSpontaneousPaymentV2 {
                     hash,
                     preimage,
+                    class,
                     amount,
                     skimmed_fee,
                     // channel_fee: None,
@@ -1275,6 +1304,7 @@ mod arbitrary_impl {
             (
                 hash,
                 preimage,
+                class,
                 amount,
                 skimmed_fee,
                 status,

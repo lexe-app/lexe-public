@@ -68,6 +68,7 @@ use lexe_api::{
         FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
     },
+    types::payments::PaymentClass,
     vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_FILENAME},
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -1008,7 +1009,9 @@ impl LexeWallet {
         };
         self.trigger_persist();
 
-        Ok(OnchainSendV2::new(tx, req, onchain_fee))
+        let class = PaymentClass::Onchain;
+        OnchainSendV2::new(tx, req, class, onchain_fee)
+            .context("Failed to create payment")
     }
 
     /// Estimate the network fee for a potential onchain send payment. We return

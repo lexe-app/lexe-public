@@ -10,7 +10,7 @@ use std::{
 use anyhow::{Context, anyhow, bail, ensure};
 use bitcoin::{
     address::NetworkUnchecked,
-    hashes::{Hash as _, sha256},
+    hashes::{Hash, sha256},
 };
 use byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
@@ -28,10 +28,14 @@ use lightning::{
     types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
 };
 #[cfg(any(test, feature = "test-utils"))]
+use proptest::{prelude::Just, strategy::Union};
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
+#[cfg(any(test, feature = "test-utils"))]
+use strum::VariantArray;
 
 use crate::types::{invoice::LxInvoice, offer::LxOffer};
 
@@ -408,7 +412,7 @@ pub struct VecDbPaymentMetadata {
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[cfg_attr(test, derive(strum::VariantArray))]
+#[cfg_attr(test, derive(VariantArray))]
 pub enum PaymentKind {
     Onchain,
     Invoice,
@@ -436,8 +440,7 @@ pub enum PaymentKind {
 /// out data once it has already been unified.
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[cfg_attr(test, derive(strum::VariantArray))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary, VariantArray))]
 pub enum PaymentClass {
     // --- Unclassed or Legacy --- //
 
@@ -507,7 +510,7 @@ pub enum PaymentClass {
 /// Specifies whether a payment is inbound or outbound.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[cfg_attr(test, derive(strum::VariantArray))]
+#[cfg_attr(test, derive(VariantArray))]
 pub enum PaymentDirection {
     Inbound,
     Outbound,
@@ -521,7 +524,7 @@ pub enum PaymentDirection {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[cfg_attr(test, derive(strum::VariantArray))]
+#[cfg_attr(test, derive(VariantArray))]
 pub enum PaymentStatus {
     Pending,
     Completed,
@@ -1148,6 +1151,18 @@ impl PaymentKind {
             Self::Spontaneous => "spontaneous",
         }
     }
+
+    /// Returns a strategy generating [`PaymentClass`] variants with this
+    /// parent kind, uniformly distributed (weight 1 each).
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn any_child_class(self) -> Union<Just<PaymentClass>> {
+        let classes = PaymentClass::VARIANTS
+            .iter()
+            .copied()
+            .filter(|c| c.parent_kind() == self)
+            .map(Just);
+        Union::new(classes)
+    }
 }
 impl FromStr for PaymentKind {
     type Err = anyhow::Error;
@@ -1194,6 +1209,21 @@ impl PaymentClass {
             Self::Offer => PaymentKind::Offer,
             Self::Spontaneous => PaymentKind::Spontaneous,
         }
+    }
+
+    /// Validates this payment class against an expected parent kind.
+    pub fn expect_parent_kind(
+        &self,
+        expected: PaymentKind,
+    ) -> anyhow::Result<()> {
+        let actual = self.parent_kind();
+
+        ensure!(
+            actual == expected,
+            "Expected parent kind {expected}, got {actual}"
+        );
+
+        Ok(())
     }
 }
 impl FromStr for PaymentClass {

@@ -8,7 +8,7 @@ use lexe_api::types::{
     invoice::LxInvoice,
     payments::{
         LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        LxPaymentSecret,
+        LxPaymentSecret, PaymentClass,
     },
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
@@ -103,6 +103,7 @@ impl From<InboundInvoicePaymentV1>
             secret: v1.secret,
             preimage: v1.preimage,
             claim_id: v1.claim_id,
+            class: PaymentClass::Invoice,
             invoice_amount: v1.invoice_amount,
             recvd_amount: v1.recvd_amount,
             skimmed_fee: None,
@@ -144,6 +145,7 @@ impl TryFrom<PaymentWithMetadata<InboundInvoicePaymentV2>>
             secret,
             preimage,
             claim_id,
+            class: _,
             invoice_amount,
             recvd_amount,
             skimmed_fee: _,
@@ -248,6 +250,7 @@ impl From<InboundOfferReusablePaymentV1>
             claim_id: v1.claim_id,
             offer_id: v1.offer_id,
             preimage: v1.preimage,
+            class: PaymentClass::Offer,
             amount: v1.amount,
             skimmed_fee: None,
             // channel_fee: None,
@@ -286,6 +289,7 @@ impl TryFrom<PaymentWithMetadata<InboundOfferReusablePaymentV2>>
             claim_id,
             offer_id,
             preimage,
+            class: _,
             amount,
             skimmed_fee: _,
             // channel_fee: _,
@@ -366,6 +370,7 @@ impl From<InboundSpontaneousPaymentV1>
         let payment = InboundSpontaneousPaymentV2 {
             hash: v1.hash,
             preimage: v1.preimage,
+            class: PaymentClass::Spontaneous,
             amount: v1.amount,
             skimmed_fee: None,
             // channel_fee: v1.onchain_fees,
@@ -403,6 +408,7 @@ impl TryFrom<PaymentWithMetadata<InboundSpontaneousPaymentV2>>
         let InboundSpontaneousPaymentV2 {
             hash,
             preimage,
+            class: _,
             amount,
             skimmed_fee: _,
             // channel_fee: onchain_fees,

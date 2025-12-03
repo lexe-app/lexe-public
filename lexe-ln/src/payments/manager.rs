@@ -10,7 +10,7 @@ use common::{
 use lexe_api::{
     models::command::UpdatePaymentNote,
     types::payments::{
-        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
+        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentClass,
         PaymentCreatedIndex, PaymentStatus,
     },
 };
@@ -975,9 +975,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     let raw_tx = canonical_tx.tx_node.tx;
                     let (_, received) =
                         locked_wallet.sent_and_received(&raw_tx);
+                    let class = PaymentClass::Onchain;
                     let amount =
                         Amount::try_from(received).context("Overflowed")?;
-                    Ok(OnchainReceiveV2::new(raw_tx, amount))
+                    OnchainReceiveV2::new(raw_tx, class, amount)
+                        .context("Failed to create payment")
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?
         };
@@ -1067,11 +1069,14 @@ impl PaymentsData {
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
                 LnClaimCtx::Bolt12Offer(ctx) => {
+                    let class = PaymentClass::Offer;
                     let iorpwm = InboundOfferReusablePaymentV2::new(
                         ctx,
+                        class,
                         amount,
                         skimmed_fee,
-                    );
+                    )
+                    .map_err(ClaimableError::Replay)?;
                     Ok(CheckedPayment(iorpwm.into_enum()))
                 }
                 LnClaimCtx::Spontaneous {
@@ -1081,12 +1086,15 @@ impl PaymentsData {
                 } => {
                     // We just got a new spontaneous payment!
                     // Create the new payment.
+                    let class = PaymentClass::Spontaneous;
                     let ispwm = InboundSpontaneousPaymentV2::new(
                         hash,
                         preimage,
+                        class,
                         amount,
                         skimmed_fee,
-                    );
+                    )
+                    .map_err(ClaimableError::Replay)?;
                     Ok(CheckedPayment(ispwm.into_enum()))
                 }
             },

@@ -19,8 +19,8 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPaymentV2, DbPaymentV2, LxOfferId, LxPaymentId, PaymentDirection,
-        PaymentKind, PaymentStatus,
+        BasicPaymentV2, DbPaymentV2, LxOfferId, LxPaymentId, PaymentClass,
+        PaymentDirection, PaymentKind, PaymentStatus,
     },
 };
 use lexe_std::const_assert_mem_size;
@@ -646,6 +646,20 @@ impl PaymentV2 {
             Self::OutboundInvoice(_) => PaymentKind::Invoice,
             Self::OutboundOffer(_) => PaymentKind::Offer,
             Self::OutboundSpontaneous(_) => PaymentKind::Spontaneous,
+        }
+    }
+
+    /// The sub-kind of this payment, which is exposed for efficient queries.
+    pub fn class(&self) -> PaymentClass {
+        match self {
+            Self::OnchainSend(os) => os.class,
+            Self::OnchainReceive(or) => or.class,
+            Self::InboundInvoice(iip) => iip.class,
+            Self::InboundOfferReusable(iorp) => iorp.class,
+            Self::InboundSpontaneous(isp) => isp.class,
+            Self::OutboundInvoice(oip) => oip.class,
+            Self::OutboundOffer(oop) => oop.class,
+            Self::OutboundSpontaneous(osp) => osp.class,
         }
     }
 

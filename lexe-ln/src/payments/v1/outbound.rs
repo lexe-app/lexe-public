@@ -7,7 +7,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         ClientPaymentId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        LxPaymentSecret,
+        LxPaymentSecret, PaymentClass,
     },
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
@@ -102,6 +102,7 @@ impl From<OutboundInvoicePaymentV1>
             hash: v1.hash,
             secret: v1.secret,
             preimage: v1.preimage,
+            class: PaymentClass::Invoice,
             amount: v1.amount,
             routing_fee: v1.fees,
             status: v1.status,
@@ -141,6 +142,7 @@ impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
             hash,
             secret,
             preimage,
+            class: _,
             amount,
             routing_fee: fees,
             status,
@@ -249,6 +251,7 @@ impl From<OutboundOfferPaymentV1>
             hash: v1.hash,
             preimage: v1.preimage,
             offer_id,
+            class: PaymentClass::Offer,
             amount: v1.amount,
             routing_fee: v1.fees,
             status: v1.status,
@@ -289,6 +292,7 @@ impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
             hash,
             preimage,
             offer_id: _,
+            class: _,
             amount,
             routing_fee: fees,
             status,
@@ -372,6 +376,7 @@ impl From<OutboundSpontaneousPaymentV1>
         let payment = OutboundSpontaneousPaymentV2 {
             hash: v1.hash,
             preimage: v1.preimage,
+            class: PaymentClass::Spontaneous,
             amount: v1.amount,
             routing_fee: v1.fees,
             status: v1.status,
@@ -407,6 +412,7 @@ impl TryFrom<PaymentWithMetadata<OutboundSpontaneousPaymentV2>>
         let OutboundSpontaneousPaymentV2 {
             hash,
             preimage,
+            class: _,
             amount,
             routing_fee: fees,
             status,
