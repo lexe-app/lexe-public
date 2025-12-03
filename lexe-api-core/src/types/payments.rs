@@ -406,8 +406,7 @@ pub struct VecDbPaymentMetadata {
 }
 
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[derive(DeserializeFromStr)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentKind {
@@ -417,9 +416,96 @@ pub enum PaymentKind {
     Spontaneous,
 }
 
+/// A subcategory of a [`PaymentKind`] which is used to filter payments for
+/// application level queries.
+///
+/// In Lexe's DB, payment information is encrypted, but this type is exposed.
+/// This is because without this type, the DB cannot identify which payments are
+/// relevant to a application level queries like
+///
+/// - "Show me my last N liquidity fee payments from this index"
+/// - "Show me my history of channel opens and closes"
+/// - "Show me the last N times I paid a channel fee."
+///
+/// These payment classes are also useful for accounting and analytics, allowing
+/// users to breakdown their payments history using fine-grained categories.
+///
+/// When implementing new kind of payment flows, err on the side of adding a new
+/// [`PaymentClass`] for it, instead of incorporating it into an existing class.
+/// We can always add another OR in a WHERE clause, but cannot easily separate
+/// out data once it has already been unified.
+#[rustfmt::skip]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[cfg_attr(test, derive(strum::VariantArray))]
+pub enum PaymentClass {
+    // --- Unclassed or Legacy --- //
+
+    /// A regular on-chain send or receive.
+    /// All v1 on-chain payments which had no class are given this class.
+    Onchain, // parent kind: Onchain
+
+    /// A regular Lightning send or receive.
+    /// All v1 invoice payments which had no class are given this class.
+    Invoice, // parent kind: Invoice
+
+    /// A regular Lightning offer payment.
+    /// All v1 offer payments which had no class are given this class.
+    Offer, // parent kind: Offer
+
+    /// A regular Lightning spontaneous payment.
+    /// All v1 spontaneous payments which had no class are given this class.
+    Spontaneous, // parent kind: Spontaneous
+
+    // /// A splice into or out of a channel.
+    // Splice, // parent kind: Splice
+
+    // TODO(max): Think about inbound vs outbound channel opens.
+    // Post-splicing, it seems we should only worry about inbound channel
+    // opens, since the user will never use on-chain funds to open a
+    // second channel (they would only splice into an existing channel)?
+    // <https://app.clickup.com/t/86a5nr7h9>
+    //
+    // /// A channel open.
+    // ChannelOpen, // parent kind: Channel
+
+    // /// A channel close.
+    // ChannelClose, // parent kind: Channel
+
+    // --- General --- //
+
+    // /// A channel fee that would have been paid but was waived.
+    // WaivedChannelFee, // parent kind: WaivedFee
+
+    // /// A liquidity fee that would have been paid but was waived.
+    // WaivedLiquidityFee, // parent kind: WaivedFee
+
+    // /// A routing fee that would have been paid but was waived.
+    // WaivedRoutingFee, // parent kind: WaivedFee
+
+    // /// A payment to cover the on-chain costs of an inbound channel.
+    // ChannelFeePayment, // parent kind: Spontaneous
+
+    // /// An interest payment on our current amount of inbound liquidity.
+    // LiquidityFeePayment, // parent kind: Spontaneous
+
+    // /// A payment to cover the on-chain costs of changing the size of our
+    // /// channel, typically to adjust our amount of inbound liquidity.
+    // ///
+    // /// Paid when:
+    // /// - We want to increase our inbound liquidity (LSP splices in)
+    // /// - We want to decrease our inbound liquidity (LSP splices out)
+    // LiquidityAdjustmentPayment, // parent kind: Spontaneous
+
+    // /// Revshare earnings from a partner fee we levied.
+    // PartnerFeeRevenue, // parent kind: Spontaneous
+
+    // /// Referral fees earned from users we referred.
+    // ReferralFeeRevenue, // parent kind: Spontaneous
+}
+
 /// Specifies whether a payment is inbound or outbound.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[derive(DeserializeFromStr)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentDirection {
@@ -1089,6 +1175,53 @@ impl Serialize for PaymentKind {
     }
 }
 
+// --- impl PaymentClass --- //
+
+impl PaymentClass {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Onchain => "onchain",
+            Self::Invoice => "invoice",
+            Self::Offer => "offer",
+            Self::Spontaneous => "spontaneous",
+        }
+    }
+
+    pub fn parent_kind(&self) -> PaymentKind {
+        match self {
+            Self::Onchain => PaymentKind::Onchain,
+            Self::Invoice => PaymentKind::Invoice,
+            Self::Offer => PaymentKind::Offer,
+            Self::Spontaneous => PaymentKind::Spontaneous,
+        }
+    }
+}
+impl FromStr for PaymentClass {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "invoice" => Ok(Self::Invoice),
+            "offer" => Ok(Self::Offer),
+            "onchain" => Ok(Self::Onchain),
+            "spontaneous" => Ok(Self::Spontaneous),
+            _ => Err(anyhow!("Must be onchain|invoice|spontaneous")),
+        }
+    }
+}
+impl Display for PaymentClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+impl Serialize for PaymentClass {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
+    }
+}
+
 // --- impl PaymentDirection --- //
 
 impl PaymentDirection {
@@ -1340,10 +1473,15 @@ mod test {
         );
         let expected_ser = r#"["onchain","invoice","offer","spontaneous"]"#;
         roundtrip::json_unit_enum_backwards_compat::<PaymentKind>(expected_ser);
+        let expected_ser = r#"["onchain","invoice","offer","spontaneous"]"#;
+        roundtrip::json_unit_enum_backwards_compat::<PaymentClass>(
+            expected_ser,
+        );
 
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentDirection>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentStatus>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentKind>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentClass>();
     }
 
     #[test]
