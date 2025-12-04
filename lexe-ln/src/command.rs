@@ -1329,6 +1329,8 @@ where
                 return Err(anyhow!("We've already tried paying this invoice")),
             // Yes, users actually hit this case...
             PaymentDirection::Inbound => bail!("We cannot pay ourselves"),
+            PaymentDirection::Info =>
+                bail!("Unexpected Info direction for invoice payment"),
         }
     }
 

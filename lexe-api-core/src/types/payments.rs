@@ -536,8 +536,12 @@ pub enum PaymentClass {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(VariantArray))]
 pub enum PaymentDirection {
+    /// Inbound payment; we received money and our balance increased.
     Inbound,
+    /// Outbound payment; we spent money and our balance decreased.
     Outbound,
+    /// A journal entry which didn't increase or decrease our balance.
+    Info,
 }
 
 /// A general payment status that abstracts over all payment types.
@@ -1291,6 +1295,7 @@ impl PaymentDirection {
         match self {
             Self::Inbound => "inbound",
             Self::Outbound => "outbound",
+            Self::Info => "info",
         }
     }
 }
@@ -1300,7 +1305,8 @@ impl FromStr for PaymentDirection {
         match s {
             "inbound" => Ok(Self::Inbound),
             "outbound" => Ok(Self::Outbound),
-            _ => Err(anyhow!("Must be inbound|outbound")),
+            "info" => Ok(Self::Info),
+            _ => Err(anyhow!("Must be inbound|outbound|info")),
         }
     }
 }
@@ -1525,7 +1531,7 @@ mod test {
 
     #[test]
     fn enums_roundtrips() {
-        let expected_ser = r#"["inbound","outbound"]"#;
+        let expected_ser = r#"["inbound","outbound","info"]"#;
         roundtrip::json_unit_enum_backwards_compat::<PaymentDirection>(
             expected_ser,
         );

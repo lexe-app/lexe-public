@@ -242,6 +242,7 @@ pub struct AppUserInfo {
 pub enum PaymentDirection {
     Inbound,
     Outbound,
+    Info,
 }
 
 impl From<PaymentDirectionRs> for PaymentDirection {
@@ -249,6 +250,7 @@ impl From<PaymentDirectionRs> for PaymentDirection {
         match value {
             PaymentDirectionRs::Inbound => Self::Inbound,
             PaymentDirectionRs::Outbound => Self::Outbound,
+            PaymentDirectionRs::Info => Self::Info,
         }
     }
 }
