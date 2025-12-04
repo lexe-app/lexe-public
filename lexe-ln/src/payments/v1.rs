@@ -302,10 +302,20 @@ impl PaymentV1 {
         created_at: TimestampMs,
         updated_at: TimestampMs,
     ) -> lexe_api::types::payments::BasicPaymentV2 {
+        use lexe_api::types::payments::PaymentClass;
+
+        let class = match self.kind() {
+            PaymentKind::Onchain => PaymentClass::Onchain,
+            PaymentKind::Invoice => PaymentClass::Invoice,
+            PaymentKind::Offer => PaymentClass::Offer,
+            PaymentKind::Spontaneous => PaymentClass::Spontaneous,
+        };
+
         lexe_api::types::payments::BasicPaymentV2 {
             id: self.id(),
             related_ids: HashSet::new(),
             kind: self.kind(),
+            class,
             direction: self.direction(),
             offer_id: self.offer_id(),
             txid: self.txid(),

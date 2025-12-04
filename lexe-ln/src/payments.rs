@@ -418,6 +418,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let txid = self.payment.txid();
         let offer_id = self.payment.offer_id();
         let kind = self.payment.kind();
+        let class = self.payment.class();
         let direction = self.payment.direction();
         let status = self.payment.status();
         let status_str = self.payment.status_str().to_owned();
@@ -443,6 +444,7 @@ impl PaymentWithMetadata<PaymentV2> {
             id,
             related_ids,
             kind,
+            class,
             direction,
             offer_id,
             txid,

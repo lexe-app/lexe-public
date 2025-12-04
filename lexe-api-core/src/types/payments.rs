@@ -65,6 +65,9 @@ pub struct BasicPaymentV2 {
     /// Payment kind: onchain, invoice, offer, or spontaneous.
     pub kind: PaymentKind,
 
+    /// Payment class: a more granular subcategory of a payment kind.
+    pub class: PaymentClass,
+
     /// Payment direction: inbound or outbound.
     pub direction: PaymentDirection,
 
@@ -709,10 +712,18 @@ pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 impl BasicPaymentV2 {
     pub fn from_v1(v1: BasicPaymentV1, updated_at: TimestampMs) -> Self {
+        let class = match v1.kind {
+            PaymentKind::Onchain => PaymentClass::Onchain,
+            PaymentKind::Invoice => PaymentClass::Invoice,
+            PaymentKind::Offer => PaymentClass::Offer,
+            PaymentKind::Spontaneous => PaymentClass::Spontaneous,
+        };
+
         Self {
             id: v1.index.id,
             related_ids: HashSet::new(),
             kind: v1.kind,
+            class,
             direction: v1.direction,
             offer_id: v1.offer_id,
             txid: v1.txid,
