@@ -35,7 +35,7 @@ lexe-tokio.path = "../lexe-tokio"
 anyhow.workspace = true
 async-trait.workspace = true
 axum = { workspace = true, features = ["json", "query"] }
-axum-server = { workspace = true, features = ["tls-rustls"] }
+axum-server.workspace = true
 bcs.workspace = true
 bytes.workspace = true
 http.workspace = true

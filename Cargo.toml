@@ -150,11 +150,11 @@ rust_decimal_macros = { version = "1", default-features = false }
 # For demangling backtrace symbols into human-readable format
 rustc-demangle = "0.1"
 # TLS library
-rustls = { version = "0.22", default-features = false, features = ["ring"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 # Required to name our signature algorithms.
 # The version should match that used by rustls.
 # For some reason this breaks if we don't specify `package = "rustls-webpki"`
-rustls-webpki = { version = "0.102", package = "rustls-webpki" }
+rustls-webpki = { version = "0.103", package = "rustls-webpki" }
 # Rust bindings to libsecp256k1. Implements ECDSA and BIP 340 signatures.
 # Version should match that used by the `bitcoin` crate.
 secp256k1 = "0.29"
@@ -176,7 +176,7 @@ thiserror = "2"
 # Datetime library used by rcgen. Should match rcgen's `time` version
 time = "0.3"
 # Lower-level async TLS interface
-tokio-rustls = { version = "0.25", default-features = false }
+tokio-rustls = { version = "0.26", default-features = false }
 # Utilities for testing futures
 tokio-test = "0.4"
 # serde-compatible TOML-parsing library
@@ -192,7 +192,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["s
 # Verify x509 certificates
 webpki = { version = "0.22", default-features = false, features = ["std"] }
 # Mozilla's set of trusted webpki root certificates hard-coded into a const
-webpki-roots = "0.26"
+webpki-roots = "1"
 # Parsing x509 cert extensions
 x509-parser = { version = "0.18", default-features = false }
 # For constructing/parsing ASN.1 data in x509 certs
@@ -208,7 +208,7 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 # A client for the Intel AESM service. Used during attestation to get quoted.
 aesm-client = { version = "=0.6.2", default-features = false }
 # High level webserver based on axum, tokio, hyper, and tower
-axum-server = "=0.6.0"
+axum-server = { version = "=0.7.3", default-features = false, features = ["tls-rustls-no-provider"] }
 # BIP39 mnemonic codes
 bip39 = { version = "=2.1.0", default-features = false }
 # SGX Quote types
@@ -264,10 +264,9 @@ sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67
 
 # * license: Add dual license information
 # * server: Propagate current span across `tokio::spawn`
-# * cargo: rustls->0.22.1, tokio-rustls->0.25.0
-# * fix: propagate graceful shutdown to inner hyper connection
-#   PR: <https://github.com/programatik29/axum-server/pull/119>
-axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_10_11" }
+# * dep: hold back fs-err version until we update tokio
+axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.7.3-2025_12_04" }
+# axum-server = { path = "../../axum-server" }
 
 # * deps: use lexe dep versions to avoid duplicates
 bip39 = { git = "https://github.com/lexe-app/rust-bip39", branch = "lexe-v2.1.0-2025_06_12" }
