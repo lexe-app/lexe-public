@@ -318,13 +318,14 @@ impl App {
         };
 
         // If the new payments_db contains 0 payments, the user may have just
-        // upgraded to the payments v2 format. Delete the old dir just in case.
+        // upgraded to the latest format. Delete the old dirs just in case.
         if num_payments == 0 {
-            let old_payment_db_dir = user_config.old_payment_db_dir();
-            match std::fs::remove_dir_all(&old_payment_db_dir) {
-                Ok(()) => info!("Deleted old payment_db directory"),
-                Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => warn!("Failed to delete old payment_db dir: {e:#}"),
+            for old_dir in user_config.old_payment_db_dirs() {
+                match std::fs::remove_dir_all(&old_dir) {
+                    Ok(()) => info!("Deleted old payments dir {old_dir:?}"),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(e) => warn!(?old_dir, "Couldn't delete old dir: {e:#}"),
+                }
             }
         }
 
@@ -878,12 +879,17 @@ impl UserAppConfig {
         self.user_data_dir.join("provision_db")
     }
 
-    fn old_payment_db_dir(&self) -> PathBuf {
-        self.user_data_dir.join("payment_db")
+    fn old_payment_db_dirs(&self) -> [PathBuf; 2] {
+        [
+            // BasicPaymentV1
+            self.user_data_dir.join("payment_db"),
+            // BasicPaymentV2 without `class` field
+            self.user_data_dir.join("payments_db"),
+        ]
     }
 
     fn payments_db_dir(&self) -> PathBuf {
-        self.user_data_dir.join("payments_db")
+        self.user_data_dir.join("payments_db_v3")
     }
 
     fn settings_db_dir(&self) -> PathBuf {
