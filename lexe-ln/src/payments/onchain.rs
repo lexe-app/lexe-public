@@ -4,6 +4,7 @@ use anyhow::{Context, bail, ensure};
 use bitcoin::Transaction;
 use common::{
     ln::{amount::Amount, hashes::LxTxid},
+    serde_helpers::consensus_encode_tx,
     time::TimestampMs,
 };
 use lexe_api::{
@@ -32,8 +33,7 @@ pub struct OnchainSendV2 {
 
     /// The tx must stay in the payment state machine because its inputs are
     /// used to detect replacement transactions.
-    // TODO(max): Add a serde helper to consensus encode the transaction before
-    // serialization
+    #[serde(with = "consensus_encode_tx")]
     pub tx: Arc<bitcoin::Transaction>,
 
     pub amount: Amount,
@@ -276,6 +276,7 @@ impl OnchainSendV2 {
 pub struct OnchainReceiveV2 {
     pub txid: LxTxid,
 
+    #[serde(with = "consensus_encode_tx")]
     pub tx: Arc<bitcoin::Transaction>,
 
     pub amount: Amount,
