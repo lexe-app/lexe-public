@@ -321,7 +321,7 @@ pub fn encrypt_v1(
         direction: Some(Cow::Borrowed(pwm.payment.direction().as_str())),
         amount: pwm.payment.amount(),
         fee: Some(pwm.payment.fee()),
-        status: pwm.payment.status().to_string(),
+        status: Cow::Borrowed(pwm.payment.status().as_str()),
         data,
         version: 1,
         created_at: created_at.to_i64(),

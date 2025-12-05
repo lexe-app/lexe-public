@@ -339,7 +339,7 @@ pub struct DbPaymentV2 {
     pub amount: Option<Amount>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fee: Option<Amount>,
-    pub status: String,
+    pub status: Cow<'static, str>,
     #[serde(with = "base64_or_bytes")]
     pub data: Vec<u8>,
     #[serde(default = "default_version")]
@@ -360,7 +360,7 @@ impl DbPaymentV2 {
             direction: None,
             amount: None,
             fee: None,
-            status: v1.status,
+            status: Cow::Owned(v1.status),
             data: v1.data,
             version: 2,
             created_at: v1.created_at,
@@ -400,7 +400,7 @@ impl From<DbPaymentV2> for DbPaymentV1 {
     fn from(v2: DbPaymentV2) -> Self {
         Self {
             id: v2.id,
-            status: v2.status,
+            status: v2.status.into_owned(),
             data: v2.data,
             created_at: v2.created_at,
         }
@@ -1347,7 +1347,7 @@ impl Serialize for PaymentDirection {
 // --- impl PaymentStatus --- //
 
 impl PaymentStatus {
-    fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Pending => "pending",
             Self::Completed => "completed",
