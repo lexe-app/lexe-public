@@ -6,6 +6,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Invoice,
         Offer,
         Payment,
+        PaymentClass,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
@@ -42,6 +43,7 @@ extension PaymentExt on Payment {
   ShortPayment intoShort() => ShortPayment(
     index: this.index,
     kind: this.kind,
+    class_: this.class_,
     direction: this.direction,
     amountSat: this.amountSat,
     status: this.status,
@@ -52,6 +54,7 @@ extension PaymentExt on Payment {
   Payment copyWith({
     PaymentCreatedIndex? index,
     PaymentKind? kind,
+    PaymentClass? class_,
     PaymentDirection? direction,
     Invoice? invoice,
     String? offerId,
@@ -68,6 +71,7 @@ extension PaymentExt on Payment {
   }) => Payment(
     index: index ?? this.index,
     kind: kind ?? this.kind,
+    class_: class_ ?? this.class_,
     direction: direction ?? this.direction,
     invoice: invoice ?? this.invoice,
     offerId: offerId ?? this.offerId,
@@ -124,5 +128,6 @@ extension PaymentKindExt on PaymentKind {
     PaymentKind.invoice => true,
     PaymentKind.spontaneous => true,
     PaymentKind.offer => true,
+    PaymentKind.waivedFee => false,
   };
 }

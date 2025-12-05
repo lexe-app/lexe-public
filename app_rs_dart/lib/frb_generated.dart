@@ -4044,24 +4044,25 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Payment dco_decode_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 15)
-      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return Payment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
-      direction: dco_decode_payment_direction(arr[2]),
-      invoice: dco_decode_opt_box_autoadd_invoice(arr[3]),
-      offerId: dco_decode_opt_String(arr[4]),
-      offer: dco_decode_opt_box_autoadd_offer(arr[5]),
-      txid: dco_decode_opt_String(arr[6]),
-      replacement: dco_decode_opt_String(arr[7]),
-      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[8]),
-      feesSat: dco_decode_CastedPrimitive_u_64(arr[9]),
-      status: dco_decode_payment_status(arr[10]),
-      statusStr: dco_decode_String(arr[11]),
-      note: dco_decode_opt_String(arr[12]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[13]),
-      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[14]),
+      class_: dco_decode_payment_class(arr[2]),
+      direction: dco_decode_payment_direction(arr[3]),
+      invoice: dco_decode_opt_box_autoadd_invoice(arr[4]),
+      offerId: dco_decode_opt_String(arr[5]),
+      offer: dco_decode_opt_box_autoadd_offer(arr[6]),
+      txid: dco_decode_opt_String(arr[7]),
+      replacement: dco_decode_opt_String(arr[8]),
+      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[9]),
+      feesSat: dco_decode_CastedPrimitive_u_64(arr[10]),
+      status: dco_decode_payment_status(arr[11]),
+      statusStr: dco_decode_String(arr[12]),
+      note: dco_decode_opt_String(arr[13]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[14]),
+      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[15]),
     );
   }
 
@@ -4077,6 +4078,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       updatedAt: dco_decode_opt_CastedPrimitive_i_64(arr[2]),
       updatable: dco_decode_bool(arr[3]),
     );
+  }
+
+  @protected
+  PaymentClass dco_decode_payment_class(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PaymentClass.values[raw as int];
   }
 
   @protected
@@ -4315,16 +4322,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ShortPayment dco_decode_short_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return ShortPayment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
-      direction: dco_decode_payment_direction(arr[2]),
-      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
-      status: dco_decode_payment_status(arr[4]),
-      note: dco_decode_opt_String(arr[5]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[6]),
+      class_: dco_decode_payment_class(arr[2]),
+      direction: dco_decode_payment_direction(arr[3]),
+      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
+      status: dco_decode_payment_status(arr[5]),
+      note: dco_decode_opt_String(arr[6]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[7]),
     );
   }
 
@@ -5687,6 +5695,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_created_index(deserializer);
     var var_kind = sse_decode_payment_kind(deserializer);
+    var var_class_ = sse_decode_payment_class(deserializer);
     var var_direction = sse_decode_payment_direction(deserializer);
     var var_invoice = sse_decode_opt_box_autoadd_invoice(deserializer);
     var var_offerId = sse_decode_opt_String(deserializer);
@@ -5703,6 +5712,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return Payment(
       index: var_index,
       kind: var_kind,
+      class_: var_class_,
       direction: var_direction,
       invoice: var_invoice,
       offerId: var_offerId,
@@ -5732,6 +5742,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       updatedAt: var_updatedAt,
       updatable: var_updatable,
     );
+  }
+
+  @protected
+  PaymentClass sse_decode_payment_class(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return PaymentClass.values[inner];
   }
 
   @protected
@@ -5965,6 +5982,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_created_index(deserializer);
     var var_kind = sse_decode_payment_kind(deserializer);
+    var var_class_ = sse_decode_payment_class(deserializer);
     var var_direction = sse_decode_payment_direction(deserializer);
     var var_amountSat = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_status = sse_decode_payment_status(deserializer);
@@ -5973,6 +5991,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return ShortPayment(
       index: var_index,
       kind: var_kind,
+      class_: var_class_,
       direction: var_direction,
       amountSat: var_amountSat,
       status: var_status,
@@ -7263,6 +7282,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_created_index(self.index, serializer);
     sse_encode_payment_kind(self.kind, serializer);
+    sse_encode_payment_class(self.class_, serializer);
     sse_encode_payment_direction(self.direction, serializer);
     sse_encode_opt_box_autoadd_invoice(self.invoice, serializer);
     sse_encode_opt_String(self.offerId, serializer);
@@ -7288,6 +7308,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_box_autoadd_offer(self.offer, serializer);
     sse_encode_opt_CastedPrimitive_i_64(self.updatedAt, serializer);
     sse_encode_bool(self.updatable, serializer);
+  }
+
+  @protected
+  void sse_encode_payment_class(PaymentClass self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -7481,6 +7507,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_created_index(self.index, serializer);
     sse_encode_payment_kind(self.kind, serializer);
+    sse_encode_payment_class(self.class_, serializer);
     sse_encode_payment_direction(self.direction, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSat, serializer);
     sse_encode_payment_status(self.status, serializer);

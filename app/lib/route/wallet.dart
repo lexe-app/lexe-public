@@ -11,6 +11,7 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
         Config,
+        PaymentClass,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
@@ -473,6 +474,9 @@ class WalletPageState extends State<WalletPage> {
         this.triggerBurstRefresh();
       case PaymentKind.onchain:
         this.triggerRefresh();
+      // Waived fee payments are info entries, no special refresh needed.
+      case PaymentKind.waivedFee:
+        break;
     }
 
     // Open the payment detail page to this unsynced payment.
@@ -2080,20 +2084,22 @@ class PaymentsListEntry extends StatelessWidget {
     );
 
     // TODO(phlip9): figure out a heuristic to get the counterparty name.
-    final String primaryStr;
-    if (status == PaymentStatus.pending) {
-      if (direction == PaymentDirection.inbound) {
-        primaryStr = "Receiving payment";
-      } else {
-        primaryStr = "Sending payment";
-      }
-    } else {
-      if (direction == PaymentDirection.inbound) {
-        primaryStr = "You received";
-      } else {
-        primaryStr = "You sent";
-      }
-    }
+    final paymentClass = this.payment.class_;
+    final String primaryStr = switch ((status, direction)) {
+      (PaymentStatus.pending, PaymentDirection.inbound) => "Receiving payment",
+      (PaymentStatus.pending, PaymentDirection.outbound) => "Sending payment",
+      (_, PaymentDirection.inbound) => "You received",
+      (_, PaymentDirection.outbound) => "You sent",
+      (_, PaymentDirection.info) => switch (paymentClass) {
+        PaymentClass.waivedChannelFee => "Channel fee waived",
+        PaymentClass.waivedLiquidityFee => "Liquidity fee waived",
+        // Shouldn't happen with info direction.
+        PaymentClass.onchain ||
+        PaymentClass.invoice ||
+        PaymentClass.offer ||
+        PaymentClass.spontaneous => "(invalid)",
+      },
+    };
 
     // ex: "Receiving payment" (pending, inbound)
     // ex: "Sending payment" (pending, outbound)
@@ -2114,13 +2120,16 @@ class PaymentsListEntry extends StatelessWidget {
     // the weird unicode thing that isn't rendering is the BTC B currency symbol
     // "+₿0.00001230",
 
-    final Color primaryValueColor;
-    if (direction == PaymentDirection.inbound &&
-        status != PaymentStatus.failed) {
-      primaryValueColor = LxColors.moneyGoUp;
-    } else {
-      primaryValueColor = LxColors.fgSecondary;
-    }
+    final Color primaryValueColor = switch ((status, direction)) {
+      // Failed payments use tertiary color regardless of direction.
+      (PaymentStatus.failed, _) => LxColors.fgSecondary,
+      // Info payments use tertiary color (neutral, no balance change).
+      (_, PaymentDirection.info) => LxColors.fgTertiary,
+      // Inbound payments use green to indicate money received.
+      (_, PaymentDirection.inbound) => LxColors.moneyGoUp,
+      // Outbound payments use secondary color.
+      (_, PaymentDirection.outbound) => LxColors.fgSecondary,
+    };
 
     final String amountSatsStr = (amountSats != null)
         ? currency_format.formatSatsAmount(

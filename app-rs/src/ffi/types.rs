@@ -37,6 +37,7 @@ use lexe_api::{
             BasicPaymentV1 as BasicPaymentV1Rs,
             BasicPaymentV2 as BasicPaymentV2Rs,
             ClientPaymentId as ClientPaymentIdRs,
+            PaymentClass as PaymentClassRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
             PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
@@ -291,6 +292,28 @@ impl From<PaymentKindRs> for PaymentKind {
     }
 }
 
+pub enum PaymentClass {
+    Onchain,
+    Invoice,
+    Offer,
+    Spontaneous,
+    WaivedChannelFee,
+    WaivedLiquidityFee,
+}
+
+impl From<PaymentClassRs> for PaymentClass {
+    fn from(value: PaymentClassRs) -> Self {
+        match value {
+            PaymentClassRs::Onchain => Self::Onchain,
+            PaymentClassRs::Invoice => Self::Invoice,
+            PaymentClassRs::Offer => Self::Offer,
+            PaymentClassRs::Spontaneous => Self::Spontaneous,
+            PaymentClassRs::WaivedChannelFee => Self::WaivedChannelFee,
+            PaymentClassRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+        }
+    }
+}
+
 /// See [`lexe_api::types::payments::PaymentCreatedIndex`].
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -316,6 +339,9 @@ pub struct ShortPayment {
     pub index: PaymentCreatedIndex,
 
     pub kind: PaymentKind,
+
+    pub class: PaymentClass,
+
     pub direction: PaymentDirection,
 
     pub amount_sat: Option<u64>,
@@ -329,10 +355,21 @@ pub struct ShortPayment {
 
 impl From<&BasicPaymentV1Rs> for ShortPayment {
     fn from(payment: &BasicPaymentV1Rs) -> Self {
+        // V1 payments don't have class; derive from kind
+        let class = match payment.kind {
+            PaymentKindRs::Onchain => PaymentClass::Onchain,
+            PaymentKindRs::Invoice => PaymentClass::Invoice,
+            PaymentKindRs::Offer => PaymentClass::Offer,
+            PaymentKindRs::Spontaneous => PaymentClass::Spontaneous,
+            // WaivedFee doesn't exist in V1
+            PaymentKindRs::WaivedFee => unreachable!(),
+        };
+
         Self {
             index: PaymentCreatedIndex::from(*payment.index()),
 
             kind: PaymentKind::from(payment.kind),
+            class,
             direction: PaymentDirection::from(payment.direction),
 
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),
@@ -351,6 +388,9 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
             index: PaymentCreatedIndex::from(payment.created_index()),
 
             kind: PaymentKind::from(payment.kind),
+
+            class: PaymentClass::from(payment.class),
+
             direction: PaymentDirection::from(payment.direction),
 
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),
@@ -372,6 +412,7 @@ pub struct Payment {
     pub index: PaymentCreatedIndex,
 
     pub kind: PaymentKind,
+    pub class: PaymentClass,
     pub direction: PaymentDirection,
 
     pub invoice: Option<Invoice>,
@@ -396,10 +437,21 @@ pub struct Payment {
 
 impl From<&BasicPaymentV1Rs> for Payment {
     fn from(payment: &BasicPaymentV1Rs) -> Self {
+        // V1 payments don't have class; derive from kind
+        let class = match payment.kind {
+            PaymentKindRs::Onchain => PaymentClass::Onchain,
+            PaymentKindRs::Invoice => PaymentClass::Invoice,
+            PaymentKindRs::Offer => PaymentClass::Offer,
+            PaymentKindRs::Spontaneous => PaymentClass::Spontaneous,
+            // WaivedFee doesn't exist in V1
+            PaymentKindRs::WaivedFee => unreachable!(),
+        };
+
         Self {
             index: PaymentCreatedIndex::from(*payment.index()),
 
             kind: PaymentKind::from(payment.kind),
+            class,
             direction: PaymentDirection::from(payment.direction),
 
             invoice: payment.invoice.as_deref().map(Invoice::from),
@@ -429,6 +481,7 @@ impl From<&BasicPaymentV2Rs> for Payment {
             index: PaymentCreatedIndex::from(payment.created_index()),
 
             kind: PaymentKind::from(payment.kind),
+            class: PaymentClass::from(payment.class),
             direction: PaymentDirection::from(payment.direction),
 
             invoice: payment.invoice.as_deref().map(Invoice::from),

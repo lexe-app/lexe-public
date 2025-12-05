@@ -66,6 +66,15 @@ void main() {
       ),
       "-₿73,000",
     );
+    // Info direction: no sign prefix (neutral, no balance change)
+    expect(
+      currency_format.formatSatsAmount(
+        73000,
+        direction: PaymentDirection.info,
+        locale: "en_US",
+      ),
+      "₿73,000",
+    );
     expect(
       currency_format.formatSatsAmount(
         73000,

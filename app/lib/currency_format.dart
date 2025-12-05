@@ -7,8 +7,11 @@ const int satsPerBtc = 100000000; // 1e8, 100 million sats
 
 double satsToBtc(int sats) => sats * 1e-8;
 
-String directionToSign(PaymentDirection direction) =>
-    (direction == PaymentDirection.inbound) ? "+" : "-";
+String directionToSign(PaymentDirection direction) => switch (direction) {
+  PaymentDirection.inbound => "+",
+  PaymentDirection.outbound => "-",
+  PaymentDirection.info => "",
+};
 
 (int, int) divRem(int numerator, int denominator) =>
     (numerator ~/ denominator, numerator.remainder(denominator));

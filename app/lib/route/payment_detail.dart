@@ -5,6 +5,7 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         Payment,
+        PaymentClass,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
@@ -275,6 +276,7 @@ class PaymentDetailPageInner extends StatelessWidget {
         valueListenable: this.payment,
         builder: (context, payment, _child) {
           final kind = payment.kind;
+          final paymentClass = payment.class_;
           final status = payment.status;
           final direction = payment.direction;
           final createdAt = DateTime.fromMillisecondsSinceEpoch(
@@ -313,6 +315,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     builder: (_, now, child) => PaymentDetailDirectionTime(
                       status: status,
                       direction: direction,
+                      paymentClass: paymentClass,
                       createdAt: createdAt,
                       now: now,
                     ),
@@ -455,9 +458,19 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final kind = payment.kind;
                   final status = payment.status;
                   final direction = payment.direction;
-                  final directionLabel = (direction == PaymentDirection.inbound)
-                      ? "received"
-                      : "sent";
+                  final directionLabel = switch (direction) {
+                    PaymentDirection.inbound => "received",
+                    PaymentDirection.outbound => "sent",
+                    PaymentDirection.info => switch (payment.class_) {
+                      PaymentClass.waivedChannelFee ||
+                      PaymentClass.waivedLiquidityFee => "waived",
+                      // Shouldn't happen with info direction.
+                      PaymentClass.onchain ||
+                      PaymentClass.invoice ||
+                      PaymentClass.offer ||
+                      PaymentClass.spontaneous => "(invalid)",
+                    },
+                  };
 
                   final invoice = payment.invoice;
                   final payeePubkey = invoice?.payeePubkey;
@@ -522,6 +535,17 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                     (PaymentKind.offer, PaymentDirection.outbound) => InfoRow(
                       label: "Client payment id",
                       value: this.paymentIdxBody(),
+                    ),
+                    // Waived fee payments don't have a meaningful payment ID.
+                    (PaymentKind.waivedFee, _) => null,
+                    // Invalid combinations
+                    (PaymentKind.onchain, PaymentDirection.info) => InfoRow(
+                      label: "Unknown",
+                      value: "???",
+                    ),
+                    (PaymentKind.offer, PaymentDirection.info) => InfoRow(
+                      label: "Unknown",
+                      value: "???",
                     ),
                   };
 
@@ -770,24 +794,53 @@ class PaymentDetailDirectionTime extends StatelessWidget {
     super.key,
     required this.status,
     required this.direction,
+    required this.paymentClass,
     required this.createdAt,
     required this.now,
   });
 
   final PaymentStatus status;
   final PaymentDirection direction;
+  final PaymentClass paymentClass;
   final DateTime createdAt;
   final DateTime now;
 
   @override
   Widget build(BuildContext context) {
     final directionLabel = switch ((this.status, this.direction)) {
-      ((PaymentStatus.pending, PaymentDirection.inbound)) => "Receiving",
-      ((PaymentStatus.pending, PaymentDirection.outbound)) => "Sending",
-      ((PaymentStatus.completed, PaymentDirection.inbound)) => "Received",
-      ((PaymentStatus.completed, PaymentDirection.outbound)) => "Sent",
-      ((PaymentStatus.failed, PaymentDirection.inbound)) => "Failed to receive",
-      ((PaymentStatus.failed, PaymentDirection.outbound)) => "Failed to send",
+      (PaymentStatus.pending, PaymentDirection.inbound) => "Receiving",
+      (PaymentStatus.pending, PaymentDirection.outbound) => "Sending",
+      (PaymentStatus.pending, PaymentDirection.info) =>
+        switch (this.paymentClass) {
+          PaymentClass.waivedChannelFee ||
+          PaymentClass.waivedLiquidityFee => "Waiving",
+          PaymentClass.onchain ||
+          PaymentClass.invoice ||
+          PaymentClass.offer ||
+          PaymentClass.spontaneous => "(invalid)",
+        },
+      (PaymentStatus.completed, PaymentDirection.inbound) => "Received",
+      (PaymentStatus.completed, PaymentDirection.outbound) => "Sent",
+      (PaymentStatus.completed, PaymentDirection.info) =>
+        switch (this.paymentClass) {
+          PaymentClass.waivedChannelFee ||
+          PaymentClass.waivedLiquidityFee => "Waived",
+          PaymentClass.onchain ||
+          PaymentClass.invoice ||
+          PaymentClass.offer ||
+          PaymentClass.spontaneous => "(invalid)",
+        },
+      (PaymentStatus.failed, PaymentDirection.inbound) => "Failed to receive",
+      (PaymentStatus.failed, PaymentDirection.outbound) => "Failed to send",
+      (PaymentStatus.failed, PaymentDirection.info) =>
+        switch (this.paymentClass) {
+          PaymentClass.waivedChannelFee ||
+          PaymentClass.waivedLiquidityFee => "Failed: waived",
+          PaymentClass.onchain ||
+          PaymentClass.invoice ||
+          PaymentClass.offer ||
+          PaymentClass.spontaneous => "(invalid)",
+        },
     };
 
     final createdAtStr = date_format.formatDate(
@@ -910,9 +963,10 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
     final maybeAmountFiatStr = this.maybeAmountFiatStr();
 
     final amountColor = switch ((this.status, this.direction)) {
-      ((PaymentStatus.failed, _)) => LxColors.fgTertiary,
-      ((_, PaymentDirection.inbound)) => LxColors.moneyGoUp,
-      ((_, PaymentDirection.outbound)) => LxColors.fgSecondary,
+      (PaymentStatus.failed, _) => LxColors.fgTertiary,
+      (_, PaymentDirection.info) => LxColors.fgTertiary,
+      (_, PaymentDirection.inbound) => LxColors.moneyGoUp,
+      (_, PaymentDirection.outbound) => LxColors.fgSecondary,
     };
 
     final fiatStyle = Fonts.fontUI.copyWith(

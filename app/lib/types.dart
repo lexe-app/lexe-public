@@ -48,7 +48,8 @@ enum BalanceKind {
     PaymentKind.onchain => BalanceKind.onchain,
     PaymentKind.invoice ||
     PaymentKind.spontaneous ||
-    PaymentKind.offer => BalanceKind.lightning,
+    PaymentKind.offer ||
+    PaymentKind.waivedFee => BalanceKind.lightning,
   };
 }
 

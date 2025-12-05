@@ -2428,6 +2428,8 @@ impl SseDecode for crate::ffi::types::Payment {
             <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         let mut var_kind =
             <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
+        let mut var_class_ =
+            <crate::ffi::types::PaymentClass>::sse_decode(deserializer);
         let mut var_direction =
             <crate::ffi::types::PaymentDirection>::sse_decode(deserializer);
         let mut var_invoice =
@@ -2448,6 +2450,7 @@ impl SseDecode for crate::ffi::types::Payment {
         return crate::ffi::types::Payment {
             index: var_index,
             kind: var_kind,
+            class: var_class_,
             direction: var_direction,
             invoice: var_invoice,
             offer_id: var_offerId,
@@ -2485,6 +2488,24 @@ impl SseDecode for crate::ffi::api::PaymentAddress {
     }
 }
 
+impl SseDecode for crate::ffi::types::PaymentClass {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ffi::types::PaymentClass::Onchain,
+            1 => crate::ffi::types::PaymentClass::Invoice,
+            2 => crate::ffi::types::PaymentClass::Offer,
+            3 => crate::ffi::types::PaymentClass::Spontaneous,
+            4 => crate::ffi::types::PaymentClass::WaivedChannelFee,
+            5 => crate::ffi::types::PaymentClass::WaivedLiquidityFee,
+            _ => unreachable!("Invalid variant for PaymentClass: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::PaymentCreatedIndex {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2504,6 +2525,7 @@ impl SseDecode for crate::ffi::types::PaymentDirection {
         return match inner {
             0 => crate::ffi::types::PaymentDirection::Inbound,
             1 => crate::ffi::types::PaymentDirection::Outbound,
+            2 => crate::ffi::types::PaymentDirection::Info,
             _ =>
                 unreachable!("Invalid variant for PaymentDirection: {}", inner),
         };
@@ -2521,6 +2543,7 @@ impl SseDecode for crate::ffi::types::PaymentKind {
             1 => crate::ffi::types::PaymentKind::Invoice,
             2 => crate::ffi::types::PaymentKind::Spontaneous,
             3 => crate::ffi::types::PaymentKind::Offer,
+            4 => crate::ffi::types::PaymentKind::WaivedFee,
             _ => unreachable!("Invalid variant for PaymentKind: {}", inner),
         };
     }
@@ -2807,6 +2830,8 @@ impl SseDecode for crate::ffi::types::ShortPayment {
             <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         let mut var_kind =
             <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
+        let mut var_class_ =
+            <crate::ffi::types::PaymentClass>::sse_decode(deserializer);
         let mut var_direction =
             <crate::ffi::types::PaymentDirection>::sse_decode(deserializer);
         let mut var_amountSat = <Option<u64>>::sse_decode(deserializer);
@@ -2817,6 +2842,7 @@ impl SseDecode for crate::ffi::types::ShortPayment {
         return crate::ffi::types::ShortPayment {
             index: var_index,
             kind: var_kind,
+            class: var_class_,
             direction: var_direction,
             amount_sat: var_amountSat,
             status: var_status,
@@ -3986,6 +4012,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
         [
             self.index.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
+            self.class.into_into_dart().into_dart(),
             self.direction.into_into_dart().into_dart(),
             self.invoice.into_into_dart().into_dart(),
             self.offer_id.into_into_dart().into_dart(),
@@ -4038,6 +4065,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PaymentAddress>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentClass {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Onchain => 0.into_dart(),
+            Self::Invoice => 1.into_dart(),
+            Self::Offer => 2.into_dart(),
+            Self::Spontaneous => 3.into_dart(),
+            Self::WaivedChannelFee => 4.into_dart(),
+            Self::WaivedLiquidityFee => 5.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::PaymentClass
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentClass>
+    for crate::ffi::types::PaymentClass
+{
+    fn into_into_dart(self) -> crate::ffi::types::PaymentClass {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentCreatedIndex {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.0.into_into_dart().into_dart()].into_dart()
@@ -4060,6 +4112,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentDirection {
         match self {
             Self::Inbound => 0.into_dart(),
             Self::Outbound => 1.into_dart(),
+            Self::Info => 2.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -4083,6 +4136,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentKind {
             Self::Invoice => 1.into_dart(),
             Self::Spontaneous => 2.into_dart(),
             Self::Offer => 3.into_dart(),
+            Self::WaivedFee => 4.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -4487,6 +4541,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::ShortPayment {
         [
             self.index.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
+            self.class.into_into_dart().into_dart(),
             self.direction.into_into_dart().into_dart(),
             self.amount_sat.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
@@ -5644,6 +5699,7 @@ impl SseEncode for crate::ffi::types::Payment {
             self.index, serializer,
         );
         <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
+        <crate::ffi::types::PaymentClass>::sse_encode(self.class, serializer);
         <crate::ffi::types::PaymentDirection>::sse_encode(
             self.direction,
             serializer,
@@ -5682,6 +5738,29 @@ impl SseEncode for crate::ffi::api::PaymentAddress {
     }
 }
 
+impl SseEncode for crate::ffi::types::PaymentClass {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(
+            match self {
+                crate::ffi::types::PaymentClass::Onchain => 0,
+                crate::ffi::types::PaymentClass::Invoice => 1,
+                crate::ffi::types::PaymentClass::Offer => 2,
+                crate::ffi::types::PaymentClass::Spontaneous => 3,
+                crate::ffi::types::PaymentClass::WaivedChannelFee => 4,
+                crate::ffi::types::PaymentClass::WaivedLiquidityFee => 5,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::ffi::types::PaymentCreatedIndex {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -5702,6 +5781,7 @@ impl SseEncode for crate::ffi::types::PaymentDirection {
             match self {
                 crate::ffi::types::PaymentDirection::Inbound => 0,
                 crate::ffi::types::PaymentDirection::Outbound => 1,
+                crate::ffi::types::PaymentDirection::Info => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -5723,6 +5803,7 @@ impl SseEncode for crate::ffi::types::PaymentKind {
                 crate::ffi::types::PaymentKind::Invoice => 1,
                 crate::ffi::types::PaymentKind::Spontaneous => 2,
                 crate::ffi::types::PaymentKind::Offer => 3,
+                crate::ffi::types::PaymentKind::WaivedFee => 4,
                 _ => {
                     unimplemented!("");
                 }
@@ -5974,6 +6055,7 @@ impl SseEncode for crate::ffi::types::ShortPayment {
             self.index, serializer,
         );
         <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
+        <crate::ffi::types::PaymentClass>::sse_encode(self.class, serializer);
         <crate::ffi::types::PaymentDirection>::sse_encode(
             self.direction,
             serializer,

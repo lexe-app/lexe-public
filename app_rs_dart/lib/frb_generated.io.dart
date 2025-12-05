@@ -470,6 +470,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentAddress dco_decode_payment_address(dynamic raw);
 
   @protected
+  PaymentClass dco_decode_payment_class(dynamic raw);
+
+  @protected
   PaymentCreatedIndex dco_decode_payment_created_index(dynamic raw);
 
   @protected
@@ -1085,6 +1088,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PaymentAddress sse_decode_payment_address(SseDeserializer deserializer);
+
+  @protected
+  PaymentClass sse_decode_payment_class(SseDeserializer deserializer);
 
   @protected
   PaymentCreatedIndex sse_decode_payment_created_index(
@@ -1826,6 +1832,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
     PaymentAddress self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_payment_class(PaymentClass self, SseSerializer serializer);
 
   @protected
   void sse_encode_payment_created_index(
