@@ -151,10 +151,9 @@ rust_decimal_macros = { version = "1", default-features = false }
 rustc-demangle = "0.1"
 # TLS library
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
-# Required to name our signature algorithms.
+# Verify x509 certificates. Required to name our signature algorithms.
 # The version should match that used by rustls.
-# For some reason this breaks if we don't specify `package = "rustls-webpki"`
-rustls-webpki = { version = "0.103", package = "rustls-webpki" }
+rustls-webpki = "0.103"
 # Rust bindings to libsecp256k1. Implements ECDSA and BIP 340 signatures.
 # Version should match that used by the `bitcoin` crate.
 secp256k1 = "0.29"
@@ -189,8 +188,6 @@ tower-service = "0.3"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["smallvec"] }
-# Verify x509 certificates
-webpki = { version = "0.22", default-features = false, features = ["std"] }
 # Mozilla's set of trusted webpki root certificates hard-coded into a const
 webpki-roots = "1"
 # Parsing x509 cert extensions

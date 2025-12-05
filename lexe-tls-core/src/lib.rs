@@ -75,10 +75,10 @@ pub static LEXE_SUPPORTED_VERIFY_SCHEMES: LazyLock<
 /// Pass this to [`rustls::crypto::verify_tls13_signature`].
 pub static LEXE_SIGNATURE_ALGORITHMS: WebPkiSupportedAlgorithms =
     WebPkiSupportedAlgorithms {
-        all: &[rustls_webpki::ring::ED25519],
+        all: &[webpki::ring::ED25519],
         mapping: &[(
             rustls::SignatureScheme::ED25519,
-            &[rustls_webpki::ring::ED25519],
+            &[webpki::ring::ED25519],
         )],
     };
 

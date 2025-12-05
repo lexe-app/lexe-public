@@ -22,10 +22,12 @@ use rustls::{
     client::danger::{
         HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
     },
-    pki_types::{CertificateDer, ServerName, UnixTime, pem::PemObject},
+    pki_types::{
+        CertificateDer, ServerName, SignatureVerificationAlgorithm,
+        TrustAnchor, UnixTime, pem::PemObject,
+    },
     server::danger::{ClientCertVerified, ClientCertVerifier},
 };
-use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use super::quote::ReportData;
@@ -39,8 +41,10 @@ const INTEL_QE_IDENTITY_MRSIGNER: Measurement =
     ));
 
 /// The DER-encoded Intel SGX trust anchor cert.
-const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
-    include_bytes!("../../data/intel-sgx-root-ca.der");
+const INTEL_SGX_ROOT_CA_CERT_DER: &CertificateDer<'static> =
+    &CertificateDer::from_slice(include_bytes!(
+        "../../data/intel-sgx-root-ca.der"
+    ));
 
 /// Lazily parse the Intel SGX trust anchor cert.
 ///
@@ -48,7 +52,7 @@ const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
 /// `TrustAnchor` tries to borrow from a temporary `Vec<u8>`.
 static INTEL_SGX_TRUST_ANCHOR: LazyLock<[TrustAnchor<'static>; 1]> =
     LazyLock::new(|| {
-        let trust_anchor = TrustAnchor::try_from_cert_der(
+        let trust_anchor = webpki::anchor_from_trusted_cert(
             INTEL_SGX_ROOT_CA_CERT_DER,
         )
         .expect("Failed to deserialize Intel SGX root CA cert from der bytes");
@@ -56,20 +60,21 @@ static INTEL_SGX_TRUST_ANCHOR: LazyLock<[TrustAnchor<'static>; 1]> =
         [trust_anchor]
     });
 
-/// From: <https://github.com/rustls/rustls/blob/v/0.20.6/rustls/src/verify.rs#L22>
-static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
-    &webpki::ECDSA_P256_SHA256,
-    &webpki::ECDSA_P256_SHA384,
-    &webpki::ECDSA_P384_SHA256,
-    &webpki::ECDSA_P384_SHA384,
-    &webpki::ED25519,
-    &webpki::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
-    &webpki::RSA_PSS_2048_8192_SHA384_LEGACY_KEY,
-    &webpki::RSA_PSS_2048_8192_SHA512_LEGACY_KEY,
-    &webpki::RSA_PKCS1_2048_8192_SHA256,
-    &webpki::RSA_PKCS1_2048_8192_SHA384,
-    &webpki::RSA_PKCS1_2048_8192_SHA512,
-    &webpki::RSA_PKCS1_3072_8192_SHA384,
+/// Supported signature schemes for verifying SGX quote chain certs.
+///
+/// Since we don't control the Intel certs used in the SGX quote chain, we'll
+/// need to support a wider range of signature algorithms. We will however
+/// remove legacy algorithms.
+static SUPPORTED_SIG_ALGS: &[&dyn SignatureVerificationAlgorithm] = &[
+    webpki::ring::ECDSA_P256_SHA256,
+    webpki::ring::ECDSA_P256_SHA384,
+    webpki::ring::ECDSA_P384_SHA256,
+    webpki::ring::ECDSA_P384_SHA384,
+    webpki::ring::ED25519,
+    webpki::ring::RSA_PKCS1_2048_8192_SHA256,
+    webpki::ring::RSA_PKCS1_2048_8192_SHA384,
+    webpki::ring::RSA_PKCS1_2048_8192_SHA512,
+    webpki::ring::RSA_PKCS1_3072_8192_SHA384,
 ];
 
 /// A [`ClientCertVerifier`] and [`ServerCertVerifier`] which verifies embedded
@@ -420,10 +425,8 @@ impl SgxQuoteVerifier {
             cert_iter.next().context("Missing SGX root CA cert")??;
         ensure!(cert_iter.next().is_none(), "unexpected extra certificate");
 
-        let pck_cert = webpki::EndEntityCert::try_from(&*pck_cert_der)
+        let pck_cert = webpki::EndEntityCert::try_from(&pck_cert_der)
             .context("Invalid PCK cert")?;
-
-        let now = webpki::Time::from_seconds_since_unix_epoch(now.as_secs());
 
         // We don't use the full `rustls::WebPkiServerVerifier` here since the
         // PCK certs aren't truly webpki certs, as they don't bind to DNS names.
@@ -431,12 +434,18 @@ impl SgxQuoteVerifier {
         // Instead, we skip the DNS checks by using the lower-level `EndEntity`
         // verification methods directly.
 
+        let key_usage = webpki::KeyUsage::server_auth();
+        let revocation = None;
+        let verify_path = None;
         pck_cert
-            .verify_is_valid_tls_server_cert(
+            .verify_for_usage(
                 SUPPORTED_SIG_ALGS,
-                &TlsServerTrustAnchors(&*INTEL_SGX_TRUST_ANCHOR),
-                &[&pck_platform_cert_der, &sgx_root_ca_cert_der],
+                INTEL_SGX_TRUST_ANCHOR.as_slice(),
+                &[pck_platform_cert_der, sgx_root_ca_cert_der],
                 now,
+                key_usage,
+                revocation,
+                verify_path,
             )
             .context("PCK cert chain failed validation")?;
 
@@ -448,7 +457,7 @@ impl SgxQuoteVerifier {
 
         pck_cert
             .verify_signature(
-                &webpki::ECDSA_P256_SHA256,
+                webpki::ring::ECDSA_P256_SHA256,
                 qe3_report_bytes,
                 &qe3_sig,
             )
@@ -780,7 +789,7 @@ mod test {
             INTEL_SGX_ROOT_CA_CERT_PEM.as_bytes(),
         )
         .unwrap();
-        assert_eq!(sgx_trust_anchor_der1, &*sgx_trust_anchor_der2);
+        assert_eq!(sgx_trust_anchor_der1, &sgx_trust_anchor_der2);
 
         // this should not panic
         let _sgx_trust_anchor = &*INTEL_SGX_TRUST_ANCHOR;

@@ -305,6 +305,7 @@ impl RevocableClientCert {
 #[cfg(test)]
 mod test {
     use common::rng::FastRng;
+    use rustls::pki_types::CertificateDer;
 
     use super::*;
 
@@ -314,8 +315,8 @@ mod test {
         let root_seed = RootSeed::from_rng(&mut rng);
 
         let assert_parseable = |cert_der: LxCertificateDer| {
-            let _ =
-                webpki::EndEntityCert::try_from(cert_der.as_slice()).unwrap();
+            let cert_der = CertificateDer::from(cert_der.as_slice());
+            let _ = webpki::EndEntityCert::try_from(&cert_der).unwrap();
         };
 
         let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&root_seed);

@@ -49,7 +49,6 @@ thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["time"] }
 webpki-roots.workspace = true
-webpki.workspace = true
 x509-parser.workspace = true
 yasna.workspace = true
 
