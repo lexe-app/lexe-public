@@ -33,7 +33,6 @@ lexe-tokio.path = "../lexe-tokio"
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
-async-trait.workspace = true
 axum = { workspace = true, features = ["json", "query"] }
 axum-server.workspace = true
 bcs.workspace = true

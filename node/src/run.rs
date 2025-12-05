@@ -746,7 +746,7 @@ impl UserNode {
             .port();
         // `[preflight_]pay_invoice` may call `max_flow`.
         let app_layer_config = LayerConfig {
-            handling_timeout: Some(constants::MAX_FLOW_TIMEOUT),
+            handling_timeout: constants::MAX_FLOW_TIMEOUT,
             ..Default::default()
         };
         let (app_tls_config, app_dns) =

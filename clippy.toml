@@ -39,7 +39,6 @@ disallowed-types = [
     { path = "axum::Extension",                 reason = "Bad Rejection. Use or add to api::server::extract." },
     { path = "axum::extract::ConnectInfo",      reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
     { path = "axum::extract::Form",             reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
-    { path = "axum::extract::Host",             reason = "Bad Rejection. Use or add to api::server::extract." },
     { path = "axum::extract::MatchedPath",      reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
     { path = "axum::extract::Multipart",        reason = "Bad Rejection. Use or add to api::server::extract.", allow-invalid = true },
     { path = "axum::extract::NestedPath",       reason = "Bad Rejection. Use or add to api::server::extract." },

@@ -8,8 +8,7 @@ use common::{ByteArray, ln::amount::Amount};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use super::invoice::LxInvoice;
-use crate::types::username::Username;
+use crate::types::{invoice::LxInvoice, username::Username};
 
 /// The validated and parsed LNURL-pay request ("payRequest").
 ///
@@ -43,7 +42,6 @@ pub struct LnurlCallbackRequestParams {
 }
 
 #[cfg(feature = "axum")]
-#[axum::async_trait]
 impl<S: Send + Sync> axum::extract::FromRequestParts<S>
     for LnurlCallbackRequest
 {
@@ -70,7 +68,6 @@ impl<S: Send + Sync> axum::extract::FromRequestParts<S>
 }
 
 #[cfg(feature = "axum")]
-#[axum::async_trait]
 impl<S: Send + Sync> axum::extract::FromRequestParts<S>
     for LnurlCallbackRequestParams
 {

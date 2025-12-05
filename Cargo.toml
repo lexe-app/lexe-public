@@ -60,7 +60,7 @@ asn1-rs = { version = "0.7", default-features = false }
 # async fn's in trait methods
 async-trait = "0.1"
 # Web framework from tokio-rs community based on tokio, hyper, and tower.
-axum = { version = "0.7", default-features = false, features = [
+axum = { version = "0.8", default-features = false, features = [
     "http1",
     "http2",
     "macros" # Exposes `#[debug_handler]` and other useful macros
@@ -182,8 +182,8 @@ tokio-test = "0.4"
 # serde-compatible TOML-parsing library
 toml = "0.8"
 # `Service` and `Layer`-based async middleware
-tower = "0.4"
-tower-http = "0.5"
+tower = "0.5"
+tower-http = "0.6"
 tower-service = "0.3"
 # Scoped, structured logging for asynchronous systems
 tracing = "0.1"

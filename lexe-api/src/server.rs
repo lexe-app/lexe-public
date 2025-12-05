@@ -49,15 +49,13 @@ use std::{
 };
 
 use anyhow::Context;
-use async_trait::async_trait;
 use axum::{
     Router, ServiceExt as AxumServiceExt,
     error_handling::HandleErrorLayer,
     extract::{
         DefaultBodyLimit, FromRequest,
         rejection::{
-            BytesRejection, HostRejection, JsonRejection, PathRejection,
-            QueryRejection,
+            BytesRejection, JsonRejection, PathRejection, QueryRejection,
         },
     },
     response::IntoResponse,
@@ -110,34 +108,30 @@ lexe_std::const_assert!(
 /// assert_eq!(
 ///     LayerConfig::default(),
 ///     LayerConfig {
-///         body_limit: Some(16384),
-///         load_shed: true,
-///         buffer_size: Some(4096),
-///         concurrency: Some(4096),
-///         handling_timeout: Some(Duration::from_secs(25)),
+///         body_limit: 16384,
+///         buffer_size: 4096,
+///         concurrency: 4096,
+///         handling_timeout: Duration::from_secs(25),
 ///         default_fallback: true,
 ///     }
 /// );
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LayerConfig {
-    /// The maximum size of the request body in bytes ([`None`] to disable).
+    /// The maximum size of the request body in bytes.
     /// Helps prevent DoS, but may need to be increased for some services.
-    pub body_limit: Option<usize>,
-    /// Whether to shed load when the service has reached capacity.
-    /// Helps prevent OOM when combined with the buffer or concurrency layer.
-    pub load_shed: bool,
-    /// The size of the work buffer for our service ([`None`] to disable).
+    pub body_limit: usize,
+    /// The size of the work buffer for our service.
     /// Allows the server to immediately work on more queued requests when a
     /// request completes, and prevents a large backlog from building up.
-    pub buffer_size: Option<usize>,
-    /// The maximum # of requests we'll process at once ([`None`] to disable).
+    pub buffer_size: usize,
+    /// The maximum # of requests we'll process at once.
     /// Helps prevent the CPU from maxing out, resulting in thrashing.
-    pub concurrency: Option<usize>,
-    /// The maximum time a server can spend handling a request.
-    /// ([`None`] to disable). Helps prevent degenerate cases which take
-    /// abnormally long to process from crowding out normal workloads.
-    pub handling_timeout: Option<Duration>,
+    pub concurrency: usize,
+    /// The maximum time a server can spend handling a request. Helps prevent
+    /// degenerate cases which take abnormally long to process from crowding
+    /// out normal workloads.
+    pub handling_timeout: Duration,
     /// Whether to add Lexe's default [`Router::fallback`] to the [`Router`].
     /// The [`Router::fallback`] is called if no routes were matched;
     /// Lexe's [`default_fallback`] returns a "bad endpoint" rejection along
@@ -154,14 +148,13 @@ impl Default for LayerConfig {
     fn default() -> Self {
         Self {
             // 16KiB is sufficient for most Lexe services.
-            body_limit: Some(16384),
-            load_shed: true,
+            body_limit: 16384,
             // TODO(max): We are using very high values right now because it
             // doesn't make sense to constrain anything until we have run some
             // load tests to profile performance and see what breaks.
-            buffer_size: Some(4096),
-            concurrency: Some(4096),
-            handling_timeout: Some(SERVER_HANDLER_TIMEOUT),
+            buffer_size: 4096,
+            concurrency: 4096,
+            handling_timeout: SERVER_HANDLER_TIMEOUT,
             default_fallback: true,
         }
     }
@@ -313,49 +306,44 @@ pub fn build_server_fut_with_listener(
         // `axum::RequestExt::[with|into]_limited_body` will pick it up.
         // NOTE that many of our extractors transitively rely on the Bytes
         // extractor which will default to a 2MB limit if this is not set.
-        .layer(
-            layer_config
-                .body_limit
-                .map(DefaultBodyLimit::max)
-                .unwrap_or_else(DefaultBodyLimit::disable),
-        )
+        .layer(DefaultBodyLimit::max(layer_config.body_limit))
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Here, we explicitly apply the body limit from the request extensions,
         // transforming the request body type into `http_body_util::Limited`.
         .layer(MapRequestLayer::new(axum::RequestExt::with_limited_body))
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Handles errors from the load_shed, buffer, and concurrency layers.
-        .layer(HandleErrorLayer::new(|error| async move {
+        .layer(HandleErrorLayer::new(|_: tower::BoxError| async move {
             CommonApiError {
                 kind: CommonErrorKind::AtCapacity,
-                msg: format!("Service is at capacity; retry later: {error:#}"),
+                msg: "Service is at capacity; retry later".to_owned(),
             }
         }))
-        // Returns an error if the inner service returns Poll::Pending.
+        // Returns an `Err` if the inner service returns `Poll::Pending`.
         // Helps prevent OOM when combined with the buffer or concurrency layer.
-        .option_layer(layer_config.load_shed.then(LoadShedLayer::new))
+        .layer(LoadShedLayer::new())
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Returns Poll::Pending when the buffer is full (backpressure).
         // Allows the server to immediately work on more queued requests when a
         // request completes, and prevents a large backlog from building up.
         // Note that while the layer is often cloned, the buffer itself is not.
-        .option_layer(layer_config.buffer_size.map(BufferLayer::new))
+        .layer(BufferLayer::new(layer_config.buffer_size))
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
-        // Returns Poll::Pending when the concurrency limit has been reached.
+        // Returns `Poll::Pending` when the concurrency limit has been reached.
         // Helps prevent the CPU from maxing out, resulting in thrashing.
-        .option_layer(layer_config.concurrency.map(ConcurrencyLimitLayer::new))
+        .layer(ConcurrencyLimitLayer::new(layer_config.concurrency))
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Handles errors generated by the timeout layer.
-        .layer(HandleErrorLayer::new(|error| async move {
+        .layer(HandleErrorLayer::new(|_: tower::BoxError| async move {
             CommonApiError {
                 kind: CommonErrorKind::Server,
-                msg: format!("Server timed out handling request: {error:#}"),
+                msg: "Server timed out handling request".to_owned(),
             }
         }))
         // Returns an error if the inner service takes longer than the timeout
         // to handle the request. Prevents degenerate cases which take
         // abnormally long to process from crowding out normal workloads.
-        .option_layer(layer_config.handling_timeout.map(TimeoutLayer::new))
+        .layer(TimeoutLayer::new(layer_config.handling_timeout))
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>();
 
     // Apply inner middleware
@@ -505,7 +493,6 @@ pub fn spawn_server_task_with_listener(
 /// [`ErrorResponse`]: lexe_api_core::error::ErrorResponse
 pub struct LxJson<T>(pub T);
 
-#[async_trait]
 impl<T: DeserializeOwned, S: Send + Sync> FromRequest<S> for LxJson<T> {
     type Rejection = LxRejection;
 
@@ -578,7 +565,6 @@ impl<T: PartialEq> PartialEq for LxJson<T> {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct LxBytes(pub Bytes);
 
-#[async_trait]
 impl<S: Send + Sync> FromRequest<S> for LxBytes {
     type Rejection = LxRejection;
 
@@ -635,8 +621,6 @@ enum LxRejectionKind {
     // -- From `axum::extract::rejection` -- //
     /// [`BytesRejection`]
     Bytes,
-    /// [`HostRejection`]
-    Host,
     /// [`JsonRejection`]
     Json,
     /// [`PathRejection`]
@@ -704,15 +688,6 @@ impl From<BytesRejection> for LxRejection {
     }
 }
 
-impl From<HostRejection> for LxRejection {
-    fn from(host_rejection: HostRejection) -> Self {
-        Self {
-            kind: LxRejectionKind::Host,
-            source_msg: host_rejection.body_text(),
-        }
-    }
-}
-
 impl From<JsonRejection> for LxRejection {
     fn from(json_rejection: JsonRejection) -> Self {
         Self {
@@ -761,7 +736,6 @@ impl LxRejectionKind {
     fn to_msg(&self) -> &'static str {
         match self {
             Self::Bytes => "Bad request bytes",
-            Self::Host => "Missing or invalid host",
             Self::Json => "Client provided bad JSON",
             Self::Path => "Client provided bad path parameter",
             Self::Query => "Client provided bad query string",
@@ -786,7 +760,6 @@ pub mod extract {
     /// Lexe API-compliant version of [`axum::extract::Query`].
     pub struct LxQuery<T>(pub T);
 
-    #[async_trait]
     impl<T: DeserializeOwned, S: Send + Sync> FromRequestParts<S> for LxQuery<T> {
         type Rejection = LxRejection;
 
@@ -824,7 +797,6 @@ pub mod extract {
     /// Lexe API-compliant version of [`axum::extract::Path`].
     pub struct LxPath<T>(pub T);
 
-    #[async_trait]
     impl<T: DeserializeOwned + Send, S: Send + Sync> FromRequestParts<S>
         for LxPath<T>
     {
@@ -860,27 +832,6 @@ pub mod extract {
             self.0.eq(&other.0)
         }
     }
-
-    /// Lexe API-compliant version of [`axum::extract::Host`].
-    ///
-    /// The `Host` and `X-Forwarded-Host` headers may be set by a malicious
-    /// client, so be sure not to depend on them for security.
-    pub struct LxHost(pub String);
-
-    #[async_trait]
-    impl<S: Send + Sync> FromRequestParts<S> for LxHost {
-        type Rejection = LxRejection;
-
-        async fn from_request_parts(
-            parts: &mut http::request::Parts,
-            state: &S,
-        ) -> Result<Self, Self::Rejection> {
-            axum::extract::Host::from_request_parts(parts, state)
-                .await
-                .map(|axum::extract::Host(t)| Self(t))
-                .map_err(LxRejection::from)
-        }
-    }
 }
 
 // --- Custom middleware --- //
@@ -903,19 +854,18 @@ pub mod middleware {
     /// in combination with [`axum::RequestExt::with_limited_body`] to do so.
     pub async fn check_content_length_header<B>(
         // `LayerConfig::body_limit`
-        State(config_body_limit): State<Option<usize>>,
+        State(config_body_limit): State<usize>,
         request: http::Request<B>,
     ) -> Result<http::Request<B>, LxRejection> {
-        let content_length = request
+        let maybe_content_length = request
             .headers()
             .get(http::header::CONTENT_LENGTH)
             .and_then(|value| value.to_str().ok())
             .and_then(|value_str| usize::from_str(value_str).ok());
 
         // If a limit is configured and the header value exceeds it, reject.
-        if content_length
-            .zip(config_body_limit)
-            .is_some_and(|(length, limit)| length > limit)
+        if let Some(content_length) = maybe_content_length
+            && content_length > config_body_limit
         {
             return Err(LxRejection {
                 kind: LxRejectionKind::BodyLengthOverLimit,
