@@ -276,6 +276,7 @@ pub enum PaymentKind {
     Invoice,
     Spontaneous,
     Offer,
+    WaivedFee,
 }
 
 impl From<PaymentKindRs> for PaymentKind {
@@ -285,6 +286,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::Invoice => Self::Invoice,
             PaymentKindRs::Spontaneous => Self::Spontaneous,
             PaymentKindRs::Offer => Self::Offer,
+            PaymentKindRs::WaivedFee => Self::WaivedFee,
         }
     }
 }

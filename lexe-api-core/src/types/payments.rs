@@ -442,6 +442,7 @@ pub enum PaymentKind {
     Invoice,
     Offer,
     Spontaneous,
+    WaivedFee,
 }
 
 /// A subcategory of a [`PaymentKind`] which is used to filter payments for
@@ -501,11 +502,11 @@ pub enum PaymentClass {
 
     // --- General --- //
 
-    // /// A channel fee that would have been paid but was waived.
-    // WaivedChannelFee, // parent kind: WaivedFee
+    /// A channel fee that would have been paid but was waived.
+    WaivedChannelFee, // parent kind: WaivedFee
 
-    // /// A liquidity fee that would have been paid but was waived.
-    // WaivedLiquidityFee, // parent kind: WaivedFee
+    /// A liquidity fee that would have been paid but was waived.
+    WaivedLiquidityFee, // parent kind: WaivedFee
 
     // /// A routing fee that would have been paid but was waived.
     // WaivedRoutingFee, // parent kind: WaivedFee
@@ -721,6 +722,8 @@ impl BasicPaymentV2 {
             PaymentKind::Invoice => PaymentClass::Invoice,
             PaymentKind::Offer => PaymentClass::Offer,
             PaymentKind::Spontaneous => PaymentClass::Spontaneous,
+            // V1 payments should never have these kinds
+            PaymentKind::WaivedFee => unreachable!(),
         };
 
         Self {
@@ -1185,6 +1188,7 @@ impl PaymentKind {
             Self::Invoice => "invoice",
             Self::Offer => "offer",
             Self::Spontaneous => "spontaneous",
+            Self::WaivedFee => "waived_fee",
         }
     }
 
@@ -1208,7 +1212,10 @@ impl FromStr for PaymentKind {
             "offer" => Ok(Self::Offer),
             "onchain" => Ok(Self::Onchain),
             "spontaneous" => Ok(Self::Spontaneous),
-            _ => Err(anyhow!("Must be onchain|invoice|spontaneous")),
+            "waived_fee" => Ok(Self::WaivedFee),
+            _ => Err(anyhow!(
+                "Must be onchain|invoice|offer|spontaneous|waived_fee"
+            )),
         }
     }
 }
@@ -1235,6 +1242,8 @@ impl PaymentClass {
             Self::Invoice => "invoice",
             Self::Offer => "offer",
             Self::Spontaneous => "spontaneous",
+            Self::WaivedChannelFee => "waived_channel_fee",
+            Self::WaivedLiquidityFee => "waived_liquidity_fee",
         }
     }
 
@@ -1244,6 +1253,8 @@ impl PaymentClass {
             Self::Invoice => PaymentKind::Invoice,
             Self::Offer => PaymentKind::Offer,
             Self::Spontaneous => PaymentKind::Spontaneous,
+            Self::WaivedChannelFee => PaymentKind::WaivedFee,
+            Self::WaivedLiquidityFee => PaymentKind::WaivedFee,
         }
     }
 
@@ -1270,7 +1281,9 @@ impl FromStr for PaymentClass {
             "offer" => Ok(Self::Offer),
             "onchain" => Ok(Self::Onchain),
             "spontaneous" => Ok(Self::Spontaneous),
-            _ => Err(anyhow!("Must be onchain|invoice|spontaneous")),
+            "waived_channel_fee" => Ok(Self::WaivedChannelFee),
+            "waived_liquidity_fee" => Ok(Self::WaivedLiquidityFee),
+            _ => Err(anyhow!("Invalid PaymentClass: {s}")),
         }
     }
 }
@@ -1539,9 +1552,10 @@ mod test {
         roundtrip::json_unit_enum_backwards_compat::<PaymentStatus>(
             expected_ser,
         );
-        let expected_ser = r#"["onchain","invoice","offer","spontaneous"]"#;
+        let expected_ser =
+            r#"["onchain","invoice","offer","spontaneous","waived_fee"]"#;
         roundtrip::json_unit_enum_backwards_compat::<PaymentKind>(expected_ser);
-        let expected_ser = r#"["onchain","invoice","offer","spontaneous"]"#;
+        let expected_ser = r#"["onchain","invoice","offer","spontaneous","waived_channel_fee","waived_liquidity_fee"]"#;
         roundtrip::json_unit_enum_backwards_compat::<PaymentClass>(
             expected_ser,
         );

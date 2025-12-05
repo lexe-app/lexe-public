@@ -309,6 +309,8 @@ impl PaymentV1 {
             PaymentKind::Invoice => PaymentClass::Invoice,
             PaymentKind::Offer => PaymentClass::Offer,
             PaymentKind::Spontaneous => PaymentClass::Spontaneous,
+            // V1 payments should never have these kinds
+            PaymentKind::WaivedFee => unreachable!(),
         };
 
         lexe_api::types::payments::BasicPaymentV2 {
