@@ -35,6 +35,7 @@ use common::{
         },
         version::{CurrentEnclaves, NodeEnclave},
     },
+    byte_str::ByteStr,
     constants::{self, node_provision_dns},
     ed25519,
     enclave::Measurement,
@@ -302,21 +303,19 @@ impl NodeClient {
         node_url: &str,
         authenticator: Arc<BearerAuthenticator>,
     ) -> anyhow::Result<reqwest::Proxy> {
-        use reqwest::IntoProxyScheme;
-
         let node_url = Url::parse(node_url).context("Invalid node url")?;
 
-        let proxy_scheme_no_auth = gateway_url
-            .into_proxy_scheme()
-            .context("Invalid proxy url")?;
-
         // App->Gateway connection must be HTTPS
-        match proxy_scheme_no_auth {
-            reqwest::ProxyScheme::Https { .. } => (),
-            _ => anyhow::bail!(
-                "proxy connection must be https: gateway url: {gateway_url}"
-            ),
-        }
+        let gateway_url =
+            Url::parse(gateway_url).context("Invalid gateway url")?;
+        anyhow::ensure!(
+            gateway_url.scheme() == "https",
+            "proxy connection must be https: gateway url: {gateway_url}"
+        );
+
+        // The CONNECT proxy target, with no proxy-auth header added yet.
+        let proxy_no_auth =
+            reqwest::Proxy::all(gateway_url).context("Invalid proxy url")?;
 
         // ugly hack to get auth token to proxy
         //
@@ -331,15 +330,12 @@ impl NodeClient {
                     .expect("bearer authenticator MUST fetch token!");
 
                 // TODO(phlip9): include "Bearer " prefix in auth token
-                let auth_header = http::HeaderValue::from_str(&format!(
-                    "Bearer {auth_token}"
-                ))
-                .unwrap();
+                let auth_header = http::HeaderValue::from_maybe_shared(
+                    ByteStr::from(format!("Bearer {auth_token}")),
+                )
+                .expect("a String is a valid UTF-8 string");
 
-                let mut proxy_scheme = proxy_scheme_no_auth.clone();
-                proxy_scheme.set_custom_http_auth(auth_header);
-
-                Some(proxy_scheme)
+                Some(proxy_no_auth.clone().custom_http_auth(auth_header))
             } else {
                 None
             }

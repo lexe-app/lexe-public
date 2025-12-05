@@ -94,6 +94,13 @@ impl AsRef<str> for ByteStr {
     }
 }
 
+impl AsRef<[u8]> for ByteStr {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
 impl Borrow<str> for ByteStr {
     #[inline]
     fn borrow(&self) -> &str {
