@@ -342,8 +342,14 @@ pub struct DbPaymentV2 {
     pub status: String,
     #[serde(with = "base64_or_bytes")]
     pub data: Vec<u8>,
+    #[serde(default = "default_version")]
+    pub version: i16,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+fn default_version() -> i16 {
+    1
 }
 
 impl DbPaymentV2 {
@@ -356,6 +362,7 @@ impl DbPaymentV2 {
             fee: None,
             status: v1.status,
             data: v1.data,
+            version: 2,
             created_at: v1.created_at,
             updated_at,
         }

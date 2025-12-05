@@ -323,6 +323,7 @@ pub fn encrypt_v1(
         fee: Some(pwm.payment.fee()),
         status: pwm.payment.status().to_string(),
         data,
+        version: 1,
         created_at: created_at.to_i64(),
         updated_at: updated_at.to_i64(),
     })
