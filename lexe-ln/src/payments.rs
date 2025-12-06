@@ -1445,8 +1445,6 @@ mod test {
         }
     }
 
-    // TODO(max): Enable snapshot test after v2 serialization format finalized.
-    #[ignore]
     #[test]
     fn payment_v2_snapshot_test() {
         let snapshot_path = Path::new("data/payment-snapshot.v2.json");
