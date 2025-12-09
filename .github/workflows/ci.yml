@@ -26,6 +26,9 @@ env:
   # Fail CI even on rustc "warning" lints.
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
+  # RUSTFLAGS above is clobbering .cargo/config.toml and SGX-specific flags
+  # See: <https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags>
+  CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS: -D warnings -Zoom=panic -Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes
   # Set log level in CI to warn. If you need more information to debug a CI
   # failure, change this temporarily and rerun your tests.
   RUST_LOG: warn
@@ -66,12 +69,12 @@ jobs:
       - run: rustup target add x86_64-fortanix-unknown-sgx
       # SGX
       - run: |
-          RUSTC_BOOTSTRAP=1 CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS="-Zoom=panic -Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes -D warnings" \
-          cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
+          unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
+          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
       # SGX + tests
       - run: |
-          RUSTC_BOOTSTRAP=1 CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS="-Zoom=panic -Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes -D warnings" \
-          cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
+          unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
+          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
@@ -85,8 +88,8 @@ jobs:
       - run: cargo check --release --locked -p run-sgx
       # Node
       - run: |
-          RUSTC_BOOTSTRAP=1 CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS="-Zoom=panic -Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes -D warnings" \
-          cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
+          unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
+          RUSTC_BOOTSTRAP=1 cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
 
   test:
     runs-on: ubuntu-latest
