@@ -12,6 +12,8 @@ pub mod array;
 pub mod backoff;
 /// Utilities for use in `const` fns and expressions.
 pub mod const_utils;
+/// `fmt` extensions.
+pub mod fmt;
 /// Iterator extensions.
 pub mod iter;
 /// Path extensions.
