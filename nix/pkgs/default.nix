@@ -7,6 +7,19 @@
   fenixPkgs,
   lexePubLib,
 }: rec {
+  # standard nixfmt formatter for *.nix files
+  nixfmt = pkgs.nixfmt-rfc-style;
+
+  # can run nixfmt on a whole directory tree
+  nixfmt-tree = pkgs.nixfmt-tree.override {
+    nixfmtPackage = nixfmt;
+    settings = {
+      formatter.nixfmt = {
+        options = ["--width=80"];
+      };
+    };
+  };
+
   # cargo workspace Cargo.toml & Cargo.lock info
   workspaceRoot = ../..;
   workspaceToml = workspaceRoot + "/Cargo.toml";

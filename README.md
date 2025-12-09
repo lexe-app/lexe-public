@@ -283,6 +283,34 @@ And you're done! You can try out your setup by running the Rust tests:
 $ cargo test
 ```
 
+### nix language server (neovim)
+
+To get nix LSP support with basic autocomplete and formatting, we suggest using
+[`coc.nvim`](https://github.com/neoclide/coc.nvim) with
+[`nil`](https://github.com/oxalica/nil) as the language server and
+[`nixfmt`](https://github.com/NixOS/nixfmt) (packaged as `nixfmt-rfc-style` as
+of nixpkgs release 25.05). Then add the following to `.vim/coc-settings.json`
+in this repo:
+
+```json
+{
+    "languageserver": {
+        "nix": {
+            "command": "nil",
+            "filetypes": ["nix"],
+            "rootPatterns": [".git"],
+            "settings": {
+                "nil": {
+                    "formatting": {
+                        "command": ["nixfmt", "--width=80"]
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
 ## Dev Setup (manual)
 
 Follow these instructions if you need to do extensive work on this repo.

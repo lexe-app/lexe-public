@@ -127,6 +127,6 @@
 
     # The *.nix file formatter.
     # Run with `nix fmt`.
-    formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
+    formatter = eachSystem (system: systemLexePubPkgs.${system}.nixfmt-tree);
   };
 }
