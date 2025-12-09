@@ -11,7 +11,6 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
         Config,
-        PaymentClass,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
@@ -475,7 +474,8 @@ class WalletPageState extends State<WalletPage> {
       case PaymentKind.onchain:
         this.triggerRefresh();
       // Waived fee payments are info entries, no special refresh needed.
-      case PaymentKind.waivedFee:
+      case PaymentKind.waivedChannelFee:
+      case PaymentKind.waivedLiquidityFee:
         break;
     }
 
@@ -2084,20 +2084,19 @@ class PaymentsListEntry extends StatelessWidget {
     );
 
     // TODO(phlip9): figure out a heuristic to get the counterparty name.
-    final paymentClass = this.payment.class_;
     final String primaryStr = switch ((status, direction)) {
       (PaymentStatus.pending, PaymentDirection.inbound) => "Receiving payment",
       (PaymentStatus.pending, PaymentDirection.outbound) => "Sending payment",
       (_, PaymentDirection.inbound) => "You received",
       (_, PaymentDirection.outbound) => "You sent",
-      (_, PaymentDirection.info) => switch (paymentClass) {
-        PaymentClass.waivedChannelFee => "Channel fee waived",
-        PaymentClass.waivedLiquidityFee => "Liquidity fee waived",
+      (_, PaymentDirection.info) => switch (kind) {
+        PaymentKind.waivedChannelFee => "Channel fee waived",
+        PaymentKind.waivedLiquidityFee => "Liquidity fee waived",
         // Shouldn't happen with info direction.
-        PaymentClass.onchain ||
-        PaymentClass.invoice ||
-        PaymentClass.offer ||
-        PaymentClass.spontaneous => "(invalid)",
+        PaymentKind.onchain ||
+        PaymentKind.invoice ||
+        PaymentKind.offer ||
+        PaymentKind.spontaneous => "(invalid)",
       },
     };
 

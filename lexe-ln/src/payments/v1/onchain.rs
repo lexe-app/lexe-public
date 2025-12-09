@@ -7,7 +7,7 @@ use common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_api::types::payments::{ClientPaymentId, LxPaymentId, PaymentClass};
+use lexe_api::types::payments::{ClientPaymentId, LxPaymentId, PaymentKind};
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]
@@ -64,7 +64,7 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
         let payment = OnchainSendV2 {
             cid: v1.cid,
             txid: v1.txid,
-            class: PaymentClass::Onchain,
+            kind: PaymentKind::Onchain,
             tx: v1.tx,
             amount: v1.amount,
             onchain_fee: v1.fees,
@@ -100,7 +100,7 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
         let OnchainSendV2 {
             cid,
             txid,
-            class: _,
+            kind: _,
             tx,
             amount,
             onchain_fee,
@@ -175,7 +175,7 @@ impl From<OnchainReceiveV1> for PaymentWithMetadata<OnchainReceiveV2> {
     fn from(v1: OnchainReceiveV1) -> Self {
         let payment = OnchainReceiveV2 {
             txid: v1.txid,
-            class: PaymentClass::Onchain,
+            kind: PaymentKind::Onchain,
             tx: v1.tx,
             amount: v1.amount,
             status: v1.status,
@@ -209,7 +209,7 @@ impl TryFrom<PaymentWithMetadata<OnchainReceiveV2>> for OnchainReceiveV1 {
         // Intentionally destructure to ensure all fields are considered.
         let OnchainReceiveV2 {
             txid,
-            class: _,
+            kind: _,
             tx,
             amount,
             status,

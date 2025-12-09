@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
@@ -320,8 +320,7 @@ sealed class Onchain with _$Onchain {
 sealed class Payment with _$Payment {
   const factory Payment({
     required PaymentCreatedIndex index,
-    required PaymentRail kind,
-    required PaymentClass class_,
+    required PaymentKind kind,
     required PaymentDirection direction,
     Invoice? invoice,
     String? offerId,
@@ -338,15 +337,6 @@ sealed class Payment with _$Payment {
   }) = _Payment;
 }
 
-enum PaymentClass {
-  onchain,
-  invoice,
-  offer,
-  spontaneous,
-  waivedChannelFee,
-  waivedLiquidityFee,
-}
-
 /// See [`lexe_api::types::payments::PaymentCreatedIndex`].
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -358,6 +348,15 @@ sealed class PaymentCreatedIndex with _$PaymentCreatedIndex {
 
 enum PaymentDirection { inbound, outbound, info }
 
+enum PaymentKind {
+  onchain,
+  invoice,
+  offer,
+  spontaneous,
+  waivedChannelFee,
+  waivedLiquidityFee,
+}
+
 @freezed
 sealed class PaymentMethod with _$PaymentMethod {
   const PaymentMethod._();
@@ -368,8 +367,6 @@ sealed class PaymentMethod with _$PaymentMethod {
   const factory PaymentMethod.lnurlPayRequest(LnurlPayRequest field0) =
       PaymentMethod_LnurlPayRequest;
 }
-
-enum PaymentRail { onchain, invoice, spontaneous, offer, waivedFee }
 
 enum PaymentStatus { pending, completed, failed }
 
@@ -449,8 +446,7 @@ enum Scope { all, nodeConnect }
 sealed class ShortPayment with _$ShortPayment {
   const factory ShortPayment({
     required PaymentCreatedIndex index,
-    required PaymentRail kind,
-    required PaymentClass class_,
+    required PaymentKind kind,
     required PaymentDirection direction,
     int? amountSat,
     required PaymentStatus status,

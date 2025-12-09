@@ -470,19 +470,16 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentAddress dco_decode_payment_address(dynamic raw);
 
   @protected
-  PaymentClass dco_decode_payment_class(dynamic raw);
-
-  @protected
   PaymentCreatedIndex dco_decode_payment_created_index(dynamic raw);
 
   @protected
   PaymentDirection dco_decode_payment_direction(dynamic raw);
 
   @protected
-  PaymentMethod dco_decode_payment_method(dynamic raw);
+  PaymentKind dco_decode_payment_kind(dynamic raw);
 
   @protected
-  PaymentRail dco_decode_payment_rail(dynamic raw);
+  PaymentMethod dco_decode_payment_method(dynamic raw);
 
   @protected
   PaymentStatus dco_decode_payment_status(dynamic raw);
@@ -1090,9 +1087,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentAddress sse_decode_payment_address(SseDeserializer deserializer);
 
   @protected
-  PaymentClass sse_decode_payment_class(SseDeserializer deserializer);
-
-  @protected
   PaymentCreatedIndex sse_decode_payment_created_index(
     SseDeserializer deserializer,
   );
@@ -1101,10 +1095,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentDirection sse_decode_payment_direction(SseDeserializer deserializer);
 
   @protected
-  PaymentMethod sse_decode_payment_method(SseDeserializer deserializer);
+  PaymentKind sse_decode_payment_kind(SseDeserializer deserializer);
 
   @protected
-  PaymentRail sse_decode_payment_rail(SseDeserializer deserializer);
+  PaymentMethod sse_decode_payment_method(SseDeserializer deserializer);
 
   @protected
   PaymentStatus sse_decode_payment_status(SseDeserializer deserializer);
@@ -1834,9 +1828,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_payment_class(PaymentClass self, SseSerializer serializer);
-
-  @protected
   void sse_encode_payment_created_index(
     PaymentCreatedIndex self,
     SseSerializer serializer,
@@ -1849,10 +1840,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_payment_method(PaymentMethod self, SseSerializer serializer);
+  void sse_encode_payment_kind(PaymentKind self, SseSerializer serializer);
 
   @protected
-  void sse_encode_payment_rail(PaymentRail self, SseSerializer serializer);
+  void sse_encode_payment_method(PaymentMethod self, SseSerializer serializer);
 
   @protected
   void sse_encode_payment_status(PaymentStatus self, SseSerializer serializer);

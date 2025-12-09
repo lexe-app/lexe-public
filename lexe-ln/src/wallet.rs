@@ -68,7 +68,7 @@ use lexe_api::{
         FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
     },
-    types::payments::PaymentClass,
+    types::payments::PaymentKind,
     vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_FILENAME},
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -1009,8 +1009,8 @@ impl LexeWallet {
         };
         self.trigger_persist();
 
-        let class = PaymentClass::Onchain;
-        OnchainSendV2::new(tx, req, class, onchain_fee)
+        let kind = PaymentKind::Onchain;
+        OnchainSendV2::new(tx, req, kind, onchain_fee)
             .context("Failed to create payment")
     }
 

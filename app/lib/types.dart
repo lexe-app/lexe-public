@@ -49,7 +49,8 @@ enum BalanceKind {
     PaymentKind.invoice ||
     PaymentKind.spontaneous ||
     PaymentKind.offer ||
-    PaymentKind.waivedFee => BalanceKind.lightning,
+    PaymentKind.waivedChannelFee ||
+    PaymentKind.waivedLiquidityFee => BalanceKind.lightning,
   };
 }
 

@@ -19,8 +19,8 @@ use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPaymentV2, DbPaymentV2, LxOfferId, LxPaymentId, PaymentClass,
-        PaymentDirection, PaymentRail, PaymentStatus,
+        BasicPaymentV2, DbPaymentV2, LxOfferId, LxPaymentId, PaymentDirection,
+        PaymentKind, PaymentRail, PaymentStatus,
     },
 };
 use lexe_std::const_assert_mem_size;
@@ -144,9 +144,6 @@ pub struct PaymentWithMetadata<P = PaymentV2> {
 // TODO(max): This should derive Serialize and Deserialize, but we hold off for
 // now as we don't want to accidentally serialize using this type while we're
 // locking down the serialization format.
-// TODO(max): Figure out how `class` should be represented before committing to
-// the PaymentV2 serialization scheme. Perhaps the payment should be a tagged
-// enum, like `struct PaymentV2 { payment: PaymentEnum, class: PaymentClass }`?
 // TODO(max): Gen and inspect sample data before committing to serialization
 #[cfg_attr(test, derive(Serialize, Deserialize))]
 pub enum PaymentV2 {
@@ -317,7 +314,7 @@ pub fn encrypt_v1(
 
     Ok(DbPaymentV2 {
         id: pwm.payment.id().to_string(),
-        class: Some(Cow::Borrowed(pwm.payment.class().as_str())),
+        kind: Some(Cow::Borrowed(pwm.payment.kind().as_str())),
         direction: Some(Cow::Borrowed(pwm.payment.direction().as_str())),
         amount: pwm.payment.amount(),
         fee: Some(pwm.payment.fee()),
@@ -418,8 +415,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let id = self.payment.id();
         let txid = self.payment.txid();
         let offer_id = self.payment.offer_id();
-        let kind = self.payment.rail();
-        let class = self.payment.class();
+        let kind = self.payment.kind();
         let direction = self.payment.direction();
         let status = self.payment.status();
         let status_str = self.payment.status_str().to_owned();
@@ -445,7 +441,6 @@ impl PaymentWithMetadata<PaymentV2> {
             id,
             related_ids,
             kind,
-            class,
             direction,
             offer_id,
             txid,
@@ -657,17 +652,17 @@ impl PaymentV2 {
         }
     }
 
-    /// The sub-kind of this payment, which is exposed for efficient queries.
-    pub fn class(&self) -> PaymentClass {
+    /// The application-level kind of this payment.
+    pub fn kind(&self) -> PaymentKind {
         match self {
-            Self::OnchainSend(os) => os.class,
-            Self::OnchainReceive(or) => or.class,
-            Self::InboundInvoice(iip) => iip.class,
-            Self::InboundOfferReusable(iorp) => iorp.class,
-            Self::InboundSpontaneous(isp) => isp.class,
-            Self::OutboundInvoice(oip) => oip.class,
-            Self::OutboundOffer(oop) => oop.class,
-            Self::OutboundSpontaneous(osp) => osp.class,
+            Self::OnchainSend(os) => os.kind,
+            Self::OnchainReceive(or) => or.kind,
+            Self::InboundInvoice(iip) => iip.kind,
+            Self::InboundOfferReusable(iorp) => iorp.kind,
+            Self::InboundSpontaneous(isp) => isp.kind,
+            Self::OutboundInvoice(oip) => oip.kind,
+            Self::OutboundOffer(oop) => oop.kind,
+            Self::OutboundSpontaneous(osp) => osp.kind,
         }
     }
 

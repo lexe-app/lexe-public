@@ -59,7 +59,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         Offer,
         Onchain,
         Payment,
-        PaymentClass,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
@@ -945,7 +944,6 @@ const Payment dummyOnchainInboundPending01 = Payment(
         "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
   ),
   kind: PaymentKind.onchain,
-  class_: PaymentClass.onchain,
   direction: PaymentDirection.inbound,
   txid: "238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
   amountSat: 1469,
@@ -964,7 +962,6 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
         "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
   ),
   kind: PaymentKind.onchain,
-  class_: PaymentClass.onchain,
   direction: PaymentDirection.inbound,
   txid: "551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
   amountSat: 20000,
@@ -983,7 +980,6 @@ const Payment dummyOnchainInboundCompleted02 = Payment(
         "0000001739386001000-bc_70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1",
   ),
   kind: PaymentKind.onchain,
-  class_: PaymentClass.onchain,
   direction: PaymentDirection.inbound,
   txid: "70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1",
   amountSat: 208505,
@@ -1002,7 +998,6 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
         "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
   ),
   kind: PaymentKind.onchain,
-  class_: PaymentClass.onchain,
   direction: PaymentDirection.outbound,
   txid: "0a882813f2bb937a45f18568ff0d09d83d437558e85e369629226d0f7405c52e",
   amountSat: 77000,
@@ -1020,7 +1015,6 @@ const Payment dummyOnchainOutboundFailed01 = Payment(
         "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
   ),
   kind: PaymentKind.onchain,
-  class_: PaymentClass.onchain,
   direction: PaymentDirection.outbound,
   txid: "e9e3db092c9b4f94d1c603dd503a0f9bb95f9369897a25aafef2960053f8ccab",
   amountSat: 95000000,
@@ -1039,7 +1033,6 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
         "0000001686938392000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
   ),
   kind: PaymentKind.spontaneous,
-  class_: PaymentClass.spontaneous,
   direction: PaymentDirection.outbound,
   amountSat: 123000,
   feesSat: 615,
@@ -1055,7 +1048,6 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
         "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
   ),
   kind: PaymentKind.invoice,
-  class_: PaymentClass.invoice,
   direction: PaymentDirection.outbound,
   invoice: Invoice(
     string:
@@ -1081,7 +1073,6 @@ const Payment dummyInvoiceInboundPending01 = Payment(
         "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb",
   ),
   kind: PaymentKind.invoice,
-  class_: PaymentClass.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
@@ -1109,7 +1100,6 @@ const Payment dummyInvoiceInboundPending02 = Payment(
         "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980",
   ),
   kind: PaymentKind.invoice,
-  class_: PaymentClass.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
@@ -1135,7 +1125,6 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
         "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be",
   ),
   kind: PaymentKind.invoice,
-  class_: PaymentClass.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
@@ -1162,7 +1151,6 @@ const Payment dummyInvoiceInboundCompleted02 = Payment(
         "0000001739490952000-ln_4ca99b7534df3a98afb69757b770faffead8b0794e5d618fbbf9b4cfd1f157cf",
   ),
   kind: PaymentKind.invoice,
-  class_: PaymentClass.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
@@ -1190,7 +1178,6 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
         "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43",
   ),
   kind: PaymentKind.invoice,
-  class_: PaymentClass.invoice,
   direction: PaymentDirection.inbound,
   invoice: Invoice(
     string:
@@ -1216,7 +1203,6 @@ const Payment dummyInvoiceOutboundCompleted01 = Payment(
         "0000001739487454000-ln_432ec4be62f494b0498c76145fd31b302d0be4ac8cffe7c4102ad1f1c056bec9",
   ),
   kind: PaymentKind.invoice,
-  class_: PaymentClass.invoice,
   direction: PaymentDirection.outbound,
   invoice: Invoice(
     string:
@@ -1243,7 +1229,6 @@ const Payment dummyOfferOutboundPayment01 = Payment(
         "0000001748993362000-fs_1a0863b5785d35c34e008e8bd879e78a93b795640c2ad9e941a7d12f44356804",
   ),
   kind: PaymentKind.offer,
-  class_: PaymentClass.offer,
   direction: PaymentDirection.outbound,
   offerId: "7bcb7b222189c07dfa6d55da519bdaf0d06c90597aab5dd5fc919c62db17c218",
   offer: Offer(
@@ -1270,7 +1255,6 @@ const Payment dummyOfferInboundPayment01 = Payment(
         "0000001748999074000-fr_016041408597e243d2b7a8fddf2304288f4763809e340b94df32c12deb894927",
   ),
   kind: PaymentKind.offer,
-  class_: PaymentClass.offer,
   direction: PaymentDirection.inbound,
   offerId: "e492e1d9c1919d0f37547abcb05f80ce31dcb0b70dff7433f0a0ebdc1cba8539",
   // NOTE: inbound offer payments currently don't have the `offer` field set

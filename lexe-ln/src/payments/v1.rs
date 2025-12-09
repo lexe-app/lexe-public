@@ -302,22 +302,21 @@ impl PaymentV1 {
         created_at: TimestampMs,
         updated_at: TimestampMs,
     ) -> lexe_api::types::payments::BasicPaymentV2 {
-        use lexe_api::types::payments::PaymentClass;
+        use lexe_api::types::payments::PaymentKind;
 
-        let class = match self.rail() {
-            PaymentRail::Onchain => PaymentClass::Onchain,
-            PaymentRail::Invoice => PaymentClass::Invoice,
-            PaymentRail::Offer => PaymentClass::Offer,
-            PaymentRail::Spontaneous => PaymentClass::Spontaneous,
-            // V1 payments should never have these kinds
+        let kind = match self.rail() {
+            PaymentRail::Onchain => PaymentKind::Onchain,
+            PaymentRail::Invoice => PaymentKind::Invoice,
+            PaymentRail::Offer => PaymentKind::Offer,
+            PaymentRail::Spontaneous => PaymentKind::Spontaneous,
+            // V1 payments don't have these kinds
             PaymentRail::WaivedFee => unreachable!(),
         };
 
         lexe_api::types::payments::BasicPaymentV2 {
             id: self.id(),
             related_ids: HashSet::new(),
-            kind: self.rail(),
-            class,
+            kind,
             direction: self.direction(),
             offer_id: self.offer_id(),
             txid: self.txid(),

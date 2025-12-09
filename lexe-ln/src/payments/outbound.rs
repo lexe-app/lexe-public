@@ -7,7 +7,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         ClientPaymentId, LxOfferId, LxPaymentHash, LxPaymentId,
-        LxPaymentPreimage, LxPaymentSecret, PaymentClass, PaymentRail,
+        LxPaymentPreimage, LxPaymentSecret, PaymentKind, PaymentRail,
     },
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
@@ -70,7 +70,7 @@ pub struct OutboundInvoicePaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preimage: Option<LxPaymentPreimage>,
 
-    pub class: PaymentClass,
+    pub kind: PaymentKind,
 
     /// The amount sent in this payment, given by [`Route::get_total_amount`].
     ///
@@ -141,12 +141,12 @@ impl OutboundInvoicePaymentV2 {
     // - `pay_invoice` API
     pub fn new(
         invoice: LxInvoice,
-        class: PaymentClass,
+        kind: PaymentKind,
         amount: Amount,
         routing_fee: Amount,
         note: Option<String>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_rail(PaymentRail::Invoice)?;
+        kind.expect_rail(PaymentRail::Invoice)?;
 
         let hash = invoice.payment_hash();
         let secret = invoice.payment_secret();
@@ -155,7 +155,7 @@ impl OutboundInvoicePaymentV2 {
             hash,
             secret,
             preimage: None,
-            class,
+            kind,
             amount,
             routing_fee,
             status: OutboundInvoicePaymentStatus::Pending,
@@ -370,7 +370,7 @@ pub struct OutboundOfferPaymentV2 {
     /// Unique identifier for the original offer.
     pub offer_id: LxOfferId,
 
-    pub class: PaymentClass,
+    pub kind: PaymentKind,
 
     /// The amount sent in this payment excluding fees. May be greater than the
     /// intended value to meet htlc min. limits along the route.
@@ -435,7 +435,7 @@ impl OutboundOfferPaymentV2 {
     pub fn new(
         client_id: ClientPaymentId,
         offer: LxOffer,
-        class: PaymentClass,
+        kind: PaymentKind,
         amount: Amount,
         quantity: Option<NonZeroU64>,
         routing_fee: Amount,
@@ -443,7 +443,7 @@ impl OutboundOfferPaymentV2 {
         payer_name: Option<String>,
         payer_note: Option<String>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_rail(PaymentRail::Offer)?;
+        kind.expect_rail(PaymentRail::Offer)?;
 
         let offer_id = offer.id();
         let expires_at = offer.expires_at();
@@ -452,7 +452,7 @@ impl OutboundOfferPaymentV2 {
             hash: None,
             preimage: None,
             offer_id,
-            class,
+            kind,
             amount,
             routing_fee,
             status: OutboundOfferPaymentStatus::Pending,
@@ -645,7 +645,7 @@ pub struct OutboundSpontaneousPaymentV2 {
     /// that intermediate nodes cannot steal funds.
     pub preimage: LxPaymentPreimage,
 
-    pub class: PaymentClass,
+    pub kind: PaymentKind,
 
     /// The amount sent in this payment excluding fees.
     pub amount: Amount,
@@ -806,7 +806,7 @@ pub(crate) mod arbitrary_impl {
                     payment_preimage: Some(preimage),
                 })
             });
-            let class = PaymentRail::Invoice.any_child_class();
+            let kind = PaymentRail::Invoice.any_child_kind();
 
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
@@ -818,7 +818,7 @@ pub(crate) mod arbitrary_impl {
             let gen_oip = move |(
                 status,
                 preimage_invoice,
-                class,
+                kind,
                 amount,
                 routing_fee,
                 failure_val,
@@ -852,7 +852,7 @@ pub(crate) mod arbitrary_impl {
                     hash,
                     secret,
                     preimage,
-                    class,
+                    kind,
                     amount,
                     routing_fee,
                     status,
@@ -866,7 +866,7 @@ pub(crate) mod arbitrary_impl {
             (
                 status,
                 preimage_invoice,
-                class,
+                kind,
                 amount,
                 routing_fee,
                 failure,
@@ -911,7 +911,7 @@ pub(crate) mod arbitrary_impl {
             let client_id = any::<ClientPaymentId>();
             let preimage = any::<LxPaymentPreimage>();
             let offer_id = any::<LxOfferId>();
-            let class = PaymentRail::Offer.any_child_class();
+            let kind = PaymentRail::Offer.any_child_kind();
 
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
@@ -926,7 +926,7 @@ pub(crate) mod arbitrary_impl {
                 client_id,
                 preimage,
                 offer_id,
-                class,
+                kind,
                 amount,
                 routing_fee,
                 failure,
@@ -960,7 +960,7 @@ pub(crate) mod arbitrary_impl {
                     hash,
                     preimage,
                     offer_id,
-                    class,
+                    kind,
                     amount,
                     routing_fee,
                     status,
@@ -976,7 +976,7 @@ pub(crate) mod arbitrary_impl {
                 client_id,
                 preimage,
                 offer_id,
-                class,
+                kind,
                 amount,
                 routing_fee,
                 failure,
@@ -1021,7 +1021,7 @@ pub(crate) mod arbitrary_impl {
             let status =
                 any_with::<OutboundSpontaneousPaymentStatus>(pending_only);
             let preimage = any::<LxPaymentPreimage>();
-            let class = PaymentRail::Spontaneous.any_child_class();
+            let kind = PaymentRail::Spontaneous.any_child_kind();
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
             let maybe_created_at = any::<Option<TimestampMs>>();
@@ -1031,7 +1031,7 @@ pub(crate) mod arbitrary_impl {
             let gen_osp = move |(
                 status,
                 preimage,
-                class,
+                kind,
                 amount,
                 routing_fee,
                 maybe_created_at,
@@ -1059,7 +1059,7 @@ pub(crate) mod arbitrary_impl {
                 OutboundSpontaneousPaymentV2 {
                     hash,
                     preimage,
-                    class,
+                    kind,
                     amount,
                     routing_fee,
                     status,
@@ -1071,7 +1071,7 @@ pub(crate) mod arbitrary_impl {
             (
                 status,
                 preimage,
-                class,
+                kind,
                 amount,
                 routing_fee,
                 maybe_created_at,

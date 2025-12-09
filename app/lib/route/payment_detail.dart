@@ -5,7 +5,6 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         Payment,
-        PaymentClass,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
@@ -276,7 +275,6 @@ class PaymentDetailPageInner extends StatelessWidget {
         valueListenable: this.payment,
         builder: (context, payment, _child) {
           final kind = payment.kind;
-          final paymentClass = payment.class_;
           final status = payment.status;
           final direction = payment.direction;
           final createdAt = DateTime.fromMillisecondsSinceEpoch(
@@ -315,7 +313,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     builder: (_, now, child) => PaymentDetailDirectionTime(
                       status: status,
                       direction: direction,
-                      paymentClass: paymentClass,
+                      paymentKind: kind,
                       createdAt: createdAt,
                       now: now,
                     ),
@@ -461,14 +459,14 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final directionLabel = switch (direction) {
                     PaymentDirection.inbound => "received",
                     PaymentDirection.outbound => "sent",
-                    PaymentDirection.info => switch (payment.class_) {
-                      PaymentClass.waivedChannelFee ||
-                      PaymentClass.waivedLiquidityFee => "waived",
+                    PaymentDirection.info => switch (payment.kind) {
+                      PaymentKind.waivedChannelFee ||
+                      PaymentKind.waivedLiquidityFee => "waived",
                       // Shouldn't happen with info direction.
-                      PaymentClass.onchain ||
-                      PaymentClass.invoice ||
-                      PaymentClass.offer ||
-                      PaymentClass.spontaneous => "(invalid)",
+                      PaymentKind.onchain ||
+                      PaymentKind.invoice ||
+                      PaymentKind.offer ||
+                      PaymentKind.spontaneous => "(invalid)",
                     },
                   };
 
@@ -537,7 +535,8 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       value: this.paymentIdxBody(),
                     ),
                     // Waived fee payments don't have a meaningful payment ID.
-                    (PaymentKind.waivedFee, _) => null,
+                    (PaymentKind.waivedChannelFee, _) ||
+                    (PaymentKind.waivedLiquidityFee, _) => null,
                     // Invalid combinations
                     (PaymentKind.onchain, PaymentDirection.info) => InfoRow(
                       label: "Unknown",
@@ -794,14 +793,14 @@ class PaymentDetailDirectionTime extends StatelessWidget {
     super.key,
     required this.status,
     required this.direction,
-    required this.paymentClass,
+    required this.paymentKind,
     required this.createdAt,
     required this.now,
   });
 
   final PaymentStatus status;
   final PaymentDirection direction;
-  final PaymentClass paymentClass;
+  final PaymentKind paymentKind;
   final DateTime createdAt;
   final DateTime now;
 
@@ -811,35 +810,35 @@ class PaymentDetailDirectionTime extends StatelessWidget {
       (PaymentStatus.pending, PaymentDirection.inbound) => "Receiving",
       (PaymentStatus.pending, PaymentDirection.outbound) => "Sending",
       (PaymentStatus.pending, PaymentDirection.info) =>
-        switch (this.paymentClass) {
-          PaymentClass.waivedChannelFee ||
-          PaymentClass.waivedLiquidityFee => "Waiving",
-          PaymentClass.onchain ||
-          PaymentClass.invoice ||
-          PaymentClass.offer ||
-          PaymentClass.spontaneous => "(invalid)",
+        switch (this.paymentKind) {
+          PaymentKind.waivedChannelFee ||
+          PaymentKind.waivedLiquidityFee => "Waiving",
+          PaymentKind.onchain ||
+          PaymentKind.invoice ||
+          PaymentKind.offer ||
+          PaymentKind.spontaneous => "(invalid)",
         },
       (PaymentStatus.completed, PaymentDirection.inbound) => "Received",
       (PaymentStatus.completed, PaymentDirection.outbound) => "Sent",
       (PaymentStatus.completed, PaymentDirection.info) =>
-        switch (this.paymentClass) {
-          PaymentClass.waivedChannelFee ||
-          PaymentClass.waivedLiquidityFee => "Waived",
-          PaymentClass.onchain ||
-          PaymentClass.invoice ||
-          PaymentClass.offer ||
-          PaymentClass.spontaneous => "(invalid)",
+        switch (this.paymentKind) {
+          PaymentKind.waivedChannelFee ||
+          PaymentKind.waivedLiquidityFee => "Waived",
+          PaymentKind.onchain ||
+          PaymentKind.invoice ||
+          PaymentKind.offer ||
+          PaymentKind.spontaneous => "(invalid)",
         },
       (PaymentStatus.failed, PaymentDirection.inbound) => "Failed to receive",
       (PaymentStatus.failed, PaymentDirection.outbound) => "Failed to send",
       (PaymentStatus.failed, PaymentDirection.info) =>
-        switch (this.paymentClass) {
-          PaymentClass.waivedChannelFee ||
-          PaymentClass.waivedLiquidityFee => "Failed: waived",
-          PaymentClass.onchain ||
-          PaymentClass.invoice ||
-          PaymentClass.offer ||
-          PaymentClass.spontaneous => "(invalid)",
+        switch (this.paymentKind) {
+          PaymentKind.waivedChannelFee ||
+          PaymentKind.waivedLiquidityFee => "Failed: waived",
+          PaymentKind.onchain ||
+          PaymentKind.invoice ||
+          PaymentKind.offer ||
+          PaymentKind.spontaneous => "(invalid)",
         },
     };
 

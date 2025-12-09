@@ -748,8 +748,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       PaymentKind.spontaneous =>
         "Sending bitcoin via lightning spontaneous payment",
       PaymentKind.offer => "Sending bitcoin via lightning offer",
-      // waivedFee is not a send payment kind; should never happen here.
-      PaymentKind.waivedFee => "(invalid)",
+      // Waived fees are not send payment kinds; should never happen here.
+      PaymentKind.waivedChannelFee ||
+      PaymentKind.waivedLiquidityFee => "(invalid)",
     };
 
     final description = this.description();

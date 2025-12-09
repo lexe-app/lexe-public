@@ -24,7 +24,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         Offer,
         Onchain,
         Payment,
-        PaymentClass,
         PaymentDirection,
         PaymentKind,
         PaymentMethod,
@@ -363,7 +362,6 @@ class SendState_Preflighted implements SendState {
         payment: Payment(
           index: resp.index,
           kind: PaymentKind.onchain,
-          class_: PaymentClass.onchain,
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
@@ -403,7 +401,6 @@ class SendState_Preflighted implements SendState {
         payment: Payment(
           index: resp.index,
           kind: PaymentKind.invoice,
-          class_: PaymentClass.invoice,
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
@@ -445,7 +442,6 @@ class SendState_Preflighted implements SendState {
         payment: Payment(
           index: resp.index,
           kind: PaymentKind.offer,
-          class_: PaymentClass.offer,
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",

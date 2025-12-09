@@ -37,10 +37,10 @@ use lexe_api::{
             BasicPaymentV1 as BasicPaymentV1Rs,
             BasicPaymentV2 as BasicPaymentV2Rs,
             ClientPaymentId as ClientPaymentIdRs,
-            PaymentClass as PaymentClassRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
-            PaymentRail as PaymentRailRs, PaymentStatus as PaymentStatusRs,
+            PaymentKind as PaymentKindRs, PaymentRail as PaymentRailRs,
+            PaymentStatus as PaymentStatusRs,
         },
         username::Username as UsernameRs,
     },
@@ -272,27 +272,8 @@ impl From<PaymentStatusRs> for PaymentStatus {
     }
 }
 
-pub enum PaymentRail {
-    Onchain,
-    Invoice,
-    Spontaneous,
-    Offer,
-    WaivedFee,
-}
-
-impl From<PaymentRailRs> for PaymentRail {
-    fn from(value: PaymentRailRs) -> Self {
-        match value {
-            PaymentRailRs::Onchain => Self::Onchain,
-            PaymentRailRs::Invoice => Self::Invoice,
-            PaymentRailRs::Spontaneous => Self::Spontaneous,
-            PaymentRailRs::Offer => Self::Offer,
-            PaymentRailRs::WaivedFee => Self::WaivedFee,
-        }
-    }
-}
-
-pub enum PaymentClass {
+#[derive(Copy, Clone)]
+pub enum PaymentKind {
     Onchain,
     Invoice,
     Offer,
@@ -301,15 +282,15 @@ pub enum PaymentClass {
     WaivedLiquidityFee,
 }
 
-impl From<PaymentClassRs> for PaymentClass {
-    fn from(value: PaymentClassRs) -> Self {
+impl From<PaymentKindRs> for PaymentKind {
+    fn from(value: PaymentKindRs) -> Self {
         match value {
-            PaymentClassRs::Onchain => Self::Onchain,
-            PaymentClassRs::Invoice => Self::Invoice,
-            PaymentClassRs::Offer => Self::Offer,
-            PaymentClassRs::Spontaneous => Self::Spontaneous,
-            PaymentClassRs::WaivedChannelFee => Self::WaivedChannelFee,
-            PaymentClassRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+            PaymentKindRs::Onchain => Self::Onchain,
+            PaymentKindRs::Invoice => Self::Invoice,
+            PaymentKindRs::Offer => Self::Offer,
+            PaymentKindRs::Spontaneous => Self::Spontaneous,
+            PaymentKindRs::WaivedChannelFee => Self::WaivedChannelFee,
+            PaymentKindRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
         }
     }
 }
@@ -338,9 +319,7 @@ impl TryFrom<PaymentCreatedIndex> for PaymentCreatedIndexRs {
 pub struct ShortPayment {
     pub index: PaymentCreatedIndex,
 
-    pub kind: PaymentRail,
-
-    pub class: PaymentClass,
+    pub kind: PaymentKind,
 
     pub direction: PaymentDirection,
 
@@ -355,21 +334,21 @@ pub struct ShortPayment {
 
 impl From<&BasicPaymentV1Rs> for ShortPayment {
     fn from(payment: &BasicPaymentV1Rs) -> Self {
-        // V1 payments don't have class; derive from rail
-        let class = match payment.rail {
-            PaymentRailRs::Onchain => PaymentClass::Onchain,
-            PaymentRailRs::Invoice => PaymentClass::Invoice,
-            PaymentRailRs::Offer => PaymentClass::Offer,
-            PaymentRailRs::Spontaneous => PaymentClass::Spontaneous,
-            // WaivedFee doesn't exist in V1
+        // V1 payments don't have kind; derive from rail
+        let kind = match payment.rail {
+            PaymentRailRs::Onchain => PaymentKind::Onchain,
+            PaymentRailRs::Invoice => PaymentKind::Invoice,
+            PaymentRailRs::Offer => PaymentKind::Offer,
+            PaymentRailRs::Spontaneous => PaymentKind::Spontaneous,
+            // These rails don't exist in v1
             PaymentRailRs::WaivedFee => unreachable!(),
         };
 
         Self {
             index: PaymentCreatedIndex::from(*payment.index()),
 
-            kind: PaymentRail::from(payment.rail),
-            class,
+            kind,
+
             direction: PaymentDirection::from(payment.direction),
 
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),
@@ -382,14 +361,13 @@ impl From<&BasicPaymentV1Rs> for ShortPayment {
         }
     }
 }
+
 impl From<&BasicPaymentV2Rs> for ShortPayment {
     fn from(payment: &BasicPaymentV2Rs) -> Self {
         Self {
             index: PaymentCreatedIndex::from(payment.created_index()),
 
-            kind: PaymentRail::from(payment.kind),
-
-            class: PaymentClass::from(payment.class),
+            kind: PaymentKind::from(payment.kind),
 
             direction: PaymentDirection::from(payment.direction),
 
@@ -411,8 +389,7 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
 pub struct Payment {
     pub index: PaymentCreatedIndex,
 
-    pub kind: PaymentRail,
-    pub class: PaymentClass,
+    pub kind: PaymentKind,
     pub direction: PaymentDirection,
 
     pub invoice: Option<Invoice>,
@@ -437,21 +414,20 @@ pub struct Payment {
 
 impl From<&BasicPaymentV1Rs> for Payment {
     fn from(payment: &BasicPaymentV1Rs) -> Self {
-        // V1 payments don't have class; derive from rail
-        let class = match payment.rail {
-            PaymentRailRs::Onchain => PaymentClass::Onchain,
-            PaymentRailRs::Invoice => PaymentClass::Invoice,
-            PaymentRailRs::Offer => PaymentClass::Offer,
-            PaymentRailRs::Spontaneous => PaymentClass::Spontaneous,
-            // WaivedFee doesn't exist in V1
+        // V1 payments don't have kind; derive from rail
+        let kind = match payment.rail {
+            PaymentRailRs::Onchain => PaymentKind::Onchain,
+            PaymentRailRs::Invoice => PaymentKind::Invoice,
+            PaymentRailRs::Offer => PaymentKind::Offer,
+            PaymentRailRs::Spontaneous => PaymentKind::Spontaneous,
+            // These rails don't exist in v1
             PaymentRailRs::WaivedFee => unreachable!(),
         };
 
         Self {
             index: PaymentCreatedIndex::from(*payment.index()),
 
-            kind: PaymentRail::from(payment.rail),
-            class,
+            kind,
             direction: PaymentDirection::from(payment.direction),
 
             invoice: payment.invoice.as_deref().map(Invoice::from),
@@ -475,13 +451,13 @@ impl From<&BasicPaymentV1Rs> for Payment {
         }
     }
 }
+
 impl From<&BasicPaymentV2Rs> for Payment {
     fn from(payment: &BasicPaymentV2Rs) -> Self {
         Self {
             index: PaymentCreatedIndex::from(payment.created_index()),
 
-            kind: PaymentRail::from(payment.kind),
-            class: PaymentClass::from(payment.class),
+            kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
 
             invoice: payment.invoice.as_deref().map(Invoice::from),

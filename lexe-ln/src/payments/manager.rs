@@ -10,8 +10,8 @@ use common::{
 use lexe_api::{
     models::command::UpdatePaymentNote,
     types::payments::{
-        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentClass,
-        PaymentCreatedIndex, PaymentStatus,
+        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
+        PaymentCreatedIndex, PaymentKind, PaymentStatus,
     },
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -975,10 +975,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     let raw_tx = canonical_tx.tx_node.tx;
                     let (_, received) =
                         locked_wallet.sent_and_received(&raw_tx);
-                    let class = PaymentClass::Onchain;
+                    let kind = PaymentKind::Onchain;
                     let amount =
                         Amount::try_from(received).context("Overflowed")?;
-                    OnchainReceiveV2::new(raw_tx, class, amount)
+                    OnchainReceiveV2::new(raw_tx, kind, amount)
                         .context("Failed to create payment")
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?
@@ -1069,10 +1069,10 @@ impl PaymentsData {
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
                 LnClaimCtx::Bolt12Offer(ctx) => {
-                    let class = PaymentClass::Offer;
+                    let kind = PaymentKind::Offer;
                     let iorpwm = InboundOfferReusablePaymentV2::new(
                         ctx,
-                        class,
+                        kind,
                         amount,
                         skimmed_fee,
                     )
@@ -1086,11 +1086,11 @@ impl PaymentsData {
                 } => {
                     // We just got a new spontaneous payment!
                     // Create the new payment.
-                    let class = PaymentClass::Spontaneous;
+                    let kind = PaymentKind::Spontaneous;
                     let ispwm = InboundSpontaneousPaymentV2::new(
                         hash,
                         preimage,
-                        class,
+                        kind,
                         amount,
                         skimmed_fee,
                     )
