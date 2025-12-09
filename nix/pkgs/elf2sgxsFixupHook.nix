@@ -31,36 +31,37 @@ let
   settings = valuesToString cargoTomlParsed.package.metadata.fortanix-sgx;
   debugFlag =
     # NOTE: nix coerces `true` -> `"1"`
-    if (settings.debug == "1")
-    then "--debug"
-    else "";
+    if (settings.debug == "1") then "--debug" else "";
 in
-  makeSetupHook
+makeSetupHook
   {
     name = "elf2sgxsFixupHook";
 
     # Add to the $PATH
-    propagatedBuildInputs = [ftxsgx-elf2sgxs];
-  } (writeShellScript "elf2sgxsFixupHook.sh" ''
-    elf2sgxsFixupHook() {
-      local binPath="$out/bin/${binName}"
-      local sgxsPath="$binPath.sgxs"
+    propagatedBuildInputs = [ ftxsgx-elf2sgxs ];
+  }
+  (
+    writeShellScript "elf2sgxsFixupHook.sh" ''
+      elf2sgxsFixupHook() {
+        local binPath="$out/bin/${binName}"
+        local sgxsPath="$binPath.sgxs"
 
-      # build the `<binName>.sgxs` enclave binary
-      ftxsgx-elf2sgxs $binPath --output $sgxsPath \
-        --heap-size ${settings.heap-size} \
-        --ssaframesize ${settings.ssaframesize} \
-        --stack-size ${settings.stack-size} \
-        --threads ${settings.threads} \
-        ${debugFlag}
+        # build the `<binName>.sgxs` enclave binary
+        ftxsgx-elf2sgxs $binPath --output $sgxsPath \
+          --heap-size ${settings.heap-size} \
+          --ssaframesize ${settings.ssaframesize} \
+          --stack-size ${settings.stack-size} \
+          --threads ${settings.threads} \
+          ${debugFlag}
 
-      # compute the enclave measurement (SHA-256 hash of the enclave binary)
-      # and dump it into `<binName>.measurement`
-      local measurement=$(sha256sum --binary $sgxsPath | cut -d ' ' -f 1)
-      echo -n "$measurement" > $binPath.measurement
-      echo "SGXS enclave measurement: \"$measurement\""
-      echo "SGXS enclave size: $(stat --format='%s' $sgxsPath)"
-    }
+        # compute the enclave measurement (SHA-256 hash of the enclave binary)
+        # and dump it into `<binName>.measurement`
+        local measurement=$(sha256sum --binary $sgxsPath | cut -d ' ' -f 1)
+        echo -n "$measurement" > $binPath.measurement
+        echo "SGXS enclave measurement: \"$measurement\""
+        echo "SGXS enclave size: $(stat --format='%s' $sgxsPath)"
+      }
 
-    postFixupHooks+=(elf2sgxsFixupHook)
-  '')
+      postFixupHooks+=(elf2sgxsFixupHook)
+    ''
+  )

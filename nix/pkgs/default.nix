@@ -6,7 +6,8 @@
   crane,
   fenixPkgs,
   lexePubLib,
-}: rec {
+}:
+rec {
   # standard nixfmt formatter for *.nix files
   nixfmt = pkgs.nixfmt-rfc-style;
 
@@ -15,7 +16,7 @@
     nixfmtPackage = nixfmt;
     settings = {
       formatter.nixfmt = {
-        options = ["--width=80"];
+        options = [ "--width=80" ];
       };
     };
   };
@@ -30,12 +31,14 @@
 
   # `fenix` rust toolchains need patching on macOS to work properly inside the
   # build sandbox.
-  patchFenixRustToolchainIfMacOS = fenixToolchainUnpatched: let
-    isDarwin = pkgs.targetPlatform.isDarwin;
-  in
+  patchFenixRustToolchainIfMacOS =
+    fenixToolchainUnpatched:
+    let
+      isDarwin = pkgs.targetPlatform.isDarwin;
+    in
     # non-macOS doesn't need patching
-    if !isDarwin
-    then fenixToolchainUnpatched
+    if !isDarwin then
+      fenixToolchainUnpatched
     else
       # - On macOS, we need to patch `cargo` so it uses dynamic libs from
       #   nixpkgs. Otherwise it doesn't work in the sandbox.
@@ -69,27 +72,30 @@
       });
 
   # Instantiate the rust toolchain from our `rust-toolchain.toml`.
-  rustLexeToolchain = let
-    fenixToolchainUnpatched = fenixPkgs.combine [
-      fenixPkgs.stable.rustc
-      fenixPkgs.stable.cargo
-      fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
-    ];
+  rustLexeToolchain =
+    let
+      fenixToolchainUnpatched = fenixPkgs.combine [
+        fenixPkgs.stable.rustc
+        fenixPkgs.stable.cargo
+        fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
+      ];
 
-    # make fenix Rust work in build sandbox on macOS
-    fenixToolchain = patchFenixRustToolchainIfMacOS fenixToolchainUnpatched;
+      # make fenix Rust work in build sandbox on macOS
+      fenixToolchain = patchFenixRustToolchainIfMacOS fenixToolchainUnpatched;
 
-    # HACK: get the actual rustc version from the fenix toolchain dl url
-    # ex: `url = "https://static.rust-lang.org/dist/2024-08-08/cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
-    #     `dlFile = "cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
-    url = fenixPkgs.stable.cargo.src.url;
-    dlFile = builtins.baseNameOf url;
-    fenixToolchainVersion = builtins.elemAt (builtins.split "-" dlFile) 2;
+      # HACK: get the actual rustc version from the fenix toolchain dl url
+      # ex: `url = "https://static.rust-lang.org/dist/2024-08-08/cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
+      #     `dlFile = "cargo-1.80.1-x86_64-unknown-linux-gnu.tar.gz"`
+      url = fenixPkgs.stable.cargo.src.url;
+      dlFile = builtins.baseNameOf url;
+      fenixToolchainVersion = builtins.elemAt (builtins.split "-" dlFile) 2;
 
-    # parse our `rust-toolchain.toml` file and get the expected version
-    rustToolchainToml = builtins.fromTOML (builtins.readFile ../../rust-toolchain.toml);
-    rustToolchainVersion = rustToolchainToml.toolchain.channel;
-  in
+      # parse our `rust-toolchain.toml` file and get the expected version
+      rustToolchainToml = builtins.fromTOML (
+        builtins.readFile ../../rust-toolchain.toml
+      );
+      rustToolchainVersion = rustToolchainToml.toolchain.channel;
+    in
     # assert that the fenix stable toolchain uses our expected version
     assert lib.assertMsg (fenixToolchainVersion == rustToolchainVersion) ''
       The stable rust toolchain from fenix doesn't match rust-toolchain.toml:
@@ -99,7 +105,8 @@
        `>  rust-toolchain.toml: ${rustToolchainVersion}
 
       Suggestion: update rust-toolchain.toml with `channel = "${rustToolchainVersion}"`.
-    ''; fenixToolchain;
+    '';
+    fenixToolchain;
 
   # `crane` cargo builder instantiated with our rust toolchain settings.
   craneLib = (crane.mkLib pkgs).overrideToolchain rustLexeToolchain;
@@ -111,14 +118,9 @@
     root = workspaceRoot;
     fileset = fileset.unions [
       # sort by frequency
-      (fileset.fileFilter
-        (
-          file:
-            file.hasExt "rs"
-            || file.name == "Cargo.toml"
-            || file.hasExt "der"
-        )
-        workspaceRoot)
+      (fileset.fileFilter (
+        file: file.hasExt "rs" || file.name == "Cargo.toml" || file.hasExt "der"
+      ) workspaceRoot)
       ../../.cargo/config.toml
       ../../Cargo.lock
     ];
@@ -153,29 +155,43 @@
   # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.x86_64-linux.cargoVendorDir
   # ```
   gitDepOutputHashes = {
-    "git+https://github.com/arik-so/rust-musig2?rev=6f95a05718cbb44d8fe3fa6021aea8117aa38d50#6f95a05718cbb44d8fe3fa6021aea8117aa38d50" = "sha256-+ksLhW4rXHDmi6xkPHrWAUdMvkm1cM/PBuJUnTt0vQk=";
-    "git+https://github.com/lexe-app/axum-server?branch=lexe-v0.7.3-2025_12_04#afb0632485455e213e914c42776e12a4d3b6a232" = "sha256-BDbo0999cMrdylq3D374D8GN1aNcdfPxkrmSXJAoLpU=";
-    "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.19-2025_12_04#ac96c4a51331a761d6b6011e877f314507b48ff9" = "sha256-TEl8qdOjYgHgMBbY/+11w7/UuiyY5gohJIwcS5XakTI=";
-    "git+https://github.com/lexe-app/mio?branch=lexe-v0.8.11-2025_12_02#d809a53d80f7557d12b44881034b50d79f740698" = "sha256-HLkS76Zk6s+MM+2nMyrcZEDKksF0Wlxnnu7gKv4pxTs=";
-    "git+https://github.com/lexe-app/nostr?branch=lexe-v0.44.0-2025_11_11#486d5a6ee6392f460ee78ea5b69485af7c5cb082" = "sha256-FOzvw2NBwSTwNsxSOF89+QaMf+j6GVpCZPfR1Fknuro=";
-    "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.12.24-2025_12_04#dea2dd7a1d3c52e50d1c47803fdc57d73e35c769" = "sha256-XgYqHZE/u9aXntD42wgs6NF5rNQcH5XEeptYxYDVMaY=";
-    "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.14-2025_11_21#635168c625c71576269cc067e8d372b9682a6472" = "sha256-s3K9C3YFiMTiwxcJwBwOY3NeL3oKNrAmkt31vB7LIv8=";
-    "git+https://github.com/lexe-app/rust-bip39?branch=lexe-v2.1.0-2025_06_12#81bdf38b89ea9542c7da849a9bba262bcb7cce34" = "sha256-0hvKvNNokzXHPNZmGEN2oqhc15khCrfsiGxDEfb3FFY=";
-    "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.0-2025_06_12#3fae9cdd82ce36aca6950a5614536de98f466a69" = "sha256-kDdRH6eXljD8gULyVOQUqYo51UgNmoMxZOTHyiLuvoo=";
-    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.7-2025_11_19#06ab758176885c272dd149e2457969eb8ddb815e" = "sha256-+7EFsJpuLZgdJ1RE2PzsOhUhrtA7yoNkLf1qh97vrPA=";
-    "git+https://github.com/lexe-app/rust-sgx?branch=lexe-67ae4d2-2025_12_02#67ae4d2f0033a2a8b30ee555be779225ee4c2eae" = "sha256-P4tDEGBiOkKaAx8gJD8tLvvrB+GDhEoZ+3jVdFJjTz0=";
-    "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" = "sha256-ZUoZHJC9OZthqtFKu4WdrBgyr7QSKxoQCCUtcOc9kvU=";
+    "git+https://github.com/arik-so/rust-musig2?rev=6f95a05718cbb44d8fe3fa6021aea8117aa38d50#6f95a05718cbb44d8fe3fa6021aea8117aa38d50" =
+      "sha256-+ksLhW4rXHDmi6xkPHrWAUdMvkm1cM/PBuJUnTt0vQk=";
+    "git+https://github.com/lexe-app/axum-server?branch=lexe-v0.7.3-2025_12_04#afb0632485455e213e914c42776e12a4d3b6a232" =
+      "sha256-BDbo0999cMrdylq3D374D8GN1aNcdfPxkrmSXJAoLpU=";
+    "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.19-2025_12_04#ac96c4a51331a761d6b6011e877f314507b48ff9" =
+      "sha256-TEl8qdOjYgHgMBbY/+11w7/UuiyY5gohJIwcS5XakTI=";
+    "git+https://github.com/lexe-app/mio?branch=lexe-v0.8.11-2025_12_02#d809a53d80f7557d12b44881034b50d79f740698" =
+      "sha256-HLkS76Zk6s+MM+2nMyrcZEDKksF0Wlxnnu7gKv4pxTs=";
+    "git+https://github.com/lexe-app/nostr?branch=lexe-v0.44.0-2025_11_11#486d5a6ee6392f460ee78ea5b69485af7c5cb082" =
+      "sha256-FOzvw2NBwSTwNsxSOF89+QaMf+j6GVpCZPfR1Fknuro=";
+    "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.12.24-2025_12_04#dea2dd7a1d3c52e50d1c47803fdc57d73e35c769" =
+      "sha256-XgYqHZE/u9aXntD42wgs6NF5rNQcH5XEeptYxYDVMaY=";
+    "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.14-2025_11_21#635168c625c71576269cc067e8d372b9682a6472" =
+      "sha256-s3K9C3YFiMTiwxcJwBwOY3NeL3oKNrAmkt31vB7LIv8=";
+    "git+https://github.com/lexe-app/rust-bip39?branch=lexe-v2.1.0-2025_06_12#81bdf38b89ea9542c7da849a9bba262bcb7cce34" =
+      "sha256-0hvKvNNokzXHPNZmGEN2oqhc15khCrfsiGxDEfb3FFY=";
+    "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.0-2025_06_12#3fae9cdd82ce36aca6950a5614536de98f466a69" =
+      "sha256-kDdRH6eXljD8gULyVOQUqYo51UgNmoMxZOTHyiLuvoo=";
+    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.7-2025_11_19#06ab758176885c272dd149e2457969eb8ddb815e" =
+      "sha256-+7EFsJpuLZgdJ1RE2PzsOhUhrtA7yoNkLf1qh97vrPA=";
+    "git+https://github.com/lexe-app/rust-sgx?branch=lexe-67ae4d2-2025_12_02#67ae4d2f0033a2a8b30ee555be779225ee4c2eae" =
+      "sha256-P4tDEGBiOkKaAx8gJD8tLvvrB+GDhEoZ+3jVdFJjTz0=";
+    "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" =
+      "sha256-ZUoZHJC9OZthqtFKu4WdrBgyr7QSKxoQCCUtcOc9kvU=";
   };
 
   # Quickly fetch a gitdep with its output hash using `pkgs.fetchFromGitHub`.
-  fetchGitDep = source: hash: let
-    inherit (builtins) elemAt match substring;
-    matches = match "git\\+https://github.com/([^/]+)/([^/?]+)\\?.*#([0-9a-f]{40})" source;
-    owner = elemAt matches 0;
-    repo = elemAt matches 1;
-    rev = elemAt matches 2;
-    shortRev = substring 0 8 rev;
-  in
+  fetchGitDep =
+    source: hash:
+    let
+      inherit (builtins) elemAt match substring;
+      matches = match "git\\+https://github.com/([^/]+)/([^/?]+)\\?.*#([0-9a-f]{40})" source;
+      owner = elemAt matches 0;
+      repo = elemAt matches 1;
+      rev = elemAt matches 2;
+      shortRev = substring 0 8 rev;
+    in
     pkgs.fetchFromGitHub {
       name = "${repo}-${shortRev}-source";
       owner = owner;
@@ -195,30 +211,34 @@
 
   # for debugging fetcher reproducibility issues...
   # $ nix build --repair --keep-failed --show-trace .#_dbg.systemLexePubPkgs.x86_64-linux._gitDepOutputsDebugging.ring-6aad0035-source
-  _gitDepOutputsDebugging = builtins.listToAttrs (builtins.map (drv: {
-    name = drv.name;
-    value = drv;
-  }) (builtins.attrValues gitDepOutputs));
+  _gitDepOutputsDebugging = builtins.listToAttrs (
+    builtins.map (drv: {
+      name = drv.name;
+      value = drv;
+    }) (builtins.attrValues gitDepOutputs)
+  );
 
   # A function to vendor all cargo dependencies from a Cargo.lock file.
-  vendorCargoDeps = {
-    cargoLock ? throw "Requires oneof `cargoLock`, `cargoLockContents`, `cargoLockParsed`",
-    cargoLockContents ? builtins.readFile cargoLock,
-    cargoLockParsed ? builtins.fromTOML cargoLockContents,
-    gitDepOutputHashes ? {},
-    gitDepOutputs ? builtins.mapAttrs fetchGitDep gitDepOutputHashes,
-  }:
+  vendorCargoDeps =
+    {
+      cargoLock ? throw "Requires oneof `cargoLock`, `cargoLockContents`, `cargoLockParsed`",
+      cargoLockContents ? builtins.readFile cargoLock,
+      cargoLockParsed ? builtins.fromTOML cargoLockContents,
+      gitDepOutputHashes ? { },
+      gitDepOutputs ? builtins.mapAttrs fetchGitDep gitDepOutputHashes,
+    }:
     craneLib.vendorMultipleCargoDeps {
-      cargoConfigs = []; # only used if we have custom registries
-      cargoLockParsedList = [cargoLockParsed];
+      cargoConfigs = [ ]; # only used if we have custom registries
+      cargoLockParsedList = [ cargoLockParsed ];
       outputHashes = gitDepOutputHashes;
       overrideVendorCargoPackage = _ps: drv: drv;
-      overrideVendorGitCheckout = ps: drv: let
-        # A git-dep [[package]] entry in the `Cargo.lock`
-        package = builtins.head ps;
-      in
-        if !(gitDepOutputs ? ${package.source})
-        then
+      overrideVendorGitCheckout =
+        ps: drv:
+        let
+          # A git-dep [[package]] entry in the `Cargo.lock`
+          package = builtins.head ps;
+        in
+        if !(gitDepOutputs ? ${package.source}) then
           builtins.throw ''
             Error: missing an output hash for this cargo git dependency: ${builtins.toJSON package}
 
@@ -231,7 +251,8 @@
               # ...
             };
           ''
-        else drv.overrideAttrs {src = gitDepOutputs.${package.source};};
+        else
+          drv.overrideAttrs { src = gitDepOutputs.${package.source}; };
     };
 
   # Download and vendor all cargo deps from the workspace Cargo.lock into the
@@ -246,7 +267,7 @@
   llvmPackages = pkgs.llvmPackages_latest;
 
   # Shim a small set of libc fns so we can cross-compile SGX without glibc.
-  sgx-libc-shim = pkgs.callPackage ./sgx-libc-shim.nix {};
+  sgx-libc-shim = pkgs.callPackage ./sgx-libc-shim.nix { };
 
   # Inject env vars for cross-compiling to SGX into your `buildPhase`.
   sgxCrossEnvBuildHook = pkgs.callPackage ./sgxCrossEnvBuildHook.nix {
@@ -257,7 +278,13 @@
   # caching with `sccache`. Use this for builds that don't require 100%
   # reproducibility.
   buildRustSccache = pkgs.callPackage ./buildRustSccache.nix {
-    inherit craneLib cargoVendorDir lexePubLib srcRust workspaceVersion;
+    inherit
+      craneLib
+      cargoVendorDir
+      lexePubLib
+      srcRust
+      workspaceVersion
+      ;
   };
 
   # bitcoind - Bitcoin core wallet (just an alias)
@@ -267,11 +294,21 @@
   blockstream-electrs = pkgs.blockstream-electrs;
 
   # rust-sgx repo source
-  rustSgxCargoSource = let
-    inherit (builtins) attrNames filter head match;
-    gitDepSources = attrNames gitDepOutputHashes;
-  in
-    head (filter (source: (match ".*/lexe-app/rust-sgx\\?.*" source) != null) gitDepSources);
+  rustSgxCargoSource =
+    let
+      inherit (builtins)
+        attrNames
+        filter
+        head
+        match
+        ;
+      gitDepSources = attrNames gitDepOutputHashes;
+    in
+    head (
+      filter (
+        source: (match ".*/lexe-app/rust-sgx\\?.*" source) != null
+      ) gitDepSources
+    );
   rustSgxSrc = gitDepOutputs.${rustSgxCargoSource};
   rustSgxCargoVendorDir = vendorCargoDeps {
     cargoLock = rustSgxSrc + "/Cargo.lock";
@@ -297,7 +334,13 @@
 
   # Generic builder for Rust SGX crates.
   buildRustSgxPackage = pkgs.callPackage ./buildRustSgxPackage.nix {
-    inherit craneLib cargoVendorDir srcRust sgxCrossEnvBuildHook elf2sgxsFixupHook;
+    inherit
+      craneLib
+      cargoVendorDir
+      srcRust
+      sgxCrossEnvBuildHook
+      elf2sgxsFixupHook
+      ;
   };
 
   # User's node SGX enclave
@@ -353,33 +396,39 @@
   #
   # We use this for Apple dev toolchains, where nixpkgs's `stdenv` clobbers
   # several things that we need to get from the system instead.
-  mkMinShell = {
-    name,
-    packages ? [],
-    env ? {},
-    shellHook ? "",
-  }: let
-    # Need to filter out attrNames used above so we don't accidentally clobber
-    # TODO(phlip9): make this an assert
-    envClean = builtins.removeAttrs env [
-      "args"
-      "builder"
-      "name"
-      "outputs"
-      "packages"
-      "shellHook"
-      "stdenv"
-      "system"
-    ];
-  in
-    builtins.derivation ({
+  mkMinShell =
+    {
+      name,
+      packages ? [ ],
+      env ? { },
+      shellHook ? "",
+    }:
+    let
+      # Need to filter out attrNames used above so we don't accidentally clobber
+      # TODO(phlip9): make this an assert
+      envClean = builtins.removeAttrs env [
+        "args"
+        "builder"
+        "name"
+        "outputs"
+        "packages"
+        "shellHook"
+        "stdenv"
+        "system"
+      ];
+    in
+    builtins.derivation (
+      {
         name = name;
         system = pkgs.hostPlatform.system;
         builder = "${pkgs.bash}/bin/bash";
-        outputs = ["out"];
+        outputs = [ "out" ];
         # The args are ignored in `nix develop`, but we need to create an output
         # to pass CI, which just builds the derivation.
-        args = ["-c" "echo -n '' > $out"];
+        args = [
+          "-c"
+          "echo -n '' > $out"
+        ];
 
         # Explanation:
         #
@@ -401,7 +450,8 @@
         packages = packages;
         shellHook = shellHook;
       }
-      // envClean);
+      // envClean
+    );
 
   #
   # app
@@ -467,7 +517,10 @@
   # , extraLicenses ? [ ],
   # }:
   androidSdkComposition = pkgsUnfree.androidenv.composeAndroidPackages rec {
-    abiVersions = ["armeabi-v7a" "arm64-v8a"];
+    abiVersions = [
+      "armeabi-v7a"
+      "arm64-v8a"
+    ];
     platformVersions = [
       "35" # lexe
       "34" # app_links, flutter_zxing -> camera_android_camerax
@@ -481,7 +534,7 @@
     ndkVersions = [
       ndkVersion # lexe, flutter_zxing
     ];
-    cmakeVersions = ["3.22.1"]; # flutter_zxing
+    cmakeVersions = [ "3.22.1" ]; # flutter_zxing
   };
 
   # Links all the toolchains/libs/bins/etc in our chosen `androidSdkComposition`

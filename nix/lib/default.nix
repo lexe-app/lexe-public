@@ -1,7 +1,8 @@
 # `lexeLib`
 #
 # nix-only library code that doesn't depend on packages.
-{lib}: rec {
+{ lib }:
+rec {
   # supported host systems
   systems = [
     "x86_64-linux"
@@ -41,18 +42,21 @@
   # > regexReplaceAll "--bin( |=)[^ ]+" "" inputStr
   # "--package=run-sgx  --locked --offline"
   # ```
-  regexReplaceAll = regex: replacement: inputStr: let
-    inherit (builtins) concatStringsSep isString map split;
+  regexReplaceAll =
+    regex: replacement: inputStr:
+    let
+      inherit (builtins)
+        concatStringsSep
+        isString
+        map
+        split
+        ;
 
-    # ex: inputStr = "foo bar baz", regex = "bar" => [ "foo " ["bar"] " baz" ]
-    splits = split regex inputStr;
+      # ex: inputStr = "foo bar baz", regex = "bar" => [ "foo " ["bar"] " baz" ]
+      splits = split regex inputStr;
 
-    matchesReplaced = map (s:
-      if isString s
-      then s
-      else replacement)
-    splits;
-  in
+      matchesReplaced = map (s: if isString s then s else replacement) splits;
+    in
     concatStringsSep "" matchesReplaced;
 
   # mkPkgsUnfree :: NixpkgsFlakeInput -> String -> NixpkgsPackageSet
@@ -60,28 +64,31 @@
   # Builds a `pkgs` set that allows unfree packages, like the Android SDK.
   # Only used for building the Android app. We keep this as a separate package
   # set for eval efficiency.
-  mkPkgsUnfree = nixpkgsFlake: system:
+  mkPkgsUnfree =
+    nixpkgsFlake: system:
     import nixpkgsFlake {
       system = system;
-      config = let
-        allowed = {
-          android-sdk-build-tools = null;
-          android-sdk-cmdline-tools = null;
-          android-sdk-ndk = null;
-          android-sdk-platform-tools = null;
-          android-sdk-platforms = null;
-          android-sdk-tools = null;
-          build-tools = null;
-          cmake = null;
-          cmdline-tools = null;
-          ndk = null;
-          platform-tools = null;
-          platforms = null;
-          tools = null;
+      config =
+        let
+          allowed = {
+            android-sdk-build-tools = null;
+            android-sdk-cmdline-tools = null;
+            android-sdk-ndk = null;
+            android-sdk-platform-tools = null;
+            android-sdk-platforms = null;
+            android-sdk-tools = null;
+            build-tools = null;
+            cmake = null;
+            cmdline-tools = null;
+            ndk = null;
+            platform-tools = null;
+            platforms = null;
+            tools = null;
+          };
+        in
+        {
+          android_sdk.accept_license = true;
+          allowUnfreePredicate = pkg: allowed ? ${lib.getName pkg};
         };
-      in {
-        android_sdk.accept_license = true;
-        allowUnfreePredicate = pkg: allowed ? ${lib.getName pkg};
-      };
     };
 }

@@ -39,6 +39,6 @@ buildRustSccache {
   ];
 
   meta = {
-    platforms = ["x86_64-linux"];
+    platforms = [ "x86_64-linux" ];
   };
 }

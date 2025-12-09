@@ -12,7 +12,8 @@
   # lexePkgs
   #
   sgx-libc-shim,
-}: let
+}:
+let
   # Use the base, "unwrapped" clang toolchain without all the nix
   # cross-compiling magic.
   #
@@ -30,9 +31,11 @@
     "-isystem ${sgx-libc-shim}/include"
   ];
 in
-  makeSetupHook {
+makeSetupHook
+  {
     name = "sgxCrossEnvBuildHook";
-  } (
+  }
+  (
     writeShellScript "sgxCrossEnvBuildHook.sh" ''
       sgxCrossEnvBuildHook() {
         # Use llvm toolchain for sgx since it's significantly better for

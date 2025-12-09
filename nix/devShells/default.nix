@@ -3,7 +3,8 @@
   lib,
   pkgs,
   lexePubPkgs,
-}: {
+}:
+{
   #
   # app
   #
@@ -59,7 +60,10 @@
     meta = {
       # Missing: aarch64-linux
       # Reason: Android SDK doesn't provide pre-built binaries for it.
-      platforms = ["x86_64-linux" "aarch64-darwin"];
+      platforms = [
+        "x86_64-linux"
+        "aarch64-darwin"
+      ];
     };
   };
 
@@ -198,6 +202,6 @@
   # compile Rust SGX enclaves
   sgx = pkgs.mkShell {
     name = "sgx";
-    inputsFrom = [lexePubPkgs.node-release-sgx];
+    inputsFrom = [ lexePubPkgs.node-release-sgx ];
   };
 }

@@ -27,50 +27,57 @@
     };
   };
 
-  outputs = {self, ...} @ inputs: let
-    lib = inputs.nixpkgs.lib;
-    lexePubLib = import ./nix/lib/default.nix {lib = lib;};
-    eachSystem = lexePubLib.eachSystem;
+  outputs =
+    { self, ... }@inputs:
+    let
+      lib = inputs.nixpkgs.lib;
+      lexePubLib = import ./nix/lib/default.nix { lib = lib; };
+      eachSystem = lexePubLib.eachSystem;
 
-    # The "host" nixpkgs set for each system.
-    #
-    # ```
-    # {
-    #   "aarch64-darwin" = <pkgs>;
-    #   "x86_64-linux" = <pkgs>;
-    # }
-    # ```
-    systemPkgs = inputs.nixpkgs.legacyPackages;
+      # The "host" nixpkgs set for each system.
+      #
+      # ```
+      # {
+      #   "aarch64-darwin" = <pkgs>;
+      #   "x86_64-linux" = <pkgs>;
+      # }
+      # ```
+      systemPkgs = inputs.nixpkgs.legacyPackages;
 
-    # Host nixpkgs set that allows "unfree" packages, like the Android SDK.
-    # Only used for building the Android app.
-    systemPkgsUnfree = eachSystem (system: lexePubLib.mkPkgsUnfree inputs.nixpkgs system);
+      # Host nixpkgs set that allows "unfree" packages, like the Android SDK.
+      # Only used for building the Android app.
+      systemPkgsUnfree = eachSystem (
+        system: lexePubLib.mkPkgsUnfree inputs.nixpkgs system
+      );
 
-    # eachSystemPkgs :: (builder :: Nixpkgs -> AttrSet) -> AttrSet
-    eachSystemPkgs = builder: eachSystem (system: builder systemPkgs.${system});
+      # eachSystemPkgs :: (builder :: Nixpkgs -> AttrSet) -> AttrSet
+      eachSystemPkgs = builder: eachSystem (system: builder systemPkgs.${system});
 
-    # All lexe public monorepo packages and package helpers, for each host
-    # system.
-    systemLexePubPkgs = eachSystem (system:
-      import ./nix/pkgs/default.nix {
-        lib = inputs.nixpkgs.lib;
-        pkgs = systemPkgs.${system};
-        pkgsUnfree = systemPkgsUnfree.${system};
-        crane = inputs.crane;
-        fenixPkgs = inputs.fenix.packages.${system};
-        lexePubLib = lexePubLib;
-      });
-  in {
-    # The exposed lexe public monorepo packages.
-    # ex: `nix build .#node-release-sgx`
-    # ex: `nix run .#ftxsgx-elf2sgxs -- ...`
-    packages = eachSystem (
-      system: let
-        lexePubPkgs = systemLexePubPkgs.${system};
-      in
+      # All lexe public monorepo packages and package helpers, for each host
+      # system.
+      systemLexePubPkgs = eachSystem (
+        system:
+        import ./nix/pkgs/default.nix {
+          lib = inputs.nixpkgs.lib;
+          pkgs = systemPkgs.${system};
+          pkgsUnfree = systemPkgsUnfree.${system};
+          crane = inputs.crane;
+          fenixPkgs = inputs.fenix.packages.${system};
+          lexePubLib = lexePubLib;
+        }
+      );
+    in
+    {
+      # The exposed lexe public monorepo packages.
+      # ex: `nix build .#node-release-sgx`
+      # ex: `nix run .#ftxsgx-elf2sgxs -- ...`
+      packages = eachSystem (
+        system:
+        let
+          lexePubPkgs = systemLexePubPkgs.${system};
+        in
         {
-          inherit
-            (lexePubPkgs)
+          inherit (lexePubPkgs)
             bitcoind
             blockstream-electrs
             ftxsgx-elf2sgxs
@@ -81,52 +88,54 @@
             ;
         }
         // lib.optionalAttrs (system == "x86_64-linux") {
-          inherit
-            (lexePubPkgs)
+          inherit (lexePubPkgs)
             run-sgx
             run-sgx-test
             sgx-detect
             sgx-test
             ;
         }
-    );
+      );
 
-    # lexe development shells
-    # ex: `nix develop`
-    devShells = eachSystem (system: let
-      lib = inputs.nixpkgs.lib;
-      pkgs = systemPkgs.${system};
-      lexePubPkgs = systemLexePubPkgs.${system};
-      lexePubDevShells = import ./nix/devShells {
-        lib = lib;
-        pkgs = pkgs;
-        lexePubPkgs = lexePubPkgs;
-      };
-    in
-      rec {
-        # The default dev shell for `nix develop`.
-        default = sgx;
+      # lexe development shells
+      # ex: `nix develop`
+      devShells = eachSystem (
+        system:
+        let
+          lib = inputs.nixpkgs.lib;
+          pkgs = systemPkgs.${system};
+          lexePubPkgs = systemLexePubPkgs.${system};
+          lexePubDevShells = import ./nix/devShells {
+            lib = lib;
+            pkgs = pkgs;
+            lexePubPkgs = lexePubPkgs;
+          };
+        in
+        rec {
+          # The default dev shell for `nix develop`.
+          default = sgx;
 
-        # compile Rust SGX enclaves
-        sgx = lexePubDevShells.sgx;
+          # compile Rust SGX enclaves
+          sgx = lexePubDevShells.sgx;
 
-        #
-        # app
-        #
+          #
+          # app
+          #
 
-        # app flutter_rust_bridge codegen
-        app-rs-codegen = lexePubDevShells.app-rs-codegen;
+          # app flutter_rust_bridge codegen
+          app-rs-codegen = lexePubDevShells.app-rs-codegen;
 
-        # Android app development toolchains
-        app-android = lexePubDevShells.app-android;
-      }
-      // lib.optionalAttrs pkgs.hostPlatform.isDarwin {
-        # iOS/macOS app development toolchains
-        app-ios-macos = lexePubDevShells.app-ios-macos;
-      });
+          # Android app development toolchains
+          app-android = lexePubDevShells.app-android;
+        }
+        // lib.optionalAttrs pkgs.hostPlatform.isDarwin {
+          # iOS/macOS app development toolchains
+          app-ios-macos = lexePubDevShells.app-ios-macos;
+        }
+      );
 
-    # The *.nix file formatter.
-    # Run with `nix fmt`.
-    formatter = eachSystem (system: systemLexePubPkgs.${system}.nixfmt-tree);
-  };
+      # The *.nix file formatter.
+      # Run with `nix fmt`.
+      formatter = eachSystem (system: systemLexePubPkgs.${system}.nixfmt-tree);
+    };
 }

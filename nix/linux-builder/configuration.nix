@@ -8,7 +8,8 @@
   modulesPath,
   pkgs,
   ...
-}: {
+}:
+{
   #
   # ORBSTACK DEFAULT SETTINGS
   #
@@ -34,7 +35,7 @@
   # activation for this to work.
   users.users."{{ username }}" = {
     uid = 501;
-    extraGroups = ["wheel"];
+    extraGroups = [ "wheel" ];
 
     # simulate isNormalUser, but with an arbitrary UID
     isSystemUser = true;
@@ -108,7 +109,7 @@
 
   nix = {
     # Add all members of the `wheel` group to nix trusted-users.
-    settings.trusted-users = ["@wheel"];
+    settings.trusted-users = [ "@wheel" ];
 
     # Extra /etc/nix/nix.conf options.
     extraOptions = ''
@@ -157,9 +158,9 @@
   # automatically generate a signing key for the VM's local nix store at startup
   # if it doesn't exist already.
   systemd.services.generate-nix-store-signing-key = {
-    wantedBy = ["multi-user.target"];
+    wantedBy = [ "multi-user.target" ];
     serviceConfig.Type = "oneshot";
-    path = [pkgs.nix];
+    path = [ pkgs.nix ];
     script = ''
       [[ -f /etc/nix/store-signing-key ]] && exit
       nix-store --generate-binary-cache-key \

@@ -37,9 +37,10 @@ let
   cargoTomlParsed = builtins.fromTOML cargoTomlContents;
   crateInfo = cargoTomlParsed.package;
   crateVersion =
-    if (crateInfo.version.workspace or false)
-    then throw "SGX crates must not use `version.workspace = true`"
-    else crateInfo.version;
+    if (crateInfo.version.workspace or false) then
+      throw "SGX crates must not use `version.workspace = true`"
+    else
+      crateInfo.version;
 
   pname = crateInfo.name;
 
@@ -71,21 +72,26 @@ let
     ];
 
     # build and runtime dependencies
-    buildInputs = [];
+    buildInputs = [ ];
 
     # args passed to `cargo build`
     cargoExtraArgs = builtins.concatStringsSep " " (
-      ["--offline" "--locked" "--package=${pname}"]
-      ++ (lib.optionals isSgx ["--target=x86_64-fortanix-unknown-sgx"])
-      ++ (lib.optionals isVerbose ["-vv"])
+      [
+        "--offline"
+        "--locked"
+        "--package=${pname}"
+      ]
+      ++ (lib.optionals isSgx [ "--target=x86_64-fortanix-unknown-sgx" ])
+      ++ (lib.optionals isVerbose [ "-vv" ])
     );
 
     CARGO_PROFILE =
-      if (isRelease && isSgx)
-      then "release-sgx"
-      else if isRelease
-      then "release"
-      else "dev";
+      if (isRelease && isSgx) then
+        "release-sgx"
+      else if isRelease then
+        "release"
+      else
+        "dev";
 
     # We use `cargo`'s built-in stripping via the `release-sgx` profile.
     dontStrip = isSgx;
@@ -103,20 +109,20 @@ let
 
   depsOnly = craneLib.buildDepsOnly commonPackageArgs;
 in
-  craneLib.buildPackage (
-    commonPackageArgs
-    // {
-      cargoArtifacts = depsOnly;
+craneLib.buildPackage (
+  commonPackageArgs
+  // {
+    cargoArtifacts = depsOnly;
 
-      nativeBuildInputs =
-        commonPackageArgs.nativeBuildInputs
-        ++ (lib.optionals isSgx [
-          (elf2sgxsFixupHook {cargoTomlParsed = cargoTomlParsed;})
-        ]);
+    nativeBuildInputs =
+      commonPackageArgs.nativeBuildInputs
+      ++ (lib.optionals isSgx [
+        (elf2sgxsFixupHook { cargoTomlParsed = cargoTomlParsed; })
+      ]);
 
-      postFixup = ''
-        echo "ELF binary hash: $(sha256sum < $out/bin/${pname})"
-        echo "ELF binary size: $(stat --format='%s' $out/bin/${pname})"
-      '';
-    }
-  )
+    postFixup = ''
+      echo "ELF binary hash: $(sha256sum < $out/bin/${pname})"
+      echo "ELF binary size: $(stat --format='%s' $out/bin/${pname})"
+    '';
+  }
+)
