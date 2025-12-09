@@ -10,7 +10,7 @@ use common::{
 use lexe_api::{
     models::command::PayOnchainRequest,
     types::payments::{
-        ClientPaymentId, LxPaymentId, PaymentClass, PaymentKind,
+        ClientPaymentId, LxPaymentId, PaymentClass, PaymentRail,
     },
 };
 #[cfg(test)]
@@ -106,7 +106,7 @@ impl OnchainSendV2 {
         class: PaymentClass,
         onchain_fee: Amount,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_parent_kind(PaymentKind::Onchain)?;
+        class.expect_rail(PaymentRail::Onchain)?;
 
         // Destructure to ensure we don't miss any fields.
         let PayOnchainRequest {
@@ -342,7 +342,7 @@ impl OnchainReceiveV2 {
         class: PaymentClass,
         amount: Amount,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_parent_kind(PaymentKind::Onchain)?;
+        class.expect_rail(PaymentRail::Onchain)?;
 
         let txid = LxTxid(tx.compute_txid());
         let or = Self {
@@ -469,7 +469,7 @@ mod arbitrary_impl {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let any_tx = arbitrary::any_raw_tx();
             let any_req = any::<PayOnchainRequest>();
-            let any_class = PaymentKind::Onchain.any_child_class();
+            let any_class = PaymentRail::Onchain.any_child_class();
             let any_fees = any::<Amount>();
             let any_is_broadcasted = proptest::bool::weighted(0.8);
             // TODO(max): Make optional once payment_encryption_roundtrip tests
@@ -536,7 +536,7 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let any_tx = arbitrary::any_raw_tx();
-            let any_class = PaymentKind::Onchain.any_child_class();
+            let any_class = PaymentRail::Onchain.any_child_class();
             let any_amount = any::<Amount>();
             // TODO(max): Make optional once payment_encryption_roundtrip tests
             // with PaymentV2 only. Currently must be non-optional because the

@@ -14,7 +14,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         BasicPaymentV1, LxOfferId, LxPaymentId, PaymentCreatedIndex,
-        PaymentDirection, PaymentKind, PaymentStatus,
+        PaymentDirection, PaymentRail, PaymentStatus,
     },
 };
 #[cfg(test)]
@@ -272,7 +272,7 @@ impl From<PaymentV1> for BasicPaymentV1 {
     fn from(p: PaymentV1) -> Self {
         Self {
             index: p.index(),
-            kind: p.kind(),
+            rail: p.rail(),
             direction: p.direction(),
             invoice: p.invoice(),
             offer_id: p.offer_id(),
@@ -304,19 +304,19 @@ impl PaymentV1 {
     ) -> lexe_api::types::payments::BasicPaymentV2 {
         use lexe_api::types::payments::PaymentClass;
 
-        let class = match self.kind() {
-            PaymentKind::Onchain => PaymentClass::Onchain,
-            PaymentKind::Invoice => PaymentClass::Invoice,
-            PaymentKind::Offer => PaymentClass::Offer,
-            PaymentKind::Spontaneous => PaymentClass::Spontaneous,
+        let class = match self.rail() {
+            PaymentRail::Onchain => PaymentClass::Onchain,
+            PaymentRail::Invoice => PaymentClass::Invoice,
+            PaymentRail::Offer => PaymentClass::Offer,
+            PaymentRail::Spontaneous => PaymentClass::Spontaneous,
             // V1 payments should never have these kinds
-            PaymentKind::WaivedFee => unreachable!(),
+            PaymentRail::WaivedFee => unreachable!(),
         };
 
         lexe_api::types::payments::BasicPaymentV2 {
             id: self.id(),
             related_ids: HashSet::new(),
-            kind: self.kind(),
+            kind: self.rail(),
             class,
             direction: self.direction(),
             offer_id: self.offer_id(),
@@ -365,16 +365,16 @@ impl PaymentV1 {
     }
 
     /// Whether this is an onchain payment, LN invoice payment, etc.
-    pub fn kind(&self) -> PaymentKind {
+    pub fn rail(&self) -> PaymentRail {
         match self {
-            Self::OnchainSend(_) => PaymentKind::Onchain,
-            Self::OnchainReceive(_) => PaymentKind::Onchain,
-            Self::InboundInvoice(_) => PaymentKind::Invoice,
-            Self::InboundOfferReusable(_) => PaymentKind::Offer,
-            Self::InboundSpontaneous(_) => PaymentKind::Spontaneous,
-            Self::OutboundInvoice(_) => PaymentKind::Invoice,
-            Self::OutboundOffer(_) => PaymentKind::Offer,
-            Self::OutboundSpontaneous(_) => PaymentKind::Spontaneous,
+            Self::OnchainSend(_) => PaymentRail::Onchain,
+            Self::OnchainReceive(_) => PaymentRail::Onchain,
+            Self::InboundInvoice(_) => PaymentRail::Invoice,
+            Self::InboundOfferReusable(_) => PaymentRail::Offer,
+            Self::InboundSpontaneous(_) => PaymentRail::Spontaneous,
+            Self::OutboundInvoice(_) => PaymentRail::Invoice,
+            Self::OutboundOffer(_) => PaymentRail::Offer,
+            Self::OutboundSpontaneous(_) => PaymentRail::Spontaneous,
         }
     }
 

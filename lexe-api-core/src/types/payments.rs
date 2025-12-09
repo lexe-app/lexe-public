@@ -62,10 +62,12 @@ pub struct BasicPaymentV2 {
     )]
     pub related_ids: HashSet<LxPaymentId>,
 
-    /// Payment kind: onchain, invoice, offer, or spontaneous.
-    pub kind: PaymentKind,
+    /// Payment kind: invoice, offer, waived channel fee, etc.
+    // TODO(max): Replace with application-level kind
+    pub kind: PaymentRail,
 
     /// Payment class: a more granular subcategory of a payment kind.
+    // TODO(max): Remove, put in the kind field
     pub class: PaymentClass,
 
     /// Payment direction: inbound or outbound.
@@ -265,7 +267,9 @@ pub struct VecBasicPaymentV2 {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BasicPaymentV1 {
     pub index: PaymentCreatedIndex,
-    pub kind: PaymentKind,
+    // What is now "payment rail" we used to refer to as "payment kind"
+    #[serde(rename = "kind")]
+    pub rail: PaymentRail,
     pub direction: PaymentDirection,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice: Option<Arc<LxInvoice>>,
@@ -440,11 +444,12 @@ pub struct VecDbPaymentMetadata {
     pub metadatas: Vec<DbPaymentMetadata>,
 }
 
-/// Specifies whether this is an onchain payment, LN invoice payment, etc.
+/// The technical 'rail' used to fulfill a payment:
+/// onchain, invoice, offer, spontaneous, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(VariantArray))]
-pub enum PaymentKind {
+pub enum PaymentRail {
     Onchain,
     Invoice,
     Offer,
@@ -452,8 +457,7 @@ pub enum PaymentKind {
     WaivedFee,
 }
 
-/// A subcategory of a [`PaymentKind`] which is used to filter payments for
-/// application level queries.
+/// A granular type used to filter payments for application level queries.
 ///
 /// In Lexe's DB, payment information is encrypted, but this type is exposed.
 /// This is because without this type, the DB cannot identify which payments are
@@ -724,19 +728,19 @@ pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 impl BasicPaymentV2 {
     pub fn from_v1(v1: BasicPaymentV1, updated_at: TimestampMs) -> Self {
-        let class = match v1.kind {
-            PaymentKind::Onchain => PaymentClass::Onchain,
-            PaymentKind::Invoice => PaymentClass::Invoice,
-            PaymentKind::Offer => PaymentClass::Offer,
-            PaymentKind::Spontaneous => PaymentClass::Spontaneous,
+        let class = match v1.rail {
+            PaymentRail::Onchain => PaymentClass::Onchain,
+            PaymentRail::Invoice => PaymentClass::Invoice,
+            PaymentRail::Offer => PaymentClass::Offer,
+            PaymentRail::Spontaneous => PaymentClass::Spontaneous,
             // V1 payments should never have these kinds
-            PaymentKind::WaivedFee => unreachable!(),
+            PaymentRail::WaivedFee => unreachable!(),
         };
 
         Self {
             id: v1.index.id,
             related_ids: HashSet::new(),
-            kind: v1.kind,
+            kind: v1.rail,
             class,
             direction: v1.direction,
             offer_id: v1.offer_id,
@@ -803,7 +807,7 @@ impl BasicPaymentV2 {
         // TODO(phlip9): also don't show pending/failed "superseded" invoices,
         // where the user edited the amount/description.
         self.status != PaymentStatus::Completed
-            && self.kind == PaymentKind::Invoice
+            && self.kind == PaymentRail::Invoice
             && self.direction == PaymentDirection::Inbound
             && (self.amount.is_none() || self.note_or_description().is_none())
     }
@@ -877,7 +881,7 @@ impl BasicPaymentV1 {
     }
     pub fn is_junk(&self) -> bool {
         self.status != PaymentStatus::Completed
-            && self.kind == PaymentKind::Invoice
+            && self.rail == PaymentRail::Invoice
             && self.direction == PaymentDirection::Inbound
             && (self.amount.is_none() || self.note_or_description().is_none())
     }
@@ -898,7 +902,7 @@ impl From<BasicPaymentV2> for BasicPaymentV1 {
                 created_at: v2.created_at,
                 id: v2.id,
             },
-            kind: v2.kind,
+            rail: v2.kind,
             direction: v2.direction,
             invoice: v2.invoice,
             offer_id: v2.offer_id,
@@ -1188,7 +1192,7 @@ impl From<ClientPaymentId> for lightning::ln::channelmanager::PaymentId {
 
 // --- impl PaymentKind --- //
 
-impl PaymentKind {
+impl PaymentRail {
     fn as_str(&self) -> &'static str {
         match self {
             Self::Onchain => "onchain",
@@ -1206,12 +1210,12 @@ impl PaymentKind {
         let classes = PaymentClass::VARIANTS
             .iter()
             .copied()
-            .filter(|c| c.parent_kind() == self)
+            .filter(|c| c.rail() == self)
             .map(Just);
         Union::new(classes)
     }
 }
-impl FromStr for PaymentKind {
+impl FromStr for PaymentRail {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -1226,12 +1230,12 @@ impl FromStr for PaymentKind {
         }
     }
 }
-impl Display for PaymentKind {
+impl Display for PaymentRail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
-impl Serialize for PaymentKind {
+impl Serialize for PaymentRail {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1254,28 +1258,22 @@ impl PaymentClass {
         }
     }
 
-    pub fn parent_kind(&self) -> PaymentKind {
+    pub fn rail(&self) -> PaymentRail {
         match self {
-            Self::Onchain => PaymentKind::Onchain,
-            Self::Invoice => PaymentKind::Invoice,
-            Self::Offer => PaymentKind::Offer,
-            Self::Spontaneous => PaymentKind::Spontaneous,
-            Self::WaivedChannelFee => PaymentKind::WaivedFee,
-            Self::WaivedLiquidityFee => PaymentKind::WaivedFee,
+            Self::Onchain => PaymentRail::Onchain,
+            Self::Invoice => PaymentRail::Invoice,
+            Self::Offer => PaymentRail::Offer,
+            Self::Spontaneous => PaymentRail::Spontaneous,
+            Self::WaivedChannelFee => PaymentRail::WaivedFee,
+            Self::WaivedLiquidityFee => PaymentRail::WaivedFee,
         }
     }
 
-    /// Validates this payment class against an expected parent kind.
-    pub fn expect_parent_kind(
-        &self,
-        expected: PaymentKind,
-    ) -> anyhow::Result<()> {
-        let actual = self.parent_kind();
+    /// Validates this payment kind against an expected parent rail.
+    pub fn expect_rail(&self, expected: PaymentRail) -> anyhow::Result<()> {
+        let actual = self.rail();
 
-        ensure!(
-            actual == expected,
-            "Expected parent kind {expected}, got {actual}"
-        );
+        ensure!(actual == expected, "Expected rail {expected}, got {actual}");
 
         Ok(())
     }
@@ -1561,7 +1559,7 @@ mod test {
         );
         let expected_ser =
             r#"["onchain","invoice","offer","spontaneous","waived_fee"]"#;
-        roundtrip::json_unit_enum_backwards_compat::<PaymentKind>(expected_ser);
+        roundtrip::json_unit_enum_backwards_compat::<PaymentRail>(expected_ser);
         let expected_ser = r#"["onchain","invoice","offer","spontaneous","waived_channel_fee","waived_liquidity_fee"]"#;
         roundtrip::json_unit_enum_backwards_compat::<PaymentClass>(
             expected_ser,
@@ -1569,7 +1567,7 @@ mod test {
 
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentDirection>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentStatus>();
-        roundtrip::fromstr_display_roundtrip_proptest::<PaymentKind>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentRail>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentClass>();
     }
 

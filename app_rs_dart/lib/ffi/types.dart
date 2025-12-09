@@ -320,7 +320,7 @@ sealed class Onchain with _$Onchain {
 sealed class Payment with _$Payment {
   const factory Payment({
     required PaymentCreatedIndex index,
-    required PaymentKind kind,
+    required PaymentRail kind,
     required PaymentClass class_,
     required PaymentDirection direction,
     Invoice? invoice,
@@ -358,8 +358,6 @@ sealed class PaymentCreatedIndex with _$PaymentCreatedIndex {
 
 enum PaymentDirection { inbound, outbound, info }
 
-enum PaymentKind { onchain, invoice, spontaneous, offer, waivedFee }
-
 @freezed
 sealed class PaymentMethod with _$PaymentMethod {
   const PaymentMethod._();
@@ -370,6 +368,8 @@ sealed class PaymentMethod with _$PaymentMethod {
   const factory PaymentMethod.lnurlPayRequest(LnurlPayRequest field0) =
       PaymentMethod_LnurlPayRequest;
 }
+
+enum PaymentRail { onchain, invoice, spontaneous, offer, waivedFee }
 
 enum PaymentStatus { pending, completed, failed }
 
@@ -449,7 +449,7 @@ enum Scope { all, nodeConnect }
 sealed class ShortPayment with _$ShortPayment {
   const factory ShortPayment({
     required PaymentCreatedIndex index,
-    required PaymentKind kind,
+    required PaymentRail kind,
     required PaymentClass class_,
     required PaymentDirection direction,
     int? amountSat,

@@ -7,7 +7,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        LxPaymentSecret, PaymentClass, PaymentKind,
+        LxPaymentSecret, PaymentClass, PaymentRail,
     },
 };
 use lightning::events::PaymentPurpose;
@@ -45,12 +45,12 @@ impl PaymentWithMetadata {
         skimmed_fee: Option<Amount>,
         now: TimestampMs,
     ) -> Result<CheckedPayment, ClaimableError> {
-        if claim_ctx.kind() != self.payment.kind() {
-            let claimkind = claim_ctx.kind();
-            let paykind = self.payment.kind();
+        if claim_ctx.rail() != self.payment.rail() {
+            let claim_rail = claim_ctx.rail();
+            let pay_rail = self.payment.rail();
             return Err(ClaimableError::Replay(anyhow!(
-                "Claim kind doesn't match stored payment kind: \
-                 {claimkind} != {paykind}"
+                "Claim rail doesn't match stored payment rail: \
+                 {claim_rail} != {pay_rail}"
             )));
         }
 
@@ -270,12 +270,12 @@ impl LnClaimCtx {
         }
     }
 
-    /// Get the [`PaymentKind`] which corresponds to this [`LnClaimCtx`].
-    pub fn kind(&self) -> PaymentKind {
+    /// Get the [`PaymentRail`] which corresponds to this [`LnClaimCtx`].
+    pub fn rail(&self) -> PaymentRail {
         match self {
-            Self::Bolt11Invoice { .. } => PaymentKind::Invoice,
-            Self::Bolt12Offer(_) => PaymentKind::Offer,
-            Self::Spontaneous { .. } => PaymentKind::Spontaneous,
+            Self::Bolt11Invoice { .. } => PaymentRail::Invoice,
+            Self::Bolt12Offer(_) => PaymentRail::Offer,
+            Self::Spontaneous { .. } => PaymentRail::Spontaneous,
         }
     }
 }
@@ -375,7 +375,7 @@ impl InboundInvoicePaymentV2 {
         preimage: LxPaymentPreimage,
         class: PaymentClass,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_parent_kind(PaymentKind::Invoice)?;
+        class.expect_rail(PaymentRail::Invoice)?;
 
         let invoice_amount =
             invoice.0.amount_milli_satoshis().map(Amount::from_msat);
@@ -710,7 +710,7 @@ impl InboundOfferReusablePaymentV2 {
         amount: Amount,
         skimmed_fee: Option<Amount>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_parent_kind(PaymentKind::Offer)?;
+        class.expect_rail(PaymentRail::Offer)?;
 
         let iorp = Self {
             claim_id: ctx.claim_id,
@@ -905,7 +905,7 @@ impl InboundSpontaneousPaymentV2 {
         amount: Amount,
         skimmed_fee: Option<Amount>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_parent_kind(PaymentKind::Spontaneous)?;
+        class.expect_rail(PaymentRail::Spontaneous)?;
 
         let isp = Self {
             hash,
@@ -1042,7 +1042,7 @@ mod arbitrary_impl {
                 })
             });
 
-            let class = PaymentKind::Invoice.any_child_class();
+            let class = PaymentRail::Invoice.any_child_class();
             let claim_id = any::<LnClaimId>();
             let recvd_amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
@@ -1157,7 +1157,7 @@ mod arbitrary_impl {
             let preimage = any::<LxPaymentPreimage>();
             let claim_id = any::<LnClaimId>();
             let offer_id = any::<LxOfferId>();
-            let class = PaymentKind::Offer.any_child_class();
+            let class = PaymentRail::Offer.any_child_class();
             let amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
             let status =
@@ -1251,7 +1251,7 @@ mod arbitrary_impl {
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let hash = any::<LxPaymentHash>();
             let preimage = any::<LxPaymentPreimage>();
-            let class = PaymentKind::Spontaneous.any_child_class();
+            let class = PaymentRail::Spontaneous.any_child_class();
             let amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
             let status =

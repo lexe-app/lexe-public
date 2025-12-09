@@ -7,7 +7,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         ClientPaymentId, LxOfferId, LxPaymentHash, LxPaymentId,
-        LxPaymentPreimage, LxPaymentSecret, PaymentClass, PaymentKind,
+        LxPaymentPreimage, LxPaymentSecret, PaymentClass, PaymentRail,
     },
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
@@ -146,7 +146,7 @@ impl OutboundInvoicePaymentV2 {
         routing_fee: Amount,
         note: Option<String>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_parent_kind(PaymentKind::Invoice)?;
+        class.expect_rail(PaymentRail::Invoice)?;
 
         let hash = invoice.payment_hash();
         let secret = invoice.payment_secret();
@@ -443,7 +443,7 @@ impl OutboundOfferPaymentV2 {
         payer_name: Option<String>,
         payer_note: Option<String>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
-        class.expect_parent_kind(PaymentKind::Offer)?;
+        class.expect_rail(PaymentRail::Offer)?;
 
         let offer_id = offer.id();
         let expires_at = offer.expires_at();
@@ -806,7 +806,7 @@ pub(crate) mod arbitrary_impl {
                     payment_preimage: Some(preimage),
                 })
             });
-            let class = PaymentKind::Invoice.any_child_class();
+            let class = PaymentRail::Invoice.any_child_class();
 
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
@@ -911,7 +911,7 @@ pub(crate) mod arbitrary_impl {
             let client_id = any::<ClientPaymentId>();
             let preimage = any::<LxPaymentPreimage>();
             let offer_id = any::<LxOfferId>();
-            let class = PaymentKind::Offer.any_child_class();
+            let class = PaymentRail::Offer.any_child_class();
 
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
@@ -1021,7 +1021,7 @@ pub(crate) mod arbitrary_impl {
             let status =
                 any_with::<OutboundSpontaneousPaymentStatus>(pending_only);
             let preimage = any::<LxPaymentPreimage>();
-            let class = PaymentKind::Spontaneous.any_child_class();
+            let class = PaymentRail::Spontaneous.any_child_class();
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
             let maybe_created_at = any::<Option<TimestampMs>>();

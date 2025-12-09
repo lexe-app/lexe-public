@@ -519,7 +519,7 @@ String toString() {
 /// @nodoc
 mixin _$Payment {
 
- PaymentCreatedIndex get index; PaymentKind get kind; PaymentClass get class_; PaymentDirection get direction; Invoice? get invoice; String? get offerId; Offer? get offer; String? get txid; String? get replacement; int? get amountSat; int get feesSat; PaymentStatus get status; String get statusStr; String? get note; int get createdAt; int? get finalizedAt;
+ PaymentCreatedIndex get index; PaymentRail get kind; PaymentClass get class_; PaymentDirection get direction; Invoice? get invoice; String? get offerId; Offer? get offer; String? get txid; String? get replacement; int? get amountSat; int get feesSat; PaymentStatus get status; String get statusStr; String? get note; int get createdAt; int? get finalizedAt;
 
 
 
@@ -552,7 +552,7 @@ class _Payment implements Payment {
   
 
 @override final  PaymentCreatedIndex index;
-@override final  PaymentKind kind;
+@override final  PaymentRail kind;
 @override final  PaymentClass class_;
 @override final  PaymentDirection direction;
 @override final  Invoice? invoice;
@@ -810,7 +810,7 @@ String toString() {
 /// @nodoc
 mixin _$ShortPayment {
 
- PaymentCreatedIndex get index; PaymentKind get kind; PaymentClass get class_; PaymentDirection get direction; int? get amountSat; PaymentStatus get status; String? get note; int get createdAt;
+ PaymentCreatedIndex get index; PaymentRail get kind; PaymentClass get class_; PaymentDirection get direction; int? get amountSat; PaymentStatus get status; String? get note; int get createdAt;
 
 
 
@@ -843,7 +843,7 @@ class _ShortPayment implements ShortPayment {
   
 
 @override final  PaymentCreatedIndex index;
-@override final  PaymentKind kind;
+@override final  PaymentRail kind;
 @override final  PaymentClass class_;
 @override final  PaymentDirection direction;
 @override final  int? amountSat;

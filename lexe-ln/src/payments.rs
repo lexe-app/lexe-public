@@ -20,7 +20,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         BasicPaymentV2, DbPaymentV2, LxOfferId, LxPaymentId, PaymentClass,
-        PaymentDirection, PaymentKind, PaymentStatus,
+        PaymentDirection, PaymentRail, PaymentStatus,
     },
 };
 use lexe_std::const_assert_mem_size;
@@ -418,7 +418,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let id = self.payment.id();
         let txid = self.payment.txid();
         let offer_id = self.payment.offer_id();
-        let kind = self.payment.kind();
+        let kind = self.payment.rail();
         let class = self.payment.class();
         let direction = self.payment.direction();
         let status = self.payment.status();
@@ -642,17 +642,18 @@ impl PaymentV2 {
         }
     }
 
-    /// Whether this is an onchain payment, LN invoice payment, etc.
-    pub fn kind(&self) -> PaymentKind {
+    /// The technical 'rail' used to fulfill this payment:
+    /// onchain, invoice, offer, spontaneous, etc.
+    pub fn rail(&self) -> PaymentRail {
         match self {
-            Self::OnchainSend(_) => PaymentKind::Onchain,
-            Self::OnchainReceive(_) => PaymentKind::Onchain,
-            Self::InboundInvoice(_) => PaymentKind::Invoice,
-            Self::InboundOfferReusable(_) => PaymentKind::Offer,
-            Self::InboundSpontaneous(_) => PaymentKind::Spontaneous,
-            Self::OutboundInvoice(_) => PaymentKind::Invoice,
-            Self::OutboundOffer(_) => PaymentKind::Offer,
-            Self::OutboundSpontaneous(_) => PaymentKind::Spontaneous,
+            Self::OnchainSend(_) => PaymentRail::Onchain,
+            Self::OnchainReceive(_) => PaymentRail::Onchain,
+            Self::InboundInvoice(_) => PaymentRail::Invoice,
+            Self::InboundOfferReusable(_) => PaymentRail::Offer,
+            Self::InboundSpontaneous(_) => PaymentRail::Spontaneous,
+            Self::OutboundInvoice(_) => PaymentRail::Invoice,
+            Self::OutboundOffer(_) => PaymentRail::Offer,
+            Self::OutboundSpontaneous(_) => PaymentRail::Spontaneous,
         }
     }
 
