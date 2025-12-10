@@ -879,17 +879,16 @@ impl UserAppConfig {
         self.user_data_dir.join("provision_db")
     }
 
-    fn old_payment_db_dirs(&self) -> [PathBuf; 2] {
+    fn old_payment_db_dirs(&self) -> [PathBuf; 1] {
         [
             // BasicPaymentV1
             self.user_data_dir.join("payment_db"),
-            // BasicPaymentV2 without `class` field
-            self.user_data_dir.join("payments_db"),
+            // Add more here as needed
         ]
     }
 
     fn payments_db_dir(&self) -> PathBuf {
-        self.user_data_dir.join("payments_db_v3")
+        self.user_data_dir.join("payments_db")
     }
 
     fn settings_db_dir(&self) -> PathBuf {
