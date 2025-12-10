@@ -33,7 +33,7 @@ pub struct SdkPayment {
     /// Application-level payment kind.
     pub kind: PaymentKind,
 
-    /// The payment direction: ["inbound", "outbound"].
+    /// The payment direction: `"inbound"`, `"outbound"`, or `"info"`.
     pub direction: PaymentDirection,
 
     // NOTE: Excluding `invoice` for now as externally-generated invoices are

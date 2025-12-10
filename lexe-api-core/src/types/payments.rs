@@ -64,7 +64,7 @@ pub struct BasicPaymentV2 {
     /// Payment kind: Application-level purpose of this payment.
     pub kind: PaymentKind,
 
-    /// Payment direction: inbound or outbound.
+    /// The payment direction: `Inbound`, `Outbound`, or `Info`.
     pub direction: PaymentDirection,
 
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
