@@ -164,6 +164,7 @@ mod node {
 
         let payment = SdkPayment {
             index: basic_payment.created_index(),
+            rail: basic_payment.kind.rail(),
             kind: basic_payment.kind,
             direction: basic_payment.direction,
             txid: basic_payment.txid,
