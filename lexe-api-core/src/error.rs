@@ -845,7 +845,7 @@ api_error_kind! {
         WrongMeasurement = 102,
         /// Error occurred during provisioning
         Provision = 103,
-        /// Node unable to authenticate
+        /// Authentication error
         BadAuth = 104,
         /// Could not proxy request to node
         Proxy = 105,

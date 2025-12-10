@@ -268,6 +268,7 @@ mod handlers {
         let token = authenticator
             .get_token(state.backend_api.as_ref(), SystemTime::now())
             .await
+            .context("Node unable to authenticate")
             .map_err(NodeApiError::bad_auth)?;
 
         // Store the sealed seed and new node metadata in the backend.
@@ -432,6 +433,7 @@ mod helpers {
             let token = authenticator
                 .get_token(backend_api, SystemTime::now())
                 .await
+                .context("Node unable to authenticate")
                 .map_err(NodeApiError::bad_auth)?;
             let try_delete = backend_api
                 .delete_sealed_seeds(revoked_measurement, token.clone())
