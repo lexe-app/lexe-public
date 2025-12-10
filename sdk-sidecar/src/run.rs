@@ -51,22 +51,26 @@ impl Sidecar {
 
         let mut static_tasks = Vec::with_capacity(1);
 
-        // Ensure user provided credentials
-        let credentials = match (args.root_seed, args.client_credentials) {
-            (Some(root_seed), None) => CredentialsOwned::RootSeed(root_seed),
+        // Check user-provided default credentials
+        let maybe_credentials = match (args.root_seed, args.client_credentials)
+        {
+            (Some(root_seed), None) =>
+                Some(CredentialsOwned::RootSeed(root_seed)),
             (None, Some(client_credentials)) =>
-                CredentialsOwned::ClientCredentials(client_credentials),
+                Some(CredentialsOwned::ClientCredentials(client_credentials)),
             (Some(_), Some(_)) =>
                 return Err(anyhow!(
                     "Can only provide one of: `--root-seed` or `--client-credentials`"
                 )),
             // TODO(phlip9): mention root seed options here when we unhide them
-            (None, None) =>
-                return Err(anyhow!(
-                    "one of  `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
-                 or `--client-credentials-path`/`$LEXE_CLIENT_CREDENTIALS_PATH` \
-                 must be provided"
-                )),
+            (None, None) => {
+                info!(
+                    "No credentials configured. \
+                     Set credentials via env (LEXE_CLIENT_CREDENTIALS) \
+                     or per-request via the Authorization header."
+                );
+                None
+            }
         };
 
         let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
@@ -85,24 +89,38 @@ impl Sidecar {
                 "https://lexe-prod.uswest2.prod.lexe.app".to_owned(),
         };
 
-        let gateway_client =
-            GatewayClient::new(deploy_env, gateway_url, USER_AGENT_INTERNAL)
+        // Create the default node client if default credentials were provided
+        let default_client = match maybe_credentials {
+            Some(credentials) => {
+                let gateway_client = GatewayClient::new(
+                    deploy_env,
+                    gateway_url.clone(),
+                    USER_AGENT_INTERNAL,
+                )
                 .context("Failed to create gateway client")?;
 
-        // does nothing b/c we don't provision
-        let use_sgx = true;
-        let node_client = NodeClient::new(
-            &mut SysRng::new(),
-            use_sgx,
-            deploy_env,
-            gateway_client,
-            credentials.as_ref(),
-        )
-        .context("Failed to create node client")?;
-        drop(credentials);
+                // does nothing b/c we don't provision
+                let use_sgx = true;
+                let node_client = NodeClient::new(
+                    &mut SysRng::new(),
+                    use_sgx,
+                    deploy_env,
+                    gateway_client,
+                    credentials.as_ref(),
+                )
+                .context("Failed to create node client")?;
+
+                Some(node_client)
+            }
+            None => None,
+        };
 
         // Spawn HTTP server
-        let router_state = Arc::new(server::RouterState { node_client });
+        let router_state = Arc::new(server::RouterState::new(
+            default_client,
+            deploy_env,
+            gateway_url,
+        ));
         let maybe_tls_and_dns = None;
         const SERVER_SPAN_NAME: &str = "(server)";
         let shutdown = NotifyOnce::new();

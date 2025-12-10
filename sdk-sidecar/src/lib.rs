@@ -169,6 +169,9 @@ pub mod run;
 /// The sidecar webserver.
 mod server;
 
+/// Sidecar-specific axum extractors
+mod extract;
+
 /// Reexport Lexe crates, as various interfaces may need these types.
 pub mod lexe {
     // TODO(max): Remove if we can? Needed this just for

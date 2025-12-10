@@ -1,13 +1,66 @@
-use std::sync::Arc;
+use std::{
+    borrow::Cow,
+    sync::{Arc, Mutex},
+};
 
 use app_rs::client::NodeClient;
 use axum::{
     Router,
+    extract::{FromRequestParts, State},
     routing::{get, post},
 };
+use common::{ed25519, env::DeployEnv};
+use lexe_api::{
+    def::AppNodeRunApi,
+    error::NodeErrorKind,
+    models::command::{CreateInvoiceResponse, LxPaymentIdStruct},
+    server::{LxJson, extract::LxQuery},
+    types::payments::PaymentCreatedIndex,
+};
+use quick_cache::unsync;
+use sdk_core::{
+    SdkApiError,
+    models::{
+        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
+        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
+        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+    },
+    types::SdkPayment,
+};
+use tracing::instrument;
+
+use crate::{
+    api::HealthCheckResponse,
+    extract::{CredentialsExtractor, NodeClientExtractor},
+};
+
+const CLIENT_CACHE_CAPACITY: usize = 64;
 
 pub(crate) struct RouterState {
-    pub node_client: NodeClient,
+    /// The default [`NodeClient`] created from credentials in env/CLI.
+    /// Used as the default when no per-request credentials are provided.
+    pub default_client: Option<NodeClient>,
+    /// Caches `NodeClient`s by their `client_pk`.
+    pub client_cache: Mutex<unsync::Cache<ed25519::PublicKey, NodeClient>>,
+    pub deploy_env: DeployEnv,
+    pub gateway_url: String,
+}
+
+impl RouterState {
+    pub fn new(
+        default_client: Option<NodeClient>,
+        deploy_env: DeployEnv,
+        gateway_url: String,
+    ) -> Self {
+        let client_cache =
+            Mutex::new(unsync::Cache::new(CLIENT_CACHE_CAPACITY));
+        Self {
+            default_client,
+            client_cache,
+            deploy_env,
+            gateway_url,
+        }
+    }
 }
 
 pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
@@ -31,53 +84,44 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
 }
 
 mod sidecar {
-    use std::borrow::Cow;
-
-    use lexe_api::server::LxJson;
-    use sdk_core::SdkApiError;
-    use tracing::instrument;
-
-    use crate::api::HealthCheckResponse;
+    use super::*;
 
     #[instrument(skip_all, name = "(health)")]
-    pub(crate) async fn health()
-    -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
-        Ok(LxJson(HealthCheckResponse {
-            status: Cow::from("ok"),
-        }))
+    pub(crate) async fn health(
+        state: State<Arc<RouterState>>,
+        mut parts: http::request::Parts,
+    ) -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
+        let maybe_credentials =
+            CredentialsExtractor::from_request_parts(&mut parts, &state)
+                .await?;
+
+        let has_default = state.default_client.is_some();
+        let has_request_credentials = maybe_credentials.0.is_some();
+
+        let status = if has_default || has_request_credentials {
+            Cow::from("ok")
+        } else {
+            // TODO(max): Mention root seed options later if desired.
+            Cow::from(
+                "warning: No client credentials configured. \
+                 Set LEXE_CLIENT_CREDENTIALS in env or pass credentials \
+                 per-request via the Authorization header.",
+            )
+        };
+
+        Ok(LxJson(HealthCheckResponse { status }))
     }
 }
 
 mod node {
-    use std::sync::Arc;
-
-    use axum::extract::State;
-    use lexe_api::{
-        def::AppNodeRunApi,
-        error::NodeErrorKind,
-        models::command::{CreateInvoiceResponse, LxPaymentIdStruct},
-        server::{LxJson, extract::LxQuery},
-        types::payments::PaymentCreatedIndex,
-    };
-    use sdk_core::{
-        SdkApiError,
-        models::{
-            SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-            SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
-            SdkPayInvoiceRequest, SdkPayInvoiceResponse,
-        },
-        types::SdkPayment,
-    };
-    use tracing::instrument;
-
-    use super::RouterState;
+    use super::*;
 
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
-        state: State<Arc<RouterState>>,
+        State(_): State<Arc<RouterState>>,
+        NodeClientExtractor(node_client): NodeClientExtractor,
     ) -> Result<LxJson<SdkNodeInfoResponse>, SdkApiError> {
-        state
-            .node_client
+        node_client
             .node_info()
             .await
             .map(SdkNodeInfoResponse::from)
@@ -86,13 +130,14 @@ mod node {
 
     #[instrument(skip_all, name = "(create-invoice)")]
     pub(crate) async fn create_invoice(
-        state: State<Arc<RouterState>>,
+        State(_): State<Arc<RouterState>>,
+        NodeClientExtractor(node_client): NodeClientExtractor,
         LxJson(req): LxJson<SdkCreateInvoiceRequest>,
     ) -> Result<LxJson<SdkCreateInvoiceResponse>, SdkApiError> {
         let CreateInvoiceResponse {
             invoice,
             created_index: maybe_index,
-        } = state.node_client.create_invoice(req.into()).await?;
+        } = node_client.create_invoice(req.into()).await?;
 
         let index = maybe_index
             .ok_or("Node out-of-date. Upgrade to node-v0.8.10 or later.")
@@ -103,12 +148,12 @@ mod node {
 
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub(crate) async fn pay_invoice(
-        state: State<Arc<RouterState>>,
+        State(_): State<Arc<RouterState>>,
+        NodeClientExtractor(node_client): NodeClientExtractor,
         LxJson(req): LxJson<SdkPayInvoiceRequest>,
     ) -> Result<LxJson<SdkPayInvoiceResponse>, SdkApiError> {
         let id = req.invoice.payment_id();
-        let created_at =
-            state.node_client.pay_invoice(req.into()).await?.created_at;
+        let created_at = node_client.pay_invoice(req.into()).await?.created_at;
         let resp = SdkPayInvoiceResponse {
             index: PaymentCreatedIndex { id, created_at },
             created_at,
@@ -121,10 +166,11 @@ mod node {
     #[instrument(skip_all, name = "(get-payment-v1)")]
     pub(crate) async fn get_payment_v1(
         state: State<Arc<RouterState>>,
+        node_client: NodeClientExtractor,
         req: LxQuery<SdkGetPaymentRequest>,
     ) -> Result<LxJson<SdkGetPaymentResponse>, SdkApiError> {
         // Wraps the v2 logic to return `{ "payment": null }` if not found.
-        match get_payment(state, req).await {
+        match get_payment(state, node_client, req).await {
             Ok(LxJson(payment)) => Ok(LxJson(SdkGetPaymentResponse {
                 payment: Some(payment),
             })),
@@ -146,13 +192,13 @@ mod node {
     /// are now indicated by HTTP 404), or do another version bump.
     #[instrument(skip_all, name = "(get-payment)")]
     pub(crate) async fn get_payment(
-        state: State<Arc<RouterState>>,
+        State(_): State<Arc<RouterState>>,
+        NodeClientExtractor(node_client): NodeClientExtractor,
         LxQuery(req): LxQuery<SdkGetPaymentRequest>,
     ) -> Result<LxJson<SdkPayment>, SdkApiError> {
         let id = req.index.id;
 
-        let maybe_basic_payment = state
-            .node_client
+        let maybe_basic_payment = node_client
             .get_payment_by_id(LxPaymentIdStruct { id })
             .await?
             .maybe_payment;
