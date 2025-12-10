@@ -8,6 +8,13 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
+        PaymentKind_Invoice,
+        PaymentKind_Offer,
+        PaymentKind_Onchain,
+        PaymentKind_Spontaneous,
+        PaymentKind_Unknown,
+        PaymentKind_WaivedChannelFee,
+        PaymentKind_WaivedLiquidityFee,
         PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -460,13 +467,14 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                     PaymentDirection.inbound => "received",
                     PaymentDirection.outbound => "sent",
                     PaymentDirection.info => switch (payment.kind) {
-                      PaymentKind.waivedChannelFee ||
-                      PaymentKind.waivedLiquidityFee => "waived",
+                      PaymentKind_WaivedChannelFee() ||
+                      PaymentKind_WaivedLiquidityFee() => "waived",
                       // Shouldn't happen with info direction.
-                      PaymentKind.onchain ||
-                      PaymentKind.invoice ||
-                      PaymentKind.offer ||
-                      PaymentKind.spontaneous => "(invalid)",
+                      PaymentKind_Onchain() ||
+                      PaymentKind_Invoice() ||
+                      PaymentKind_Offer() ||
+                      PaymentKind_Spontaneous() ||
+                      PaymentKind_Unknown() => "(invalid)",
                     },
                   };
 
@@ -513,39 +521,38 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   // Label should be kept in sync with "lexe_api::types::payments::LxPaymentId"
                   final InfoRow? paymentIdRow = switch ((kind, direction)) {
                     // Onchain receive -> we'll use the txid field
-                    (PaymentKind.onchain, PaymentDirection.inbound) => null,
-                    (PaymentKind.onchain, PaymentDirection.outbound) => InfoRow(
-                      label: "Client payment id",
-                      value: this.paymentIdxBody(),
-                    ),
-                    (PaymentKind.invoice, _) => InfoRow(
+                    (PaymentKind_Onchain(), PaymentDirection.inbound) => null,
+                    (PaymentKind_Onchain(), PaymentDirection.outbound) =>
+                      InfoRow(
+                        label: "Client payment id",
+                        value: this.paymentIdxBody(),
+                      ),
+                    (PaymentKind_Invoice(), _) => InfoRow(
                       label: "Payment hash",
                       value: this.paymentIdxBody(),
                     ),
-                    (PaymentKind.spontaneous, _) => InfoRow(
+                    (PaymentKind_Spontaneous(), _) => InfoRow(
                       label: "Payment hash",
                       value: this.paymentIdxBody(),
                     ),
-                    (PaymentKind.offer, PaymentDirection.inbound) => InfoRow(
+                    (PaymentKind_Offer(), PaymentDirection.inbound) => InfoRow(
                       label: "Offer claim id",
                       value: this.paymentIdxBody(),
                     ),
-                    (PaymentKind.offer, PaymentDirection.outbound) => InfoRow(
+                    (PaymentKind_Offer(), PaymentDirection.outbound) => InfoRow(
                       label: "Client payment id",
                       value: this.paymentIdxBody(),
                     ),
                     // Waived fee payments don't have a meaningful payment ID.
-                    (PaymentKind.waivedChannelFee, _) ||
-                    (PaymentKind.waivedLiquidityFee, _) => null,
+                    (PaymentKind_WaivedChannelFee(), _) ||
+                    (PaymentKind_WaivedLiquidityFee(), _) => null,
                     // Invalid combinations
-                    (PaymentKind.onchain, PaymentDirection.info) => InfoRow(
-                      label: "Unknown",
-                      value: "???",
-                    ),
-                    (PaymentKind.offer, PaymentDirection.info) => InfoRow(
-                      label: "Unknown",
-                      value: "???",
-                    ),
+                    (PaymentKind_Onchain(), PaymentDirection.info) ||
+                    (PaymentKind_Offer(), PaymentDirection.info) ||
+                    (
+                      PaymentKind_Unknown(),
+                      _,
+                    ) => InfoRow(label: "Unknown", value: "???"),
                   };
 
                   // Show on-chain txid's with link to mempool.space
@@ -811,34 +818,37 @@ class PaymentDetailDirectionTime extends StatelessWidget {
       (PaymentStatus.pending, PaymentDirection.outbound) => "Sending",
       (PaymentStatus.pending, PaymentDirection.info) =>
         switch (this.paymentKind) {
-          PaymentKind.waivedChannelFee ||
-          PaymentKind.waivedLiquidityFee => "Waiving",
-          PaymentKind.onchain ||
-          PaymentKind.invoice ||
-          PaymentKind.offer ||
-          PaymentKind.spontaneous => "(invalid)",
+          PaymentKind_WaivedChannelFee() ||
+          PaymentKind_WaivedLiquidityFee() => "Waiving",
+          PaymentKind_Onchain() ||
+          PaymentKind_Invoice() ||
+          PaymentKind_Offer() ||
+          PaymentKind_Spontaneous() ||
+          PaymentKind_Unknown() => "(invalid)",
         },
       (PaymentStatus.completed, PaymentDirection.inbound) => "Received",
       (PaymentStatus.completed, PaymentDirection.outbound) => "Sent",
       (PaymentStatus.completed, PaymentDirection.info) =>
         switch (this.paymentKind) {
-          PaymentKind.waivedChannelFee ||
-          PaymentKind.waivedLiquidityFee => "Waived",
-          PaymentKind.onchain ||
-          PaymentKind.invoice ||
-          PaymentKind.offer ||
-          PaymentKind.spontaneous => "(invalid)",
+          PaymentKind_WaivedChannelFee() ||
+          PaymentKind_WaivedLiquidityFee() => "Waived",
+          PaymentKind_Onchain() ||
+          PaymentKind_Invoice() ||
+          PaymentKind_Offer() ||
+          PaymentKind_Spontaneous() ||
+          PaymentKind_Unknown() => "(invalid)",
         },
       (PaymentStatus.failed, PaymentDirection.inbound) => "Failed to receive",
       (PaymentStatus.failed, PaymentDirection.outbound) => "Failed to send",
       (PaymentStatus.failed, PaymentDirection.info) =>
         switch (this.paymentKind) {
-          PaymentKind.waivedChannelFee ||
-          PaymentKind.waivedLiquidityFee => "Failed: waived",
-          PaymentKind.onchain ||
-          PaymentKind.invoice ||
-          PaymentKind.offer ||
-          PaymentKind.spontaneous => "(invalid)",
+          PaymentKind_WaivedChannelFee() ||
+          PaymentKind_WaivedLiquidityFee() => "Failed: waived",
+          PaymentKind_Onchain() ||
+          PaymentKind_Invoice() ||
+          PaymentKind_Offer() ||
+          PaymentKind_Spontaneous() ||
+          PaymentKind_Unknown() => "(invalid)",
         },
     };
 

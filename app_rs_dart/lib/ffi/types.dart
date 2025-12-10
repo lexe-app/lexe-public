@@ -348,13 +348,18 @@ sealed class PaymentCreatedIndex with _$PaymentCreatedIndex {
 
 enum PaymentDirection { inbound, outbound, info }
 
-enum PaymentKind {
-  onchain,
-  invoice,
-  offer,
-  spontaneous,
-  waivedChannelFee,
-  waivedLiquidityFee,
+@freezed
+sealed class PaymentKind with _$PaymentKind {
+  const PaymentKind._();
+
+  const factory PaymentKind.onchain() = PaymentKind_Onchain;
+  const factory PaymentKind.invoice() = PaymentKind_Invoice;
+  const factory PaymentKind.offer() = PaymentKind_Offer;
+  const factory PaymentKind.spontaneous() = PaymentKind_Spontaneous;
+  const factory PaymentKind.waivedChannelFee() = PaymentKind_WaivedChannelFee;
+  const factory PaymentKind.waivedLiquidityFee() =
+      PaymentKind_WaivedLiquidityFee;
+  const factory PaymentKind.unknown(String field0) = PaymentKind_Unknown;
 }
 
 @freezed

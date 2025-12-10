@@ -13,7 +13,13 @@ import 'package:app_rs_dart/ffi/types.dart'
         Config,
         PaymentCreatedIndex,
         PaymentDirection,
-        PaymentKind,
+        PaymentKind_Invoice,
+        PaymentKind_Offer,
+        PaymentKind_Onchain,
+        PaymentKind_Spontaneous,
+        PaymentKind_Unknown,
+        PaymentKind_WaivedChannelFee,
+        PaymentKind_WaivedLiquidityFee,
         PaymentStatus,
         ShortPayment;
 import 'package:flutter/foundation.dart';
@@ -469,13 +475,16 @@ class WalletPageState extends State<WalletPage> {
     // Lightning payments actually have a chance to finalize in the next few
     // seconds, so start a burst refresh.
     switch (payment.kind) {
-      case PaymentKind.invoice || PaymentKind.spontaneous || PaymentKind.offer:
+      case PaymentKind_Invoice() ||
+          PaymentKind_Spontaneous() ||
+          PaymentKind_Offer():
         this.triggerBurstRefresh();
-      case PaymentKind.onchain:
+      case PaymentKind_Onchain():
         this.triggerRefresh();
       // Waived fee payments are info entries, no special refresh needed.
-      case PaymentKind.waivedChannelFee:
-      case PaymentKind.waivedLiquidityFee:
+      case PaymentKind_WaivedChannelFee() ||
+          PaymentKind_WaivedLiquidityFee() ||
+          PaymentKind_Unknown():
         break;
     }
 
@@ -2090,13 +2099,14 @@ class PaymentsListEntry extends StatelessWidget {
       (_, PaymentDirection.inbound) => "You received",
       (_, PaymentDirection.outbound) => "You sent",
       (_, PaymentDirection.info) => switch (kind) {
-        PaymentKind.waivedChannelFee => "Channel fee waived",
-        PaymentKind.waivedLiquidityFee => "Liquidity fee waived",
+        PaymentKind_WaivedChannelFee() => "Channel fee waived",
+        PaymentKind_WaivedLiquidityFee() => "Liquidity fee waived",
         // Shouldn't happen with info direction.
-        PaymentKind.onchain ||
-        PaymentKind.invoice ||
-        PaymentKind.offer ||
-        PaymentKind.spontaneous => "(invalid)",
+        PaymentKind_Onchain() ||
+        PaymentKind_Invoice() ||
+        PaymentKind_Offer() ||
+        PaymentKind_Spontaneous() ||
+        PaymentKind_Unknown() => "(invalid)",
       },
     };
 

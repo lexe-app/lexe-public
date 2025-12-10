@@ -26,6 +26,9 @@ import 'package:app_rs_dart/ffi/types.dart'
         Payment,
         PaymentDirection,
         PaymentKind,
+        PaymentKind_Invoice,
+        PaymentKind_Offer,
+        PaymentKind_Onchain,
         PaymentMethod,
         PaymentMethod_Invoice,
         PaymentMethod_LnurlPayRequest,
@@ -361,7 +364,7 @@ class SendState_Preflighted implements SendState {
       (resp) => SendFlowResult(
         payment: Payment(
           index: resp.index,
-          kind: PaymentKind.onchain,
+          kind: const PaymentKind_Onchain(),
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
@@ -400,7 +403,7 @@ class SendState_Preflighted implements SendState {
       (resp) => SendFlowResult(
         payment: Payment(
           index: resp.index,
-          kind: PaymentKind.invoice,
+          kind: const PaymentKind_Invoice(),
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
@@ -441,7 +444,7 @@ class SendState_Preflighted implements SendState {
       (resp) => SendFlowResult(
         payment: Payment(
           index: resp.index,
-          kind: PaymentKind.offer,
+          kind: const PaymentKind_Offer(),
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
@@ -489,7 +492,7 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
   final String? sendTo;
 
   @override
-  PaymentKind kind() => PaymentKind.invoice;
+  PaymentKind kind() => const PaymentKind_Invoice();
 }
 
 @immutable
@@ -505,7 +508,7 @@ class PreflightedPayment_Onchain implements PreflightedPayment {
   final PreflightPayOnchainResponse preflight;
 
   @override
-  PaymentKind kind() => PaymentKind.onchain;
+  PaymentKind kind() => const PaymentKind_Onchain();
 }
 
 class PreflightedPayment_Offer implements PreflightedPayment {
@@ -520,5 +523,5 @@ class PreflightedPayment_Offer implements PreflightedPayment {
   final PreflightPayOfferResponse preflight;
 
   @override
-  PaymentKind kind() => PaymentKind.offer;
+  PaymentKind kind() => const PaymentKind_Offer();
 }

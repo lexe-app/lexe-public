@@ -2516,16 +2516,34 @@ impl SseDecode for crate::ffi::types::PaymentKind {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::ffi::types::PaymentKind::Onchain,
-            1 => crate::ffi::types::PaymentKind::Invoice,
-            2 => crate::ffi::types::PaymentKind::Offer,
-            3 => crate::ffi::types::PaymentKind::Spontaneous,
-            4 => crate::ffi::types::PaymentKind::WaivedChannelFee,
-            5 => crate::ffi::types::PaymentKind::WaivedLiquidityFee,
-            _ => unreachable!("Invalid variant for PaymentKind: {}", inner),
-        };
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::ffi::types::PaymentKind::Onchain;
+            }
+            1 => {
+                return crate::ffi::types::PaymentKind::Invoice;
+            }
+            2 => {
+                return crate::ffi::types::PaymentKind::Offer;
+            }
+            3 => {
+                return crate::ffi::types::PaymentKind::Spontaneous;
+            }
+            4 => {
+                return crate::ffi::types::PaymentKind::WaivedChannelFee;
+            }
+            5 => {
+                return crate::ffi::types::PaymentKind::WaivedLiquidityFee;
+            }
+            6 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::ffi::types::PaymentKind::Unknown(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -4083,13 +4101,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentDirection>
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentKind {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            Self::Onchain => 0.into_dart(),
-            Self::Invoice => 1.into_dart(),
-            Self::Offer => 2.into_dart(),
-            Self::Spontaneous => 3.into_dart(),
-            Self::WaivedChannelFee => 4.into_dart(),
-            Self::WaivedLiquidityFee => 5.into_dart(),
-            _ => unreachable!(),
+            crate::ffi::types::PaymentKind::Onchain =>
+                [0.into_dart()].into_dart(),
+            crate::ffi::types::PaymentKind::Invoice =>
+                [1.into_dart()].into_dart(),
+            crate::ffi::types::PaymentKind::Offer =>
+                [2.into_dart()].into_dart(),
+            crate::ffi::types::PaymentKind::Spontaneous =>
+                [3.into_dart()].into_dart(),
+            crate::ffi::types::PaymentKind::WaivedChannelFee =>
+                [4.into_dart()].into_dart(),
+            crate::ffi::types::PaymentKind::WaivedLiquidityFee =>
+                [5.into_dart()].into_dart(),
+            crate::ffi::types::PaymentKind::Unknown(field0) =>
+                [6.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
         }
     }
 }
@@ -5724,20 +5752,33 @@ impl SseEncode for crate::ffi::types::PaymentKind {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <i32>::sse_encode(
-            match self {
-                crate::ffi::types::PaymentKind::Onchain => 0,
-                crate::ffi::types::PaymentKind::Invoice => 1,
-                crate::ffi::types::PaymentKind::Offer => 2,
-                crate::ffi::types::PaymentKind::Spontaneous => 3,
-                crate::ffi::types::PaymentKind::WaivedChannelFee => 4,
-                crate::ffi::types::PaymentKind::WaivedLiquidityFee => 5,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
+        match self {
+            crate::ffi::types::PaymentKind::Onchain => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::ffi::types::PaymentKind::Invoice => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::ffi::types::PaymentKind::Offer => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::ffi::types::PaymentKind::Spontaneous => {
+                <i32>::sse_encode(3, serializer);
+            }
+            crate::ffi::types::PaymentKind::WaivedChannelFee => {
+                <i32>::sse_encode(4, serializer);
+            }
+            crate::ffi::types::PaymentKind::WaivedLiquidityFee => {
+                <i32>::sse_encode(5, serializer);
+            }
+            crate::ffi::types::PaymentKind::Unknown(field0) => {
+                <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 

@@ -1,5 +1,14 @@
 import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate;
-import 'package:app_rs_dart/ffi/types.dart' show PaymentKind;
+import 'package:app_rs_dart/ffi/types.dart'
+    show
+        PaymentKind,
+        PaymentKind_Invoice,
+        PaymentKind_Offer,
+        PaymentKind_Onchain,
+        PaymentKind_Spontaneous,
+        PaymentKind_Unknown,
+        PaymentKind_WaivedChannelFee,
+        PaymentKind_WaivedLiquidityFee;
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/int_ext.dart';
@@ -45,12 +54,13 @@ enum BalanceKind {
   lightning;
 
   static BalanceKind fromPaymentKind(final PaymentKind kind) => switch (kind) {
-    PaymentKind.onchain => BalanceKind.onchain,
-    PaymentKind.invoice ||
-    PaymentKind.spontaneous ||
-    PaymentKind.offer ||
-    PaymentKind.waivedChannelFee ||
-    PaymentKind.waivedLiquidityFee => BalanceKind.lightning,
+    PaymentKind_Onchain() => BalanceKind.onchain,
+    PaymentKind_Invoice() ||
+    PaymentKind_Spontaneous() ||
+    PaymentKind_Offer() ||
+    PaymentKind_WaivedChannelFee() ||
+    PaymentKind_WaivedLiquidityFee() ||
+    PaymentKind_Unknown() => BalanceKind.lightning,
   };
 }
 

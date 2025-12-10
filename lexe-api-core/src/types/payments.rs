@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cmp::Ordering,
     collections::HashSet,
+    convert::Infallible,
     fmt::{self, Display},
     num::NonZeroU64,
     str::FromStr,
@@ -23,18 +24,19 @@ use common::{
     serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
 };
-use lexe_std::{const_assert_mem_size, fmt::DisplaySlice};
+use lexe_std::const_assert_mem_size;
 use lightning::{
     offers::offer::OfferId,
     types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
 };
 #[cfg(any(test, feature = "test-utils"))]
-use proptest::{prelude::Just, strategy::Union};
+use proptest::{prelude::Just, strategy::Strategy, strategy::Union};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
+#[cfg(test)]
 use strum::VariantArray;
 
 use crate::types::{invoice::LxInvoice, offer::LxOffer};
@@ -242,7 +244,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 408);
+const_assert_mem_size!(BasicPaymentV2, 432);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -295,7 +297,7 @@ pub struct BasicPaymentV1 {
 }
 
 // Debug the size_of `BasicPaymentV1`
-const_assert_mem_size!(BasicPaymentV1, 272);
+const_assert_mem_size!(BasicPaymentV1, 296);
 
 /// An upgradeable version of [`Vec<BasicPaymentV1>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -440,15 +442,22 @@ pub struct VecDbPaymentMetadata {
 
 /// The technical 'rail' used to fulfill a payment:
 /// onchain, invoice, offer, spontaneous, etc.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
+#[derive(Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[cfg_attr(test, derive(VariantArray))]
 pub enum PaymentRail {
     Onchain,
     Invoice,
     Offer,
     Spontaneous,
     WaivedFee,
+    /// Unknown rail; used for forward compatibility.
+    Unknown(
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_string().prop_map(Box::from)")
+        )]
+        Box<str>,
+    ),
 }
 
 /// A granular application-level 'type' of a payment.
@@ -469,7 +478,7 @@ pub enum PaymentRail {
 /// We can always add another OR in a WHERE clause, but cannot easily separate
 /// out data once it has already been unified.
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr, VariantArray)]
+#[derive(Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum PaymentKind {
     // --- Generic kind or Legacy --- //
@@ -535,6 +544,17 @@ pub enum PaymentKind {
 
     // /// Referral fees earned from users we referred.
     // ReferralFeeRevenue, // rail: Spontaneous
+
+    // --- Fallback --- //
+
+    /// Unknown kind; used for forward compatibility.
+    Unknown(
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_string().prop_map(Box::from)")
+        )]
+        Box<str>,
+    ),
 }
 
 /// Specifies whether a payment is inbound or outbound.
@@ -727,6 +747,8 @@ impl BasicPaymentV2 {
             PaymentRail::Invoice => PaymentKind::Invoice,
             PaymentRail::Offer => PaymentKind::Offer,
             PaymentRail::Spontaneous => PaymentKind::Spontaneous,
+            // V1 rails are supported exhaustively
+            PaymentRail::Unknown(_) => unreachable!(),
             // V1 payments don't have these kinds
             PaymentRail::WaivedFee => unreachable!(),
         };
@@ -1186,28 +1208,52 @@ impl From<ClientPaymentId> for lightning::ln::channelmanager::PaymentId {
 // --- impl PaymentKind --- //
 
 impl PaymentRail {
-    fn as_str(&self) -> &'static str {
+    /// All non-unknown variants.
+    pub const KNOWN_VARIANTS: &'static [Self] = const {
+        // Trigger a compilation failure if a new variant is added.
+        // If you added a new variant, add it to the array below.
+        match Self::Onchain {
+            Self::Onchain
+            | Self::Invoice
+            | Self::Offer
+            | Self::Spontaneous
+            | Self::WaivedFee
+            | Self::Unknown(_) => (),
+        }
+
+        &[
+            Self::Onchain,
+            Self::Invoice,
+            Self::Offer,
+            Self::Spontaneous,
+            Self::WaivedFee,
+        ]
+    };
+
+    pub fn to_str(&self) -> Cow<'static, str> {
         match self {
-            Self::Onchain => "onchain",
-            Self::Invoice => "invoice",
-            Self::Offer => "offer",
-            Self::Spontaneous => "spontaneous",
-            Self::WaivedFee => "waived_fee",
+            Self::Onchain => Cow::Borrowed("onchain"),
+            Self::Invoice => Cow::Borrowed("invoice"),
+            Self::Offer => Cow::Borrowed("offer"),
+            Self::Spontaneous => Cow::Borrowed("spontaneous"),
+            Self::WaivedFee => Cow::Borrowed("waived_fee"),
+            Self::Unknown(s) => Cow::Owned(s.to_string()),
         }
     }
 
-    /// Returns a strategy generating [`PaymentKind`] variants with this
-    /// parent kind, uniformly distributed (weight 1 each).
+    /// Returns a strategy generating [`PaymentKind`] variants matching this
+    /// payment rail, uniformly distributed (weight 1 each).
     #[cfg(any(test, feature = "test-utils"))]
     pub fn any_child_kind(self) -> Union<Just<PaymentKind>> {
-        let kinds = PaymentKind::VARIANTS
+        let kinds = PaymentKind::KNOWN_VARIANTS
             .iter()
-            .copied()
             .filter(|c| c.rail() == self)
+            .cloned()
             .map(Just);
         Union::new(kinds)
     }
 }
+
 impl FromStr for PaymentRail {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -1217,15 +1263,13 @@ impl FromStr for PaymentRail {
             "onchain" => Ok(Self::Onchain),
             "spontaneous" => Ok(Self::Spontaneous),
             "waived_fee" => Ok(Self::WaivedFee),
-            _ => Err(anyhow!(
-                "Must be onchain|invoice|offer|spontaneous|waived_fee"
-            )),
+            _ => Ok(Self::Unknown(Box::from(s))),
         }
     }
 }
 impl Display for PaymentRail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
+        f.write_str(&self.to_str())
     }
 }
 impl Serialize for PaymentRail {
@@ -1233,21 +1277,46 @@ impl Serialize for PaymentRail {
     where
         S: serde::Serializer,
     {
-        self.as_str().serialize(serializer)
+        self.to_str().serialize(serializer)
     }
 }
 
 // --- impl PaymentKind --- //
 
 impl PaymentKind {
-    pub fn as_str(&self) -> &'static str {
+    /// All non-unknown variants.
+    pub const KNOWN_VARIANTS: &'static [Self] = const {
+        // Trigger a compilation failure if a new variant is added.
+        // If you added a new variant, add it to the array below.
+        match Self::Onchain {
+            Self::Onchain
+            | Self::Invoice
+            | Self::Offer
+            | Self::Spontaneous
+            | Self::WaivedChannelFee
+            | Self::WaivedLiquidityFee
+            | Self::Unknown(_) => (),
+        }
+
+        &[
+            Self::Onchain,
+            Self::Invoice,
+            Self::Offer,
+            Self::Spontaneous,
+            Self::WaivedChannelFee,
+            Self::WaivedLiquidityFee,
+        ]
+    };
+
+    pub fn to_str(&self) -> Cow<'static, str> {
         match self {
-            Self::Onchain => "onchain",
-            Self::Invoice => "invoice",
-            Self::Offer => "offer",
-            Self::Spontaneous => "spontaneous",
-            Self::WaivedChannelFee => "waived_channel_fee",
-            Self::WaivedLiquidityFee => "waived_liquidity_fee",
+            Self::Onchain => Cow::Borrowed("onchain"),
+            Self::Invoice => Cow::Borrowed("invoice"),
+            Self::Offer => Cow::Borrowed("offer"),
+            Self::Spontaneous => Cow::Borrowed("spontaneous"),
+            Self::WaivedChannelFee => Cow::Borrowed("waived_channel_fee"),
+            Self::WaivedLiquidityFee => Cow::Borrowed("waived_liquidity_fee"),
+            Self::Unknown(s) => Cow::Owned(s.to_string()),
         }
     }
 
@@ -1259,6 +1328,9 @@ impl PaymentKind {
             Self::Spontaneous => PaymentRail::Spontaneous,
             Self::WaivedChannelFee => PaymentRail::WaivedFee,
             Self::WaivedLiquidityFee => PaymentRail::WaivedFee,
+            Self::Unknown(s) => PaymentRail::Unknown(Box::from(format!(
+                "(Unknown: parent of '{s}')"
+            ))),
         }
     }
 
@@ -1272,25 +1344,23 @@ impl PaymentKind {
     }
 }
 impl FromStr for PaymentKind {
-    type Err = anyhow::Error;
+    type Err = Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "invoice" => Ok(Self::Invoice),
-            "offer" => Ok(Self::Offer),
-            "onchain" => Ok(Self::Onchain),
-            "spontaneous" => Ok(Self::Spontaneous),
-            "waived_channel_fee" => Ok(Self::WaivedChannelFee),
-            "waived_liquidity_fee" => Ok(Self::WaivedLiquidityFee),
-            _ => Err(anyhow!(
-                "Invalid PaymentKind: '{s}'. Must be one of: {}",
-                DisplaySlice(Self::VARIANTS)
-            )),
-        }
+        let kind = match s {
+            "invoice" => Self::Invoice,
+            "offer" => Self::Offer,
+            "onchain" => Self::Onchain,
+            "spontaneous" => Self::Spontaneous,
+            "waived_channel_fee" => Self::WaivedChannelFee,
+            "waived_liquidity_fee" => Self::WaivedLiquidityFee,
+            unknown => Self::Unknown(Box::from(unknown)),
+        };
+        Ok(kind)
     }
 }
 impl Display for PaymentKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
+        f.write_str(&self.to_str())
     }
 }
 impl Serialize for PaymentKind {
@@ -1298,7 +1368,7 @@ impl Serialize for PaymentKind {
     where
         S: serde::Serializer,
     {
-        self.as_str().serialize(serializer)
+        self.to_str().serialize(serializer)
     }
 }
 
@@ -1545,6 +1615,7 @@ mod test {
 
     #[test]
     fn enums_roundtrips() {
+        // Unit enums: full backwards compat check
         let expected_ser = r#"["inbound","outbound","info"]"#;
         roundtrip::json_unit_enum_backwards_compat::<PaymentDirection>(
             expected_ser,
@@ -1553,16 +1624,31 @@ mod test {
         roundtrip::json_unit_enum_backwards_compat::<PaymentStatus>(
             expected_ser,
         );
+
+        // PaymentRail and PaymentKind have Unknown variants
         let expected_ser =
             r#"["onchain","invoice","offer","spontaneous","waived_fee"]"#;
-        roundtrip::json_unit_enum_backwards_compat::<PaymentRail>(expected_ser);
+        roundtrip::json_unit_enum_backwards_compat_with_unknown(
+            PaymentRail::KNOWN_VARIANTS,
+            expected_ser,
+        );
         let expected_ser = r#"["onchain","invoice","offer","spontaneous","waived_channel_fee","waived_liquidity_fee"]"#;
-        roundtrip::json_unit_enum_backwards_compat::<PaymentKind>(expected_ser);
+        roundtrip::json_unit_enum_backwards_compat_with_unknown(
+            PaymentKind::KNOWN_VARIANTS,
+            expected_ser,
+        );
 
+        // FromStr/Display roundtrip
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentDirection>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentStatus>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentRail>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentKind>();
+
+        // JSON string roundtrip
+        roundtrip::json_string_roundtrip_proptest::<PaymentDirection>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentStatus>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentRail>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentKind>();
     }
 
     #[test]

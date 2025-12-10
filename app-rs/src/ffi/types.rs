@@ -272,7 +272,7 @@ impl From<PaymentStatusRs> for PaymentStatus {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum PaymentKind {
     Onchain,
     Invoice,
@@ -280,6 +280,7 @@ pub enum PaymentKind {
     Spontaneous,
     WaivedChannelFee,
     WaivedLiquidityFee,
+    Unknown(String),
 }
 
 impl From<PaymentKindRs> for PaymentKind {
@@ -291,6 +292,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::Spontaneous => Self::Spontaneous,
             PaymentKindRs::WaivedChannelFee => Self::WaivedChannelFee,
             PaymentKindRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+            PaymentKindRs::Unknown(s) => Self::Unknown(String::from(s)),
         }
     }
 }
@@ -335,11 +337,13 @@ pub struct ShortPayment {
 impl From<&BasicPaymentV1Rs> for ShortPayment {
     fn from(payment: &BasicPaymentV1Rs) -> Self {
         // V1 payments don't have kind; derive from rail
-        let kind = match payment.rail {
+        let kind = match &payment.rail {
             PaymentRailRs::Onchain => PaymentKind::Onchain,
             PaymentRailRs::Invoice => PaymentKind::Invoice,
             PaymentRailRs::Offer => PaymentKind::Offer,
             PaymentRailRs::Spontaneous => PaymentKind::Spontaneous,
+            // V1 doesn't have an unknown variant
+            PaymentRailRs::Unknown(_) => unreachable!(),
             // These rails don't exist in v1
             PaymentRailRs::WaivedFee => unreachable!(),
         };
@@ -367,7 +371,7 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
         Self {
             index: PaymentCreatedIndex::from(payment.created_index()),
 
-            kind: PaymentKind::from(payment.kind),
+            kind: PaymentKind::from(payment.kind.clone()),
 
             direction: PaymentDirection::from(payment.direction),
 
@@ -415,11 +419,13 @@ pub struct Payment {
 impl From<&BasicPaymentV1Rs> for Payment {
     fn from(payment: &BasicPaymentV1Rs) -> Self {
         // V1 payments don't have kind; derive from rail
-        let kind = match payment.rail {
+        let kind = match &payment.rail {
             PaymentRailRs::Onchain => PaymentKind::Onchain,
             PaymentRailRs::Invoice => PaymentKind::Invoice,
             PaymentRailRs::Offer => PaymentKind::Offer,
             PaymentRailRs::Spontaneous => PaymentKind::Spontaneous,
+            // V1 doesn't have an unknown variant
+            PaymentRailRs::Unknown(_) => unreachable!(),
             // These rails don't exist in v1
             PaymentRailRs::WaivedFee => unreachable!(),
         };
@@ -457,7 +463,7 @@ impl From<&BasicPaymentV2Rs> for Payment {
         Self {
             index: PaymentCreatedIndex::from(payment.created_index()),
 
-            kind: PaymentKind::from(payment.kind),
+            kind: PaymentKind::from(payment.kind.clone()),
             direction: PaymentDirection::from(payment.direction),
 
             invoice: payment.invoice.as_deref().map(Invoice::from),

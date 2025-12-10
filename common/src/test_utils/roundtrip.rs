@@ -293,3 +293,69 @@ where
     }
     assert_eq!(actual_de, expected_de);
 }
+
+/// Like [`json_unit_enum_backwards_compat`], but for unit enums with an
+/// `Unknown(String)` catch-all variant.
+///
+/// Unlike pure unit enums, renames/removals don't fail deserialization - old
+/// strings silently become `Unknown(...)`, losing semantic meaning. This test
+/// catches such changes by comparing against `expected_ser`, which represents
+/// persisted production data and should only ever grow (additions OK, removals
+/// need migration).
+///
+/// Pass `KNOWN_VARIANTS` since `strum::VariantArray` doesn't work with
+/// data-carrying variants.
+pub fn json_unit_enum_backwards_compat_with_unknown<T>(
+    known_variants: &'static [T],
+    expected_ser: &str,
+) where
+    T: Clone + PartialEq + Debug,
+    T: Serialize + DeserializeOwned,
+{
+    // Make bootstrapping the test easier by defaulting to an empty list.
+    let expected_ser = if expected_ser.is_empty() {
+        "[]"
+    } else {
+        expected_ser
+    };
+
+    let actual_ser = serde_json::to_string(&known_variants).unwrap();
+    let actual_de = serde_json::from_str::<Vec<T>>(expected_ser).unwrap();
+
+    // Check 1: Serialization matches snapshot.
+    // Fails when variants are added, removed, renamed, or reordered.
+    if actual_ser != expected_ser {
+        panic!(
+            "\n\
+             KNOWN_VARIANTS serialization has changed: \n\
+             \n\
+                actual: '{actual_ser}' \n\
+              expected: '{expected_ser}' \n\
+             \n\
+             RENAMING or REMOVING variants is NOT SAFE. Unlike unit enums, \n\
+             deserialization won't fail - the old string silently becomes \n\
+             Unknown(...), losing semantic meaning. You need a data migration. \n\
+             \n\
+             If you only ADDED a new variant, that's OK. Update expected_ser: \n\
+             \n\
+             ```\n\
+             let expected_ser = r#\"{actual_ser}\"#;\n\
+             ```\n\
+             "
+        );
+    }
+
+    // Check 2: Deserializing the snapshot produces known variants, not Unknown.
+    // Defense-in-depth: if Check 1 passed but this fails, something is wrong
+    // with the enum's ser/de implementation (e.g., asymmetric roundtrip).
+    assert_eq!(
+        actual_de, known_variants,
+        "\n\
+         Deserializing expected_ser doesn't reproduce KNOWN_VARIANTS. \n\
+         \n\
+         This suggests the enum's Serialize/Deserialize impls don't roundtrip \n\
+         correctly, or expected_ser was corrupted. Check 1 should have caught \n\
+         renames/removals, so this indicates a different problem. \n\
+         "
+    );
+}

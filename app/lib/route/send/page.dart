@@ -11,7 +11,13 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         ConfirmationPriority,
         LnurlPayRequest,
-        PaymentKind,
+        PaymentKind_Invoice,
+        PaymentKind_Offer,
+        PaymentKind_Onchain,
+        PaymentKind_Spontaneous,
+        PaymentKind_Unknown,
+        PaymentKind_WaivedChannelFee,
+        PaymentKind_WaivedLiquidityFee,
         PaymentMethod_Invoice,
         PaymentMethod_LnurlPayRequest,
         PaymentMethod_Offer,
@@ -743,14 +749,15 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
     final paymentKind = this.widget.sendCtx.preflightedPayment.kind();
     final subheading = switch (paymentKind) {
-      PaymentKind.onchain => "Sending bitcoin on-chain",
-      PaymentKind.invoice => "Sending bitcoin via lightning invoice",
-      PaymentKind.spontaneous =>
+      PaymentKind_Onchain() => "Sending bitcoin on-chain",
+      PaymentKind_Invoice() => "Sending bitcoin via lightning invoice",
+      PaymentKind_Spontaneous() =>
         "Sending bitcoin via lightning spontaneous payment",
-      PaymentKind.offer => "Sending bitcoin via lightning offer",
+      PaymentKind_Offer() => "Sending bitcoin via lightning offer",
       // Waived fees are not send payment kinds; should never happen here.
-      PaymentKind.waivedChannelFee ||
-      PaymentKind.waivedLiquidityFee => "(invalid)",
+      PaymentKind_WaivedChannelFee() ||
+      PaymentKind_WaivedLiquidityFee() ||
+      PaymentKind_Unknown() => "(invalid)",
     };
 
     final description = this.description();

@@ -163,7 +163,7 @@ pub enum PaymentV2 {
 }
 
 // Debug the size_of `PaymentV2`
-const_assert_mem_size!(PaymentV2, 240);
+const_assert_mem_size!(PaymentV2, 264);
 
 /// Optional payment metadata associated with a [`PaymentV2`].
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -314,7 +314,7 @@ pub fn encrypt_v1(
 
     Ok(DbPaymentV2 {
         id: pwm.payment.id().to_string(),
-        kind: Some(Cow::Borrowed(pwm.payment.kind().as_str())),
+        kind: Some(pwm.payment.kind().to_str()),
         direction: Some(Cow::Borrowed(pwm.payment.direction().as_str())),
         amount: pwm.payment.amount(),
         fee: Some(pwm.payment.fee()),
@@ -655,14 +655,14 @@ impl PaymentV2 {
     /// The application-level kind of this payment.
     pub fn kind(&self) -> PaymentKind {
         match self {
-            Self::OnchainSend(os) => os.kind,
-            Self::OnchainReceive(or) => or.kind,
-            Self::InboundInvoice(iip) => iip.kind,
-            Self::InboundOfferReusable(iorp) => iorp.kind,
-            Self::InboundSpontaneous(isp) => isp.kind,
-            Self::OutboundInvoice(oip) => oip.kind,
-            Self::OutboundOffer(oop) => oop.kind,
-            Self::OutboundSpontaneous(osp) => osp.kind,
+            Self::OnchainSend(os) => os.kind.clone(),
+            Self::OnchainReceive(or) => or.kind.clone(),
+            Self::InboundInvoice(iip) => iip.kind.clone(),
+            Self::InboundOfferReusable(iorp) => iorp.kind.clone(),
+            Self::InboundSpontaneous(isp) => isp.kind.clone(),
+            Self::OutboundInvoice(oip) => oip.kind.clone(),
+            Self::OutboundOffer(oop) => oop.kind.clone(),
+            Self::OutboundSpontaneous(osp) => osp.kind.clone(),
         }
     }
 

@@ -651,6 +651,258 @@ String toString() {
 
 
 /// @nodoc
+mixin _$PaymentKind {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind()';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class PaymentKind_Onchain extends PaymentKind {
+  const PaymentKind_Onchain(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_Onchain);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.onchain()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentKind_Invoice extends PaymentKind {
+  const PaymentKind_Invoice(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_Invoice);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.invoice()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentKind_Offer extends PaymentKind {
+  const PaymentKind_Offer(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_Offer);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.offer()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentKind_Spontaneous extends PaymentKind {
+  const PaymentKind_Spontaneous(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_Spontaneous);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.spontaneous()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentKind_WaivedChannelFee extends PaymentKind {
+  const PaymentKind_WaivedChannelFee(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_WaivedChannelFee);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.waivedChannelFee()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentKind_WaivedLiquidityFee extends PaymentKind {
+  const PaymentKind_WaivedLiquidityFee(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_WaivedLiquidityFee);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.waivedLiquidityFee()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentKind_Unknown extends PaymentKind {
+  const PaymentKind_Unknown(this.field0): super._();
+  
+
+ final  String field0;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_Unknown&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'PaymentKind.unknown(field0: $field0)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$PaymentMethod {
 
  Object get field0;

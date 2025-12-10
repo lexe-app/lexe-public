@@ -4097,7 +4097,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   PaymentKind dco_decode_payment_kind(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return PaymentKind.values[raw as int];
+    switch (raw[0]) {
+      case 0:
+        return PaymentKind_Onchain();
+      case 1:
+        return PaymentKind_Invoice();
+      case 2:
+        return PaymentKind_Offer();
+      case 3:
+        return PaymentKind_Spontaneous();
+      case 4:
+        return PaymentKind_WaivedChannelFee();
+      case 5:
+        return PaymentKind_WaivedLiquidityFee();
+      case 6:
+        return PaymentKind_Unknown(dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -5753,8 +5770,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   PaymentKind sse_decode_payment_kind(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return PaymentKind.values[inner];
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return PaymentKind_Onchain();
+      case 1:
+        return PaymentKind_Invoice();
+      case 2:
+        return PaymentKind_Offer();
+      case 3:
+        return PaymentKind_Spontaneous();
+      case 4:
+        return PaymentKind_WaivedChannelFee();
+      case 5:
+        return PaymentKind_WaivedLiquidityFee();
+      case 6:
+        var var_field0 = sse_decode_String(deserializer);
+        return PaymentKind_Unknown(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -7311,7 +7347,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   void sse_encode_payment_kind(PaymentKind self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
+    switch (self) {
+      case PaymentKind_Onchain():
+        sse_encode_i_32(0, serializer);
+      case PaymentKind_Invoice():
+        sse_encode_i_32(1, serializer);
+      case PaymentKind_Offer():
+        sse_encode_i_32(2, serializer);
+      case PaymentKind_Spontaneous():
+        sse_encode_i_32(3, serializer);
+      case PaymentKind_WaivedChannelFee():
+        sse_encode_i_32(4, serializer);
+      case PaymentKind_WaivedLiquidityFee():
+        sse_encode_i_32(5, serializer);
+      case PaymentKind_Unknown(field0: final field0):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(field0, serializer);
+    }
   }
 
   @protected

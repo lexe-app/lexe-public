@@ -309,6 +309,8 @@ impl PaymentV1 {
             PaymentRail::Invoice => PaymentKind::Invoice,
             PaymentRail::Offer => PaymentKind::Offer,
             PaymentRail::Spontaneous => PaymentKind::Spontaneous,
+            // All V1 variants handled above
+            PaymentRail::Unknown(_) => unreachable!(),
             // V1 payments don't have these kinds
             PaymentRail::WaivedFee => unreachable!(),
         };

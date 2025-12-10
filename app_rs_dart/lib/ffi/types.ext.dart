@@ -9,6 +9,13 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind,
+        PaymentKind_Invoice,
+        PaymentKind_Offer,
+        PaymentKind_Onchain,
+        PaymentKind_Spontaneous,
+        PaymentKind_Unknown,
+        PaymentKind_WaivedChannelFee,
+        PaymentKind_WaivedLiquidityFee,
         PaymentMethod,
         PaymentMethod_Invoice,
         PaymentMethod_LnurlPayRequest,
@@ -92,7 +99,7 @@ extension PaymentExt on Payment {
   bool isJunk() =>
       // junk amountless invoice
       this.status != PaymentStatus.completed &&
-      this.kind == PaymentKind.invoice &&
+      this.kind is PaymentKind_Invoice &&
       this.direction == PaymentDirection.inbound &&
       (this.amountSat == null || this.note == null);
 }
@@ -111,19 +118,21 @@ extension PaymentMethodExt on PaymentMethod {
   };
 
   PaymentKind kind() => switch (this) {
-    PaymentMethod_Onchain() => PaymentKind.onchain,
-    PaymentMethod_Invoice() => PaymentKind.invoice,
-    PaymentMethod_Offer() => PaymentKind.offer,
-    PaymentMethod_LnurlPayRequest() => PaymentKind.invoice,
+    PaymentMethod_Onchain() => const PaymentKind_Onchain(),
+    PaymentMethod_Invoice() => const PaymentKind_Invoice(),
+    PaymentMethod_Offer() => const PaymentKind_Offer(),
+    PaymentMethod_LnurlPayRequest() => const PaymentKind_Invoice(),
   };
 }
 
 extension PaymentKindExt on PaymentKind {
   bool isLightning() => switch (this) {
-    PaymentKind.onchain => false,
-    PaymentKind.invoice => true,
-    PaymentKind.spontaneous => true,
-    PaymentKind.offer => true,
-    PaymentKind.waivedChannelFee || PaymentKind.waivedLiquidityFee => false,
+    PaymentKind_Onchain() => false,
+    PaymentKind_Invoice() => true,
+    PaymentKind_Spontaneous() => true,
+    PaymentKind_Offer() => true,
+    PaymentKind_WaivedChannelFee() ||
+    PaymentKind_WaivedLiquidityFee() ||
+    PaymentKind_Unknown() => false,
   };
 }
