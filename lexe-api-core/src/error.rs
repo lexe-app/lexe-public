@@ -511,6 +511,7 @@ api_error!(LspApiError, LspErrorKind);
 api_error!(MegaApiError, MegaErrorKind);
 api_error!(NodeApiError, NodeErrorKind);
 api_error!(RunnerApiError, RunnerErrorKind);
+api_error!(SdkApiError, SdkErrorKind);
 
 // --- Error variants --- //
 
@@ -963,6 +964,67 @@ impl ToHttpStatus for RunnerErrorKind {
             UnknownUser => CLIENT_404_NOT_FOUND,
             LeaseExpired => CLIENT_400_BAD_REQUEST,
             WrongLease => CLIENT_400_BAD_REQUEST,
+        }
+    }
+}
+
+api_error_kind! {
+    /// All variants of errors that the SDK can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum SdkErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
+
+        // --- Common --- //
+
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+        /// General server error
+        Server = 6,
+        /// Client provided a bad request that the server rejected
+        Rejection = 7,
+        /// Server is at capacity
+        AtCapacity = 8,
+
+        // --- SDK --- //
+
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These get displayed to users frequently and should be concise.
+        Command = 100,
+        /// Authentication error
+        BadAuth = 101,
+        /// Resource not found
+        NotFound = 102,
+    }
+}
+
+impl ToHttpStatus for SdkErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use SdkErrorKind::*;
+        match self {
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+
+            Command => SERVER_500_INTERNAL_SERVER_ERROR,
+            BadAuth => CLIENT_401_UNAUTHORIZED,
+            NotFound => CLIENT_404_NOT_FOUND,
         }
     }
 }
@@ -1439,6 +1501,38 @@ impl RunnerApiError {
     }
 }
 
+impl SdkApiError {
+    pub fn command(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = SdkErrorKind::Command;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn bad_auth(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = SdkErrorKind::BadAuth;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn not_found(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = SdkErrorKind::NotFound;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+}
+
 // --- Build JSON response --- //
 
 pub mod error_response {}
@@ -1612,6 +1706,7 @@ mod test {
         invariants::assert_error_kind_invariants::<MegaErrorKind>();
         invariants::assert_error_kind_invariants::<NodeErrorKind>();
         invariants::assert_error_kind_invariants::<RunnerErrorKind>();
+        invariants::assert_error_kind_invariants::<SdkErrorKind>();
     }
 
     #[test]
@@ -1623,6 +1718,7 @@ mod test {
         assert_api_error_invariants::<MegaApiError, MegaErrorKind>();
         assert_api_error_invariants::<NodeApiError, NodeErrorKind>();
         assert_api_error_invariants::<RunnerApiError, RunnerErrorKind>();
+        assert_api_error_invariants::<SdkApiError, SdkErrorKind>();
     }
 
     #[test]
