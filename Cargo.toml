@@ -24,6 +24,7 @@ members = [
     "run-sgx",
     "sdk-core",
     "sdk-sidecar",
+    "sdk-uniffi-bindgen",
     "sgx-test",
     "sgx-toml",
     "sgxs-sign",
@@ -189,6 +190,8 @@ tower-service = "0.3"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["smallvec"] }
+# Generate bindings to our SDK in other languages
+uniffi = { version = "0.30", default-features = false }
 # Mozilla's set of trusted webpki root certificates hard-coded into a const
 webpki-roots = "1"
 # Parsing x509 cert extensions

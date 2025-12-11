@@ -1,0 +1,18 @@
+[package]
+name = "sdk-uniffi-bindgen"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/main.rs"
+
+[dependencies]
+
+# --- LEXE --- #
+
+# --- WORKSPACE --- #
+
+uniffi = { workspace = true, features = ["cli", "build"] }
