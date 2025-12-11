@@ -1,6 +1,9 @@
-use lexe_api::{rest::RestClient, types::Empty};
+use lexe_api::{
+    error::{SdkApiError, SdkErrorKind},
+    rest::RestClient,
+    types::Empty,
+};
 use sdk_core::{
-    SdkApiError, SdkErrorKind,
     def::SdkApi,
     models::{
         SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,

@@ -6,9 +6,10 @@
 // We don't export our traits currently so auto trait stability is not relevant.
 #![allow(async_fn_in_trait)]
 
+use lexe_api::error::SdkApiError;
 #[cfg(doc)]
 use lexe_api::types::Empty;
-use sdk_core::{SdkApiError, def::SdkApi};
+use sdk_core::def::SdkApi;
 
 use crate::api::HealthCheckResponse;
 

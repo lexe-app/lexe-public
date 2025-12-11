@@ -2455,7 +2455,6 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-server",
- "base64 0.21.7",
  "bcs",
  "byte-array",
  "bytes",

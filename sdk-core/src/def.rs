@@ -6,13 +6,12 @@
 // We don't export our traits currently so auto trait stability is not relevant.
 #![allow(async_fn_in_trait)]
 
-use crate::{
-    SdkApiError,
-    models::{
-        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
-        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
-    },
+use lexe_api_core::error::SdkApiError;
+
+use crate::models::{
+    SdkCreateInvoiceRequest, SdkCreateInvoiceResponse, SdkGetPaymentRequest,
+    SdkGetPaymentResponse, SdkNodeInfoResponse, SdkPayInvoiceRequest,
+    SdkPayInvoiceResponse,
 };
 
 /// The API exposed to SDK users.

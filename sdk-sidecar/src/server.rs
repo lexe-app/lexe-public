@@ -11,7 +11,7 @@ use axum::{
 use common::{ed25519, env::DeployEnv};
 use lexe_api::{
     def::AppNodeRunApi,
-    error::NodeErrorKind,
+    error::{SdkApiError, SdkErrorKind},
     models::command::{CreateInvoiceResponse, LxPaymentIdStruct},
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
@@ -19,7 +19,6 @@ use lexe_api::{
 use node_client::client::NodeClient;
 use quick_cache::unsync;
 use sdk_core::{
-    SdkApiError,
     models::{
         SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
         SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
@@ -121,11 +120,11 @@ mod node {
         State(_): State<Arc<RouterState>>,
         NodeClientExtractor(node_client): NodeClientExtractor,
     ) -> Result<LxJson<SdkNodeInfoResponse>, SdkApiError> {
-        node_client
+        let info = node_client
             .node_info()
             .await
-            .map(SdkNodeInfoResponse::from)
-            .map(LxJson)
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(SdkNodeInfoResponse::from(info)))
     }
 
     #[instrument(skip_all, name = "(create-invoice)")]
@@ -137,7 +136,10 @@ mod node {
         let CreateInvoiceResponse {
             invoice,
             created_index: maybe_index,
-        } = node_client.create_invoice(req.into()).await?;
+        } = node_client
+            .create_invoice(req.into())
+            .await
+            .map_err(SdkApiError::command)?;
 
         let index = maybe_index
             .ok_or("Node out-of-date. Upgrade to node-v0.8.10 or later.")
@@ -153,7 +155,11 @@ mod node {
         LxJson(req): LxJson<SdkPayInvoiceRequest>,
     ) -> Result<LxJson<SdkPayInvoiceResponse>, SdkApiError> {
         let id = req.invoice.payment_id();
-        let created_at = node_client.pay_invoice(req.into()).await?.created_at;
+        let created_at = node_client
+            .pay_invoice(req.into())
+            .await
+            .map_err(SdkApiError::command)?
+            .created_at;
         let resp = SdkPayInvoiceResponse {
             index: PaymentCreatedIndex { id, created_at },
             created_at,
@@ -174,7 +180,7 @@ mod node {
             Ok(LxJson(payment)) => Ok(LxJson(SdkGetPaymentResponse {
                 payment: Some(payment),
             })),
-            Err(e) if e.kind == NodeErrorKind::NotFound =>
+            Err(e) if e.kind == SdkErrorKind::NotFound =>
                 Ok(LxJson(SdkGetPaymentResponse { payment: None })),
             Err(e) => Err(e),
         }
@@ -200,7 +206,8 @@ mod node {
 
         let maybe_basic_payment = node_client
             .get_payment_by_id(LxPaymentIdStruct { id })
-            .await?
+            .await
+            .map_err(SdkApiError::command)?
             .maybe_payment;
 
         let basic_payment = match maybe_basic_payment {
