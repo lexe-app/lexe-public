@@ -174,14 +174,12 @@ mod extract;
 
 /// Reexport Lexe crates, as various interfaces may need these types.
 pub mod lexe {
-    // TODO(max): Remove if we can? Needed this just for
-    // `ClientCredentials`
-    pub use app_rs as app;
     pub use common;
     pub use lexe_api as api;
     // Don't conflict with crate name `tokio`
     pub use lexe_tokio;
     pub use logger;
+    pub use node_client;
     pub use sdk_core;
 }
 

@@ -3,7 +3,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use app_rs::client::NodeClient;
 use axum::{
     Router,
     extract::{FromRequestParts, State},
@@ -17,6 +16,7 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
 };
+use node_client::client::NodeClient;
 use quick_cache::unsync;
 use sdk_core::{
     SdkApiError,

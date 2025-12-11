@@ -1,0 +1,36 @@
+[package]
+name = "node-client"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[features]
+default = []
+test-utils = ["proptest-derive"]
+
+[dependencies]
+# --- LEXE --- #
+
+common.path = "../common"
+lexe-api.path = "../lexe-api"
+lexe-tls.path = "../lexe-tls"
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+http.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# --- OPTIONAL --- #
+
+proptest-derive = { workspace = true, optional = true }
+
+[dev-dependencies]
+common = { path = "../common", features = ["test-utils"] }
+proptest.workspace = true
+proptest-derive.workspace = true

@@ -13,12 +13,12 @@ path = "src/main.rs"
 
 # --- LEXE --- #
 
-app-rs = { path = "../app-rs", default-features = false }
 common = { path = "../common" }
 lexe-api = { path = "../lexe-api" }
 lexe-std.path = "../lexe-std"
 lexe-tokio = { path = "../lexe-tokio" }
 logger = { path = "../logger" }
+node-client.path = "../node-client"
 sdk-core = { path = "../sdk-core" }
 
 # --- WORKSPACE --- #

@@ -6,9 +6,6 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use app_rs::client::{
-    ClientCredentials, Credentials, GatewayClient, NodeClient,
-};
 use common::{
     env::DeployEnv, ln::network::LxNetwork, rng::SysRng, root_seed::RootSeed,
 };
@@ -16,6 +13,10 @@ use lexe_api::server::LayerConfig;
 use lexe_tokio::{
     notify_once::NotifyOnce,
     task::{self, LxTask},
+};
+use node_client::{
+    client::{GatewayClient, NodeClient},
+    credentials::{ClientCredentials, Credentials},
 };
 use tracing::{info, info_span, instrument};
 

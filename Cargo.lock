@@ -185,6 +185,7 @@ dependencies = [
  "lexe-std",
  "lexe-tls",
  "lexe-tokio",
+ "node-client",
  "payment-uri",
  "proptest",
  "proptest-derive",
@@ -2454,6 +2455,7 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-server",
+ "base64 0.21.7",
  "bcs",
  "byte-array",
  "bytes",
@@ -2946,6 +2948,24 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "node-client"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.21.7",
+ "common",
+ "http",
+ "lexe-api",
+ "lexe-tls",
+ "proptest",
+ "proptest-derive",
+ "reqwest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3981,15 +4001,17 @@ name = "sdk-sidecar"
 version = "0.3.0"
 dependencies = [
  "anyhow",
- "app-rs",
  "argh",
  "axum",
  "common",
  "dotenvy",
+ "http",
  "lexe-api",
  "lexe-std",
  "lexe-tokio",
  "logger",
+ "node-client",
+ "quick_cache",
  "sdk-core",
  "serde",
  "serde_json",

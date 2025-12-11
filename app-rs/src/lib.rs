@@ -16,8 +16,6 @@
 pub mod app;
 /// The app's general database.
 mod app_data;
-/// The app's clients to the node and gateway.
-pub mod client;
 /// Persistence logic for data stored.
 pub mod db;
 /// The flutter/rust FFI bindings.

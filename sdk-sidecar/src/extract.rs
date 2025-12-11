@@ -1,12 +1,13 @@
 use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
-use app_rs::client::{
-    ClientCredentials, Credentials, GatewayClient, NodeClient,
-};
 use axum::extract::FromRequestParts;
 use common::{ed25519, rng::SysRng};
 use http::header::AUTHORIZATION;
+use node_client::{
+    client::{GatewayClient, NodeClient},
+    credentials::{ClientCredentials, Credentials},
+};
 use sdk_core::SdkApiError;
 
 use crate::server::RouterState;

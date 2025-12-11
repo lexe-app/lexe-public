@@ -17,6 +17,7 @@ members = [
     "lexe-tokio",
     "logger",
     "node",
+    "node-client",
     "payment-uri",
     "payment-uri-core",
     "petname",

@@ -3,11 +3,11 @@
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
-use app_rs::client::ClientCredentials;
 use common::{
     env::DeployEnv, ln::network::LxNetwork, or_env::OrEnvExt as _,
     root_seed::RootSeed,
 };
+use node_client::credentials::ClientCredentials;
 use tracing::{debug, info};
 
 /// Lexe sidecar SDK CLI args

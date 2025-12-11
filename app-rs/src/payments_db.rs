@@ -61,9 +61,10 @@ use lexe_api::{
         VecBasicPaymentV2,
     },
 };
+use node_client::client::NodeClient;
 use tracing::warn;
 
-use crate::{client::NodeClient, ffs::Ffs};
+use crate::ffs::Ffs;
 
 /// Sync the app's local payment state from the user node.
 ///

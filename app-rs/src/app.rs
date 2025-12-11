@@ -34,13 +34,16 @@ use common::{
 use lexe_api::def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi};
 use lexe_std::Apply;
 use lexe_tokio::task::LxTask;
+use node_client::{
+    client::{GatewayClient, NodeClient},
+    credentials::Credentials,
+};
 use payment_uri::{bip353, lnurl};
 use secrecy::ExposeSecret;
 use tracing::{info, info_span, instrument, warn};
 
 use crate::{
     app_data::AppDataRs,
-    client::{Credentials, GatewayClient, NodeClient},
     db::WritebackDb,
     ffs::{Ffs, FlatFileFs},
     payments_db::{self, PaymentSyncSummary, PaymentsDb},
