@@ -1,6 +1,5 @@
 import pytest
-import sdk
+import lexe
 
-
-def test_sum_as_string():
-    assert sdk.sum_as_string(1, 1) == "2"
+def test_add():
+    assert lexe.add(1, 2) == 3

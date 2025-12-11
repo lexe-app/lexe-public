@@ -1,0 +1,2 @@
+[bindings.python]
+cdylib_name = "lexe" # liblexe.so, liblexe.dylib, lexe.dll

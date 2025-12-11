@@ -22,6 +22,7 @@ members = [
     "payment-uri-core",
     "petname",
     "run-sgx",
+    "sdk",
     "sdk-core",
     "sdk-sidecar",
     "sdk-uniffi-bindgen",
