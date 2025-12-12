@@ -13,7 +13,7 @@ use node_client::{
 use crate::server::RouterState;
 
 /// The user agent string for internal requests.
-static USER_AGENT_INTERNAL: &str = lexe_api::user_agent_internal!();
+static USER_AGENT_INTERNAL: &str = lexe_api::user_agent_to_lexe!();
 
 /// Extracts and validates [`ClientCredentials`] from `Authorization` header.
 ///

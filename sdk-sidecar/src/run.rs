@@ -22,8 +22,8 @@ use tracing::{info, info_span, instrument};
 
 use crate::{cli::SidecarArgs, server};
 
-/// The user agent string for internal requests.
-static USER_AGENT_INTERNAL: &str = lexe_api::user_agent_internal!();
+/// The user agent string used for requests to Lexe infrastructure.
+static USER_AGENT_INTERNAL: &str = lexe_api::user_agent_to_lexe!();
 
 /// `127.0.0.1:5393` We use IPv4 because it's more approachable to newbie devs.
 /// The docs note that IPv6 is still supported.

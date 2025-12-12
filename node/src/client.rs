@@ -55,7 +55,7 @@ use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
 
 /// The user agent string for external requests.
-pub static USER_AGENT_EXTERNAL: &str = lexe_api::user_agent_external!();
+pub static USER_AGENT_EXTERNAL: &str = lexe_api::user_agent_to_external!();
 
 /// Used for both [`MegaRunnerApi`] and [`NodeRunnerApi`].
 pub(crate) struct RunnerClient {
