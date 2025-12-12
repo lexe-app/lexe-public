@@ -25,7 +25,6 @@ members = [
     "sdk",
     "sdk-core",
     "sdk-sidecar",
-    "sdk-uniffi-bindgen",
     "sgx-test",
     "sgx-toml",
     "sgxs-sign",

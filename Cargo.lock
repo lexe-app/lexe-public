@@ -4101,6 +4101,7 @@ dependencies = [
 name = "sdk"
 version = "0.1.0"
 dependencies = [
+ "hex 0.0.0",
  "uniffi",
 ]
 
@@ -4136,13 +4137,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "sdk-uniffi-bindgen"
-version = "0.0.0"
-dependencies = [
- "uniffi",
 ]
 
 [[package]]

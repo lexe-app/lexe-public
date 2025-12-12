@@ -5,16 +5,36 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
+include = [
+    "pyproject.toml",
+    "src",
+    "uniffi.toml",
+    "uv.lock",
+]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "lexe"
 crate-type = ["cdylib"]
 
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi_bindgen.rs"
+required-features = ["bindgen"]
+
 [dependencies]
 # --- LEXE --- #
+
+hex = { path = "../hex" }
 
 # --- WORKSPACE --- #
 
 uniffi.workspace = true
 
 # --- OPTIONAL --- #
+
+[features]
+# TODO(phlip9): no default features once this commit makes it into next
+# maturin-v1.10.3: <https://github.com/PyO3/maturin/commit/7de7bc8d5214d16ec3b3fe070580f6383701b98a>
+default = ["bindgen"]
+bindgen = ["uniffi/cli", "uniffi/build"]

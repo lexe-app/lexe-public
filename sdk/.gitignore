@@ -9,25 +9,25 @@ __pycache__/
 *.dll
 
 # Distribution / packaging
-.Python
-.venv/
-env/
-bin/
-build/
-develop-eggs/
-dist/
-eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-include/
-man/
-venv/
-*.egg-info/
-.installed.cfg
-*.egg
+/.Python
+/.venv/
+/env/
+/bin/
+/build/
+/develop-eggs/
+/dist/
+/eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/include/
+/man/
+/venv/
+/*.egg-info/
+/.installed.cfg
+/*.egg
 
 # Pyenv
-.python-version
+/.python-version
