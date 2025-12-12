@@ -8,14 +8,10 @@ classifiers = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
-tests = [
-    "pytest",
-]
-
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
 ]
 
 [build-system]
@@ -24,3 +20,6 @@ build-backend = "maturin"
 
 [tool.maturin]
 python-source = "python"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

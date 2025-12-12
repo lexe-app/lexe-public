@@ -25,11 +25,14 @@ required-features = ["bindgen"]
 [dependencies]
 # --- LEXE --- #
 
-hex = { path = "../hex" }
+common = { path = "../common" }
+lexe-api-core = { path = "../lexe-api-core" }
+node-client = { path = "../node-client", default-features = false }
 
 # --- WORKSPACE --- #
 
-uniffi.workspace = true
+anyhow.workspace = true
+uniffi = { workspace = true, features = ["tokio"] }
 
 # --- OPTIONAL --- #
 
