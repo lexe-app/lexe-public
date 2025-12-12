@@ -21,7 +21,7 @@ use rust_decimal::Decimal;
 use crate::{
     Error,
     helpers::AddressExt,
-    payment_method::{Onchain, PaymentMethod},
+    payment_method::{OfferWithAmount, Onchain, PaymentMethod},
     uri::{Uri, UriParam},
 };
 
@@ -326,7 +326,10 @@ impl Bip321Uri {
         }
 
         if let Some(offer) = self.offer {
-            out.push(PaymentMethod::Offer(offer));
+            out.push(PaymentMethod::Offer(OfferWithAmount {
+                offer,
+                bip321_amount: self.amount,
+            }));
         }
 
         out

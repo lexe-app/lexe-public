@@ -5,7 +5,7 @@ use lexe_api_core::types::{invoice::LxInvoice, offer::LxOffer};
 use proptest_derive::Arbitrary;
 
 use crate::{
-    Error, helpers,
+    Error, OfferWithAmount, helpers,
     payment_method::PaymentMethod,
     uri::{Uri, UriParam},
 };
@@ -132,7 +132,9 @@ impl LightningUri {
         }
 
         if let Some(offer) = self.offer {
-            out.push(PaymentMethod::Offer(offer));
+            out.push(PaymentMethod::Offer(OfferWithAmount::no_bip321_amount(
+                offer,
+            )));
         }
 
         out

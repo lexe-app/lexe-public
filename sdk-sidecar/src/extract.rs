@@ -12,9 +12,6 @@ use node_client::{
 
 use crate::server::RouterState;
 
-/// The user agent string for internal requests.
-static USER_AGENT_INTERNAL: &str = lexe_api::user_agent_to_lexe!();
-
 /// Extracts and validates [`ClientCredentials`] from `Authorization` header.
 ///
 /// Returns `None` if the header is not present.
@@ -102,7 +99,7 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
                     let gateway_client = GatewayClient::new(
                         state.deploy_env,
                         state.gateway_url.clone(),
-                        USER_AGENT_INTERNAL,
+                        crate::USER_AGENT,
                     )
                     .context("Failed to create gateway client")
                     .map_err(SdkApiError::bad_auth)?;

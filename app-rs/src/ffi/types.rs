@@ -45,6 +45,7 @@ use lexe_api::{
         username::Username as UsernameRs,
     },
 };
+use payment_uri::OfferWithAmount;
 
 use crate::{
     app::AppConfig, types::GDriveSignupCredentials as GDriveSignupCredentialsRs,
@@ -582,6 +583,10 @@ pub struct Offer {
     pub description: Option<String>,
 
     pub expires_at: Option<i64>,
+    /// The amount that we'll prompt the user to pay.
+    ///
+    /// When paying an offer from a BIP321 URI, this uses the offer's embedded
+    /// amount if present, otherwise falls back to the URI's `amount` param.
     pub amount_sats: Option<u64>,
 
     pub payee: Option<String>,
@@ -608,6 +613,18 @@ impl From<LxOffer> for Offer {
     #[inline]
     fn from(value: LxOffer) -> Self {
         Self::from(&value)
+    }
+}
+
+impl From<OfferWithAmount> for Offer {
+    fn from(value: OfferWithAmount) -> Self {
+        let bip321_amount = value.bip321_amount;
+        let mut this = Offer::from(&value.offer);
+        // Offer's embedded amount takes precedence; BIP321 amount as fallback.
+        if this.amount_sats.is_none() {
+            this.amount_sats = bip321_amount.map(|amount| amount.sats_u64());
+        }
+        this
     }
 }
 

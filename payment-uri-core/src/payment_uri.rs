@@ -10,7 +10,7 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 
 use crate::{
-    Error, Onchain, PaymentMethod,
+    Error, OfferWithAmount, Onchain, PaymentMethod,
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
@@ -196,7 +196,9 @@ impl PaymentUri {
             PaymentUri::LightningUri(lnuri) => Some(lnuri.flatten()),
             PaymentUri::Invoice(invoice) =>
                 Some(helpers::flatten_invoice(invoice)),
-            PaymentUri::Offer(offer) => Some(vec![PaymentMethod::Offer(offer)]),
+            PaymentUri::Offer(offer) => Some(vec![PaymentMethod::Offer(
+                OfferWithAmount::no_bip321_amount(offer),
+            )]),
             PaymentUri::Address(address) =>
                 Some(vec![PaymentMethod::Onchain(Onchain::from(address))]),
 

@@ -20,7 +20,7 @@ use proptest_derive::Arbitrary;
 pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(LxInvoice),
-    Offer(LxOffer),
+    Offer(OfferWithAmount),
     LnurlPayRequest(LnurlPayRequest),
 }
 
@@ -112,6 +112,35 @@ impl<V: NetworkValidation> From<bitcoin::Address<V>> for Onchain {
             amount: None,
             label: None,
             message: None,
+        }
+    }
+}
+
+/// An offer payment method with optional amount from a BIP321 URI.
+pub struct OfferWithAmount {
+    pub offer: LxOffer,
+    /// Amount from BIP321 URI.
+    /// Used when the offer is amount-less to pre-fill an amount in the UI.
+    pub bip321_amount: Option<Amount>,
+}
+
+impl OfferWithAmount {
+    /// The amount that we should prompt the user with.
+    /// Returns the offer's embedded amount if present,
+    /// otherwise uses the BIP321 URI amount.
+    pub fn prompt_amount(&self) -> Option<Amount> {
+        self.offer.amount().or(self.bip321_amount)
+    }
+
+    #[inline]
+    pub fn supports_network(&self, network: LxNetwork) -> bool {
+        self.offer.supports_network(network)
+    }
+
+    pub fn no_bip321_amount(offer: LxOffer) -> Self {
+        Self {
+            offer,
+            bip321_amount: None,
         }
     }
 }

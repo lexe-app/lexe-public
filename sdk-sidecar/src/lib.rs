@@ -156,6 +156,9 @@
 // $ curl http://localhost:5393/node/node_info
 // ```
 
+/// The user agent string used for requests to Lexe infrastructure.
+static USER_AGENT: &str = lexe_api::user_agent_to_lexe!();
+
 /// Sidecar-specific request and response types.
 pub mod api;
 /// Command-line interface.

@@ -68,7 +68,9 @@ async fn resolve_payment_methods(
         PaymentUri::Invoice(invoice) =>
             payment_uri_core::helpers::flatten_invoice(invoice),
 
-        PaymentUri::Offer(offer) => vec![PaymentMethod::Offer(offer)],
+        PaymentUri::Offer(offer) => vec![PaymentMethod::Offer(
+            OfferWithAmount::no_bip321_amount(offer),
+        )],
 
         PaymentUri::Address(address) =>
             vec![PaymentMethod::Onchain(Onchain::from(address))],
