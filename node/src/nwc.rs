@@ -211,52 +211,12 @@ impl NwcClient {
 
     /// Decrypt a NIP-44 encrypted NWC request.
     ///
-    /// NIP-44 V2 is a nostr encryption protocol based a keypair based
-    /// encryption scheme.
-    /// See: <https://github.com/nostr-protocol/nips/blob/master/44.md>
+    /// [NIP-44] uses ECDH to derive a shared secret from both parties'
+    /// keypairs, then authenticated encryption (ChaCha20 + HMAC-SHA256).
+    /// The HMAC provides integrity: decryption fails if the payload was
+    /// encrypted with different keys, protecting against spoofed client pks.
     ///
-    /// Protocol characteristics:
-    /// - Uses ChaCha20 for symmetric encryption.
-    /// - Validates integrity of the encrypted data using HMAC-SHA256.
-    /// - Uses HKDF-SHA256 for key derivation from a shared secret.
-    /// - Uses HKDF-SHA256 to generate a per-message key from the shared secret.
-    ///
-    /// Version 2 decryption flow:
-    ///
-    /// Before decryption, event's pubkey MUST be validated against the
-    /// signature as NIP-01 specifies. The public key MUST be a valid
-    /// secp256k1 curve point and the signature MUST be a valid schnorr
-    /// signature defined in Bitcoin's BIP340 specification.
-    ///
-    /// 1. Validate if first payload character is `#`. We don't support non
-    ///    base64 encoded payloads.
-    ///
-    /// 2. Decode base64 payload into (version, nonce, ciphertext, mac) and
-    ///    validate the version and payload length (encoded and unencoded).
-    ///
-    /// 3. Calculate a conversation secret key:
-    ///
-    ///    3.a Generate a shared_x unhashed x coordinate from the ECDH scalar
-    ///    multiplication of public key A and secret key B.
-    ///    3.b Use HKDF-extract with sha256 to generate a conversation_key.
-    ///
-    /// 4. Calculate message keys:
-    ///
-    ///    4.a HKDF-expand with sha256 using the conversation_key and nonce.
-    ///
-    ///    4.b Slice the output for chacha_key, chacha_nonce and hmac_key.
-    ///
-    /// 5. Calculates the hmac with aad using the hmac_key, ciphertext as
-    ///    message and the nonce as aad. Validate the hmac.
-    ///
-    /// 6. Decrypt the ciphertext using CHACHA20 with the chacha_key,
-    ///    chacha_nonce and the ciphertext as message.
-    ///
-    /// 7. Remove the padding.
-    ///
-    /// Lexe's implementation:
-    /// Only the node knows the client's public key and the wallet's secret key
-    /// to derive the conversation key and decrypt the payload.
+    /// [NIP-44]: https://github.com/nostr-protocol/nips/blob/master/44.md
     pub(crate) fn decrypt_nip44_request(
         &self,
         encrypted_payload: &[u8],
@@ -269,48 +229,7 @@ impl NwcClient {
     }
 
     /// Encrypt a NWC response using NIP-44.
-    ///
-    /// NIP-44 V2 is a nostr encryption protocol based a keypair based
-    /// encryption scheme.
-    /// See: <https://github.com/nostr-protocol/nips/blob/master/44.md>
-    ///
-    /// Protocol characteristics:
-    /// - Uses ChaCha20 for symmetric encryption.
-    /// - Validates integrity of the encrypted data using HMAC-SHA256.
-    /// - Uses HKDF-SHA256 for key derivation from a shared secret.
-    /// - Uses HKDF-SHA256 to generate a per-message key from the shared secret.
-    ///
-    /// Version 2 encryption flow:
-    ///
-    /// 1. Calculate a conversation secret key:
-    ///
-    ///    3.a Generate a shared_x unhashed x coordinate from the ECDH scalar
-    ///    multiplication of public key A and secret key B.
-    ///    3.b Use HKDF-extract with sha256 to generate a conversation_key.
-    ///
-    /// 2. Generates a random 32 bytes nonce using a CSPRNG.
-    ///
-    /// 3. Calculate message keys:
-    ///
-    ///    4.a HKDF-expand with sha256 using the conversation_key and randomly
-    ///    generated nonce.
-    ///
-    ///    4.b Slice the output for chacha_key, chacha_nonce and hmac_key.
-    ///
-    /// 4. Add padding.
-    ///
-    /// 5. Encrypt padded content using CHACHA20 with the chacha_key and
-    ///    chacha_nonce.
-    ///
-    /// 6. Calculates the hmac with aad using the hmac_key, ciphertext as
-    ///    message and the nonce as aad.
-    ///
-    /// 7. Base64 encode the (version, nonce, ciphertext, mac) and return the
-    ///    result.
-    ///
-    /// Lexe's implementation:
-    /// Only the node knows the client's public key and the wallet's secret key
-    /// to derive the conversation key and encode the payload.
+    /// See [`decrypt_nip44_request`](Self::decrypt_nip44_request) for details.
     pub(crate) fn encrypt_nip44_response(
         &self,
         response_json: &str,
