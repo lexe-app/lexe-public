@@ -760,13 +760,14 @@ pub(super) async fn update_nwc_client(
         client_nostr_pk: Some(req.client_nostr_pk),
     };
 
-    // First fetch the client from the DB as we need to decrypt the ciphertext
-    // to update the label and then encrypt it back and persist it.
+    // Fetch the client from the DB, decrypt, update label, re-encrypt, persist.
     //
-    // TODO(maurice): Add syncronization for NwcClient updates in order to avoid
-    // race conditions bugs. For exmaple, if we add tracking budgets to
-    // the NwcClient data, we could re-write the tracked budget by updating a
-    // label at the same time.
+    // NOTE: This read-modify-write pattern has a TOCTTOU race if any other
+    // endpoint also updates NwcClients concurrently - e.g. if `nwc_request`
+    // updates budget spent, a concurrent label update here could overwrite it.
+    //
+    // TODO(max): Add synchronization for NwcClient updates - could use a
+    // write-through cache similar to PaymentsManager.
     let vec_nwc_client = state
         .persister
         .backend_api()
