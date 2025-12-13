@@ -99,8 +99,8 @@ use crate::{
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
-            GetNwcClients, ListNwcClientResponse, NostrPkStruct,
-            NostrSignedEvent, NwcRequest, UpdateDbNwcClientRequest,
+            DbNwcClientFields, GetNwcClients, ListNwcClientResponse,
+            NostrPkStruct, NostrSignedEvent, NwcRequest,
             UpdateNwcClientRequest, UpdateNwcClientResponse, VecDbNwcClient,
         },
         runner::{
@@ -985,12 +985,12 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbNwcClient, BackendApiError>;
 
-    /// PUT /node/v1/nwc_clients [`UpdateDbNwcClientRequest`] -> [`DbNwcClient`]
+    /// PUT /node/v1/nwc_clients [`DbNwcClientFields`] -> [`DbNwcClient`]
     ///
     /// Upserts a NWC client in the database.
     async fn upsert_nwc_client(
         &self,
-        req: UpdateDbNwcClientRequest,
+        req: DbNwcClientFields,
         auth: BearerAuthToken,
     ) -> Result<DbNwcClient, BackendApiError>;
 

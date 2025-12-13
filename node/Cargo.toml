@@ -47,6 +47,7 @@ threads = 2
 
 # --- LEXE --- #
 
+byte-array.path = "../byte-array"
 common.path = "../common"
 gdrive.path = "../gdrive"
 hex.path = "../hex"
@@ -69,6 +70,7 @@ lightning.workspace = true
 lightning-transaction-sync.workspace = true
 lru.workspace = true
 nostr.workspace = true
+ref-cast.workspace = true
 secrecy.workspace = true
 semver = { workspace = true, features = ["serde"] }
 serde.workspace = true

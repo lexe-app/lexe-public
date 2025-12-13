@@ -696,7 +696,7 @@ pub(super) async fn list_nwc_clients(
     let mut clients = Vec::new();
     for client in vec_nwc_client.nwc_clients {
         let client_data =
-            NwcClient::from_db(state.persister.vfs_master_key(), client);
+            NwcClient::decrypt(state.persister.vfs_master_key(), client);
         if let Ok(connection) = client_data {
             clients.push(connection.to_nwc_client_info());
         }
@@ -718,28 +718,21 @@ pub(super) async fn create_nwc_client(
         .await
         .map_err(NodeApiError::command)?;
 
-    let nwc_client = NwcClient::new(req.label);
+    let mut rng = SysRng::new();
+    let (nwc_client, connection_string) =
+        NwcClient::new(&mut rng, state.deploy_env, req.label);
+    let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
 
     let db_nwc_client = state
         .persister
         .backend_api()
-        .upsert_nwc_client(
-            nwc_client
-                .to_req(&mut SysRng::new(), state.persister.vfs_master_key()),
-            token,
-        )
+        .upsert_nwc_client(fields, token)
         .await
         .map_err(NodeApiError::command)?;
 
-    let connection_string = nwc_client
-        .connection_string()
-        .ok_or("Connection string should be present for new wallet")
-        .map_err(NodeApiError::command)?
-        .to_string();
-
     Ok(LxJson(CreateNwcClientResponse {
-        wallet_nostr_pk: db_nwc_client.wallet_nostr_pk,
-        client_nostr_pk: db_nwc_client.client_nostr_pk,
+        wallet_nostr_pk: db_nwc_client.fields.wallet_nostr_pk,
+        client_nostr_pk: db_nwc_client.fields.client_nostr_pk,
         label: nwc_client.label().to_string(),
         connection_string,
     }))
@@ -785,19 +778,17 @@ pub(super) async fn update_nwc_client(
     }?;
 
     let mut nwc_client =
-        NwcClient::from_db(state.persister.vfs_master_key(), db_nwc_client)
+        NwcClient::decrypt(state.persister.vfs_master_key(), db_nwc_client)
             .map_err(NodeApiError::command)?;
 
     nwc_client.update_label(req.label);
+    let mut rng = SysRng::new();
+    let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
 
     let db_nwc_client = state
         .persister
         .backend_api()
-        .upsert_nwc_client(
-            nwc_client
-                .to_req(&mut SysRng::new(), state.persister.vfs_master_key()),
-            token,
-        )
+        .upsert_nwc_client(fields, token)
         .await
         .map_err(NodeApiError::command)?;
 

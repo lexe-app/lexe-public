@@ -31,8 +31,8 @@ use lexe_api::{
             PaymentCreatedIndexes, UpdatePaymentAddress, VecLxPaymentId,
         },
         nwc::{
-            DbNwcClient, GetNwcClients, NostrPkStruct,
-            UpdateDbNwcClientRequest, VecDbNwcClient,
+            DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPkStruct,
+            VecDbNwcClient,
         },
         runner::{UserFinishedRequest, UserLeaseRenewalRequest},
     },
@@ -776,7 +776,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn upsert_nwc_client(
         &self,
-        req: UpdateDbNwcClientRequest,
+        req: DbNwcClientFields,
         auth: BearerAuthToken,
     ) -> Result<DbNwcClient, BackendApiError> {
         let backend = &self.backend_url;

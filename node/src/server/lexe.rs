@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use axum::extract::State;
 use common::{
     api::{models::Status, test_event::TestEventOp, user::UserPkStruct},
+    rng::SysRng,
     time::TimestampMs,
 };
 use lexe_api::{
-    def::NodeBackendApi,
     error::NodeApiError,
     models::{
         command::ResyncRequest,
         nwc::{
-            DbNwcClient, GetNwcClients, NostrPk, NostrSignedEvent, NwcRequest,
+            NostrSignedEvent, NwcRequest,
             nip47::{NwcRequestPayload, NwcResponsePayload},
         },
     },
@@ -21,7 +21,7 @@ use lexe_api::{
 };
 use lexe_ln::test_event;
 
-use crate::{nwc::NwcClient, server::RouterState};
+use crate::server::RouterState;
 
 pub(super) async fn status(
     State(state): State<Arc<RouterState>>,
@@ -71,23 +71,19 @@ pub(super) async fn nwc_request(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<NwcRequest>,
 ) -> Result<LxJson<NostrSignedEvent>, NodeApiError> {
-    let db_nwc_client = find_nwc_client(&state, &req.client_nostr_pk)
+    let nwc_client = state
+        .persister
+        .read_nwc_client(req.client_nostr_pk)
         .await
         .map_err(NodeApiError::command)?;
 
-    // This from_db call would fail if the client data cannot be decrypted,
-    // meaning that we either the database is corrupted or the given client
-    // public key is invalid or did not correspond to the node.
-    let nwc_client =
-        NwcClient::from_db(state.persister.vfs_master_key(), db_nwc_client)
-            .context("Failed to decrypt NWC client data")
-            .map_err(NodeApiError::command)?;
-
-    // We validate the wallet nostr public key here to ensure that the request
-    // was sent by the expected client to the expected wallet.
-    nwc_client
-        .validate_wallet_nostr_pk(&req.wallet_nostr_pk)
-        .map_err(NodeApiError::command)?;
+    // Check that the client and wallet pks in the request match what we stored.
+    if nwc_client.client_nostr_pk() != &req.client_nostr_pk {
+        return Err(NodeApiError::command("Client nostr pk mismatch"));
+    }
+    if nwc_client.wallet_nostr_pk() != &req.wallet_nostr_pk {
+        return Err(NodeApiError::command("Wallet nostr pk mismatch"));
+    }
 
     // NWC encryption and authentication depend on the set of keys generated
     // on the wallet service side (in our case, the Lexe node).
@@ -172,40 +168,15 @@ pub(super) async fn nwc_request(
         .context("Failed to serialize NWC response")
         .map_err(NodeApiError::command)?;
 
+    let mut rng = SysRng::new();
+
     let nip44_payload = nwc_client
-        .encrypt_nip44_response(&response_json)
+        .encrypt_nip44_response(&mut rng, &response_json)
         .map_err(NodeApiError::command)?;
 
     let response = nwc_client
-        .build_response(req.event_id, nip44_payload)
+        .build_response(&mut rng, req.event_id, nip44_payload)
         .map_err(NodeApiError::command)?;
 
     Ok(LxJson(response))
-}
-
-/// Find an NWC client by the client's public key from the request and
-/// the user token.
-async fn find_nwc_client(
-    state: &RouterState,
-    client_nostr_pk: &NostrPk,
-) -> anyhow::Result<DbNwcClient> {
-    let token = state
-        .persister
-        .get_token()
-        .await
-        .context("Failed to get auth token to fetch NWC wallets")?;
-
-    let params = GetNwcClients {
-        client_nostr_pk: Some(*client_nostr_pk),
-    };
-
-    let vec_nwc_client = state
-        .persister
-        .backend_api()
-        .get_nwc_clients(params, token)
-        .await
-        .context("Failed to fetch NWC wallets")?;
-
-    let mut clients = vec_nwc_client.nwc_clients;
-    clients.pop().ok_or_else(|| anyhow!("Client not found"))
 }

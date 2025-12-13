@@ -57,9 +57,12 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
-    models::command::{
-        GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
-        LxPaymentIdStruct, VecLxPaymentId,
+    models::{
+        command::{
+            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            LxPaymentIdStruct, VecLxPaymentId,
+        },
+        nwc::{GetNwcClients, NostrPk},
     },
     types::{
         Empty,
@@ -113,6 +116,7 @@ use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
     approved_versions::ApprovedVersions,
     client::NodeBackendClient,
+    nwc::NwcClient,
 };
 
 /// Data discrepancy evaluation and resolution.
@@ -439,6 +443,31 @@ impl NodePersister {
             .await
             .map(|Scids { scids }| scids)
             .context("Could not fetch scids")
+    }
+
+    /// Read an NWC client from the DB and decrypt it.
+    pub(crate) async fn read_nwc_client(
+        &self,
+        client_nostr_pk: NostrPk,
+    ) -> anyhow::Result<NwcClient> {
+        let token = self.get_token().await?;
+        let params = GetNwcClients {
+            client_nostr_pk: Some(client_nostr_pk),
+        };
+
+        let mut clients = self
+            .backend_api
+            .get_nwc_clients(params, token)
+            .await
+            .context("Failed to fetch NWC clients")?
+            .nwc_clients;
+
+        let db_nwc_client = clients
+            .pop()
+            .ok_or_else(|| anyhow!("NWC client not found"))?;
+
+        NwcClient::decrypt(&self.vfs_master_key, db_nwc_client)
+            .context("Failed to decrypt NWC client data")
     }
 
     pub(crate) async fn read_wallet_changeset(
