@@ -2,8 +2,6 @@
 
 #![deny(missing_docs)]
 
-/// API trait definitions.
-pub mod def;
 /// API request and response types unique to a specific endpoint.
 pub mod models;
 /// Shared API types.
