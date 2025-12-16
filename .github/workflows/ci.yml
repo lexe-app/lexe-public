@@ -131,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: rustup install --component=rustfmt ${{ env.LEXE_RUST_FMT_VERSION }}
+      - run: rustup install --profile minimal --component=rustfmt ${{ env.LEXE_RUST_FMT_VERSION }}
       - run: rustup run ${{ env.LEXE_RUST_FMT_VERSION }} cargo fmt --all -- --check
 
   doc:
