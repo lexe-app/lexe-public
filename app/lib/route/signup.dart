@@ -504,8 +504,9 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
 Enter at least 12 characters.
 
-You **need this to recover your funds**. Store it in a safe place, like a
-password manager!
+This password encrypts your recovery data so Google can't read it.
+Store it in a safe place, like a password manager—you **need this to
+recover your funds**.
 ''',
             // styleSheet: LxTheme.buildMarkdownStyle().copyWith(
             styleSheet: LxTheme.markdownStyle.copyWith(
