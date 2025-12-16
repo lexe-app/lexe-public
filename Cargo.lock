@@ -744,8 +744,9 @@ checksum = "32637268377fc7b10a8c6d51de3e7fba1ce5dd371a96e342b34e6078db558e7f"
 
 [[package]]
 name = "bip39"
-version = "2.1.0"
-source = "git+https://github.com/lexe-app/rust-bip39?branch=lexe-v2.1.0-2025_06_12#81bdf38b89ea9542c7da849a9bba262bcb7cce34"
+version = "2.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90dbd31c98227229239363921e60fcf5e558e43ec69094d46fc4996f08d1d5bc"
 dependencies = [
  "bitcoin_hashes",
  "serde",
