@@ -8,6 +8,11 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+[project.urls]
+homepage = "https://lexe.app" # TODO(phlip9): point to SDK docs site
+repository = "https://github.com/lexe-app/lexe-public/tree/master/sdk"
+changelog = "https://github.com/lexe-app/lexe-public/releases"
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
@@ -21,6 +26,7 @@ build-backend = "maturin"
 
 [tool.maturin]
 python-source = "python"
+bindings = "uniffi"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
