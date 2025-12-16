@@ -914,11 +914,11 @@ class MockRestoreApiErr implements RestoreApi {
 //
 
 const Balance balanceDefault = Balance(
-  lightningSats: 1097864,
-  lightningUsableSats: 1097864,
-  lightningMaxSendableSats: 1097864 - 2300,
+  lightningSats: 547864,
+  lightningUsableSats: 547864,
+  lightningMaxSendableSats: 547864 - 2300,
   onchainSats: 84856,
-  totalSats: 1097864 + 84856,
+  totalSats: 547864 + 84856,
 );
 
 const Balance balanceZero = Balance(
@@ -930,11 +930,30 @@ const Balance balanceZero = Balance(
 );
 
 const Balance balanceOnchainOnly = Balance(
-  totalSats: 123000,
+  totalSats: 80000,
   lightningSats: 0,
   lightningUsableSats: 0,
   lightningMaxSendableSats: 0,
-  onchainSats: 123000,
+  onchainSats: 80000,
+);
+
+/// Balance after opening a channel from [balanceOnchainOnly].
+/// 80,000 sats moved to lightning, 123 sat miner fee paid.
+const Balance balanceOneChannel = Balance(
+  totalSats: 80000 - 123,
+  lightningSats: 80000 - 123,
+  lightningUsableSats: 80000 - 123 - 1000,
+  lightningMaxSendableSats: 80000 - 123 - 1000 - 1198,
+  onchainSats: 0,
+);
+
+/// Balance after receiving 60k sats via Lightning.
+const Balance balanceLightningOnly = Balance(
+  totalSats: 60000,
+  lightningSats: 60000,
+  lightningUsableSats: 60000 - 1000,
+  lightningMaxSendableSats: 60000 - 1000 - 1198,
+  onchainSats: 0,
 );
 
 //
@@ -949,11 +968,11 @@ const Payment dummyOnchainInboundPending01 = Payment(
   kind: PaymentKind_Onchain(),
   direction: PaymentDirection.inbound,
   txid: "238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
-  amountSat: 1469,
+  amountSat: 55000,
   feesSat: 0,
   status: PaymentStatus.pending,
   statusStr: "partially confirmed (1-5 confirmations)",
-  note: null,
+  note: "On-chain top up",
   createdAt: 1687309696000,
   finalizedAt: null,
   replacement: null,
@@ -967,11 +986,11 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
   kind: PaymentKind_Onchain(),
   direction: PaymentDirection.inbound,
   txid: "551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
-  amountSat: 20000,
+  amountSat: 80000,
   feesSat: 0,
   status: PaymentStatus.completed,
   statusStr: "fully confirmed (6+ confirmations)",
-  note: "Brunch w/ friends",
+  note: "Initial deposit to Lexe",
   createdAt: 1670090492000,
   finalizedAt: 1670090502000,
   replacement: null,
@@ -1054,20 +1073,47 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
   direction: PaymentDirection.outbound,
   invoice: Invoice(
     string:
-        "lnbcrt4693500n1pjgld4pxq8pjglhd3pp5h038tqal0m3xjwrmht2gcj8u4cgwg9fh6d0ynv2ds8x8xph5sm9ssp5d4jx76ttd4ek76tnv3hkv6tpdfekgenvdfkx76t2wdskg6nxda5s9qrsgqdp4wdhk6efqdehhgefqw35x2grfdemx76trv5sxxun9v96x7u3qwdjhgcqpcnp4qgywe59xssrqj004k24477svqtgynw4am39hz06hk4dlu4l0ssk8w2rpkgvpsusjrwde5qym0t9g42px0dahyh7jz9lvn5umk9gzqxtc8r0rdplu9psdewwqnw6t7uvdqtvn6heqfgxvn9a76kkl760cy4rqpewlfe6",
-    description: "Payment for invoice #69420, suspicious custom services",
+        "lnbcrt30000n1pjgld4pxq8pjglhd3pp5h038tqal0m3xjwrmht2gcj8u4cgwg9fh6d0ynv2ds8x8xph5sm9ssp5d4jx76ttd4ek76tnv3hkv6tpdfekgenvdfkx76t2wdskg6nxda5s9qrsgqdp4wdhk6efqdehhgefqw35x2grfdemx76trv5sxxun9v96x7u3qwdjhgcqpcnp4qgywe59xssrqj004k24477svqtgynw4am39hz06hk4dlu4l0ssk8w2rpkgvpsusjrwde5qym0t9g42px0dahyh7jz9lvn5umk9gzqxtc8r0rdplu9psdewwqnw6t7uvdqtvn6heqfgxvn9a76kkl760cy4rqpewlfe6",
+    description: "Coffee in El Salvador",
     createdAt: 1686743442000,
     expiresAt: 1686745442000,
-    amountSats: 55000,
+    amountSats: 3000,
     payeePubkey:
         "03fedbc6adf1a7175389d26b2896d10ef00fa71c81ba085a7c8cd34b6a4e0f7556",
   ),
-  amountSat: 55000,
+  amountSat: 3000,
   feesSat: 150,
   status: PaymentStatus.pending,
   statusStr: "pending",
   note: null,
   createdAt: 1686744442000,
+);
+
+/// Completed outbound invoice payment (3000 sats "Coffee in El Salvador").
+const Payment dummyInvoiceOutboundCompleted02 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc1",
+  ),
+  kind: PaymentKind_Invoice(),
+  direction: PaymentDirection.outbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt30000n1pjgld4pxq8pjglhd3pp5h038tqal0m3xjwrmht2gcj8u4cgwg9fh6d0ynv2ds8x8xph5sm9ssp5d4jx76ttd4ek76tnv3hkv6tpdfekgenvdfkx76t2wdskg6nxda5s9qrsgqdp4wdhk6efqdehhgefqw35x2grfdemx76trv5sxxun9v96x7u3qwdjhgcqpcnp4qgywe59xssrqj004k24477svqtgynw4am39hz06hk4dlu4l0ssk8w2rpkgvpsusjrwde5qym0t9g42px0dahyh7jz9lvn5umk9gzqxtc8r0rdplu9psdewwqnw6t7uvdqtvn6heqfgxvn9a76kkl760cy4rqpewlfe6",
+    description: "Coffee in El Salvador",
+    createdAt: 1686743442000,
+    expiresAt: 1686745442000,
+    amountSats: 3000,
+    payeePubkey:
+        "03fedbc6adf1a7175389d26b2896d10ef00fa71c81ba085a7c8cd34b6a4e0f7556",
+  ),
+  amountSat: 3000,
+  feesSat: 28,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  note: null,
+  createdAt: 1686744442000,
+  finalizedAt: 1686744445000,
 );
 
 const Payment dummyInvoiceInboundPending01 = Payment(
@@ -1174,6 +1220,33 @@ const Payment dummyInvoiceInboundCompleted02 = Payment(
   finalizedAt: 1739490955000,
 );
 
+/// 60k sat Lightning inbound payment for lightning-only wallet demo.
+const Payment dummyInvoiceInboundCompleted03 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001740000000000-ln_5ca99b7534df3a98afb69757b770faffead8b0794e5d618fbbf9b4cfd1f157d0",
+  ),
+  kind: PaymentKind_Invoice(),
+  direction: PaymentDirection.inbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt600000n1pn6ap5xdqgf36kucmgpp5fj5ekaf5muaf3takjatmwu86ll4d3vrefewkrramlx6vl5032l8ssp50sn9getawgwsuzmlll5rfk0cqydw4hhdgct47k424f7r9s4pya9s9qyysgqcqpcxq8pn6aph2dzwjlq2vjtmducjrdgjpk6pvr23c7a3s4qrh4770a7qj00pph3vpurg0av8ps689pxt8exufuf45vd8mladjsky2rxtdqtwdpmdj38qp7k5cz7",
+    createdAt: 1740000000000,
+    expiresAt: 1740001000000,
+    amountSats: 60000,
+    description: "Initial Lightning deposit",
+    payeePubkey:
+        "036d5a2631b3f1c25ef9a004973762b3c1af5fb892ad14b166e9573b93b83088926667d1c431271a8f06adf5510ac79763f0dfbf66904a449fd55aff60639905",
+  ),
+  amountSat: 60000,
+  feesSat: 0,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  note: "Initial Lightning deposit",
+  createdAt: 1740000000000,
+  finalizedAt: 1740000003000,
+);
+
 // Junk payment (failed)
 const Payment dummyInvoiceInboundFailed01 = Payment(
   index: PaymentCreatedIndex(
@@ -1273,17 +1346,15 @@ const Payment dummyOfferInboundPayment01 = Payment(
 
 // Default set of sample payments
 List<Payment> defaultDummyPayments = [
+  dummyOnchainInboundPending01,
   dummyOnchainInboundCompleted01,
   dummyOnchainOutboundFailed01,
-  dummySpontaneousOutboundPending01,
-  dummyInvoiceOutboundPending01,
   dummyInvoiceInboundPending01,
   dummyInvoiceInboundPending02,
   dummyInvoiceInboundCompleted01,
   dummyInvoiceInboundFailed01,
   dummyOnchainOutboundCompleted01,
   dummyOfferOutboundPayment01,
-  dummyOfferInboundPayment01,
 ].sortedBy((payment) => payment.index.field0);
 
 //
@@ -1340,6 +1411,35 @@ const LxChannelDetails dummyChannelUnusable02 = LxChannelDetails(
   nextOutboundHtlcLimitSats: 254116 - 1000 - 1198,
   theirBalanceSats: 43844,
   inboundCapacitySats: 43844 - 1000,
+);
+
+/// Channel opened from [balanceOnchainOnly] (80k sats - 123 fee).
+const LxChannelDetails dummyChannelOneChannel = LxChannelDetails(
+  channelId: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  counterpartyNodeId:
+      "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
+  channelValueSats: 80000 - 123,
+  isUsable: true,
+  ourBalanceSats: 80000 - 123,
+  outboundCapacitySats: 80000 - 123 - 1000,
+  nextOutboundHtlcLimitSats: 80000 - 123 - 1000 - 1198,
+  theirBalanceSats: 0,
+  inboundCapacitySats: 0,
+);
+
+/// Channel for lightning-only wallet (received 60k sats via Lightning).
+/// Lexe adds 50k inbound liquidity.
+const LxChannelDetails dummyChannelLightningOnly = LxChannelDetails(
+  channelId: "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
+  counterpartyNodeId:
+      "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
+  channelValueSats: 110000,
+  isUsable: true,
+  ourBalanceSats: 60000,
+  outboundCapacitySats: 60000 - 1000,
+  nextOutboundHtlcLimitSats: 60000 - 1000 - 1198,
+  theirBalanceSats: 50000,
+  inboundCapacitySats: 50000 - 1000,
 );
 
 // Default set of sample channels

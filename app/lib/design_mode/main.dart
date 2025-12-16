@@ -103,6 +103,7 @@ import 'package:lexeapp/route/signup.dart'
         SignupBackupPasswordPage,
         SignupBackupSeedConfirmPage,
         SignupBackupSeedPage,
+        SignupCodePage,
         SignupCtx,
         SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletActionButton, WalletPage;
@@ -458,7 +459,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "WalletPage",
-              subtitle: "on-chain-only wallet",
+              subtitle: "on-chain-only wallet (80k sats)",
               (_) => WalletPage(
                 config: this.widget.config,
                 app: mocks.MockAppHandle(
@@ -982,6 +983,278 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 ),
               ),
             ),
+
+            // --- Docs Screenshots ---
+            // Wallet landing page
+            Component(
+              "DocsLanding01",
+              subtitle: "Home screen",
+              (_) => WalletPage(
+                config: this.widget.config,
+                app: mockApp,
+                settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDataDb()),
+                featureFlags: const FeatureFlags.all(),
+                uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
+              ),
+            ),
+
+            // Getting Started guide screenshots
+            Component(
+              "DocsGettingStarted01",
+              subtitle: "Welcome screen",
+              (context) => LandingPage(
+                config: this.widget.config,
+                rootSeed: mockRootSeed,
+                gdriveAuth: GDriveAuth.mock,
+                signupApi: mockSignupApi,
+                restoreApi: mockRestoreApi,
+                uriEvents: this.widget.uriEvents,
+                fixedShaderTime: 8.5,
+              ),
+            ),
+            Component(
+              "DocsGettingStarted02",
+              subtitle: "Enter signup code",
+              (context) => SignupCodePage(ctx: mockSignupCtx),
+            ),
+            Component(
+              "DocsGettingStarted03",
+              subtitle: "Connect Google Drive",
+              (context) => SignupPage(ctx: mockSignupCtx),
+            ),
+            Component(
+              "DocsGettingStarted04",
+              subtitle: "Enter backup password",
+              (context) => SignupBackupPasswordPage(
+                ctx: mockSignupCtx,
+                authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
+                signupCode: null,
+              ),
+            ),
+            Component(
+              "DocsGettingStarted05",
+              subtitle: "Seed phrase-only confirm",
+              (context) => SignupBackupSeedConfirmPage(
+                ctx: mockSignupCtx,
+                signupCode: null,
+              ),
+            ),
+            Component(
+              "DocsGettingStarted06",
+              subtitle: "Backup seed phrase",
+              (context) =>
+                  SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
+            ),
+            Component(
+              "DocsGettingStarted07",
+              subtitle: "Empty home screen",
+              (_) => WalletPage(
+                config: this.widget.config,
+                app: mocks.MockAppHandle(
+                  payments: [],
+                  channels: [],
+                  balance: mocks.balanceZero,
+                ),
+                settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDataDb()),
+                featureFlags: const FeatureFlags.all(),
+                uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
+              ),
+            ),
+            Component(
+              "DocsGettingStarted08",
+              subtitle: "Receive Lightning invoice",
+              (context) => ReceivePaymentPage(
+                app: mockApp,
+                appData: LxAppData(mockApp.appDataDb()),
+                featureFlags: const FeatureFlags.all(),
+                fiatRate: this.makeFiatRateStream(),
+              ),
+            ),
+            Component(
+              "DocsGettingStarted09",
+              subtitle: "Channels after JIT open",
+              (context) {
+                final mockAppLightningOnly = mocks.MockAppHandle(
+                  balance: mocks.balanceLightningOnly,
+                  payments: [mocks.dummyInvoiceInboundCompleted03],
+                  channels: [mocks.dummyChannelLightningOnly],
+                );
+                final nodeInfoService = NodeInfoService(
+                  app: mockAppLightningOnly,
+                );
+                final fiatRate = this.makeFiatRateStream();
+                final balanceState = combine2(
+                  nodeInfoService.nodeInfo,
+                  fiatRate,
+                  (nodeInfo, fiatRate) => BalanceState(
+                    balanceSats: nodeInfo?.balance,
+                    fiatRate: fiatRate,
+                  ),
+                );
+                return ChannelsPage(
+                  app: mockAppLightningOnly,
+                  fiatRate: fiatRate,
+                  nodeInfoService: nodeInfoService,
+                  balanceState: balanceState,
+                );
+              },
+            ),
+            Component(
+              "DocsGettingStarted10",
+              subtitle: "Receive Bitcoin address",
+              (context) => ReceivePaymentPage(
+                app: mockApp,
+                appData: LxAppData(mockApp.appDataDb()),
+                featureFlags: const FeatureFlags.all(),
+                fiatRate: this.makeFiatRateStream(),
+              ),
+            ),
+            Component(
+              "DocsGettingStarted11",
+              subtitle: "On-chain funds received",
+              (_) => WalletPage(
+                config: this.widget.config,
+                app: mocks.MockAppHandle(
+                  payments: [mocks.dummyOnchainInboundCompleted01],
+                  channels: [],
+                  balance: mocks.balanceOnchainOnly,
+                ),
+                settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDataDb()),
+                featureFlags: const FeatureFlags.all(),
+                uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
+              ),
+            ),
+            Component(
+              "DocsGettingStarted12",
+              subtitle: "Open channel amount",
+              (context) => OpenChannelPage(
+                app: mockApp,
+                balanceState: ValueNotifier(
+                  const BalanceState(
+                    balanceSats: mocks.balanceOnchainOnly,
+                    fiatRate: FiatRate(fiat: "USD", rate: 94439.00),
+                  ),
+                ),
+              ),
+            ),
+            Component(
+              "DocsGettingStarted13",
+              subtitle: "Confirm channel open",
+              (context) => OpenChannelConfirmPage(
+                app: mockApp,
+                balanceState: ValueNotifier(
+                  const BalanceState(
+                    balanceSats: mocks.balanceOnchainOnly,
+                    fiatRate: FiatRate(fiat: "USD", rate: 94439.00),
+                  ),
+                ),
+                channelValueSats: 80000,
+                userChannelId: UserChannelId(id: U8Array16.init()),
+                preflight: const PreflightOpenChannelResponse(
+                  feeEstimateSats: 123,
+                ),
+              ),
+            ),
+            Component("DocsGettingStarted14", subtitle: "Channel opened", (
+              context,
+            ) {
+              final mockAppOneChannel = mocks.MockAppHandle(
+                balance: mocks.balanceOneChannel,
+                payments: [mocks.dummyOnchainInboundCompleted01],
+                channels: [mocks.dummyChannelOneChannel],
+              );
+              final nodeInfoService = NodeInfoService(app: mockAppOneChannel);
+              final fiatRate = this.makeFiatRateStream();
+              final balanceState = combine2(
+                nodeInfoService.nodeInfo,
+                fiatRate,
+                (nodeInfo, fiatRate) => BalanceState(
+                  balanceSats: nodeInfo?.balance,
+                  fiatRate: fiatRate,
+                ),
+              );
+              return ChannelsPage(
+                app: mockAppOneChannel,
+                fiatRate: fiatRate,
+                nodeInfoService: nodeInfoService,
+                balanceState: balanceState,
+              );
+            }),
+            Component(
+              "DocsGettingStarted15",
+              subtitle: "Funded wallet (Lightning)",
+              (_) => WalletPage(
+                config: this.widget.config,
+                app: mocks.MockAppHandle(
+                  payments: [mocks.dummyInvoiceInboundCompleted03],
+                  channels: [mocks.dummyChannelLightningOnly],
+                  balance: mocks.balanceLightningOnly,
+                ),
+                settings: LxSettings(mockApp.settingsDb()),
+                appData: LxAppData(mockApp.appDataDb()),
+                featureFlags: const FeatureFlags.all(),
+                uriEvents: this.widget.uriEvents,
+                gdriveAuth: GDriveAuth.mock,
+              ),
+            ),
+            Component(
+              "DocsGettingStarted16",
+              subtitle: "Send - Who are we paying?",
+              (context) => SendPaymentPage(
+                startNewFlow: true,
+                sendCtx: SendState_NeedUri(
+                  app: mockApp,
+                  configNetwork: this.widget.config.network,
+                  balance: mockApp.balance,
+                  cid: cid,
+                ),
+              ),
+            ),
+            Component(
+              "DocsGettingStarted17",
+              subtitle: "Confirm payment",
+              (context) => SendPaymentPage(
+                startNewFlow: true,
+                sendCtx: SendState_Preflighted(
+                  app: mockApp,
+                  configNetwork: this.widget.config.network,
+                  balance: mockApp.balance,
+                  cid: cid,
+                  preflightedPayment: (() {
+                    final invoice =
+                        mocks.dummyInvoiceOutboundPending01.invoice!;
+                    final amountSats = invoice.amountSats!;
+                    return PreflightedPayment_Invoice(
+                      invoice: invoice,
+                      preflight: PreflightPayInvoiceResponse(
+                        amountSats: amountSats,
+                        feesSats: 28,
+                      ),
+                      amountSats: amountSats,
+                    );
+                  })(),
+                ),
+              ),
+            ),
+            Component(
+              "DocsGettingStarted18",
+              subtitle: "Payment sent",
+              (context) => PaymentDetailPageInner(
+                app: mockApp,
+                payment: ValueNotifier(mocks.dummyInvoiceOutboundCompleted02),
+                paymentDateUpdates: this.paymentDateUpdates,
+                fiatRate: this.makeFiatRateStream(),
+                isSyncing: ValueNotifier(false),
+                triggerRefresh: () {},
+              ),
+            ),
+
             Component(
               "ShowQrPage",
               subtitle: "standard bip21",
