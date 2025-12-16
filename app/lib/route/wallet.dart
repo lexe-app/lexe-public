@@ -54,6 +54,7 @@ import 'package:lexeapp/route/channels.dart' show ChannelsPage;
 import 'package:lexeapp/route/clients.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
+import 'package:lexeapp/route/open_channel.dart' show OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart'
     show PaymentDetailPage, PaymentSource;
 import 'package:lexeapp/route/profile.dart' show ProfilePage;
@@ -356,6 +357,24 @@ class WalletPageState extends State<WalletPage> {
     }
   }
 
+  /// Open the [OpenChannelPage] directly for the user to open a channel.
+  Future<void> onOpenChannelPage() async {
+    this.refreshService.pauseBackgroundRefresh();
+
+    try {
+      await Navigator.of(this.context).push(
+        MaterialPageRoute(
+          builder: (context) => OpenChannelPage(
+            app: this.widget.app,
+            balanceState: this.balanceState,
+          ),
+        ),
+      );
+    } finally {
+      if (this.mounted) this.refreshService.resumeBackgroundRefresh();
+    }
+  }
+
   /// Called when the "Receive" button is pressed. Pushes the receive payment
   /// page onto the navigation stack.
   Future<void> onReceivePressed() async {
@@ -639,7 +658,7 @@ class WalletPageState extends State<WalletPage> {
                   valueListenable: this.balanceState,
                   builder: (_context, balanceState, _child) => WalletHints(
                     balanceState: balanceState,
-                    onOpenChannelsPage: this.onOpenChannelsPage,
+                    onOpenChannelPage: this.onOpenChannelPage,
                   ),
                 ),
               ],
@@ -1802,11 +1821,11 @@ class WalletHints extends StatelessWidget {
   const WalletHints({
     super.key,
     required this.balanceState,
-    required this.onOpenChannelsPage,
+    required this.onOpenChannelPage,
   });
 
   final BalanceState balanceState;
-  final VoidCallback onOpenChannelsPage;
+  final VoidCallback onOpenChannelPage;
 
   Widget? buildChild() {
     final balance = this.balanceState.balanceSats;
@@ -1859,18 +1878,16 @@ class WalletHints extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            const TextSpan(
-              text:
-                  "You only have on-chain funds. If you want to send Lightning payments, try ",
-            ),
+            const TextSpan(text: "You only have on-chain funds.\n"),
+            const TextSpan(text: "To send Lightning payments, "),
             TextSpan(
-              text: "opening a channel!",
+              text: "open a channel!",
               style: const TextStyle(
                 decoration: TextDecoration.underline,
                 decorationColor: LxColors.grey600,
               ),
               recognizer: TapGestureRecognizer()
-                ..onTap = this.onOpenChannelsPage,
+                ..onTap = this.onOpenChannelPage,
             ),
           ],
         ),
