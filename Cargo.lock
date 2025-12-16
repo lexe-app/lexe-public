@@ -4135,6 +4135,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdk-rust"
+version = "0.0.0"
+
+[[package]]
 name = "sdk-sidecar"
 version = "0.4.0"
 dependencies = [

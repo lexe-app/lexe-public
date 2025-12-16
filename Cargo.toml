@@ -24,6 +24,7 @@ members = [
     "run-sgx",
     "sdk",
     "sdk-core",
+    "sdk-rust",
     "sdk-sidecar",
     "sgx-test",
     "sgx-toml",
