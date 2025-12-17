@@ -34,7 +34,7 @@ use crate::{
     },
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
-    wallet::LexeWallet,
+    wallet::OnchainWallet,
 };
 
 /// The interval at which we check our pending payments for expired
@@ -122,7 +122,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         finalized_cache_capacity: usize,
         esplora: Arc<LexeEsplora>,
         pending_payments: Vec<PaymentWithMetadata>,
-        wallet: LexeWallet,
+        wallet: OnchainWallet,
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
@@ -250,7 +250,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// every time BDK sync completes.
     fn spawn_onchain_recv_checker(
         &self,
-        wallet: LexeWallet,
+        wallet: OnchainWallet,
         mut onchain_recv_rx: notify::Receiver,
         mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
@@ -922,7 +922,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(check-onchain-receives)")]
     pub async fn check_onchain_receives(
         &self,
-        wallet: &LexeWallet,
+        wallet: &OnchainWallet,
     ) -> anyhow::Result<()> {
         debug!("Checking for onchain receives");
         let mut locked_data = self.data.lock().await;

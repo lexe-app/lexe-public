@@ -40,7 +40,7 @@ use crate::{
         LexeChannelManager, LexeEventHandler, LexeInnerPersister, LexePersister,
     },
     tx_broadcaster::TxBroadcaster,
-    wallet::LexeWallet,
+    wallet::OnchainWallet,
 };
 
 // --- EventHandleError --- //
@@ -453,7 +453,7 @@ impl<T: LexeEventHandler> EventHandlerExt for T {}
 
 /// Handles a [`Event::FundingGenerationReady`].
 pub fn handle_funding_generation_ready<CM, PS>(
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
     channel_manager: &CM,
     test_event_tx: &TestEventSender,
 
@@ -700,7 +700,7 @@ pub async fn handle_spendable_outputs<CM, PS>(
     keys_manager: &LexeKeysManager,
     test_event_tx: &TestEventSender,
     tx_broadcaster: &TxBroadcaster,
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
     gdrive_persister_tx: Option<&mpsc::Sender<VfsFile>>,
     event_id: &EventId,
     outputs: Vec<SpendableOutputDescriptor>,

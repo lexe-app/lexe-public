@@ -7,15 +7,15 @@
 //! they can be persisted separately and reaggregated when (re-)initializing our
 //! [`Wallet`].
 //!
-//! Our [`LexeWallet`] uses a write-back model. Changes are:
+//! Our [`OnchainWallet`] uses a write-back model. Changes are:
 //!
 //! 1) Staged inside [`bdk_wallet::Wallet`],
-//! 2) Merged into a total [`ChangeSet`] cached in the [`LexeWallet`], then
+//! 2) Merged into a total [`ChangeSet`] cached in the [`OnchainWallet`], then
 //! 3) The total [`ChangeSet`] is (re-)persisted to the DB by the wallet
 //!    persister task whenever it receives a notification.
 //!
 //! NOTE: This persistence model means we need to manually call
-//! [`LexeWallet::trigger_persist`] anytime we mutate the BDK [`Wallet`].
+//! [`OnchainWallet::trigger_persist`] anytime we mutate the BDK [`Wallet`].
 //!
 //! NOTE: It is possible that we'll lose some data if the node crashes before
 //! any staged changes are persisted, but this should be OK because all data in
@@ -25,8 +25,8 @@
 //! [`Deserialize`]: serde::Deserialize
 //! [`ChangeSet`]: bdk_wallet::ChangeSet
 //! [`Wallet`]: bdk_wallet::Wallet
-//! [`LexeWallet`]: crate::wallet::LexeWallet
-//! [`LexeWallet::trigger_persist`]: crate::wallet::LexeWallet::trigger_persist
+//! [`OnchainWallet`]: crate::wallet::OnchainWallet
+//! [`OnchainWallet::trigger_persist`]: crate::wallet::OnchainWallet::trigger_persist
 
 use std::{
     collections::{HashMap, HashSet},
@@ -105,14 +105,14 @@ const BDK_LOOKAHEAD: u32 = 1;
 
 /// The [`ConfirmationPriority`] for new open_channel funding transactions.
 ///
-/// See: [`LexeWallet::create_and_sign_funding_tx`]
-///  and [`LexeWallet::preflight_channel_funding_tx`].
+/// See: [`OnchainWallet::create_and_sign_funding_tx`]
+///  and [`OnchainWallet::preflight_channel_funding_tx`].
 const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
     ConfirmationPriority::Normal;
 
 /// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
-pub struct LexeWallet {
+pub struct OnchainWallet {
     inner: Arc<std::sync::RwLock<Wallet>>,
     fee_estimates: Arc<FeeEstimates>,
     coin_selector: LexeCoinSelector,
@@ -155,8 +155,8 @@ pub struct SyncStats {
     pub evicted: u32,
 }
 
-impl LexeWallet {
-    /// Init a [`LexeWallet`] from a [`RootSeed`] and [`ChangeSet`].
+impl OnchainWallet {
+    /// Init a [`OnchainWallet`] from a [`RootSeed`] and [`ChangeSet`].
     /// Wallet addresses are generated according to the [BIP 84] standard.
     /// See also [BIP 44].
     ///
@@ -308,7 +308,7 @@ impl LexeWallet {
         ))
     }
 
-    /// Constructs a dummy [`LexeWallet`] useful for tests.
+    /// Constructs a dummy [`OnchainWallet`] useful for tests.
     #[cfg(test)]
     pub(crate) fn dummy(
         root_seed: &RootSeed,
@@ -318,7 +318,7 @@ impl LexeWallet {
         let coin_selector = LexeCoinSelector::default();
         let network = LxNetwork::Regtest;
         let (persist_tx, _persist_rx) = notify::channel();
-        let (wallet, _wallet_created) = LexeWallet::new(
+        let (wallet, _wallet_created) = OnchainWallet::new(
             root_seed,
             network,
             fee_estimates,
@@ -339,8 +339,8 @@ impl LexeWallet {
 
     /// Returns a write lock on the inner [`Wallet`].
     /// The caller is responsible for avoiding deadlocks.
-    /// NOTE: You should call [`LexeWallet::trigger_persist`] after you are done
-    /// writing to ensure that any changes you make are persisted.
+    /// NOTE: You should call [`OnchainWallet::trigger_persist`] after you are
+    /// done writing to ensure that any changes you make are persisted.
     pub fn write(&self) -> RwLockWriteGuard<'_, Wallet> {
         self.inner.write().unwrap()
     }
@@ -1124,7 +1124,7 @@ impl LexeWallet {
 /// it receives a notification (via the `wallet_persister_rx` channel).
 pub fn spawn_wallet_persister_task<PS: LexePersister>(
     persister: PS,
-    wallet: LexeWallet,
+    wallet: OnchainWallet,
     mut wallet_persister_rx: notify::Receiver,
     // TODO(phlip9): only shutdown persisters after "activity" generating tasks
     // shutdown.
@@ -1147,7 +1147,7 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
 /// Persist the current BDK wallet state if there are any outstanding changes.
 async fn do_wallet_persist<PS: LexePersister>(
     persister: &PS,
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
 ) {
     // Take any staged changes from the wallet and merge them
     // into the combined changeset (i.e. our write-back cache),
@@ -1569,7 +1569,7 @@ mod test {
     use super::*;
 
     struct Harness {
-        wallet: LexeWallet,
+        wallet: OnchainWallet,
         network: LxNetwork,
         root_seed: RootSeed,
     }
@@ -1578,7 +1578,7 @@ mod test {
         fn new(seed: u64) -> Self {
             let root_seed = RootSeed::from_u64(seed);
             let maybe_changeset = None;
-            let wallet = LexeWallet::dummy(&root_seed, maybe_changeset);
+            let wallet = OnchainWallet::dummy(&root_seed, maybe_changeset);
             let network = LxNetwork::Regtest;
 
             // Add some initial confirmed blocks
@@ -1734,7 +1734,7 @@ mod test {
                 changeset.merge(update);
             }
 
-            let wallet = LexeWallet::dummy(&self.root_seed, Some(changeset));
+            let wallet = OnchainWallet::dummy(&self.root_seed, Some(changeset));
             assert!(wallet.read().have_unused_spk(KeychainKind::External));
             assert!(wallet.read().have_unused_spk(KeychainKind::Internal));
         }

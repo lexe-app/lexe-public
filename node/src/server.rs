@@ -31,7 +31,7 @@ use lexe_ln::{
     sync::BdkSyncRequest,
     test_event::TestEventReceiver,
     tx_broadcaster::TxBroadcaster,
-    wallet::LexeWallet,
+    wallet::OnchainWallet,
 };
 use lexe_tls::{
     shared_seed::certs::RevocableIssuingCaCert, types::LxCertificateDer,
@@ -82,7 +82,7 @@ pub(crate) struct RouterState {
     pub persister: Arc<NodePersister>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub router: Arc<RouterType>,
-    pub wallet: LexeWallet,
+    pub wallet: OnchainWallet,
 
     // --- Channels --- //
     pub tx_broadcaster: Arc<TxBroadcaster>,

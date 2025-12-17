@@ -16,7 +16,7 @@ use crate::{
     BoxedAnyhowFuture, TxDisplay,
     esplora::{self, LexeEsplora},
     test_event::TestEventSender,
-    wallet::LexeWallet,
+    wallet::OnchainWallet,
 };
 
 #[derive(Debug, Error)]
@@ -69,7 +69,7 @@ pub struct TxBroadcaster {
 impl TxBroadcaster {
     pub fn start(
         esplora: Arc<LexeEsplora>,
-        wallet: LexeWallet,
+        wallet: OnchainWallet,
         broadcast_hook: Option<PreBroadcastHook>,
         test_event_sender: TestEventSender,
         mut shutdown: NotifyOnce,
@@ -143,7 +143,7 @@ impl TxBroadcaster {
     #[tracing::instrument(skip_all, name = "(broadcast)")]
     async fn do_broadcast(
         esplora: &LexeEsplora,
-        wallet: &LexeWallet,
+        wallet: &OnchainWallet,
         broadcast_hook: Option<PreBroadcastHook>,
         request: BroadcastRequest,
         test_event_sender: &TestEventSender,

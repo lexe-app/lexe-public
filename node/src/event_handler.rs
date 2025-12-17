@@ -65,7 +65,7 @@ use lexe_ln::{
     test_event::TestEventSender,
     traits::{LexeEventHandler, LexePersister},
     tx_broadcaster::TxBroadcaster,
-    wallet::LexeWallet,
+    wallet::OnchainWallet,
 };
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
@@ -95,7 +95,7 @@ pub(crate) struct EventCtx {
     pub persister: Arc<NodePersister>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub tx_broadcaster: Arc<TxBroadcaster>,
-    pub wallet: LexeWallet,
+    pub wallet: OnchainWallet,
     pub channel_manager: NodeChannelManager,
     pub keys_manager: Arc<LexeKeysManager>,
     pub network_graph: Arc<NetworkGraphType>,

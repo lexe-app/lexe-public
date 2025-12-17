@@ -97,7 +97,7 @@ use crate::{
     sync::BdkSyncRequest,
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     tx_broadcaster::TxBroadcaster,
-    wallet::{LexeWallet, UtxoCounts},
+    wallet::{OnchainWallet, UtxoCounts},
 };
 
 /// The max # of route hints containing intercept scids we'll add to invoices.
@@ -139,7 +139,7 @@ pub fn node_info<CM, PM, PS, RMH>(
     user_pk: UserPk,
     channel_manager: &CM,
     peer_manager: &PM,
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
     chain_monitor: &LexeChainMonitorType<PS>,
     channels: &[ChannelDetails],
     lsp_fees: LspFees,
@@ -244,7 +244,7 @@ pub fn list_channels<PS: LexePersister>(
 pub async fn open_channel<CM, PS, F>(
     channel_manager: &CM,
     channel_events_bus: &EventsBus<ChannelEvent>,
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
     ensure_counterparty_connected: impl FnOnce() -> F,
     user_channel_id: LxUserChannelId,
     channel_value: Amount,
@@ -397,7 +397,7 @@ async fn wait_for_our_channel_open_event(
 /// Check if we actually have enough on-chain funds for this channel and return
 /// the on-chain fees required.
 pub async fn preflight_open_channel(
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
     req: PreflightOpenChannelRequest,
 ) -> anyhow::Result<PreflightOpenChannelResponse> {
     let fee_estimate = wallet.preflight_channel_funding_tx(req.value)?;
@@ -1231,7 +1231,7 @@ where
 pub async fn pay_onchain<CM, PS>(
     req: PayOnchainRequest,
     network: LxNetwork,
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
     tx_broadcaster: &TxBroadcaster,
     payments_manager: &PaymentsManager<CM, PS>,
 ) -> anyhow::Result<PayOnchainResponse>
@@ -1281,7 +1281,7 @@ where
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
 pub fn preflight_pay_onchain(
     req: PreflightPayOnchainRequest,
-    wallet: &LexeWallet,
+    wallet: &OnchainWallet,
     network: LxNetwork,
 ) -> anyhow::Result<PreflightPayOnchainResponse> {
     wallet.preflight_pay_onchain(req, network)

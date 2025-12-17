@@ -140,8 +140,9 @@ impl RootSeed {
     }
 
     /// Derive the BIP32 master xprv used for the BDK (on-chain) wallet as well
-    /// as in an intermediate step when deriving the LDK seed. See `LexeWallet`
-    /// init and `LexeKeysManager` init respectively for details.
+    /// as in an intermediate step when deriving the LDK seed. See
+    /// `OnchainWallet` init and `LexeKeysManager` init respectively for
+    /// details.
     pub fn derive_bip32_master_xprv(&self, network: Network) -> bip32::Xpriv {
         bip32::Xpriv::new_master(network, self.0.expose_secret())
             .expect("Should never fail")

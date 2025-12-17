@@ -27,7 +27,7 @@ use lightning_invoice::RawBolt11Invoice;
 use secrecy::ExposeSecret;
 use tracing::{debug, error};
 
-use crate::wallet::LexeWallet;
+use crate::wallet::OnchainWallet;
 
 /// Wraps LDK's [`KeysManager`] to provide the following:
 ///
@@ -46,15 +46,16 @@ use crate::wallet::LexeWallet;
 /// [`SpendableOutputs`]: lightning::events::Event::SpendableOutputs
 pub struct LexeKeysManager {
     inner: KeysManager,
-    wallet: LexeWallet,
+    wallet: OnchainWallet,
 }
 
 impl LexeKeysManager {
-    /// Initialize a [`LexeKeysManager`] from a [`RootSeed`] and [`LexeWallet`].
+    /// Initialize a [`LexeKeysManager`] from a [`RootSeed`] and
+    /// [`OnchainWallet`].
     pub fn new(
         rng: &mut impl Crng,
         root_seed: &RootSeed,
-        wallet: LexeWallet,
+        wallet: OnchainWallet,
     ) -> anyhow::Result<Self> {
         // Build the KeysManager from the LDK seed derived from the root seed
         let ldk_seed = root_seed.derive_ldk_seed(rng);
@@ -245,7 +246,7 @@ impl SignerProvider for LexeKeysManager {
     /// Returns the scriptpubkey that we should receive time-locked, contestible
     /// channel force-close outputs to.
     ///
-    /// See: `LexeWallet::get_destination_script`.
+    /// See: `OnchainWallet::get_destination_script`.
     fn get_destination_script(
         &self,
         _channel_keys_id: [u8; 32],
@@ -316,12 +317,12 @@ mod test {
         )| {
             // Create users 1 and 2
             let maybe_changeset = None;
-            let wallet1 = LexeWallet::dummy(&root_seed1, maybe_changeset);
+            let wallet1 = OnchainWallet::dummy(&root_seed1, maybe_changeset);
             let keys_manager1 =
                 LexeKeysManager::new(&mut rng, &root_seed1, wallet1).unwrap();
             let node_pk1 = keys_manager1.node_pk();
             let maybe_changeset = None;
-            let wallet2 = LexeWallet::dummy(&root_seed2, maybe_changeset);
+            let wallet2 = OnchainWallet::dummy(&root_seed2, maybe_changeset);
             let keys_manager2 =
                 LexeKeysManager::new(&mut rng, &root_seed2, wallet2).unwrap();
 

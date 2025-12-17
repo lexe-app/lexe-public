@@ -14,7 +14,7 @@ use crate::{
     alias::EsploraSyncClientType,
     esplora::LexeEsplora,
     traits::{LexeChainMonitor, LexeChannelManager, LexePersister},
-    wallet::LexeWallet,
+    wallet::OnchainWallet,
 };
 
 /// How often the BDK / LDK sync tasks re-sync to the latest chain tip.
@@ -37,7 +37,7 @@ pub struct BdkSyncRequest {
 /// Spawns a task that periodically restarts BDK sync.
 pub fn spawn_bdk_sync_task(
     esplora: Arc<LexeEsplora>,
-    wallet: LexeWallet,
+    wallet: OnchainWallet,
     onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,

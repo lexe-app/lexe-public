@@ -56,7 +56,7 @@ use lexe_ln::{
     test_event,
     traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
-    wallet::{self, LexeCoinSelector, LexeWallet},
+    wallet::{self, LexeCoinSelector, OnchainWallet},
 };
 use lexe_std::{Apply, const_assert};
 use lexe_tls::shared_seed::certs::{
@@ -157,7 +157,7 @@ pub struct UserNode {
     chain_monitor: Arc<ChainMonitorType>,
     channel_manager: NodeChannelManager,
     esplora: Arc<LexeEsplora>,
-    wallet: LexeWallet,
+    wallet: OnchainWallet,
     fee_estimates: Arc<FeeEstimatorType>,
     tx_broadcaster: Arc<BroadcasterType>,
     keys_manager: Arc<LexeKeysManager>,
@@ -415,7 +415,7 @@ impl UserNode {
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let (wallet_persister_tx, wallet_persister_rx) = notify::channel();
         let coin_selector = LexeCoinSelector::default();
-        let wallet = LexeWallet::init(
+        let wallet = OnchainWallet::init(
             &root_seed,
             network,
             &esplora,
