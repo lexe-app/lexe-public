@@ -80,7 +80,7 @@ use crate::credentials::{ClientCredentials, Credentials};
 #[derive(Clone)]
 pub struct GatewayClient {
     rest: RestClient,
-    gateway_url: String,
+    gateway_url: Cow<'static, str>,
 }
 
 /// The client to the user node.
@@ -141,19 +141,19 @@ struct RunRestClient {
 impl GatewayClient {
     pub fn new(
         deploy_env: DeployEnv,
-        gateway_url: String,
+        gateway_url: impl Into<Cow<'static, str>>,
         user_agent: impl Into<Cow<'static, str>>,
     ) -> anyhow::Result<Self> {
         fn inner(
             deploy_env: DeployEnv,
-            gateway_url: String,
+            gateway_url: Cow<'static, str>,
             user_agent: Cow<'static, str>,
         ) -> anyhow::Result<GatewayClient> {
             let tls_config = lexe_ca::app_gateway_client_config(deploy_env);
             let rest = RestClient::new(user_agent, "gateway", tls_config);
             Ok(GatewayClient { rest, gateway_url })
         }
-        inner(deploy_env, gateway_url, user_agent.into())
+        inner(deploy_env, gateway_url.into(), user_agent.into())
     }
 }
 

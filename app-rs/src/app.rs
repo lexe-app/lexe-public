@@ -2,6 +2,7 @@
 //! Rust, without any FFI weirdness.
 
 use std::{
+    borrow::Cow,
     collections::BTreeSet,
     fmt,
     path::PathBuf,
@@ -791,7 +792,7 @@ pub struct AppConfig {
     pub deploy_env: DeployEnv,
     pub network: LxNetwork,
     pub use_sgx: bool,
-    pub gateway_url: String,
+    pub gateway_url: Cow<'static, str>,
     pub lexe_data_dir: PathBuf,
     pub use_mock_secret_store: bool,
     pub user_agent: String,
@@ -853,7 +854,7 @@ impl AppConfig {
         Self {
             deploy_env,
             network,
-            gateway_url,
+            gateway_url: Cow::Owned(gateway_url),
             use_sgx,
             lexe_data_dir,
             use_mock_secret_store,
