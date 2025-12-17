@@ -27,6 +27,13 @@ build-backend = "maturin"
 [tool.maturin]
 python-source = "python"
 bindings = "uniffi"
+include = [
+    # Mandate our Rust toolchain for users building from source.
+    #
+    # NOTE: `maturin` will automatically install `rustup` into a tempdir for
+    # users with no Rust toolchain installed.
+    { path = "rust-toolchain.toml", format = ["sdist"] }
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
