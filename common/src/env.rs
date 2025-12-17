@@ -1,4 +1,4 @@
-use std::{env, fmt, fmt::Display, str::FromStr};
+use std::{borrow::Cow, env, fmt, fmt::Display, str::FromStr};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_std::Apply;
@@ -82,6 +82,24 @@ impl DeployEnv {
             ensure!(use_sgx, "Staging and prod can only run in SGX!");
         }
         Ok(())
+    }
+
+    /// Returns the gateway URL for this deploy environment.
+    ///
+    /// For dev, the caller must provide a fallback `dev_gateway_url`
+    /// (typically from an environment variable like `DEV_GATEWAY_URL`).
+    pub fn gateway_url(
+        &self,
+        dev_gateway_url: Cow<'static, str>,
+    ) -> Cow<'static, str> {
+        match self {
+            Self::Dev => dev_gateway_url,
+            Self::Staging => Cow::Borrowed(
+                "https://lexe-staging-sgx.uswest2.staging.lexe.app",
+            ),
+            Self::Prod =>
+                Cow::Borrowed("https://lexe-prod.uswest2.prod.lexe.app"),
+        }
     }
 
     /// A strategy for *valid* combinations of [`DeployEnv`] and [`LxNetwork`].

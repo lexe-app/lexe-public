@@ -66,6 +66,18 @@ impl DeployEnv {
     pub fn from_str(s: &str) -> anyhow::Result<Self> {
         DeployEnvRs::from_str(s).map(DeployEnv::from)
     }
+
+    /// Returns the gateway URL for this deploy environment.
+    ///
+    /// For dev, the caller must provide `dev_gateway_url` (typically from a
+    /// build-time constant like `DEV_GATEWAY_URL`).
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn gateway_url(&self, dev_gateway_url: String) -> String {
+        DeployEnvRs::from(*self)
+            .gateway_url(dev_gateway_url.into())
+            .into_owned()
+    }
 }
 
 impl From<DeployEnvRs> for DeployEnv {

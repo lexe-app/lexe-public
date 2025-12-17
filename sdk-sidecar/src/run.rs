@@ -76,16 +76,10 @@ impl Sidecar {
         let network = args.network.unwrap_or(LxNetwork::Mainnet);
         info!(%deploy_env, %network);
 
-        // Keep in sync with `app/lib/cfg.dart`.
-        // TODO(phlip9): extract
-        let gateway_url = match deploy_env {
-            DeployEnv::Dev => env::var("DEV_GATEWAY_URL")
-                .unwrap_or_else(|_| "https://localhost:4040".to_owned()),
-            DeployEnv::Staging =>
-                "https://lexe-staging-sgx.uswest2.staging.lexe.app".to_owned(),
-            DeployEnv::Prod =>
-                "https://lexe-prod.uswest2.prod.lexe.app".to_owned(),
-        };
+        let dev_gateway_url = env::var("DEV_GATEWAY_URL")
+            .unwrap_or_else(|_| "https://localhost:4040".to_owned());
+        let gateway_url =
+            deploy_env.gateway_url(dev_gateway_url.into()).into_owned();
 
         // Create the default node client if default credentials were provided
         let default_client = match maybe_credentials {
