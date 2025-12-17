@@ -26,6 +26,7 @@ ${PODS_TARGET_SRCROOT}/../../rust-toolchain.toml
 ${PODS_TARGET_SRCROOT}/../../rustfmt.toml
 ${PODS_TARGET_SRCROOT}/../../sdk-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sdk-sidecar/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../sdk/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgx-test/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgx-toml/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgxs-sign/Cargo.toml

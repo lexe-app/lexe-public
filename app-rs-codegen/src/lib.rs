@@ -179,12 +179,15 @@ fn build_app_rs_xcfilelist(workspace_dir: &Path) -> String {
         .max_depth(Some(2))
         .build();
     const PREFIX: &str = "${PODS_TARGET_SRCROOT}/../../";
+
+    // All Cargo.toml manifest files in the workspace
     let mut xcfilelist = walk
         .filter_map(|entry| {
             let entry = entry.unwrap();
             let path = entry.path();
             let file_name = path.file_name()?.to_str()?;
-            if file_name.ends_with(".toml") {
+
+            if file_name == "Cargo.toml" {
                 let rel_path = path.strip_prefix(workspace_dir).unwrap();
                 let pod_rel_path = format!("{PREFIX}{}", rel_path.display());
                 Some(pod_rel_path)
@@ -193,7 +196,12 @@ fn build_app_rs_xcfilelist(workspace_dir: &Path) -> String {
             }
         })
         .collect::<Vec<_>>();
+    // Other rust metadata files
+    xcfilelist.push(format!("{PREFIX}.cargo/config.toml"));
     xcfilelist.push(format!("{PREFIX}Cargo.lock"));
+    xcfilelist.push(format!("{PREFIX}clippy.toml"));
+    xcfilelist.push(format!("{PREFIX}rust-toolchain.toml"));
+    xcfilelist.push(format!("{PREFIX}rustfmt.toml"));
     xcfilelist.sort_unstable();
 
     let mut buf = xcfilelist.join("\n");
