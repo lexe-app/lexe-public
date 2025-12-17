@@ -792,18 +792,18 @@ pub struct AppConfig {
     pub network: LxNetwork,
     pub use_sgx: bool,
     pub gateway_url: String,
-    pub base_app_data_dir: PathBuf,
+    pub lexe_data_dir: PathBuf,
     pub use_mock_secret_store: bool,
     pub user_agent: String,
 }
 
 impl AppConfig {
-    // `<base_app_data_dir>/<deploy_env>-<network>-<use_sgx>`
+    // `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>`
     pub(crate) fn app_data_dir(&self) -> PathBuf {
-        self.base_app_data_dir.join(self.build_flavor().to_string())
+        self.lexe_data_dir.join(self.build_flavor().to_string())
     }
 
-    // `<base_app_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
+    // `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
     fn user_data_dir(&self, user_pk: &UserPk) -> PathBuf {
         self.app_data_dir().join(user_pk.to_string())
     }
@@ -822,7 +822,7 @@ impl AppConfig {
         network: LxNetwork,
         gateway_url: String,
         use_sgx: bool,
-        base_app_data_dir: String,
+        lexe_data_dir: String,
         use_mock_secret_store: bool,
         user_agent: String,
     ) -> Self {
@@ -832,10 +832,10 @@ impl AppConfig {
             use_sgx,
         };
 
-        // The base app data directory.
+        // The Lexe data directory.
         // See: dart fn `path_provider.getApplicationSupportDirectory()`
         // https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html
-        let base_app_data_dir = PathBuf::from(base_app_data_dir);
+        let lexe_data_dir = PathBuf::from(lexe_data_dir);
 
         {
             use DeployEnv::*;
@@ -855,7 +855,7 @@ impl AppConfig {
             network,
             gateway_url,
             use_sgx,
-            base_app_data_dir,
+            lexe_data_dir,
             use_mock_secret_store,
             user_agent,
         }

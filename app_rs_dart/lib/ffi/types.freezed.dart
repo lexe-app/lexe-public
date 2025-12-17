@@ -136,22 +136,22 @@ String toString() {
 /// @nodoc
 mixin _$Config {
 
- DeployEnv get deployEnv; Network get network; String get gatewayUrl; bool get useSgx; String get baseAppDataDir; bool get useMockSecretStore; String get userAgent;
+ DeployEnv get deployEnv; Network get network; String get gatewayUrl; bool get useSgx; String get lexeDataDir; bool get useMockSecretStore; String get userAgent;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Config&&(identical(other.deployEnv, deployEnv) || other.deployEnv == deployEnv)&&(identical(other.network, network) || other.network == network)&&(identical(other.gatewayUrl, gatewayUrl) || other.gatewayUrl == gatewayUrl)&&(identical(other.useSgx, useSgx) || other.useSgx == useSgx)&&(identical(other.baseAppDataDir, baseAppDataDir) || other.baseAppDataDir == baseAppDataDir)&&(identical(other.useMockSecretStore, useMockSecretStore) || other.useMockSecretStore == useMockSecretStore)&&(identical(other.userAgent, userAgent) || other.userAgent == userAgent));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Config&&(identical(other.deployEnv, deployEnv) || other.deployEnv == deployEnv)&&(identical(other.network, network) || other.network == network)&&(identical(other.gatewayUrl, gatewayUrl) || other.gatewayUrl == gatewayUrl)&&(identical(other.useSgx, useSgx) || other.useSgx == useSgx)&&(identical(other.lexeDataDir, lexeDataDir) || other.lexeDataDir == lexeDataDir)&&(identical(other.useMockSecretStore, useMockSecretStore) || other.useMockSecretStore == useMockSecretStore)&&(identical(other.userAgent, userAgent) || other.userAgent == userAgent));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,deployEnv,network,gatewayUrl,useSgx,baseAppDataDir,useMockSecretStore,userAgent);
+int get hashCode => Object.hash(runtimeType,deployEnv,network,gatewayUrl,useSgx,lexeDataDir,useMockSecretStore,userAgent);
 
 @override
 String toString() {
-  return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, baseAppDataDir: $baseAppDataDir, useMockSecretStore: $useMockSecretStore, userAgent: $userAgent)';
+  return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, lexeDataDir: $lexeDataDir, useMockSecretStore: $useMockSecretStore, userAgent: $userAgent)';
 }
 
 
@@ -165,14 +165,14 @@ String toString() {
 
 
 class _Config implements Config {
-  const _Config({required this.deployEnv, required this.network, required this.gatewayUrl, required this.useSgx, required this.baseAppDataDir, required this.useMockSecretStore, required this.userAgent});
+  const _Config({required this.deployEnv, required this.network, required this.gatewayUrl, required this.useSgx, required this.lexeDataDir, required this.useMockSecretStore, required this.userAgent});
   
 
 @override final  DeployEnv deployEnv;
 @override final  Network network;
 @override final  String gatewayUrl;
 @override final  bool useSgx;
-@override final  String baseAppDataDir;
+@override final  String lexeDataDir;
 @override final  bool useMockSecretStore;
 @override final  String userAgent;
 
@@ -181,16 +181,16 @@ class _Config implements Config {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Config&&(identical(other.deployEnv, deployEnv) || other.deployEnv == deployEnv)&&(identical(other.network, network) || other.network == network)&&(identical(other.gatewayUrl, gatewayUrl) || other.gatewayUrl == gatewayUrl)&&(identical(other.useSgx, useSgx) || other.useSgx == useSgx)&&(identical(other.baseAppDataDir, baseAppDataDir) || other.baseAppDataDir == baseAppDataDir)&&(identical(other.useMockSecretStore, useMockSecretStore) || other.useMockSecretStore == useMockSecretStore)&&(identical(other.userAgent, userAgent) || other.userAgent == userAgent));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Config&&(identical(other.deployEnv, deployEnv) || other.deployEnv == deployEnv)&&(identical(other.network, network) || other.network == network)&&(identical(other.gatewayUrl, gatewayUrl) || other.gatewayUrl == gatewayUrl)&&(identical(other.useSgx, useSgx) || other.useSgx == useSgx)&&(identical(other.lexeDataDir, lexeDataDir) || other.lexeDataDir == lexeDataDir)&&(identical(other.useMockSecretStore, useMockSecretStore) || other.useMockSecretStore == useMockSecretStore)&&(identical(other.userAgent, userAgent) || other.userAgent == userAgent));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,deployEnv,network,gatewayUrl,useSgx,baseAppDataDir,useMockSecretStore,userAgent);
+int get hashCode => Object.hash(runtimeType,deployEnv,network,gatewayUrl,useSgx,lexeDataDir,useMockSecretStore,userAgent);
 
 @override
 String toString() {
-  return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, baseAppDataDir: $baseAppDataDir, useMockSecretStore: $useMockSecretStore, userAgent: $userAgent)';
+  return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, lexeDataDir: $lexeDataDir, useMockSecretStore: $useMockSecretStore, userAgent: $userAgent)';
 }
 
 

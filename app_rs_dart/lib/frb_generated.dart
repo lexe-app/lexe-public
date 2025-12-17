@@ -3451,7 +3451,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       network: dco_decode_network(arr[1]),
       gatewayUrl: dco_decode_String(arr[2]),
       useSgx: dco_decode_bool(arr[3]),
-      baseAppDataDir: dco_decode_String(arr[4]),
+      lexeDataDir: dco_decode_String(arr[4]),
       useMockSecretStore: dco_decode_bool(arr[5]),
       userAgent: dco_decode_String(arr[6]),
     );
@@ -4942,7 +4942,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_network = sse_decode_network(deserializer);
     var var_gatewayUrl = sse_decode_String(deserializer);
     var var_useSgx = sse_decode_bool(deserializer);
-    var var_baseAppDataDir = sse_decode_String(deserializer);
+    var var_lexeDataDir = sse_decode_String(deserializer);
     var var_useMockSecretStore = sse_decode_bool(deserializer);
     var var_userAgent = sse_decode_String(deserializer);
     return Config(
@@ -4950,7 +4950,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       network: var_network,
       gatewayUrl: var_gatewayUrl,
       useSgx: var_useSgx,
-      baseAppDataDir: var_baseAppDataDir,
+      lexeDataDir: var_lexeDataDir,
       useMockSecretStore: var_useMockSecretStore,
       userAgent: var_userAgent,
     );
@@ -6646,7 +6646,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_network(self.network, serializer);
     sse_encode_String(self.gatewayUrl, serializer);
     sse_encode_bool(self.useSgx, serializer);
-    sse_encode_String(self.baseAppDataDir, serializer);
+    sse_encode_String(self.lexeDataDir, serializer);
     sse_encode_bool(self.useMockSecretStore, serializer);
     sse_encode_String(self.userAgent, serializer);
   }

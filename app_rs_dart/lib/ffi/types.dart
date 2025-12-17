@@ -71,7 +71,7 @@ sealed class Config with _$Config {
     required Network network,
     required String gatewayUrl,
     required bool useSgx,
-    required String baseAppDataDir,
+    required String lexeDataDir,
     required bool useMockSecretStore,
     required String userAgent,
   }) = _Config;
