@@ -22,6 +22,8 @@ pub mod def;
 /// API error types.
 // TODO(max): This will be replaced by LexeError
 pub mod error;
+/// Macros for API clients/servers.
+pub mod macros;
 /// API request and response types unique to a specific endpoint.
 pub mod models;
 /// API types shared across multiple endpoints.

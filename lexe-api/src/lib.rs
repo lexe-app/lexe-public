@@ -8,8 +8,6 @@ pub use lexe_api_core::*;
 
 /// Bearer auth and User Signup.
 pub mod auth;
-/// Macros for API clients/servers.
-pub mod macros;
 /// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
 /// Webserver utilities.
