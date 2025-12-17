@@ -21,7 +21,6 @@ class ScanPage extends StatefulWidget {
 }
 
 class _ScanPageState extends State<ScanPage> {
-  // TODO(phlip9): show a spinner while processing
   ValueNotifier<bool> isProcessing = ValueNotifier(false);
 
   @override
@@ -66,11 +65,11 @@ class _ScanPageState extends State<ScanPage> {
     );
     if (!this.mounted) return;
 
-    // Stop loading animation
-    this.isProcessing.value = false;
-
     // User canceled
-    if (result == null) return;
+    if (result == null) {
+      this.isProcessing.value = false;
+      return;
+    }
 
     // Check the results, or show an error on the page.
     final SendState sendCtx;
@@ -79,6 +78,7 @@ class _ScanPageState extends State<ScanPage> {
         sendCtx = ok;
       case Err(:final err):
         error("ScanPage: preflight error: $err");
+        this.isProcessing.value = false;
         return;
     }
 
@@ -94,7 +94,12 @@ class _ScanPageState extends State<ScanPage> {
     info(
       "SendPaymentNeedUriPage: flow result: $flowResult, mounted: ${this.mounted}",
     );
-    if (!this.mounted || flowResult == null) return;
+
+    // User canceled the payment flow - allow scanning again.
+    if (!this.mounted || flowResult == null) {
+      this.isProcessing.value = false;
+      return;
+    }
 
     // Successfully sent payment -- return result to parent page.
     // ignore: use_build_context_synchronously
