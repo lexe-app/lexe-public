@@ -6,6 +6,10 @@
 //! Traits, macros, copies of unstable `std` APIs, a small number of types, are
 //! all fair game so long as they do NOT depend on anything outside of [`std`].
 
+// Re-export `std` for use by macros.
+#[doc(hidden)]
+pub use std;
+
 /// `[u8; N]` array functions.
 pub mod array;
 /// Exponential backoff.
