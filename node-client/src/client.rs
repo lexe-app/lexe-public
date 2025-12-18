@@ -99,6 +99,11 @@ pub struct GatewayClient {
 ///   connection pool after provisioning has complete.
 #[derive(Clone)]
 pub struct NodeClient {
+    inner: Arc<NodeClientInner>,
+}
+
+#[doc(hidden)] // Needs to be `pub` for `Deref` trick to work
+pub struct NodeClientInner {
     gateway_client: GatewayClient,
     /// The [`RestClient`] used to communicate with a Run node.
     ///
@@ -116,10 +121,7 @@ pub struct NodeClient {
     /// the connection pool whenever we need to re-auth. Until we get
     /// per-request proxy configs in `reqwest`, this is likely the best we can
     /// do. Though one reconnection per 10 min. is probably ok.
-    //
-    // TODO(phlip9): make `sdk-sidecar` extract an `Arc<NodeClient>` so we
-    // can remove the outer Arc here.
-    run_rest: Arc<ArcSwapOption<RunRestClient>>,
+    run_rest: ArcSwapOption<RunRestClient>,
     run_url: &'static str,
     use_sgx: bool,
     deploy_env: DeployEnv,
@@ -254,16 +256,18 @@ impl NodeClient {
 
         let authenticator = credentials.bearer_authenticator();
         let tls_config = credentials.tls_config(rng, deploy_env)?;
-        let run_rest = Arc::new(ArcSwapOption::from(None));
+        let run_rest = ArcSwapOption::from(None);
 
         Ok(Self {
-            gateway_client,
-            run_rest,
-            run_url,
-            use_sgx,
-            deploy_env,
-            authenticator,
-            tls_config,
+            inner: Arc::new(NodeClientInner {
+                gateway_client,
+                run_rest,
+                run_url,
+                use_sgx,
+                deploy_env,
+                authenticator,
+                tls_config,
+            }),
         })
     }
 
@@ -791,6 +795,13 @@ impl AppNodeRunApi for NodeClient {
         let url = format!("{run_url}/app/payment_address");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
+    }
+}
+
+impl Deref for NodeClient {
+    type Target = NodeClientInner;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
