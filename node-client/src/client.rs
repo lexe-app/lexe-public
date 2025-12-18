@@ -8,17 +8,20 @@
 
 use std::{
     borrow::Cow,
+    ops::Deref,
     sync::Arc,
     time::{Duration, SystemTime},
 };
 
-use anyhow::Context;
+use anyhow::{Context, ensure};
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use common::{
     api::{
         auth::{
             BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken, Scope,
-            UserSignupRequestWire, UserSignupRequestWireV1,
+            TokenWithExpiration, UserSignupRequestWire,
+            UserSignupRequestWireV1,
         },
         fiat_rates::FiatRates,
         models::{
@@ -41,7 +44,7 @@ use common::{
     rng::Crng,
 };
 use lexe_api::{
-    auth::BearerAuthenticator,
+    auth::{self, BearerAuthenticator},
     def::{
         AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
         BearerAuthBackendApi,
@@ -69,7 +72,7 @@ use lexe_api::{
         username::UsernameStruct,
     },
 };
-use lexe_tls::{attestation, lexe_ca};
+use lexe_tls::{attestation, lexe_ca, rustls};
 use reqwest::Url;
 
 use crate::credentials::{ClientCredentials, Credentials};
@@ -88,7 +91,7 @@ pub struct GatewayClient {
 /// and other request rate limits.
 ///
 /// - Requests made to running nodes use the Run-specific [`RestClient`].
-/// - Requests made to provisioning nodes as a [`RestClient`] which is created
+/// - Requests made to provisioning nodes use a [`RestClient`] which is created
 ///   on-the-fly. This is because it is necessary to include a TLS config which
 ///   checks the server's remote attestation against a [`Measurement`] which is
 ///   only known at provisioning time. This is also desirable because provision
@@ -98,11 +101,38 @@ pub struct GatewayClient {
 pub struct NodeClient {
     gateway_client: GatewayClient,
     /// The [`RestClient`] used to communicate with a Run node.
-    run_rest: RestClient,
-    run_url: String,
+    ///
+    /// This is an [`ArcSwapOption`] so that we can atomically swap in a new
+    /// client with a new proxy config when the auth token expires.
+    ///
+    /// Previously, we used this patch to dynamically set the proxy auth header
+    /// with the latest auth token:
+    /// [proxy: allow setting proxy-auth at intercept time](https://github.com/lexe-app/reqwest/commit/dea2dd7a1d3c52e50d1c47803fdc57d73e35c769)
+    /// This approach has the best connection reuse, since the connection pool
+    /// is shared across all tokens; we should only need to reconnect if the
+    /// underlying connection times out.
+    ///
+    /// This approach removes the need for a patch. One downside: it replaces
+    /// the connection pool whenever we need to re-auth. Until we get
+    /// per-request proxy configs in `reqwest`, this is likely the best we can
+    /// do. Though one reconnection per 10 min. is probably ok.
+    //
+    // TODO(phlip9): make `sdk-sidecar` extract an `Arc<NodeClient>` so we
+    // can remove the outer Arc here.
+    run_rest: Arc<ArcSwapOption<RunRestClient>>,
+    run_url: &'static str,
     use_sgx: bool,
     deploy_env: DeployEnv,
     authenticator: Arc<BearerAuthenticator>,
+    tls_config: rustls::ClientConfig,
+}
+
+/// A [`RestClient`] with required proxy configuration needed to communicate
+/// with a user node.
+struct RunRestClient {
+    client: RestClient,
+    /// When the auth token used in the proxy config expires.
+    token_expiration: SystemTime,
 }
 
 // --- impl GatewayClient --- //
@@ -213,29 +243,17 @@ impl NodeClient {
         gateway_client: GatewayClient,
         credentials: Credentials<'_>,
     ) -> anyhow::Result<Self> {
-        let run_dns = constants::NODE_RUN_DNS;
-        let run_url = format!("https://{run_dns}");
+        let run_url = constants::NODE_RUN_URL;
+
+        let gateway_url = &gateway_client.gateway_url;
+        ensure!(
+            gateway_url.starts_with("https://"),
+            "proxy connection must be https: gateway url: {gateway_url}",
+        );
+
         let authenticator = credentials.bearer_authenticator();
-
-        let run_rest = {
-            let proxy = Self::proxy_config(
-                &gateway_client.gateway_url,
-                &run_url,
-                authenticator.clone(),
-            )
-            .context("Invalid proxy config")?;
-
-            let (from, to) =
-                (gateway_client.rest.user_agent().clone(), "node-run");
-            let tls_config = credentials.tls_config(rng, deploy_env)?;
-            let reqwest_client = RestClient::client_builder(&from)
-                .proxy(proxy)
-                .use_preconfigured_tls(tls_config)
-                .build()
-                .context("Failed to build client")?;
-
-            RestClient::from_inner(reqwest_client, from, to)
-        };
+        let tls_config = credentials.tls_config(rng, deploy_env)?;
+        let run_rest = Arc::new(ArcSwapOption::from(None));
 
         Ok(Self {
             gateway_client,
@@ -244,83 +262,83 @@ impl NodeClient {
             use_sgx,
             deploy_env,
             authenticator,
+            tls_config,
         })
     }
 
-    /// User nodes are not exposed to the public internet. Instead, a secure
-    /// tunnel (TLS) is first established via the lexe gateway proxy to the
-    /// user's node only after they have successfully authenticated with Lexe.
+    /// Get an authenticated [`RunRestClient`] for making requests to the user
+    /// node's run endpoint via the gateway CONNECT proxy.
     ///
-    /// Essentially, we have a TLS-in-TLS scheme:
+    /// The returned client always has a fresh auth token for the gateway proxy.
     ///
-    /// - The outer layer terminates at Lexe's gateway proxy and prevents the
-    ///   public internet from seeing auth tokens sent to the gateway proxy.
-    /// - The inner layer terminates inside the SGX enclave and prevents the
-    ///   Lexe operators from snooping on or tampering with data sent to/from
-    ///   the app <-> node.
-    ///
-    /// This function sets up a client-side [`reqwest::Proxy`] config which
-    /// looks for requests to the user node (i.e., urls starting with one of the
-    /// fake DNS names `{mr_short}.provision.lexe.app` or `run.lexe.app`) and
-    /// instructs `reqwest` to use an HTTPS CONNECT tunnel over which to send
-    /// the requests.
-    fn proxy_config(
-        gateway_url: &str,
-        node_url: &str,
-        authenticator: Arc<BearerAuthenticator>,
-    ) -> anyhow::Result<reqwest::Proxy> {
-        let node_url = Url::parse(node_url).context("Invalid node url")?;
+    /// In the common case where our token is still fresh, this is a fast atomic
+    /// load of the cached client. If the token is expired, we will request a
+    /// new token, build a new client, and swap it in atomically.
+    async fn authed_run_rest(
+        &self,
+    ) -> Result<Arc<RunRestClient>, NodeApiError> {
+        let now = SystemTime::now();
 
-        // App->Gateway connection must be HTTPS
-        let gateway_url =
-            Url::parse(gateway_url).context("Invalid gateway url")?;
-        anyhow::ensure!(
-            gateway_url.scheme() == "https",
-            "proxy connection must be https: gateway url: {gateway_url}"
-        );
+        // Fast path: we already have a fresh token and client
+        if let Some(run_rest) = self.maybe_authed_run_rest(now) {
+            return Ok(run_rest);
+        }
 
-        // The CONNECT proxy target, with no proxy-auth header added yet.
-        let proxy_no_auth =
-            reqwest::Proxy::all(gateway_url).context("Invalid proxy url")?;
+        // TODO(phlip9): `std::hint::cold_path()` here when that stabilizes
 
-        // ugly hack to get auth token to proxy
-        //
-        // Ideally we could just call `authenticator.get_token().await` here,
-        // but this callback isn't async... Instead we have to read the most
-        // recently cached token and be diligent about calling
-        // `self.ensure_authed()` before calling any auth'ed API.
-        let proxy = reqwest::Proxy::custom(move |url| {
-            if url_base_eq(url, &node_url) {
-                let auth_token = authenticator
-                    .get_maybe_cached_token()
-                    .expect("bearer authenticator MUST fetch token!");
+        // Get an unexpired auth token. This is probably a new token, but we may
+        // race with other tasks here, so we could also get a cached token.
+        let auth_token = self.get_auth_token(now).await?;
 
-                // TODO(phlip9): include "Bearer " prefix in auth token
-                let auth_header = http::HeaderValue::from_maybe_shared(
-                    ByteStr::from(format!("Bearer {auth_token}")),
-                )
-                .expect("a String is a valid UTF-8 string");
+        // Check again if another task concurrently swapped in a fresh client.
+        // A little hacky, but significantly reduces the chance that we create
+        // multiple clients.
+        if let Some(run_rest) = self.maybe_authed_run_rest(now) {
+            // TODO(phlip9): `std::hint::cold_path()` here when that stabilizes
+            return Ok(run_rest);
+        }
 
-                Some(proxy_no_auth.clone().custom_http_auth(auth_header))
-            } else {
-                None
-            }
-        });
+        // Build a new client with the new token
+        let run_rest = RunRestClient::new(
+            &self.gateway_client,
+            self.run_url,
+            auth_token,
+            self.tls_config.clone(),
+        )
+        .map_err(NodeApiError::bad_auth)?;
+        let run_rest = Arc::new(run_rest);
 
-        Ok(proxy)
+        // Swap it in
+        self.run_rest.swap(Some(run_rest.clone()));
+
+        Ok(run_rest)
     }
 
-    /// Ensure the client has a fresh auth token for the gateway proxy.
-    ///
-    /// This function is a bit hacky, since the proxy config is blocking and
-    /// can't just call `authenticator.get_token().await` as it pleases. Instead
-    /// we have this ugly "out-of-band" communication where we have to remember
-    /// to always call `ensure_authed()` in each request caller...
-    async fn ensure_authed(&self) -> Result<(), NodeApiError> {
+    /// Returns `Some(_)` if we already have an authenticated run rest client
+    /// whose token is unexpired.
+    fn maybe_authed_run_rest(
+        &self,
+        now: SystemTime,
+    ) -> Option<Arc<RunRestClient>> {
+        let maybe_run_rest = self.run_rest.load_full();
+        if let Some(run_rest) = maybe_run_rest
+            && !run_rest.token_needs_refresh(now)
+        {
+            Some(run_rest)
+        } else {
+            None
+        }
+    }
+
+    /// Get an unexpired auth token (maybe cached, maybe new) for the gateway
+    /// CONNECT proxy.
+    async fn get_auth_token(
+        &self,
+        now: SystemTime,
+    ) -> Result<TokenWithExpiration, NodeApiError> {
         self.authenticator
-            .get_token(&self.gateway_client, SystemTime::now())
+            .get_token_with_exp(&self.gateway_client, now)
             .await
-            .map(|_token| ())
             // TODO(phlip9): how to best convert `BackendApiError` to
             //               `NodeApiError`?
             .map_err(|backend_error| {
@@ -342,16 +360,19 @@ impl NodeClient {
 
     /// Builds a Provision-specific [`RestClient`] which can be used to make a
     /// provision request to a provisioning node.
+    ///
+    /// This client doesn't automatically refresh its auth token, so avoid
+    /// holding onto this client for too long.
     fn provision_rest_client(
         &self,
-        user_agent: Cow<'static, str>,
-        measurement: Measurement,
         provision_url: &str,
+        auth_token: BearerAuthToken,
+        measurement: Measurement,
     ) -> anyhow::Result<RestClient> {
-        let proxy = Self::proxy_config(
+        let proxy = static_proxy_config(
             &self.gateway_client.gateway_url,
             provision_url,
-            self.authenticator.clone(),
+            auth_token,
         )
         .context("Invalid proxy config")?;
 
@@ -361,6 +382,7 @@ impl NodeClient {
             measurement,
         );
 
+        let user_agent = self.gateway_client.rest.user_agent().clone();
         let (from, to) = (user_agent, "node-provision");
         let reqwest_client = RestClient::client_builder(&from)
             .proxy(proxy)
@@ -435,21 +457,18 @@ impl AppNodeProvisionApi for NodeClient {
         measurement: Measurement,
         data: NodeProvisionRequest,
     ) -> Result<Empty, NodeApiError> {
+        let now = SystemTime::now();
         let mr_short = measurement.short();
         let provision_dns = node_provision_dns(&mr_short);
         let provision_url = format!("https://{provision_dns}");
 
         // Create rest client on the fly
+        let auth_token = self.get_auth_token(now).await?.token;
         let provision_rest = self
-            .provision_rest_client(
-                self.gateway_client.rest.user_agent().clone(),
-                measurement,
-                &provision_url,
-            )
+            .provision_rest_client(&provision_url, auth_token, measurement)
             .context("Failed to build provision rest client")
             .map_err(NodeApiError::provision)?;
 
-        self.ensure_authed().await?;
         let req = provision_rest
             .post(format!("{provision_url}/app/provision"), &data);
         provision_rest.send(req).await
@@ -458,191 +477,189 @@ impl AppNodeProvisionApi for NodeClient {
 
 impl AppNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/node_info");
-        let req = self.run_rest.get(url, &Empty {});
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
     }
 
     async fn list_channels(
         &self,
     ) -> Result<ListChannelsResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/list_channels");
-        let req = self.run_rest.get(url, &Empty {});
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
     }
 
     async fn sign_message(
         &self,
         data: SignMsgRequest,
     ) -> Result<SignMsgResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/sign_message");
-        let req = self.run_rest.post(url, &data);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &data);
+        run_rest.send(req).await
     }
 
     async fn verify_message(
         &self,
         data: VerifyMsgRequest,
     ) -> Result<VerifyMsgResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/verify_message");
-        let req = self.run_rest.post(url, &data);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &data);
+        run_rest.send(req).await
     }
 
     async fn open_channel(
         &self,
         data: OpenChannelRequest,
     ) -> Result<OpenChannelResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/open_channel");
-        let req = self.run_rest.post(url, &data);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &data);
+        run_rest.send(req).await
     }
 
     async fn preflight_open_channel(
         &self,
         data: PreflightOpenChannelRequest,
     ) -> Result<PreflightOpenChannelResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_open_channel");
-        let req = self.run_rest.post(url, &data);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &data);
+        run_rest.send(req).await
     }
 
     async fn close_channel(
         &self,
         data: CloseChannelRequest,
     ) -> Result<Empty, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/close_channel");
-        let req = self.run_rest.post(url, &data);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &data);
+        run_rest.send(req).await
     }
 
     async fn preflight_close_channel(
         &self,
         data: PreflightCloseChannelRequest,
     ) -> Result<PreflightCloseChannelResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_close_channel");
-        let req = self.run_rest.post(url, &data);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &data);
+        run_rest.send(req).await
     }
 
     async fn create_invoice(
         &self,
         data: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/create_invoice");
-        let req = self.run_rest.post(url, &data);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &data);
+        run_rest.send(req).await
     }
 
     async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
     ) -> Result<PayInvoiceResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_invoice");
         // `pay_invoice` may call `max_flow` which takes a long time.
-        let req = self
-            .run_rest
+        let req = run_rest
             .post(url, &req)
             .timeout(constants::MAX_FLOW_TIMEOUT + Duration::from_secs(2));
-        self.run_rest.send(req).await
+        run_rest.send(req).await
     }
 
     async fn preflight_pay_invoice(
         &self,
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_pay_invoice");
         // `preflight_pay_invoice` may call `max_flow` which takes a long time.
-        let req = self
-            .run_rest
+        let req = run_rest
             .post(url, &req)
             .timeout(constants::MAX_FLOW_TIMEOUT + Duration::from_secs(2));
-        self.run_rest.send(req).await
+        run_rest.send(req).await
     }
 
     async fn pay_onchain(
         &self,
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_onchain");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
     }
 
     async fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_pay_onchain");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
     }
 
     async fn create_offer(
         &self,
         req: CreateOfferRequest,
     ) -> Result<CreateOfferResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/create_offer");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
     }
 
     async fn pay_offer(
         &self,
         req: PayOfferRequest,
     ) -> Result<PayOfferResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_offer");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
     }
 
     async fn preflight_pay_offer(
         &self,
         req: PreflightPayOfferRequest,
     ) -> Result<PreflightPayOfferResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_pay_offer");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
     }
 
     async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/get_address");
-        let req = self.run_rest.post(url, &Empty {});
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &Empty {});
+        run_rest.send(req).await
     }
 
     async fn get_payments_by_indexes(
@@ -663,117 +680,204 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/updated");
-        let req = self.run_rest.get(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &req);
+        run_rest.send(req).await
     }
 
     async fn get_payment_by_id(
         &self,
         req: LxPaymentIdStruct,
     ) -> Result<MaybeBasicPaymentV2, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/v1/payments/id");
-        let req = self.run_rest.get(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &req);
+        run_rest.send(req).await
     }
 
     async fn update_payment_note(
         &self,
         req: UpdatePaymentNote,
     ) -> Result<Empty, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/note");
-        let req = self.run_rest.put(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.put(url, &req);
+        run_rest.send(req).await
     }
 
     async fn get_revocable_clients(
         &self,
         req: GetRevocableClients,
     ) -> Result<RevocableClients, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/clients");
-        let req = self.run_rest.get(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &req);
+        run_rest.send(req).await
     }
 
     async fn create_revocable_client(
         &self,
         req: CreateRevocableClientRequest,
     ) -> Result<CreateRevocableClientResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/clients");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
     }
 
     async fn update_revocable_client(
         &self,
         req: UpdateClientRequest,
     ) -> Result<UpdateClientResponse, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/clients");
-        let req = self.run_rest.put(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.put(url, &req);
+        run_rest.send(req).await
     }
 
     async fn list_broadcasted_txs(
         &self,
     ) -> Result<serde_json::Value, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/list_broadcasted_txs");
-        let req = self.run_rest.get(url, &Empty {});
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
     }
 
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/backup");
-        let req = self.run_rest.get(url, &Empty {});
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
     }
 
     async fn setup_gdrive(
         &self,
         req: SetupGDrive,
     ) -> Result<Empty, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/backup/gdrive");
-        let req = self.run_rest.post(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
     }
 
     async fn get_payment_address(
         &self,
     ) -> Result<PaymentAddress, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payment_address");
-        let req = self.run_rest.get(url, &Empty {});
-        self.run_rest.send(req).await
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
     }
 
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError> {
-        self.ensure_authed().await?;
+        let run_rest = self.authed_run_rest().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payment_address");
-        let req = self.run_rest.put(url, &req);
-        self.run_rest.send(req).await
+        let req = run_rest.put(url, &req);
+        run_rest.send(req).await
     }
+}
+
+// --- impl RunRestClient --- //
+
+impl RunRestClient {
+    fn new(
+        gateway_client: &GatewayClient,
+        run_url: &str,
+        auth_token: TokenWithExpiration,
+        tls_config: rustls::ClientConfig,
+    ) -> anyhow::Result<Self> {
+        let TokenWithExpiration { expiration, token } = auth_token;
+        let (from, to) = (gateway_client.rest.user_agent().clone(), "node-run");
+        let proxy =
+            static_proxy_config(&gateway_client.gateway_url, run_url, token)?;
+        let client = RestClient::client_builder(&from)
+            .proxy(proxy)
+            .use_preconfigured_tls(tls_config.clone())
+            .build()
+            .context("Failed to build client")?;
+        let client = RestClient::from_inner(client, from, to);
+
+        Ok(Self {
+            client,
+            token_expiration: expiration,
+        })
+    }
+
+    fn token_needs_refresh(&self, now: SystemTime) -> bool {
+        auth::token_needs_refresh(now, self.token_expiration)
+    }
+}
+
+impl Deref for RunRestClient {
+    type Target = RestClient;
+    fn deref(&self) -> &Self::Target {
+        &self.client
+    }
+}
+
+/// Build a static [`reqwest::Proxy`] config which proxies requests to the user
+/// node via the lexe gateway CONNECT proxy and authenticates using the provided
+/// bearer auth token.
+///
+/// User nodes are not exposed to the public internet. Instead, a secure
+/// tunnel (TLS) is first established via the lexe gateway proxy to the
+/// user's node only after they have successfully authenticated with Lexe.
+///
+/// Essentially, we have a TLS-in-TLS scheme:
+///
+/// - The outer layer terminates at Lexe's gateway proxy and prevents the public
+///   internet from seeing auth tokens sent to the gateway proxy.
+/// - The inner layer terminates inside the SGX enclave and prevents the Lexe
+///   operators from snooping on or tampering with data sent to/from the app <->
+///   node.
+///
+/// This function sets up a client-side [`reqwest::Proxy`] config which
+/// looks for requests to the user node (i.e., urls starting with one of the
+/// fake DNS names `{mr_short}.provision.lexe.app` or `run.lexe.app`) and
+/// instructs `reqwest` to use an HTTPS CONNECT tunnel over which to send
+/// the requests.
+fn static_proxy_config(
+    gateway_url: &str,
+    node_url: &str,
+    auth_token: BearerAuthToken,
+) -> anyhow::Result<reqwest::Proxy> {
+    let node_url = Url::parse(node_url).context("Invalid node url")?;
+    let gateway_url = gateway_url.to_owned();
+
+    // TODO(phlip9): include "Bearer " prefix in auth token
+    let auth_header = http::HeaderValue::from_maybe_shared(ByteStr::from(
+        format!("Bearer {auth_token}"),
+    ))?;
+
+    let proxy = reqwest::Proxy::custom(move |url| {
+        // Proxy requests to the user node via the gateway CONNECT proxy
+        if url_base_eq(url, &node_url) {
+            Some(gateway_url.clone())
+        } else {
+            None
+        }
+    })
+    // Authenticate with the gateway CONNECT proxy
+    // `Proxy-Authorization: Bearer <token>`
+    .custom_http_auth(auth_header);
+
+    Ok(proxy)
 }
 
 fn url_base_eq(u1: &Url, u2: &Url) -> bool {

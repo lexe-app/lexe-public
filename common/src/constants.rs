@@ -1,6 +1,6 @@
 use std::{include_bytes, time::Duration};
 
-use lexe_std::const_assert;
+use lexe_std::{const_assert, const_concat_str};
 
 use crate::enclave::{Measurement, MrShort};
 
@@ -108,6 +108,7 @@ pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
 /// Provision mode uses "{mr_short}.provision.lexe.app" and run mode uses
 /// "run.lexe.app". These DNS names don't actually resolve.
 pub const NODE_RUN_DNS: &str = "run.lexe.app";
+pub const NODE_RUN_URL: &str = const_concat_str!("https://", NODE_RUN_DNS);
 pub fn node_provision_dns(mr_short: &MrShort) -> String {
     format!("{mr_short}{NODE_PROVISION_DNS_SUFFIX}")
 }

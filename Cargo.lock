@@ -3054,6 +3054,7 @@ name = "node-client"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "async-trait",
  "base64 0.21.7",
  "common",
@@ -3833,7 +3834,8 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 [[package]]
 name = "reqwest"
 version = "0.12.24"
-source = "git+https://github.com/lexe-app/reqwest?branch=lexe-v0.12.24-2025_12_04#dea2dd7a1d3c52e50d1c47803fdc57d73e35c769"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d0946410b9f7b082a427e4ef5c8ff541a88b357bc6c637c40db3a68ac70a36f"
 dependencies = [
  "base64 0.22.1",
  "bytes",

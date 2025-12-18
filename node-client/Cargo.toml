@@ -19,6 +19,7 @@ lexe-tls.path = "../lexe-tls"
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
+arc-swap.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 http.workspace = true

@@ -144,6 +144,8 @@ rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 rcgen = { version = "0.14", default-features = false }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
+# High-level HTTP client
+reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-manual-roots"] }
 # Pure Rust RSA implementation by RustCrypto. Used for SGX .sigstruct signing.
 rsa = { version = "0.9.6", default-features = false, features = ["u64_digit"] }
 # Decimal number representation suitable for financial calculations
@@ -227,8 +229,6 @@ lightning-transaction-sync = { version = "=0.1.0", features = ["esplora-async", 
 lightning-types = "=0.2.0"
 # Required by tokio
 mio = "=0.8.11"
-# High-level HTTP client
-reqwest = { version = "=0.12.24", default-features = false, features = ["http2", "rustls-tls-manual-roots"] }
 # Safe and small crypto primitives based on BoringSSL
 ring = "=0.17.14"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
@@ -310,12 +310,6 @@ lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch =
 # * fortanix: replacing `insecure_time` with `free` usercall in `Waker`
 mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2025_12_02" }
 # mio = { path = "../mio" }
-
-# * license: Add dual license information
-# * lib: Fail compilation if using insecure TLS roots
-# * proxy: allow setting proxy-auth at intercept time
-reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.12.24-2025_12_04" }
-# reqwest = { path = "../../reqwest" }
 
 # * license: Add dual license information
 # * lint: allow `mismatched_lifetime_syntaxes`

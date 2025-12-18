@@ -126,9 +126,23 @@ impl BearerAuthenticator {
         api: &T,
         now: SystemTime,
     ) -> Result<BearerAuthToken, BackendApiError> {
+        self.get_token_with_exp(api, now)
+            .await
+            .map(|token_with_exp| token_with_exp.token)
+    }
+
+    /// Try to either (1) return an existing, fresh token or (2) authenticate
+    /// with the backend to get a new fresh token (and cache it). Also returns
+    /// the token's expiration time.
+    pub async fn get_token_with_exp<T: BearerAuthBackendApi + ?Sized>(
+        &self,
+        api: &T,
+        now: SystemTime,
+    ) -> Result<TokenWithExpiration, BackendApiError> {
         match self {
-            Self::Ephemeral { inner } => inner.get_token(api, now).await,
-            Self::Static { inner } => inner.get_token(api, now).await,
+            Self::Ephemeral { inner } =>
+                inner.get_token_with_exp(api, now).await,
+            Self::Static { inner } => inner.get_token_with_exp(api, now).await,
         }
     }
 }
@@ -142,13 +156,11 @@ impl EphemeralBearerAuthenticator {
             .map(|token_with_exp| token_with_exp.token.clone())
     }
 
-    /// Try to either (1) return an existing, fresh token or (2) authenticate
-    /// with the backend to get a new fresh token (and cache it).
-    async fn get_token<T: BearerAuthBackendApi + ?Sized>(
+    async fn get_token_with_exp<T: BearerAuthBackendApi + ?Sized>(
         &self,
         api: &T,
         now: SystemTime,
-    ) -> Result<BearerAuthToken, BackendApiError> {
+    ) -> Result<TokenWithExpiration, BackendApiError> {
         let _auth_lock = self.auth_lock.lock().await;
 
         // there's already a fresh token here; just use that.
@@ -156,8 +168,8 @@ impl EphemeralBearerAuthenticator {
             self.cached_auth_token.lock().unwrap().as_ref()
         {
             // Buffer ensures we don't return immediately expiring tokens
-            if now + EXPIRATION_BUFFER < cached_token.expiration {
-                return Ok(cached_token.token.clone());
+            if !token_needs_refresh(now, cached_token.expiration) {
+                return Ok(cached_token.clone());
             }
         }
 
@@ -171,7 +183,7 @@ impl EphemeralBearerAuthenticator {
         )
         .await?;
 
-        let token_clone = token_with_exp.token.clone();
+        let token_clone = token_with_exp.clone();
 
         // fill token cache with new token
         *self.cached_auth_token.lock().unwrap() = Some(token_with_exp);
@@ -185,12 +197,16 @@ impl StaticBearerAuthenticator {
         Some(self.token.clone())
     }
 
-    async fn get_token<T: BearerAuthBackendApi + ?Sized>(
+    async fn get_token_with_exp<T: BearerAuthBackendApi + ?Sized>(
         &self,
         _api: &T,
-        _now: SystemTime,
-    ) -> Result<BearerAuthToken, BackendApiError> {
-        Ok(self.token.clone())
+        now: SystemTime,
+    ) -> Result<TokenWithExpiration, BackendApiError> {
+        // TODO(phlip9): make expiration Option
+        Ok(TokenWithExpiration {
+            expiration: now + Duration::from_secs(365 * 24 * 60 * 60), /* 1 year */
+            token: self.token.clone(),
+        })
     }
 }
 
@@ -224,4 +240,11 @@ pub async fn do_bearer_auth<T: BearerAuthBackendApi + ?Sized>(
         expiration,
         token: resp.bearer_auth_token,
     })
+}
+
+/// Returns `true` if we should refresh the token (i.e., it's expired or about
+/// to expire).
+#[inline]
+pub fn token_needs_refresh(now: SystemTime, expiration: SystemTime) -> bool {
+    now + EXPIRATION_BUFFER >= expiration
 }
