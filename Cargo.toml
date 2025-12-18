@@ -209,34 +209,34 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 #   leading to it becoming incompatible with our patch.
 
 # A client for the Intel AESM service. Used during attestation to get quoted.
-aesm-client = { version = "=0.6.1", default-features = false }
+aesm-client = { version = "0.6", default-features = false }
 # High level webserver based on axum, tokio, hyper, and tower
-axum-server = { version = "=0.7.3", default-features = false, features = ["tls-rustls-no-provider"] }
+axum-server = { version = "0.7", default-features = false, features = ["tls-rustls-no-provider"] }
 # BIP39 mnemonic codes
-bip39 = { version = "=2.1.0", default-features = false }
+bip39 = { version = "2", default-features = false }
 # SGX Quote types
-dcap-ql = { version = "=0.4.1", default-features = false }
+dcap-ql = { version = "0.4", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
-enclave-runner = { version = "=0.7.3", default-features = false }
+enclave-runner = { version = "0.7", default-features = false }
 # Async Esplora client
-esplora-client = { version = "=0.12", default-features = false, features = ["async", "tokio"] }
+esplora-client = { version = "0.12", default-features = false, features = ["async", "tokio"] }
 # Hyper-related utilities
-hyper-util = { version = "=0.1.19", default-features = false, features = ["http2"] }
+hyper-util = { version = "0.1", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
-lightning = { version = "=0.1.7", features = [] }
-lightning-invoice = { version = "=0.33.2", features = ["std"] }
-lightning-transaction-sync = { version = "=0.1.0", features = ["esplora-async", "time"] }
-lightning-types = "=0.2.0"
+lightning = { version = "0.1", features = [] }
+lightning-invoice = { version = "0.33", features = ["std"] }
+lightning-transaction-sync = { version = "0.1", features = ["esplora-async", "time"] }
+lightning-types = "0.2"
 # Required by tokio
-mio = "=0.8.11"
+mio = "0.8"
 # Safe and small crypto primitives based on BoringSSL
-ring = "=0.17.14"
+ring = "0.17"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
-sgx-isa = "=0.4.1"
-sgxs = "=0.8.0"
-sgxs-loaders = "=0.5.0"
+sgx-isa = "0.4"
+sgxs = "0.8"
+sgxs-loaders = "0.5"
 # Asynchronous runtime
-tokio = { version = "=1.36.0", default-features = false }
+tokio = { version = "1", default-features = false }
 
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the root Cargo.toml.
