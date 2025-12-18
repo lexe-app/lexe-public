@@ -81,26 +81,15 @@ impl Display for LxNetwork {
     }
 }
 
-impl TryFrom<bitcoin::Network> for LxNetwork {
-    type Error = anyhow::Error;
-
-    fn try_from(network: bitcoin::Network) -> Result<Self, Self::Error> {
-        let maybe_network = match network {
-            bitcoin::Network::Bitcoin => Some(Self::Mainnet),
-            bitcoin::Network::Testnet => Some(Self::Testnet3),
-            bitcoin::Network::Testnet4 => Some(Self::Testnet4),
-            bitcoin::Network::Signet => Some(Self::Signet),
-            bitcoin::Network::Regtest => Some(Self::Regtest),
-            _ => None,
-        };
-
-        debug_assert!(
-            maybe_network.is_some(),
-            "We're missing a bitcoin::Network variant"
-        );
-
-        maybe_network
-            .ok_or_else(|| anyhow!("Unknown `bitcoin::Network`: {network:?}"))
+impl From<bitcoin::Network> for LxNetwork {
+    fn from(network: bitcoin::Network) -> Self {
+        match network {
+            bitcoin::Network::Bitcoin => Self::Mainnet,
+            bitcoin::Network::Testnet => Self::Testnet3,
+            bitcoin::Network::Testnet4 => Self::Testnet4,
+            bitcoin::Network::Signet => Self::Signet,
+            bitcoin::Network::Regtest => Self::Regtest,
+        }
     }
 }
 
