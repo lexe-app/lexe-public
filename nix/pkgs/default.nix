@@ -173,8 +173,8 @@ rec {
       "sha256-kDdRH6eXljD8gULyVOQUqYo51UgNmoMxZOTHyiLuvoo=";
     "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.7-2025_11_19#06ab758176885c272dd149e2457969eb8ddb815e" =
       "sha256-+7EFsJpuLZgdJ1RE2PzsOhUhrtA7yoNkLf1qh97vrPA=";
-    "git+https://github.com/lexe-app/rust-sgx?branch=lexe-67ae4d2-2025_12_02#67ae4d2f0033a2a8b30ee555be779225ee4c2eae" =
-      "sha256-P4tDEGBiOkKaAx8gJD8tLvvrB+GDhEoZ+3jVdFJjTz0=";
+    "git+https://github.com/lexe-app/rust-sgx?branch=lexe-b23e3383-2025_12_18#b23e3383d1a9a7955af8ba5695f95a7a80e6e62a" =
+      "sha256-HHjrzufA4t0pow5vnRnBIMnuDn92PALEvvZd4dhliqM=";
     "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" =
       "sha256-ZUoZHJC9OZthqtFKu4WdrBgyr7QSKxoQCCUtcOc9kvU=";
   };

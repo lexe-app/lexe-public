@@ -209,7 +209,7 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 #   leading to it becoming incompatible with our patch.
 
 # A client for the Intel AESM service. Used during attestation to get quoted.
-aesm-client = { version = "=0.6.2", default-features = false }
+aesm-client = { version = "=0.6.1", default-features = false }
 # High level webserver based on axum, tokio, hyper, and tower
 axum-server = { version = "=0.7.3", default-features = false, features = ["tls-rustls-no-provider"] }
 # BIP39 mnemonic codes
@@ -248,13 +248,13 @@ tokio = { version = "=1.36.0", default-features = false }
 # * ftx-sgx-tools: support building `ftxsgx-elf2sgxs` on non-x86_64
 # * lint: fix warnings on recent compiler (+1.90)
 # * just: some basic dev tooling
-aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
-async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
-dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
-enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
-sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
-sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
-sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-67ae4d2-2025_12_02" }
+aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b23e3383-2025_12_18" }
+async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b23e3383-2025_12_18" }
+dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b23e3383-2025_12_18" }
+enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b23e3383-2025_12_18" }
+sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b23e3383-2025_12_18" }
+sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b23e3383-2025_12_18" }
+sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b23e3383-2025_12_18" }
 # aesm-client.path = "../rust-sgx/intel-sgx/aesm-client"
 # async-usercalls.path = "../rust-sgx/intel-sgx/async-usercalls"
 # dcap-ql.path = "../rust-sgx/intel-sgx/dcap-ql"
