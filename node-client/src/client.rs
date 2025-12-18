@@ -8,7 +8,6 @@
 
 use std::{
     borrow::Cow,
-    ops::Deref,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -102,8 +101,7 @@ pub struct NodeClient {
     inner: Arc<NodeClientInner>,
 }
 
-#[doc(hidden)] // Needs to be `pub` for `Deref` trick to work
-pub struct NodeClientInner {
+struct NodeClientInner {
     gateway_client: GatewayClient,
     /// The [`RestClient`] used to communicate with a Run node.
     ///
@@ -305,16 +303,16 @@ impl NodeClient {
 
         // Build a new client with the new token
         let run_rest = RunRestClient::new(
-            &self.gateway_client,
-            self.run_url,
+            &self.inner.gateway_client,
+            self.inner.run_url,
             auth_token,
-            self.tls_config.clone(),
+            self.inner.tls_config.clone(),
         )
         .map_err(NodeApiError::bad_auth)?;
         let run_rest = Arc::new(run_rest);
 
         // Swap it in
-        self.run_rest.swap(Some(run_rest.clone()));
+        self.inner.run_rest.swap(Some(run_rest.clone()));
 
         Ok(run_rest)
     }
@@ -325,7 +323,7 @@ impl NodeClient {
         &self,
         now: SystemTime,
     ) -> Option<Arc<RunRestClient>> {
-        let maybe_run_rest = self.run_rest.load_full();
+        let maybe_run_rest = self.inner.run_rest.load_full();
         if let Some(run_rest) = maybe_run_rest
             && !run_rest.token_needs_refresh(now)
         {
@@ -341,8 +339,9 @@ impl NodeClient {
         &self,
         now: SystemTime,
     ) -> Result<TokenWithExpiration, NodeApiError> {
-        self.authenticator
-            .get_token_with_exp(&self.gateway_client, now)
+        self.inner
+            .authenticator
+            .get_token_with_exp(&self.inner.gateway_client, now)
             .await
             // TODO(phlip9): how to best convert `BackendApiError` to
             //               `NodeApiError`?
@@ -375,19 +374,19 @@ impl NodeClient {
         measurement: Measurement,
     ) -> anyhow::Result<RestClient> {
         let proxy = static_proxy_config(
-            &self.gateway_client.gateway_url,
+            &self.inner.gateway_client.gateway_url,
             provision_url,
             auth_token,
         )
         .context("Invalid proxy config")?;
 
         let tls_config = attestation::app_node_provision_client_config(
-            self.use_sgx,
-            self.deploy_env,
+            self.inner.use_sgx,
+            self.inner.deploy_env,
             measurement,
         );
 
-        let user_agent = self.gateway_client.rest.user_agent().clone();
+        let user_agent = self.inner.gateway_client.rest.user_agent().clone();
         let (from, to) = (user_agent, "node-provision");
         let reqwest_client = RestClient::client_builder(&from)
             .proxy(proxy)
@@ -435,6 +434,7 @@ impl NodeClient {
         &self,
     ) -> anyhow::Result<BearerAuthToken> {
         let user_key_pair = self
+            .inner
             .authenticator
             .user_key_pair()
             .context("Somehow using a static bearer auth token")?;
@@ -443,7 +443,7 @@ impl NodeClient {
         let lifetime_secs = 10 * 365 * 24 * 60 * 60; // 10 years
         let scope = Some(Scope::NodeConnect);
         let long_lived_connect_token = lexe_api::auth::do_bearer_auth(
-            &self.gateway_client,
+            &self.inner.gateway_client,
             now,
             user_key_pair,
             lifetime_secs,
@@ -482,8 +482,8 @@ impl AppNodeProvisionApi for NodeClient {
 
 impl AppNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/node_info");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
@@ -492,8 +492,8 @@ impl AppNodeRunApi for NodeClient {
     async fn list_channels(
         &self,
     ) -> Result<ListChannelsResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/list_channels");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
@@ -503,8 +503,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         data: SignMsgRequest,
     ) -> Result<SignMsgResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/sign_message");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
@@ -514,8 +514,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         data: VerifyMsgRequest,
     ) -> Result<VerifyMsgResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/verify_message");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
@@ -525,8 +525,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         data: OpenChannelRequest,
     ) -> Result<OpenChannelResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/open_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
@@ -536,8 +536,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         data: PreflightOpenChannelRequest,
     ) -> Result<PreflightOpenChannelResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/preflight_open_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
@@ -547,8 +547,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         data: CloseChannelRequest,
     ) -> Result<Empty, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/close_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
@@ -558,8 +558,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         data: PreflightCloseChannelRequest,
     ) -> Result<PreflightCloseChannelResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/preflight_close_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
@@ -569,8 +569,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         data: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/create_invoice");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
@@ -580,8 +580,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: PayInvoiceRequest,
     ) -> Result<PayInvoiceResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/pay_invoice");
         // `pay_invoice` may call `max_flow` which takes a long time.
         let req = run_rest
@@ -594,8 +594,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/preflight_pay_invoice");
         // `preflight_pay_invoice` may call `max_flow` which takes a long time.
         let req = run_rest
@@ -608,8 +608,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/pay_onchain");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
@@ -619,8 +619,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/preflight_pay_onchain");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
@@ -630,8 +630,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: CreateOfferRequest,
     ) -> Result<CreateOfferResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/create_offer");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
@@ -641,8 +641,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: PayOfferRequest,
     ) -> Result<PayOfferResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/pay_offer");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
@@ -652,16 +652,16 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: PreflightPayOfferRequest,
     ) -> Result<PreflightPayOfferResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/preflight_pay_offer");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
 
     async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/get_address");
         let req = run_rest.post(url, &Empty {});
         run_rest.send(req).await
@@ -685,8 +685,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/payments/updated");
         let req = run_rest.get(url, &req);
         run_rest.send(req).await
@@ -696,8 +696,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: LxPaymentIdStruct,
     ) -> Result<MaybeBasicPaymentV2, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/v1/payments/id");
         let req = run_rest.get(url, &req);
         run_rest.send(req).await
@@ -707,8 +707,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: UpdatePaymentNote,
     ) -> Result<Empty, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/payments/note");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
@@ -718,8 +718,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: GetRevocableClients,
     ) -> Result<RevocableClients, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/clients");
         let req = run_rest.get(url, &req);
         run_rest.send(req).await
@@ -729,8 +729,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: CreateRevocableClientRequest,
     ) -> Result<CreateRevocableClientResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/clients");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
@@ -740,8 +740,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: UpdateClientRequest,
     ) -> Result<UpdateClientResponse, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/clients");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
@@ -750,16 +750,16 @@ impl AppNodeRunApi for NodeClient {
     async fn list_broadcasted_txs(
         &self,
     ) -> Result<serde_json::Value, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/list_broadcasted_txs");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
 
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/backup");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
@@ -769,8 +769,8 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: SetupGDrive,
     ) -> Result<Empty, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/backup/gdrive");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
@@ -779,8 +779,8 @@ impl AppNodeRunApi for NodeClient {
     async fn get_payment_address(
         &self,
     ) -> Result<PaymentAddress, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/payment_address");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
@@ -790,18 +790,11 @@ impl AppNodeRunApi for NodeClient {
         &self,
         req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError> {
-        let run_rest = self.authed_run_rest().await?;
-        let run_url = &self.run_url;
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/payment_address");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
-    }
-}
-
-impl Deref for NodeClient {
-    type Target = NodeClientInner;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
     }
 }
 
@@ -835,13 +828,6 @@ impl RunRestClient {
     /// about to expire).
     fn token_needs_refresh(&self, now: SystemTime) -> bool {
         auth::token_needs_refresh(now, self.token_expiration)
-    }
-}
-
-impl Deref for RunRestClient {
-    type Target = RestClient;
-    fn deref(&self) -> &Self::Target {
-        &self.client
     }
 }
 
