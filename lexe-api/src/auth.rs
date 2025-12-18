@@ -5,7 +5,7 @@ use common::{
         BearerAuthRequest, BearerAuthRequestWire, BearerAuthToken, Scope,
         TokenWithExpiration,
     },
-    ed25519::{self},
+    ed25519,
 };
 use lexe_api_core::error::{BackendApiError, BackendErrorKind};
 
@@ -32,13 +32,6 @@ struct EphemeralBearerAuthenticator {
     /// [`UserPk`]: common::api::user::UserPk
     user_key_pair: ed25519::KeyPair,
 
-    /// The latest [`BearerAuthToken`] with its expected expiration time.
-    // Ideally the `Option<TokenWithExpiration>` would live in the `auth_lock`
-    // (as it did previously); however, we need to read the latest cached
-    // version from a blocking context in the `NodeClient` proxy auth
-    // workaround
-    cached_auth_token: std::sync::Mutex<Option<TokenWithExpiration>>,
-
     /// A `tokio` mutex to ensure that only one task can auth at a time, if
     /// multiple tasks are racing to auth at the same time.
     // NOTE: we intenionally use a tokio async `Mutex` here:
@@ -48,7 +41,7 @@ struct EphemeralBearerAuthenticator {
     // 3. holding a standard blocking `Mutex` across IO await points is a Bad
     //    Idea^tm, since it'll block all tasks on the runtime (we only use a
     //    single thread for the user node).
-    auth_lock: tokio::sync::Mutex<()>,
+    auth_lock: tokio::sync::Mutex<Option<TokenWithExpiration>>,
 
     /// The API scope this authenticator will request for its auth tokens.
     scope: Option<Scope>,
@@ -86,8 +79,7 @@ impl BearerAuthenticator {
         Self::Ephemeral {
             inner: EphemeralBearerAuthenticator {
                 user_key_pair,
-                cached_auth_token: std::sync::Mutex::new(maybe_token),
-                auth_lock: tokio::sync::Mutex::new(()),
+                auth_lock: tokio::sync::Mutex::new(maybe_token),
                 scope,
             },
         }
@@ -105,17 +97,6 @@ impl BearerAuthenticator {
         match self {
             Self::Ephemeral { inner } => Some(&inner.user_key_pair),
             Self::Static { .. } => None,
-        }
-    }
-
-    /// Read the currently cached and possibly expired (!) bearer auth token.
-    ///
-    /// This method is only exposed to support the `reqwest::Proxy` workaround
-    /// used in `NodeClient`. Try to avoid it otherwise.
-    pub fn get_maybe_cached_token(&self) -> Option<BearerAuthToken> {
-        match self {
-            Self::Ephemeral { inner } => inner.get_maybe_cached_token(),
-            Self::Static { inner } => inner.get_maybe_cached_token(),
         }
     }
 
@@ -148,25 +129,15 @@ impl BearerAuthenticator {
 }
 
 impl EphemeralBearerAuthenticator {
-    fn get_maybe_cached_token(&self) -> Option<BearerAuthToken> {
-        self.cached_auth_token
-            .lock()
-            .unwrap()
-            .as_ref()
-            .map(|token_with_exp| token_with_exp.token.clone())
-    }
-
     async fn get_token_with_exp<T: BearerAuthBackendApi + ?Sized>(
         &self,
         api: &T,
         now: SystemTime,
     ) -> Result<TokenWithExpiration, BackendApiError> {
-        let _auth_lock = self.auth_lock.lock().await;
+        let mut auth_lock = self.auth_lock.lock().await;
 
         // there's already a fresh token here; just use that.
-        if let Some(cached_token) =
-            self.cached_auth_token.lock().unwrap().as_ref()
-        {
+        if let Some(cached_token) = auth_lock.as_ref() {
             // Buffer ensures we don't return immediately expiring tokens
             if !token_needs_refresh(now, cached_token.expiration) {
                 return Ok(cached_token.clone());
@@ -186,17 +157,13 @@ impl EphemeralBearerAuthenticator {
         let token_clone = token_with_exp.clone();
 
         // fill token cache with new token
-        *self.cached_auth_token.lock().unwrap() = Some(token_with_exp);
+        *auth_lock = Some(token_with_exp);
 
         Ok(token_clone)
     }
 }
 
 impl StaticBearerAuthenticator {
-    fn get_maybe_cached_token(&self) -> Option<BearerAuthToken> {
-        Some(self.token.clone())
-    }
-
     async fn get_token_with_exp<T: BearerAuthBackendApi + ?Sized>(
         &self,
         _api: &T,
