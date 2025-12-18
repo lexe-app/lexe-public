@@ -183,7 +183,7 @@ tokio-rustls = { version = "0.26", default-features = false }
 # Utilities for testing futures
 tokio-test = "0.4"
 # serde-compatible TOML-parsing library
-toml = "0.8"
+toml = { version = "0.8", default-features = false, features = ["parse"] }
 # `Service` and `Layer`-based async middleware
 tower = "0.5"
 tower-http = "0.6"
