@@ -184,11 +184,12 @@ pub struct BearerAuthResponse {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq))]
 pub struct BearerAuthToken(pub ByteStr);
 
-/// A [`BearerAuthToken`] and its expected expiration time
+/// A [`BearerAuthToken`] and its expected expiration time, or `None` if the
+/// token never expires.
 #[derive(Clone)]
 pub struct TokenWithExpiration {
-    pub expiration: SystemTime,
     pub token: BearerAuthToken,
+    pub expiration: Option<SystemTime>,
 }
 
 // --- impl UserSignupRequestWire --- //

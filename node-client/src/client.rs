@@ -131,8 +131,9 @@ pub struct NodeClient {
 /// with a user node.
 struct RunRestClient {
     client: RestClient,
-    /// When the auth token used in the proxy config expires.
-    token_expiration: SystemTime,
+    /// When the auth token used in the proxy config expires, or `None` if it
+    /// never expires.
+    token_expiration: Option<SystemTime>,
 }
 
 // --- impl GatewayClient --- //
@@ -819,6 +820,8 @@ impl RunRestClient {
         })
     }
 
+    /// Returns `true` if we should refresh the token (i.e., it's expired or
+    /// about to expire).
     fn token_needs_refresh(&self, now: SystemTime) -> bool {
         auth::token_needs_refresh(now, self.token_expiration)
     }
