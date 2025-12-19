@@ -6,9 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use common::{
-    env::DeployEnv, ln::network::LxNetwork, rng::SysRng, root_seed::RootSeed,
-};
+use common::{env::DeployEnv, ln::network::LxNetwork, rng::SysRng};
 use lexe_api::server::LayerConfig;
 use lexe_tokio::{
     notify_once::NotifyOnce,
@@ -16,7 +14,7 @@ use lexe_tokio::{
 };
 use node_client::{
     client::{GatewayClient, NodeClient},
-    credentials::{ClientCredentials, Credentials},
+    credentials::Credentials,
 };
 use tracing::{info, info_span, instrument};
 
@@ -35,11 +33,6 @@ pub struct Sidecar {
     shutdown: NotifyOnce,
 }
 
-enum CredentialsOwned {
-    RootSeed(RootSeed),
-    ClientCredentials(ClientCredentials),
-}
-
 impl Sidecar {
     /// Initialize the [`Sidecar`]
     #[instrument(skip_all, name = "(sidecar)")]
@@ -52,10 +45,9 @@ impl Sidecar {
         // Check user-provided default credentials
         let maybe_credentials = match (args.root_seed, args.client_credentials)
         {
-            (Some(root_seed), None) =>
-                Some(CredentialsOwned::RootSeed(root_seed)),
+            (Some(root_seed), None) => Some(Credentials::from(root_seed)),
             (None, Some(client_credentials)) =>
-                Some(CredentialsOwned::ClientCredentials(client_credentials)),
+                Some(Credentials::from(client_credentials)),
             (Some(_), Some(_)) =>
                 return Err(anyhow!(
                     "Can only provide one of: `--root-seed` or `--client-credentials`"
@@ -200,15 +192,5 @@ impl Sidecar {
         .context("Error awaiting tasks")?;
 
         Ok(())
-    }
-}
-
-impl CredentialsOwned {
-    fn as_ref(&self) -> Credentials<'_> {
-        match self {
-            Self::RootSeed(root_seed) => Credentials::from_root_seed(root_seed),
-            Self::ClientCredentials(client_credentials) =>
-                Credentials::from_client_credentials(client_credentials),
-        }
     }
 }

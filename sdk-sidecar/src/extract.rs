@@ -7,7 +7,7 @@ use http::header::AUTHORIZATION;
 use lexe_api::error::SdkApiError;
 use node_client::{
     client::{GatewayClient, NodeClient},
-    credentials::{ClientCredentials, Credentials},
+    credentials::{ClientCredentials, CredentialsRef},
 };
 
 use crate::server::RouterState;
@@ -104,8 +104,7 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
                     .context("Failed to create gateway client")
                     .map_err(SdkApiError::bad_auth)?;
 
-                    let credentials =
-                        Credentials::from_client_credentials(&credentials);
+                    let credentials = CredentialsRef::from(&credentials);
 
                     let mut rng = SysRng::new();
                     let use_sgx = true;

@@ -37,7 +37,7 @@ use lexe_std::Apply;
 use lexe_tokio::task::LxTask;
 use node_client::{
     client::{GatewayClient, NodeClient},
-    credentials::Credentials,
+    credentials::CredentialsRef,
 };
 use payment_uri::{bip353, lnurl};
 use secrecy::ExposeSecret;
@@ -106,6 +106,7 @@ impl App {
         let node_pk = NodePk(node_key_pair.public_key());
         let user_config = UserAppConfig::new(config.clone(), user_pk);
         let deploy_env = user_config.config.deploy_env;
+        let credentials = CredentialsRef::from(root_seed);
 
         // gen + sign the UserSignupRequestWireV1
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
@@ -137,7 +138,7 @@ impl App {
             user_config.config.use_sgx,
             user_config.config.deploy_env,
             gateway_client.clone(),
-            Credentials::from_root_seed(root_seed),
+            credentials,
         )
         .context("Failed to build NodeClient")?;
 
@@ -267,6 +268,7 @@ impl App {
         let deploy_env = user_config.config.deploy_env;
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
+        let credentials = CredentialsRef::from(&root_seed);
 
         // Init API clients
         let gateway_client = GatewayClient::new(
@@ -280,7 +282,7 @@ impl App {
             user_config.config.use_sgx,
             user_config.config.deploy_env,
             gateway_client.clone(),
-            Credentials::from_root_seed(&root_seed),
+            credentials,
         )
         .context("Failed to build NodeClient")?;
 
@@ -441,6 +443,7 @@ impl App {
         let user_config = UserAppConfig::new(config.clone(), user_pk);
         let deploy_env = user_config.config.deploy_env;
         let user_info = AppUserInfoRs::new(rng, user_pk, &node_key_pair);
+        let credentials = CredentialsRef::from(root_seed);
 
         // build NodeClient, GatewayClient
         let gateway_client = GatewayClient::new(
@@ -454,7 +457,7 @@ impl App {
             user_config.config.use_sgx,
             user_config.config.deploy_env,
             gateway_client.clone(),
-            Credentials::from_root_seed(root_seed),
+            credentials,
         )
         .context("Failed to build NodeClient")?;
 

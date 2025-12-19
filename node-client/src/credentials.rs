@@ -24,7 +24,15 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 /// Credentials required to connect to a user node via mTLS.
-pub enum Credentials<'a> {
+pub enum Credentials {
+    /// Using a [`RootSeed`]. Ex: app.
+    RootSeed(RootSeed),
+    /// Using a revocable client cert. Ex: SDK sidecar.
+    ClientCredentials(ClientCredentials),
+}
+
+/// Borrowed credentials required to connect to a user node via mTLS.
+pub enum CredentialsRef<'a> {
     /// Using a [`RootSeed`]. Ex: app.
     RootSeed(&'a RootSeed),
     /// Using a revocable client cert. Ex: SDK sidecar.
@@ -53,25 +61,50 @@ pub struct ClientCredentials {
     pub eph_ca_cert_der: LxCertificateDer,
 }
 
-// --- impl Credentials --- //
+// --- impl Credentials / CredentialsRef --- //
 
-impl<'a> Credentials<'a> {
-    pub fn from_root_seed(root_seed: &'a RootSeed) -> Self {
+impl Credentials {
+    pub fn as_ref(&self) -> CredentialsRef<'_> {
+        match self {
+            Credentials::RootSeed(root_seed) =>
+                CredentialsRef::RootSeed(root_seed),
+            Credentials::ClientCredentials(client_credentials) =>
+                CredentialsRef::ClientCredentials(client_credentials),
+        }
+    }
+}
+
+impl From<RootSeed> for Credentials {
+    fn from(root_seed: RootSeed) -> Self {
         Credentials::RootSeed(root_seed)
     }
+}
 
-    pub fn from_client_credentials(
-        client_credentials: &'a ClientCredentials,
-    ) -> Self {
+impl From<ClientCredentials> for Credentials {
+    fn from(client_credentials: ClientCredentials) -> Self {
         Credentials::ClientCredentials(client_credentials)
     }
+}
 
+impl<'a> From<&'a RootSeed> for CredentialsRef<'a> {
+    fn from(root_seed: &'a RootSeed) -> Self {
+        CredentialsRef::RootSeed(root_seed)
+    }
+}
+
+impl<'a> From<&'a ClientCredentials> for CredentialsRef<'a> {
+    fn from(client_credentials: &'a ClientCredentials) -> Self {
+        CredentialsRef::ClientCredentials(client_credentials)
+    }
+}
+
+impl<'a> CredentialsRef<'a> {
     /// Create a [`BearerAuthenticator`] appropriate for the given credentials.
     ///
     /// Currently limits to [`Scope::NodeConnect`] for [`RootSeed`] credentials.
     pub fn bearer_authenticator(&self) -> Arc<BearerAuthenticator> {
         match self {
-            Credentials::RootSeed(root_seed) => {
+            Self::RootSeed(root_seed) => {
                 let maybe_cached_token = None;
                 Arc::new(BearerAuthenticator::new_with_scope(
                     root_seed.derive_user_key_pair(),
@@ -79,7 +112,7 @@ impl<'a> Credentials<'a> {
                     Some(Scope::NodeConnect),
                 ))
             }
-            Credentials::ClientCredentials(client_credentials) =>
+            Self::ClientCredentials(client_credentials) =>
                 Arc::new(BearerAuthenticator::new_static_token(
                     client_credentials.lexe_auth_token.clone(),
                 )),
@@ -93,12 +126,12 @@ impl<'a> Credentials<'a> {
         deploy_env: DeployEnv,
     ) -> anyhow::Result<rustls::ClientConfig> {
         match self {
-            Credentials::RootSeed(root_seed) =>
+            Self::RootSeed(root_seed) =>
                 shared_seed::app_node_run_client_config(
                     rng, deploy_env, root_seed,
                 )
                 .context("Failed to build RootSeed TLS client config"),
-            Credentials::ClientCredentials(client_credentials) =>
+            Self::ClientCredentials(client_credentials) =>
                 shared_seed::sdk_node_run_client_config(
                     deploy_env,
                     &client_credentials.eph_ca_cert_der,

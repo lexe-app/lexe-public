@@ -74,7 +74,7 @@ use lexe_api::{
 use lexe_tls::{attestation, lexe_ca, rustls};
 use reqwest::Url;
 
-use crate::credentials::{ClientCredentials, Credentials};
+use crate::credentials::{ClientCredentials, CredentialsRef};
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.
 #[derive(Clone)]
@@ -242,7 +242,7 @@ impl NodeClient {
         use_sgx: bool,
         deploy_env: DeployEnv,
         gateway_client: GatewayClient,
-        credentials: Credentials<'_>,
+        credentials: CredentialsRef<'_>,
     ) -> anyhow::Result<Self> {
         let run_url = constants::NODE_RUN_URL;
 
