@@ -61,6 +61,7 @@ pub struct BasicPaymentV2 {
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_hashset::<LxPaymentId>()")
     )]
+    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
     pub related_ids: HashSet<LxPaymentId>,
 
     /// Payment kind: Application-level purpose of this payment.
@@ -1919,8 +1920,6 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
         }
     }
 
-    // NOTE: see `lexe_ln::payments::test::gen_basic_payment_sample_data` to
-    // generate new sample data.
     #[test]
     #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn basic_payment_deser_compat() {
@@ -1931,6 +1930,22 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
             let value1: BasicPaymentV1 = serde_json::from_str(input).unwrap();
             let output = serde_json::to_string(&value1).unwrap();
             let value2: BasicPaymentV1 = serde_json::from_str(&output).unwrap();
+            assert_eq!(value1, value2);
+        }
+    }
+
+    // NOTE: see `lexe_ln::payments::test::take_basic_payment_v2_snapshot` to
+    // generate new sample data.
+    #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
+    fn basic_payment_v2_deser_compat() {
+        let snapshot =
+            fs::read_to_string("data/basic_payment_v2_snapshot.txt").unwrap();
+
+        for input in snapshot::parse_sample_data(&snapshot) {
+            let value1: BasicPaymentV2 = serde_json::from_str(input).unwrap();
+            let output = serde_json::to_string(&value1).unwrap();
+            let value2: BasicPaymentV2 = serde_json::from_str(&output).unwrap();
             assert_eq!(value1, value2);
         }
     }

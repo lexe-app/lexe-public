@@ -1355,7 +1355,7 @@ mod test {
     /// Generate serialized `BasicPaymentV2` sample json data:
     ///
     /// ```bash
-    /// $ cargo test -p lexe-ln -- gen_basic_payment_sample_data --ignored --nocapture
+    /// $ cargo test -p lexe-ln --lib -- take_basic_payment_v2_snapshot --ignored --nocapture
     /// ```
     /// NOTE: this lives here b/c `common` can't depend on `lexe-ln`.
     // TODO(max): This test won't be useful until all logic is migrated to
