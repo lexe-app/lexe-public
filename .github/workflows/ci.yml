@@ -106,7 +106,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: astral-sh/setup-uv@v7
       - run: uv --project sdk sync --reinstall-package lexe
-      - run: uv --project sdk uv run pytest
+      - run: uv --project sdk run pytest
 
   # TODO(max): Enable once we are approved so we don't need to constantly reauth
   # test-gdrive:
