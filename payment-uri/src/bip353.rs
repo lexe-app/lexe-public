@@ -65,6 +65,7 @@ pub const CLOUDFLARE_DOH_ENDPOINT: &str =
 const DOH_QUERY_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A client for resolving BIP353 addresses using DNS-over-HTTPS.
+#[derive(Clone)]
 pub struct Bip353Client {
     client: reqwest::Client,
     doh_endpoint: &'static str,

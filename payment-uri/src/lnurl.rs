@@ -96,6 +96,7 @@ pub(crate) const LNURL_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A client for LNURL-pay and Lightning Address requests.
 /// Trusts Mozilla's webpki roots.
+#[derive(Clone)]
 pub struct LnurlClient(reqwest::Client);
 
 impl LnurlClient {
