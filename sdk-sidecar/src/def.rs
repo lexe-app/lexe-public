@@ -12,7 +12,7 @@ use lexe_api::error::SdkApiError;
 use lexe_api::types::Empty;
 use sdk_core::models::{
     SdkCreateInvoiceRequest, SdkCreateInvoiceResponse, SdkGetPaymentRequest,
-    SdkGetPaymentResponse, SdkNodeInfoResponse, SdkPayInvoiceRequest,
+    SdkGetPaymentResponse, SdkNodeInfo, SdkPayInvoiceRequest,
     SdkPayInvoiceResponse,
 };
 
@@ -26,7 +26,7 @@ pub trait UserSidecarApi {
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError>;
 
     /// Get basic information about the Lexe node.
-    async fn node_info(&self) -> Result<SdkNodeInfoResponse, SdkApiError>;
+    async fn node_info(&self) -> Result<SdkNodeInfo, SdkApiError>;
 
     /// Create a BOLT11 invoice.
     async fn create_invoice(

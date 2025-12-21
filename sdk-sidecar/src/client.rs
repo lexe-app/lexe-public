@@ -6,7 +6,7 @@ use lexe_api::{
 use sdk_core::{
     models::{
         SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
+        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
     types::SdkPayment,
@@ -47,7 +47,7 @@ impl UserSidecarApi for SidecarClient {
         self.rest.send(http_req).await
     }
 
-    async fn node_info(&self) -> Result<SdkNodeInfoResponse, SdkApiError> {
+    async fn node_info(&self) -> Result<SdkNodeInfo, SdkApiError> {
         let url = format!("{base}/v2/node/node_info", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});
         self.rest.send(http_req).await

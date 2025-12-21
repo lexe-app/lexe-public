@@ -21,7 +21,7 @@ use quick_cache::unsync;
 use sdk_core::{
     models::{
         SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfoResponse,
+        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
     types::SdkPayment,
@@ -119,12 +119,12 @@ mod node {
     pub(crate) async fn node_info(
         State(_): State<Arc<RouterState>>,
         NodeClientExtractor(node_client): NodeClientExtractor,
-    ) -> Result<LxJson<SdkNodeInfoResponse>, SdkApiError> {
+    ) -> Result<LxJson<SdkNodeInfo>, SdkApiError> {
         let info = node_client
             .node_info()
             .await
             .map_err(SdkApiError::command)?;
-        Ok(LxJson(SdkNodeInfoResponse::from(info)))
+        Ok(LxJson(SdkNodeInfo::from(info)))
     }
 
     #[instrument(skip_all, name = "(create-invoice)")]
