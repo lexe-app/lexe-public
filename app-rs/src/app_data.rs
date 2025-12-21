@@ -6,12 +6,10 @@ use lexe_api::models::command::PaymentAddress;
 use lexe_api::types::{offer::LxOffer, username::Username};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+use sdk_rust::ffs::Ffs;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    db::{SchemaVersion, Update, WritebackDb},
-    ffs::Ffs,
-};
+use crate::db::{SchemaVersion, Update, WritebackDb};
 
 const APP_JSON: &str = "app.json";
 
@@ -106,8 +104,9 @@ impl Update for PaymentAddressRs {
 mod test {
     use std::ops::Deref;
 
+    use sdk_rust::ffs::FlatFileFs;
+
     use super::*;
-    use crate::ffs::FlatFileFs;
 
     fn load_db(ffs: FlatFileFs) -> WritebackDb<AppDataRs> {
         WritebackDb::<AppDataRs>::load(ffs, APP_JSON, "test")

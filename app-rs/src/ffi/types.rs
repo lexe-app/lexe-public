@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{borrow::Cow, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
 pub(crate) use common::root_seed::RootSeed as RootSeedRs;
@@ -46,10 +46,9 @@ use lexe_api::{
     },
 };
 use payment_uri::OfferWithAmount;
+use sdk_rust::config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig};
 
-use crate::{
-    app::AppConfig, types::GDriveSignupCredentials as GDriveSignupCredentialsRs,
-};
+use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
 
 /// See [`common::env::DeployEnv`]
 ///
@@ -154,17 +153,59 @@ pub struct Config {
     pub user_agent: String,
 }
 
-impl From<Config> for AppConfig {
-    fn from(c: Config) -> Self {
-        AppConfig::from_dart_config(
-            DeployEnvRs::from(c.deploy_env),
-            NetworkRs::from(c.network),
-            c.gateway_url,
-            c.use_sgx,
-            c.lexe_db_dir,
-            c.use_mock_secret_store,
-            c.user_agent,
+impl Config {
+    /// Validates the config combination. Panics if the combination is invalid.
+    pub fn validate(&self) {
+        use DeployEnv::*;
+        use Network::*;
+
+        let (deploy_env, network) = (self.deploy_env, self.network);
+        let (use_sgx, use_mock_secret_store) =
+            (self.use_sgx, self.use_mock_secret_store);
+
+        match (deploy_env, network, use_sgx, use_mock_secret_store) {
+            (Prod, Mainnet, true, false) => (),
+            (Staging, Testnet3, true, false) => (),
+            (Staging, Testnet4, true, false) => (),
+            (Dev, Testnet3, _, _)
+            | (Dev, Testnet4, _, _)
+            | (Dev, Regtest, _, _) => (),
+            _ => {
+                let wallet_env = self.wallet_env();
+                panic!(
+                    "Unsupported app config combination: \
+                     {wallet_env:?}, use_mock_secret_store={use_mock_secret_store}"
+                );
+            }
+        }
+    }
+
+    /// flutter_rust_bridge:ignore
+    pub fn wallet_env(&self) -> WalletEnv {
+        WalletEnv {
+            deploy_env: DeployEnvRs::from(self.deploy_env),
+            network: NetworkRs::from(self.network),
+            use_sgx: self.use_sgx,
+        }
+    }
+
+    /// flutter_rust_bridge:ignore
+    pub fn env_config(&self) -> WalletEnvConfig {
+        WalletEnvConfig::new(
+            self.wallet_env(),
+            Cow::Owned(self.gateway_url.clone()),
+            Cow::Owned(self.user_agent.clone()),
         )
+    }
+
+    /// flutter_rust_bridge:ignore
+    pub fn env_db_config(&self) -> WalletEnvDbConfig {
+        let wallet_env = self.wallet_env();
+        // The Lexe database directory.
+        // See: dart fn `path_provider.getApplicationSupportDirectory()`
+        // https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html
+        let lexe_db_dir = PathBuf::from(&self.lexe_db_dir);
+        WalletEnvDbConfig::new(wallet_env, lexe_db_dir)
     }
 }
 
@@ -224,18 +265,18 @@ impl From<RootSeedRs> for RootSeed {
 }
 
 pub struct GDriveSignupCredentials {
-    /// The server auth code passed to the node enclave during provisioning.
-    pub server_auth_code: String,
     /// The user's backup password, used to encrypt their [`RootSeed`] backup
     /// on Google Drive.
-    pub password: String,
+    pub backup_password: String,
+    /// The google auth code passed to the node enclave during provisioning.
+    pub google_auth_code: String,
 }
 
 impl From<GDriveSignupCredentials> for GDriveSignupCredentialsRs {
     fn from(creds: GDriveSignupCredentials) -> Self {
         Self {
-            server_auth_code: creds.server_auth_code,
-            password: creds.password,
+            backup_password: creds.backup_password,
+            google_auth_code: creds.google_auth_code,
         }
     }
 }

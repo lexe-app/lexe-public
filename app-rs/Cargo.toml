@@ -12,9 +12,6 @@ default = ["flutter"]
 flutter = [
     "dep:fast_qr",
     "dep:flutter_rust_bridge",
-    "keyring/platform-macos",
-    "keyring/platform-ios",
-    "keyring/linux-secret-service-rt-tokio-crypto-rust",
 ]
 
 [dependencies]
@@ -29,18 +26,23 @@ lexe-tls.path = "../lexe-tls"
 lexe-tokio.path = "../lexe-tokio"
 node-client.path = "../node-client"
 payment-uri.path = "../payment-uri"
+sdk-rust = { path = "../sdk-rust", features = ["unstable"] }
 
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
 arc-swap.workspace = true
+cfg-if.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 bitcoin.workspace = true
 bip39.workspace = true
-cfg-if.workspace = true
 http.workspace = true
-keyring = { workspace = true, default-features = false }
+keyring = { workspace = true, default-features = false, features = [
+    "platform-macos",
+    "platform-ios",
+    "linux-secret-service-rt-tokio-crypto-rust",
+] }
 reqwest = { workspace = true, features = ["json"] }
 secrecy.workspace = true
 semver = { workspace = true, features = ["serde"] }
@@ -75,6 +77,7 @@ fast_qr = { workspace = true, optional = true }
 [dev-dependencies]
 common = { path = "../common", features = ["bip39", "test-utils"] }
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
+sdk-rust = { path = "../sdk-rust", features = ["test-utils", "unstable"] }
 
 async-trait.workspace = true
 proptest = { workspace = true, features = ["alloc"] }

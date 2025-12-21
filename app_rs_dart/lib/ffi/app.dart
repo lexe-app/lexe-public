@@ -32,7 +32,8 @@ class AppHandle {
   const AppHandle({required this.inner});
 
   /// flutter_rust_bridge:sync
-  AppDataDb appDb() => AppRs.instance.api.crateFfiAppAppHandleAppDb(that: this);
+  AppDataDb appDataDb() =>
+      AppRs.instance.api.crateFfiAppAppHandleAppDataDb(that: this);
 
   Future<BackupInfo> backupInfo() =>
       AppRs.instance.api.crateFfiAppAppHandleBackupInfo(that: this);
@@ -246,15 +247,15 @@ class AppHandle {
   static Future<AppHandle> signup({
     required Config config,
     required RootSeed rootSeed,
-    GDriveSignupCredentials? gdriveSignupCreds,
-    String? signupCode,
     String? partner,
+    String? signupCode,
+    GDriveSignupCredentials? gdriveSignupCreds,
   }) => AppRs.instance.api.crateFfiAppAppHandleSignup(
     config: config,
     rootSeed: rootSeed,
-    gdriveSignupCreds: gdriveSignupCreds,
-    signupCode: signupCode,
     partner: partner,
+    signupCode: signupCode,
+    gdriveSignupCreds: gdriveSignupCreds,
   );
 
   /// Sync the local payment DB to the remote node.
@@ -279,8 +280,8 @@ class AppHandle {
       .crateFfiAppAppHandleUpdatePaymentNote(that: this, req: req);
 
   /// flutter_rust_bridge:sync
-  AppUserInfo userInfo() =>
-      AppRs.instance.api.crateFfiAppAppHandleUserInfo(that: this);
+  AppUserInfo walletUser() =>
+      AppRs.instance.api.crateFfiAppAppHandleWalletUser(that: this);
 
   @override
   int get hashCode => inner.hashCode;

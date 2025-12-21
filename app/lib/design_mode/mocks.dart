@@ -120,14 +120,14 @@ class MockAppHandle extends AppHandle {
   SettingsDb settingsDb() => MockSettingsDb();
 
   @override
-  AppDataDb appDb() => MockAppDataDb();
+  AppDataDb appDataDb() => MockAppDataDb();
 
   @override
   Future<void> provision() =>
       Future.delayed(const Duration(milliseconds: 1000), () {});
 
   @override
-  AppUserInfo userInfo() => const AppUserInfo(
+  AppUserInfo walletUser() => const AppUserInfo(
     userPk: "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
     nodePk:
         "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",

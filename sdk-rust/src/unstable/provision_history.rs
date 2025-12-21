@@ -1,23 +1,17 @@
-use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
-    io,
-};
+use std::{collections::BTreeSet, io};
 
 use anyhow::{Context, anyhow};
 use common::{
     api::version::{CurrentEnclaves, NodeEnclave},
-    constants,
     env::DeployEnv,
-    releases::Release,
 };
-use serde::Deserialize;
 
-use crate::ffs::Ffs;
+use super::{ffs::Ffs, provision};
 
-/// Tracks all node releases that have even been provisioned.
+/// Tracks all node enclaves that have ever been provisioned.
 #[derive(Debug, Default)]
-pub(crate) struct ProvisionHistory {
-    /// All node releases which have previously been provisioned.
+pub struct ProvisionHistory {
+    /// All node enclaves which have previously been provisioned.
     pub provisioned: BTreeSet<NodeEnclave>,
 }
 
@@ -62,10 +56,10 @@ impl ProvisionHistory {
         Ok(Self { provisioned })
     }
 
-    /// Marks a enclave as having been successfully provisioned,
+    /// Marks an enclave as having been successfully provisioned,
     /// and persists the updated [`ProvisionHistory`] to storage.
     ///
-    /// Returns true if the release was newly inserted.
+    /// Returns true if the enclave was newly inserted.
     pub fn update_and_persist(
         &mut self,
         enclave: NodeEnclave,
@@ -87,29 +81,21 @@ impl ProvisionHistory {
     // We use `current_enclaves` instead of a `latest_releases` API because this
     // gives old app clients (which may not trust any of the last N releases) a
     // chance to still provision the latest releases that they trust.
-    pub fn releases_to_provision(
+    pub fn enclaves_to_provision(
         &self,
         deploy_env: DeployEnv,
         current_enclaves: CurrentEnclaves,
     ) -> BTreeSet<NodeEnclave> {
-        let trusted_releases = trusted_releases();
-
-        // Only consider the three latest trusted releases.
-        // There is no need to provision anything older than this.
-        let latest_trusted_measurements = trusted_releases
-            .values()
-            .rev()
-            .take(constants::RELEASE_WINDOW_SIZE)
-            .map(|release| release.measurement)
-            .collect::<HashSet<_>>();
-
         current_enclaves
             .enclaves
             .into_iter()
             // If we're in staging or prod, only consider trusted releases
             .filter(|enclave| {
                 if deploy_env.is_staging_or_prod() {
-                    latest_trusted_measurements.contains(&enclave.measurement)
+                    // Only consider the three latest trusted node releases.
+                    // There is no need to provision anything older than this.
+                    provision::LATEST_TRUSTED_MEASUREMENTS
+                        .contains(&enclave.measurement)
                 } else {
                     true
                 }
@@ -120,24 +106,6 @@ impl ProvisionHistory {
     }
 }
 
-/// Returns the set of trusted node releases (populated from releases.json).
-/// The user trusts these releases simply by installing the open-source app
-/// which has these values hard-coded. This prevents Lexe from pushing out
-/// unilateral node updates without the user's consent.
-pub fn trusted_releases() -> BTreeMap<semver::Version, Release> {
-    const RELEASES_JSON: &str = include_str!("../../releases.json");
-
-    #[derive(Deserialize)]
-    #[serde(rename_all = "kebab-case")]
-    struct ReleasesJson(BTreeMap<String, BTreeMap<semver::Version, Release>>);
-
-    serde_json::from_str::<ReleasesJson>(RELEASES_JSON)
-        .expect("Checked in tests")
-        .0
-        .remove("node")
-        .unwrap_or_default()
-}
-
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
@@ -145,11 +113,6 @@ mod test {
     use common::enclave;
 
     use super::*;
-
-    #[test]
-    fn test_trusted_releases() {
-        trusted_releases();
-    }
 
     #[test]
     fn provision_history_snapshot() {

@@ -3,10 +3,9 @@ use std::{io, sync::Arc, time::Duration};
 use anyhow::{Context, ensure};
 use common::debug_panic_release_log;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
+use sdk_rust::ffs::Ffs;
 use serde::{Deserialize, Serialize, de};
 use tracing::info;
-
-use crate::ffs::Ffs;
 
 /// A generic write-back database for the app.
 ///

@@ -9,10 +9,9 @@ use lexe_api::types::{offer::LxOffer, username::Username};
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    db::{SchemaVersion, Update, WritebackDb},
-    ffs::Ffs,
-};
+use sdk_rust::ffs::Ffs;
+
+use crate::db::{SchemaVersion, Update, WritebackDb};
 
 const APP_JSON: &str = "app.json";
 
@@ -66,7 +65,7 @@ mod test {
     use std::{ops::Deref, str::FromStr};
 
     use super::*;
-    use crate::ffs::FlatFileFs;
+    use sdk_rust::ffs::FlatFileFs;
 
     fn load_db(ffs: FlatFileFs) -> WritebackDb<AppDb> {
         WritebackDb::<AppDb>::load(ffs, APP_JSON, "test")

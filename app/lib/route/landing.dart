@@ -96,10 +96,10 @@ class _LandingPageState extends State<LandingPage> {
 
     final app = flowResult;
     final settings = LxSettings(app.settingsDb());
-    final appData = LxAppData(app.appDb());
+    final appData = LxAppData(app.appDataDb());
     final featureFlags = FeatureFlags(
       deployEnv: this.widget.config.deployEnv,
-      userPk: app.userInfo().userPk,
+      userPk: app.walletUser().userPk,
     );
 
     unawaited(
@@ -141,10 +141,10 @@ class _LandingPageState extends State<LandingPage> {
 
     final app = flowResult;
     final settings = LxSettings(app.settingsDb());
-    final appData = LxAppData(app.appDb());
+    final appData = LxAppData(app.appDataDb());
     final featureFlags = FeatureFlags(
       deployEnv: this.widget.config.deployEnv,
-      userPk: app.userInfo().userPk,
+      userPk: app.walletUser().userPk,
     );
 
     unawaited(

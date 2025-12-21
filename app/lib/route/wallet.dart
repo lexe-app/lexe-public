@@ -518,7 +518,7 @@ class WalletPageState extends State<WalletPage> {
       MaterialPageRoute(
         builder: (context) => NodeInfoPage(
           nodeInfo: this.nodeInfoService.nodeInfo,
-          userInfo: this.widget.app.userInfo(),
+          userInfo: this.widget.app.walletUser(),
           app: this.widget.app,
         ),
       ),

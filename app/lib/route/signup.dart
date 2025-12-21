@@ -449,8 +449,8 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
   Future<void> onSubmitInner(String password) async {
     final ctx = this.widget.ctx;
     final gdriveSignupCreds = GDriveSignupCredentials(
-      serverAuthCode: this.widget.authInfo.serverAuthCode,
-      password: password,
+      backupPassword: password,
+      googleAuthCode: this.widget.authInfo.serverAuthCode,
     );
     final result = await ctx.signupApi.signup(
       config: ctx.config,

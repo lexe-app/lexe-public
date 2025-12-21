@@ -206,7 +206,7 @@ impl From<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
 /// A request to pay a BOLT 11 invoice.
 #[derive(Serialize, Deserialize)]
 pub struct SdkPayInvoiceRequest {
-    /// The invoice we want to pay, as a string.
+    /// The invoice we want to pay.
     pub invoice: LxInvoice,
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be set if the invoice is amountless.

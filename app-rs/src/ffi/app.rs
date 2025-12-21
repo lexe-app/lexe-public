@@ -32,38 +32,35 @@ use lexe_api::{
         },
     },
 };
+use lexe_std::Apply;
 use tracing::instrument;
 
+use crate::ffi::{
+    api::{
+        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
+        OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainRequest, PayOnchainResponse, PaymentAddress,
+        PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+        PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+        PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest, PreflightPayOfferResponse,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+        UpdateClientRequest, UpdatePaymentNote,
+    },
+    app_data::AppDataDb,
+    settings::SettingsDb,
+    types::{
+        AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Invoice,
+        LnurlPayRequest, Network, Payment, PaymentCreatedIndex, PaymentMethod,
+        RevocableClient, RootSeed, ShortPayment, Username,
+    },
+};
 pub(crate) use crate::{
     app::App, app_data::AppDataRs, db::WritebackDb as WritebackDbRs,
     settings::SettingsRs,
-};
-use crate::{
-    app::AppConfig,
-    ffi::{
-        api::{
-            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, FiatRates, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOfferRequest, PreflightPayOfferResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            UpdateClientRequest, UpdatePaymentNote,
-        },
-        app_data::AppDataDb,
-        settings::SettingsDb,
-        types::{
-            AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Invoice,
-            LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
-            PaymentMethod, RevocableClient, RootSeed, ShortPayment, Username,
-        },
-    },
-    types::GDriveSignupCredentials as GDriveSignupCredentialsRs,
 };
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
@@ -79,10 +76,18 @@ impl AppHandle {
     }
 
     pub async fn load(config: Config) -> anyhow::Result<Option<AppHandle>> {
-        Ok(App::load(&mut SysRng::new(), config.into())
-            .await
-            .context("Failed to load saved App state")?
-            .map(AppHandle::new))
+        config.validate();
+
+        App::load(
+            &mut SysRng::new(),
+            config.env_config(),
+            config.env_db_config(),
+            config.use_mock_secret_store,
+        )
+        .await
+        .context("Failed to load saved App state")?
+        .map(Self::new)
+        .apply(Ok)
     }
 
     pub async fn provision(&self) -> anyhow::Result<()> {
@@ -94,6 +99,8 @@ impl AppHandle {
         google_auth_code: Option<String>,
         root_seed: RootSeed,
     ) -> anyhow::Result<AppHandle> {
+        config.validate();
+
         // Ignored in local dev.
         //
         // Single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
@@ -105,7 +112,9 @@ impl AppHandle {
 
         App::restore(
             &mut SysRng::new(),
-            config.into(),
+            config.env_config(),
+            config.env_db_config(),
+            config.use_mock_secret_store,
             google_auth_code,
             &root_seed.inner,
         )
@@ -117,38 +126,46 @@ impl AppHandle {
     pub async fn signup(
         config: Config,
         root_seed: RootSeed,
-        gdrive_signup_creds: Option<GDriveSignupCredentials>,
-        signup_code: Option<String>,
         partner: Option<String>,
+        signup_code: Option<String>,
+        gdrive_signup_creds: Option<GDriveSignupCredentials>,
     ) -> anyhow::Result<AppHandle> {
-        let config = AppConfig::from(config);
+        config.validate();
 
-        // When user signs up with active Google Drive backup, this is the
-        // backup password + single-use `serverAuthCode` from Google OAuth 2
+        // When user signs up with active Google Drive backup, this contains
+        // the backup password + single-use `serverAuthCode` from Google OAuth 2
         // consent flow, used by the enclave to get access+refresh tokens.
-        let gdrive_signup_creds = gdrive_signup_creds.and_then(|c| {
-            match config.deploy_env {
-                // Ignored in local dev.
-                DeployEnv::Dev => None,
+        let (backup_password, google_auth_code) =
+            match config.wallet_env().deploy_env {
                 // TODO(phlip9): don't know why frb keeps trying to add a
                 // conversion for the Rust-only type...
-                DeployEnv::Prod | DeployEnv::Staging =>
-                    Some(GDriveSignupCredentialsRs::from(c)),
-            }
-        });
+                DeployEnv::Prod | DeployEnv::Staging => {
+                    let backup_password = gdrive_signup_creds
+                        .as_ref()
+                        .map(|c| c.backup_password.clone());
+                    let google_auth_code =
+                        gdrive_signup_creds.map(|c| c.google_auth_code);
+                    (backup_password, google_auth_code)
+                }
+                // Ignored in local dev.
+                DeployEnv::Dev => (None, None),
+            };
 
-        let partner = partner
+        let partner: Option<UserPk> = partner
             .map(|p| UserPk::from_hex(&p))
             .transpose()
             .context("Failed to parse partner id")?;
 
         App::signup(
             &mut SysRng::new(),
-            config,
+            config.env_config(),
+            config.env_db_config(),
+            config.use_mock_secret_store,
             &root_seed.inner,
-            gdrive_signup_creds,
-            signup_code,
             partner,
+            signup_code,
+            backup_password.as_deref(),
+            google_auth_code,
         )
         .await
         .context("Failed to generate and signup new wallet")
@@ -161,13 +178,13 @@ impl AppHandle {
     }
 
     /// flutter_rust_bridge:sync
-    pub fn app_db(&self) -> AppDataDb {
-        AppDataDb::new(self.inner.app_db())
+    pub fn app_data_db(&self) -> AppDataDb {
+        AppDataDb::new(self.inner.app_data_db())
     }
 
     /// flutter_rust_bridge:sync
-    pub fn user_info(&self) -> AppUserInfo {
-        let (user_pk, node_pk, node_pk_proof) = self.inner.user_info();
+    pub fn wallet_user(&self) -> AppUserInfo {
+        let (user_pk, node_pk, node_pk_proof) = self.inner.wallet_user();
         AppUserInfo {
             user_pk,
             node_pk,
@@ -383,8 +400,10 @@ impl AppHandle {
 
     /// Delete both the local payment state and the on-disk payment db.
     pub fn delete_payment_db(&self) -> anyhow::Result<()> {
-        let mut db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock.delete().context("Failed to delete PaymentDb")
+        self.inner
+            .payments_db()
+            .delete()
+            .context("Failed to delete PaymentDb")
     }
 
     /// Sync the local payment DB to the remote node.
@@ -404,11 +423,10 @@ impl AppHandle {
         created_idx: PaymentCreatedIndex,
     ) -> Option<Payment> {
         let created_idx = PaymentCreatedIndexRs::try_from(created_idx).ok()?;
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock
-            .state()
+        self.inner
+            .payments_db()
             .get_payment_by_created_index(&created_idx)
-            .map(Payment::from)
+            .map(|p| Payment::from(&p))
     }
 
     /// flutter_rust_bridge:sync
@@ -416,11 +434,10 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock
-            .state()
+        self.inner
+            .payments_db()
             .get_payment_by_scroll_idx(scroll_idx)
-            .map(ShortPayment::from)
+            .map(|p| ShortPayment::from(&p))
     }
 
     /// flutter_rust_bridge:sync
@@ -428,11 +445,10 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock
-            .state()
+        self.inner
+            .payments_db()
             .get_pending_payment_by_scroll_idx(scroll_idx)
-            .map(ShortPayment::from)
+            .map(|p| ShortPayment::from(&p))
     }
 
     /// flutter_rust_bridge:sync
@@ -440,11 +456,10 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock
-            .state()
+        self.inner
+            .payments_db()
             .get_finalized_payment_by_scroll_idx(scroll_idx)
-            .map(ShortPayment::from)
+            .map(|p| ShortPayment::from(&p))
     }
 
     /// flutter_rust_bridge:sync
@@ -452,11 +467,10 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock
-            .state()
+        self.inner
+            .payments_db()
             .get_pending_not_junk_payment_by_scroll_idx(scroll_idx)
-            .map(ShortPayment::from)
+            .map(|p| ShortPayment::from(&p))
     }
 
     /// flutter_rust_bridge:sync
@@ -464,41 +478,35 @@ impl AppHandle {
         &self,
         scroll_idx: usize,
     ) -> Option<ShortPayment> {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock
-            .state()
+        self.inner
+            .payments_db()
             .get_finalized_not_junk_payment_by_scroll_idx(scroll_idx)
-            .map(ShortPayment::from)
+            .map(|p| ShortPayment::from(&p))
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_payments(&self) -> usize {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock.state().num_payments()
+        self.inner.payments_db().num_payments()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_pending_payments(&self) -> usize {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock.state().num_pending()
+        self.inner.payments_db().num_pending()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_finalized_payments(&self) -> usize {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock.state().num_finalized()
+        self.inner.payments_db().num_finalized()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_pending_not_junk_payments(&self) -> usize {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock.state().num_pending_not_junk()
+        self.inner.payments_db().num_pending_not_junk()
     }
 
     /// flutter_rust_bridge:sync
     pub fn get_num_finalized_not_junk_payments(&self) -> usize {
-        let db_lock = self.inner.payments_db().lock().unwrap();
-        db_lock.state().num_finalized_not_junk()
+        self.inner.payments_db().num_finalized_not_junk()
     }
 
     #[instrument(skip_all, name = "(update-payment-note)")]
@@ -507,19 +515,7 @@ impl AppHandle {
         req: UpdatePaymentNote,
     ) -> anyhow::Result<()> {
         let req = UpdatePaymentNoteRs::try_from(req)?;
-        // Update remote store first
-        self.inner
-            .node_client()?
-            .update_payment_note(req.clone())
-            .await
-            .map(|Empty {}| ())
-            .map_err(anyhow::Error::new)?;
-        // Update local store after
-        self.inner
-            .payments_db()
-            .lock()
-            .unwrap()
-            .update_payment_note(req)
+        self.inner.update_payment_note(req).await
     }
 
     #[instrument(skip_all, name = "(create-client)")]

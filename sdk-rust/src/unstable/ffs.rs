@@ -1,4 +1,4 @@
-//! Flat file system abstraction
+//! Flat file system abstraction.
 
 use std::{
     fs,
@@ -166,56 +166,61 @@ impl Ffs for FlatFileFs {
     }
 }
 
-mod fsext {
+/// [`std::fs`] extensions.
+// TODO(max): Maybe move to lexe-std
+pub mod fsext {
     use std::{fs, io, path::Path};
 
     /// [`std::fs::remove_dir_all`] but does not error on file not found.
-    pub(crate) fn remove_dir_all_idempotent(dir: &Path) -> io::Result<()> {
+    pub fn remove_dir_all_idempotent(dir: &Path) -> io::Result<()> {
         match fs::remove_dir_all(dir) {
             Ok(()) => Ok(()),
-            Err(ref err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
-            Err(err) => Err(err),
+            Err(ref e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e),
         }
     }
 }
 
-#[cfg(test)]
-pub(crate) mod test {
-    use std::{cell::RefCell, collections::BTreeMap};
+/// [`Ffs`]-related test utilities.
+#[cfg(feature = "test-utils")]
+pub mod test_utils {
+    use std::{cell::RefCell, collections::BTreeMap, io};
 
     use common::rng::{FastRng, shuffle};
 
-    use super::*;
+    use super::Ffs;
 
     fn io_err_not_found(filename: &str) -> io::Error {
         io::Error::new(io::ErrorKind::NotFound, filename)
     }
 
-    /// An in-memory mock [`Ffs`] implementation.
+    /// An in-memory [`Ffs`] implementation, useful for testing.
     #[derive(Debug)]
-    pub(crate) struct MockFfs {
-        inner: RefCell<MockFfsInner>,
+    pub struct InMemoryFfs {
+        inner: RefCell<InMemoryFfsInner>,
     }
 
     #[derive(Debug)]
-    struct MockFfsInner {
+    struct InMemoryFfsInner {
         rng: FastRng,
         files: BTreeMap<String, Vec<u8>>,
     }
 
-    impl MockFfs {
-        pub(crate) fn new() -> Self {
+    impl InMemoryFfs {
+        /// Create a new empty [`InMemoryFfs`].
+        pub fn new() -> Self {
             Self {
-                inner: RefCell::new(MockFfsInner {
+                inner: RefCell::new(InMemoryFfsInner {
                     rng: FastRng::new(),
                     files: BTreeMap::new(),
                 }),
             }
         }
 
-        pub(crate) fn from_rng(rng: FastRng) -> Self {
+        /// Create a new [`InMemoryFfs`] with a seeded RNG.
+        pub fn from_rng(rng: FastRng) -> Self {
             Self {
-                inner: RefCell::new(MockFfsInner {
+                inner: RefCell::new(InMemoryFfsInner {
                     rng,
                     files: BTreeMap::new(),
                 }),
@@ -223,7 +228,13 @@ pub(crate) mod test {
         }
     }
 
-    impl Ffs for MockFfs {
+    impl Default for InMemoryFfs {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    impl Ffs for InMemoryFfs {
         fn read_into(
             &self,
             filename: &str,
@@ -240,7 +251,7 @@ pub(crate) mod test {
             &self,
             mut dir_visitor: impl FnMut(&str) -> io::Result<()>,
         ) -> io::Result<()> {
-            // shuffle the file order to ensure we don't rely on it.
+            // Shuffle the file order to ensure we don't rely on it.
             let mut filenames = self
                 .inner
                 .borrow()

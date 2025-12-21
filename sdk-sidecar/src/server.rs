@@ -215,21 +215,6 @@ mod node {
             None => return Err(SdkApiError::not_found("Payment not found")),
         };
 
-        let payment = SdkPayment {
-            index: basic_payment.created_index(),
-            rail: basic_payment.kind.rail(),
-            kind: basic_payment.kind,
-            direction: basic_payment.direction,
-            txid: basic_payment.txid,
-            replacement: basic_payment.replacement_txid,
-            amount: basic_payment.amount,
-            fees: basic_payment.fee,
-            status: basic_payment.status,
-            status_msg: basic_payment.status_str,
-            note: basic_payment.note,
-            finalized_at: basic_payment.finalized_at,
-        };
-
-        Ok(LxJson(payment))
+        Ok(LxJson(SdkPayment::from(basic_payment)))
     }
 }

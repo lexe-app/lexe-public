@@ -32,10 +32,11 @@ use anyhow::Context;
 use cfg_if::cfg_if;
 use common::root_seed::RootSeed;
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
+use sdk_rust::config::WalletEnv;
 use secrecy::ExposeSecret;
 
-use crate::app::{AppConfig, BuildFlavor};
-
+/// Persists user secrets like the [`RootSeed`] in each platform's standard
+/// secrets keychain. See module-level docs for platform-specific details.
 // TODO(phlip9): support "multi-wallet", i.e., storing multiple root seeds for
 // the same target env. Would need UI to switch between wallets, a setting
 // for "preferred/default wallet", and graceful shutdown implemented.
@@ -44,72 +45,78 @@ pub struct SecretStore {
 }
 
 impl SecretStore {
-    #[cfg_attr(
-        any(target_os = "android", not(feature = "flutter")),
-        allow(dead_code)
-    )]
-    fn service_name(build: BuildFlavor) -> String {
-        format!("app.lexe.lexeapp.{build}")
+    #[cfg_attr(target_os = "android", allow(dead_code))]
+    fn service_name(wallet_env: WalletEnv) -> String {
+        format!("app.lexe.lexeapp.{wallet_env}")
     }
 
     /// Create a new `SecretStore`.
     ///
     /// For all platforms except Android, this will use the user's OS-provided
-    /// keychain. Android will just store secrets in the app's internal data
+    /// keychain. Android will just store secrets in the wallet env database
     /// directory. See module comments for more details.
-    pub fn new(config: &AppConfig) -> Self {
-        if config.use_mock_secret_store {
+    pub fn new(
+        use_mock_secret_store: bool,
+        wallet_env: WalletEnv,
+        env_db_dir: &Path,
+    ) -> Self {
+        if use_mock_secret_store {
             // Some tests rely on a persistent (tempdir) mock secret store
-            return Self::file(&config.app_data_dir());
+            return Self::file(env_db_dir);
         }
 
         cfg_if! {
-            if #[cfg(any(target_os = "android", not(feature = "flutter")))] {
-                Self::file(&config.app_data_dir())
+            if #[cfg(target_os = "android")] {
+                Self::file(env_db_dir)
             } else {
-                Self::keychain(config.build_flavor())
+                Self::keychain(wallet_env)
             }
         }
     }
 
     /// A secret store that uses the system keychain.
-    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
-    fn keychain(build: BuildFlavor) -> Self {
-        let service = Self::service_name(build);
+    #[cfg(not(target_os = "android"))]
+    fn keychain(wallet_env: WalletEnv) -> Self {
+        let service = Self::service_name(wallet_env);
 
         Self::keychain_inner(&service)
     }
 
-    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
+    #[cfg(not(target_os = "android"))]
     fn keychain_inner(service: &str) -> Self {
         let target = None;
         let user = "root_seed.hex";
 
         cfg_if! {
             if #[cfg(target_os = "ios")] {
-                Self {
-                    root_seed_cred: Box::new(keyring::ios::IosCredential::new_with_target(target, service, user).unwrap()),
-                }
+                use keyring::ios::IosCredential;
+                let cred =
+                    IosCredential::new_with_target(target, service, user);
+                Self { root_seed_cred: Box::new(cred.unwrap()) }
             } else if #[cfg(target_os = "macos")] {
-                Self {
-                    root_seed_cred: Box::new(keyring::macos::MacCredential::new_with_target(target, service, user).unwrap()),
-                }
+                use keyring::macos::MacCredential;
+                let cred =
+                    MacCredential::new_with_target(target, service, user);
+                Self { root_seed_cred: Box::new(cred.unwrap()) }
             } else if #[cfg(target_os = "linux")] {
-                Self {
-                    root_seed_cred: Box::new(ThreadKeyringCredential(Box::new(keyring::secret_service::SsCredential::new_with_target(target, service, user).unwrap()))),
-                }
+                use keyring::secret_service::SsCredential;
+                let cred =
+                    SsCredential::new_with_target(target, service, user);
+                let cred = ThreadKeyringCredential(Box::new(cred.unwrap()));
+                Self { root_seed_cred: Box::new(cred) }
             } else {
                 compile_error!("Configure a keychain backend for this OS")
             }
         }
     }
 
-    /// A secret store that just dumps secrets into the app-specific data
+    /// A secret store that just dumps secrets into the wallet env database
     /// directory. Currently only used on Android.
-    fn file(app_data_dir: &Path) -> Self {
+    // TODO(max): Support multi-user secret store
+    fn file(env_db_dir: &Path) -> Self {
         Self {
             root_seed_cred: Box::new(FileCredential::new(
-                app_data_dir.join("root_seed.hex"),
+                env_db_dir.join("root_seed.hex"),
             )),
         }
     }
@@ -125,12 +132,14 @@ impl SecretStore {
         }
     }
 
-    /// Delete all stored secrets
+    /// Delete all stored secrets.
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub fn delete(&self) -> anyhow::Result<()> {
         self.delete_root_seed()
             .context("Failed to delete SecretStore")
     }
 
+    /// Read the user's root seed from the secret store.
     pub fn read_root_seed(&self) -> anyhow::Result<Option<RootSeed>> {
         let res = self.root_seed_cred.get_password();
         match res {
@@ -146,6 +155,7 @@ impl SecretStore {
         }
     }
 
+    /// Write the user's root seed to the secret store.
     pub fn write_root_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
         let root_seed_hex = hex::encode(root_seed.expose_secret().as_slice());
         self.root_seed_cred
@@ -153,6 +163,8 @@ impl SecretStore {
             .context("Failed to write root seed into keyring")
     }
 
+    /// Delete the user's root seed from the secret store.
+    #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub fn delete_root_seed(&self) -> anyhow::Result<()> {
         self.root_seed_cred
             .delete_password()
@@ -220,16 +232,10 @@ impl CredentialApi for FileCredential {
 /// a tokio `block_on` somewhere inside. Since we normally call the
 /// `SecretStore` from async code, this will panic without this. Running all
 /// keyring ops from inside their own temporary thread solves the issue.
-#[cfg_attr(
-    not(all(target_os = "linux", feature = "flutter")),
-    allow(dead_code)
-)]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 struct ThreadKeyringCredential(Box<dyn CredentialApi + Send + Sync>);
 
-#[cfg_attr(
-    not(all(target_os = "linux", feature = "flutter")),
-    allow(dead_code)
-)]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 impl ThreadKeyringCredential {
     fn thread_op<F, R>(f: F) -> R
     where
@@ -241,10 +247,7 @@ impl ThreadKeyringCredential {
     }
 }
 
-#[cfg_attr(
-    not(all(target_os = "linux", feature = "flutter")),
-    allow(dead_code)
-)]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 impl CredentialApi for ThreadKeyringCredential {
     fn set_password(&self, password: &str) -> keyring::Result<()> {
         Self::thread_op(|| self.0.set_password(password))
@@ -285,11 +288,7 @@ mod test {
     // ignore android: android only supports file_store
     // ignore linux: keyring_store only works with GUI and not headless,
     // e.g. our dev server
-    #[cfg(not(any(
-        target_os = "android",
-        target_os = "linux",
-        not(feature = "flutter")
-    )))]
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
     #[test]
     fn test_keyring_store() {
         use std::ffi::OsStr;
@@ -309,14 +308,14 @@ mod test {
     // `block_on` "under-the-hood" and running this test in an async block
     // ensures we can call it like we normally do (that is, inside an outer
     // `block_on`).
-    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
+    #[cfg(not(target_os = "android"))]
     #[tokio::test]
     #[ignore]
     async fn test_keyring_store_linux() {
         test_keyring_secret_store_inner();
     }
 
-    #[cfg(all(not(target_os = "android"), feature = "flutter"))]
+    #[cfg(not(target_os = "android"))]
     fn test_keyring_secret_store_inner() {
         use common::rng::RngExt;
 

@@ -21,23 +21,16 @@ pub mod db;
 /// The flutter/rust FFI bindings.
 #[cfg(feature = "flutter")]
 pub(crate) mod ffi;
-/// `FlatFileFs` and `Ffs`.
-mod ffs;
 /// Flutter/rust ffi bindings generated from `ffi` by `just app-rs-codegen`.
 #[cfg(feature = "flutter")]
 pub(crate) mod frb_generated;
 /// Pipe `tracing` log messages from native Rust to Dart.
 mod logger;
-/// App-local payment db and payment sync from node (v1).
-pub(crate) mod payments_db;
-/// `ProvisionHistory`
-mod provision_history;
 /// QR code generation for the app
 #[cfg(feature = "flutter")]
 pub(crate) mod qr;
-/// Securely store and retrieve user credentials to and from each platform's
-/// standard secret storage.
-pub mod secret_store;
+/// Securely store and retrieve user secrets.
+mod secret_store;
 /// Settings DB
 mod settings;
 /// App rust types.

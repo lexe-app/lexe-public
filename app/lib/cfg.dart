@@ -153,7 +153,7 @@ Future<Config> build(final UserAgent userAgent) async {
   //
   // This is also not the fully qualified db dir. We need to disambiguate b/w
   // (dev/staging/prod) x (regtest/testnet/mainnet) x (sgx/dbg).
-  // See: `app-rs::app::AppConfig`
+  // See: `sdk_rust::config::WalletEnvDbConfig`
   final lexeDbDir = await path_provider.getApplicationSupportDirectory();
 
   // Keep in sync with `sdk-sidecar/src/run.rs`.

@@ -10,21 +10,34 @@
 //!
 //! [`sdk_core::models`]: crate::models
 
+use std::sync::Arc;
+
+use bitcoin::address::NetworkUnchecked;
 use common::{
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_api_core::types::payments::{
-    PaymentCreatedIndex, PaymentDirection, PaymentKind, PaymentRail,
-    PaymentStatus,
+use lexe_api_core::types::{
+    invoice::LxInvoice,
+    payments::{
+        BasicPaymentV2, LxPaymentId, PaymentCreatedIndex, PaymentDirection,
+        PaymentKind, PaymentRail, PaymentStatus,
+    },
 };
 use serde::{Deserialize, Serialize};
 
 /// Information about a payment.
 #[derive(Serialize, Deserialize)]
 pub struct SdkPayment {
-    /// Identifier for this payment.
+    /// Unique identifier for this payment, ordered by created_at.
+    ///
+    /// This implements [`Ord`] and is generally the thing you want to key your
+    /// payments by, e.g. `BTreeMap<PaymentCreatedIndex, SdkPayment>`.
     pub index: PaymentCreatedIndex,
+
+    /// Unordered payment identifier.
+    /// You should prefer to use [`index`](Self::index) instead of this.
+    pub id: LxPaymentId,
 
     /// The technical 'rail' used to fulfill a payment:
     /// 'onchain', 'invoice', 'offer', 'spontaneous', 'waived_fee', etc.
@@ -36,32 +49,12 @@ pub struct SdkPayment {
     /// The payment direction: `"inbound"`, `"outbound"`, or `"info"`.
     pub direction: PaymentDirection,
 
-    // NOTE: Excluding `invoice` for now as externally-generated invoices are
-    // unknown to the node, but perhaps the sidecar could cache / persist it?
-    // Invoices will probably also be stored separately from the main payment.
-    /*
-    /// (Invoice payments only) The BOLT11 invoice used in this payment.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub invoice: Option<Box<LxInvoice>>,
-    */
-
-    // TODO(max): Unclear if we'll always have access to the offer_id or offer
-    // when we receive an offer payment. Leaving this out until we're more sure.
-    /*
+    /* TODO(max): Expose offer_id once we have out-of-line Offer storage.
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
     pub offer_id: Option<LxOfferId>,
-
-    /// (Outbound offer payments only) The BOLT12 offer used in this payment.
-    /// Until we store offers out-of-line, this is not yet available for
-    /// inbound offer payments.
-    pub offer: Option<Box<LxOffer>>,
     */
     /// (Onchain payments only) The hex-encoded Bitcoin txid.
     pub txid: Option<LxTxid>,
-
-    /// (Onchain payments only) The hex-encoded txid of the transaction that
-    /// spent the outputs spent by this on-chain payment, if one exists.
-    pub replacement: Option<LxTxid>,
 
     /// The amount of this payment.
     ///
@@ -90,13 +83,111 @@ pub struct SdkPayment {
     /// customized per payment type, e.g. "invoice generated", "timed out"
     pub status_msg: String,
 
+    /// (Onchain send only) The address that we're sending to.
+    pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
+
+    /// (Invoice payments only) The BOLT11 invoice used in this payment.
+    pub invoice: Option<Arc<LxInvoice>>,
+
+    /* TODO(max): Expose offer once we have out-of-line Offer storage.
+    /// (Outbound offer payments only) The BOLT12 offer used in this payment.
+    /// Until we store offers out-of-line, this is not yet available for
+    /// inbound offer payments.
+    pub offer: Option<Arc<LxOffer>>,
+    */
+    /// The on-chain transaction, if there is one.
+    /// Always [`Some`] for on-chain sends and receives.
+    pub tx: Option<Arc<bitcoin::Transaction>>,
+
     /// An optional personal note which a user can attach to any payment.
     /// A note can always be added or modified when a payment already exists,
     /// but this may not always be possible at creation time.
     pub note: Option<String>,
 
+    /// (Offer payments only) The payer's self-reported human-readable name.
+    pub payer_name: Option<String>,
+
+    /// (Offer payments only) A payer-provided note for this payment.
+    /// LDK truncates this to 512 bytes.
+    pub payer_note: Option<String>,
+
+    /// (Onchain send only) The confirmation priority used for this payment.
+    pub priority: Option<ConfirmationPriority>,
+
+    /* TODO(max): Expose replacement_txid once someone cares about it.
+    /// (Onchain payments only) The hex-encoded txid of the transaction that
+    /// replaced this on-chain payment, if one exists.
+    pub replacement_txid: Option<LxTxid>,
+    */
+    /// The invoice or offer expiry time.
+    /// `None` otherwise, or if the timestamp overflows.
+    pub expires_at: Option<TimestampMs>,
+
     /// If this payment is finalized, meaning it is "completed" or "failed",
     /// this is the time it was finalized, in milliseconds since the UNIX
     /// epoch.
     pub finalized_at: Option<TimestampMs>,
+
+    /// When this payment was created.
+    pub created_at: TimestampMs,
+
+    /// When this payment was last updated.
+    pub updated_at: TimestampMs,
+}
+
+impl From<BasicPaymentV2> for SdkPayment {
+    fn from(p: BasicPaymentV2) -> Self {
+        let BasicPaymentV2 {
+            id,
+            related_ids: _,
+            kind,
+            direction,
+            offer_id: _,
+            txid,
+            amount,
+            fee,
+            status,
+            status_str,
+            address,
+            invoice,
+            offer: _,
+            tx,
+            note,
+            payer_name,
+            payer_note,
+            priority,
+            quantity: _,
+            replacement_txid: _,
+            expires_at,
+            finalized_at,
+            created_at,
+            updated_at,
+        } = p;
+
+        let index = PaymentCreatedIndex { created_at, id };
+
+        Self {
+            index,
+            id,
+            rail: kind.rail(),
+            kind,
+            direction,
+            txid,
+            amount,
+            fees: fee,
+            status,
+            status_msg: status_str,
+            address,
+            invoice,
+            tx,
+            note,
+            payer_name,
+            payer_note,
+            priority,
+            expires_at,
+            finalized_at,
+            created_at,
+            updated_at,
+        }
+    }
 }

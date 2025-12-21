@@ -15,5 +15,6 @@ common = { path = "../common" }
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
+bitcoin.workspace = true
 semver.workspace = true
 serde.workspace = true

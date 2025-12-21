@@ -292,7 +292,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (context) => ProfilePage(
                 paymentAddressService: PaymentAddressService(
                   app: mockApp,
-                  appData: LxAppData(mockApp.appDb()),
+                  appData: LxAppData(mockApp.appDataDb()),
                 ),
               ),
             ),
@@ -433,7 +433,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 config: this.widget.config,
                 app: mockApp,
                 settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
@@ -450,7 +450,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   balance: mocks.balanceZero,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
@@ -467,7 +467,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   balance: mocks.balanceOnchainOnly,
                 ),
                 settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
@@ -633,7 +633,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ReceivePaymentPage",
               (context) => ReceivePaymentPage(
                 app: mockApp,
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
                 featureFlags: const FeatureFlags.all(),
                 fiatRate: this.makeFiatRateStream(),
               ),
@@ -647,7 +647,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   showBolt12OffersRecvPage: false,
                 ),
                 fiatRate: this.makeFiatRateStream(),
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
               ),
             ),
             Component(
@@ -657,7 +657,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockAppErr,
                 featureFlags: const FeatureFlags.all(),
                 fiatRate: this.makeFiatRateStream(),
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
               ),
             ),
             Component(
@@ -933,7 +933,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 config: this.widget.config,
                 app: mocks.MockAppHandleScreenshots(),
                 settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
                 featureFlags: const FeatureFlags.all(),
                 uriEvents: this.widget.uriEvents,
                 gdriveAuth: GDriveAuth.mock,
@@ -948,7 +948,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 fiatRate: ValueNotifier(
                   const FiatRate(fiat: "USD", rate: 96626.76),
                 ),
-                appData: LxAppData(mockApp.appDb()),
+                appData: LxAppData(mockApp.appDataDb()),
               ),
             ),
             Component(

@@ -16,7 +16,8 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
 /// to support account deletion requests.
@@ -66,6 +67,7 @@ sealed class ClientPaymentId with _$ClientPaymentId {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Config with _$Config {
+  const Config._();
   const factory Config({
     required DeployEnv deployEnv,
     required Network network,
@@ -75,6 +77,10 @@ sealed class Config with _$Config {
     required bool useMockSecretStore,
     required String userAgent,
   }) = _Config;
+
+  /// Validates the config combination. Panics if the combination is invalid.
+  Future<void> validate() =>
+      AppRs.instance.api.crateFfiTypesConfigValidate(that: this);
 }
 
 enum ConfirmationPriority { high, normal, background }
@@ -105,28 +111,28 @@ enum DeployEnv {
 }
 
 class GDriveSignupCredentials {
-  /// The server auth code passed to the node enclave during provisioning.
-  final String serverAuthCode;
-
   /// The user's backup password, used to encrypt their [`RootSeed`] backup
   /// on Google Drive.
-  final String password;
+  final String backupPassword;
+
+  /// The google auth code passed to the node enclave during provisioning.
+  final String googleAuthCode;
 
   const GDriveSignupCredentials({
-    required this.serverAuthCode,
-    required this.password,
+    required this.backupPassword,
+    required this.googleAuthCode,
   });
 
   @override
-  int get hashCode => serverAuthCode.hashCode ^ password.hashCode;
+  int get hashCode => backupPassword.hashCode ^ googleAuthCode.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is GDriveSignupCredentials &&
           runtimeType == other.runtimeType &&
-          serverAuthCode == other.serverAuthCode &&
-          password == other.password;
+          backupPassword == other.backupPassword &&
+          googleAuthCode == other.googleAuthCode;
 }
 
 @freezed

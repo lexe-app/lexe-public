@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -160770556;
+  int get rustContentHash => -178845115;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -100,7 +100,7 @@ abstract class AppRsApi extends BaseApi {
     required AppData update,
   });
 
-  AppDataDb crateFfiAppAppHandleAppDb({required AppHandle that});
+  AppDataDb crateFfiAppAppHandleAppDataDb({required AppHandle that});
 
   Future<BackupInfo> crateFfiAppAppHandleBackupInfo({required AppHandle that});
 
@@ -267,9 +267,9 @@ abstract class AppRsApi extends BaseApi {
   Future<AppHandle> crateFfiAppAppHandleSignup({
     required Config config,
     required RootSeed rootSeed,
-    GDriveSignupCredentials? gdriveSignupCreds,
-    String? signupCode,
     String? partner,
+    String? signupCode,
+    GDriveSignupCredentials? gdriveSignupCreds,
   });
 
   Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that});
@@ -289,15 +289,22 @@ abstract class AppRsApi extends BaseApi {
     required UpdatePaymentNote req,
   });
 
-  AppUserInfo crateFfiAppAppHandleUserInfo({required AppHandle that});
+  AppUserInfo crateFfiAppAppHandleWalletUser({required AppHandle that});
 
   ClientPaymentId crateFfiTypesClientPaymentIdGenNew();
+
+  Future<void> crateFfiTypesConfigValidate({required Config that});
 
   void crateFfiDebugDeleteLatestProvisioned({required Config config});
 
   void crateFfiDebugDeleteSecretStore({required Config config});
 
   DeployEnv crateFfiTypesDeployEnvFromStr({required String s});
+
+  String crateFfiTypesDeployEnvGatewayUrl({
+    required DeployEnv that,
+    required String devGatewayUrl,
+  });
 
   Future<Uint8List> crateFfiQrEncode({required List<int> data});
 
@@ -542,7 +549,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  AppDataDb crateFfiAppAppHandleAppDb({required AppHandle that}) {
+  AppDataDb crateFfiAppAppHandleAppDataDb({required AppHandle that}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -554,15 +561,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeSuccessData: sse_decode_app_data_db,
           decodeErrorData: null,
         ),
-        constMeta: kCrateFfiAppAppHandleAppDbConstMeta,
+        constMeta: kCrateFfiAppAppHandleAppDataDbConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateFfiAppAppHandleAppDbConstMeta =>
-      const TaskConstMeta(debugName: "app_handle_app_db", argNames: ["that"]);
+  TaskConstMeta get kCrateFfiAppAppHandleAppDataDbConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_app_data_db",
+        argNames: ["that"],
+      );
 
   @override
   Future<BackupInfo> crateFfiAppAppHandleBackupInfo({required AppHandle that}) {
@@ -1839,9 +1849,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Future<AppHandle> crateFfiAppAppHandleSignup({
     required Config config,
     required RootSeed rootSeed,
-    GDriveSignupCredentials? gdriveSignupCreds,
-    String? signupCode,
     String? partner,
+    String? signupCode,
+    GDriveSignupCredentials? gdriveSignupCreds,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1849,12 +1859,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_config(config, serializer);
           sse_encode_box_autoadd_root_seed(rootSeed, serializer);
+          sse_encode_opt_String(partner, serializer);
+          sse_encode_opt_String(signupCode, serializer);
           sse_encode_opt_box_autoadd_g_drive_signup_credentials(
             gdriveSignupCreds,
             serializer,
           );
-          sse_encode_opt_String(signupCode, serializer);
-          sse_encode_opt_String(partner, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1867,7 +1877,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateFfiAppAppHandleSignupConstMeta,
-        argValues: [config, rootSeed, gdriveSignupCreds, signupCode, partner],
+        argValues: [config, rootSeed, partner, signupCode, gdriveSignupCreds],
         apiImpl: this,
       ),
     );
@@ -1878,9 +1888,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     argNames: [
       "config",
       "rootSeed",
-      "gdriveSignupCreds",
-      "signupCode",
       "partner",
+      "signupCode",
+      "gdriveSignupCreds",
     ],
   );
 
@@ -2021,7 +2031,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  AppUserInfo crateFfiAppAppHandleUserInfo({required AppHandle that}) {
+  AppUserInfo crateFfiAppAppHandleWalletUser({required AppHandle that}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -2033,16 +2043,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeSuccessData: sse_decode_app_user_info,
           decodeErrorData: null,
         ),
-        constMeta: kCrateFfiAppAppHandleUserInfoConstMeta,
+        constMeta: kCrateFfiAppAppHandleWalletUserConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateFfiAppAppHandleUserInfoConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleWalletUserConstMeta =>
       const TaskConstMeta(
-        debugName: "app_handle_user_info",
+        debugName: "app_handle_wallet_user",
         argNames: ["that"],
       );
 
@@ -2069,13 +2079,41 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(debugName: "client_payment_id_gen_new", argNames: []);
 
   @override
+  Future<void> crateFfiTypesConfigValidate({required Config that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_config(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 51,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiTypesConfigValidateConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiTypesConfigValidateConstMeta =>
+      const TaskConstMeta(debugName: "config_validate", argNames: ["that"]);
+
+  @override
   void crateFfiDebugDeleteLatestProvisioned({required Config config}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_config(config, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2101,7 +2139,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_config(config, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 52)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 53)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2127,7 +2165,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(s, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 53)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_deploy_env,
@@ -2144,6 +2182,36 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(debugName: "deploy_env_from_str", argNames: ["s"]);
 
   @override
+  String crateFfiTypesDeployEnvGatewayUrl({
+    required DeployEnv that,
+    required String devGatewayUrl,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_deploy_env(that, serializer);
+          sse_encode_String(devGatewayUrl, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiTypesDeployEnvGatewayUrlConstMeta,
+        argValues: [that, devGatewayUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiTypesDeployEnvGatewayUrlConstMeta =>
+      const TaskConstMeta(
+        debugName: "deploy_env_gateway_url",
+        argNames: ["that", "devGatewayUrl"],
+      );
+
+  @override
   Future<Uint8List> crateFfiQrEncode({required List<int> data}) {
     return handler.executeNormal(
       NormalTask(
@@ -2153,7 +2221,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 56,
             port: port_,
           );
         },
@@ -2178,7 +2246,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_CastedPrimitive_usize(dataLenBytes, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 57)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_CastedPrimitive_usize,
@@ -2217,7 +2285,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 56,
+            funcId: 58,
             port: port_,
           );
         },
@@ -2247,7 +2315,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_client(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 57)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 59)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_g_drive_restore_client,
@@ -2273,7 +2341,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_client(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 58)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 60)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -2306,7 +2374,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 61,
             port: port_,
           );
         },
@@ -2338,7 +2406,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(clientId, serializer);
           sse_encode_String(serverClientId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 60)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_g_drive_o_auth_2_flow,
@@ -2368,7 +2436,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
           sse_encode_String(password, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 61)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 63)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_root_seed,
@@ -2396,7 +2464,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_g_drive_restore_candidate(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 64)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -2434,7 +2502,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 63,
+            funcId: 65,
             port: port_,
           );
         },
@@ -2470,7 +2538,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 64,
+              funcId: 66,
               port: port_,
             );
           },
@@ -2500,7 +2568,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(word, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 67)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -2523,7 +2591,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(s, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 68)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_network,
@@ -2546,7 +2614,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_root_seed(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 67)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -2572,7 +2640,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_list_String(mnemonic, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 68)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 70)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_root_seed,
@@ -2597,7 +2665,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 69)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 71)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_root_seed,
@@ -2620,7 +2688,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_root_seed(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 70)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 72)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -2646,7 +2714,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_config(config, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 71)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 73)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_secret_store,
@@ -2671,7 +2739,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_secret_store(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 72)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 74)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_root_seed,
@@ -2697,7 +2765,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_settings_db(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 73)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 75)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_settings,
@@ -2720,7 +2788,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_settings_db(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 74)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 76)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2747,7 +2815,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_settings_db(that, serializer);
           sse_encode_box_autoadd_settings(update, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 75)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 77)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2777,7 +2845,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(prefix, serializer);
           sse_encode_CastedPrimitive_usize(take, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 76)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 78)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -2805,7 +2873,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 77,
+            funcId: 79,
             port: port_,
           );
         },
@@ -2832,7 +2900,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 78,
+            funcId: 80,
             port: port_,
           );
         },
@@ -2856,7 +2924,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 79)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 81)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_user_channel_id,
@@ -2879,7 +2947,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(s, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 80)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 82)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_username,
@@ -2902,7 +2970,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(password, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 81)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 83)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -3451,7 +3519,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       network: dco_decode_network(arr[1]),
       gatewayUrl: dco_decode_String(arr[2]),
       useSgx: dco_decode_bool(arr[3]),
-      lexeDataDir: dco_decode_String(arr[4]),
+      lexeDbDir: dco_decode_String(arr[4]),
       useMockSecretStore: dco_decode_bool(arr[5]),
       userAgent: dco_decode_String(arr[6]),
     );
@@ -3630,8 +3698,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return GDriveSignupCredentials(
-      serverAuthCode: dco_decode_String(arr[0]),
-      password: dco_decode_String(arr[1]),
+      backupPassword: dco_decode_String(arr[0]),
+      googleAuthCode: dco_decode_String(arr[1]),
     );
   }
 
@@ -4942,7 +5010,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_network = sse_decode_network(deserializer);
     var var_gatewayUrl = sse_decode_String(deserializer);
     var var_useSgx = sse_decode_bool(deserializer);
-    var var_lexeDataDir = sse_decode_String(deserializer);
+    var var_lexeDbDir = sse_decode_String(deserializer);
     var var_useMockSecretStore = sse_decode_bool(deserializer);
     var var_userAgent = sse_decode_String(deserializer);
     return Config(
@@ -4950,7 +5018,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       network: var_network,
       gatewayUrl: var_gatewayUrl,
       useSgx: var_useSgx,
-      lexeDataDir: var_lexeDataDir,
+      lexeDbDir: var_lexeDbDir,
       useMockSecretStore: var_useMockSecretStore,
       userAgent: var_userAgent,
     );
@@ -5125,11 +5193,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_serverAuthCode = sse_decode_String(deserializer);
-    var var_password = sse_decode_String(deserializer);
+    var var_backupPassword = sse_decode_String(deserializer);
+    var var_googleAuthCode = sse_decode_String(deserializer);
     return GDriveSignupCredentials(
-      serverAuthCode: var_serverAuthCode,
-      password: var_password,
+      backupPassword: var_backupPassword,
+      googleAuthCode: var_googleAuthCode,
     );
   }
 
@@ -6646,7 +6714,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_network(self.network, serializer);
     sse_encode_String(self.gatewayUrl, serializer);
     sse_encode_bool(self.useSgx, serializer);
-    sse_encode_String(self.lexeDataDir, serializer);
+    sse_encode_String(self.lexeDbDir, serializer);
     sse_encode_bool(self.useMockSecretStore, serializer);
     sse_encode_String(self.userAgent, serializer);
   }
@@ -6796,8 +6864,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.serverAuthCode, serializer);
-    sse_encode_String(self.password, serializer);
+    sse_encode_String(self.backupPassword, serializer);
+    sse_encode_String(self.googleAuthCode, serializer);
   }
 
   @protected

@@ -73,10 +73,10 @@ Future<void> main() async {
   } else if (maybeApp != null) {
     final app = maybeApp;
     final settings = LxSettings(app.settingsDb());
-    final appData = LxAppData(app.appDb());
+    final appData = LxAppData(app.appDataDb());
     final featureFlags = FeatureFlags(
       deployEnv: config.deployEnv,
-      userPk: app.userInfo().userPk,
+      userPk: app.walletUser().userPk,
     );
 
     // If user has a locale preference set then use that over the system locale.

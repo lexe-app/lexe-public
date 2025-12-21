@@ -4,12 +4,10 @@ use anyhow::Context;
 use common::api::fiat_rates::IsoCurrencyCode;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+use sdk_rust::ffs::Ffs;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    db::{SchemaVersion, Update, WritebackDb},
-    ffs::Ffs,
-};
+use crate::db::{SchemaVersion, Update, WritebackDb};
 
 const SETTINGS_JSON: &str = "settings.json";
 
@@ -97,12 +95,10 @@ mod test {
     use std::{ops::Deref, rc::Rc, time::Duration};
 
     use proptest::{proptest, strategy::Strategy};
+    use sdk_rust::ffs::{FlatFileFs, test_utils::InMemoryFfs};
 
     use super::*;
-    use crate::{
-        db::{DbPersister, WritebackDb},
-        ffs::{FlatFileFs, test::MockFfs},
-    };
+    use crate::db::{DbPersister, WritebackDb};
 
     #[test]
     fn test_load_hardcoded() {
@@ -117,7 +113,7 @@ mod test {
             }
         }
         "#;
-        let ffs = MockFfs::new();
+        let ffs = InMemoryFfs::new();
         ffs.write(SETTINGS_JSON, settings_str.as_bytes()).unwrap();
         let settings: SettingsRs = DbPersister::load(&ffs, SETTINGS_JSON);
         assert_eq!(settings.schema, SchemaVersion(1));
@@ -131,13 +127,13 @@ mod test {
 
     /// A tiny model implementation of [`SettingsDb`].
     struct ModelDb {
-        ffs: Rc<MockFfs>,
+        ffs: Rc<InMemoryFfs>,
         settings: SettingsRs,
     }
 
     impl ModelDb {
-        fn load(ffs: Rc<MockFfs>) -> Self {
-            let settings = DbPersister::<MockFfs, SettingsRs>::load(
+        fn load(ffs: Rc<InMemoryFfs>) -> Self {
+            let settings = DbPersister::<InMemoryFfs, SettingsRs>::load(
                 ffs.as_ref(),
                 SETTINGS_JSON,
             );
@@ -148,7 +144,7 @@ mod test {
         }
         fn reset(&mut self) {
             self.settings = SettingsRs::default();
-            let data = DbPersister::<MockFfs, SettingsRs>::serialize_json(
+            let data = DbPersister::<InMemoryFfs, SettingsRs>::serialize_json(
                 &self.settings,
             )
             .unwrap();
@@ -156,7 +152,7 @@ mod test {
         }
         fn update(&mut self, update: SettingsRs) -> anyhow::Result<()> {
             self.settings.update(update)?;
-            let data = DbPersister::<MockFfs, SettingsRs>::serialize_json(
+            let data = DbPersister::<InMemoryFfs, SettingsRs>::serialize_json(
                 &self.settings,
             )?;
             self.ffs.write(SETTINGS_JSON, &data)?;
@@ -206,7 +202,7 @@ mod test {
     }
 
     async fn test_prop_model_inner(ops: Vec<Op>) {
-        let model_ffs = Rc::new(MockFfs::new());
+        let model_ffs = Rc::new(InMemoryFfs::new());
         let mut model = ModelDb::load(model_ffs.clone());
 
         let tmpdir = tempfile::tempdir().unwrap();

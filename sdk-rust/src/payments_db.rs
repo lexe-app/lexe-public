@@ -1,52 +1,55 @@
-//! App-local payments db and payment sync
-//!
-//! ### [`PaymentsDb`]
-//!
-//! The app's [`PaymentsDb`] maintains a local copy of all [`BasicPaymentV2`]s,
-//! synced from the user node. The user nodes are the source-of-truth for
-//! payment state; consequently, this payment db is effectively a projection of
-//! the user node's payment state.
-//!
-//! Currently the [`BasicPaymentV2`]s in the [`PaymentsDb`] are just dumped into
-//! a subdirectory of the app's data directory as unencrypted json blobs. On
-//! startup, we just load all on-disk [`BasicPaymentV2`]s into memory.
-//!
-//! In the future, this could be a SQLite DB or something.
-//!
-//! ### Payment Syncing
-//!
-//! Syncing payments is done by tailing payments from the user node by
-//! [`PaymentUpdatedIndex`]. We simply keep track of the latest updated at index
-//! in our DB, and fetch batches of updated payments, merging them into our DB,
-//! until no payments are returned.
-//!
-//! ## Design goals
-//!
-//! We want efficient random access for pending payments, which are always
-//! displayed, and efficient fetching for the last N finalized payments, which
-//! are the first payments displayed in the finalized payments list.
-//!
-//! Cursors don't work well with flutter's lazy lists, since they want random
-//! access from scroll index -> content.
-//!
-//! Performance when syncing payments is secondary, since that's done
-//! asynchronously and off the main UI thread, which is highly latency
-//! sensitive.
-//!
-//! In the future, we could be even more clever and serialize+store the pending
-//! index on-disk. If we also added a finalized index, we could avoid the need
-//! to load all the payments on startup and could instead lazy load them.
-//!
-//! [`BasicPaymentV2`]: lexe_api::types::payments::BasicPaymentV2
-//! [`PaymentsDb`]: crate::payments_db::PaymentsDb
-//! [`PaymentUpdatedIndex`]: lexe_api::types::payments::PaymentUpdatedIndex
+//! Local payments db and payment sync
+
+/// NOTE: Be careful about `pub`! This module is part of the stable API.
+///
+/// ### [`PaymentsDb`]
+///
+/// The app's [`PaymentsDb`] maintains a local copy of all [`BasicPaymentV2`]s,
+/// synced from the user node. The user nodes are the source-of-truth for
+/// payment state; consequently, this payment db is effectively a projection of
+/// the user node's payment state.
+///
+/// Currently the [`BasicPaymentV2`]s in the [`PaymentsDb`] are just dumped into
+/// a subdirectory of the app's data directory as unencrypted json blobs. On
+/// startup, we just load all on-disk [`BasicPaymentV2`]s into memory.
+///
+/// In the future, this could be a SQLite DB or something.
+///
+/// ### Payment Syncing
+///
+/// Syncing payments is done by tailing payments from the user node by
+/// [`PaymentUpdatedIndex`]. We simply keep track of the latest updated at index
+/// in our DB, and fetch batches of updated payments, merging them into our DB,
+/// until no payments are returned.
+///
+/// ## Design goals
+///
+/// We want efficient random access for pending payments, which are always
+/// displayed, and efficient fetching for the last N finalized payments, which
+/// are the first payments displayed in the finalized payments list.
+///
+/// Cursors don't work well with flutter's lazy lists, since they want random
+/// access from scroll index -> content.
+///
+/// Performance when syncing payments is secondary, since that's done
+/// asynchronously and off the main UI thread, which is highly latency
+/// sensitive.
+///
+/// In the future, we could be even more clever and serialize+store the pending
+/// index on-disk. If we also added a finalized index, we could avoid the need
+/// to load all the payments on startup and could instead lazy load them.
+///
+/// [`BasicPaymentV2`]: lexe_api::types::payments::BasicPaymentV2
+/// [`PaymentsDb`]: crate::payments_db::PaymentsDb
+/// [`PaymentUpdatedIndex`]: lexe_api::types::payments::PaymentUpdatedIndex
+mod docs {}
 
 use std::{
     cmp,
     collections::{BTreeMap, BTreeSet},
     io,
     str::FromStr,
-    sync::Mutex,
+    sync::RwLock,
 };
 
 use anyhow::Context;
@@ -64,21 +67,72 @@ use lexe_api::{
 use node_client::client::NodeClient;
 use tracing::warn;
 
-use crate::ffs::Ffs;
+use crate::unstable::ffs::Ffs;
+
+/// The app's local [`BasicPaymentV2`] database, synced from the user node.
+pub struct PaymentsDb<F> {
+    ffs: F,
+    state: RwLock<PaymentsDbState>,
+}
+
+/// Pure in-memory state of the [`PaymentsDb`].
+#[derive(Debug, PartialEq)]
+struct PaymentsDbState {
+    /// All locally synced payments,
+    /// from oldest to newest (reverse of the UI scroll order).
+    payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
+
+    /// An index of currently pending payments, sorted by `created_at` index.
+    //
+    // For now, we only have a `pending` index, because it is sparse - there's
+    // no point in indexing `finalized` as most payments are finalized. If we
+    // later want filters for "offers only" or similar, we can add more.
+    pending: BTreeSet<PaymentCreatedIndex>,
+
+    /// The latest `updated_at` index of any payment in the db.
+    ///
+    /// Invariant:
+    ///
+    /// ```ignore
+    /// latest_updated_index == payments.iter()
+    ///     .map(|p| p.updated_index())
+    ///     .max()
+    /// ```
+    latest_updated_index: Option<PaymentUpdatedIndex>,
+}
+
+/// Summary of changes from a payment sync operation.
+#[derive(Debug)]
+pub struct PaymentSyncSummary {
+    /// Number of new payments added to the local DB.
+    pub num_new: usize,
+    /// Number of existing payments that were updated.
+    pub num_updated: usize,
+}
+
+impl PaymentSyncSummary {
+    /// Did any payments in the DB change in this sync?
+    /// (i.e., do we need to update part of the UI?)
+    pub fn any_changes(&self) -> bool {
+        self.num_new > 0 || self.num_updated > 0
+    }
+}
 
 /// Sync the app's local payment state from the user node.
 ///
 /// We tail updated payments from the user node, merging results into our DB
 /// until there are no more updates left to sync.
+//
+// Unstable: Takes Ffs as a param which is still evolving
 #[allow(private_bounds)]
-pub async fn sync_payments<F: Ffs>(
-    db: &Mutex<PaymentsDb<F>>,
+pub(crate) async fn sync_payments<F: Ffs>(
+    db: &PaymentsDb<F>,
     node_client: &impl AppNodeRunSyncApi,
     batch_size: u16,
 ) -> anyhow::Result<PaymentSyncSummary> {
     assert!(batch_size > 0);
 
-    let mut start_index = db.lock().unwrap().state.latest_updated_index;
+    let mut start_index = db.state.read().unwrap().latest_updated_index;
 
     let mut summary = PaymentSyncSummary {
         num_new: 0,
@@ -102,19 +156,15 @@ pub async fn sync_payments<F: Ffs>(
             .payments;
         let updated_payments_len = updated_payments.len();
 
-        {
-            let mut locked_db = db.lock().unwrap();
+        // Update the db: persist, then update in-memory state.
+        let (new, updated, latest_updated_index) = db
+            .upsert_payments(updated_payments)
+            .context("Failed to upsert payments")?;
+        summary.num_new += new;
+        summary.num_updated += updated;
 
-            // Update the db: persist, then update in-memory state.
-            let (new, updated) = locked_db
-                .upsert_payments(updated_payments)
-                .context("Failed to upsert payments")?;
-            summary.num_new += new;
-            summary.num_updated += updated;
-
-            // Update the `start_index` we'll use for the next batch.
-            start_index = locked_db.state.latest_updated_index;
-        }
+        // Update the `start_index` we'll use for the next batch.
+        start_index = latest_updated_index;
 
         // If the node returned fewer payments than our requested batch size,
         // then we are done (there are no more new payments after this batch).
@@ -124,52 +174,6 @@ pub async fn sync_payments<F: Ffs>(
     }
 
     Ok(summary)
-}
-
-#[derive(Debug)]
-pub struct PaymentSyncSummary {
-    num_new: usize,
-    num_updated: usize,
-}
-
-impl PaymentSyncSummary {
-    /// Did any payments in the DB change in this sync?
-    /// (i.e., do we need to update part of the UI?)
-    pub fn any_changes(&self) -> bool {
-        self.num_new > 0 || self.num_updated > 0
-    }
-}
-
-/// The app's local [`BasicPaymentV2`] database, synced from the user node.
-pub struct PaymentsDb<F> {
-    ffs: F,
-    state: PaymentsDbState,
-}
-
-/// Pure in-memory state of the [`PaymentsDb`].
-#[derive(Debug, PartialEq)]
-pub struct PaymentsDbState {
-    /// All locally synced payments,
-    /// from oldest to newest (reverse of the UI scroll order).
-    payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
-
-    /// An index of currently pending payments, sorted by `created_at` index.
-    //
-    // For now, we only have a `pending` index, because it is sparse - there's
-    // no point in indexing `finalized` as most payments are finalized. If we
-    // later want filters for "offers only" or similar, we can add more.
-    pending: BTreeSet<PaymentCreatedIndex>,
-
-    /// The latest `updated_at` index of any payment in the db.
-    ///
-    /// Invariant:
-    ///
-    /// ```ignore
-    /// latest_updated_index == payments.iter()
-    ///     .map(|p| p.updated_index())
-    ///     .max()
-    /// ```
-    latest_updated_index: Option<PaymentUpdatedIndex>,
 }
 
 /// The specific `AppNodeRunApi` method that we need to sync payments.
@@ -195,49 +199,155 @@ impl AppNodeRunSyncApi for NodeClient {
 }
 
 impl<F: Ffs> PaymentsDb<F> {
+    // --- Constructors (unstable b/c Ffs is still in flux) --- //
+
     /// Read all the payments on-disk into a new `PaymentsDb`.
-    pub fn read(ffs: F) -> anyhow::Result<Self> {
+    pub(crate) fn read(ffs: F) -> anyhow::Result<Self> {
         let state = PaymentsDbState::read(&ffs)
+            .map(RwLock::new)
             .context("Failed to read on-disk PaymentsDb state")?;
 
         Ok(Self { ffs, state })
     }
 
     /// Create a new empty `PaymentsDb`. Does not touch disk/storage.
-    pub fn empty(ffs: F) -> Self {
-        Self {
-            ffs,
-            state: PaymentsDbState::empty(),
-        }
+    pub(crate) fn empty(ffs: F) -> Self {
+        let state = RwLock::new(PaymentsDbState::empty());
+        Self { ffs, state }
     }
 
+    // --- Public API  --- //
+
     /// Clear the in-memory state and delete the on-disk payment db.
-    pub fn delete(&mut self) -> io::Result<()> {
-        self.state = PaymentsDbState::empty();
+    pub fn delete(&self) -> io::Result<()> {
+        *self.state.write().unwrap() = PaymentsDbState::empty();
         self.ffs.delete_all()
     }
 
-    #[inline]
-    pub fn state(&self) -> &PaymentsDbState {
-        &self.state
+    /// Total number of payments in the database.
+    pub fn num_payments(&self) -> usize {
+        self.state.read().unwrap().num_payments()
     }
+
+    /// Number of pending (unfinalized) payments.
+    pub fn num_pending(&self) -> usize {
+        self.state.read().unwrap().num_pending()
+    }
+
+    /// Number of finalized payments.
+    pub fn num_finalized(&self) -> usize {
+        self.state.read().unwrap().num_finalized()
+    }
+
+    /// Number of pending payments that are not junk.
+    pub fn num_pending_not_junk(&self) -> usize {
+        self.state.read().unwrap().num_pending_not_junk()
+    }
+
+    /// Number of finalized payments that are not junk.
+    pub fn num_finalized_not_junk(&self) -> usize {
+        self.state.read().unwrap().num_finalized_not_junk()
+    }
+
+    /// The latest `updated_at` index of any payment in the db.
+    pub fn latest_updated_index(&self) -> Option<PaymentUpdatedIndex> {
+        self.state.read().unwrap().latest_updated_index()
+    }
+
+    /// Get a payment by its `PaymentCreatedIndex`.
+    pub fn get_payment_by_created_index(
+        &self,
+        created_index: &PaymentCreatedIndex,
+    ) -> Option<BasicPaymentV2> {
+        self.state
+            .read()
+            .unwrap()
+            .get_payment_by_created_index(created_index)
+            .cloned()
+    }
+
+    /// Get a payment by scroll index in UI order (newest to oldest).
+    pub fn get_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<BasicPaymentV2> {
+        self.state
+            .read()
+            .unwrap()
+            .get_payment_by_scroll_idx(scroll_idx)
+            .cloned()
+    }
+
+    /// Get a pending payment by scroll index in UI order (newest to oldest).
+    pub fn get_pending_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<BasicPaymentV2> {
+        self.state
+            .read()
+            .unwrap()
+            .get_pending_payment_by_scroll_idx(scroll_idx)
+            .cloned()
+    }
+
+    /// Get a "pending and not junk" payment by scroll index in UI order.
+    pub fn get_pending_not_junk_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<BasicPaymentV2> {
+        self.state
+            .read()
+            .unwrap()
+            .get_pending_not_junk_payment_by_scroll_idx(scroll_idx)
+            .cloned()
+    }
+
+    /// Get a finalized payment by scroll index in UI order (newest to oldest).
+    pub fn get_finalized_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<BasicPaymentV2> {
+        self.state
+            .read()
+            .unwrap()
+            .get_finalized_payment_by_scroll_idx(scroll_idx)
+            .cloned()
+    }
+
+    /// Get a "finalized and not junk" payment by scroll index in UI order.
+    pub fn get_finalized_not_junk_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<BasicPaymentV2> {
+        self.state
+            .read()
+            .unwrap()
+            .get_finalized_not_junk_payment_by_scroll_idx(scroll_idx)
+            .cloned()
+    }
+
+    // --- Private helpers --- //
 
     /// Upsert a batch of payments synced from the user node.
     ///
-    /// Returns the number of new and updated payments, respectively.
-    /// May return `(0, 0)` if nothing was inserted or updated.
+    /// Returns `(num_new, num_updated, latest_updated_index)`.
+    /// May return `(0, 0, _)` if nothing was inserted or updated.
     fn upsert_payments(
-        &mut self,
+        &self,
         payments: impl IntoIterator<Item = BasicPaymentV2>,
-    ) -> io::Result<(usize, usize)> {
+    ) -> io::Result<(usize, usize, Option<PaymentUpdatedIndex>)> {
+        let mut state = self.state.write().unwrap();
+
         let mut num_new = 0;
         let mut num_updated = 0;
         for payment in payments {
-            let (new, updated) = self.upsert_payment(payment)?;
+            let (new, updated) =
+                Self::upsert_payment(&self.ffs, &mut state, payment)?;
             num_new += new;
             num_updated += updated;
         }
-        Ok((num_new, num_updated))
+
+        Ok((num_new, num_updated, state.latest_updated_index))
     }
 
     /// Upserts a payment into the db.
@@ -247,12 +357,13 @@ impl<F: Ffs> PaymentsDb<F> {
     /// Returns the number of new and updated payments, respectively.
     /// May return `(0, 0)` if nothing was inserted or updated.
     fn upsert_payment(
-        &mut self,
+        ffs: &F,
+        state: &mut PaymentsDbState,
         payment: BasicPaymentV2,
     ) -> io::Result<(usize, usize)> {
         let created_index = payment.created_index();
 
-        let maybe_existing = self.state.payments.get(&created_index);
+        let maybe_existing = state.payments.get(&created_index);
         let already_existed = maybe_existing.is_some();
 
         // Skip if payment exists and there is no change to it.
@@ -264,47 +375,28 @@ impl<F: Ffs> PaymentsDb<F> {
 
         // Persist the updated payment to storage. Since this is fallible, we
         // do this first, otherwise we may corrupt our in-memory state.
-        Self::write_payment(&self.ffs, &payment)?;
+        Self::write_payment(ffs, &payment)?;
 
         // --- 'Commit' by updating our in-memory state --- //
 
         // Update indices first to avoid a clone
         if payment.is_pending() {
-            self.state.pending.insert(created_index);
+            state.pending.insert(created_index);
         } else {
-            self.state.pending.remove(&created_index);
+            state.pending.remove(&created_index);
         }
         // It is always true that `None < Some(_)`
-        self.state.latest_updated_index = cmp::max(
-            self.state.latest_updated_index,
-            Some(payment.updated_index()),
-        );
+        state.latest_updated_index =
+            cmp::max(state.latest_updated_index, Some(payment.updated_index()));
 
         // Update main payments map
-        self.state.payments.insert(created_index, payment);
+        state.payments.insert(created_index, payment);
 
         if already_existed {
             Ok((0, 1))
         } else {
             Ok((1, 0))
         }
-    }
-
-    pub fn update_payment_note(
-        &mut self,
-        req: UpdatePaymentNote,
-    ) -> anyhow::Result<()> {
-        let payment = self
-            .state
-            .get_mut_payment_by_created_index(&req.index)
-            .context("Updating non-existent payment")?;
-
-        payment.note = req.note;
-
-        Self::write_payment(&self.ffs, payment)
-            .context("Failed to write payment to local db")?;
-
-        Ok(())
     }
 
     /// Write a payment to on-disk storage as JSON bytes. The caller is
@@ -317,6 +409,27 @@ impl<F: Ffs> PaymentsDb<F> {
         ffs.write(&filename, &data)
     }
 
+    /// Update the note on an existing payment in this [`PaymentsDb`].
+    /// This does NOT actually update the note on the user node, hence why this
+    /// is not a public API.
+    pub(crate) fn update_payment_note(
+        &self,
+        req: UpdatePaymentNote,
+    ) -> anyhow::Result<()> {
+        let mut state = self.state.write().unwrap();
+
+        let payment = state
+            .get_mut_payment_by_created_index(&req.index)
+            .context("Updating non-existent payment")?;
+
+        payment.note = req.note;
+
+        Self::write_payment(&self.ffs, payment)
+            .context("Failed to write payment to local db")?;
+
+        Ok(())
+    }
+
     /// Check the integrity of the whole PaymentsDb.
     ///
     /// (1.) The in-memory state should not be corrupted.
@@ -327,13 +440,15 @@ impl<F: Ffs> PaymentsDb<F> {
             return;
         }
 
+        let state = self.state.read().unwrap();
+
         // (1.)
-        self.state.debug_assert_invariants();
+        state.debug_assert_invariants();
 
         // (2.)
         let on_disk_state = PaymentsDbState::read(&self.ffs)
             .expect("Failed to re-read on-disk state");
-        assert_eq!(on_disk_state, self.state);
+        assert_eq!(on_disk_state, *state);
     }
 }
 
@@ -394,7 +509,7 @@ impl PaymentsDbState {
         Ok(Self::from_vec(payments))
     }
 
-    pub(super) fn from_vec(payments: Vec<BasicPaymentV2>) -> Self {
+    fn from_vec(payments: Vec<BasicPaymentV2>) -> Self {
         let payments = payments
             .into_iter()
             .map(|p| (p.created_index(), p))
@@ -410,19 +525,19 @@ impl PaymentsDbState {
         }
     }
 
-    pub fn num_payments(&self) -> usize {
+    fn num_payments(&self) -> usize {
         self.payments.len()
     }
 
-    pub fn num_pending(&self) -> usize {
+    fn num_pending(&self) -> usize {
         self.pending.len()
     }
 
-    pub fn num_finalized(&self) -> usize {
+    fn num_finalized(&self) -> usize {
         self.payments.len() - self.pending.len()
     }
 
-    pub fn num_pending_not_junk(&self) -> usize {
+    fn num_pending_not_junk(&self) -> usize {
         self.pending
             .iter()
             .filter_map(|created_idx| self.payments.get(created_idx))
@@ -431,19 +546,18 @@ impl PaymentsDbState {
     }
 
     // TODO(max): If needed, we can add an index for this.
-    pub fn num_finalized_not_junk(&self) -> usize {
+    fn num_finalized_not_junk(&self) -> usize {
         self.payments
             .values()
             .filter(|p| p.is_finalized_not_junk())
             .count()
     }
 
-    pub fn latest_updated_index(&self) -> Option<PaymentUpdatedIndex> {
+    fn latest_updated_index(&self) -> Option<PaymentUpdatedIndex> {
         self.latest_updated_index
     }
 
-    /// Get a payment by its `PaymentCreatedIndex`.
-    pub fn get_payment_by_created_index(
+    fn get_payment_by_created_index(
         &self,
         created_index: &PaymentCreatedIndex,
     ) -> Option<&BasicPaymentV2> {
@@ -451,23 +565,21 @@ impl PaymentsDbState {
     }
 
     /// Get a mutable payment by its `PaymentCreatedIndex`.
-    pub fn get_mut_payment_by_created_index(
+    fn get_mut_payment_by_created_index(
         &mut self,
         created_index: &PaymentCreatedIndex,
     ) -> Option<&mut BasicPaymentV2> {
         self.payments.get_mut(created_index)
     }
 
-    /// Get a payment by scroll index in UI order (newest to oldest).
-    pub fn get_payment_by_scroll_idx(
+    fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPaymentV2> {
         self.payments.values().nth_back(scroll_idx)
     }
 
-    /// Get a payment by scroll index in UI order (newest to oldest).
-    pub fn get_pending_payment_by_scroll_idx(
+    fn get_pending_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPaymentV2> {
@@ -477,9 +589,7 @@ impl PaymentsDbState {
             .and_then(|created_idx| self.payments.get(created_idx))
     }
 
-    /// Get a "pending and not junk" payment by scroll index in UI order
-    /// (newest to oldest).
-    pub fn get_pending_not_junk_payment_by_scroll_idx(
+    fn get_pending_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPaymentV2> {
@@ -491,11 +601,7 @@ impl PaymentsDbState {
             .nth_back(scroll_idx)
     }
 
-    /// Get a completed or failed payment by scroll index in UI order
-    /// (newest to oldest).
-    ///
-    /// Performance is O(n) as scroll_idx approaches the total l# of payments.
-    pub fn get_finalized_payment_by_scroll_idx(
+    fn get_finalized_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPaymentV2> {
@@ -505,11 +611,7 @@ impl PaymentsDbState {
             .nth_back(scroll_idx)
     }
 
-    /// Get a completed or failed, not junk payment by scroll index in UI order
-    /// (newest to oldest). scroll index here is also the "reverse" rank of all
-    /// finalized payments. Also return the stable `vec_idx` to lookup this
-    /// payment again.
-    pub fn get_finalized_not_junk_payment_by_scroll_idx(
+    fn get_finalized_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPaymentV2> {
@@ -677,23 +779,26 @@ mod test {
     use tempfile::tempdir;
 
     use super::{test_utils::MockNode, *};
-    use crate::ffs::{FlatFileFs, test::MockFfs};
+    use crate::unstable::ffs::{FlatFileFs, test_utils::InMemoryFfs};
 
     #[test]
     fn read_from_empty() {
-        let mock_ffs = MockFfs::new();
+        let mock_ffs = InMemoryFfs::new();
         let mock_ffs_db = PaymentsDb::read(mock_ffs).unwrap();
-        assert!(mock_ffs_db.state.is_empty());
+        assert!(mock_ffs_db.state.read().unwrap().is_empty());
         mock_ffs_db.debug_assert_invariants();
 
         let tempdir = tempfile::tempdir().unwrap();
         let temp_fs =
             FlatFileFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
         let temp_fs_db = PaymentsDb::read(temp_fs).unwrap();
-        assert!(temp_fs_db.state.is_empty());
+        assert!(temp_fs_db.state.read().unwrap().is_empty());
         temp_fs_db.debug_assert_invariants();
 
-        assert_eq!(mock_ffs_db.state, temp_fs_db.state);
+        assert_eq!(
+            *mock_ffs_db.state.read().unwrap(),
+            *temp_fs_db.state.read().unwrap()
+        );
     }
 
     #[test]
@@ -749,10 +854,10 @@ mod test {
             )| {
                 let tempdir = tempdir().unwrap();
                 let temp_fs = FlatFileFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
-                let mut temp_fs_db = PaymentsDb::empty(temp_fs);
+                let temp_fs_db = PaymentsDb::empty(temp_fs);
 
-                let mock_ffs = MockFfs::from_rng(rng);
-                let mut mock_ffs_db = PaymentsDb::empty(mock_ffs);
+                let mock_ffs = InMemoryFfs::from_rng(rng);
+                let mock_ffs_db = PaymentsDb::empty(mock_ffs);
 
                 let mut payments_iter = payments.clone().into_values();
                 visit_batches(&mut payments_iter, batch_sizes, |new_payment_batch| {
@@ -765,7 +870,10 @@ mod test {
                     temp_fs_db.debug_assert_invariants();
                 });
 
-                assert_eq!(mock_ffs_db.state, temp_fs_db.state);
+                assert_eq!(
+                    *mock_ffs_db.state.read().unwrap(),
+                    *temp_fs_db.state.read().unwrap()
+                );
             }
         );
     }
@@ -773,13 +881,13 @@ mod test {
     #[tokio::test]
     async fn test_sync_empty() {
         let mock_node_client = MockNode::new(BTreeMap::new());
-        let mock_ffs = MockFfs::new();
-        let db = Mutex::new(PaymentsDb::empty(mock_ffs));
+        let mock_ffs = InMemoryFfs::new();
+        let db = PaymentsDb::empty(mock_ffs);
 
         sync_payments(&db, &mock_node_client, 5).await.unwrap();
 
-        assert!(db.lock().unwrap().state.is_empty());
-        db.lock().unwrap().debug_assert_invariants();
+        assert!(db.state.read().unwrap().is_empty());
+        db.debug_assert_invariants();
     }
 
     #[test]
@@ -818,28 +926,28 @@ mod test {
                 let mut mock_node = MockNode::from_payments(payments);
 
                 let mut rng2 = FastRng::from_u64(rng.gen_u64());
-                let mock_ffs = MockFfs::from_rng(rng);
+                let mock_ffs = InMemoryFfs::from_rng(rng);
 
                 // Sync empty DB from node
-                let db = Mutex::new(PaymentsDb::empty(mock_ffs));
+                let db = PaymentsDb::empty(mock_ffs);
                 rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
                     .unwrap();
                 assert_db_payments_eq(
-                    &db.lock().unwrap().state.payments,
+                    &db.state.read().unwrap().payments,
                     &mock_node.payments,
                 );
-                db.lock().unwrap().debug_assert_invariants();
+                db.debug_assert_invariants();
 
                 // Reread db from ffs and resync - should still match node
-                let mock_ffs = db.into_inner().unwrap().ffs;
-                let db = Mutex::new(PaymentsDb::read(mock_ffs).unwrap());
+                let mock_ffs = db.ffs;
+                let db = PaymentsDb::read(mock_ffs).unwrap();
                 rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
                     .unwrap();
                 assert_db_payments_eq(
-                    &db.lock().unwrap().state.payments,
+                    &db.state.read().unwrap().payments,
                     &mock_node.payments,
                 );
-                db.lock().unwrap().debug_assert_invariants();
+                db.debug_assert_invariants();
 
                 // Finalize some payments
                 let finalize_some_payments = || {
@@ -859,9 +967,9 @@ mod test {
                     // We bump it before every update to ensure finalized
                     // payments have a later updated_at than in our DB
                     let mut current_time = db
-                        .lock()
-                        .unwrap()
                         .state
+                        .read()
+                        .unwrap()
                         .latest_updated_index
                         .expect("DB should have payments")
                         .updated_at;
@@ -915,12 +1023,11 @@ mod test {
                 rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
                     .unwrap();
 
-                let db_lock = db.lock().unwrap();
                 assert_db_payments_eq(
-                    &db_lock.state.payments,
+                    &db.state.read().unwrap().payments,
                     &mock_node.payments,
                 );
-                db_lock.debug_assert_invariants();
+                db.debug_assert_invariants();
             }
         );
     }

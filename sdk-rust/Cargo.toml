@@ -3,6 +3,46 @@ name = "sdk-rust"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-version.workspace = true
+# NOTE: Because this crate is published to crates.io, we need to respect
+# semantic versioning; i.e. API-breaking changes should bump the minor version
+# if before 1.0.0, otherwise bump the major version.
+version = "0.0.0"
+
+[features]
+# Enables test utilities like `InMemoryFfs`.
+test-utils = ["dep:tempfile"]
+# Enables unstable APIs.
+unstable = []
 
 [dependencies]
+
+# --- LEXE --- #
+
+common = { path = "../common" }
+lexe-api = { path = "../lexe-api" }
+lexe-api-core = { path = "../lexe-api-core" }
+lexe-tokio = { path = "../lexe-tokio" }
+node-client = { path = "../node-client" }
+payment-uri = { path = "../payment-uri" }
+sdk-core = { path = "../sdk-core" }
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+bitcoin.workspace = true
+semver = { workspace = true, features = ["serde"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+
+# --- OPTIONAL --- #
+
+tempfile = { workspace = true, optional = true }
+
+[dev-dependencies]
+common = { path = "../common", features = ["test-utils"] }
+lexe-api = { path = "../lexe-api", features = ["test-utils"] }
+proptest = { workspace = true, features = ["std"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
