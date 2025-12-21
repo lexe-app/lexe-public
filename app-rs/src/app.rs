@@ -796,19 +796,19 @@ pub struct AppConfig {
     pub network: LxNetwork,
     pub use_sgx: bool,
     pub gateway_url: Cow<'static, str>,
-    pub lexe_data_dir: PathBuf,
+    pub lexe_db_dir: PathBuf,
     pub use_mock_secret_store: bool,
     pub user_agent: String,
 }
 
 impl AppConfig {
-    // `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>`
+    // `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>`
     pub(crate) fn app_data_dir(&self) -> PathBuf {
-        self.lexe_data_dir.join(self.build_flavor().to_string())
+        self.lexe_db_dir.join(self.build_flavor().to_string())
     }
 
-    // `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
-    fn user_data_dir(&self, user_pk: &UserPk) -> PathBuf {
+    // `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
+    fn user_db_dir(&self, user_pk: &UserPk) -> PathBuf {
         self.app_data_dir().join(user_pk.to_string())
     }
 
@@ -826,7 +826,7 @@ impl AppConfig {
         network: LxNetwork,
         gateway_url: String,
         use_sgx: bool,
-        lexe_data_dir: String,
+        lexe_db_dir: String,
         use_mock_secret_store: bool,
         user_agent: String,
     ) -> Self {
@@ -836,10 +836,10 @@ impl AppConfig {
             use_sgx,
         };
 
-        // The Lexe data directory.
+        // The Lexe database directory.
         // See: dart fn `path_provider.getApplicationSupportDirectory()`
         // https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html
-        let lexe_data_dir = PathBuf::from(lexe_data_dir);
+        let lexe_db_dir = PathBuf::from(lexe_db_dir);
 
         {
             use DeployEnv::*;
@@ -859,7 +859,7 @@ impl AppConfig {
             network,
             gateway_url: Cow::Owned(gateway_url),
             use_sgx,
-            lexe_data_dir,
+            lexe_db_dir,
             use_mock_secret_store,
             user_agent,
         }
@@ -870,40 +870,40 @@ impl AppConfig {
 #[derive(Clone)]
 struct UserAppConfig {
     config: AppConfig,
-    user_data_dir: PathBuf,
+    user_db_dir: PathBuf,
 }
 
 impl UserAppConfig {
     fn new(config: AppConfig, user_pk: UserPk) -> Self {
-        let user_data_dir = config.user_data_dir(&user_pk);
+        let user_db_dir = config.user_db_dir(&user_pk);
         Self {
             config,
-            user_data_dir,
+            user_db_dir,
         }
     }
 
     fn provision_db_dir(&self) -> PathBuf {
-        self.user_data_dir.join("provision_db")
+        self.user_db_dir.join("provision_db")
     }
 
     fn old_payment_db_dirs(&self) -> [PathBuf; 1] {
         [
             // BasicPaymentV1
-            self.user_data_dir.join("payment_db"),
+            self.user_db_dir.join("payment_db"),
             // Add more here as needed
         ]
     }
 
     fn payments_db_dir(&self) -> PathBuf {
-        self.user_data_dir.join("payments_db")
+        self.user_db_dir.join("payments_db")
     }
 
     fn settings_db_dir(&self) -> PathBuf {
-        self.user_data_dir.join("settings_db")
+        self.user_db_dir.join("settings_db")
     }
 
     fn app_db_dir(&self) -> PathBuf {
-        self.user_data_dir.join("app_db")
+        self.user_db_dir.join("app_db")
     }
 
     fn config(&self) -> &AppConfig {

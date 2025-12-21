@@ -71,7 +71,7 @@ sealed class Config with _$Config {
     required Network network,
     required String gatewayUrl,
     required bool useSgx,
-    required String lexeDataDir,
+    required String lexeDbDir,
     required bool useMockSecretStore,
     required String userAgent,
   }) = _Config;
@@ -90,6 +90,18 @@ enum DeployEnv {
   /// flutter_rust_bridge:sync
   static DeployEnv fromStr({required String s}) =>
       AppRs.instance.api.crateFfiTypesDeployEnvFromStr(s: s);
+
+  /// Returns the gateway URL for this deploy environment.
+  ///
+  /// For dev, the caller must provide `dev_gateway_url` (typically from a
+  /// build-time constant like `DEV_GATEWAY_URL`).
+  ///
+  /// flutter_rust_bridge:sync
+  String gatewayUrl({required String devGatewayUrl}) =>
+      AppRs.instance.api.crateFfiTypesDeployEnvGatewayUrl(
+        that: this,
+        devGatewayUrl: devGatewayUrl,
+      );
 }
 
 class GDriveSignupCredentials {

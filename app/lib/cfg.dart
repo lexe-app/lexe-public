@@ -151,10 +151,10 @@ Future<Config> build(final UserAgent userAgent) async {
   // On Android, iOS, and macOS, this data is also sandboxed and inaccessible
   // to other apps.
   //
-  // This is also not the fully qualified data dir. We need to disambiguate b/w
+  // This is also not the fully qualified db dir. We need to disambiguate b/w
   // (dev/staging/prod) x (regtest/testnet/mainnet) x (sgx/dbg).
   // See: `app-rs::app::AppConfig`
-  final lexeDataDir = await path_provider.getApplicationSupportDirectory();
+  final lexeDbDir = await path_provider.getApplicationSupportDirectory();
 
   // Keep in sync with `sdk-sidecar/src/run.rs`.
   final gatewayUrl = switch (deployEnv) {
@@ -171,7 +171,7 @@ Future<Config> build(final UserAgent userAgent) async {
     network: network,
     useSgx: _useSgx,
     gatewayUrl: gatewayUrl,
-    lexeDataDir: lexeDataDir.path,
+    lexeDbDir: lexeDbDir.path,
     useMockSecretStore: false,
     userAgent: userAgent.toCompactApiString(),
   );
@@ -180,14 +180,14 @@ Future<Config> build(final UserAgent userAgent) async {
 /// Build a [Config] suitable for unit tests or UI design mode.
 Future<Config> buildTest({UserAgent? userAgent}) async {
   // Use a temp dir for unit tests, since `path_provider` doesn't work in tests.
-  final lexeDataDir = await Directory.systemTemp.createTemp("lexeapp");
+  final lexeDbDir = await Directory.systemTemp.createTemp("lexeapp");
 
   return Config(
     deployEnv: DeployEnv.dev,
     network: Network.regtest,
     useSgx: false,
     gatewayUrl: "<no-dev-gateway-url>",
-    lexeDataDir: lexeDataDir.path,
+    lexeDbDir: lexeDbDir.path,
     useMockSecretStore: true,
     userAgent: (userAgent ?? UserAgent.dummy()).toCompactApiString(),
   );

@@ -149,7 +149,7 @@ pub struct Config {
     pub network: Network,
     pub gateway_url: String,
     pub use_sgx: bool,
-    pub lexe_data_dir: String,
+    pub lexe_db_dir: String,
     pub use_mock_secret_store: bool,
     pub user_agent: String,
 }
@@ -161,7 +161,7 @@ impl From<Config> for AppConfig {
             NetworkRs::from(c.network),
             c.gateway_url,
             c.use_sgx,
-            c.lexe_data_dir,
+            c.lexe_db_dir,
             c.use_mock_secret_store,
             c.user_agent,
         )
