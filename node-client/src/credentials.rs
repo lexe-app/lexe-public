@@ -8,6 +8,7 @@ use common::{
     api::{
         auth::{BearerAuthToken, Scope},
         revocable_clients::CreateRevocableClientResponse,
+        user::UserPk,
     },
     ed25519,
     env::DeployEnv,
@@ -19,6 +20,8 @@ use lexe_tls::{
     rustls, shared_seed,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
+#[cfg(any(test, feature = "test-utils"))]
+use proptest::{prelude::any, strategy::Strategy};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -49,6 +52,15 @@ pub enum CredentialsRef<'a> {
     derive(Arbitrary, Debug, Eq, PartialEq)
 )]
 pub struct ClientCredentials {
+    /// The user public key.
+    ///
+    /// Always `Some(_)` if the credentials were created by `node-v0.8.11+`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "any::<UserPk>().prop_map(Some)")
+    )]
+    pub user_pk: Option<UserPk>,
     /// The base64 encoded long-lived connect token.
     pub lexe_auth_token: BearerAuthToken,
     /// The hex-encoded client public key.
@@ -99,6 +111,16 @@ impl<'a> From<&'a ClientCredentials> for CredentialsRef<'a> {
 }
 
 impl<'a> CredentialsRef<'a> {
+    /// Returns the user public key.
+    ///
+    /// Always `Some(_)` if the credentials were created by `node-v0.8.11+`.
+    pub fn user_pk(&self) -> Option<UserPk> {
+        match self {
+            Self::RootSeed(root_seed) => Some(root_seed.derive_user_pk()),
+            Self::ClientCredentials(cc) => cc.user_pk,
+        }
+    }
+
     /// Create a [`BearerAuthenticator`] appropriate for the given credentials.
     ///
     /// Currently limits to [`Scope::NodeConnect`] for [`RootSeed`] credentials.
@@ -159,6 +181,7 @@ impl ClientCredentials {
         resp: CreateRevocableClientResponse,
     ) -> Self {
         ClientCredentials {
+            user_pk: resp.user_pk,
             lexe_auth_token,
             client_pk: resp.pubkey,
             rev_client_key_der: LxPrivatePkcs8KeyDer(
@@ -282,6 +305,8 @@ mod test {
         let mut rng = FastRng::from_u64(202505121546);
         let root_seed = RootSeed::from_rng(&mut rng);
 
+        let user_pk = root_seed.derive_user_pk();
+
         let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&root_seed);
         let eph_ca_cert_der = eph_ca_cert.serialize_der_self_signed().unwrap();
 
@@ -294,7 +319,8 @@ mod test {
         let rev_client_key_der = rev_client_cert.serialize_key_der();
         let client_pk = rev_client_cert.public_key();
 
-        let client_auth = ClientCredentials {
+        let credentials = ClientCredentials {
+            user_pk: Some(user_pk),
             lexe_auth_token: BearerAuthToken(ByteStr::from_static(
                 "9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE",
             )),
@@ -304,15 +330,20 @@ mod test {
             eph_ca_cert_der,
         };
 
-        let client_auth_str = client_auth.to_base64_blob();
-        // json: ~2.2 KiB, base64(json): ~2.9 KiB
-        let expected_str = "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwicmV2X2NsaWVudF9rZXlfZGVyIjoiMzA1MTAyMDEwMTMwMDUwNjAzMmI2NTcwMDQyMjA0MjAwZjU4MGQzNDYxYzRlYTBiMzZiODM2ZDQ1MWMxYzE5OWVlM2UwNjQ2YWQwZDY0MjM1Mzc5NzM5ZDY4Njk5Mjg5ODEyMTAwNzA4OGFmMWZjMTJhYjA0YWQ2ZGQxNjViYzNhM2M1ZWIzMDYyYjQxMWEyZjU1YTE2NmIwZTQwMGIzOTBmZTRkYiIsInJldl9jbGllbnRfY2VydF9kZXIiOiIzMDgyMDE4MzMwODIwMTM1YTAwMzAyMDEwMjAyMTQ0MGJlZGM1NmQwM2Q2YjUyZjI4NDJkNjRkZjkwZDAyZDZkYTM2YTViMzAwNTA2MDMyYjY1NzAzMDU2MzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyNzMwMjUwNjAzNTUwNDAzMGMxZTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDY5NzM3Mzc1Njk2ZTY3MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1MjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjMzMDIxMDYwMzU1MDQwMzBjMWE0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2MzZjNjk2NTZlNzQyMDYzNjU3Mjc0MzAyYTMwMDUwNjAzMmI2NTcwMDMyMTAwNzA4OGFmMWZjMTJhYjA0YWQ2ZGQxNjViYzNhM2M1ZWIzMDYyYjQxMWEyZjU1YTE2NmIwZTQwMGIzOTBmZTRkYmEzMTczMDE1MzAxMzA2MDM1NTFkMTEwNDBjMzAwYTgyMDg2YzY1Nzg2NTJlNjE3MDcwMzAwNTA2MDMyYjY1NzAwMzQxMDA3YjE3YmM5NTM4MjY3YjM1NGYwNzI2ZDg5Y2IxZWMzMTBiMTAyZTQyMmFiOTY5NmI4N2Q5YWU3MDBjZWYyZTgzYzEzNjZkMGFkMTkwMzVkOWUzZWQwNGNmNWY3ZjA1ZGVmNjhhNzFkZTIxMmI4OTgzNDQ3Nzk0MmFlNzYzYTIwZiIsImVwaF9jYV9jZXJ0X2RlciI6IjMwODIwMWFlMzA4MjAxNjBhMDAzMDIwMTAyMDIxNDEwY2Q1Yzk5ODlmOTY1MjA5NDllMGU5YWI0Y2U0ZGJlMTQ3NjY3MTAzMDA1MDYwMzJiNjU3MDMwNTAzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTIxMzAxZjA2MDM1NTA0MDMwYzE4NGM2NTc4NjUyMDczNjg2MTcyNjU2NDIwNzM2NTY1NjQyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUwMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMTMwMWYwNjAzNTUwNDAzMGMxODRjNjU3ODY1MjA3MzY4NjE3MjY1NjQyMDczNjU2NTY0MjA0MzQxMjA2MzY1NzI3NDMwMmEzMDA1MDYwMzJiNjU3MDAzMjEwMGVmZTljZTFhYmNhZWFiY2VmOGVhMmY1NGE1Njk1NTBkY2VkNGE4ZjNhOGNiYjA0Y2Q5NDVkMWI0ZTI0NWY2ODdhMzRhMzA0ODMwMTMwNjAzNTUxZDExMDQwYzMwMGE4MjA4NmM2NTc4NjUyZTYxNzA3MDMwMWQwNjAzNTUxZDBlMDQxNjA0MTQ5MGNkNWM5OTg5Zjk2NTIwOTQ5ZTBlOWFiNGNlNGRiZTE0NzY2NzEwMzAxMjA2MDM1NTFkMTMwMTAxZmYwNDA4MzAwNjAxMDFmZjAyMDEwMDMwMDUwNjAzMmI2NTcwMDM0MTAwMzcyNTQyOWY1YmNhODA1NjIxYzJiMmRjNDQ1ODAyZWQyMWNhYjI0NmI0NWFkMTIxZGQyYTQzMmVmYTJmOTNlZjcyNWVmYTE3ODJlNjQxMDhkMjI5OGU4Njk0ZjQ2ODZjZWQ5OGNlOTI4MGVkNzQ5ZDBhZDRiNDRhNGExY2VlMGQifQ";
-        assert_eq!(client_auth_str, expected_str);
+        let credentials_str = credentials.to_base64_blob();
 
-        let client_auth2 =
-            ClientCredentials::try_from_base64_blob(&client_auth_str)
+        // let json_len = serde_json::to_string(&credentials).unwrap().len();
+        // let base64_len = credentials_str.len();
+        // println!("json: {json_len}, base64: {base64_len}");
+
+        // json: 2259 B, base64(json): 3012 B
+        let expected_str = "eyJ1c2VyX3BrIjoiNmZkNzY0MTU2OTMwNTA5ZmFkNTM2MWQzYjIyYjYxZjc1YWE5MWVkNjQwMjE1YjJjNDFjMmZmODZiMmJmYzQ3MiIsImxleGVfYXV0aF90b2tlbiI6IjlkVENVdkM4eTdxY055VWJxeW56M253SVFRSGJRcVBWS2VNaFhVajFBZnItdmdqOUUyMTdfMnRDUzFJUU03TEZxZkJVQzhFYzlmY2ItZFFpQ1J5Nm90MkZOLWtSNjBlZFJGSlV6dEFhMlJ4YW8xUTBCUzFzNnZFOGdyZ2ZoTVlJQUpETE1XZ0FBQUFBU0U0emFBQUFBQUJwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFRRSIsImNsaWVudF9wayI6IjcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGIiLCJyZXZfY2xpZW50X2tleV9kZXIiOiIzMDUxMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODk4MTIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwicmV2X2NsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiZXBoX2NhX2NlcnRfZGVyIjoiMzA4MjAxYWUzMDgyMDE2MGEwMDMwMjAxMDIwMjE0MTBjZDVjOTk4OWY5NjUyMDk0OWUwZTlhYjRjZTRkYmUxNDc2NjcxMDMwMDUwNjAzMmI2NTcwMzA1MDMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjEzMDFmMDYwMzU1MDQwMzBjMTg0YzY1Nzg2NTIwNzM2ODYxNzI2NTY0MjA3MzY1NjU2NDIwNDM0MTIwNjM2NTcyNzQzMDIwMTcwZDM3MzUzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMTgwZjM0MzAzOTM2MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTMwNTAzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTIxMzAxZjA2MDM1NTA0MDMwYzE4NGM2NTc4NjUyMDczNjg2MTcyNjU2NDIwNzM2NTY1NjQyMDQzNDEyMDYzNjU3Mjc0MzAyYTMwMDUwNjAzMmI2NTcwMDMyMTAwZWZlOWNlMWFiY2FlYWJjZWY4ZWEyZjU0YTU2OTU1MGRjZWQ0YThmM2E4Y2JiMDRjZDk0NWQxYjRlMjQ1ZjY4N2EzNGEzMDQ4MzAxMzA2MDM1NTFkMTEwNDBjMzAwYTgyMDg2YzY1Nzg2NTJlNjE3MDcwMzAxZDA2MDM1NTFkMGUwNDE2MDQxNDkwY2Q1Yzk5ODlmOTY1MjA5NDllMGU5YWI0Y2U0ZGJlMTQ3NjY3MTAzMDEyMDYwMzU1MWQxMzAxMDFmZjA0MDgzMDA2MDEwMWZmMDIwMTAwMzAwNTA2MDMyYjY1NzAwMzQxMDAzNzI1NDI5ZjViY2E4MDU2MjFjMmIyZGM0NDU4MDJlZDIxY2FiMjQ2YjQ1YWQxMjFkZDJhNDMyZWZhMmY5M2VmNzI1ZWZhMTc4MmU2NDEwOGQyMjk4ZTg2OTRmNDY4NmNlZDk4Y2U5MjgwZWQ3NDlkMGFkNGI0NGE0YTFjZWUwZCJ9";
+        assert_eq!(credentials_str, expected_str);
+
+        let credentials2 =
+            ClientCredentials::try_from_base64_blob(&credentials_str)
                 .expect("Failed to decode ClientAuth");
-        assert_eq!(client_auth, client_auth2);
+        assert_eq!(credentials, credentials2);
     }
 
     /// Generate serialized `ClientCredentials` sample json data:

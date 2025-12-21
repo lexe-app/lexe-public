@@ -1711,6 +1711,7 @@ mod validate {
 
 #[instrument(skip_all, name = "(create-revocable-client)")]
 pub async fn create_revocable_client(
+    user_pk: UserPk,
     persister: &impl LexePersister,
     eph_ca_cert_der: LxCertificateDer,
     rev_ca_cert: &RevocableIssuingCaCert,
@@ -1783,6 +1784,8 @@ pub async fn create_revocable_client(
         .context("Failed to persisted updated RevocableClients")?;
 
     Ok(CreateRevocableClientResponse {
+        // Always `Some` since `node-v0.8.11`.
+        user_pk: Some(user_pk),
         pubkey,
         created_at: now,
         eph_ca_cert_der: eph_ca_cert_der.0,

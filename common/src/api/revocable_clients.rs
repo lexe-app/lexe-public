@@ -8,7 +8,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::auth::Scope,
+    api::{auth::Scope, user::UserPk},
     ed25519,
     serde_helpers::{
         base64_or_bytes,
@@ -124,6 +124,11 @@ pub struct CreateRevocableClientRequest {
 /// The response to [`CreateRevocableClientRequest`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateRevocableClientResponse {
+    /// The user public key associated with these credentials.
+    /// Always `Some` since `node-v0.8.11`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_pk: Option<UserPk>,
+
     /// The client cert pubkey.
     pub pubkey: ed25519::PublicKey,
     /// When this client was created.

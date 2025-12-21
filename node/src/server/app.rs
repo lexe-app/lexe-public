@@ -463,6 +463,7 @@ pub(super) async fn create_revocable_client(
     LxJson(req): LxJson<CreateRevocableClientRequest>,
 ) -> Result<LxJson<CreateRevocableClientResponse>, NodeApiError> {
     lexe_ln::command::create_revocable_client(
+        state.user_pk,
         &state.persister,
         state.eph_ca_cert_der.deref().clone(),
         &state.rev_ca_cert,
