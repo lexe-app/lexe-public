@@ -33,5 +33,6 @@ proptest-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
+lexe-tls = { path = "../lexe-tls", features = ["test-utils"] }
 proptest.workspace = true
 proptest-derive.workspace = true

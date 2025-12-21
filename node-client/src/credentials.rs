@@ -46,7 +46,7 @@ pub enum CredentialsRef<'a> {
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
     any(test, feature = "test-utils"),
-    derive(Debug, PartialEq, Eq, Arbitrary)
+    derive(Arbitrary, Debug, Eq, PartialEq)
 )]
 pub struct ClientCredentials {
     /// The base64 encoded long-lived connect token.
@@ -211,7 +211,13 @@ impl ClientCredentials {
 
 #[cfg(test)]
 mod test {
-    use common::{byte_str::ByteStr, rng::FastRng};
+    use std::fs;
+
+    use common::{
+        byte_str::ByteStr,
+        rng::FastRng,
+        test_utils::{arbitrary, snapshot},
+    };
     use lexe_tls::shared_seed::certs::{
         EphemeralIssuingCaCert, RevocableClientCert, RevocableIssuingCaCert,
     };
@@ -307,5 +313,40 @@ mod test {
             ClientCredentials::try_from_base64_blob(&client_auth_str)
                 .expect("Failed to decode ClientAuth");
         assert_eq!(client_auth, client_auth2);
+    }
+
+    /// Generate serialized `ClientCredentials` sample json data:
+    ///
+    /// ```bash
+    /// $ cargo test -p node-client --lib -- take_client_credentials_snapshot --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore]
+    fn take_client_credentials_snapshot() {
+        let mut rng = FastRng::from_u64(202512210138);
+        const N: usize = 3;
+
+        let samples: Vec<ClientCredentials> =
+            arbitrary::gen_values(&mut rng, any::<ClientCredentials>(), N);
+
+        for sample in samples {
+            println!("{}", serde_json::to_string(&sample).unwrap());
+        }
+    }
+
+    // NOTE: see `take_client_credentials_snapshot` to generate new sample data.
+    #[test]
+    fn client_credentials_deser_compat() {
+        let snapshot =
+            fs::read_to_string("data/client_credentials_snapshot.txt").unwrap();
+
+        for input in snapshot::parse_sample_data(&snapshot) {
+            let value1: ClientCredentials =
+                serde_json::from_str(input).unwrap();
+            let output = serde_json::to_string(&value1).unwrap();
+            let value2: ClientCredentials =
+                serde_json::from_str(&output).unwrap();
+            assert_eq!(value1, value2);
+        }
     }
 }
