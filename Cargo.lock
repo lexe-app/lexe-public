@@ -4116,6 +4116,7 @@ dependencies = [
  "lexe-api",
  "lexe-api-core",
  "lexe-tokio",
+ "logger",
  "node-client",
  "payment-uri",
  "proptest",

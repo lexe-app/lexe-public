@@ -125,6 +125,24 @@ impl LexeWallet<WithDb> {
             .expect("WithDb always has db")
             .payments_db()
     }
+
+    /// Sync payments from the user node to the local database.
+    /// This fetches updated payments from the node and persists them locally.
+    ///
+    /// Only one sync can run at a time.
+    /// Errors if another sync is already in progress.
+    pub async fn sync_payments(
+        &self,
+    ) -> anyhow::Result<crate::payments_db::PaymentSyncSummary> {
+        self.db
+            .as_ref()
+            .expect("WithDb always has db")
+            .sync_payments(
+                &self.node_client,
+                common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+            )
+            .await
+    }
 }
 
 impl LexeWallet<WithoutDb> {

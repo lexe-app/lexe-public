@@ -60,6 +60,7 @@ jobs:
       - run: cargo clippy --locked --workspace
       # Native + tests
       - run: cargo clippy --locked --workspace --tests
+
   clippy-sgx:
     runs-on: ubuntu-latest
     steps:

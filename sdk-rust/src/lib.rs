@@ -13,6 +13,41 @@ pub mod payments_db;
 /// `LexeWallet`: the top-level handle to a Lexe wallet.
 pub mod wallet;
 
+/// Reexported types needed by SDK consumers.
+/// All types exported here are considered part of the stable public API.
+pub mod types {
+    pub use common::{api::user::UserPk, rng::SysRng, root_seed::RootSeed};
+    pub use lexe_api::{
+        models::command::UpdatePaymentNote,
+        types::payments::{
+            BasicPaymentV2, PaymentCreatedIndex, PaymentUpdatedIndex,
+        },
+    };
+    pub use node_client::credentials::{
+        ClientCredentials, Credentials, CredentialsRef,
+    };
+    pub use sdk_core::{
+        models::{
+            SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
+            SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
+            SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+        },
+        types::SdkPayment,
+    };
+}
+
+// Reexport possibly-useful dependencies
+pub use anyhow;
+pub use serde_json;
+pub use tracing;
+
+/// Initialize the Lexe logger with the given default log level.
+///
+/// Example: `lexe_sdk::init_logger("info")`
+pub fn init_logger(default_level: &str) {
+    logger::init_with_default(default_level);
+}
+
 // --- Unstable APIs --- //
 
 /// This module ensures all unstable APIs are accessible within the crate, but

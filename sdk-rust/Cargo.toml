@@ -22,6 +22,7 @@ common = { path = "../common" }
 lexe-api = { path = "../lexe-api" }
 lexe-api-core = { path = "../lexe-api-core" }
 lexe-tokio = { path = "../lexe-tokio" }
+logger = { path = "../logger" }
 node-client = { path = "../node-client" }
 payment-uri = { path = "../payment-uri" }
 sdk-core = { path = "../sdk-core" }
