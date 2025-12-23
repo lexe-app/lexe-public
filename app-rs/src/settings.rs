@@ -95,7 +95,7 @@ mod test {
     use std::{ops::Deref, rc::Rc, time::Duration};
 
     use proptest::{proptest, strategy::Strategy};
-    use sdk_rust::ffs::{FlatFileFs, test_utils::InMemoryFfs};
+    use sdk_rust::ffs::{DiskFs, test_utils::InMemoryFfs};
 
     use super::*;
     use crate::db::{DbPersister, WritebackDb};
@@ -197,7 +197,7 @@ mod test {
         });
     }
 
-    fn load_db(ffs: FlatFileFs) -> WritebackDb<SettingsRs> {
+    fn load_db(ffs: DiskFs) -> WritebackDb<SettingsRs> {
         WritebackDb::<SettingsRs>::load(ffs, SETTINGS_JSON, "test")
     }
 
@@ -206,7 +206,7 @@ mod test {
         let mut model = ModelDb::load(model_ffs.clone());
 
         let tmpdir = tempfile::tempdir().unwrap();
-        let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
+        let ffs = DiskFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
         let mut real = load_db(ffs.clone());
 
         for op in ops {
@@ -245,7 +245,7 @@ mod test {
         // logger::init_for_testing();
 
         let tmpdir = tempfile::tempdir().unwrap();
-        let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
+        let ffs = DiskFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
         {
             let mut db = load_db(ffs.clone());
             assert_eq!(db.db().lock().unwrap().deref(), &SettingsRs::default());

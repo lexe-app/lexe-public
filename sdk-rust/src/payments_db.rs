@@ -779,7 +779,7 @@ mod test {
     use tempfile::tempdir;
 
     use super::{test_utils::MockNode, *};
-    use crate::unstable::ffs::{FlatFileFs, test_utils::InMemoryFfs};
+    use crate::unstable::ffs::{DiskFs, test_utils::InMemoryFfs};
 
     #[test]
     fn read_from_empty() {
@@ -790,7 +790,7 @@ mod test {
 
         let tempdir = tempfile::tempdir().unwrap();
         let temp_fs =
-            FlatFileFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
+            DiskFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
         let temp_fs_db = PaymentsDb::read(temp_fs).unwrap();
         assert!(temp_fs_db.state.read().unwrap().is_empty());
         temp_fs_db.debug_assert_invariants();
@@ -853,7 +853,7 @@ mod test {
                 batch_sizes in vec(1_usize..20, 0..5),
             )| {
                 let tempdir = tempdir().unwrap();
-                let temp_fs = FlatFileFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
+                let temp_fs = DiskFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
                 let temp_fs_db = PaymentsDb::empty(temp_fs);
 
                 let mock_ffs = InMemoryFfs::from_rng(rng);

@@ -41,7 +41,7 @@ use crate::{
     },
     payments_db::PaymentsDb,
     unstable::{
-        ffs::FlatFileFs, provision, provision_history::ProvisionHistory,
+        ffs::DiskFs, provision, provision_history::ProvisionHistory,
         wallet_db::WalletDb,
     },
 };
@@ -59,7 +59,7 @@ pub struct LexeWallet<Db> {
 
     /// Database for persistent storage
     /// Present iff `Db` = `WithDb`.
-    db: Option<WalletDb<FlatFileFs>>,
+    db: Option<WalletDb<DiskFs>>,
 
     gateway_client: GatewayClient,
     node_client: NodeClient,
@@ -113,13 +113,13 @@ impl LexeWallet<WithDb> {
 
     /// Get a reference to the [`WalletDb`].
     #[cfg(feature = "unstable")]
-    pub fn db(&self) -> &WalletDb<FlatFileFs> {
+    pub fn db(&self) -> &WalletDb<DiskFs> {
         self.db.as_ref().expect("WithDb always has db")
     }
 
     /// Get a reference to the [`PaymentsDb`].
     /// This is the primary data source for constructing a payments list UI.
-    pub fn payments_db(&self) -> &PaymentsDb<FlatFileFs> {
+    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
         self.db
             .as_ref()
             .expect("WithDb always has db")

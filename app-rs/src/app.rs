@@ -28,7 +28,7 @@ use sdk_rust::{
         WalletEnv, WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
         WalletUserDbConfig,
     },
-    ffs::{FlatFileFs, fsext},
+    ffs::{DiskFs, fsext},
     payments_db::{PaymentSyncSummary, PaymentsDb},
     wallet::{LexeWallet, WithDb},
 };
@@ -378,7 +378,7 @@ impl App {
         res
     }
 
-    pub fn payments_db(&self) -> &PaymentsDb<FlatFileFs> {
+    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
         self.wallet.payments_db()
     }
 
@@ -424,12 +424,12 @@ impl AppDb {
     /// Create fresh databases, deleting any existing data.
     pub fn fresh(user_db_config: &WalletUserDbConfig) -> anyhow::Result<Self> {
         let settings_db_dir = Self::settings_db_dir(user_db_config);
-        let settings_ffs = FlatFileFs::create_clean_dir_all(settings_db_dir)
+        let settings_ffs = DiskFs::create_clean_dir_all(settings_db_dir)
             .context("Could not create settings ffs")?;
         let settings_db = Arc::new(SettingsRs::load(settings_ffs));
 
         let app_data_db_dir = Self::app_data_db_dir(user_db_config);
-        let app_data_ffs = FlatFileFs::create_clean_dir_all(app_data_db_dir)
+        let app_data_ffs = DiskFs::create_clean_dir_all(app_data_db_dir)
             .context("Could not create app data ffs")?;
         let app_data_db = Arc::new(AppDataRs::load(app_data_ffs));
 
@@ -449,12 +449,12 @@ impl AppDb {
     /// Load existing databases (or create new ones if none exist).
     pub fn load(user_db_config: &WalletUserDbConfig) -> anyhow::Result<Self> {
         let settings_db_dir = Self::settings_db_dir(user_db_config);
-        let settings_ffs = FlatFileFs::create_dir_all(settings_db_dir)
+        let settings_ffs = DiskFs::create_dir_all(settings_db_dir)
             .context("Could not create settings ffs")?;
         let settings_db = Arc::new(SettingsRs::load(settings_ffs));
 
         let app_data_db_dir = Self::app_data_db_dir(user_db_config);
-        let app_data_ffs = FlatFileFs::create_dir_all(app_data_db_dir)
+        let app_data_ffs = DiskFs::create_dir_all(app_data_db_dir)
             .context("Could not create app data ffs")?;
         let app_data_db = Arc::new(AppDataRs::load(app_data_ffs));
 

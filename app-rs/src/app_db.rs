@@ -65,9 +65,9 @@ mod test {
     use std::{ops::Deref, str::FromStr};
 
     use super::*;
-    use sdk_rust::ffs::FlatFileFs;
+    use sdk_rust::ffs::DiskFs;
 
-    fn load_db(ffs: FlatFileFs) -> WritebackDb<AppDb> {
+    fn load_db(ffs: DiskFs) -> WritebackDb<AppDb> {
         WritebackDb::<AppDb>::load(ffs, APP_JSON, "test")
     }
 
@@ -76,7 +76,7 @@ mod test {
         // logger::init_for_testing();
 
         let tmpdir = tempfile::tempdir().unwrap();
-        let ffs = FlatFileFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
+        let ffs = DiskFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
         let dummy_offer = LxOffer::from_str(
                 "lno1pgx9getnwss8vetrw3hhyuckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg",
             ).unwrap();

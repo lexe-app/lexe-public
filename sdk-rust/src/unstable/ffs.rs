@@ -50,7 +50,7 @@ pub trait Ffs {
 
 /// File system impl for [`Ffs`] that does real IO.
 #[derive(Clone)]
-pub struct FlatFileFs {
+pub struct DiskFs {
     /// Files are stored flat (i.e., no subdirectories) in this directory.
     base_dir: PathBuf,
 
@@ -65,8 +65,8 @@ pub struct FlatFileFs {
     write_dir: PathBuf,
 }
 
-impl FlatFileFs {
-    /// Create a new [`FlatFileFs`] ready for use.
+impl DiskFs {
+    /// Create a new [`DiskFs`] ready for use.
     ///
     /// Normally, it's expected that this directory already exists. In case that
     /// directory doesn't exist, this fn will create `base_dir` and any parent
@@ -87,7 +87,7 @@ impl FlatFileFs {
         })
     }
 
-    /// Create a new [`FlatFileFs`] at `base_dir`, but clean any existing files
+    /// Create a new [`DiskFs`] at `base_dir`, but clean any existing files
     /// first.
     pub fn create_clean_dir_all(base_dir: PathBuf) -> anyhow::Result<Self> {
         // Clean up any existing directory, if it exists.
@@ -108,7 +108,7 @@ impl FlatFileFs {
     }
 }
 
-impl Ffs for FlatFileFs {
+impl Ffs for DiskFs {
     fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()> {
         let mut file = fs::File::open(self.base_dir.join(filename).as_path())?;
         file.read_to_end(buf)?;

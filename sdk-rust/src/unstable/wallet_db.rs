@@ -7,7 +7,7 @@ use node_client::client::NodeClient;
 use tracing::{info, warn};
 
 use super::{
-    ffs::{FlatFileFs, fsext},
+    ffs::{DiskFs, fsext},
     provision_history::ProvisionHistory,
 };
 use crate::{
@@ -37,11 +37,11 @@ pub struct WalletDb<F> {
 // users have to manually create all the subdivisions, all the way down to e.g.
 // `payments_db`, which is tedious and error-prone. Also, it might need to be
 // renamed, since it won't be flat anymore.
-impl WalletDb<FlatFileFs> {
+impl WalletDb<DiskFs> {
     /// Create a fresh [`WalletDb`], deleting any existing data for this user.
     pub fn fresh(user_db_config: WalletUserDbConfig) -> anyhow::Result<Self> {
         let payments_ffs =
-            FlatFileFs::create_clean_dir_all(user_db_config.payments_db_dir())
+            DiskFs::create_clean_dir_all(user_db_config.payments_db_dir())
                 .context("Could not create payments ffs")?;
 
         // Delete the old payments_db dir just in case it exists.
@@ -53,7 +53,7 @@ impl WalletDb<FlatFileFs> {
         }
 
         let provision_ffs =
-            FlatFileFs::create_clean_dir_all(user_db_config.provision_db_dir())
+            DiskFs::create_clean_dir_all(user_db_config.provision_db_dir())
                 .context("Could not create provision ffs")?;
         let provision_history = Arc::new(Mutex::new(ProvisionHistory::new()));
 
@@ -69,7 +69,7 @@ impl WalletDb<FlatFileFs> {
     /// Load an existing [`WalletDb`] (or create a new one if none exists).
     pub fn load(user_db_config: WalletUserDbConfig) -> anyhow::Result<Self> {
         let payments_ffs =
-            FlatFileFs::create_dir_all(user_db_config.payments_db_dir())
+            DiskFs::create_dir_all(user_db_config.payments_db_dir())
                 .context("Could not create payments ffs")?;
 
         let payments_db = PaymentsDb::read(payments_ffs)
@@ -95,7 +95,7 @@ impl WalletDb<FlatFileFs> {
         );
 
         let provision_ffs =
-            FlatFileFs::create_dir_all(user_db_config.provision_db_dir())
+            DiskFs::create_dir_all(user_db_config.provision_db_dir())
                 .context("Could not create provision ffs")?;
         let provision_history = ProvisionHistory::read_from_ffs(&provision_ffs)
             .context("Could not read provision history")?;
@@ -126,12 +126,12 @@ impl WalletDb<FlatFileFs> {
     }
 
     /// Get a reference to the payments database.
-    pub fn payments_db(&self) -> &PaymentsDb<FlatFileFs> {
+    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
         &self.payments_db
     }
 
     /// Get a reference to the provision file system.
-    pub fn provision_ffs(&self) -> &FlatFileFs {
+    pub fn provision_ffs(&self) -> &DiskFs {
         &self.provision_ffs
     }
 

@@ -26,7 +26,7 @@ pub fn delete_latest_provisioned(config: Config) -> anyhow::Result<()> {
 
     // TODO(phlip9): re-impl. will need to take `AppHandle`.
     // let app_config = AppConfig::from(config);
-    // let app_data_ffs = FlatFileFs::create_dir_all(app_config.env_data_dir)
+    // let app_data_ffs = DiskFs::create_dir_all(app_config.env_data_dir)
     //     .context("Could not create app data ffs")?;
     // storage::delete_latest_provisioned(&app_data_ffs)?;
     Ok(())
