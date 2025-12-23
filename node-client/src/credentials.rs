@@ -35,6 +35,7 @@ pub enum Credentials {
 }
 
 /// Borrowed credentials required to connect to a user node via mTLS.
+#[derive(Copy, Clone)]
 pub enum CredentialsRef<'a> {
     /// Using a [`RootSeed`]. Ex: app.
     RootSeed(&'a RootSeed),

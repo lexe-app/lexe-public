@@ -93,7 +93,7 @@ impl App {
         let wallet_user = WalletUser::from_seed(rng, root_seed);
 
         let user_db_config =
-            WalletUserDbConfig::new(wallet_user.user_pk, env_db_config.clone());
+            WalletUserDbConfig::new(env_db_config.clone(), wallet_user.user_pk);
 
         // Create fresh wallet
         let credentials = CredentialsRef::from(root_seed);
@@ -173,23 +173,37 @@ impl App {
         // If there's nothing in the secret store, this must be a fresh install;
         // we can just return here.
         let root_seed = match maybe_root_seed {
-            None => return Ok(None),
             Some(s) => s,
+            None => return Ok(None),
         };
 
         let wallet_user = WalletUser::from_seed(rng, &root_seed);
         let user_db_config =
-            WalletUserDbConfig::new(wallet_user.user_pk, env_db_config.clone());
+            WalletUserDbConfig::new(env_db_config.clone(), wallet_user.user_pk);
 
-        // Load existing wallet
+        // Load the wallet.
         let credentials = CredentialsRef::from(&root_seed);
-        let wallet = LexeWallet::load(
+        let maybe_wallet = LexeWallet::load(
             rng,
             env_config.clone(),
             credentials,
             env_db_config.lexe_data_dir().clone(),
         )
         .context("Failed to build LexeWallet")?;
+        let wallet = match maybe_wallet {
+            Some(w) => w,
+            // This is a weird case: our seed exists but our local data doesn't.
+            // Maybe the user manually deleted their local data? In any case,
+            // we don't want to send the user back to the signup / restore
+            // flows, so just create a fresh wallet instance.
+            None => LexeWallet::fresh(
+                rng,
+                env_config.clone(),
+                credentials,
+                env_db_config.lexe_data_dir().clone(),
+            )
+            .context("Failed to build fresh LexeWallet")?,
+        };
         let user_config = wallet.user_config().clone();
 
         let app_db =
@@ -222,7 +236,7 @@ impl App {
     ) -> anyhow::Result<Self> {
         let wallet_user = WalletUser::from_seed(rng, root_seed);
         let user_db_config =
-            WalletUserDbConfig::new(wallet_user.user_pk, env_db_config.clone());
+            WalletUserDbConfig::new(env_db_config.clone(), wallet_user.user_pk);
 
         // Init a fresh LexeWallet
         let credentials = CredentialsRef::from(root_seed);

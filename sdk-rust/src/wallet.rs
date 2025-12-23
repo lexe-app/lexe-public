@@ -80,35 +80,142 @@ impl LexeWallet<WithDb> {
     /// Create a fresh [`LexeWallet`], deleting any existing database state for
     /// this user. Data for other users and environments is not affected.
     ///
-    /// It is recommended to always pass the same `lexe_data_dir` to this
-    /// constructor, regardless of which environment we're in (dev/staging/prod)
-    /// and which user this [`LexeWallet`] is for. Users and environments will
-    /// not interfere with each other as all data is namespaced internally.
+    /// It is recommended to always pass the same `lexe_data_dir`,
+    /// regardless of which environment we're in (dev/staging/prod) and which
+    /// user this [`LexeWallet`] is for. Users and environments will not
+    /// interfere with each other as all data is namespaced internally.
     pub fn fresh(
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: PathBuf,
     ) -> anyhow::Result<Self> {
-        let fresh = true;
-        Self::new(rng, env_config, credentials, Some(lexe_data_dir), fresh)
+        let env_db_config = WalletEnvDbConfig::new(
+            env_config.wallet_env,
+            lexe_data_dir.to_path_buf(),
+        );
+        let user_db_config =
+            WalletUserDbConfig::from_credentials(credentials, env_db_config)?;
+
+        let db = WalletDb::fresh(user_db_config)
+            .context("Failed to create fresh wallet db")?;
+
+        Self::with_db(rng, env_config, credentials, db)
     }
 
-    /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`,
-    /// or creates the wallet if it didn't exist.
+    /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`.
+    /// Returns [`None`] if no local data exists, in which case you should use
+    /// [`fresh`] to create the wallet and local data cache.
     ///
-    /// It is recommended to always pass the same `lexe_data_dir` to this
-    /// constructor, regardless of which environment we're in (dev/staging/prod)
-    /// and which user this [`LexeWallet`] is for. Users and environments will
-    /// not interfere with each other as all data is namespaced internally.
+    /// If you are authenticating with [`RootSeed`]s and this returns [`None`],
+    /// you should call [`signup_and_provision`] after creating the wallet
+    /// if you're not sure whether the user has been signed up with Lexe.
+    ///
+    /// It is recommended to always pass the same `lexe_data_dir`,
+    /// regardless of which environment we're in (dev/staging/prod) and which
+    /// user this [`LexeWallet`] is for. Users and environments will not
+    /// interfere with each other as all data is namespaced internally.
+    ///
+    /// [`fresh`]: LexeWallet::fresh
+    /// [`signup_and_provision`]: LexeWallet::signup_and_provision
     pub fn load(
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: PathBuf,
+    ) -> anyhow::Result<Option<Self>> {
+        let env_db_config = WalletEnvDbConfig::new(
+            env_config.wallet_env,
+            lexe_data_dir.to_path_buf(),
+        );
+        let user_db_config =
+            WalletUserDbConfig::from_credentials(credentials, env_db_config)?;
+
+        let maybe_db = WalletDb::load(user_db_config)
+            .context("Failed to load wallet db")?;
+        let db = match maybe_db {
+            Some(d) => d,
+            None => return Ok(None),
+        };
+
+        Self::with_db(rng, env_config, credentials, db).map(Some)
+    }
+
+    /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`,
+    /// or create a fresh one if no local data exists. If you are authenticating
+    /// with client credentials, this is generally what you want to use.
+    ///
+    /// It is recommended to always pass the same `lexe_data_dir`,
+    /// regardless of which environment we're in (dev/staging/prod) and which
+    /// user this [`LexeWallet`] is for. Users and environments will not
+    /// interfere with each other as all data is namespaced internally.
+    pub fn load_or_fresh(
+        rng: &mut impl Crng,
+        env_config: WalletEnvConfig,
+        credentials: CredentialsRef<'_>,
+        lexe_data_dir: PathBuf,
     ) -> anyhow::Result<Self> {
-        let fresh = false;
-        Self::new(rng, env_config, credentials, Some(lexe_data_dir), fresh)
+        let env_db_config = WalletEnvDbConfig::new(
+            env_config.wallet_env,
+            lexe_data_dir.to_path_buf(),
+        );
+        let user_db_config =
+            WalletUserDbConfig::from_credentials(credentials, env_db_config)?;
+
+        let db = WalletDb::load_or_fresh(user_db_config)
+            .context("Failed to load or create wallet db")?;
+
+        Self::with_db(rng, env_config, credentials, db)
+    }
+
+    // Internal constructor for a wallet with `WalletDb` enabled.
+    fn with_db(
+        rng: &mut impl Crng,
+        env_config: WalletEnvConfig,
+        credentials: CredentialsRef<'_>,
+        db: WalletDb<DiskFs>,
+    ) -> anyhow::Result<Self> {
+        let user_pk = credentials.user_pk().context(
+            "Client credentials are out of date. \
+             Please create a new one from within the Lexe wallet app.",
+        )?;
+
+        let user_config = WalletUserConfig {
+            user_pk,
+            env_config: env_config.clone(),
+        };
+
+        let gateway_client = GatewayClient::new(
+            env_config.wallet_env.deploy_env,
+            env_config.gateway_url.clone(),
+            env_config.user_agent.clone(),
+        )
+        .context("Failed to build GatewayClient")?;
+
+        let node_client = NodeClient::new(
+            rng,
+            env_config.wallet_env.use_sgx,
+            env_config.wallet_env.deploy_env,
+            gateway_client.clone(),
+            credentials,
+        )
+        .context("Failed to build NodeClient")?;
+
+        let bip353_client = Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT)
+            .context("Failed to build BIP353 client")?;
+
+        let lnurl_client = LnurlClient::new(env_config.wallet_env.deploy_env)
+            .context("Failed to build LNURL client")?;
+
+        Ok(Self {
+            user_config,
+            db: Some(db),
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+            _marker: PhantomData,
+        })
     }
 
     /// Get a reference to the [`WalletDb`].
@@ -156,21 +263,6 @@ impl LexeWallet<WithoutDb> {
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
     ) -> anyhow::Result<Self> {
-        let fresh = false;
-        let lexe_data_dir = None;
-        Self::new(rng, env_config, credentials, lexe_data_dir, fresh)
-    }
-}
-
-impl<D> LexeWallet<D> {
-    // Internal constructor.
-    fn new(
-        rng: &mut impl Crng,
-        env_config: WalletEnvConfig,
-        credentials: CredentialsRef<'_>,
-        lexe_data_dir: Option<PathBuf>,
-        fresh: bool,
-    ) -> anyhow::Result<Self> {
         let user_pk = credentials.user_pk().context(
             "Client credentials are out of date. \
              Please create a new one from within the Lexe wallet app.",
@@ -203,46 +295,26 @@ impl<D> LexeWallet<D> {
         let lnurl_client = LnurlClient::new(env_config.wallet_env.deploy_env)
             .context("Failed to build LNURL client")?;
 
-        // Init the `WalletDb` if a lexe_data_dir was provided.
-        let db = match lexe_data_dir {
-            Some(lexe_data_dir) => {
-                let env_db_config = WalletEnvDbConfig::new(
-                    env_config.wallet_env,
-                    lexe_data_dir,
-                );
-                let user_db_config =
-                    WalletUserDbConfig::new(user_pk, env_db_config);
-
-                let db = if fresh {
-                    WalletDb::fresh(user_db_config)
-                } else {
-                    WalletDb::load(user_db_config)
-                }
-                .context("Failed to init wallet db")?;
-
-                Some(db)
-            }
-            None => None,
-        };
-
         Ok(Self {
             user_config,
-
-            db,
-
+            db: None,
             gateway_client,
             node_client,
             bip353_client,
             lnurl_client,
-
             _marker: PhantomData,
         })
     }
+}
 
+impl<D> LexeWallet<D> {
     /// Registers this user with the Lexe backend, then provisions the node.
+    /// This function must be called after the user's [`LexeWallet`] has been
+    /// created for the first time, otherwise subsequent requests will fail.
     ///
-    /// This function should be called after the user's [`LexeWallet`] has been
-    /// created for the very first time. It only needs to be called once, ever.
+    /// It is only necessary to call this function once, ever, per user, but it
+    /// is also okay to call this function even if the user has already been
+    /// signed up; in other words, this function is idempotent.
     ///
     /// After a successful signup, make sure the user's root seed has been
     /// persisted somewhere! Without access to their root seed, your user will
@@ -314,7 +386,8 @@ impl<D> LexeWallet<D> {
     }
 
     /// Ensures the wallet is provisioned to all recent trusted releases.
-    /// This should be called every time we load the wallet.
+    /// This should be called every time the wallet is loaded, to ensure the
+    /// user is running the most up-to-date enclave software.
     ///
     /// This fetches the current enclaves from the gateway, computes which
     /// releases need to be provisioned, and provisions them.

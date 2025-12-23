@@ -1,6 +1,8 @@
 use std::{borrow::Cow, fmt, path::PathBuf, sync::LazyLock};
 
+use anyhow::Context;
 use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
+use node_client::credentials::CredentialsRef;
 
 use crate::unstable::provision;
 
@@ -229,13 +231,27 @@ impl WalletEnvDbConfig {
 impl WalletUserDbConfig {
     /// Construct a new [`WalletUserDbConfig`] from the environment database
     /// config and user public key.
-    pub fn new(user_pk: UserPk, env_db_config: WalletEnvDbConfig) -> Self {
+    pub fn new(env_db_config: WalletEnvDbConfig, user_pk: UserPk) -> Self {
         let user_db_dir = env_db_config.env_db_dir.join(user_pk.to_string());
         Self {
             env_db_config,
             user_pk,
             user_db_dir,
         }
+    }
+
+    /// Construct a new [`WalletUserDbConfig`] from credentials and the
+    /// environment database config.
+    pub fn from_credentials(
+        credentials: CredentialsRef<'_>,
+        env_db_config: WalletEnvDbConfig,
+    ) -> anyhow::Result<Self> {
+        // Is `Some(_)` if the credentials were created by `node-v0.8.11+`.
+        let user_pk = credentials.user_pk().context(
+            "Client credentials are out of date. \
+             Please create a new one from within the Lexe wallet app.",
+        )?;
+        Ok(Self::new(env_db_config, user_pk))
     }
 
     /// The environment-level database configuration.

@@ -66,8 +66,14 @@ impl WalletDb<DiskFs> {
         })
     }
 
-    /// Load an existing [`WalletDb`] (or create a new one if none exists).
-    pub fn load(user_db_config: WalletUserDbConfig) -> anyhow::Result<Self> {
+    /// Load an existing [`WalletDb`]. Returns [`None`] if no local data exists.
+    pub fn load(
+        user_db_config: WalletUserDbConfig,
+    ) -> anyhow::Result<Option<Self>> {
+        if !user_db_config.user_db_dir().exists() {
+            return Ok(None);
+        }
+
         let payments_ffs =
             DiskFs::create_dir_all(user_db_config.payments_db_dir())
                 .context("Could not create payments ffs")?;
@@ -100,7 +106,7 @@ impl WalletDb<DiskFs> {
         let provision_history = ProvisionHistory::read_from_ffs(&provision_ffs)
             .context("Could not read provision history")?;
 
-        // Log the latest provisioned enclave
+        // Log the latest provisioned enclave as of this load.
         match provision_history.provisioned.last() {
             Some(latest) => info!(
                 version = %latest.version,
@@ -111,13 +117,29 @@ impl WalletDb<DiskFs> {
             None => info!("Empty provision history"),
         }
 
-        Ok(Self {
+        Ok(Some(Self {
             user_db_config,
             payments_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
             provision_ffs,
             provision_history: Arc::new(Mutex::new(provision_history)),
-        })
+        }))
+    }
+
+    /// Load an existing [`WalletDb`], or create a fresh one if none exists.
+    pub fn load_or_fresh(
+        user_db_config: WalletUserDbConfig,
+    ) -> anyhow::Result<Self> {
+        let maybe_db = Self::load(user_db_config.clone())
+            .context("Failed to load wallet db")?;
+
+        let db = match maybe_db {
+            Some(d) => d,
+            None => Self::fresh(user_db_config)
+                .context("Failed to create fresh wallet db")?,
+        };
+
+        Ok(db)
     }
 
     /// Get the user database configuration.
