@@ -1,18 +1,19 @@
 /// Build the user agent string used for requests to Lexe infrastructure at
-/// compile time.
+/// compile time. We format as `<crate>/<version>`, consistent with
+/// [RFC 9110 Section 10.1.5](https://datatracker.ietf.org/doc/html/rfc9110#section-10.1.5).
 ///
-/// Example: "node-v0.6.20".
+/// Example: "node/0.6.20".
 #[macro_export]
 macro_rules! user_agent_to_lexe {
     () => {
-        concat!(env!("CARGO_PKG_NAME"), "-v", env!("CARGO_PKG_VERSION"))
+        concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"))
     };
 }
 
 /// Build the user agent string used for requests to external services at
 /// compile time.
 ///
-/// Example: "lexe-node-v0.6.20".
+/// Example: "lexe-node/0.6.20".
 #[macro_export]
 macro_rules! user_agent_to_external {
     () => {

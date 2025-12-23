@@ -6,9 +6,9 @@ use crate::unstable::provision;
 
 /// The user agent string used for SDK requests to Lexe infrastructure.
 ///
-/// Format: `sdk-rust-v<sdk_version> (node-v<latest_node_version>)`
+/// Format: `sdk-rust/<sdk_version> node/<latest_node_version>`
 ///
-/// Example: `sdk-rust-v0.1.0 (node-v0.8.11)`
+/// Example: `sdk-rust/0.1.0 node/0.8.11`
 pub static SDK_USER_AGENT: LazyLock<&'static str> = LazyLock::new(|| {
     // Get the latest node version.
     let releases = provision::releases_json();
@@ -18,8 +18,7 @@ pub static SDK_USER_AGENT: LazyLock<&'static str> = LazyLock::new(|| {
         node_releases.last_key_value().expect("No node releases");
 
     let sdk_with_version = lexe_api_core::user_agent_to_lexe!();
-    let user_agent =
-        format!("{sdk_with_version} (node-v{latest_node_version})");
+    let user_agent = format!("{sdk_with_version} node/{latest_node_version}");
 
     Box::leak(user_agent.into_boxed_str())
 });
@@ -310,22 +309,20 @@ mod test {
     fn test_sdk_user_agent() {
         let user_agent: &str = &SDK_USER_AGENT;
 
-        // Should match: "sdk-rust-v<semver> (node-v<semver>)"
-        let (sdk_part, rest) = user_agent
-            .split_once(" (node-v")
-            .expect("Missing ' (node-v' separator");
-        let node_version_str =
-            rest.strip_suffix(')').expect("Missing closing ')'");
+        // Should match: "sdk-rust/<semver> node/<semver>"
+        let (sdk_part, node_part) = user_agent
+            .split_once(" node/")
+            .expect("Missing ' node/' separator");
 
-        // Validate sdk part: "sdk-rust-v<version>"
+        // Validate sdk part: "sdk-rust/<version>"
         let sdk_version_str = sdk_part
-            .strip_prefix("sdk-rust-v")
-            .expect("Missing 'sdk-rust-v' prefix");
+            .strip_prefix("sdk-rust/")
+            .expect("Missing 'sdk-rust/' prefix");
         let _sdk_version = semver::Version::from_str(sdk_version_str)
             .expect("Invalid SDK semver version");
 
         // Validate node version
-        let _node_version = semver::Version::from_str(node_version_str)
+        let _node_version = semver::Version::from_str(node_part)
             .expect("Invalid node semver version");
     }
 }
