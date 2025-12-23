@@ -86,14 +86,14 @@ impl DeployEnv {
 
     /// Returns the gateway URL for this deploy environment.
     ///
-    /// For dev, the caller must provide a fallback `dev_gateway_url`
-    /// (typically from an environment variable like `DEV_GATEWAY_URL`).
+    /// A custom gateway URL (e.g. from env) can be provided for dev.
     pub fn gateway_url(
         &self,
-        dev_gateway_url: Cow<'static, str>,
+        dev_gateway_url: Option<Cow<'static, str>>,
     ) -> Cow<'static, str> {
         match self {
-            Self::Dev => dev_gateway_url,
+            Self::Dev => dev_gateway_url
+                .unwrap_or(Cow::Borrowed("https://localhost:4040")),
             Self::Staging => Cow::Borrowed(
                 "https://lexe-staging-sgx.uswest2.staging.lexe.app",
             ),

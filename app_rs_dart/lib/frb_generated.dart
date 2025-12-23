@@ -303,7 +303,7 @@ abstract class AppRsApi extends BaseApi {
 
   String crateFfiTypesDeployEnvGatewayUrl({
     required DeployEnv that,
-    required String devGatewayUrl,
+    String? devGatewayUrl,
   });
 
   Future<Uint8List> crateFfiQrEncode({required List<int> data});
@@ -2184,14 +2184,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @override
   String crateFfiTypesDeployEnvGatewayUrl({
     required DeployEnv that,
-    required String devGatewayUrl,
+    String? devGatewayUrl,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_deploy_env(that, serializer);
-          sse_encode_String(devGatewayUrl, serializer);
+          sse_encode_opt_String(devGatewayUrl, serializer);
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
         },
         codec: SseCodec(

@@ -42,14 +42,14 @@ pub(crate) struct RouterState {
     /// Caches `NodeClient`s by their `client_pk`.
     pub client_cache: Mutex<unsync::Cache<ed25519::PublicKey, NodeClient>>,
     pub deploy_env: DeployEnv,
-    pub gateway_url: String,
+    pub gateway_url: Cow<'static, str>,
 }
 
 impl RouterState {
     pub fn new(
         default_client: Option<NodeClient>,
         deploy_env: DeployEnv,
-        gateway_url: String,
+        gateway_url: Cow<'static, str>,
     ) -> Self {
         let client_cache =
             Mutex::new(unsync::Cache::new(CLIENT_CACHE_CAPACITY));

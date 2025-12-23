@@ -155,8 +155,9 @@ impl WalletEnvConfig {
     /// Get a [`WalletEnvConfig`] for production.
     pub fn prod() -> Self {
         let wallet_env = WalletEnv::prod();
+        let dev_gateway_url = None;
         Self {
-            gateway_url: wallet_env.deploy_env.gateway_url(Cow::Borrowed("")),
+            gateway_url: wallet_env.deploy_env.gateway_url(dev_gateway_url),
             user_agent: Cow::Borrowed(*SDK_USER_AGENT),
             wallet_env,
         }
@@ -165,30 +166,25 @@ impl WalletEnvConfig {
     /// Get a [`WalletEnvConfig`] for staging.
     pub fn staging() -> Self {
         let wallet_env = WalletEnv::staging();
+        let dev_gateway_url = None;
         Self {
-            gateway_url: wallet_env.deploy_env.gateway_url(Cow::Borrowed("")),
+            gateway_url: wallet_env.deploy_env.gateway_url(dev_gateway_url),
             user_agent: Cow::Borrowed(*SDK_USER_AGENT),
             wallet_env,
         }
     }
 
     /// Get a [`WalletEnvConfig`] for dev/testing.
-    //
-    // NOTE: Ideally we could simplify the `LexeWallet` API to only require
-    // `WalletEnv` instead of `WalletEnvConfig`, but the gateway URL for dev
-    // isn't statically known like prod/staging. We could use
-    // `option_env!("DEV_GATEWAY_URL")` to read it at compile time, which would
-    // work for the Flutter app (since `DEV_GATEWAY_URL` is set in the shell
-    // during the Rust build), but not for smoketests, which dynamically
-    // allocate a gateway port at runtime.
     pub fn dev(
         use_sgx: bool,
-        dev_gateway_url: impl Into<Cow<'static, str>>,
+        dev_gateway_url: Option<impl Into<Cow<'static, str>>>,
     ) -> Self {
+        let wallet_env = WalletEnv::dev(use_sgx);
+        let dev_gateway_url = dev_gateway_url.map(Into::into);
         Self {
-            wallet_env: WalletEnv::dev(use_sgx),
-            gateway_url: dev_gateway_url.into(),
+            gateway_url: wallet_env.deploy_env.gateway_url(dev_gateway_url),
             user_agent: Cow::Borrowed(*SDK_USER_AGENT),
+            wallet_env,
         }
     }
 

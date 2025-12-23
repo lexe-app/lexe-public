@@ -99,11 +99,10 @@ enum DeployEnv {
 
   /// Returns the gateway URL for this deploy environment.
   ///
-  /// For dev, the caller must provide `dev_gateway_url` (typically from a
-  /// build-time constant like `DEV_GATEWAY_URL`).
+  /// A custom gateway URL (e.g. from env) can be provided for dev.
   ///
   /// flutter_rust_bridge:sync
-  String gatewayUrl({required String devGatewayUrl}) =>
+  String gatewayUrl({String? devGatewayUrl}) =>
       AppRs.instance.api.crateFfiTypesDeployEnvGatewayUrl(
         that: this,
         devGatewayUrl: devGatewayUrl,

@@ -865,7 +865,7 @@ fn wire__crate__ffi__types__deploy_env_gateway_url_impl(
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::types::DeployEnv>::sse_decode(&mut deserializer);
-let api_dev_gateway_url = <String>::sse_decode(&mut deserializer);deserializer.end();
+let api_dev_gateway_url = <Option<String>>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
                      let output_ok = Result::<_,()>::Ok(crate::ffi::types::DeployEnv::gateway_url(&api_that, api_dev_gateway_url))?;   Ok(output_ok)
                 })()) })

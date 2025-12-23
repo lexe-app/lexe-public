@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     env,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     sync::Arc,
@@ -68,10 +69,8 @@ impl Sidecar {
         let network = args.network.unwrap_or(LxNetwork::Mainnet);
         info!(%deploy_env, %network);
 
-        let dev_gateway_url = env::var("DEV_GATEWAY_URL")
-            .unwrap_or_else(|_| "https://localhost:4040".to_owned());
-        let gateway_url =
-            deploy_env.gateway_url(dev_gateway_url.into()).into_owned();
+        let dev_gateway_url = env::var("DEV_GATEWAY_URL").ok().map(Cow::Owned);
+        let gateway_url = deploy_env.gateway_url(dev_gateway_url);
 
         // Create the default node client if default credentials were provided
         let default_client = match maybe_credentials {

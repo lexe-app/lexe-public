@@ -68,13 +68,12 @@ impl DeployEnv {
 
     /// Returns the gateway URL for this deploy environment.
     ///
-    /// For dev, the caller must provide `dev_gateway_url` (typically from a
-    /// build-time constant like `DEV_GATEWAY_URL`).
+    /// A custom gateway URL (e.g. from env) can be provided for dev.
     ///
     /// flutter_rust_bridge:sync
-    pub fn gateway_url(&self, dev_gateway_url: String) -> String {
+    pub fn gateway_url(&self, dev_gateway_url: Option<String>) -> String {
         DeployEnvRs::from(*self)
-            .gateway_url(dev_gateway_url.into())
+            .gateway_url(dev_gateway_url.map(Cow::Owned))
             .into_owned()
     }
 }
