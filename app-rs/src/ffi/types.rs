@@ -147,7 +147,7 @@ pub struct Config {
     pub network: Network,
     pub gateway_url: String,
     pub use_sgx: bool,
-    pub lexe_db_dir: String,
+    pub lexe_data_dir: String,
     pub use_mock_secret_store: bool,
     pub user_agent: String,
 }
@@ -200,11 +200,11 @@ impl Config {
     /// flutter_rust_bridge:ignore
     pub fn env_db_config(&self) -> WalletEnvDbConfig {
         let wallet_env = self.wallet_env();
-        // The Lexe database directory.
+        // The Lexe data directory.
         // See: dart fn `path_provider.getApplicationSupportDirectory()`
         // https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html
-        let lexe_db_dir = PathBuf::from(&self.lexe_db_dir);
-        WalletEnvDbConfig::new(wallet_env, lexe_db_dir)
+        let lexe_data_dir = PathBuf::from(&self.lexe_data_dir);
+        WalletEnvDbConfig::new(wallet_env, lexe_data_dir)
     }
 }
 

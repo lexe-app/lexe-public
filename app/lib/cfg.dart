@@ -154,7 +154,7 @@ Future<Config> build(final UserAgent userAgent) async {
   // This is also not the fully qualified db dir. We need to disambiguate b/w
   // (dev/staging/prod) x (regtest/testnet/mainnet) x (sgx/dbg).
   // See: `sdk_rust::config::WalletEnvDbConfig`
-  final lexeDbDir = await path_provider.getApplicationSupportDirectory();
+  final lexeDataDir = await path_provider.getApplicationSupportDirectory();
 
   // Keep in sync with `sdk-sidecar/src/run.rs`.
   final gatewayUrl = switch (deployEnv) {
@@ -171,7 +171,7 @@ Future<Config> build(final UserAgent userAgent) async {
     network: network,
     useSgx: _useSgx,
     gatewayUrl: gatewayUrl,
-    lexeDbDir: lexeDbDir.path,
+    lexeDataDir: lexeDataDir.path,
     useMockSecretStore: false,
     userAgent: userAgent.toCompactApiString(),
   );
@@ -180,14 +180,14 @@ Future<Config> build(final UserAgent userAgent) async {
 /// Build a [Config] suitable for unit tests or UI design mode.
 Future<Config> buildTest({UserAgent? userAgent}) async {
   // Use a temp dir for unit tests, since `path_provider` doesn't work in tests.
-  final lexeDbDir = await Directory.systemTemp.createTemp("lexeapp");
+  final lexeDataDir = await Directory.systemTemp.createTemp("lexeapp");
 
   return Config(
     deployEnv: DeployEnv.dev,
     network: Network.regtest,
     useSgx: false,
     gatewayUrl: "<no-dev-gateway-url>",
-    lexeDbDir: lexeDbDir.path,
+    lexeDataDir: lexeDataDir.path,
     useMockSecretStore: true,
     userAgent: (userAgent ?? UserAgent.dummy()).toCompactApiString(),
   );

@@ -101,7 +101,7 @@ impl App {
             rng,
             env_config.clone(),
             credentials,
-            env_db_config.lexe_db_dir().clone(),
+            env_db_config.lexe_data_dir().clone(),
         )
         .context("Failed to init LexeWallet")?;
         let user_config = wallet.user_config().clone();
@@ -187,7 +187,7 @@ impl App {
             rng,
             env_config.clone(),
             credentials,
-            env_db_config.lexe_db_dir().clone(),
+            env_db_config.lexe_data_dir().clone(),
         )
         .context("Failed to build LexeWallet")?;
         let user_config = wallet.user_config().clone();
@@ -230,7 +230,7 @@ impl App {
             rng,
             env_config.clone(),
             credentials,
-            env_db_config.lexe_db_dir().clone(),
+            env_db_config.lexe_data_dir().clone(),
         )
         .context("Failed to build LexeWallet")?;
         let user_config = wallet.user_config().clone();

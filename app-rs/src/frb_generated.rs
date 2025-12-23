@@ -1503,7 +1503,7 @@ impl SseDecode for crate::ffi::types::Config {
             <crate::ffi::types::Network>::sse_decode(deserializer);
         let mut var_gatewayUrl = <String>::sse_decode(deserializer);
         let mut var_useSgx = <bool>::sse_decode(deserializer);
-        let mut var_lexeDbDir = <String>::sse_decode(deserializer);
+        let mut var_lexeDataDir = <String>::sse_decode(deserializer);
         let mut var_useMockSecretStore = <bool>::sse_decode(deserializer);
         let mut var_userAgent = <String>::sse_decode(deserializer);
         return crate::ffi::types::Config {
@@ -1511,7 +1511,7 @@ impl SseDecode for crate::ffi::types::Config {
             network: var_network,
             gateway_url: var_gatewayUrl,
             use_sgx: var_useSgx,
-            lexe_db_dir: var_lexeDbDir,
+            lexe_data_dir: var_lexeDataDir,
             use_mock_secret_store: var_useMockSecretStore,
             user_agent: var_userAgent,
         };
@@ -3257,7 +3257,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Config {
             self.network.into_into_dart().into_dart(),
             self.gateway_url.into_into_dart().into_dart(),
             self.use_sgx.into_into_dart().into_dart(),
-            self.lexe_db_dir.into_into_dart().into_dart(),
+            self.lexe_data_dir.into_into_dart().into_dart(),
             self.use_mock_secret_store.into_into_dart().into_dart(),
             self.user_agent.into_into_dart().into_dart(),
         ]
@@ -4891,7 +4891,7 @@ impl SseEncode for crate::ffi::types::Config {
         <crate::ffi::types::Network>::sse_encode(self.network, serializer);
         <String>::sse_encode(self.gateway_url, serializer);
         <bool>::sse_encode(self.use_sgx, serializer);
-        <String>::sse_encode(self.lexe_db_dir, serializer);
+        <String>::sse_encode(self.lexe_data_dir, serializer);
         <bool>::sse_encode(self.use_mock_secret_store, serializer);
         <String>::sse_encode(self.user_agent, serializer);
     }

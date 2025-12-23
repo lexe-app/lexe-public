@@ -80,7 +80,7 @@ impl LexeWallet<WithDb> {
     /// Create a fresh [`LexeWallet`], deleting any existing database state for
     /// this user. Data for other users and environments is not affected.
     ///
-    /// It is recommended to always pass the same `lexe_db_dir` to this
+    /// It is recommended to always pass the same `lexe_data_dir` to this
     /// constructor, regardless of which environment we're in (dev/staging/prod)
     /// and which user this [`LexeWallet`] is for. Users and environments will
     /// not interfere with each other as all data is namespaced internally.
@@ -88,16 +88,16 @@ impl LexeWallet<WithDb> {
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
-        lexe_db_dir: PathBuf,
+        lexe_data_dir: PathBuf,
     ) -> anyhow::Result<Self> {
         let fresh = true;
-        Self::new(rng, env_config, credentials, Some(lexe_db_dir), fresh)
+        Self::new(rng, env_config, credentials, Some(lexe_data_dir), fresh)
     }
 
-    /// Load an existing [`LexeWallet`] with persistence from `lexe_db_dir`,
+    /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`,
     /// or creates the wallet if it didn't exist.
     ///
-    /// It is recommended to always pass the same `lexe_db_dir` to this
+    /// It is recommended to always pass the same `lexe_data_dir` to this
     /// constructor, regardless of which environment we're in (dev/staging/prod)
     /// and which user this [`LexeWallet`] is for. Users and environments will
     /// not interfere with each other as all data is namespaced internally.
@@ -105,10 +105,10 @@ impl LexeWallet<WithDb> {
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
-        lexe_db_dir: PathBuf,
+        lexe_data_dir: PathBuf,
     ) -> anyhow::Result<Self> {
         let fresh = false;
-        Self::new(rng, env_config, credentials, Some(lexe_db_dir), fresh)
+        Self::new(rng, env_config, credentials, Some(lexe_data_dir), fresh)
     }
 
     /// Get a reference to the [`WalletDb`].
@@ -139,8 +139,8 @@ impl LexeWallet<WithoutDb> {
         credentials: CredentialsRef<'_>,
     ) -> anyhow::Result<Self> {
         let fresh = false;
-        let lexe_db_dir = None;
-        Self::new(rng, env_config, credentials, lexe_db_dir, fresh)
+        let lexe_data_dir = None;
+        Self::new(rng, env_config, credentials, lexe_data_dir, fresh)
     }
 }
 
@@ -150,7 +150,7 @@ impl<D> LexeWallet<D> {
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
-        lexe_db_dir: Option<PathBuf>,
+        lexe_data_dir: Option<PathBuf>,
         fresh: bool,
     ) -> anyhow::Result<Self> {
         let user_pk = credentials.user_pk().context(
@@ -185,11 +185,13 @@ impl<D> LexeWallet<D> {
         let lnurl_client = LnurlClient::new(env_config.wallet_env.deploy_env)
             .context("Failed to build LNURL client")?;
 
-        // Init the `WalletDb` if a lexe_db_dir was provided.
-        let db = match lexe_db_dir {
-            Some(lexe_db_dir) => {
-                let env_db_config =
-                    WalletEnvDbConfig::new(env_config.wallet_env, lexe_db_dir);
+        // Init the `WalletDb` if a lexe_data_dir was provided.
+        let db = match lexe_data_dir {
+            Some(lexe_data_dir) => {
+                let env_db_config = WalletEnvDbConfig::new(
+                    env_config.wallet_env,
+                    lexe_data_dir,
+                );
                 let user_db_config =
                     WalletUserDbConfig::new(user_pk, env_db_config);
 

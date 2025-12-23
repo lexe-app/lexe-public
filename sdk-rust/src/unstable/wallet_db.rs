@@ -31,7 +31,7 @@ pub struct WalletDb<F> {
 
 // TODO(max): Rework Ffs so this impl can be generic across all Ffs impls.
 // The user should just be able to give us a Ffs impl set to some base path
-// which is the lexe_db_dir. From there we should be able to create sub-Ffs's
+// which is the lexe_data_dir. From there we should be able to create sub-Ffs's
 // for the wallet env, user, payments db, etc. Probably instead of one level of
 // directory it should be prefix-based. As the Ffs is currently designed, end
 // users have to manually create all the subdivisions, all the way down to e.g.

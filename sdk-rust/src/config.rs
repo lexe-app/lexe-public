@@ -70,13 +70,13 @@ pub struct WalletUserConfig {
 #[derive(Clone)]
 pub struct WalletEnvDbConfig {
     // NOTE(unstable): Fields should stay pub(crate) until API is more mature
-    /// The base database directory for all Lexe-related data.
+    /// The base data directory for all Lexe-related data.
     /// Holds data for different app environments and users.
-    pub(crate) lexe_db_dir: PathBuf,
+    pub(crate) lexe_data_dir: PathBuf,
     /// Database directory for a specific wallet environment.
     /// Holds data for all users within that environment.
     ///
-    /// `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>`
+    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>`
     pub(crate) env_db_dir: PathBuf,
 }
 
@@ -91,7 +91,7 @@ pub struct WalletUserDbConfig {
     /// Database directory for a specific user.
     /// Contains user-specific data like payments, settings, etc.
     ///
-    /// `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
+    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
     pub(crate) user_db_dir: PathBuf,
 }
 
@@ -205,18 +205,18 @@ impl WalletEnvConfig {
 
 impl WalletEnvDbConfig {
     /// Construct a new [`WalletEnvDbConfig`] from the wallet environment and
-    /// base database directory.
-    pub fn new(wallet_env: WalletEnv, lexe_db_dir: PathBuf) -> Self {
-        let env_db_dir = lexe_db_dir.join(wallet_env.to_string());
+    /// base data directory.
+    pub fn new(wallet_env: WalletEnv, lexe_data_dir: PathBuf) -> Self {
+        let env_db_dir = lexe_data_dir.join(wallet_env.to_string());
         Self {
-            lexe_db_dir,
+            lexe_data_dir,
             env_db_dir,
         }
     }
 
-    /// The top-level, root, base database directory for Lexe-related data.
-    pub fn lexe_db_dir(&self) -> &PathBuf {
-        &self.lexe_db_dir
+    /// The top-level, root, base data directory for Lexe-related data.
+    pub fn lexe_data_dir(&self) -> &PathBuf {
+        &self.lexe_data_dir
     }
 
     /// The database directory for this wallet environment.
@@ -249,30 +249,30 @@ impl WalletUserDbConfig {
         self.user_pk
     }
 
-    /// The top-level, root, base database directory for Lexe-related data.
+    /// The top-level, root, base data directory for Lexe-related data.
     ///
-    /// `<lexe_db_dir>`
-    pub fn lexe_db_dir(&self) -> &PathBuf {
-        self.env_db_config.lexe_db_dir()
+    /// `<lexe_data_dir>`
+    pub fn lexe_data_dir(&self) -> &PathBuf {
+        self.env_db_config.lexe_data_dir()
     }
 
     /// The database directory for this wallet environment.
     ///
-    /// `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>`
+    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>`
     pub fn env_db_dir(&self) -> &PathBuf {
         self.env_db_config.env_db_dir()
     }
 
     /// The user-specific database directory.
     ///
-    /// `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
+    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>`
     pub fn user_db_dir(&self) -> &PathBuf {
         &self.user_db_dir
     }
 
     /// Payment records and history.
     ///
-    /// `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>/payments_db`
+    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>/payments_db`
     // Unstable
     pub(crate) fn payments_db_dir(&self) -> PathBuf {
         self.user_db_dir.join("payments_db")
@@ -280,7 +280,8 @@ impl WalletUserDbConfig {
 
     /// Node provisioning history.
     ///
-    /// `<lexe_db_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>/provision_db`
+    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>/
+    /// provision_db`
     // Unstable
     pub(crate) fn provision_db_dir(&self) -> PathBuf {
         self.user_db_dir.join("provision_db")
