@@ -19,6 +19,7 @@ use crate::{
 ///
 /// [`LexeWallet`]: crate::wallet::LexeWallet
 pub struct WalletDb<F> {
+    #[allow(dead_code)] // TODO(max): Remove once stable
     user_db_config: WalletUserDbConfig,
 
     payments_db: PaymentsDb<F>,
@@ -143,6 +144,7 @@ impl WalletDb<DiskFs> {
     }
 
     /// Get the user database configuration.
+    #[allow(dead_code)] // TODO(max): Remove once stable
     pub fn user_db_config(&self) -> &WalletUserDbConfig {
         &self.user_db_config
     }

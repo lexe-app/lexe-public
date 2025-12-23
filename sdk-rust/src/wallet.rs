@@ -63,7 +63,9 @@ pub struct LexeWallet<Db> {
 
     gateway_client: GatewayClient,
     node_client: NodeClient,
+    #[allow(dead_code)] // TODO(max): Remove
     bip353_client: Bip353Client,
+    #[allow(dead_code)] // TODO(max): Remove
     lnurl_client: LnurlClient,
 
     _marker: PhantomData<Db>,
