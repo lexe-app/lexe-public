@@ -95,10 +95,10 @@ pub trait LexeInnerPersister: Vfs + Persist<SignerType> {
     ) -> anyhow::Result<()> {
         let filename = event_id.to_string();
         let file_id = VfsFileId::new(vfs::EVENTS_DIR, filename);
-        // Failed event persistence can result in the node shutting down, so try
-        // a few extra times. TODO(max): Change back to 1 once we switch to
-        // LDK's fallible event handling.
-        let retries = 3;
+        // With LDK's fallible event handling, persistence failures return
+        // `ReplayEvent` to LDK, which handles replays for us. A single retry
+        // handles transient errors while avoiding excessive retry loops.
+        let retries = 1;
         self.persist_ldk_writeable(file_id, &event, retries).await
     }
 
