@@ -7,7 +7,10 @@ runner = "run-sgx-cargo"
 # support runtime feature detection with cpuid.
 rustflags = ["-Zoom=panic", "-Ctarget-cpu=x86-64-v3", "-Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes"]
 
-# Might as well do the same for everything else. `vaes` is too aggressive
-# (Ice Lake 2021+) to mandate outside of our enclaves.
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-Ctarget-cpu=x86-64-v3", "-Ctarget-feature=+adx,+aes,+pclmulqdq,+sha"]
+# NOTE(phlip9): This was too aggressive for our cheaper dev VMs. We'll just
+# enable these flags manually for prod-relevant build artifacts.
+#
+# # Might as well do the same for everything else. `vaes` is too aggressive
+# # (Ice Lake 2021+) to mandate outside of our enclaves.
+# [target.x86_64-unknown-linux-gnu]
+# rustflags = ["-Ctarget-cpu=x86-64-v3", "-Ctarget-feature=+adx,+aes,+pclmulqdq,+sha"]

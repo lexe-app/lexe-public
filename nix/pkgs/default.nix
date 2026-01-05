@@ -366,8 +366,8 @@ rec {
   # Binary for running SGX enclaves.
   run-sgx = buildRustSccache {
     cargoToml = ../../run-sgx/Cargo.toml;
-    cargoExtraArgs = "--package=run-sgx --locked --offline";
     doCheck = false;
+    buildForLexeInfra = true;
 
     nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [
       # aesm-client crate build.rs

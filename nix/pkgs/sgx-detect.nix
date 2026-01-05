@@ -20,6 +20,7 @@ buildRustSccache {
 
   pname = "sgx-detect";
   doCheck = false;
+  buildForLexeInfra = false;
 
   cargoExtraArgs = builtins.concatStringsSep " " [
     "--offline"

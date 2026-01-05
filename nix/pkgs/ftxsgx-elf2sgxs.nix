@@ -19,6 +19,7 @@ buildRustSccache {
 
   pname = "ftxsgx-elf2sgxs";
   doCheck = false;
+  buildForLexeInfra = false;
 
   cargoExtraArgs = builtins.concatStringsSep " " [
     "--offline"

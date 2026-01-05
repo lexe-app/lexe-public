@@ -89,6 +89,10 @@
   # If `true`, skip the separate dependencies-only build derivation. The extra
   # step is not super useful for crates outside our workspace.
   skipDepsOnlyBuild ? false,
+  # If `true` (and we're building for x86), then enable x86-64-v3 and various
+  # other CPU intrinsics. Enable if this touches any key material.
+  # See .cargo/config.toml for more info.
+  buildForLexeInfra ? true,
   ...
 }@args:
 #
@@ -176,7 +180,11 @@ let
       else
         echo "Skipping shared cargo build cache setup"
       fi
-
+    ''
+    + lib.optionalString buildForLexeInfra ''
+      export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-Ctarget-cpu=x86-64-v3 -Ctarget-feature=+adx,+aes,+pclmulqdq,+sha"
+    ''
+    + ''
       runHook postConfigure
     '';
 
