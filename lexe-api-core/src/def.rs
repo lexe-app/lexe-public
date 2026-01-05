@@ -81,7 +81,8 @@ use crate::{
         command::{
             BackupInfo, ClaimPaymentAddress, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, GetAddressResponse, GetNewPayments,
+            CreateOfferResponse, GetAddressResponse,
+            GetGeneratedUsernameResponse, GetNewPayments,
             GetUpdatedPaymentMetadata, GetUpdatedPayments,
             ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -909,13 +910,25 @@ pub trait NodeBackendApi {
     /// POST /node/v1/claim_payment_address [`ClaimPaymentAddress`]
     ///                                  -> [`Empty`]
     ///
-    /// Generates a new payment address with random username given an
-    /// offer. In case node already has a payment address, it will return ok.
+    /// Claims a generated payment address given by the node. This endpoint will
+    /// set the is_generated flag to true as is expected to be called by the
+    /// node on startup.
     async fn claim_payment_address(
         &self,
         req: ClaimPaymentAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
+
+    /// GET /node/v1/generated_username [`Empty`]
+    ///                              -> [`GetGeneratedUsernameResponse`]
+    ///
+    /// Generates an available username for the authenticated user without
+    /// storing it. The username is derived deterministically from the
+    /// user's `user_pk`, with collision handling via numeric suffixes.
+    async fn get_generated_username(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<GetGeneratedUsernameResponse, BackendApiError>;
 
     /// GET /node/v1/nwc_clients [`Empty`] -> [`Vec<NwcClient>`]
     ///

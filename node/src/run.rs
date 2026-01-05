@@ -551,8 +551,7 @@ impl UserNode {
         .context("Could not init NodeChannelManager")?;
 
         // Spawn a task to claim a payment address concurrently.
-        // The backend handles username collision retries internally, so we only
-        // need a single attempt here. This task is joined before init returns.
+        // This task is joined before init function returns.
         let claim_payment_address_task: LxTask<anyhow::Result<()>> = {
             let persister = persister.clone();
             let channel_manager = channel_manager.clone();
@@ -562,6 +561,20 @@ impl UserNode {
                 SPAN_NAME,
                 info_span!(SPAN_NAME),
                 async move {
+                    let token = persister.get_token().await?;
+                    let resp = persister
+                        .backend_api()
+                        .get_generated_username(token.clone())
+                        .await
+                        .context("get_generated_username failed")?;
+
+                    // If already claimed, no need to claim again
+                    if resp.already_claimed {
+                        return Ok(());
+                    }
+                    let username = resp.username;
+
+                    let description = format!("{}@lexe.app", username.inner());
                     let builder = channel_manager
                         .create_offer_builder(None)
                         .map_err(|e| {
@@ -569,13 +582,15 @@ impl UserNode {
                         })?;
 
                     let offer = builder
-                        .description("Hey There! I'm using Lexe".to_owned())
+                        .description(description)
                         .build()
                         .map_err(|e| anyhow!("Failed to build offer: {e:?}"))?;
                     let lx_offer = LxOffer(offer);
 
-                    let req = ClaimPaymentAddress { offer: lx_offer };
-                    let token = persister.get_token().await?;
+                    let req = ClaimPaymentAddress {
+                        offer: lx_offer,
+                        username,
+                    };
                     persister
                         .backend_api()
                         .claim_payment_address(req, token)

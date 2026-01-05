@@ -526,12 +526,30 @@ pub struct UpdatePaymentAddress {
     pub offer: LxOffer,
 }
 
-/// Claims a payment address with a random username.
+/// Claims a generated payment address.
+///
+/// This endpoint is used during node initialization to claim an auto-generated
+/// payment address. The address will have `is_primary: false` and
+/// `is_generated: true`.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct ClaimPaymentAddress {
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: LxOffer,
+    /// The username to claim. This must be the username returned by
+    /// `get_generated_username`.
+    pub username: Username,
+}
+
+/// Response for `get_generated_username` endpoint.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetGeneratedUsernameResponse {
+    /// The generated username that can be used for claiming a payment address.
+    pub username: Username,
+    /// Whether this user already has a claimed generated payment address.
+    /// If true, the caller should skip calling `claim_payment_address`.
+    pub already_claimed: bool,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -620,6 +638,12 @@ mod test {
     #[test]
     fn claim_payment_address_request_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<ClaimPaymentAddress>();
+    }
+
+    #[test]
+    fn get_generated_username_response_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<GetGeneratedUsernameResponse>(
+        );
     }
 
     #[test]

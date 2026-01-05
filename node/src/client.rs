@@ -25,9 +25,9 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            ClaimPaymentAddress, GetNewPayments, GetUpdatedPaymentMetadata,
-            GetUpdatedPayments, LxPaymentIdStruct, PaymentAddress,
-            PaymentCreatedIndexStruct, PaymentCreatedIndexes,
+            ClaimPaymentAddress, GetGeneratedUsernameResponse, GetNewPayments,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments, LxPaymentIdStruct,
+            PaymentAddress, PaymentCreatedIndexStruct, PaymentCreatedIndexes,
             UpdatePaymentAddress, VecLxPaymentId,
         },
         nwc::{
@@ -742,6 +742,18 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .post(format!("{backend}/node/v1/claim_payment_address"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_generated_username(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<GetGeneratedUsernameResponse, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/generated_username"), &Empty {})
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
