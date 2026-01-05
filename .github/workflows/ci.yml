@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # Include ready_for_review to trigger CI when draft PR is marked ready
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - master
@@ -51,6 +53,7 @@ jobs:
 
   # --- Linting the whole workspace --- #
   clippy:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -62,6 +65,7 @@ jobs:
       - run: cargo clippy --locked --workspace --tests
 
   clippy-sgx:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -79,6 +83,7 @@ jobs:
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -93,6 +98,7 @@ jobs:
           RUSTC_BOOTSTRAP=1 cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
 
   test:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -101,6 +107,7 @@ jobs:
       - run: cargo test --locked
 
   test-sdk-python:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -138,6 +145,7 @@ jobs:
   #     - run: cargo test --locked -p gdrive -- --ignored --test-threads=1
 
   fmt:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -145,6 +153,7 @@ jobs:
       - run: rustup run ${{ env.LEXE_RUST_FMT_VERSION }} cargo fmt --all -- --check
 
   doc:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -157,6 +166,7 @@ jobs:
   # Build user node SGX enclave. Builds in debug mode to save CI time. Not the
   # same as the reproducible build; that would be `nix build .#node-release-sgx`.
   nix-sgx-build:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
