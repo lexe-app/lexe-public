@@ -291,6 +291,10 @@ class PaymentDetailPageInner extends StatelessWidget {
           final maybeAmountSat = payment.amountSat;
           final txid = payment.txid;
 
+          final description = (direction == PaymentDirection.outbound)
+              ? (payment.invoice?.description ?? payment.offer?.description)
+              : null;
+
           return ScrollableSinglePageBody(
             padding: pagePaddingInsets,
             bodySlivers: [
@@ -357,6 +361,16 @@ class PaymentDetailPageInner extends StatelessWidget {
                           ),
                     ),
                   const SizedBox(height: Space.s600),
+
+                  if (description != null && description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: bodyPadding,
+                      ),
+                      child: PaymentDetailDescription(description: description),
+                    ),
+                  if (description != null && description.isNotEmpty)
+                    const SizedBox(height: Space.s400),
 
                   // The payment's note field
                   Padding(
@@ -1134,4 +1148,33 @@ class PaymentDetailInfoCard extends InfoCard {
     required super.children,
     super.header,
   }) : super(bodyPadding: bodyPadding);
+}
+
+class PaymentDetailDescription extends StatelessWidget {
+  const PaymentDetailDescription({super.key, required this.description});
+
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Description",
+          style: TextStyle(fontSize: Fonts.size200, color: LxColors.fgTertiary),
+        ),
+        const SizedBox(height: Space.s200),
+        Text(
+          this.description,
+          style: const TextStyle(
+            fontSize: Fonts.size200,
+            color: LxColors.foreground,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
 }
