@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart' show ValueNotifier;
 import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
 enum BackgroundErrorKind { nodeInfo, fiatRates, paymentSync }
 
@@ -29,9 +31,14 @@ class BackgroundError {
   }
 }
 
-/// A set of methods for displaying errors that happened in the background.
-class BackgroundErrorService {
+/// Suppresses background errors when app is not in foreground.
+class BackgroundErrorService with WidgetsBindingObserver {
   bool isDisposed = false;
+
+  static const _resumeGracePeriod = Duration(seconds: 3);
+
+  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
+  DateTime? _resumedAt;
 
   /// Whether we should display error icon in the UI.
   ValueListenable<bool> get shouldDisplayErrors => this._shouldDisplayErrors;
@@ -41,9 +48,36 @@ class BackgroundErrorService {
 
   final ValueNotifier<List<BackgroundError>> _errors = ValueNotifier([]);
 
-  void init() {}
+  void init() {
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    this._lifecycleState = state;
+    if (state == AppLifecycleState.resumed) {
+      this._resumedAt = DateTime.now();
+    }
+  }
+
+  /// Returns true if errors should be suppressed due to app lifecycle state.
+  bool get _shouldSuppressErrors {
+    // Suppress when not in foreground
+    if (this._lifecycleState != AppLifecycleState.resumed) return true;
+
+    // Suppress during grace period after resuming
+    final resumedAt = this._resumedAt;
+    if (resumedAt != null) {
+      final elapsed = DateTime.now().difference(resumedAt);
+      if (elapsed < _resumeGracePeriod) return true;
+    }
+
+    return false;
+  }
 
   void enqueue(BackgroundError err) {
+    if (this._shouldSuppressErrors) return;
+
     this._errors.value.add(err);
     this._shouldDisplayErrors.value = true;
   }
@@ -63,6 +97,7 @@ class BackgroundErrorService {
   void dispose() {
     assert(!this.isDisposed);
 
+    WidgetsBinding.instance.removeObserver(this);
     this._shouldDisplayErrors.dispose();
     this._errors.dispose();
 
