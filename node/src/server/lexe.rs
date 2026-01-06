@@ -85,61 +85,12 @@ pub(super) async fn nwc_request(
         return Err(NodeApiError::command("Wallet nostr pk mismatch"));
     }
 
-    // NWC encryption and authentication depend on the set of keys generated
-    // on the wallet service side (in our case, the Lexe node).
-    //
-    // *Key generation*
-    //
-    // On Client creation, the wallet service generates a client key pair and
-    // a wallet service key pair. The client's secret key and the wallet's
-    // public key are used in the connection string to establish the
-    // communication protocol. The wallet service stores the client's public
-    // key and the wallet's public and secret keys in the database.
-    //
-    // The client's keys are used to sign nostr events, encrypt NWC requests,
-    // and decrypt NWC responses. The wallet service keys are used to encrypt
-    // NWC responses, validate NWC requests, and sign nostr events.
-    //
-    // Keys are ephemeral to the connection. Users can drop and re-create new
-    // connections at any time.
-    //
-    // In Lexe's implementation, the client and wallet public keys are stored in
-    // plain text in the database, while the wallet service's secret key is
-    // stored encrypted in the database as a blob using our implementation
-    // of an encryption scheme (see [`common::aes`] for more details).
-    //
-    // *NWC request*
-    //
-    // On an NWC request, the node fetches the corresponding client information
-    // using the client's public key and decrypts the blob using its own
-    // `AesMasterKey` (see [`common::aes`] for more details).
-    //
-    // Only the node can decrypt the blob, so it is the only one that can
-    // retrieve the wallet nostr sk (wallet service secret key in nostr
-    // terms).
-    //
-    // Then, using the NIP-44 nostr encryption protocol, the node decrypts the
-    // NWC request payload using the wallet nostr sk and the client nostr
-    // pk. The latter is identified by the author of the nostr event
-    // (see [`NwcClient::decrypt_nip44_request`]).
-    //
-    // After decryption, the node can safely use the payload as a node command.
-    //
-    // *NWC response*
-    //
-    // After executing the node command, the resulting response is encrypted
-    // using the client's public key and the wallet service's secret key.
-    //
-    // This blob is then only readable by the client that has stored the client
-    // nostr sk and has the wallet nostr pk.
-    //
-    // Then, the node builds the nostr event using the encrypted response blob
-    // and the client's nostr pk, and signs it using the wallet nostr sk
-    // (see [`NwcClient::build_response`]).
-    //
-    // The Nostr bridge or the caller of this endpoint can verify the nostr
-    // event signature and broadcast the event to the relays.
-    //
+    // NIP-44 provides authenticated encryption using ECDH (X25519) + ChaCha20-
+    // Poly1305. This guarantees integrity: only someone with the client's
+    // secret key could have encrypted the request, and only we (with the
+    // wallet's secret key from VFS) can decrypt it. A spoofed client pk in the
+    // request would fail decryption since the ECDH shared secret wouldn't
+    // match.
     let decrypted_json = nwc_client
         .decrypt_nip44_request(&req.nip44_payload)
         .map_err(NodeApiError::command)?;
