@@ -5,7 +5,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show FeeEstimate, PreflightPayOnchainResponse;
+    show FeeEstimate, FiatRate, PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -626,6 +626,18 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     ConfirmationPriority.normal,
   );
 
+  /// Frozen fiat rate captured when this page is shown.
+  /// Freezing prevents confusing rate changes while the user is confirming.
+  late final FiatRate? frozenFiatRate = this.widget.sendCtx.fiatRate.value;
+
+  /// Format a sats amount as fiat, or null if no fiat rate is available.
+  String? formatFiatAmount(int sats) {
+    final rate = this.frozenFiatRate;
+    if (rate == null) return null;
+    final fiatAmount = currency_format.satsToBtc(sats) * rate.rate;
+    return "≈ ${currency_format.formatFiat(fiatAmount, rate.fiat)}";
+  }
+
   @override
   void dispose() {
     this.confPriority.dispose();
@@ -747,6 +759,13 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       fontVariations: [],
     );
 
+    const textStyleFiat = TextStyle(
+      fontSize: Fonts.size200,
+      color: LxColors.grey550,
+    );
+
+    final amountFiatStr = this.formatFiatAmount(this.amountSats());
+
     final paymentKind = this.widget.sendCtx.preflightedPayment.kind();
     final subheading = switch (paymentKind) {
       PaymentKind_Onchain() => "Sending bitcoin on-chain",
@@ -797,7 +816,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             ],
           ),
 
-          const SizedBox(height: Space.s500),
+          const SizedBox(height: Space.s400),
 
           //
           // Amount         XXX sats
@@ -822,9 +841,17 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                 Row(
                   mainAxisSize: MainAxisSize.max,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text("Amount", style: textStyleSecondary),
-                    Text(amountSatsStr, style: textStyleSecondary),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(amountSatsStr, style: textStyleSecondary),
+                        if (amountFiatStr != null)
+                          Text(amountFiatStr, style: textStyleFiat),
+                      ],
+                    ),
                   ],
                 ),
 
@@ -837,15 +864,22 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                   Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Network Fee", style: textStyleSecondary),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: Space.s200),
-                        child: Icon(
-                          LxIcons.edit,
-                          size: Fonts.size300,
-                          color: LxColors.grey625,
-                        ),
+                      Row(
+                        children: [
+                          const Text("Network Fee", style: textStyleSecondary),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Space.s200,
+                            ),
+                            child: Icon(
+                              LxIcons.edit,
+                              size: Fonts.size300,
+                              color: LxColors.grey625,
+                            ),
+                          ),
+                        ],
                       ),
 
                       // ~XXX sats
@@ -853,13 +887,26 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                         child: ValueListenableBuilder(
                           valueListenable: this.confPriority,
                           builder: (context, confPriority, child) {
+                            final feeSats = this.feeSats();
                             final feeSatsStr = currency_format.formatSatsAmount(
-                              this.feeSats(),
+                              feeSats,
                             );
-                            return Text(
-                              "~$feeSatsStr",
-                              style: textStyleSecondary,
-                              textAlign: TextAlign.end,
+                            final feeFiatStr = this.formatFiatAmount(feeSats);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  "≈ $feeSatsStr",
+                                  style: textStyleSecondary,
+                                  textAlign: TextAlign.end,
+                                ),
+                                if (feeFiatStr != null)
+                                  Text(
+                                    feeFiatStr,
+                                    style: textStyleFiat,
+                                    textAlign: TextAlign.end,
+                                  ),
+                              ],
                             );
                           },
                         ),
@@ -873,11 +920,22 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                   Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text("Network Fee", style: textStyleSecondary),
-                      Text(
-                        currency_format.formatSatsAmount(preflight.feesSats),
-                        style: textStyleSecondary,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            currency_format.formatSatsAmount(
+                              preflight.feesSats,
+                            ),
+                            style: textStyleSecondary,
+                          ),
+                          if (this.formatFiatAmount(preflight.feesSats)
+                              case final feeFiatStr?)
+                            Text(feeFiatStr, style: textStyleFiat),
+                        ],
                       ),
                     ],
                   ),
@@ -894,19 +952,31 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text("Total", style: textStyleSecondary),
               ValueListenableBuilder(
                 valueListenable: this.confPriority,
-                builder: (context, confPriority, child) => Text(
-                  currency_format.formatSatsAmount(this.totalSats()),
-                  style: textStylePrimary,
-                ),
+                builder: (context, confPriority, child) {
+                  final totalSats = this.totalSats();
+                  final totalFiatStr = this.formatFiatAmount(totalSats);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        currency_format.formatSatsAmount(totalSats),
+                        style: textStylePrimary,
+                      ),
+                      if (totalFiatStr != null)
+                        Text(totalFiatStr, style: textStyleFiat),
+                    ],
+                  );
+                },
               ),
             ],
           ),
 
-          const SizedBox(height: Space.s600),
+          const SizedBox(height: Space.s500),
 
           //
           // Description
@@ -1095,7 +1165,7 @@ class ChooseFeeDialogOption extends StatelessWidget {
         children: [
           Text(this.priority.name, style: Fonts.fontUI),
           const Expanded(child: SizedBox()),
-          Text("~$feeSatsStr", style: Fonts.fontUI),
+          Text("≈ $feeSatsStr", style: Fonts.fontUI),
         ],
       ),
       subtitle: Row(
@@ -1103,7 +1173,7 @@ class ChooseFeeDialogOption extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Text(
-            "~$confDurationStr",
+            "≈ $confDurationStr",
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size200,
               color: LxColors.grey450,

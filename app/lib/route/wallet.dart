@@ -479,6 +479,7 @@ class WalletPageState extends State<WalletPage> {
         configNetwork: this.widget.config.network,
         balance: nodeInfo.balance,
         cid: ClientPaymentId.genNew(),
+        fiatRate: this.fiatRateService.fiatRate,
       );
 
   /// Called after the user has successfully sent a new payment and the send

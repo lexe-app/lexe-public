@@ -243,6 +243,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
 
+    final mockFiatRate = ValueNotifier<FiatRate?>(
+      const FiatRate(fiat: "USD", rate: 96626.76),
+    );
+
     const feeEstimates = PreflightPayOnchainResponse(
       high: FeeEstimate(amountSats: 849),
       normal: FeeEstimate(amountSats: 722),
@@ -483,6 +487,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                 ),
               ),
             ),
@@ -496,6 +501,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
                       address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
@@ -517,6 +523,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   paymentMethod: const PaymentMethod.invoice(
                     Invoice(
                       string:
@@ -543,6 +550,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   paymentMethod: const PaymentMethod.onchain(
                     Onchain(
                       address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
@@ -564,6 +572,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   paymentMethod: PaymentMethod.lnurlPayRequest(
                     LnurlPayRequest(
                       callback: "https://example.com/pay",
@@ -593,6 +602,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   preflightedPayment: const PreflightedPayment_Onchain(
                     onchain: Onchain(
                       address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
@@ -614,6 +624,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   preflightedPayment: (() {
                     final invoice =
                         mocks.dummyInvoiceOutboundPending01.invoice!;
@@ -869,6 +880,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     configNetwork: this.widget.config.network,
                     balance: mockApp.balance,
                     cid: cid,
+                    fiatRate: mockFiatRate,
                   ),
                 ),
               ),
@@ -962,6 +974,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   preflightedPayment: PreflightedPayment_Invoice(
                     invoice: Invoice(
                       string:
@@ -1213,6 +1226,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                 ),
               ),
             ),
@@ -1226,6 +1240,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   configNetwork: this.widget.config.network,
                   balance: mockApp.balance,
                   cid: cid,
+                  fiatRate: mockFiatRate,
                   preflightedPayment: (() {
                     final invoice =
                         mocks.dummyInvoiceOutboundPending01.invoice!;

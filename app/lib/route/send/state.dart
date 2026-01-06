@@ -5,6 +5,7 @@
 import 'package:app_rs_dart/ffi/api.dart'
     show
         Balance,
+        FiatRate,
         PayInvoiceRequest,
         PayOfferRequest,
         PayOnchainRequest,
@@ -35,6 +36,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/prelude.dart';
@@ -69,12 +71,14 @@ class SendState_NeedUri implements SendState {
     required this.configNetwork,
     required this.balance,
     required this.cid,
+    required this.fiatRate,
   });
 
   final AppHandle app;
   final Network configNetwork;
   final Balance balance;
   final ClientPaymentId cid;
+  final ValueListenable<FiatRate?> fiatRate;
 
   /// Parse the payment URI (address, invoice, offer, BIP21, LN URI, ...) and
   /// check that it's valid for our current network (mainnet, testnet, ...).
@@ -109,6 +113,7 @@ class SendState_NeedUri implements SendState {
       configNetwork: this.configNetwork,
       balance: this.balance,
       cid: this.cid,
+      fiatRate: this.fiatRate,
       paymentMethod: paymentMethod,
     );
 
@@ -137,6 +142,7 @@ class SendState_NeedAmount implements SendState {
     required this.configNetwork,
     required this.balance,
     required this.cid,
+    required this.fiatRate,
     required this.paymentMethod,
   });
 
@@ -144,6 +150,7 @@ class SendState_NeedAmount implements SendState {
   final Network configNetwork;
   final Balance balance;
   final ClientPaymentId cid;
+  final ValueListenable<FiatRate?> fiatRate;
 
   /// The current payment method (onchain send, BOLT11 invoice send, BOLT12
   /// offer send) and associated details, like amount or description.
@@ -294,6 +301,7 @@ class SendState_NeedAmount implements SendState {
         configNetwork: this.configNetwork,
         balance: this.balance,
         cid: this.cid,
+        fiatRate: this.fiatRate,
         preflightedPayment: preflighted,
       ),
     );
@@ -309,6 +317,7 @@ class SendState_Preflighted implements SendState {
     required this.configNetwork,
     required this.balance,
     required this.cid,
+    required this.fiatRate,
     required this.preflightedPayment,
   });
 
@@ -316,6 +325,7 @@ class SendState_Preflighted implements SendState {
   final Network configNetwork;
   final Balance balance;
   final ClientPaymentId cid;
+  final ValueListenable<FiatRate?> fiatRate;
 
   final PreflightedPayment preflightedPayment;
 
