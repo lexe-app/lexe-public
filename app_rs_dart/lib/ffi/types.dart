@@ -348,6 +348,7 @@ sealed class Payment with _$Payment {
     required int feesSat,
     required PaymentStatus status,
     required String statusStr,
+    String? description,
     String? note,
     required int createdAt,
     int? finalizedAt,
@@ -472,6 +473,7 @@ sealed class ShortPayment with _$ShortPayment {
     required PaymentDirection direction,
     int? amountSat,
     required PaymentStatus status,
+    String? description,
     String? note,
     required int createdAt,
   }) = _ShortPayment;

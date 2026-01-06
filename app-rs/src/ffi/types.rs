@@ -382,6 +382,7 @@ pub struct ShortPayment {
 
     pub status: PaymentStatus,
 
+    pub description: Option<String>,
     pub note: Option<String>,
 
     pub created_at: i64,
@@ -412,7 +413,8 @@ impl From<&BasicPaymentV1Rs> for ShortPayment {
 
             status: PaymentStatus::from(payment.status),
 
-            note: payment.note_or_description().map(String::from),
+            description: payment.description().map(String::from),
+            note: payment.note.as_deref().map(String::from),
 
             created_at: payment.created_at().to_i64(),
         }
@@ -432,7 +434,8 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
 
             status: PaymentStatus::from(payment.status),
 
-            note: payment.note_or_description().map(String::from),
+            description: payment.description().map(String::from),
+            note: payment.note.as_deref().map(String::from),
 
             created_at: payment.created_at().to_i64(),
         }
@@ -463,6 +466,7 @@ pub struct Payment {
     pub status: PaymentStatus,
     pub status_str: String,
 
+    pub description: Option<String>,
     pub note: Option<String>,
 
     pub created_at: i64,
@@ -503,7 +507,8 @@ impl From<&BasicPaymentV1Rs> for Payment {
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),
 
-            note: payment.note_or_description().map(String::from),
+            description: payment.description().map(String::from),
+            note: payment.note.as_deref().map(String::from),
 
             created_at: payment.created_at().to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),
@@ -533,7 +538,8 @@ impl From<&BasicPaymentV2Rs> for Payment {
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),
 
-            note: payment.note_or_description().map(String::from),
+            description: payment.description().map(String::from),
+            note: payment.note.as_deref().map(String::from),
 
             created_at: payment.created_at.to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),

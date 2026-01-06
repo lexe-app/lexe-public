@@ -4112,8 +4112,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Payment dco_decode_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 15)
-      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return Payment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
@@ -4127,9 +4127,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       feesSat: dco_decode_CastedPrimitive_u_64(arr[9]),
       status: dco_decode_payment_status(arr[10]),
       statusStr: dco_decode_String(arr[11]),
-      note: dco_decode_opt_String(arr[12]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[13]),
-      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[14]),
+      description: dco_decode_opt_String(arr[12]),
+      note: dco_decode_opt_String(arr[13]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[14]),
+      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[15]),
     );
   }
 
@@ -4400,16 +4401,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ShortPayment dco_decode_short_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return ShortPayment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
       direction: dco_decode_payment_direction(arr[2]),
       amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
       status: dco_decode_payment_status(arr[4]),
-      note: dco_decode_opt_String(arr[5]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[6]),
+      description: dco_decode_opt_String(arr[5]),
+      note: dco_decode_opt_String(arr[6]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[7]),
     );
   }
 
@@ -5782,6 +5784,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_feesSat = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_status = sse_decode_payment_status(deserializer);
     var var_statusStr = sse_decode_String(deserializer);
+    var var_description = sse_decode_opt_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_finalizedAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
@@ -5798,6 +5801,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       feesSat: var_feesSat,
       status: var_status,
       statusStr: var_statusStr,
+      description: var_description,
       note: var_note,
       createdAt: var_createdAt,
       finalizedAt: var_finalizedAt,
@@ -6072,6 +6076,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_direction = sse_decode_payment_direction(deserializer);
     var var_amountSat = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_status = sse_decode_payment_status(deserializer);
+    var var_description = sse_decode_opt_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     return ShortPayment(
@@ -6080,6 +6085,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       direction: var_direction,
       amountSat: var_amountSat,
       status: var_status,
+      description: var_description,
       note: var_note,
       createdAt: var_createdAt,
     );
@@ -7377,6 +7383,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_u_64(self.feesSat, serializer);
     sse_encode_payment_status(self.status, serializer);
     sse_encode_String(self.statusStr, serializer);
+    sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.note, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
     sse_encode_opt_CastedPrimitive_i_64(self.finalizedAt, serializer);
@@ -7604,6 +7611,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_payment_direction(self.direction, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSat, serializer);
     sse_encode_payment_status(self.status, serializer);
+    sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.note, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
   }

@@ -2471,6 +2471,7 @@ impl SseDecode for crate::ffi::types::Payment {
         let mut var_status =
             <crate::ffi::types::PaymentStatus>::sse_decode(deserializer);
         let mut var_statusStr = <String>::sse_decode(deserializer);
+        let mut var_description = <Option<String>>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_finalizedAt = <Option<i64>>::sse_decode(deserializer);
@@ -2487,6 +2488,7 @@ impl SseDecode for crate::ffi::types::Payment {
             fees_sat: var_feesSat,
             status: var_status,
             status_str: var_statusStr,
+            description: var_description,
             note: var_note,
             created_at: var_createdAt,
             finalized_at: var_finalizedAt,
@@ -2862,6 +2864,7 @@ impl SseDecode for crate::ffi::types::ShortPayment {
         let mut var_amountSat = <Option<u64>>::sse_decode(deserializer);
         let mut var_status =
             <crate::ffi::types::PaymentStatus>::sse_decode(deserializer);
+        let mut var_description = <Option<String>>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         return crate::ffi::types::ShortPayment {
@@ -2870,6 +2873,7 @@ impl SseDecode for crate::ffi::types::ShortPayment {
             direction: var_direction,
             amount_sat: var_amountSat,
             status: var_status,
+            description: var_description,
             note: var_note,
             created_at: var_createdAt,
         };
@@ -4048,6 +4052,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
             self.fees_sat.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
             self.status_str.into_into_dart().into_dart(),
+            self.description.into_into_dart().into_dart(),
             self.note.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.finalized_at.into_into_dart().into_dart(),
@@ -4555,6 +4560,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::ShortPayment {
             self.direction.into_into_dart().into_dart(),
             self.amount_sat.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
+            self.description.into_into_dart().into_dart(),
             self.note.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
         ]
@@ -5725,6 +5731,7 @@ impl SseEncode for crate::ffi::types::Payment {
         <u64>::sse_encode(self.fees_sat, serializer);
         <crate::ffi::types::PaymentStatus>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.status_str, serializer);
+        <Option<String>>::sse_encode(self.description, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <Option<i64>>::sse_encode(self.finalized_at, serializer);
@@ -6061,6 +6068,7 @@ impl SseEncode for crate::ffi::types::ShortPayment {
         );
         <Option<u64>>::sse_encode(self.amount_sat, serializer);
         <crate::ffi::types::PaymentStatus>::sse_encode(self.status, serializer);
+        <Option<String>>::sse_encode(self.description, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
         <i64>::sse_encode(self.created_at, serializer);
     }
