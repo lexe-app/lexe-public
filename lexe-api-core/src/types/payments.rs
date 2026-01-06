@@ -833,10 +833,14 @@ impl BasicPaymentV2 {
     pub fn note_or_description(&self) -> Option<&str> {
         let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
 
-        maybe_note
-            .or_else(|| {
-                self.invoice.as_deref().and_then(LxInvoice::description_str)
-            })
+        maybe_note.or_else(|| self.description())
+    }
+
+    /// Returns the invoice or offer description if present.
+    pub fn description(&self) -> Option<&str> {
+        self.invoice
+            .as_deref()
+            .and_then(LxInvoice::description_str)
             .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
     }
 
@@ -903,10 +907,14 @@ impl BasicPaymentV1 {
     }
     pub fn note_or_description(&self) -> Option<&str> {
         let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
-        maybe_note
-            .or_else(|| {
-                self.invoice.as_deref().and_then(LxInvoice::description_str)
-            })
+        maybe_note.or_else(|| self.description())
+    }
+
+    /// Returns the invoice or offer description if present.
+    pub fn description(&self) -> Option<&str> {
+        self.invoice
+            .as_deref()
+            .and_then(LxInvoice::description_str)
             .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
     }
 }
