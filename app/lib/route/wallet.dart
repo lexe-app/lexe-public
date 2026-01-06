@@ -22,6 +22,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_WaivedLiquidityFee,
         PaymentStatus,
         ShortPayment;
+import 'package:app_rs_dart/ffi/types.ext.dart' show ShortPaymentExt;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
@@ -2104,7 +2105,7 @@ class PaymentsListEntry extends StatelessWidget {
     final direction = this.payment.direction;
     final kind = this.payment.kind;
     final amountSats = this.payment.amountSat;
-    final note = this.payment.note;
+    final note = this.payment.noteOrDescription;
 
     final leadingIcon = PaymentListIcon(
       kind: BalanceKind.fromPaymentKind(kind),

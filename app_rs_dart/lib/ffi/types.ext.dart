@@ -52,6 +52,7 @@ extension PaymentExt on Payment {
     direction: this.direction,
     amountSat: this.amountSat,
     status: this.status,
+    description: this.description,
     note: this.note,
     createdAt: this.createdAt,
   );
@@ -69,6 +70,7 @@ extension PaymentExt on Payment {
     int? feesSat,
     PaymentStatus? status,
     String? statusStr,
+    String? description,
     String? note,
     int? createdAt,
     int? finalizedAt,
@@ -85,6 +87,7 @@ extension PaymentExt on Payment {
     feesSat: feesSat ?? this.feesSat,
     status: status ?? this.status,
     statusStr: statusStr ?? this.statusStr,
+    description: description ?? this.description,
     note: note ?? this.note,
     createdAt: createdAt ?? this.createdAt,
     finalizedAt: finalizedAt ?? this.finalizedAt,
@@ -101,7 +104,14 @@ extension PaymentExt on Payment {
       this.status != PaymentStatus.completed &&
       this.kind is PaymentKind_Invoice &&
       this.direction == PaymentDirection.inbound &&
-      (this.amountSat == null || this.note == null);
+      (this.amountSat == null || this.noteOrDescription == null);
+
+  /// Returns the user's note or invoice/offer description, preferring note.
+  String? get noteOrDescription {
+    final n = this.note;
+    if (n != null && n.isNotEmpty) return n;
+    return this.description;
+  }
 }
 
 //
@@ -135,4 +145,17 @@ extension PaymentKindExt on PaymentKind {
     PaymentKind_WaivedLiquidityFee() ||
     PaymentKind_Unknown() => false,
   };
+}
+
+//
+// ShortPayment
+//
+
+extension ShortPaymentExt on ShortPayment {
+  /// Returns the user's note or invoice/offer description, preferring note.
+  String? get noteOrDescription {
+    final n = this.note;
+    if (n != null && n.isNotEmpty) return n;
+    return this.description;
+  }
 }

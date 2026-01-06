@@ -20,6 +20,7 @@ import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/block_explorer.dart' as block_explorer;
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         FilledTextPlaceholder,
@@ -291,9 +292,12 @@ class PaymentDetailPageInner extends StatelessWidget {
           final maybeAmountSat = payment.amountSat;
           final txid = payment.txid;
 
+          // The invoice/offer description. Only shown for outbound payments.
           final description = (direction == PaymentDirection.outbound)
-              ? (payment.invoice?.description ?? payment.offer?.description)
+              ? payment.description
               : null;
+
+          final initialNote = payment.note;
 
           return ScrollableSinglePageBody(
             padding: pagePaddingInsets,
@@ -370,7 +374,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                       child: PaymentDetailDescription(description: description),
                     ),
                   if (description != null && description.isNotEmpty)
-                    const SizedBox(height: Space.s400),
+                    const SizedBox(height: Space.s500),
 
                   // The payment's note field
                   Padding(
@@ -380,7 +384,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     child: PaymentDetailNoteInput(
                       app: this.app,
                       paymentCreatedIndex: payment.index,
-                      initialNote: payment.note,
+                      initialNote: initialNote,
                     ),
                   ),
                   const SizedBox(height: Space.s600),
@@ -1157,23 +1161,54 @@ class PaymentDetailDescription extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const valueStyle = TextStyle(
+      fontSize: Fonts.size200,
+      color: LxColors.foreground,
+      height: 1.2,
+    );
+
+    final descriptionText = Text(
+      this.description,
+      style: valueStyle,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    final card = Card(
+      color: LxColors.grey1000,
+      elevation: 0.0,
+      margin: const EdgeInsets.all(0),
+      child: Padding(
+        padding: const EdgeInsets.all(bodyPadding),
+        child: descriptionText,
+      ),
+    );
+
+    // Tap/long-press to copy description to clipboard.
+    void copyDescription() {
+      unawaited(LxClipboard.copyTextWithFeedback(context, this.description));
+    }
+
+    final clickableCard = InkWell(
+      onTap: copyDescription,
+      onLongPress: copyDescription,
+      child: card,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Description",
-          style: TextStyle(fontSize: Fonts.size200, color: LxColors.fgTertiary),
-        ),
-        const SizedBox(height: Space.s200),
-        Text(
-          this.description,
-          style: const TextStyle(
-            fontSize: Fonts.size200,
-            color: LxColors.foreground,
+        const Padding(
+          padding: EdgeInsets.only(bottom: Space.s200),
+          child: Text(
+            "Description",
+            style: TextStyle(
+              fontSize: Fonts.size200,
+              color: LxColors.fgTertiary,
+            ),
           ),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
         ),
+        SizedBox(width: double.infinity, child: clickableCard),
       ],
     );
   }
