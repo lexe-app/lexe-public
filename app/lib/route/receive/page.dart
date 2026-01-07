@@ -131,9 +131,6 @@ class ReceivePaymentPageInner extends StatefulWidget {
 }
 
 class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
-  /// Whether we should show the experimental BOLT12 offers recv page.
-  late bool showOffer = this.widget.featureFlags.showBolt12OffersRecvPage;
-
   /// Controls the [PageView].
   late PageController pageController = this.newPageController();
 
@@ -152,7 +149,6 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   );
 
   /// Which Lightning payment type is selected (invoice or offer).
-  /// Only used when [showOffer] is true.
   final ValueNotifier<PaymentOfferKind> selectedLightningType = ValueNotifier(
     PaymentOfferKind.lightningInvoice,
   );
@@ -173,28 +169,17 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   );
 
   /// Each page offer.
-  // TODO(phlip9): make final again once offers always enabled
-  late List<ValueNotifier<PaymentOffer>> paymentOffers = [
+  final List<ValueNotifier<PaymentOffer>> paymentOffers = [
     ValueNotifier(
       const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningInvoice),
     ),
-    if (this.showOffer)
-      ValueNotifier(
-        const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningOffer),
-      ),
+    ValueNotifier(
+      const PaymentOffer.unloaded(kind: PaymentOfferKind.lightningOffer),
+    ),
     ValueNotifier(
       const PaymentOffer.unloaded(kind: PaymentOfferKind.btcAddress),
     ),
   ];
-
-  // TODO(phlip9): once offers always enabled, make these constants again.
-  int get lnPageIdx => 0;
-  int get btcPageIdx => 1;
-
-  // Data indices in paymentOffers list.
-  int get lnInvoiceDataIdx => 0;
-  int get lnOfferDataIdx => this.showOffer ? 1 : -1;
-  int get btcDataIdx => this.showOffer ? 2 : 1;
 
   @override
   void initState() {
@@ -204,9 +189,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
 
     // Fetch a new lightning offer when its inputs change.
-    if (this.showOffer) {
-      this.lnOfferInputs.addListener(this.doFetchLnOffer);
-    }
+    this.lnOfferInputs.addListener(this.doFetchLnOffer);
 
     // Fetch a new btc address when certain BTC inputs change.
     this.btcAddrInputs.addListener(this.doFetchBtc);
@@ -215,16 +198,16 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // address.
 
     unawaited(this.doFetchLnInvoice());
-    if (this.showOffer) {
-      final cachedOffer = this.widget.appData.paymentAddress.value?.offer;
-      if (cachedOffer != null) {
-        this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(
-          offer: cachedOffer,
-        );
-      } else {
-        unawaited(this.doFetchLnOffer());
-      }
+
+    final cachedOffer = this.widget.appData.paymentAddress.value?.offer;
+    if (cachedOffer != null) {
+      this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(
+        offer: cachedOffer,
+      );
+    } else {
+      unawaited(this.doFetchLnOffer());
     }
+
     unawaited(this.doFetchBtc());
 
     // Schedule the peek hint animation if the user hasn't seen it yet.
@@ -381,11 +364,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       this.paymentOffers[this.selectedPageIndex.value];
 
   ValueNotifier<PaymentOffer> lnInvoicePaymentOffer() =>
-      this.paymentOffers[this.lnInvoiceDataIdx];
+      this.paymentOffers[lnInvoicePageIdx];
   ValueNotifier<PaymentOffer> lnOfferPaymentOffer() =>
-      this.paymentOffers[this.lnOfferDataIdx];
+      this.paymentOffers[lnOfferPageIdx];
   ValueNotifier<PaymentOffer> btcPaymentOffer() =>
-      this.paymentOffers[this.btcDataIdx];
+      this.paymentOffers[btcPageIdx];
 
   /// Fetch a bitcoin address for the given [BtcAddrInputs] and return a
   /// full [PaymentOffer].
@@ -706,8 +689,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     this.lnOfferInputs.value = inputs;
   }
 
-  /// Build the PageView children based on whether BOLT12 offers are shown.
-  // TODO(a-mpch): remove the conditional page build when BOLT12 is live
+  /// Build the PageView children.
   List<Widget> _buildPageViewChildren() {
     final btcPage = ValueListenableBuilder(
       valueListenable: this.btcPaymentOffer(),
@@ -719,49 +701,34 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       ),
     );
 
-    if (this.showOffer) {
-      // Lightning page with toggle to switch between invoice and offer
-      final lightningPage = ValueListenableBuilder(
-        valueListenable: this.selectedLightningType,
-        builder: (context, selectedType, _) {
-          final isInvoice = selectedType == PaymentOfferKind.lightningInvoice;
-          final offerNotifier = isInvoice
-              ? this.lnInvoicePaymentOffer()
-              : this.lnOfferPaymentOffer();
+    // Lightning page with toggle to switch between invoice and offer
+    final lightningPage = ValueListenableBuilder(
+      valueListenable: this.selectedLightningType,
+      builder: (context, selectedType, _) {
+        final isInvoice = selectedType == PaymentOfferKind.lightningInvoice;
+        final offerNotifier = isInvoice
+            ? this.lnInvoicePaymentOffer()
+            : this.lnOfferPaymentOffer();
 
-          return ValueListenableBuilder(
-            valueListenable: offerNotifier,
-            builder: (context, offer, _) => PaymentOfferPage(
-              paymentOffer: offer,
-              fiatRate: this.widget.fiatRate,
-              openSetAmountPage: () => this.openEditPage(offer.kind),
-              refreshPaymentOffer: isInvoice ? this.doRefreshLnInvoice : null,
-              toggleWidget: LightningTypeToggle(
-                selected: selectedType,
-                onChanged: (newType) {
-                  this.selectedLightningType.value = newType;
-                },
-              ),
+        return ValueListenableBuilder(
+          valueListenable: offerNotifier,
+          builder: (context, offer, _) => PaymentOfferPage(
+            paymentOffer: offer,
+            fiatRate: this.widget.fiatRate,
+            openSetAmountPage: () => this.openEditPage(offer.kind),
+            refreshPaymentOffer: isInvoice ? this.doRefreshLnInvoice : null,
+            toggleWidget: LightningTypeToggle(
+              selected: selectedType,
+              onChanged: (newType) {
+                this.selectedLightningType.value = newType;
+              },
             ),
-          );
-        },
-      );
+          ),
+        );
+      },
+    );
 
-      return [lightningPage, btcPage];
-    } else {
-      // Invoice page (no toggle)
-      final invoicePage = ValueListenableBuilder(
-        valueListenable: this.lnInvoicePaymentOffer(),
-        builder: (context, offer, _) => PaymentOfferPage(
-          paymentOffer: offer,
-          fiatRate: this.widget.fiatRate,
-          openSetAmountPage: () => this.openEditPage(offer.kind),
-          refreshPaymentOffer: this.doRefreshLnInvoice,
-        ),
-      );
-
-      return [invoicePage, btcPage];
-    }
+    return [lightningPage, btcPage];
   }
 
   @override

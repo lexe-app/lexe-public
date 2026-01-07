@@ -650,17 +650,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "ReceivePaymentPage",
-        subtitle: "BOLT12 offers feature disabled",
-        (context) => ReceivePaymentPage(
-          app: mockApp,
-          appData: LxAppData(mockApp.appDataDb()),
-          featureFlags: const FeatureFlags.all(showBolt12OffersRecvPage: false),
-          fiatRate: this.makeFiatRateStream(),
-          settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
-        ),
-      ),
-      Component(
-        "ReceivePaymentPage",
         subtitle: "fetch invoice error",
         (context) => ReceivePaymentPage(
           app: mockAppErr,
