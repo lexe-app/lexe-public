@@ -691,14 +691,15 @@ pub(super) async fn list_nwc_clients(
         .await
         .map_err(NodeApiError::command)?;
 
-    // Decrypt each client cyphertext to get the label and expose the client
+    // Decrypt each client ciphertext to get the label and expose the client
     // info.
     let mut clients = Vec::new();
     for client in vec_nwc_client.nwc_clients {
-        let client_data =
+        let decrypted =
             NwcClient::decrypt(state.persister.vfs_master_key(), client);
-        if let Ok(connection) = client_data {
-            clients.push(connection.to_nwc_client_info());
+        match decrypted {
+            Ok(nwc_client) => clients.push(nwc_client.to_nwc_client_info()),
+            Err(e) => tracing::warn!("Failed to decrypt NWC client: {e:#}"),
         }
     }
 
