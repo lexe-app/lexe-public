@@ -79,7 +79,7 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, ClaimPaymentAddress, CloseChannelRequest,
+            BackupInfo, ClaimGeneratedPaymentAddress, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, GetAddressResponse,
             GetGeneratedUsernameResponse, GetNewPayments,
@@ -907,15 +907,13 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<PaymentAddress, BackendApiError>;
 
-    /// POST /node/v1/claim_payment_address [`ClaimPaymentAddress`]
-    ///                                  -> [`Empty`]
+    /// POST /node/v1/claim_generated_payment_address
+    ///   [`ClaimGeneratedPaymentAddress`] -> [`Empty`]
     ///
-    /// Claims a generated payment address given by the node. This endpoint will
-    /// set the is_generated flag to true as is expected to be called by the
-    /// node on startup.
-    async fn claim_payment_address(
+    /// Claims a generated payment address given by the node.
+    async fn claim_generated_payment_address(
         &self,
-        req: ClaimPaymentAddress,
+        req: ClaimGeneratedPaymentAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 

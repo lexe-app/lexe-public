@@ -533,7 +533,7 @@ pub struct UpdatePaymentAddress {
 /// `is_generated: true`.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ClaimPaymentAddress {
+pub struct ClaimGeneratedPaymentAddress {
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: LxOffer,
     /// The username to claim. This must be the username returned by
@@ -548,7 +548,8 @@ pub struct GetGeneratedUsernameResponse {
     /// The generated username that can be used for claiming a payment address.
     pub username: Username,
     /// Whether this user already has a claimed generated payment address.
-    /// If true, the caller should skip calling `claim_payment_address`.
+    /// If true, the caller should skip calling
+    /// `claim_generated_payment_address`.
     pub already_claimed: bool,
 }
 
@@ -636,8 +637,9 @@ mod test {
     }
 
     #[test]
-    fn claim_payment_address_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<ClaimPaymentAddress>();
+    fn claim_generated_payment_address_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<ClaimGeneratedPaymentAddress>(
+        );
     }
 
     #[test]

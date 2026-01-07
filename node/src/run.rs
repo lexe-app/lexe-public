@@ -33,7 +33,7 @@ use lexe_api::{
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
     models::{
-        command::{ClaimPaymentAddress, GDriveStatus},
+        command::{ClaimGeneratedPaymentAddress, GDriveStatus},
         runner::UserLeaseRenewalRequest,
     },
     server::LayerConfig,
@@ -587,17 +587,17 @@ impl UserNode {
                         .map_err(|e| anyhow!("Failed to build offer: {e:?}"))?;
                     let lx_offer = LxOffer(offer);
 
-                    let req = ClaimPaymentAddress {
+                    let req = ClaimGeneratedPaymentAddress {
                         offer: lx_offer,
                         username,
                     };
                     persister
                         .backend_api()
-                        .claim_payment_address(req, token)
+                        .claim_generated_payment_address(req, token)
                         .await
-                        .context("claim_payment_address failed")?;
+                        .context("claim_generated_payment_address failed")?;
 
-                    Ok(())
+                    anyhow::Ok(())
                 },
             )
         };
