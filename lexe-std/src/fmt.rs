@@ -61,3 +61,16 @@ where
         write!(f, "]")
     }
 }
+
+/// Displays an `Option<T>` using `T`'s [`fmt::Display`] impl,
+/// or "(null)" if the [`Option`] was [`None`].
+pub struct DisplayOption<T>(pub Option<T>);
+
+impl<T: fmt::Display> fmt::Display for DisplayOption<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            Some(value) => write!(f, "{value}"),
+            None => write!(f, "(none)"),
+        }
+    }
+}
