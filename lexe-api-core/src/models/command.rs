@@ -562,7 +562,8 @@ pub struct PaymentAddress {
     pub offer: Option<LxOffer>,
     /// Last time the payment address was updated.
     pub updated_at: Option<TimestampMs>,
-    /// Wheter the payment address can be updated.
+    /// Whether the payment address can be updated. Always `true` for generated
+    /// addresses; for claimed addresses, depends on time-based freeze rules.
     pub updatable: bool,
 }
 
