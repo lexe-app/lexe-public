@@ -7,7 +7,7 @@ use common::{
     time::TimestampMs,
 };
 use lexe_api::models::nwc::{
-    DbNwcClient, NostrPk, NwcClientInfo, UpdateDbNwcClientRequest,
+    DbNwcWallet, NostrPk, NwcClientInfo, UpdateDbNwcWalletRequest,
 };
 use serde::{Deserialize, Serialize};
 
@@ -93,20 +93,22 @@ impl NwcClient {
         }
     }
 
-    /// Build a NWC client from an encrypted DB record.
-    /// This is used when retrieving a NWC client from the DB.
+    /// Build a NWC wallet from an encrypted DB record.
+    ///
+    /// Decrypts the ciphertext from the DB record and builds a NWC wallet
+    /// from the decrypted data.
     pub(crate) fn from_db(
         vfs_master_key: &AesMasterKey,
-        nwc_client: DbNwcClient,
+        nwc_wallet: DbNwcWallet,
     ) -> anyhow::Result<Self> {
         let client_data = decrypt_client(
             vfs_master_key,
-            nwc_client.client_nostr_pk.as_array(),
-            nwc_client.ciphertext,
+            nwc_wallet.wallet_nostr_pk.as_array(),
+            nwc_wallet.ciphertext,
         )?;
-        let wallet_service_pubkey = nwc_client.client_nostr_pk;
-        let created_at = nwc_client.created_at;
-        let updated_at = nwc_client.updated_at;
+        let wallet_service_pubkey = nwc_wallet.wallet_nostr_pk;
+        let created_at = nwc_wallet.created_at;
+        let updated_at = nwc_wallet.updated_at;
         Ok(Self {
             client_data,
             wallet_service_pubkey,
@@ -152,7 +154,7 @@ impl NwcClient {
         &self,
         rng: &mut impl Crng,
         vfs_master_key: &AesMasterKey,
-    ) -> UpdateDbNwcClientRequest {
+    ) -> UpdateDbNwcWalletRequest {
         let ciphertext = encrypt_client(
             rng,
             vfs_master_key,
@@ -160,8 +162,8 @@ impl NwcClient {
             &self.client_data,
         );
 
-        UpdateDbNwcClientRequest {
-            client_nostr_pk: self.wallet_service_pubkey,
+        UpdateDbNwcWalletRequest {
+            wallet_nostr_pk: self.wallet_service_pubkey,
             ciphertext,
         }
     }
@@ -272,7 +274,7 @@ mod test {
     use common::{
         ByteArray, aes::AesMasterKey, rng::SysRng, time::TimestampMs,
     };
-    use lexe_api::models::nwc::DbNwcClient;
+    use lexe_api::models::nwc::DbNwcWallet;
 
     use super::*;
 
@@ -382,14 +384,14 @@ mod test {
         let connection = NwcClient::new(label.clone());
         let req = connection.to_req(&mut rng, &master_key);
 
-        let nwc_client = DbNwcClient {
-            client_nostr_pk: req.client_nostr_pk,
+        let nwc_wallet = DbNwcWallet {
+            wallet_nostr_pk: req.wallet_nostr_pk,
             ciphertext: req.ciphertext,
             created_at: connection.created_at,
             updated_at: connection.updated_at,
         };
 
-        let restored = NwcClient::from_db(&master_key, nwc_client)
+        let restored = NwcClient::from_db(&master_key, nwc_wallet)
             .expect("Should restore connection");
 
         assert_eq!(
@@ -440,14 +442,14 @@ mod test {
         let connection = NwcClient::new(label.clone());
         let req = connection.to_req(&mut rng, &master_key);
 
-        let nwc_client = DbNwcClient {
-            client_nostr_pk: req.client_nostr_pk,
+        let nwc_wallet = DbNwcWallet {
+            wallet_nostr_pk: req.wallet_nostr_pk,
             ciphertext: req.ciphertext,
             created_at: TimestampMs::now(),
             updated_at: TimestampMs::now(),
         };
 
-        let restored = NwcClient::from_db(&master_key, nwc_client)
+        let restored = NwcClient::from_db(&master_key, nwc_wallet)
             .expect("Should restore");
         let info = restored.to_nwc_client_info();
 

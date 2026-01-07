@@ -25,11 +25,15 @@ pub struct NostrPkStruct {
     pub nostr_pk: NostrPk,
 }
 
-/// Information about a NWC client.
+/// Wallet service information stored in the DB.
+///
+/// Ciphertext is encrypted using node's master key and stores the
+/// wallet service secret key and client public key to be used on nip47
+/// communication protocol.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct DbNwcClient {
-    pub client_nostr_pk: NostrPk,
+pub struct DbNwcWallet {
+    pub wallet_nostr_pk: NostrPk,
     #[serde(with = "base64_or_bytes")]
     pub ciphertext: Vec<u8>,
     pub created_at: TimestampMs,
@@ -75,20 +79,22 @@ pub struct UpsertNwcRequest {
     pub label: String,
 }
 
-/// Query parameters for searching for NWC clients.
+/// Query parameters to search for NWC wallets.
+///
+/// This params adds optinal filtering besides the user_pk.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct GetNwcClientsParams {
-    /// Optionally filter by the client's Nostr PK.
-    pub client_nostr_pk: Option<NostrPk>,
+pub struct GetNwcWalletsParams {
+    /// Optionally filter by the wallet's Nostr PK.
+    pub wallet_nostr_pk: Option<NostrPk>,
 }
 
 /// Upserts a NWC client in the database based on the ciphertext encoded by
 /// the node and the public key used on Nostr.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct UpdateDbNwcClientRequest {
-    pub client_nostr_pk: NostrPk,
+pub struct UpdateDbNwcWalletRequest {
+    pub wallet_nostr_pk: NostrPk,
     #[serde(with = "base64_or_bytes")]
     pub ciphertext: Vec<u8>,
 }
@@ -149,8 +155,8 @@ pub struct UpdateNwcClientResponse {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct VecNwcClient {
-    pub nwc_clients: Vec<DbNwcClient>,
+pub struct VecNwcWallet {
+    pub nwc_wallets: Vec<DbNwcWallet>,
 }
 
 /// Request from nostr-bridge to user node with an encrypted NWC request.
@@ -309,7 +315,7 @@ mod test {
 
     #[test]
     fn update_db_nwc_client_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<UpdateDbNwcClientRequest>();
+        roundtrip::json_value_roundtrip_proptest::<UpdateDbNwcWalletRequest>();
     }
 
     #[test]
@@ -334,7 +340,7 @@ mod test {
 
     #[test]
     fn nwc_client_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<DbNwcClient>();
+        roundtrip::json_value_roundtrip_proptest::<DbNwcWallet>();
     }
 
     #[test]
@@ -344,7 +350,7 @@ mod test {
 
     #[test]
     fn vec_nostr_client_pk_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<VecNwcClient>();
+        roundtrip::json_value_roundtrip_proptest::<VecNwcWallet>();
     }
 
     #[test]

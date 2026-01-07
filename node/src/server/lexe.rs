@@ -12,7 +12,7 @@ use lexe_api::{
     models::{
         command::ResyncRequest,
         nwc::{
-            DbNwcClient, NostrPk, NwcRequest, NwcResponse,
+            DbNwcWallet, NostrPk, NwcRequest, NwcResponse,
             nip47::{NwcRequestPayload, NwcResponsePayload},
         },
     },
@@ -125,25 +125,25 @@ pub(super) async fn nwc_request(
 async fn authenticate_nwc_connection(
     state: &RouterState,
     connection_pk: &NostrPk,
-) -> anyhow::Result<DbNwcClient> {
+) -> anyhow::Result<DbNwcWallet> {
     let token =
         state.persister.get_token().await.context(
             "Failed to get auth token for NWC client authentication",
         )?;
 
-    let params = lexe_api::models::nwc::GetNwcClientsParams {
-        client_nostr_pk: Some(*connection_pk),
+    let params = lexe_api::models::nwc::GetNwcWalletsParams {
+        wallet_nostr_pk: Some(*connection_pk),
     };
 
-    let vec_nwc_client = state
+    let vec_nwc_wallet = state
         .persister
         .backend_api()
-        .get_nwc_clients(params, token)
+        .get_nwc_wallets(params, token)
         .await
         .context("Failed to fetch NWC clients for authentication")?;
 
-    let mut clients = vec_nwc_client.nwc_clients;
-    clients
+    let mut wallets = vec_nwc_wallet.nwc_wallets;
+    wallets
         .pop()
         .ok_or_else(|| anyhow::anyhow!("Unauthorized: Connection not found"))
 }
