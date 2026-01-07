@@ -46,7 +46,7 @@ pub(super) async fn handle_nwc_request(
 async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
     let best_block = state.channel_manager.current_best_block();
 
-    // Nip47 only supports maintnet, regtest, testnet, and signet.
+    // NIP-47 only supports mainnet, regtest, testnet, and signet.
     let network = match state.network {
         LxNetwork::Mainnet => "mainnet",
         LxNetwork::Regtest => "regtest",
