@@ -169,7 +169,7 @@ class SendState_NeedAmount implements SendState {
     PaymentMethod_Offer(:final field0) => field0.amountSats,
     PaymentMethod_LnurlPayRequest(:final field0) =>
       field0.minSendableMsat == field0.maxSendableMsat
-          ? field0.minSendableMsat
+          ? field0.minSendableMsat ~/ 1000
           : null,
   };
 
