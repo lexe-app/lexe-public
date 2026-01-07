@@ -551,8 +551,14 @@ impl UserNode {
         .context("Could not init NodeChannelManager")?;
 
         // Spawn a task to claim a payment address concurrently.
-        // This task is joined before init function returns.
-        let claim_payment_address_task: LxTask<anyhow::Result<()>> = {
+        // This task is joined before `init` returns.
+        //
+        // NOTE: There is a potential TOCTTOU race condition here: two nodes
+        // could call `get_generated_username` and receive the same username,
+        // then one succeeds at claiming while the other fails. This is unlikely
+        // in practice (requires two users with colliding petnames to register
+        // simultaneously) and not worth the complexity to handle.
+        let claim_payment_address_task = {
             let persister = persister.clone();
             let channel_manager = channel_manager.clone();
 
@@ -570,7 +576,7 @@ impl UserNode {
 
                     // If already claimed, no need to claim again
                     if resp.already_claimed {
-                        return Ok(());
+                        return anyhow::Ok(());
                     }
                     let username = resp.username;
 
@@ -968,11 +974,19 @@ impl UserNode {
         // Ensure channels are using the most up-to-date config.
         channel_manager.check_channel_configs(&config);
 
+        // Wait for the payment address claim task to complete before finishing
+        // init. A failure here should abort node startup since it indicates an
+        // issue that requires investigation.
+        claim_payment_address_task
+            .await
+            .context("claim payment address task panicked")?
+            .context("Failed to claim payment address")?;
+
         let elapsed = init_start.elapsed().as_millis();
         info!("Node initialization complete. <{elapsed}ms>");
 
         // Build and return the UserNode
-        let user_node = Self {
+        Ok(Self {
             // General
             args,
             deploy_env,
@@ -1010,16 +1024,7 @@ impl UserNode {
                 user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
             run: Some(RunContext { eph_tasks_rx }),
-        };
-
-        // Wait for the payment address claim task to complete.
-        match claim_payment_address_task.await {
-            Ok(Ok(_)) => info!("Successfully claimed payment address"),
-            Ok(Err(e)) => warn!("Failed to claim payment address: {e:#}"),
-            Err(e) => warn!("Payment address task panicked: {e}"),
-        }
-
-        Ok(user_node)
+        })
     }
 
     pub async fn sync(&mut self) -> anyhow::Result<()> {
