@@ -368,7 +368,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             return Ok(Some(Cow::Borrowed(payment)));
         }
 
-        let maybe_pwm = self.persister.get_payment_by_id(*id).await?;
+        let maybe_pwm =
+            self.persister.get_payment_with_metadata_by_id(*id).await?;
 
         if let Some(ref pwm) = maybe_pwm {
             locked_data
@@ -401,7 +402,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Update
         let mut pwm = self
             .persister
-            .get_payment_by_id(update.index.id)
+            .get_payment_with_metadata_by_id(update.index.id)
             .await
             .context("Could not get payment to update note")?
             .context("Payment not found")?;

@@ -347,7 +347,7 @@ impl UserNode {
             read_maybe_approved_versions,
             persister.read_wallet_changeset(),
             persister.read_scids(),
-            persister.get_pending_payments(),
+            persister.get_pending_payments_with_metadata(),
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
             persister.fetch_channel_monitor_bytes(),
         );

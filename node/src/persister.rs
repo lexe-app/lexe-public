@@ -35,12 +35,7 @@
 //! - Archive: Write to and delete from both Lexe's DB and GDrive synchronously.
 
 use std::{
-    cmp,
-    collections::{HashMap, HashSet},
-    io::Cursor,
-    str::FromStr,
-    sync::Arc,
-    time::SystemTime,
+    collections::HashMap, io::Cursor, str::FromStr, sync::Arc, time::SystemTime,
 };
 
 use anyhow::{Context, anyhow, ensure};
@@ -70,8 +65,7 @@ use lexe_api::{
         Empty,
         payments::{
             BasicPaymentV1, BasicPaymentV2, DbPaymentMetadata, DbPaymentV2,
-            LxPaymentId, PaymentUpdatedIndex, VecDbPaymentMetadata,
-            VecDbPaymentV2,
+            LxPaymentId, VecDbPaymentMetadata, VecDbPaymentV2,
         },
     },
     vfs::{
@@ -88,7 +82,7 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
-        self, PaymentWithMetadata,
+        self, PaymentMetadata, PaymentV2, PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
         v1::PaymentV1,
     },
@@ -96,7 +90,7 @@ use lexe_ln::{
     traits::{LexeInnerPersister, LexePersister},
     wallet::ChangeSet,
 };
-use lexe_std::{Apply, backoff, fmt::DisplayOption};
+use lexe_std::{Apply, backoff};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
@@ -532,288 +526,19 @@ impl NodePersister {
             .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
-    /// Fetch updated payments and metadata, synchronizing both streams.
-    ///
-    /// Both the payments and metadata tables can be updated independently.
-    /// To allow the client to tail both consistently, we:
-    ///
-    /// 1. Fetch both `get_updated_payments` and `get_updated_payment_metadata`
-    ///    with the same start_index.
-    /// 2. Compute END = min(last_payment_index, last_metadata_index).
-    /// 3. Filter both lists to items with index <= END.
-    /// 4. For any payment in the filtered list, ensure we have its metadata.
-    /// 5. For any metadata in the filtered list, ensure we have its payment.
-    /// 6. Merge, dedupe by ID (taking latest versions), sort by effective
-    ///    updated_at = max(payment.updated_at, metadata.updated_at).
-    ///
-    /// The client uses END as the next query's start_index. This ensures no
-    /// updates are missed: any item past END in the "shorter" list will be
-    /// included in subsequent queries.
-    ///
-    /// **Edge case**: If one list is empty, there are no updates in that table
-    /// past start_index. We can safely use the non-empty list's end as END,
-    /// since there are no updates to miss in the empty table.
-    pub(crate) async fn read_updated_payments(
+    pub(crate) async fn get_updated_basic_payments(
         &self,
         req: GetUpdatedPayments,
     ) -> anyhow::Result<Vec<BasicPaymentV2>> {
-        let token = self.get_token().await?;
-
-        // Fetch both updated payments and metadata in parallel
-        let payments_req = GetUpdatedPayments {
-            start_index: req.start_index,
-            limit: req.limit,
-        };
-        let metadata_req = GetUpdatedPaymentMetadata {
-            start_index: req.start_index,
-            limit: req.limit,
-        };
-
-        let (payments_result, metadata_result) = tokio::join!(
-            self.backend_api
-                .get_updated_payments(payments_req, token.clone()),
-            self.backend_api
-                .get_updated_payment_metadata(metadata_req, token.clone()),
-        );
-
-        let mut db_payments = payments_result
-            .context("Could not fetch updated payments")?
-            .payments;
-        let mut db_metadatas = metadata_result
-            .context("Could not fetch updated metadata")?
-            .metadatas;
-
-        // If both empty, nothing to do
-        if db_payments.is_empty() && db_metadatas.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // The queries above could race; an update might be seen in one list but
-        // not the other. If one of the two lists is empty, we can ensure we
-        // don't advance the cursor past updates that were committed between the
-        // two queries by doing a re-fetch of the empty list to confirm that the
-        // list is indeed empty. In practice, this should rarely happen, as
-        // payments and metadata are usually persisted together, the queries
-        // above occur within milliseconds, and an update would have to slip in
-        // between the two to trigger.
-        if db_payments.is_empty() {
-            warn!(
-                start_index = %DisplayOption(req.start_index),
-                "Defensive re-fetch of empty payments list"
-            );
-            db_payments = self
-                .backend_api
-                .get_updated_payments(
-                    GetUpdatedPayments {
-                        start_index: req.start_index,
-                        limit: req.limit,
-                    },
-                    token.clone(),
-                )
-                .await
-                .context("Could not re-fetch payments")?
-                .payments;
-        }
-        if db_metadatas.is_empty() {
-            warn!(
-                start_index = %DisplayOption(req.start_index),
-                "Defensive re-fetch of empty metadata list"
-            );
-            db_metadatas = self
-                .backend_api
-                .get_updated_payment_metadata(
-                    GetUpdatedPaymentMetadata {
-                        start_index: req.start_index,
-                        limit: req.limit,
-                    },
-                    token.clone(),
-                )
-                .await
-                .context("Could not re-fetch metadata")?
-                .metadatas;
-        }
-
-        // Find the maximum updated index in both lists
-        let max_payment_idx = db_payments
-            .iter()
-            .max_by_key(|p| (p.updated_at, &p.id))
-            .map(|p| {
-                let updated_at = TimestampMs::try_from(p.updated_at)
-                    .context("Invalid payment updated_at")?;
-                let id = LxPaymentId::from_str(&p.id)
-                    .context("Invalid payment id")?;
-                anyhow::Ok(PaymentUpdatedIndex { updated_at, id })
-            })
-            .transpose()
-            .context("Invalid payment index")?;
-        let max_metadata_idx = db_metadatas
-            .iter()
-            .max_by_key(|m| (m.updated_at, &m.id))
-            .map(|m| {
-                let updated_at = TimestampMs::try_from(m.updated_at)
-                    .context("Invalid metadata updated_at")?;
-                let id = LxPaymentId::from_str(&m.id)
-                    .context("Invalid metadata id")?;
-                anyhow::Ok(PaymentUpdatedIndex { updated_at, id })
-            })
-            .transpose()?;
-
-        // Compute END index = min(max_payment_idx, max_metadata_idx).
-        // If one list is empty, use the other's max. This is safe because an
-        // empty list means there are no updates in that table past start_index.
-        let end_index = match (max_payment_idx, max_metadata_idx) {
-            (Some(p), Some(m)) => cmp::min(p, m),
-            (Some(p), None) => p,
-            (None, Some(m)) => m,
-            (None, None) => unreachable!("handled above"),
-        };
-
-        // Filter both lists to items <= END
-        db_payments.retain(|p| {
-            let Ok(updated_at) = TimestampMs::try_from(p.updated_at) else {
-                return false;
-            };
-            let Ok(id) = LxPaymentId::from_str(&p.id) else {
-                return false;
-            };
-            PaymentUpdatedIndex { updated_at, id } <= end_index
-        });
-        db_metadatas.retain(|m| {
-            let Ok(updated_at) = TimestampMs::try_from(m.updated_at) else {
-                return false;
-            };
-            let Ok(id) = LxPaymentId::from_str(&m.id) else {
-                return false;
-            };
-            PaymentUpdatedIndex { updated_at, id } <= end_index
-        });
-
-        // Collect IDs from both lists
-        let payment_ids = db_payments
-            .iter()
-            .map(|p| p.id.clone())
-            .collect::<HashSet<_>>();
-        let metadata_ids = db_metadatas
-            .iter()
-            .map(|m| m.id.clone())
-            .collect::<HashSet<_>>();
-
-        // Find IDs that need their counterpart fetched
-        let payment_ids_needing_metadata = payment_ids
-            .difference(&metadata_ids)
-            .filter_map(|id| LxPaymentId::from_str(id).ok())
-            .collect::<Vec<_>>();
-        let metadata_ids_needing_payment = metadata_ids
-            .difference(&payment_ids)
-            .filter_map(|id| LxPaymentId::from_str(id).ok())
-            .collect::<Vec<_>>();
-
-        // Fetch missing payments and metadata
-        if !metadata_ids_needing_payment.is_empty() {
-            let missing_payments = self
-                .backend_api
-                .get_payments_by_ids(
-                    VecLxPaymentId {
-                        ids: metadata_ids_needing_payment,
-                    },
-                    token.clone(),
-                )
-                .await
-                .context("Could not fetch missing payments")?
-                .payments;
-            db_payments.extend(missing_payments);
-        }
-
-        if !payment_ids_needing_metadata.is_empty() {
-            let missing_metadata = self
-                .backend_api
-                .get_payment_metadata_by_ids(
-                    VecLxPaymentId {
-                        ids: payment_ids_needing_metadata,
-                    },
-                    token,
-                )
-                .await
-                .context("Could not fetch missing metadata")?
-                .metadatas;
-            db_metadatas.extend(missing_metadata);
-        }
-
-        // Build id -> payment/metadata maps for efficient pairing during
-        // decrypt. Dedupe by taking the latest version since
-        // db_payments/db_metadatas may contain duplicates from the
-        // initial fetch, re-fetch, or by-id fetch.
-        let mut payments_map: HashMap<String, DbPaymentV2> = HashMap::new();
-        let mut metadatas_map: HashMap<String, DbPaymentMetadata> =
-            HashMap::new();
-        for p in db_payments {
-            payments_map
-                .entry(p.id.clone())
-                .and_modify(|existing| {
-                    if p.updated_at > existing.updated_at {
-                        *existing = p.clone();
-                    }
-                })
-                .or_insert(p);
-        }
-        for m in db_metadatas {
-            metadatas_map
-                .entry(m.id.clone())
-                .and_modify(|existing| {
-                    if m.updated_at > existing.updated_at {
-                        *existing = m.clone();
-                    }
-                })
-                .or_insert(m);
-        }
-
-        // Collect unique IDs with their effective updated_at index for sorting.
-        // Effective updated_at = max(payment_updated_idx, metadata_updated_idx)
-        // since either can change independently.
-        let mut entries: Vec<(String, i64)> = payments_map
-            .keys()
-            .map(|id| {
-                let payment_updated =
-                    payments_map.get(id).map(|p| p.updated_at).unwrap_or(0);
-                let metadata_updated =
-                    metadatas_map.get(id).map(|m| m.updated_at).unwrap_or(0);
-                let effective_updated_at =
-                    cmp::max(payment_updated, metadata_updated);
-                (id.clone(), effective_updated_at)
-            })
-            .collect();
-
-        // Sort by effective updated_at, then by id for stability
-        entries.sort_by(|(id_a, updated_a), (id_b, updated_b)| {
-            updated_a.cmp(updated_b).then_with(|| id_a.cmp(id_b))
-        });
-
-        // Decrypt and return
-        entries
+        self.get_updated_payments_with_metadata(req)
+            .await?
             .into_iter()
-            .map(|(id, _)| {
-                let db_payment = payments_map
-                    .remove(&id)
-                    .context("Payment missing from map")?;
-                let db_metadata = metadatas_map.remove(&id);
-
-                let created_at = TimestampMs::try_from(db_payment.created_at)
-                    .context("Invalid created_at timestamp")?;
-                let updated_at = TimestampMs::try_from(db_payment.updated_at)
-                    .context("Invalid updated_at timestamp")?;
-
-                let pwm = payments::encryption::decrypt_pwm(
-                    &self.vfs_master_key,
-                    db_payment,
-                    db_metadata,
-                )
-                .context("Could not decrypt payment")?;
-
-                let basic_payment =
-                    pwm.into_basic_payment(created_at, updated_at);
-                Ok(basic_payment)
+            .map(|(pwm, updated_at)| {
+                let created_at =
+                    pwm.payment.created_at().unwrap_or_else(TimestampMs::now);
+                Ok(pwm.into_basic_payment(created_at, updated_at))
             })
-            .collect::<anyhow::Result<Vec<BasicPaymentV2>>>()
+            .collect()
     }
 
     pub(crate) async fn read_payment_by_id(
@@ -1085,211 +810,6 @@ impl Vfs for NodePersister {
 
 #[async_trait]
 impl LexeInnerPersister for NodePersister {
-    async fn get_pending_payments(
-        &self,
-    ) -> anyhow::Result<Vec<PaymentWithMetadata>> {
-        let token = self.get_token().await?;
-
-        // Fetch pending payments
-        let db_payments = self
-            .backend_api
-            .get_pending_payments(token.clone())
-            .await
-            .context("Could not fetch pending `DbPaymentV2`s")?
-            .payments;
-
-        // Fetch corresponding metadata
-        let ids = db_payments
-            .iter()
-            .filter_map(|p| LxPaymentId::from_str(&p.id).ok())
-            .collect::<Vec<LxPaymentId>>();
-        let mut metadatas = self
-            .backend_api
-            .get_payment_metadata_by_ids(VecLxPaymentId { ids }, token)
-            .await
-            .context("Could not fetch payment metadata")?
-            .metadatas
-            .into_iter()
-            .map(|m| (m.id.clone(), m))
-            .collect::<HashMap<String, DbPaymentMetadata>>();
-
-        // Decrypt payments with their metadata
-        db_payments
-            .into_iter()
-            .map(|payments| {
-                let metadata = metadatas.remove(&payments.id);
-                payments::encryption::decrypt_pwm(
-                    &self.vfs_master_key,
-                    payments,
-                    metadata,
-                )
-                .context("Could not decrypt payment")
-            })
-            .collect()
-    }
-
-    async fn upsert_payment(
-        &self,
-        checked: CheckedPayment,
-    ) -> anyhow::Result<PersistedPayment> {
-        let mut rng = SysRng::new();
-
-        let mut pwm = checked.0;
-        let now = TimestampMs::now();
-        let created_at = pwm.payment.created_at().unwrap_or(now);
-        let updated_at = now;
-
-        // Ensure the payment's created_at field is set before persisting,
-        // since it may be None if this is the payment's first persist.
-        pwm.payment.set_created_at_once(created_at);
-
-        let (db_payment, db_metadata) = payments::encryption::encrypt_pwm(
-            &mut rng,
-            &self.vfs_master_key,
-            &pwm,
-            created_at,
-            updated_at,
-        )
-        .context("Failed to encrypt payment")?;
-        let token = self.get_token().await?;
-
-        let payment_fut =
-            self.backend_api.upsert_payment(db_payment, token.clone());
-        let metadata_fut = async {
-            match db_metadata {
-                Some(m) =>
-                    self.backend_api.upsert_payment_metadata(m, token).await,
-                None => Ok(Empty {}),
-            }
-        };
-
-        let (payment_result, metadata_result) =
-            tokio::join!(payment_fut, metadata_fut);
-        payment_result.context("upsert_payment API call failed")?;
-        metadata_result.context("upsert_payment_metadata API call failed")?;
-
-        Ok(PersistedPayment {
-            pwm,
-            created_at,
-            updated_at,
-        })
-    }
-
-    async fn upsert_payment_batch(
-        &self,
-        mut checked_batch: Vec<CheckedPayment>,
-    ) -> anyhow::Result<Vec<PersistedPayment>> {
-        if checked_batch.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let mut rng = SysRng::new();
-        let now = TimestampMs::now();
-        let updated_at = now;
-
-        let mut payments = Vec::with_capacity(checked_batch.len());
-        let mut metadatas = Vec::with_capacity(checked_batch.len());
-
-        for CheckedPayment(pwm) in checked_batch.iter_mut() {
-            // Ensure the payment's created_at field is set,
-            // as it may be None if this is the payment's first persist.
-            let created_at = pwm.payment.created_at().unwrap_or(now);
-            pwm.payment.set_created_at_once(created_at);
-
-            let (db_payment, db_metadata) = payments::encryption::encrypt_pwm(
-                &mut rng,
-                &self.vfs_master_key,
-                pwm,
-                created_at,
-                updated_at,
-            )
-            .context("Failed to encrypt payment")?;
-
-            payments.push(db_payment);
-            if let Some(metadata) = db_metadata {
-                metadatas.push(metadata);
-            }
-        }
-
-        let batch = VecDbPaymentV2 { payments };
-        let token = self.get_token().await?;
-
-        let payments_batch_fut =
-            self.backend_api.upsert_payment_batch(batch, token.clone());
-        let metadatas_batch_fut = async {
-            if metadatas.is_empty() {
-                return anyhow::Ok(());
-            }
-
-            let metadata_batch = VecDbPaymentMetadata { metadatas };
-            self.backend_api
-                .upsert_payment_metadata_batch(metadata_batch, token)
-                .await?;
-            anyhow::Ok(())
-        };
-
-        let (payments_batch_result, metadatas_batch_result) =
-            tokio::join!(payments_batch_fut, metadatas_batch_fut);
-        payments_batch_result
-            .context("upsert_payment_batch API call failed")?;
-        metadatas_batch_result
-            .context("upsert_payment_metadata_batch API call failed")?;
-
-        let persisted_batch = checked_batch
-            .into_iter()
-            .map(|CheckedPayment(pwm)| {
-                let created_at = pwm.payment.created_at().unwrap_or(now);
-                PersistedPayment {
-                    pwm,
-                    created_at,
-                    updated_at,
-                }
-            })
-            .collect::<Vec<PersistedPayment>>();
-
-        Ok(persisted_batch)
-    }
-
-    async fn get_payment_by_id(
-        &self,
-        id: LxPaymentId,
-    ) -> anyhow::Result<Option<PaymentWithMetadata>> {
-        let token = self.get_token().await?;
-
-        let req = LxPaymentIdStruct { id };
-        let (try_payment, try_metadata) = tokio::join!(
-            self.backend_api.get_payment_by_id(req, token.clone()),
-            self.backend_api.get_payment_metadata_by_id(req, token),
-        );
-
-        let maybe_payment = try_payment
-            .context("Could not fetch payment")?
-            .maybe_payment;
-        let maybe_metadata = try_metadata
-            .context("Could not fetch payment metadata")?
-            .maybe_metadata;
-
-        let maybe_pwm = maybe_payment
-            .map(|p| {
-                payments::encryption::decrypt_pwm(
-                    &self.vfs_master_key,
-                    p,
-                    maybe_metadata,
-                )
-            })
-            .transpose()
-            .context("Could not decrypt payment")?;
-
-        if let Some(ref pwm) = maybe_pwm {
-            ensure!(
-                pwm.payment.id() == id,
-                "ID of returned payment doesn't match"
-            );
-        }
-
-        Ok(maybe_pwm)
-    }
-
     /// NOTE: See module docs for info on how manager/monitor persist works.
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
@@ -1347,6 +867,271 @@ impl LexeInnerPersister for NodePersister {
         self.persist_file(file, retries)
             .await
             .context("Failed to persist channel monitor")
+    }
+
+    async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV2>> {
+        let token = self.get_token().await?;
+
+        let db_payments = self
+            .backend_api
+            .get_pending_payments(token)
+            .await
+            .context("Could not fetch pending `DbPaymentV2`s")?
+            .payments;
+
+        db_payments
+            .into_iter()
+            .map(|p| {
+                payments::encryption::decrypt_payment(&self.vfs_master_key, p)
+            })
+            .collect()
+    }
+
+    async fn get_payment_by_id(
+        &self,
+        id: LxPaymentId,
+    ) -> anyhow::Result<Option<PaymentV2>> {
+        let token = self.get_token().await?;
+        let req = LxPaymentIdStruct { id };
+
+        let maybe_db_payment = self
+            .backend_api
+            .get_payment_by_id(req, token)
+            .await
+            .context("Could not fetch payment")?
+            .maybe_payment;
+
+        let maybe_payment = maybe_db_payment
+            .map(|p| {
+                payments::encryption::decrypt_payment(&self.vfs_master_key, p)
+            })
+            .transpose()
+            .context("Could not decrypt payment")?;
+
+        if let Some(ref payment) = maybe_payment {
+            ensure!(payment.id() == id, "ID of returned payment doesn't match");
+        }
+
+        Ok(maybe_payment)
+    }
+
+    async fn get_payment_metadata_by_id(
+        &self,
+        id: LxPaymentId,
+    ) -> anyhow::Result<Option<PaymentMetadata>> {
+        let token = self.get_token().await?;
+        let req = LxPaymentIdStruct { id };
+
+        let maybe_db_metadata = self
+            .backend_api
+            .get_payment_metadata_by_id(req, token)
+            .await
+            .context("Could not fetch payment metadata")?
+            .maybe_metadata;
+
+        maybe_db_metadata
+            .map(|db_meta| {
+                payments::encryption::decrypt_metadata(
+                    &self.vfs_master_key,
+                    db_meta,
+                )
+            })
+            .transpose()
+    }
+
+    async fn upsert_payment(
+        &self,
+        checked: CheckedPayment,
+    ) -> anyhow::Result<PersistedPayment> {
+        let mut rng = SysRng::new();
+
+        let mut pwm = checked.0;
+        let now = TimestampMs::now();
+        let created_at = pwm.payment.created_at().unwrap_or(now);
+        let updated_at = now;
+
+        // Ensure the payment's created_at field is set before persisting,
+        // since it may be None if this is the payment's first persist.
+        pwm.payment.set_created_at_once(created_at);
+
+        let (db_payment, db_metadata) = payments::encryption::encrypt_pwm(
+            &mut rng,
+            &self.vfs_master_key,
+            &pwm,
+            created_at,
+            updated_at,
+        )
+        .context("Failed to encrypt payment")?;
+        let token = self.get_token().await?;
+
+        // Payment must be written first due to FK constraint on metadata.
+        self.backend_api
+            .upsert_payment(db_payment, token.clone())
+            .await
+            .context("upsert_payment API call failed")?;
+
+        if let Some(m) = db_metadata {
+            self.backend_api
+                .upsert_payment_metadata(m, token)
+                .await
+                .context("upsert_payment_metadata API call failed")?;
+        }
+
+        Ok(PersistedPayment {
+            pwm,
+            created_at,
+            updated_at,
+        })
+    }
+
+    async fn upsert_payment_batch(
+        &self,
+        mut checked_batch: Vec<CheckedPayment>,
+    ) -> anyhow::Result<Vec<PersistedPayment>> {
+        if checked_batch.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut rng = SysRng::new();
+        let now = TimestampMs::now();
+        let updated_at = now;
+
+        let mut payments = Vec::with_capacity(checked_batch.len());
+        let mut metadatas = Vec::with_capacity(checked_batch.len());
+
+        for CheckedPayment(pwm) in checked_batch.iter_mut() {
+            // Ensure the payment's created_at field is set,
+            // as it may be None if this is the payment's first persist.
+            let created_at = pwm.payment.created_at().unwrap_or(now);
+            pwm.payment.set_created_at_once(created_at);
+
+            let (db_payment, db_metadata) = payments::encryption::encrypt_pwm(
+                &mut rng,
+                &self.vfs_master_key,
+                pwm,
+                created_at,
+                updated_at,
+            )
+            .context("Failed to encrypt payment")?;
+
+            payments.push(db_payment);
+            if let Some(metadata) = db_metadata {
+                metadatas.push(metadata);
+            }
+        }
+
+        let batch = VecDbPaymentV2 { payments };
+        let token = self.get_token().await?;
+
+        // Payments must be written first due to FK constraint on metadata.
+        self.backend_api
+            .upsert_payment_batch(batch, token.clone())
+            .await
+            .context("upsert_payment_batch API call failed")?;
+
+        if !metadatas.is_empty() {
+            let metadata_batch = VecDbPaymentMetadata { metadatas };
+            self.backend_api
+                .upsert_payment_metadata_batch(metadata_batch, token)
+                .await
+                .context("upsert_payment_metadata_batch API call failed")?;
+        }
+
+        let persisted_batch = checked_batch
+            .into_iter()
+            .map(|CheckedPayment(pwm)| {
+                let created_at = pwm.payment.created_at().unwrap_or(now);
+                PersistedPayment {
+                    pwm,
+                    created_at,
+                    updated_at,
+                }
+            })
+            .collect::<Vec<PersistedPayment>>();
+
+        Ok(persisted_batch)
+    }
+
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPayments,
+    ) -> anyhow::Result<Vec<DbPaymentV2>> {
+        let token = self.get_token().await?;
+        Ok(self
+            .backend_api
+            .get_updated_payments(req, token)
+            .await
+            .context("Could not fetch updated payments")?
+            .payments)
+    }
+
+    async fn get_updated_payment_metadata(
+        &self,
+        req: GetUpdatedPaymentMetadata,
+    ) -> anyhow::Result<Vec<DbPaymentMetadata>> {
+        let token = self.get_token().await?;
+        Ok(self
+            .backend_api
+            .get_updated_payment_metadata(req, token)
+            .await
+            .context("Could not fetch updated metadata")?
+            .metadatas)
+    }
+
+    async fn get_payments_by_ids(
+        &self,
+        ids: Vec<LxPaymentId>,
+    ) -> anyhow::Result<Vec<DbPaymentV2>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let token = self.get_token().await?;
+        Ok(self
+            .backend_api
+            .get_payments_by_ids(VecLxPaymentId { ids }, token)
+            .await
+            .context("Could not fetch payments by IDs")?
+            .payments)
+    }
+
+    async fn get_payment_metadatas_by_ids(
+        &self,
+        ids: Vec<LxPaymentId>,
+    ) -> anyhow::Result<Vec<DbPaymentMetadata>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let token = self.get_token().await?;
+        Ok(self
+            .backend_api
+            .get_payment_metadata_by_ids(VecLxPaymentId { ids }, token)
+            .await
+            .context("Could not fetch metadata by IDs")?
+            .metadatas)
+    }
+
+    fn decrypt_payment_with_metadata(
+        &self,
+        db_payment: DbPaymentV2,
+        db_metadata: Option<DbPaymentMetadata>,
+    ) -> anyhow::Result<PaymentWithMetadata> {
+        payments::encryption::decrypt_pwm(
+            &self.vfs_master_key,
+            db_payment,
+            db_metadata,
+        )
+    }
+
+    fn decrypt_metadata(
+        &self,
+        db_metadata: DbPaymentMetadata,
+    ) -> anyhow::Result<PaymentMetadata> {
+        payments::encryption::decrypt_metadata(
+            &self.vfs_master_key,
+            db_metadata,
+        )
     }
 }
 

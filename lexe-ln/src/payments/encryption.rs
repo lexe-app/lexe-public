@@ -89,6 +89,23 @@ pub fn decrypt_pwm(
     }
 }
 
+/// Decrypts a [`DbPaymentV2`] into a [`PaymentV2`].
+pub fn decrypt_payment(
+    vfs_master_key: &AesMasterKey,
+    db_payment: DbPaymentV2,
+) -> anyhow::Result<PaymentV2> {
+    let version = db_payment.version;
+    match version {
+        1 => {
+            let payment_v1 = decrypt_payment_v1(vfs_master_key, db_payment)?;
+            let pwm = PaymentWithMetadata::from(payment_v1);
+            Ok(pwm.payment)
+        }
+        2 => decrypt_payment_v2(vfs_master_key, db_payment),
+        v => Err(anyhow!("Unsupported payment version: {v}")),
+    }
+}
+
 // --- PaymentV1 / PaymentV2 --- //
 
 /// Encrypts a [`PaymentV1`] to a [`DbPaymentV2`].
@@ -307,7 +324,7 @@ fn encrypt_metadata(
 }
 
 /// Decrypts a [`DbPaymentMetadata`] to [`PaymentMetadata`].
-fn decrypt_metadata(
+pub fn decrypt_metadata(
     vfs_master_key: &AesMasterKey,
     db_metadata: DbPaymentMetadata,
 ) -> anyhow::Result<PaymentMetadata> {
@@ -459,6 +476,60 @@ mod test {
                 decrypt_pwm(&vfs_master_key, db_payment, db_metadata).unwrap();
 
             prop_assert_eq!(pwm, decrypted);
+        })
+    }
+
+    // encrypt_payment_v1 -> decrypt_payment extracts correct PaymentV2
+    #[test]
+    fn decrypt_payment_v1_roundtrip() {
+        proptest!(|(
+            mut rng in any::<FastRng>(),
+            vfs_master_key in any::<AesMasterKey>(),
+            payment_v1 in any::<PaymentV1>(),
+            now in any::<TimestampMs>(),
+        )| {
+            let created_at = payment_v1.created_at();
+            let updated_at = now;
+
+            let encrypted_v1 = encrypt_payment_v1(
+                &mut rng,
+                &vfs_master_key,
+                &payment_v1,
+                created_at,
+                updated_at,
+            );
+
+            let decrypted_v2 =
+                decrypt_payment(&vfs_master_key, encrypted_v1).unwrap();
+
+            let expected_v2 = PaymentWithMetadata::from(payment_v1).payment;
+            prop_assert_eq!(expected_v2, decrypted_v2);
+        })
+    }
+
+    // encrypt_payment_v2 -> decrypt_payment = id
+    #[test]
+    fn decrypt_payment_v2_roundtrip() {
+        proptest!(|(
+            mut rng in any::<FastRng>(),
+            vfs_master_key in any::<AesMasterKey>(),
+            payment in any::<PaymentV2>(),
+            now in any::<TimestampMs>(),
+        )| {
+            let created_at = payment.created_at().unwrap_or(now);
+            let updated_at = now;
+
+            let encrypted = encrypt_payment_v2(
+                &mut rng,
+                &vfs_master_key,
+                &payment,
+                created_at,
+                updated_at,
+            );
+
+            let decrypted = decrypt_payment(&vfs_master_key, encrypted).unwrap();
+
+            prop_assert_eq!(payment, decrypted);
         })
     }
 }

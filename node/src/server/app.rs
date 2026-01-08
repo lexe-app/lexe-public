@@ -407,7 +407,7 @@ pub(super) async fn get_updated_payments(
 ) -> Result<LxJson<VecBasicPaymentV2>, NodeApiError> {
     let payments = state
         .persister
-        .read_updated_payments(req)
+        .get_updated_basic_payments(req)
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(VecBasicPaymentV2 { payments }))
