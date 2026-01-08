@@ -170,7 +170,7 @@ pub struct PreflightCloseChannelResponse {
 // --- Syncing and updating payments data --- //
 
 /// Upgradeable API struct for a [`LxPaymentId`].
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxPaymentIdStruct {
     /// The id of the payment to be fetched.
