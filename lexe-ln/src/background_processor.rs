@@ -15,9 +15,9 @@ use tracing::{Instrument, debug, error, info, info_span, trace, warn};
 use crate::{
     alias::LexeChainMonitorType,
     event::HtlcsForwarded,
+    persister::LexePersisterMethods,
     traits::{
-        LexeChannelManager, LexeEventHandler, LexeInnerPersister,
-        LexePeerManager, LexePersister,
+        LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
     },
 };
 

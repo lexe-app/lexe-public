@@ -87,7 +87,8 @@ use lexe_ln::{
         v1::PaymentV1,
     },
     persister,
-    traits::{LexeInnerPersister, LexePersister},
+    persister::LexePersisterMethods,
+    traits::LexePersister,
     wallet::ChangeSet,
 };
 use lexe_std::{Apply, backoff};
@@ -809,7 +810,7 @@ impl Vfs for NodePersister {
 }
 
 #[async_trait]
-impl LexeInnerPersister for NodePersister {
+impl LexePersisterMethods for NodePersister {
     /// NOTE: See module docs for info on how manager/monitor persist works.
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,

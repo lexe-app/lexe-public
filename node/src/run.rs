@@ -54,10 +54,10 @@ use lexe_ln::{
     logger::LexeTracingLogger,
     message_router::LexeMessageRouter,
     payments::manager::PaymentsManager,
+    persister::LexePersisterMethods,
     route::LexeRouter,
     sync::{self, BdkSyncRequest},
     test_event,
-    traits::LexeInnerPersister,
     tx_broadcaster::TxBroadcaster,
     wallet::{self, LexeCoinSelector, OnchainWallet},
 };

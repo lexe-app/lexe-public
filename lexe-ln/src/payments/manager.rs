@@ -32,8 +32,9 @@ use crate::{
         onchain::OnchainReceiveV2,
         outbound::{ExpireError, LxOutboundPaymentFailure},
     },
+    persister::LexePersisterMethods,
     test_event::TestEventSender,
-    traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
+    traits::{LexeChannelManager, LexePersister},
     wallet::OnchainWallet,
 };
 
@@ -104,8 +105,8 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// persist, and commit stages. TODO(max): If this turns out to be a performance
 /// bottleneck, we should switch to per-payment or per-payment-type locks.
 ///
-/// [`upsert_payment`]: crate::traits::LexeInnerPersister::upsert_payment
-/// [`upsert_payment_batch`]: crate::traits::LexeInnerPersister::upsert_payment_batch
+/// [`upsert_payment`]: LexePersisterMethods::upsert_payment
+/// [`upsert_payment_batch`]: LexePersisterMethods::upsert_payment_batch
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
     pending: HashMap<LxPaymentId, PaymentWithMetadata>,

@@ -16,7 +16,8 @@ use tracing::{debug, error, info, info_span};
 
 use crate::{
     alias::LexeChainMonitorType,
-    traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
+    persister::LexePersisterMethods,
+    traits::{LexeChannelManager, LexePersister},
 };
 
 /// An actor which persists channel monitors. Channel monitors are persisted

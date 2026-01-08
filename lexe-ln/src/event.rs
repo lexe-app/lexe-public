@@ -35,10 +35,9 @@ use crate::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
+    persister::LexePersisterMethods,
     test_event::TestEventSender,
-    traits::{
-        LexeChannelManager, LexeEventHandler, LexeInnerPersister, LexePersister,
-    },
+    traits::{LexeChannelManager, LexeEventHandler, LexePersister},
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
