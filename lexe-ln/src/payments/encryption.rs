@@ -32,8 +32,6 @@ pub fn encrypt_pwm(
     updated_at: TimestampMs,
 ) -> anyhow::Result<(DbPaymentV2, Option<DbPaymentMetadata>)> {
     match CURRENT_PAYMENTS_VERSION {
-        // TODO(max): After we switch CURRENT_PAYMENTS_VERSION to version 2, we
-        // can remove this v1 branch.
         1 => {
             let payment_v1 = PaymentV1::try_from(pwm.clone())
                 .context("Failed to convert payment to v1")?;
