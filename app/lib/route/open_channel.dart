@@ -51,6 +51,7 @@ class OpenChannelPage extends StatelessWidget {
     super.key,
     required this.app,
     required this.balanceState,
+    this.designInitialAmount,
   });
 
   final AppHandle app;
@@ -58,11 +59,15 @@ class OpenChannelPage extends StatelessWidget {
   /// The current top-level balance.
   final ValueListenable<BalanceState> balanceState;
 
+  /// (Design mode screenshot automation only) Pre-fill channel amount.
+  final int? designInitialAmount;
+
   @override
   Widget build(BuildContext context) => MultistepFlow<OpenChannelFlowResult>(
     builder: (context) => OpenChannelNeedValuePage(
       app: this.app,
       balanceState: this.balanceState,
+      designInitialAmount: this.designInitialAmount,
     ),
   );
 }
@@ -74,12 +79,16 @@ class OpenChannelNeedValuePage extends StatefulWidget {
     super.key,
     required this.app,
     required this.balanceState,
+    this.designInitialAmount,
   });
 
   final AppHandle app;
 
   /// The current top-level balance.
   final ValueListenable<BalanceState> balanceState;
+
+  /// (Design mode screenshot automation only) Pre-fill channel amount.
+  final int? designInitialAmount;
 
   @override
   State<OpenChannelNeedValuePage> createState() =>
@@ -227,6 +236,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
             validate: this.validateValue,
             allowEmpty: false,
             allowZero: false,
+            initialValue: this.widget.designInitialAmount,
           ),
 
           const SizedBox(height: Space.s700),

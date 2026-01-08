@@ -77,7 +77,7 @@ import 'package:lexeapp/route/open_channel.dart'
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/profile.dart' show ProfilePage;
 import 'package:lexeapp/route/receive/page.dart'
-    show ReceivePaymentEditPage, ReceivePaymentPage;
+    show ReceivePaymentEditPage, ReceivePaymentPage, btcPageIdx;
 import 'package:lexeapp/route/receive/state.dart' show AmountDescription;
 import 'package:lexeapp/route/restore.dart'
     show
@@ -105,6 +105,7 @@ import 'package:lexeapp/route/signup.dart'
         SignupBackupSeedPage,
         SignupCodePage,
         SignupCtx,
+        SignupGDriveAuthPage,
         SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletActionButton, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
@@ -210,8 +211,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     return notifier;
   }
 
-  @override
-  Widget build(BuildContext context) {
+  /// Build the list of design mode components.
+  /// Exposed to allow integration tests to directly access components by name.
+  List<Component> buildComponentsList(BuildContext context) {
     final mockApp = mocks.MockAppHandle(
       balance: mocks.balanceDefault,
       payments: mocks.defaultDummyPayments,
@@ -253,6 +255,1067 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       background: FeeEstimate(amountSats: 563),
     );
 
+    return [
+      Component(
+        "LandingPage",
+        (context) => LandingPage(
+          config: this.widget.config,
+          rootSeed: mockRootSeed,
+          gdriveAuth: GDriveAuth.mock,
+          signupApi: mockSignupApi,
+          restoreApi: mockRestoreApi,
+          uriEvents: this.widget.uriEvents,
+          fixedShaderTime: null,
+        ),
+      ),
+      Component(
+        "AppLoadErrorPage",
+        (context) => const AppLoadErrorPage(
+          errorMessage:
+              "Failed to load app: Error starting node: Something wrong happened",
+        ),
+      ),
+      Component(
+        "SignupPage (mock gdrive)",
+        (context) => SignupPage(ctx: mockSignupCtx),
+      ),
+      Component(
+        "SignupPage (mock gdrive error)",
+        (context) => SignupPage(ctx: mockSignupCtxErr),
+      ),
+      Component(
+        "ProfilePage",
+        (context) => ProfilePage(
+          paymentAddressService: PaymentAddressService(
+            app: mockApp,
+            appData: LxAppData(mockApp.appDataDb()),
+          ),
+        ),
+      ),
+      Component(
+        "SignupPage (real gdrive)",
+        (context) => SignupPage(
+          ctx: SignupCtx(
+            this.widget.config,
+            mockRootSeed,
+            GDriveAuth.prod,
+            mockSignupApi,
+          ),
+        ),
+      ),
+      Component(
+        "SignupBackupPasswordPage",
+        (context) => SignupBackupPasswordPage(
+          ctx: mockSignupCtx,
+          authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
+          signupCode: null,
+        ),
+      ),
+      Component(
+        "SignupBackupPasswordPage",
+        subtitle: "signup error",
+        (context) => SignupBackupPasswordPage(
+          ctx: mockSignupCtxErr,
+          authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
+          signupCode: null,
+        ),
+      ),
+      Component(
+        "SignupBackupSeedConfirmPage",
+        (context) =>
+            SignupBackupSeedConfirmPage(ctx: mockSignupCtx, signupCode: null),
+      ),
+      Component(
+        "SignupBackupSeedPage",
+        (context) => SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
+      ),
+      Component(
+        "SignupBackupSeedPage",
+        subtitle: "signup error",
+        (context) =>
+            SignupBackupSeedPage(ctx: mockSignupCtxErr, signupCode: null),
+      ),
+      Component(
+        "SignupBackupSeedPage",
+        subtitle: "random",
+        (context) => SignupBackupSeedPage(
+          ctx: SignupCtx(
+            this.widget.config,
+            RootSeed.fromSysRng(),
+            GDriveAuth.mock,
+            mockSignupApi,
+          ),
+          signupCode: null,
+        ),
+      ),
+      Component(
+        "RestorePage entrypoint (mock gdrive)",
+        (context) => RestorePage(
+          config: this.widget.config,
+          gdriveAuth: GDriveAuth.mock,
+          restoreApi: mockRestoreApi,
+        ),
+      ),
+      Component(
+        "RestoreGDrivePage (mock gdrive)",
+        (context) => RestoreGDriveAuthPage(
+          config: this.widget.config,
+          gdriveAuth: GDriveAuth.mock,
+          restoreApi: mockRestoreApi,
+        ),
+      ),
+      Component(
+        "RestoreGDrivePage (real gdrive)",
+        (context) => RestoreGDriveAuthPage(
+          config: this.widget.config,
+          gdriveAuth: GDriveAuth.prod,
+          restoreApi: mockRestoreApi,
+        ),
+      ),
+      Component(
+        "RestoreChooseWalletPage",
+        (context) => RestoreChooseWalletPage(
+          candidates: const [
+            MockGDriveRestoreCandidate(
+              userPk:
+                  "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1",
+            ),
+            MockGDriveRestoreCandidate(
+              userPk:
+                  "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da",
+            ),
+          ],
+          serverAuthCode: const GDriveServerAuthCode(serverAuthCode: "fake"),
+          config: this.widget.config,
+          restoreApi: mockRestoreApi,
+        ),
+      ),
+      Component(
+        "RestorePasswordPage",
+        (context) => RestorePasswordPage(
+          candidate: const MockGDriveRestoreCandidate(
+            userPk:
+                "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da",
+          ),
+          serverAuthCode: const GDriveServerAuthCode(serverAuthCode: "fake"),
+          config: this.widget.config,
+          restoreApi: mockRestoreApi,
+        ),
+      ),
+      Component(
+        "RestoreSeedPhrasePage",
+        (context) => RestoreSeedPhrasePage(
+          config: this.widget.config,
+          restoreApi: mockRestoreApi,
+        ),
+      ),
+      Component(
+        "RestoreSeedPhrasePage (Error)",
+        (context) => RestoreSeedPhrasePage(
+          config: this.widget.config,
+          restoreApi: mockRestoreApiErr,
+        ),
+      ),
+      Component(
+        "WalletPage",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mockApp,
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+      ),
+      Component(
+        "WalletPage",
+        subtitle: "fresh wallet with no payments",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandle(
+            payments: [],
+            channels: [],
+            balance: mocks.balanceZero,
+          ),
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+      ),
+      Component(
+        "WalletPage",
+        subtitle: "on-chain-only wallet (80k sats)",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandle(
+            payments: [mocks.dummyOnchainInboundCompleted01],
+            channels: [],
+            balance: mocks.balanceOnchainOnly,
+          ),
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+      ),
+      Component(
+        "SendPaymentNeedUriPage",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_NeedUri(
+            app: mockApp,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+          ),
+        ),
+      ),
+      Component(
+        "SendPaymentAmountPage",
+        subtitle: "onchain",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_NeedAmount(
+            app: mockApp,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            paymentMethod: const PaymentMethod.onchain(
+              Onchain(
+                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                message:
+                    "Rocks, stones, and ancient old thrones; "
+                    "petals, blooms, and whispering tunes.",
+              ),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "SendPaymentAmountPage",
+        subtitle: "invoice",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_NeedAmount(
+            app: mockApp,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            paymentMethod: const PaymentMethod.invoice(
+              Invoice(
+                string:
+                    "lnbcrt1qqp4ydsdq22dhxzcmtwvpp5kv0433rmqrm6rj9r70dv4z5w3vyfdda97lzacf2z2ue06tdrz45ssp54jrpc79t9myqyywfslvr5f94tt938xpxcvm8hzu7hc7275lq9stq9qyysgqcqpcxq9p4yd3l05qyptltyujph97g7t9yw6exnlxce76uk9qcqq7h2hdp28qagh9cc77fn6vhukccvr8hedgmq0y6r84vusrsz3z86d4ty2scldj3eqq3mm4ln",
+                createdAt: 1741232485000,
+                expiresAt: 1741233485000,
+                description:
+                    "Snips, snails and puppy-dog tails; "
+                    "sugar, spice, and everything nice.",
+                payeePubkey:
+                    "28157d6ca3555a0a3275817d0832c535955b28b20a55f9596f6873434feebfd797d4b245397fab8f8f94dcdd32aac475d64893aa042f18b8d725e116082ae909",
+              ),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "SendPaymentAmountPage",
+        subtitle: "onchain (preflight error)",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_NeedAmount(
+            app: mockAppErr,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            paymentMethod: const PaymentMethod.onchain(
+              Onchain(
+                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                label:
+                    "Sighs, leers, and crocodile tears; "
+                    "rings, jings, and other fine things.",
+              ),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "SendPaymentAmountPage",
+        subtitle: "lnurl",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_NeedAmount(
+            app: mockApp,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            paymentMethod: PaymentMethod.lnurlPayRequest(
+              LnurlPayRequest(
+                callback: "https://example.com/pay",
+                minSendableMsat: 1000,
+                maxSendableMsat: 10000,
+                metadata: LnurlPayRequestMetadata(
+                  description: "Donate to philip@lexe.app",
+                  longDescription:
+                      "here a really long description that should be displayed in the details page might be long enough to wrap around",
+                  email: "philip@lexe.app",
+                  raw:
+                      "lnurl1dp68gurn8ghj7mrww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn",
+                  descriptionHash: U8Array32.init(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "SendPaymentConfirmPage",
+        subtitle: "onchain",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_Preflighted(
+            app: mockApp,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            preflightedPayment: const PreflightedPayment_Onchain(
+              onchain: Onchain(
+                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                message: "Donation for project xyz",
+              ),
+              preflight: feeEstimates,
+              amountSats: 2500,
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "SendPaymentConfirmPage",
+        subtitle: "pay invoice error",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_Preflighted(
+            app: mockAppErr,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            preflightedPayment: (() {
+              final invoice = mocks.dummyInvoiceOutboundPending01.invoice!;
+              final amountSats = invoice.amountSats!;
+              return PreflightedPayment_Invoice(
+                invoice: invoice,
+                preflight: PreflightPayInvoiceResponse(
+                  amountSats: amountSats,
+                  feesSats: (0.0095 * amountSats).truncate(),
+                ),
+                amountSats: amountSats,
+              );
+            })(),
+          ),
+        ),
+      ),
+      Component(
+        "ReceivePaymentPage",
+        (context) => ReceivePaymentPage(
+          app: mockApp,
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          fiatRate: this.makeFiatRateStream(),
+        ),
+      ),
+      Component(
+        "ReceivePaymentPage",
+        subtitle: "BOLT12 offers feature disabled",
+        (context) => ReceivePaymentPage(
+          app: mockApp,
+          featureFlags: const FeatureFlags.all(showBolt12OffersRecvPage: false),
+          fiatRate: this.makeFiatRateStream(),
+          appData: LxAppData(mockApp.appDataDb()),
+        ),
+      ),
+      Component(
+        "ReceivePaymentPage",
+        subtitle: "fetch invoice error",
+        (context) => ReceivePaymentPage(
+          app: mockAppErr,
+          featureFlags: const FeatureFlags.all(),
+          fiatRate: this.makeFiatRateStream(),
+          appData: LxAppData(mockApp.appDataDb()),
+        ),
+      ),
+      Component(
+        "ReceivePaymentEditPage",
+        (context) => const ReceivePaymentEditPage(
+          prev: AmountDescription(amountSats: null, description: null),
+        ),
+      ),
+      Component(
+        "PaymentDetailPage",
+        subtitle: "btc failed outbound",
+        (context) => PaymentDetailPageInner(
+          app: mockApp,
+          payment: ValueNotifier(mocks.dummyOnchainOutboundFailed01),
+          paymentDateUpdates: this.paymentDateUpdates,
+          fiatRate: this.makeFiatRateStream(),
+          isSyncing: ValueNotifier(false),
+          triggerRefresh: () {},
+        ),
+      ),
+      Component(
+        "PaymentDetailPage",
+        subtitle: "btc completed inbound",
+        (context) => PaymentDetailPageInner(
+          app: mockApp,
+          payment: ValueNotifier(mocks.dummyOnchainInboundCompleted01),
+          paymentDateUpdates: this.paymentDateUpdates,
+          fiatRate: this.makeFiatRateStream(),
+          isSyncing: ValueNotifier(false),
+          triggerRefresh: () {},
+        ),
+      ),
+      Component(
+        "PaymentDetailPage",
+        subtitle: "ln invoice pending inbound",
+        (context) => PaymentDetailPageInner(
+          app: mockApp,
+          payment: this.makeCompletingPayment(
+            mocks.dummyInvoiceInboundPending01,
+          ),
+          paymentDateUpdates: this.paymentDateUpdates,
+          fiatRate: this.makeFiatRateStream(),
+          isSyncing: ValueNotifier(false),
+          triggerRefresh: () {},
+        ),
+      ),
+      Component(
+        "PaymentDetailPage",
+        subtitle: "ln offer completed outbound",
+        (context) => PaymentDetailPageInner(
+          app: mockApp,
+          payment: ValueNotifier(mocks.dummyOfferOutboundPayment01),
+          paymentDateUpdates: this.paymentDateUpdates,
+          fiatRate: this.makeFiatRateStream(),
+          isSyncing: ValueNotifier(false),
+          triggerRefresh: () {},
+        ),
+      ),
+      Component(
+        "PaymentDetailPage",
+        subtitle: "ln offer completed inbound",
+        (context) => PaymentDetailPageInner(
+          app: mockApp,
+          payment: ValueNotifier(mocks.dummyOfferInboundPayment01),
+          paymentDateUpdates: this.paymentDateUpdates,
+          fiatRate: this.makeFiatRateStream(),
+          isSyncing: ValueNotifier(false),
+          triggerRefresh: () {},
+        ),
+      ),
+      Component("ChannelsPage", (context) {
+        // TODO(phlip9): fix issue where fiat rate unsets after hot reload
+        final nodeInfoService = NodeInfoService(app: mockApp);
+        final fiatRate = this.makeFiatRateStream();
+        final balanceState = combine2(
+          nodeInfoService.nodeInfo,
+          fiatRate,
+          (nodeInfo, fiatRate) =>
+              BalanceState(balanceSats: nodeInfo?.balance, fiatRate: fiatRate),
+        );
+        return ChannelsPage(
+          app: mockApp,
+          fiatRate: fiatRate,
+          nodeInfoService: nodeInfoService,
+          balanceState: balanceState,
+        );
+      }),
+      Component(
+        "OpenChannelPage",
+        (context) => OpenChannelPage(
+          app: mockApp,
+          balanceState: ValueNotifier(
+            const BalanceState(
+              balanceSats: mocks.balanceOnchainOnly,
+              fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "OpenChannelPage",
+        subtitle: "preflight error",
+        (context) => OpenChannelPage(
+          app: mockAppErr,
+          balanceState: ValueNotifier(
+            const BalanceState(
+              balanceSats: mocks.balanceOnchainOnly,
+              fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "OpenChannelConfirmPage",
+        (context) => OpenChannelConfirmPage(
+          app: mockApp,
+          balanceState: ValueNotifier(
+            const BalanceState(
+              balanceSats: mocks.balanceOnchainOnly,
+              fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+            ),
+          ),
+          channelValueSats: 6500,
+          userChannelId: UserChannelId(id: U8Array16.init()),
+          preflight: const PreflightOpenChannelResponse(feeEstimateSats: 122),
+        ),
+      ),
+      Component(
+        "OpenChannelConfirmPage",
+        subtitle: "error",
+        (context) => OpenChannelConfirmPage(
+          app: mockAppErr,
+          balanceState: ValueNotifier(
+            const BalanceState(
+              balanceSats: mocks.balanceOnchainOnly,
+              fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
+            ),
+          ),
+          channelValueSats: 6500,
+          userChannelId: UserChannelId(id: U8Array16.init()),
+          preflight: const PreflightOpenChannelResponse(feeEstimateSats: 122),
+        ),
+      ),
+      Component(
+        "CloseChannelPage",
+        (context) => CloseChannelPage(
+          app: mockApp,
+          fiatRate: this.makeFiatRateStream(),
+          channels: ValueNotifier(
+            ChannelsList.fromApi(
+              ListChannelsResponse(channels: mockApp.channels),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "CloseChannelPage",
+        subtitle: "preflight error",
+        (context) => CloseChannelPage(
+          app: mockAppErr,
+          fiatRate: this.makeFiatRateStream(),
+          channels: ValueNotifier(
+            ChannelsList.fromApi(
+              ListChannelsResponse(channels: mockApp.channels),
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "CloseChannelConfirmPage",
+        (context) => CloseChannelConfirmPage(
+          app: mockApp,
+          fiatRate: this.makeFiatRateStream(),
+          channelId:
+              "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
+          channelOurBalanceSats: 300231,
+          preflight: const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+        ),
+      ),
+      Component(
+        "CloseChannelConfirmPage",
+        subtitle: "error",
+        (context) => CloseChannelConfirmPage(
+          app: mockAppErr,
+          fiatRate: this.makeFiatRateStream(),
+          channelId:
+              "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
+          channelOurBalanceSats: 300231,
+          preflight: const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+        ),
+      ),
+      Component(
+        "ScanPage",
+        (_) => MultistepFlow<SendFlowResult>(
+          builder: (_) => ScanPage(
+            sendCtx: SendState_NeedUri(
+              app: mockApp,
+              configNetwork: this.widget.config.network,
+              balance: mockApp.balance,
+              cid: cid,
+              fiatRate: mockFiatRate,
+            ),
+          ),
+        ),
+      ),
+      Component("NodeInfoPage", (_) {
+        final nodeInfo = ValueNotifier<NodeInfo?>(null);
+        const userInfo = AppUserInfo(
+          userPk:
+              "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
+          nodePk:
+              "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
+          nodePkProof:
+              "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
+        );
+        unawaited(
+          Future.delayed(const Duration(seconds: 1), () {
+            nodeInfo.value = NodeInfo(
+              nodePk: userInfo.nodePk,
+              version: "1.2.3",
+              measurement:
+                  "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
+              balance: mocks.balanceZero,
+            );
+          }),
+        );
+        return NodeInfoPage(
+          nodeInfo: nodeInfo,
+          userInfo: userInfo,
+          app: mockApp,
+        );
+      }),
+      Component(
+        "SecurityPage",
+        subtitle: "seed phrase will fail",
+        (_) => SecurityPage(config: this.widget.config, app: mockApp),
+      ),
+      Component("SeedPhrasePage", (_) {
+        return const SeedPhrasePage(seedPhrase: mocks.seedWords1);
+      }),
+      Component("SdkClientsPage", (_) => ClientsPage(app: mockApp)),
+      Component(
+        "SdkClientsPage",
+        subtitle: "error",
+        (_) => ClientsPage(app: mockAppErr),
+      ),
+      Component(
+        "Screenshot 01",
+        subtitle: "LandingPage",
+        (context) => LandingPage(
+          config: this.widget.config,
+          rootSeed: mockRootSeed,
+          gdriveAuth: GDriveAuth.mock,
+          signupApi: mockSignupApi,
+          restoreApi: mockRestoreApi,
+          uriEvents: this.widget.uriEvents,
+          fixedShaderTime: 8.5,
+        ),
+      ),
+      Component(
+        "Screenshot 02",
+        subtitle: "WalletPage",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandleScreenshots(),
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+      ),
+      Component(
+        "Screenshot 03",
+        subtitle: "ReceivePage (Invoice)",
+        (_) => ReceivePaymentPage(
+          app: mocks.MockAppHandleScreenshots(),
+          featureFlags: const FeatureFlags.all(),
+          fiatRate: ValueNotifier(const FiatRate(fiat: "USD", rate: 96626.76)),
+          appData: LxAppData(mockApp.appDataDb()),
+        ),
+      ),
+      Component(
+        "Screenshot 04",
+        subtitle: "SendPaymentConfirmPage (Invoice)",
+        (_) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_Preflighted(
+            app: mocks.MockAppHandleScreenshots(),
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            preflightedPayment: PreflightedPayment_Invoice(
+              invoice: Invoice(
+                string: mocks.dummyInvoiceOutboundPending01.invoice!.string,
+                createdAt: 1686743442000,
+                expiresAt: 1686745442000,
+                payeePubkey:
+                    mocks.dummyInvoiceOutboundPending01.invoice!.payeePubkey,
+                amountSats: 10000,
+              ),
+              preflight: const PreflightPayInvoiceResponse(
+                amountSats: 10000,
+                feesSats: 92,
+              ),
+              amountSats: 10092,
+            ),
+          ),
+        ),
+      ),
+
+      // --- Docs Screenshots ---
+      // Wallet landing page
+      Component(
+        "DocsLanding01",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mockApp,
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+        screenshot: "lexe-docs/docs.lexe.app./images/landing/01-home.png",
+        subtitle: "Home screen",
+      ),
+
+      // Getting Started guide screenshots
+      Component(
+        "DocsGettingStarted01",
+        (context) => LandingPage(
+          config: this.widget.config,
+          rootSeed: mockRootSeed,
+          gdriveAuth: GDriveAuth.mock,
+          signupApi: mockSignupApi,
+          restoreApi: mockRestoreApi,
+          uriEvents: this.widget.uriEvents,
+          fixedShaderTime: 8.5,
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/01-welcome.png",
+        subtitle: "Welcome screen",
+      ),
+      Component(
+        "DocsGettingStarted02",
+        (context) => SignupCodePage(ctx: mockSignupCtx),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/02-signup-code.png",
+        subtitle: "Enter signup code",
+      ),
+      Component(
+        "DocsGettingStarted03",
+        (context) => SignupGDriveAuthPage(ctx: mockSignupCtx, signupCode: null),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/03-google-drive.png",
+        subtitle: "Connect Google Drive",
+      ),
+      Component(
+        "DocsGettingStarted04",
+        (context) => SignupBackupPasswordPage(
+          ctx: mockSignupCtx,
+          authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
+          signupCode: null,
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/04-backup-password.png",
+        subtitle: "Enter backup password",
+      ),
+      Component(
+        "DocsGettingStarted05",
+        (context) =>
+            SignupBackupSeedConfirmPage(ctx: mockSignupCtx, signupCode: null),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/05-seed-only-confirm.png",
+        subtitle: "Seed phrase-only confirm",
+      ),
+      Component(
+        "DocsGettingStarted06",
+        (context) => SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/06-seed-phrase.png",
+        subtitle: "Backup seed phrase",
+      ),
+      Component(
+        "DocsGettingStarted07",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandle(
+            payments: [],
+            channels: [],
+            balance: mocks.balanceZero,
+          ),
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/07-home.png",
+        subtitle: "Empty home screen",
+      ),
+      Component(
+        "DocsGettingStarted08",
+        (context) => ReceivePaymentPage(
+          app: mockApp,
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          fiatRate: this.makeFiatRateStream(),
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/08-receive-lightning.png",
+        subtitle: "Receive Lightning invoice",
+      ),
+      Component(
+        "DocsGettingStarted09",
+        (context) {
+          final mockAppLightningOnly = mocks.MockAppHandle(
+            balance: mocks.balanceLightningOnly,
+            payments: [mocks.dummyInvoiceInboundCompleted03],
+            channels: [mocks.dummyChannelLightningOnly],
+          );
+          final nodeInfoService = NodeInfoService(app: mockAppLightningOnly);
+          final fiatRate = this.makeFiatRateStream();
+          final balanceState = combine2(
+            nodeInfoService.nodeInfo,
+            fiatRate,
+            (nodeInfo, fiatRate) => BalanceState(
+              balanceSats: nodeInfo?.balance,
+              fiatRate: fiatRate,
+            ),
+          );
+          return ChannelsPage(
+            app: mockAppLightningOnly,
+            fiatRate: fiatRate,
+            nodeInfoService: nodeInfoService,
+            balanceState: balanceState,
+          );
+        },
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/09-channels-after-lightning.png",
+        subtitle: "Channels after JIT open",
+      ),
+      Component(
+        "DocsGettingStarted10",
+        (context) => ReceivePaymentPage(
+          app: mockApp,
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          fiatRate: this.makeFiatRateStream(),
+          designInitialPageIdx: btcPageIdx,
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/10-receive-onchain.png",
+        subtitle: "Receive Bitcoin address",
+      ),
+      Component(
+        "DocsGettingStarted11",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandle(
+            payments: [mocks.dummyOnchainInboundCompleted01],
+            channels: [],
+            balance: mocks.balanceOnchainOnly,
+          ),
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/11-onchain-received.png",
+        subtitle: "On-chain funds received",
+      ),
+      Component(
+        "DocsGettingStarted12",
+        (context) => OpenChannelPage(
+          app: mockApp,
+          balanceState: ValueNotifier(
+            const BalanceState(
+              balanceSats: mocks.balanceOnchainOnly,
+              fiatRate: FiatRate(fiat: "USD", rate: 94439.00),
+            ),
+          ),
+          designInitialAmount: 80000,
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/12-open-channel-amount.png",
+        subtitle: "Open channel amount",
+      ),
+      Component(
+        "DocsGettingStarted13",
+        (context) => OpenChannelConfirmPage(
+          app: mockApp,
+          balanceState: ValueNotifier(
+            const BalanceState(
+              balanceSats: mocks.balanceOnchainOnly,
+              fiatRate: FiatRate(fiat: "USD", rate: 94439.00),
+            ),
+          ),
+          channelValueSats: 80000,
+          userChannelId: UserChannelId(id: U8Array16.init()),
+          preflight: const PreflightOpenChannelResponse(feeEstimateSats: 123),
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/13-open-channel-confirm.png",
+        subtitle: "Confirm channel open",
+      ),
+      Component(
+        "DocsGettingStarted14",
+        (context) {
+          final mockAppOneChannel = mocks.MockAppHandle(
+            balance: mocks.balanceOneChannel,
+            payments: [mocks.dummyOnchainInboundCompleted01],
+            channels: [mocks.dummyChannelOneChannel],
+          );
+          final nodeInfoService = NodeInfoService(app: mockAppOneChannel);
+          final fiatRate = this.makeFiatRateStream();
+          final balanceState = combine2(
+            nodeInfoService.nodeInfo,
+            fiatRate,
+            (nodeInfo, fiatRate) => BalanceState(
+              balanceSats: nodeInfo?.balance,
+              fiatRate: fiatRate,
+            ),
+          );
+          return ChannelsPage(
+            app: mockAppOneChannel,
+            fiatRate: fiatRate,
+            nodeInfoService: nodeInfoService,
+            balanceState: balanceState,
+          );
+        },
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/14-channels-after-open.png",
+        subtitle: "Channel opened",
+      ),
+      Component(
+        "DocsGettingStarted15",
+        (_) => WalletPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandle(
+            payments: [mocks.dummyInvoiceInboundCompleted03],
+            channels: [mocks.dummyChannelLightningOnly],
+            balance: mocks.balanceLightningOnly,
+          ),
+          settings: LxSettings(mockApp.settingsDb()),
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/15-home-funded.png",
+        subtitle: "Funded wallet (Lightning)",
+      ),
+      Component(
+        "DocsGettingStarted16",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_NeedUri(
+            app: mockApp,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+          ),
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/16-send-who.png",
+        subtitle: "Send - Who are we paying?",
+      ),
+      Component(
+        "DocsGettingStarted17",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_Preflighted(
+            app: mockApp,
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            preflightedPayment: (() {
+              final invoice = mocks.dummyInvoiceOutboundPending01.invoice!;
+              final amountSats = invoice.amountSats!;
+              return PreflightedPayment_Invoice(
+                invoice: invoice,
+                preflight: PreflightPayInvoiceResponse(
+                  amountSats: amountSats,
+                  feesSats: 28,
+                ),
+                amountSats: amountSats,
+              );
+            })(),
+          ),
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/17-send-confirm.png",
+        subtitle: "Confirm payment",
+      ),
+      Component(
+        "DocsGettingStarted18",
+        (context) => PaymentDetailPageInner(
+          app: mockApp,
+          payment: ValueNotifier(mocks.dummyInvoiceOutboundCompleted02),
+          paymentDateUpdates: this.paymentDateUpdates,
+          fiatRate: this.makeFiatRateStream(),
+          isSyncing: ValueNotifier(false),
+          triggerRefresh: () {},
+        ),
+        screenshot:
+            "lexe-docs/docs.lexe.app./images/getting-started/18-send-success.png",
+        subtitle: "Payment sent",
+      ),
+
+      Component(
+        "ShowQrPage",
+        subtitle: "standard bip21",
+        (_) => const ShowQrPage(
+          value:
+              "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
+        ),
+      ),
+      Component(
+        "ShowQrPage",
+        subtitle: "bitcoin address only",
+        (_) => const ShowQrPage(
+          value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
+        ),
+      ),
+      Component(
+        "ShowQrPage",
+        subtitle: "unified bolt 12",
+        (_) => const ShowQrPage(
+          value:
+              "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
+        ),
+      ),
+      Component("Buttons", (_) => const ButtonDesignPage()),
+      Component("ModalAsyncFlow", (_) => const ModalAsyncFlowDesignPage()),
+      Component("Markdown", (context) => const MarkdownPage()),
+      Component("SplitAmountText", (context) => const SplitAmountTextPage()),
+      Component(
+        "FilledTextPlaceholder",
+        (context) => const FilledTextPlaceholderPage(),
+      ),
+      Component(
+        "ChannelBalanceBarRow",
+        (context) => const ChannelBalanceBarRowPage(),
+      ),
+      Component(
+        "ErrorMessageSection",
+        (context) => const ErrorMessageSectionPage(),
+      ),
+      Component("SaveFile", (context) => const SaveFilePage()),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final components = this.buildComponentsList(context);
+
     return Theme(
       data: LxTheme.light(),
       child: Scaffold(
@@ -265,1057 +1328,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               child: HeadingText(text: "Lexe Design Home"),
             ),
             const SizedBox(height: Space.s500),
-            Component(
-              "LandingPage",
-              (context) => LandingPage(
-                config: this.widget.config,
-                rootSeed: mockRootSeed,
-                gdriveAuth: GDriveAuth.mock,
-                signupApi: mockSignupApi,
-                restoreApi: mockRestoreApi,
-                uriEvents: this.widget.uriEvents,
-                fixedShaderTime: null,
-              ),
-            ),
-            Component(
-              "AppLoadErrorPage",
-              (context) => const AppLoadErrorPage(
-                errorMessage:
-                    "Failed to load app: Error starting node: Something wrong happened",
-              ),
-            ),
-            Component(
-              "SignupPage (mock gdrive)",
-              (context) => SignupPage(ctx: mockSignupCtx),
-            ),
-            Component(
-              "SignupPage (mock gdrive error)",
-              (context) => SignupPage(ctx: mockSignupCtxErr),
-            ),
-            Component(
-              "ProfilePage",
-              (context) => ProfilePage(
-                paymentAddressService: PaymentAddressService(
-                  app: mockApp,
-                  appData: LxAppData(mockApp.appDataDb()),
-                ),
-              ),
-            ),
-            Component(
-              "SignupPage (real gdrive)",
-              (context) => SignupPage(
-                ctx: SignupCtx(
-                  this.widget.config,
-                  mockRootSeed,
-                  GDriveAuth.prod,
-                  mockSignupApi,
-                ),
-              ),
-            ),
-            Component(
-              "SignupBackupPasswordPage",
-              (context) => SignupBackupPasswordPage(
-                ctx: mockSignupCtx,
-                authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
-                signupCode: null,
-              ),
-            ),
-            Component(
-              "SignupBackupPasswordPage",
-              subtitle: "signup error",
-              (context) => SignupBackupPasswordPage(
-                ctx: mockSignupCtxErr,
-                authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
-                signupCode: null,
-              ),
-            ),
-            Component(
-              "SignupBackupSeedConfirmPage",
-              (context) => SignupBackupSeedConfirmPage(
-                ctx: mockSignupCtx,
-                signupCode: null,
-              ),
-            ),
-            Component(
-              "SignupBackupSeedPage",
-              (context) =>
-                  SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
-            ),
-            Component(
-              "SignupBackupSeedPage",
-              subtitle: "signup error",
-              (context) =>
-                  SignupBackupSeedPage(ctx: mockSignupCtxErr, signupCode: null),
-            ),
-            Component(
-              "SignupBackupSeedPage",
-              subtitle: "random",
-              (context) => SignupBackupSeedPage(
-                ctx: SignupCtx(
-                  this.widget.config,
-                  RootSeed.fromSysRng(),
-                  GDriveAuth.mock,
-                  mockSignupApi,
-                ),
-                signupCode: null,
-              ),
-            ),
-            Component(
-              "RestorePage entrypoint (mock gdrive)",
-              (context) => RestorePage(
-                config: this.widget.config,
-                gdriveAuth: GDriveAuth.mock,
-                restoreApi: mockRestoreApi,
-              ),
-            ),
-            Component(
-              "RestoreGDrivePage (mock gdrive)",
-              (context) => RestoreGDriveAuthPage(
-                config: this.widget.config,
-                gdriveAuth: GDriveAuth.mock,
-                restoreApi: mockRestoreApi,
-              ),
-            ),
-            Component(
-              "RestoreGDrivePage (real gdrive)",
-              (context) => RestoreGDriveAuthPage(
-                config: this.widget.config,
-                gdriveAuth: GDriveAuth.prod,
-                restoreApi: mockRestoreApi,
-              ),
-            ),
-            Component(
-              "RestoreChooseWalletPage",
-              (context) => RestoreChooseWalletPage(
-                candidates: const [
-                  MockGDriveRestoreCandidate(
-                    userPk:
-                        "4072836db6c62f1fd07281feb1f2d6d1b8f05f8be3f0019a9205edff244017f1",
-                  ),
-                  MockGDriveRestoreCandidate(
-                    userPk:
-                        "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da",
-                  ),
-                ],
-                serverAuthCode: const GDriveServerAuthCode(
-                  serverAuthCode: "fake",
-                ),
-                config: this.widget.config,
-                restoreApi: mockRestoreApi,
-              ),
-            ),
-            Component(
-              "RestorePasswordPage",
-              (context) => RestorePasswordPage(
-                candidate: const MockGDriveRestoreCandidate(
-                  userPk:
-                      "ef64652cc9fc1d79d174bb52d0ffb7ad365db842e72e056aa5c4bfe00bcb20da",
-                ),
-                serverAuthCode: const GDriveServerAuthCode(
-                  serverAuthCode: "fake",
-                ),
-                config: this.widget.config,
-                restoreApi: mockRestoreApi,
-              ),
-            ),
-            Component(
-              "RestoreSeedPhrasePage",
-              (context) => RestoreSeedPhrasePage(
-                config: this.widget.config,
-                restoreApi: mockRestoreApi,
-              ),
-            ),
-            Component(
-              "RestoreSeedPhrasePage (Error)",
-              (context) => RestoreSeedPhrasePage(
-                config: this.widget.config,
-                restoreApi: mockRestoreApiErr,
-              ),
-            ),
-            Component(
-              "WalletPage",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mockApp,
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-            Component(
-              "WalletPage",
-              subtitle: "fresh wallet with no payments",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mocks.MockAppHandle(
-                  payments: [],
-                  channels: [],
-                  balance: mocks.balanceZero,
-                ),
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-            Component(
-              "WalletPage",
-              subtitle: "on-chain-only wallet (80k sats)",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mocks.MockAppHandle(
-                  payments: [mocks.dummyOnchainInboundCompleted01],
-                  channels: [],
-                  balance: mocks.balanceOnchainOnly,
-                ),
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-            Component(
-              "SendPaymentNeedUriPage",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_NeedUri(
-                  app: mockApp,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                ),
-              ),
-            ),
-            Component(
-              "SendPaymentAmountPage",
-              subtitle: "onchain",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_NeedAmount(
-                  app: mockApp,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  paymentMethod: const PaymentMethod.onchain(
-                    Onchain(
-                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-                      message:
-                          "Rocks, stones, and ancient old thrones; "
-                          "petals, blooms, and whispering tunes.",
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "SendPaymentAmountPage",
-              subtitle: "invoice",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_NeedAmount(
-                  app: mockApp,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  paymentMethod: const PaymentMethod.invoice(
-                    Invoice(
-                      string:
-                          "lnbcrt1qqp4ydsdq22dhxzcmtwvpp5kv0433rmqrm6rj9r70dv4z5w3vyfdda97lzacf2z2ue06tdrz45ssp54jrpc79t9myqyywfslvr5f94tt938xpxcvm8hzu7hc7275lq9stq9qyysgqcqpcxq9p4yd3l05qyptltyujph97g7t9yw6exnlxce76uk9qcqq7h2hdp28qagh9cc77fn6vhukccvr8hedgmq0y6r84vusrsz3z86d4ty2scldj3eqq3mm4ln",
-                      createdAt: 1741232485000,
-                      expiresAt: 1741233485000,
-                      description:
-                          "Snips, snails and puppy-dog tails; "
-                          "sugar, spice, and everything nice.",
-                      payeePubkey:
-                          "28157d6ca3555a0a3275817d0832c535955b28b20a55f9596f6873434feebfd797d4b245397fab8f8f94dcdd32aac475d64893aa042f18b8d725e116082ae909",
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "SendPaymentAmountPage",
-              subtitle: "onchain (preflight error)",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_NeedAmount(
-                  app: mockAppErr,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  paymentMethod: const PaymentMethod.onchain(
-                    Onchain(
-                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-                      label:
-                          "Sighs, leers, and crocodile tears; "
-                          "rings, jings, and other fine things.",
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "SendPaymentAmountPage",
-              subtitle: "lnurl",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_NeedAmount(
-                  app: mockApp,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  paymentMethod: PaymentMethod.lnurlPayRequest(
-                    LnurlPayRequest(
-                      callback: "https://example.com/pay",
-                      minSendableMsat: 1000,
-                      maxSendableMsat: 10000,
-                      metadata: LnurlPayRequestMetadata(
-                        description: "Donate to philip@lexe.app",
-                        longDescription:
-                            "here a really long description that should be displayed in the details page might be long enough to wrap around",
-                        email: "philip@lexe.app",
-                        raw:
-                            "lnurl1dp68gurn8ghj7mrww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn",
-                        descriptionHash: U8Array32.init(),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "SendPaymentConfirmPage",
-              subtitle: "onchain",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_Preflighted(
-                  app: mockApp,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  preflightedPayment: const PreflightedPayment_Onchain(
-                    onchain: Onchain(
-                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-                      message: "Donation for project xyz",
-                    ),
-                    preflight: feeEstimates,
-                    amountSats: 2500,
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "SendPaymentConfirmPage",
-              subtitle: "pay invoice error",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_Preflighted(
-                  app: mockAppErr,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  preflightedPayment: (() {
-                    final invoice =
-                        mocks.dummyInvoiceOutboundPending01.invoice!;
-                    final amountSats = invoice.amountSats!;
-                    return PreflightedPayment_Invoice(
-                      invoice: invoice,
-                      preflight: PreflightPayInvoiceResponse(
-                        amountSats: amountSats,
-                        feesSats: (0.0095 * amountSats).truncate(),
-                      ),
-                      amountSats: amountSats,
-                    );
-                  })(),
-                ),
-              ),
-            ),
-            Component(
-              "ReceivePaymentPage",
-              (context) => ReceivePaymentPage(
-                app: mockApp,
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                fiatRate: this.makeFiatRateStream(),
-              ),
-            ),
-            Component(
-              "ReceivePaymentPage",
-              subtitle: "BOLT12 offers feature disabled",
-              (context) => ReceivePaymentPage(
-                app: mockApp,
-                featureFlags: const FeatureFlags.all(
-                  showBolt12OffersRecvPage: false,
-                ),
-                fiatRate: this.makeFiatRateStream(),
-                appData: LxAppData(mockApp.appDataDb()),
-              ),
-            ),
-            Component(
-              "ReceivePaymentPage",
-              subtitle: "fetch invoice error",
-              (context) => ReceivePaymentPage(
-                app: mockAppErr,
-                featureFlags: const FeatureFlags.all(),
-                fiatRate: this.makeFiatRateStream(),
-                appData: LxAppData(mockApp.appDataDb()),
-              ),
-            ),
-            Component(
-              "ReceivePaymentEditPage",
-              (context) => const ReceivePaymentEditPage(
-                prev: AmountDescription(amountSats: null, description: null),
-              ),
-            ),
-            Component(
-              "PaymentDetailPage",
-              subtitle: "btc failed outbound",
-              (context) => PaymentDetailPageInner(
-                app: mockApp,
-                payment: ValueNotifier(mocks.dummyOnchainOutboundFailed01),
-                paymentDateUpdates: this.paymentDateUpdates,
-                fiatRate: this.makeFiatRateStream(),
-                isSyncing: ValueNotifier(false),
-                triggerRefresh: () {},
-              ),
-            ),
-            Component(
-              "PaymentDetailPage",
-              subtitle: "btc completed inbound",
-              (context) => PaymentDetailPageInner(
-                app: mockApp,
-                payment: ValueNotifier(mocks.dummyOnchainInboundCompleted01),
-                paymentDateUpdates: this.paymentDateUpdates,
-                fiatRate: this.makeFiatRateStream(),
-                isSyncing: ValueNotifier(false),
-                triggerRefresh: () {},
-              ),
-            ),
-            Component(
-              "PaymentDetailPage",
-              subtitle: "ln invoice pending inbound",
-              (context) => PaymentDetailPageInner(
-                app: mockApp,
-                payment: this.makeCompletingPayment(
-                  mocks.dummyInvoiceInboundPending01,
-                ),
-                paymentDateUpdates: this.paymentDateUpdates,
-                fiatRate: this.makeFiatRateStream(),
-                isSyncing: ValueNotifier(false),
-                triggerRefresh: () {},
-              ),
-            ),
-            Component(
-              "PaymentDetailPage",
-              subtitle: "ln offer completed outbound",
-              (context) => PaymentDetailPageInner(
-                app: mockApp,
-                payment: ValueNotifier(mocks.dummyOfferOutboundPayment01),
-                paymentDateUpdates: this.paymentDateUpdates,
-                fiatRate: this.makeFiatRateStream(),
-                isSyncing: ValueNotifier(false),
-                triggerRefresh: () {},
-              ),
-            ),
-            Component(
-              "PaymentDetailPage",
-              subtitle: "ln offer completed inbound",
-              (context) => PaymentDetailPageInner(
-                app: mockApp,
-                payment: ValueNotifier(mocks.dummyOfferInboundPayment01),
-                paymentDateUpdates: this.paymentDateUpdates,
-                fiatRate: this.makeFiatRateStream(),
-                isSyncing: ValueNotifier(false),
-                triggerRefresh: () {},
-              ),
-            ),
-            Component("ChannelsPage", (context) {
-              // TODO(phlip9): fix issue where fiat rate unsets after hot reload
-              final nodeInfoService = NodeInfoService(app: mockApp);
-              final fiatRate = this.makeFiatRateStream();
-              final balanceState = combine2(
-                nodeInfoService.nodeInfo,
-                fiatRate,
-                (nodeInfo, fiatRate) => BalanceState(
-                  balanceSats: nodeInfo?.balance,
-                  fiatRate: fiatRate,
-                ),
-              );
-              return ChannelsPage(
-                app: mockApp,
-                fiatRate: fiatRate,
-                nodeInfoService: nodeInfoService,
-                balanceState: balanceState,
-              );
-            }),
-            Component(
-              "OpenChannelPage",
-              (context) => OpenChannelPage(
-                app: mockApp,
-                balanceState: ValueNotifier(
-                  const BalanceState(
-                    balanceSats: mocks.balanceOnchainOnly,
-                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "OpenChannelPage",
-              subtitle: "preflight error",
-              (context) => OpenChannelPage(
-                app: mockAppErr,
-                balanceState: ValueNotifier(
-                  const BalanceState(
-                    balanceSats: mocks.balanceOnchainOnly,
-                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "OpenChannelConfirmPage",
-              (context) => OpenChannelConfirmPage(
-                app: mockApp,
-                balanceState: ValueNotifier(
-                  const BalanceState(
-                    balanceSats: mocks.balanceOnchainOnly,
-                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                  ),
-                ),
-                channelValueSats: 6500,
-                userChannelId: UserChannelId(id: U8Array16.init()),
-                preflight: const PreflightOpenChannelResponse(
-                  feeEstimateSats: 122,
-                ),
-              ),
-            ),
-            Component(
-              "OpenChannelConfirmPage",
-              subtitle: "error",
-              (context) => OpenChannelConfirmPage(
-                app: mockAppErr,
-                balanceState: ValueNotifier(
-                  const BalanceState(
-                    balanceSats: mocks.balanceOnchainOnly,
-                    fiatRate: FiatRate(fiat: "USD", rate: 73111.19),
-                  ),
-                ),
-                channelValueSats: 6500,
-                userChannelId: UserChannelId(id: U8Array16.init()),
-                preflight: const PreflightOpenChannelResponse(
-                  feeEstimateSats: 122,
-                ),
-              ),
-            ),
-            Component(
-              "CloseChannelPage",
-              (context) => CloseChannelPage(
-                app: mockApp,
-                fiatRate: this.makeFiatRateStream(),
-                channels: ValueNotifier(
-                  ChannelsList.fromApi(
-                    ListChannelsResponse(channels: mockApp.channels),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "CloseChannelPage",
-              subtitle: "preflight error",
-              (context) => CloseChannelPage(
-                app: mockAppErr,
-                fiatRate: this.makeFiatRateStream(),
-                channels: ValueNotifier(
-                  ChannelsList.fromApi(
-                    ListChannelsResponse(channels: mockApp.channels),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "CloseChannelConfirmPage",
-              (context) => CloseChannelConfirmPage(
-                app: mockApp,
-                fiatRate: this.makeFiatRateStream(),
-                channelId:
-                    "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
-                channelOurBalanceSats: 300231,
-                preflight: const PreflightCloseChannelResponse(
-                  feeEstimateSats: 1100,
-                ),
-              ),
-            ),
-            Component(
-              "CloseChannelConfirmPage",
-              subtitle: "error",
-              (context) => CloseChannelConfirmPage(
-                app: mockAppErr,
-                fiatRate: this.makeFiatRateStream(),
-                channelId:
-                    "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
-                channelOurBalanceSats: 300231,
-                preflight: const PreflightCloseChannelResponse(
-                  feeEstimateSats: 1100,
-                ),
-              ),
-            ),
-            Component(
-              "ScanPage",
-              (_) => MultistepFlow<SendFlowResult>(
-                builder: (_) => ScanPage(
-                  sendCtx: SendState_NeedUri(
-                    app: mockApp,
-                    configNetwork: this.widget.config.network,
-                    balance: mockApp.balance,
-                    cid: cid,
-                    fiatRate: mockFiatRate,
-                  ),
-                ),
-              ),
-            ),
-            Component("NodeInfoPage", (_) {
-              final nodeInfo = ValueNotifier<NodeInfo?>(null);
-              const userInfo = AppUserInfo(
-                userPk:
-                    "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
-                nodePk:
-                    "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
-                nodePkProof:
-                    "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b46304402206f762d23d206f3af2ffa452a71a11bca3df68838408851ab77931d7eb7fa1ef6022057141408428d6885d00ca6ca50e6d702aeab227c1550135be5fce4af4e726736",
-              );
-              unawaited(
-                Future.delayed(const Duration(seconds: 1), () {
-                  nodeInfo.value = NodeInfo(
-                    nodePk: userInfo.nodePk,
-                    version: "1.2.3",
-                    measurement:
-                        "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-                    balance: mocks.balanceZero,
-                  );
-                }),
-              );
-              return NodeInfoPage(
-                nodeInfo: nodeInfo,
-                userInfo: userInfo,
-                app: mockApp,
-              );
-            }),
-            Component(
-              "SecurityPage",
-              subtitle: "seed phrase will fail",
-              (_) => SecurityPage(config: this.widget.config, app: mockApp),
-            ),
-            Component("SeedPhrasePage", (_) {
-              return const SeedPhrasePage(seedPhrase: mocks.seedWords1);
-            }),
-            Component("SdkClientsPage", (_) => ClientsPage(app: mockApp)),
-            Component(
-              "SdkClientsPage",
-              subtitle: "error",
-              (_) => ClientsPage(app: mockAppErr),
-            ),
-            Component(
-              "Screenshot 01",
-              subtitle: "LandingPage",
-              (context) => LandingPage(
-                config: this.widget.config,
-                rootSeed: mockRootSeed,
-                gdriveAuth: GDriveAuth.mock,
-                signupApi: mockSignupApi,
-                restoreApi: mockRestoreApi,
-                uriEvents: this.widget.uriEvents,
-                fixedShaderTime: 8.5,
-              ),
-            ),
-            Component(
-              "Screenshot 02",
-              subtitle: "WalletPage",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mocks.MockAppHandleScreenshots(),
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-            Component(
-              "Screenshot 03",
-              subtitle: "ReceivePage (Invoice)",
-              (_) => ReceivePaymentPage(
-                app: mocks.MockAppHandleScreenshots(),
-                featureFlags: const FeatureFlags.all(),
-                fiatRate: ValueNotifier(
-                  const FiatRate(fiat: "USD", rate: 96626.76),
-                ),
-                appData: LxAppData(mockApp.appDataDb()),
-              ),
-            ),
-            Component(
-              "Screenshot 04",
-              subtitle: "SendPaymentConfirmPage (Invoice)",
-              (_) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_Preflighted(
-                  app: mocks.MockAppHandleScreenshots(),
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  preflightedPayment: PreflightedPayment_Invoice(
-                    invoice: Invoice(
-                      string:
-                          mocks.dummyInvoiceOutboundPending01.invoice!.string,
-                      createdAt: 1686743442000,
-                      expiresAt: 1686745442000,
-                      payeePubkey: mocks
-                          .dummyInvoiceOutboundPending01
-                          .invoice!
-                          .payeePubkey,
-                      amountSats: 10000,
-                    ),
-                    preflight: const PreflightPayInvoiceResponse(
-                      amountSats: 10000,
-                      feesSats: 92,
-                    ),
-                    amountSats: 10092,
-                  ),
-                ),
-              ),
-            ),
-
-            // --- Docs Screenshots ---
-            // Wallet landing page
-            Component(
-              "DocsLanding01",
-              subtitle: "Home screen",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mockApp,
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-
-            // Getting Started guide screenshots
-            Component(
-              "DocsGettingStarted01",
-              subtitle: "Welcome screen",
-              (context) => LandingPage(
-                config: this.widget.config,
-                rootSeed: mockRootSeed,
-                gdriveAuth: GDriveAuth.mock,
-                signupApi: mockSignupApi,
-                restoreApi: mockRestoreApi,
-                uriEvents: this.widget.uriEvents,
-                fixedShaderTime: 8.5,
-              ),
-            ),
-            Component(
-              "DocsGettingStarted02",
-              subtitle: "Enter signup code",
-              (context) => SignupCodePage(ctx: mockSignupCtx),
-            ),
-            Component(
-              "DocsGettingStarted03",
-              subtitle: "Connect Google Drive",
-              (context) => SignupPage(ctx: mockSignupCtx),
-            ),
-            Component(
-              "DocsGettingStarted04",
-              subtitle: "Enter backup password",
-              (context) => SignupBackupPasswordPage(
-                ctx: mockSignupCtx,
-                authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
-                signupCode: null,
-              ),
-            ),
-            Component(
-              "DocsGettingStarted05",
-              subtitle: "Seed phrase-only confirm",
-              (context) => SignupBackupSeedConfirmPage(
-                ctx: mockSignupCtx,
-                signupCode: null,
-              ),
-            ),
-            Component(
-              "DocsGettingStarted06",
-              subtitle: "Backup seed phrase",
-              (context) =>
-                  SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
-            ),
-            Component(
-              "DocsGettingStarted07",
-              subtitle: "Empty home screen",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mocks.MockAppHandle(
-                  payments: [],
-                  channels: [],
-                  balance: mocks.balanceZero,
-                ),
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-            Component(
-              "DocsGettingStarted08",
-              subtitle: "Receive Lightning invoice",
-              (context) => ReceivePaymentPage(
-                app: mockApp,
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                fiatRate: this.makeFiatRateStream(),
-              ),
-            ),
-            Component(
-              "DocsGettingStarted09",
-              subtitle: "Channels after JIT open",
-              (context) {
-                final mockAppLightningOnly = mocks.MockAppHandle(
-                  balance: mocks.balanceLightningOnly,
-                  payments: [mocks.dummyInvoiceInboundCompleted03],
-                  channels: [mocks.dummyChannelLightningOnly],
-                );
-                final nodeInfoService = NodeInfoService(
-                  app: mockAppLightningOnly,
-                );
-                final fiatRate = this.makeFiatRateStream();
-                final balanceState = combine2(
-                  nodeInfoService.nodeInfo,
-                  fiatRate,
-                  (nodeInfo, fiatRate) => BalanceState(
-                    balanceSats: nodeInfo?.balance,
-                    fiatRate: fiatRate,
-                  ),
-                );
-                return ChannelsPage(
-                  app: mockAppLightningOnly,
-                  fiatRate: fiatRate,
-                  nodeInfoService: nodeInfoService,
-                  balanceState: balanceState,
-                );
-              },
-            ),
-            Component(
-              "DocsGettingStarted10",
-              subtitle: "Receive Bitcoin address",
-              (context) => ReceivePaymentPage(
-                app: mockApp,
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                fiatRate: this.makeFiatRateStream(),
-              ),
-            ),
-            Component(
-              "DocsGettingStarted11",
-              subtitle: "On-chain funds received",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mocks.MockAppHandle(
-                  payments: [mocks.dummyOnchainInboundCompleted01],
-                  channels: [],
-                  balance: mocks.balanceOnchainOnly,
-                ),
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-            Component(
-              "DocsGettingStarted12",
-              subtitle: "Open channel amount",
-              (context) => OpenChannelPage(
-                app: mockApp,
-                balanceState: ValueNotifier(
-                  const BalanceState(
-                    balanceSats: mocks.balanceOnchainOnly,
-                    fiatRate: FiatRate(fiat: "USD", rate: 94439.00),
-                  ),
-                ),
-              ),
-            ),
-            Component(
-              "DocsGettingStarted13",
-              subtitle: "Confirm channel open",
-              (context) => OpenChannelConfirmPage(
-                app: mockApp,
-                balanceState: ValueNotifier(
-                  const BalanceState(
-                    balanceSats: mocks.balanceOnchainOnly,
-                    fiatRate: FiatRate(fiat: "USD", rate: 94439.00),
-                  ),
-                ),
-                channelValueSats: 80000,
-                userChannelId: UserChannelId(id: U8Array16.init()),
-                preflight: const PreflightOpenChannelResponse(
-                  feeEstimateSats: 123,
-                ),
-              ),
-            ),
-            Component("DocsGettingStarted14", subtitle: "Channel opened", (
-              context,
-            ) {
-              final mockAppOneChannel = mocks.MockAppHandle(
-                balance: mocks.balanceOneChannel,
-                payments: [mocks.dummyOnchainInboundCompleted01],
-                channels: [mocks.dummyChannelOneChannel],
-              );
-              final nodeInfoService = NodeInfoService(app: mockAppOneChannel);
-              final fiatRate = this.makeFiatRateStream();
-              final balanceState = combine2(
-                nodeInfoService.nodeInfo,
-                fiatRate,
-                (nodeInfo, fiatRate) => BalanceState(
-                  balanceSats: nodeInfo?.balance,
-                  fiatRate: fiatRate,
-                ),
-              );
-              return ChannelsPage(
-                app: mockAppOneChannel,
-                fiatRate: fiatRate,
-                nodeInfoService: nodeInfoService,
-                balanceState: balanceState,
-              );
-            }),
-            Component(
-              "DocsGettingStarted15",
-              subtitle: "Funded wallet (Lightning)",
-              (_) => WalletPage(
-                config: this.widget.config,
-                app: mocks.MockAppHandle(
-                  payments: [mocks.dummyInvoiceInboundCompleted03],
-                  channels: [mocks.dummyChannelLightningOnly],
-                  balance: mocks.balanceLightningOnly,
-                ),
-                settings: LxSettings(mockApp.settingsDb()),
-                appData: LxAppData(mockApp.appDataDb()),
-                featureFlags: const FeatureFlags.all(),
-                uriEvents: this.widget.uriEvents,
-                gdriveAuth: GDriveAuth.mock,
-              ),
-            ),
-            Component(
-              "DocsGettingStarted16",
-              subtitle: "Send - Who are we paying?",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_NeedUri(
-                  app: mockApp,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                ),
-              ),
-            ),
-            Component(
-              "DocsGettingStarted17",
-              subtitle: "Confirm payment",
-              (context) => SendPaymentPage(
-                startNewFlow: true,
-                sendCtx: SendState_Preflighted(
-                  app: mockApp,
-                  configNetwork: this.widget.config.network,
-                  balance: mockApp.balance,
-                  cid: cid,
-                  fiatRate: mockFiatRate,
-                  preflightedPayment: (() {
-                    final invoice =
-                        mocks.dummyInvoiceOutboundPending01.invoice!;
-                    final amountSats = invoice.amountSats!;
-                    return PreflightedPayment_Invoice(
-                      invoice: invoice,
-                      preflight: PreflightPayInvoiceResponse(
-                        amountSats: amountSats,
-                        feesSats: 28,
-                      ),
-                      amountSats: amountSats,
-                    );
-                  })(),
-                ),
-              ),
-            ),
-            Component(
-              "DocsGettingStarted18",
-              subtitle: "Payment sent",
-              (context) => PaymentDetailPageInner(
-                app: mockApp,
-                payment: ValueNotifier(mocks.dummyInvoiceOutboundCompleted02),
-                paymentDateUpdates: this.paymentDateUpdates,
-                fiatRate: this.makeFiatRateStream(),
-                isSyncing: ValueNotifier(false),
-                triggerRefresh: () {},
-              ),
-            ),
-
-            Component(
-              "ShowQrPage",
-              subtitle: "standard bip21",
-              (_) => const ShowQrPage(
-                value:
-                    "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
-              ),
-            ),
-            Component(
-              "ShowQrPage",
-              subtitle: "bitcoin address only",
-              (_) => const ShowQrPage(
-                value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
-              ),
-            ),
-            Component(
-              "ShowQrPage",
-              subtitle: "unified bolt 12",
-              (_) => const ShowQrPage(
-                value:
-                    "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
-              ),
-            ),
-            Component("Buttons", (_) => const ButtonDesignPage()),
-            Component(
-              "ModalAsyncFlow",
-              (_) => const ModalAsyncFlowDesignPage(),
-            ),
-            Component("Markdown", (context) => const MarkdownPage()),
-            Component(
-              "SplitAmountText",
-              (context) => const SplitAmountTextPage(),
-            ),
-            Component(
-              "FilledTextPlaceholder",
-              (context) => const FilledTextPlaceholderPage(),
-            ),
-            Component(
-              "ChannelBalanceBarRow",
-              (context) => const ChannelBalanceBarRowPage(),
-            ),
-            Component(
-              "ErrorMessageSection",
-              (context) => const ErrorMessageSectionPage(),
-            ),
-            Component("SaveFile", (context) => const SaveFilePage()),
+            ...components,
             const SizedBox(height: Space.s800),
           ],
         ),
@@ -1325,10 +1338,21 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 }
 
 class Component extends StatelessWidget {
-  const Component(this.title, this.builder, {super.key, this.subtitle});
+  const Component(
+    this.title,
+    this.builder, {
+    super.key,
+    this.screenshot,
+    this.subtitle,
+  });
 
   final String title;
   final WidgetBuilder builder;
+
+  /// (Screenshot automation only) Path where screenshot should be saved,
+  /// relative to repository root.
+  /// Example: "lexe-docs/docs.lexe.app./images/landing/01-home.png"
+  final String? screenshot;
   final String? subtitle;
 
   @override

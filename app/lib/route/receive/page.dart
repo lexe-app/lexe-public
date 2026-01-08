@@ -70,6 +70,7 @@ class ReceivePaymentPage extends StatelessWidget {
     required this.featureFlags,
     required this.fiatRate,
     required this.appData,
+    this.designInitialPageIdx,
   });
 
   final AppHandle app;
@@ -79,6 +80,9 @@ class ReceivePaymentPage extends StatelessWidget {
   /// Updating stream of fiat rates.
   final ValueListenable<FiatRate?> fiatRate;
 
+  /// (Design mode screenshot automation only) Initial page to show.
+  final int? designInitialPageIdx;
+
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
     app: this.app,
@@ -86,6 +90,7 @@ class ReceivePaymentPage extends StatelessWidget {
     fiatRate: this.fiatRate,
     viewportWidth: MediaQuery.sizeOf(context).width,
     appData: this.appData,
+    designInitialPageIdx: this.designInitialPageIdx,
   );
 }
 
@@ -99,6 +104,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
     required this.fiatRate,
     required this.viewportWidth,
     required this.appData,
+    this.designInitialPageIdx,
   });
 
   final AppHandle app;
@@ -107,6 +113,9 @@ class ReceivePaymentPageInner extends StatefulWidget {
 
   final LxAppData appData;
   final double viewportWidth;
+
+  /// (Design mode screenshot automation only) Initial page to show.
+  final int? designInitialPageIdx;
 
   @override
   State<ReceivePaymentPageInner> createState() =>
@@ -121,7 +130,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   late PageController pageController = this.newPageController();
 
   /// The current primary page on-screen.
-  final ValueNotifier<int> selectedPageIndex = ValueNotifier(0);
+  late final ValueNotifier<int> selectedPageIndex = ValueNotifier(
+    this.widget.designInitialPageIdx ?? 0,
+  );
 
   /// Inputs that determine when we should fetch a new lightning invoice.
   final ValueNotifier<LnInvoiceInputs> lnInvoiceInputs = ValueNotifier(
