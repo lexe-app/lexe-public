@@ -418,6 +418,7 @@ class SendState_Preflighted implements SendState {
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
           invoice: preflighted.invoice,
+          description: preflighted.invoice.description,
           note: note,
 
           // Choose some reasonable values until we can get these from the
@@ -459,6 +460,7 @@ class SendState_Preflighted implements SendState {
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
           offer: preflighted.offer,
+          description: preflighted.offer.description,
           note: note,
 
           // Choose some reasonable values until we can get these from the
