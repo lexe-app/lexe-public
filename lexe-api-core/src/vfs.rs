@@ -34,12 +34,13 @@ use crate::{error::BackendApiError, types::Empty};
 /// The vfs directory name used by singleton objects.
 pub const SINGLETON_DIRECTORY: &str = ".";
 
-pub const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
+pub const BROADCASTED_TXS_DIR: &str = "broadcasted_txs";
 pub const CHANNEL_MONITORS_ARCHIVE_DIR: &str = "channel_monitors_archive";
+pub const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
 pub const EVENTS_DIR: &str = "events";
+pub const MIGRATIONS_DIR: &str = "migrations";
 pub const UNSWEPT_OUTPUTS_EVENTS: &str = "unswept_outputs-events";
 pub const UNSWEPT_OUTPUTS_TXS: &str = "unswept_outputs-txs";
-pub const BROADCASTED_TXS_DIR: &str = "broadcasted_txs";
 
 pub const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";

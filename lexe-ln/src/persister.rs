@@ -1,9 +1,17 @@
-use std::{cmp, collections::HashMap, str::FromStr};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use anyhow::{Context, ensure};
 use async_trait::async_trait;
 use common::{
-    aes::AesMasterKey, ln::channel::LxOutPoint, rng::Crng, time::TimestampMs,
+    aes::AesMasterKey,
+    constants,
+    ln::channel::LxOutPoint,
+    rng::{Crng, SysRng},
+    time::TimestampMs,
 };
 use lexe_api::{
     models::command::{GetUpdatedPaymentMetadata, GetUpdatedPayments},
@@ -15,7 +23,7 @@ use lexe_api::{
 use lexe_std::fmt::DisplayOption;
 use lightning::{events::Event, util::ser::Writeable};
 use serde::{Serialize, de::DeserializeOwned};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
@@ -188,15 +196,15 @@ pub trait LexePersisterMethods: Vfs {
         id: LxPaymentId,
     ) -> anyhow::Result<Option<PaymentMetadata>>;
 
-    /// NOTE: The implementor *must* call `set_created_at_once` on the payment
-    /// before persisting.
+    /// NOTE: The implementor *must* call `set_created_at_idempotent` on the
+    /// payment before persisting.
     async fn upsert_payment(
         &self,
         checked: CheckedPayment,
     ) -> anyhow::Result<PersistedPayment>;
 
-    /// NOTE: The implementor *must* call `set_created_at_once` on the payment
-    /// before persisting.
+    /// NOTE: The implementor *must* call `set_created_at_idempotent` on the
+    /// payment before persisting.
     async fn upsert_payment_batch(
         &self,
         checked_batch: Vec<CheckedPayment>,
@@ -223,6 +231,27 @@ pub trait LexePersisterMethods: Vfs {
         &self,
         ids: Vec<LxPaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentMetadata>>;
+
+    async fn upsert_payments(
+        &self,
+        payments: Vec<DbPaymentV2>,
+    ) -> anyhow::Result<()>;
+
+    async fn upsert_payment_metadatas(
+        &self,
+        metadatas: Vec<DbPaymentMetadata>,
+    ) -> anyhow::Result<()>;
+
+    // --- Required methods: payments encryption --- //
+
+    fn encrypt_pwm(
+        &self,
+        rng: &mut SysRng,
+        payment: &PaymentV2,
+        metadata: Option<&PaymentMetadata>,
+        created_at: TimestampMs,
+        updated_at: TimestampMs,
+    ) -> anyhow::Result<(DbPaymentV2, Option<DbPaymentMetadata>)>;
 
     fn decrypt_payment_with_metadata(
         &self,
@@ -407,34 +436,50 @@ pub trait LexePersisterMethods: Vfs {
         };
 
         // Filter both lists to items <= END
-        db_payments.retain(|p| {
-            let Ok(updated_at) = TimestampMs::try_from(p.updated_at) else {
-                return false;
-            };
-            let Ok(id) = LxPaymentId::from_str(&p.id) else {
-                return false;
-            };
-            PaymentUpdatedIndex { updated_at, id } <= end_index
-        });
-        db_metadatas.retain(|m| {
-            let Ok(updated_at) = TimestampMs::try_from(m.updated_at) else {
-                return false;
-            };
-            let Ok(id) = LxPaymentId::from_str(&m.id) else {
-                return false;
-            };
-            PaymentUpdatedIndex { updated_at, id } <= end_index
-        });
+        db_payments = db_payments
+            .into_iter()
+            .map(|p| {
+                let updated_at = TimestampMs::try_from(p.updated_at)
+                    .context("Invalid payment updated_at")?;
+                let id = LxPaymentId::from_str(&p.id)
+                    .context("Invalid payment id")?;
+                let idx = PaymentUpdatedIndex { updated_at, id };
+                anyhow::Ok((p, idx))
+            })
+            // Retain index <= END; error out if any of the conversions failed.
+            .filter_map(|r| match r {
+                Ok((p, idx)) if idx <= end_index => Some(Ok(p)),
+                Ok(_) => None,
+                Err(e) => Some(Err(e)),
+            })
+            .collect::<anyhow::Result<_>>()?;
+        db_metadatas = db_metadatas
+            .into_iter()
+            .map(|m| {
+                let updated_at = TimestampMs::try_from(m.updated_at)
+                    .context("Invalid metadata updated_at")?;
+                let id = LxPaymentId::from_str(&m.id)
+                    .context("Invalid metadata id")?;
+                let idx = PaymentUpdatedIndex { updated_at, id };
+                anyhow::Ok((m, idx))
+            })
+            // Retain index <= END; error out if any of the conversions failed.
+            .filter_map(|r| match r {
+                Ok((m, idx)) if idx <= end_index => Some(Ok(m)),
+                Ok(_) => None,
+                Err(e) => Some(Err(e)),
+            })
+            .collect::<anyhow::Result<_>>()?;
 
         // Collect IDs from both lists
         let payment_ids = db_payments
             .iter()
             .map(|p| p.id.clone())
-            .collect::<std::collections::HashSet<_>>();
+            .collect::<HashSet<_>>();
         let metadata_ids = db_metadatas
             .iter()
             .map(|m| m.id.clone())
-            .collect::<std::collections::HashSet<_>>();
+            .collect::<HashSet<_>>();
 
         // Find IDs that need their counterpart fetched
         let payment_ids_needing_metadata = payment_ids
@@ -505,7 +550,7 @@ pub trait LexePersisterMethods: Vfs {
             .collect();
 
         // Sort by pwm_updated_at, then by id for stability
-        entries.sort_by(|(id_a, updated_a), (id_b, updated_b)| {
+        entries.sort_unstable_by(|(id_a, updated_a), (id_b, updated_b)| {
             updated_a.cmp(updated_b).then_with(|| id_a.cmp(id_b))
         });
 
@@ -524,6 +569,130 @@ pub trait LexePersisterMethods: Vfs {
                 Ok((pwm, pwm_updated_at))
             })
             .collect()
+    }
+
+    /// Migrate payments from `PaymentV1` to `PaymentV2` + `PaymentMetadata`.
+    ///
+    /// Idempotent: Creates a marker file at `migrations/payments_v2` once
+    /// complete, and skips the migration if the marker file already exists.
+    #[tracing::instrument(skip_all, name = "(migrate-payments-v2)")]
+    async fn migrate_to_payments_v2(&self) -> anyhow::Result<()> {
+        const PAYMENTS_V2_MARKER: &str = "payments_v2";
+
+        let marker_file_id =
+            VfsFileId::new(vfs::MIGRATIONS_DIR, PAYMENTS_V2_MARKER);
+
+        // Check if migration has already run
+        if self.read_file(&marker_file_id).await?.is_some() {
+            debug!("Skipping payments_v2 migration: marker exists");
+            return Ok(());
+        }
+
+        info!("Proceeding with payments_v2 migration");
+
+        // Get stop timestamp - we'll migrate all payments up to this point
+        let stop = TimestampMs::now();
+
+        let mut rng = SysRng::new();
+        let mut start_index: Option<PaymentUpdatedIndex> = None;
+        let mut total_batches = 0;
+        let mut total_migrated = 0;
+
+        loop {
+            let req = GetUpdatedPayments {
+                start_index,
+                limit: Some(constants::MAX_PAYMENTS_BATCH_SIZE),
+            };
+
+            // A batch of `(PaymentWithMetadata, pwm_updated_at)` to migrate.
+            //
+            // `get_updated_payments_with_metadata` transitively calls
+            // `payments::encryption::decrypt_pwm` which accepts both v1 and v2
+            // serialization formats. If we crash in the middle of a migration,
+            // we'll repeat work in the next migration attempt, but that's OK.
+            let batch = self.get_updated_payments_with_metadata(req).await?;
+
+            // Only migrate payments <= the `stop` timestamp.
+            let mut batch = batch;
+            while batch
+                .last()
+                .is_some_and(|(_pwm, pwm_updated_at)| *pwm_updated_at > stop)
+            {
+                batch.pop();
+            }
+
+            // If nothing to migrate, we're done.
+            if batch.is_empty() {
+                break;
+            }
+            let batch_len = batch.len();
+
+            // Update start_index (for the next iteration) to the last payment
+            // we'll process in this iteration.
+            let (last_pwm, last_pwm_updated_at) =
+                batch.last().expect("Checked non-empty above");
+            start_index = Some(PaymentUpdatedIndex {
+                updated_at: *last_pwm_updated_at,
+                id: last_pwm.payment.id(),
+            });
+
+            // Encrypt, which serializes as `PaymentV2` + `PaymentMetadata`.
+            // Then separate out payments from metadatas.
+            let now = TimestampMs::now();
+            let mut db_payments = Vec::with_capacity(batch_len);
+            let mut db_metadatas = Vec::with_capacity(batch_len);
+            for (pwm, _) in batch.iter_mut() {
+                let created_at = pwm.payment.set_created_at_idempotent(now);
+                let updated_at = now;
+                let (db_payment, db_metadata) = self
+                    .encrypt_pwm(
+                        &mut rng,
+                        &pwm.payment,
+                        Some(&pwm.metadata),
+                        created_at,
+                        updated_at,
+                    )
+                    .context("Failed to encrypt pwm")?;
+                db_payments.push(db_payment);
+                if let Some(metadata) = db_metadata {
+                    db_metadatas.push(metadata);
+                }
+            }
+
+            // Write metadatas first - v1 payments contain embedded metadata,
+            // so we must ensure metadata is written before overwriting with v2,
+            // otherwise data would be lost in the event of a crash.
+            if !db_metadatas.is_empty() {
+                self.upsert_payment_metadatas(db_metadatas)
+                    .await
+                    .context("Failed to upsert payment metadatas")?;
+            }
+
+            // Metadata batch succeeded, write the payments batch.
+            self.upsert_payments(db_payments)
+                .await
+                .context("Failed to upsert payments")?;
+
+            total_batches += 1;
+            total_migrated += batch_len;
+
+            info!("Migrated batch {total_batches} ({batch_len} payments)");
+        }
+
+        // Persist marker file (empty file)
+        let retries = 1;
+        let marker_file = VfsFile {
+            id: marker_file_id,
+            data: Vec::new(),
+        };
+        self.persist_file(marker_file, retries).await?;
+
+        info!(
+            "Migration complete: \
+             {total_migrated} payments in {total_batches} batches"
+        );
+
+        Ok(())
     }
 
     /// Reads all persisted events, along with their event IDs.

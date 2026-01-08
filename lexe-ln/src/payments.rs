@@ -818,8 +818,14 @@ impl PaymentV2 {
     /// Set the `created_at` timestamp when the payment is first persisted.
     ///
     /// Idempotent; only works once; subsequent calls have no effect.
-    pub fn set_created_at_once(&mut self, created_at: TimestampMs) {
-        match self {
+    ///
+    /// Returns the payment's possibly-updated `created_at` (the existing one if
+    /// already set, otherwise the provided value after setting it).
+    pub fn set_created_at_idempotent(
+        &mut self,
+        created_at: TimestampMs,
+    ) -> TimestampMs {
+        *match self {
             Self::OnchainSend(OnchainSendV2 {
                 created_at: field, ..
             }) => field.get_or_insert(created_at),
@@ -851,7 +857,7 @@ impl PaymentV2 {
                 created_at: field,
                 ..
             }) => field.get_or_insert(created_at),
-        };
+        }
     }
 
     /// When this payment expires.

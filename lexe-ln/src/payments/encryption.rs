@@ -14,26 +14,33 @@ use crate::payments::{
 ///
 /// V1 format stores metadata inside the payment blob; there is no metadata.
 /// V2 format stores metadata separately; metadata is optional.
-const CURRENT_PAYMENTS_VERSION: i16 = 1;
+const CURRENT_PAYMENTS_VERSION: i16 = 2;
 const_assert!(CURRENT_PAYMENTS_VERSION == 1 || CURRENT_PAYMENTS_VERSION == 2);
 
 // --- Public API --- //
 
-/// Encrypts a [`PaymentWithMetadata`] using `CURRENT_PAYMENTS_VERSION`.
+/// Encrypts a [`PaymentV2`] and optional [`PaymentMetadata`].
 ///
 /// Returns the encrypted payment and optionally the encrypted metadata.
 /// V1 format stores metadata inside the payment blob and returns `None`.
-/// V2 format stores metadata separately and returns `Some`.
+/// V2 format stores metadata separately and returns `Some` if provided.
 pub fn encrypt_pwm(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
-    pwm: &PaymentWithMetadata,
+    payment: &PaymentV2,
+    metadata: Option<&PaymentMetadata>,
     created_at: TimestampMs,
     updated_at: TimestampMs,
 ) -> anyhow::Result<(DbPaymentV2, Option<DbPaymentMetadata>)> {
     match CURRENT_PAYMENTS_VERSION {
         1 => {
-            let payment_v1 = PaymentV1::try_from(pwm.clone())
+            let pwm = PaymentWithMetadata {
+                payment: payment.clone(),
+                metadata: metadata
+                    .cloned()
+                    .unwrap_or_else(|| PaymentMetadata::empty(payment.id())),
+            };
+            let payment_v1 = PaymentV1::try_from(pwm)
                 .context("Failed to convert payment to v1")?;
             let db_payment = encrypt_payment_v1(
                 rng,
@@ -48,13 +55,13 @@ pub fn encrypt_pwm(
             let db_payment = encrypt_payment_v2(
                 rng,
                 vfs_master_key,
-                &pwm.payment,
+                payment,
                 created_at,
                 updated_at,
             );
-            let db_metadata =
-                encrypt_metadata(rng, vfs_master_key, &pwm.metadata, updated_at);
-            Ok((db_payment, Some(db_metadata)))
+            let db_metadata = metadata
+                .map(|m| encrypt_metadata(rng, vfs_master_key, m, updated_at));
+            Ok((db_payment, db_metadata))
         }
         v => Err(anyhow!("Unexpected CURRENT_PAYMENTS_VERSION: {v}")),
     }
@@ -104,6 +111,43 @@ pub fn decrypt_payment(
         2 => decrypt_payment_v2(vfs_master_key, db_payment),
         v => Err(anyhow!("Unsupported payment version: {v}")),
     }
+}
+
+/// Encrypts a [`PaymentMetadata`] to a [`DbPaymentMetadata`].
+pub fn encrypt_metadata(
+    rng: &mut impl Crng,
+    vfs_master_key: &AesMasterKey,
+    metadata: &PaymentMetadata,
+    updated_at: TimestampMs,
+) -> DbPaymentMetadata {
+    let aad = &[];
+    let data_size_hint = None;
+    let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|buf| {
+        serde_json::to_writer(buf, metadata)
+            .expect("PaymentMetadata serialization always succeeds")
+    };
+
+    let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
+
+    DbPaymentMetadata {
+        id: metadata.id.to_string(),
+        data,
+        updated_at: updated_at.to_i64(),
+    }
+}
+
+/// Decrypts a [`DbPaymentMetadata`] to [`PaymentMetadata`].
+pub fn decrypt_metadata(
+    vfs_master_key: &AesMasterKey,
+    db_metadata: DbPaymentMetadata,
+) -> anyhow::Result<PaymentMetadata> {
+    let aad = &[];
+    let plaintext_bytes = vfs_master_key
+        .decrypt(aad, db_metadata.data)
+        .context("Could not decrypt PaymentMetadata")?;
+
+    serde_json::from_slice(&plaintext_bytes)
+        .context("Could not deserialize PaymentMetadata")
 }
 
 // --- PaymentV1 / PaymentV2 --- //
@@ -298,45 +342,6 @@ fn decrypt_payment_v2(
     Ok(payment)
 }
 
-// --- PaymentMetadata --- //
-
-/// Encrypts a [`PaymentMetadata`] to a [`DbPaymentMetadata`].
-fn encrypt_metadata(
-    rng: &mut impl Crng,
-    vfs_master_key: &AesMasterKey,
-    metadata: &PaymentMetadata,
-    updated_at: TimestampMs,
-) -> DbPaymentMetadata {
-    let aad = &[];
-    let data_size_hint = None;
-    let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|buf| {
-        serde_json::to_writer(buf, metadata)
-            .expect("PaymentMetadata serialization always succeeds")
-    };
-
-    let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
-
-    DbPaymentMetadata {
-        id: metadata.id.to_string(),
-        data,
-        updated_at: updated_at.to_i64(),
-    }
-}
-
-/// Decrypts a [`DbPaymentMetadata`] to [`PaymentMetadata`].
-pub fn decrypt_metadata(
-    vfs_master_key: &AesMasterKey,
-    db_metadata: DbPaymentMetadata,
-) -> anyhow::Result<PaymentMetadata> {
-    let aad = &[];
-    let plaintext_bytes = vfs_master_key
-        .decrypt(aad, db_metadata.data)
-        .context("Could not decrypt PaymentMetadata")?;
-
-    serde_json::from_slice(&plaintext_bytes)
-        .context("Could not deserialize PaymentMetadata")
-}
-
 #[cfg(test)]
 mod test {
     use common::{aes::AesMasterKey, rng::FastRng, time::TimestampMs};
@@ -437,7 +442,8 @@ mod test {
             let (db_payment, db_metadata) = encrypt_pwm(
                 &mut rng,
                 &vfs_master_key,
-                &pwm,
+                &pwm.payment,
+                Some(&pwm.metadata),
                 created_at,
                 updated_at,
             ).unwrap();
@@ -467,7 +473,8 @@ mod test {
             let (db_payment, db_metadata) = encrypt_pwm(
                 &mut rng,
                 &vfs_master_key,
-                &pwm,
+                &pwm.payment,
+                Some(&pwm.metadata),
                 created_at,
                 updated_at,
             ).unwrap();

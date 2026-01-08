@@ -334,6 +334,20 @@ impl UserNode {
             &vfs_master_key,
         );
 
+        // Fetch pending payments to initialize payments manager with
+        let pending_payments_fut = async {
+            // But first, migrate to payments v2 if needed
+            persister
+                .migrate_to_payments_v2()
+                .await
+                .context("payments_v2 migration failed")?;
+
+            persister
+                .get_pending_payments_with_metadata()
+                .await
+                .context("Could not read pending payments")
+        };
+
         // Read as much as possible concurrently to reduce init time
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
@@ -347,7 +361,7 @@ impl UserNode {
             read_maybe_approved_versions,
             persister.read_wallet_changeset(),
             persister.read_scids(),
-            persister.get_pending_payments_with_metadata(),
+            pending_payments_fut,
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
             persister.fetch_channel_monitor_bytes(),
         );
@@ -399,8 +413,7 @@ impl UserNode {
         } else {
             existing_scids
         };
-        let pending_payments =
-            try_pending_payments.context("Could not read pending payments")?;
+        let pending_payments = try_pending_payments?;
         let revocable_clients = try_maybe_revocable_clients
             .context("Could not read revocable clients")?
             .unwrap_or_default()

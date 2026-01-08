@@ -948,17 +948,17 @@ impl LexePersisterMethods for NodePersister {
 
         let mut pwm = checked.0;
         let now = TimestampMs::now();
-        let created_at = pwm.payment.created_at().unwrap_or(now);
-        let updated_at = now;
 
         // Ensure the payment's created_at field is set before persisting,
         // since it may be None if this is the payment's first persist.
-        pwm.payment.set_created_at_once(created_at);
+        let created_at = pwm.payment.set_created_at_idempotent(now);
+        let updated_at = now;
 
         let (db_payment, db_metadata) = payments::encryption::encrypt_pwm(
             &mut rng,
             &self.vfs_master_key,
-            &pwm,
+            &pwm.payment,
+            Some(&pwm.metadata),
             created_at,
             updated_at,
         )
@@ -1003,13 +1003,13 @@ impl LexePersisterMethods for NodePersister {
         for CheckedPayment(pwm) in checked_batch.iter_mut() {
             // Ensure the payment's created_at field is set,
             // as it may be None if this is the payment's first persist.
-            let created_at = pwm.payment.created_at().unwrap_or(now);
-            pwm.payment.set_created_at_once(created_at);
+            let created_at = pwm.payment.set_created_at_idempotent(now);
 
             let (db_payment, db_metadata) = payments::encryption::encrypt_pwm(
                 &mut rng,
                 &self.vfs_master_key,
-                pwm,
+                &pwm.payment,
+                Some(&pwm.metadata),
                 created_at,
                 updated_at,
             )
@@ -1132,6 +1132,56 @@ impl LexePersisterMethods for NodePersister {
         payments::encryption::decrypt_metadata(
             &self.vfs_master_key,
             db_metadata,
+        )
+    }
+
+    async fn upsert_payments(
+        &self,
+        payments: Vec<DbPaymentV2>,
+    ) -> anyhow::Result<()> {
+        if payments.is_empty() {
+            return Ok(());
+        }
+        let token = self.get_token().await?;
+        let batch = VecDbPaymentV2 { payments };
+        self.backend_api
+            .upsert_payment_batch(batch, token)
+            .await
+            .context("upsert_payment_batch failed")?;
+        Ok(())
+    }
+
+    async fn upsert_payment_metadatas(
+        &self,
+        metadatas: Vec<DbPaymentMetadata>,
+    ) -> anyhow::Result<()> {
+        if metadatas.is_empty() {
+            return Ok(());
+        }
+        let token = self.get_token().await?;
+        let batch = VecDbPaymentMetadata { metadatas };
+        self.backend_api
+            .upsert_payment_metadata_batch(batch, token)
+            .await
+            .context("upsert_payment_metadata_batch failed")?;
+        Ok(())
+    }
+
+    fn encrypt_pwm(
+        &self,
+        rng: &mut SysRng,
+        payment: &PaymentV2,
+        metadata: Option<&PaymentMetadata>,
+        created_at: TimestampMs,
+        updated_at: TimestampMs,
+    ) -> anyhow::Result<(DbPaymentV2, Option<DbPaymentMetadata>)> {
+        payments::encryption::encrypt_pwm(
+            rng,
+            &self.vfs_master_key,
+            payment,
+            metadata,
+            created_at,
+            updated_at,
         )
     }
 }
