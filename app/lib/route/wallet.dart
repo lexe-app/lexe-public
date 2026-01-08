@@ -71,6 +71,8 @@ import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/payment_address.dart'
     show PaymentAddressService;
+import 'package:lexeapp/service/payment_service_impl.dart'
+    show PaymentServiceImpl;
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
@@ -476,7 +478,7 @@ class WalletPageState extends State<WalletPage> {
 
   SendState_NeedUri nodeInfoIntoSendContext(NodeInfo nodeInfo) =>
       SendState_NeedUri(
-        app: this.widget.app,
+        paymentService: PaymentServiceImpl(this.widget.app),
         configNetwork: this.widget.config.network,
         balance: nodeInfo.balance,
         cid: ClientPaymentId.genNew(),
