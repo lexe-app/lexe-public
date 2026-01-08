@@ -3,24 +3,21 @@
 //! This module is the 'complex' counterpart to the simpler types exposed in
 //! [`lexe_api::types::payments`].
 
-use std::{borrow::Cow, collections::HashSet, num::NonZeroU64, sync::Arc};
+use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
-use anyhow::Context;
 use bitcoin::address::NetworkUnchecked;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
-    aes::AesMasterKey,
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
-    rng::Crng,
     time::TimestampMs,
 };
 use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
-        BasicPaymentV2, DbPaymentV2, LxOfferId, LxPaymentId, PaymentDirection,
-        PaymentKind, PaymentRail, PaymentStatus,
+        BasicPaymentV2, LxOfferId, LxPaymentId, PaymentDirection, PaymentKind,
+        PaymentRail, PaymentStatus,
     },
 };
 use lexe_std::const_assert_mem_size;
@@ -28,9 +25,6 @@ use lexe_std::const_assert_mem_size;
 use proptest::{option, prelude::Just};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-#[cfg(doc)]
-use serde::{Deserialize, Serialize};
-#[cfg(test)]
 use serde::{Deserialize, Serialize};
 
 use crate::payments::{
@@ -48,9 +42,10 @@ use crate::payments::{
         OutboundOfferPaymentStatus, OutboundOfferPaymentV2,
         OutboundSpontaneousPaymentStatus, OutboundSpontaneousPaymentV2,
     },
-    v1::PaymentV1,
 };
 
+/// Payments encryption.
+pub mod encryption;
 /// Inbound Lightning payments.
 pub mod inbound;
 /// `PaymentsManager`.
@@ -139,13 +134,8 @@ pub struct PaymentWithMetadata<P = PaymentV2> {
 /// [`PaymentsManager`]: crate::payments::manager::PaymentsManager
 /// [`Replay`]: crate::event::EventHandleError::Replay
 /// [`Discard`]: crate::event::EventHandleError::Discard
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-// TODO(max): This should derive Serialize and Deserialize, but we hold off for
-// now as we don't want to accidentally serialize using this type while we're
-// locking down the serialization format.
-// TODO(max): Gen and inspect sample data before committing to serialization
-#[cfg_attr(test, derive(Serialize, Deserialize))]
 pub enum PaymentV2 {
     OnchainSend(OnchainSendV2),
     OnchainReceive(OnchainReceiveV2),
@@ -166,12 +156,8 @@ pub enum PaymentV2 {
 const_assert_mem_size!(PaymentV2, 264);
 
 /// Optional payment metadata associated with a [`PaymentV2`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-// TODO(max): This should derive Serialize and Deserialize, but we hold off for
-// now as we don't want to accidentally serialize using this type while we're
-// still migrating all logic.
-#[cfg_attr(test, derive(Serialize, Deserialize))]
 pub struct PaymentMetadata {
     // --- Identifier and basic info fields --- //
     // -
@@ -285,68 +271,6 @@ pub(crate) struct PaymentMetadataUpdate {
 
     pub replacement_txid: Option<Option<LxTxid>>,
 }
-
-// --- Encryption --- //
-
-/// Serializes a given payment to JSON and encrypts the payment under the given
-/// [`AesMasterKey`], returning the [`DbPaymentV2`] which can be persisted.
-// TODO(max): Make infallible again once we use PaymentV2
-pub fn encrypt_v1(
-    rng: &mut impl Crng,
-    vfs_master_key: &AesMasterKey,
-    pwm: &PaymentWithMetadata,
-    created_at: TimestampMs,
-    updated_at: TimestampMs,
-) -> anyhow::Result<DbPaymentV2> {
-    // Serialize the payment as JSON bytes.
-    let aad = &[];
-    let data_size_hint = None;
-    // NOTE: This serializes using v1
-    let payment_v1 = PaymentV1::try_from(pwm.clone())
-        .context("Failed to convert payment to v1")?;
-    let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|mut_vec_u8| {
-        serde_json::to_writer(mut_vec_u8, &payment_v1)
-            .expect("Payment serialization always succeeds")
-    };
-
-    // Encrypt.
-    let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
-
-    Ok(DbPaymentV2 {
-        id: pwm.payment.id().to_string(),
-        kind: Some(pwm.payment.kind().to_str()),
-        direction: Some(Cow::Borrowed(pwm.payment.direction().as_str())),
-        amount: pwm.payment.amount(),
-        fee: Some(pwm.payment.fee()),
-        status: Cow::Borrowed(pwm.payment.status().as_str()),
-        data,
-        version: 1,
-        created_at: created_at.to_i64(),
-        updated_at: updated_at.to_i64(),
-    })
-}
-
-/// Given a [`DbPaymentV2::data`] (ciphertext), attempts to decrypt using the
-/// given [`AesMasterKey`], returning the deserialized [`PaymentV2`].
-pub fn decrypt_v1(
-    vfs_master_key: &AesMasterKey,
-    data: Vec<u8>,
-) -> anyhow::Result<PaymentWithMetadata> {
-    let aad = &[];
-    let plaintext_bytes = vfs_master_key
-        .decrypt(aad, data)
-        .context("Could not decrypt Payment")?;
-
-    // NOTE: This deserializes using v1
-    serde_json::from_slice::<PaymentV1>(plaintext_bytes.as_slice())
-        .map(PaymentWithMetadata::from)
-        .context("Could not deserialize Payment")
-}
-
-// TODO(max): Add `encrypt_payment` which uses v2 types
-// TODO(max): Add `encrypt_metadata which uses v2 types
-// TODO(max): Add `decrypt_payment which uses v2 types
-// TODO(max): Add `decrypt_metadata which uses v2 types
 
 // --- Payment subtype -> top-level Payment type --- //
 

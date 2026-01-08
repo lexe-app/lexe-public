@@ -814,7 +814,6 @@ mod test {
     use std::{fs, path::Path};
 
     use common::{
-        aes::AesMasterKey,
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
@@ -823,7 +822,6 @@ mod test {
     };
 
     use super::*;
-    use crate::payments;
 
     /// During migration, we need to maintain the invariant that
     /// `PaymentV1 -> PaymentWithMetadata -> PaymentV1` is lossless, as we are
@@ -876,35 +874,6 @@ mod test {
         json_value_custom(any::<OutboundInvoicePaymentV1>(), config.clone());
         json_value_custom(any::<OutboundOfferPaymentV1>(), config.clone());
         json_value_custom(any::<OutboundSpontaneousPaymentV1>(), config);
-    }
-
-    #[test]
-    fn payment_v1_encryption_roundtrip() {
-        proptest!(|(
-            mut rng in any::<FastRng>(),
-            vfs_master_key in any::<AesMasterKey>(),
-            p1_v1 in any::<PaymentV1>(),
-            now in any::<TimestampMs>(),
-        )| {
-            let pwm = PaymentWithMetadata::from(p1_v1.clone());
-            let p1 = pwm.payment.clone();
-
-            let created_at = p1.created_at().unwrap_or(now);
-            let updated_at = now;
-
-            let encrypted = payments::encrypt_v1(
-                &mut rng,
-                &vfs_master_key,
-                &pwm,
-                created_at,
-                updated_at,
-            )
-            .unwrap();
-            let p2 = payments::decrypt_v1(&vfs_master_key, encrypted.data)
-                .map(|pwm| pwm.payment)
-                .unwrap();
-            prop_assert_eq!(p1, p2);
-        })
     }
 
     /// Dumps a JSON array of `Payment`s using the proptest strategy.
