@@ -11,7 +11,9 @@ use common::{
     time::{DisplayMs, TimestampMs},
 };
 use lexe_api::vfs::{self, Vfs, VfsFile, VfsFileId};
-use lexe_tokio::{events_bus::EventsBus, task::LxTask};
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
@@ -253,11 +255,33 @@ pub fn spawn_event_replayer_task(handler: impl LexeEventHandler) -> LxTask<()> {
     })
 }
 
-// --- EventHandlerExt --- //
+// --- LexeEventHandlerMethods --- //
 
-/// Extends [`LexeEventHandler`] to provide wrappers around core handling logic.
-pub trait EventHandlerExt: LexeEventHandler + Clone {
-    /// Wraps [`LexeEventHandler::handle_event`]: Handles an event 'inline',
+/// All event handler methods needed in shared Lexe LN logic.
+pub trait LexeEventHandlerMethods: Clone + Send + Sync + 'static {
+    // --- Required methods --- //
+
+    /// Given a LDK [`Event`], get a future which handles it.
+    /// The BGP passes this future to LDK for async event handling.
+    fn get_ldk_handler_future(
+        &self,
+        event: Event,
+    ) -> impl Future<Output = Result<(), ReplayEvent>> + Send;
+
+    /// Handle an event.
+    fn handle_event(
+        &self,
+        event_id: &EventId,
+        event: Event,
+    ) -> impl Future<Output = Result<(), EventHandleError>> + Send;
+
+    fn persister(&self) -> &impl LexePersister;
+
+    fn shutdown(&self) -> &NotifyOnce;
+
+    // --- Provided methods --- //
+
+    /// Wraps [`Self::handle_event`]: Handles an event 'inline',
     /// i.e. without spawning off to a task.
     fn handle_inline(
         &self,
@@ -296,9 +320,9 @@ pub trait EventHandlerExt: LexeEventHandler + Clone {
         .instrument(span)
     }
 
-    /// Wraps [`LexeEventHandler::handle_event`]: Persists the event and spawns
-    /// a task to handle it. The handler task deletes the event once it is
-    /// successfully handled. This fn returns when persistence is complete.
+    /// Wraps [`Self::handle_event`]: Persists the event and spawns a task to
+    /// handle it. The handler task deletes the event once it is successfully
+    /// handled. This fn returns when persistence is complete.
     fn persist_and_spawn_handler(
         &self,
         event: Event,
@@ -402,8 +426,8 @@ pub trait EventHandlerExt: LexeEventHandler + Clone {
         }
     }
 
-    /// Wraps [`LexeEventHandler::handle_event`]: Replays a persisted event by
-    /// re-handling it, then deletes the persisted event if successful.
+    /// Wraps [`Self::handle_event`]: Replays a persisted event by re-handling
+    /// it, then deletes the persisted event if successful.
     fn replay_event(
         &self,
         event_id: EventId,
@@ -445,8 +469,6 @@ pub trait EventHandlerExt: LexeEventHandler + Clone {
         .instrument(span)
     }
 }
-
-impl<T: LexeEventHandler> EventHandlerExt for T {}
 
 // --- Shared handlers --- //
 

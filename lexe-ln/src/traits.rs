@@ -1,12 +1,9 @@
-use std::{future::Future, ops::Deref};
+use std::ops::Deref;
 
 use common::api::user::NodePk;
 use lexe_api::vfs::Vfs;
-use lexe_tokio::notify_once::NotifyOnce;
 use lightning::{
-    chain::chainmonitor::Persist,
-    events::{Event, ReplayEvent},
-    ln::msgs::RoutingMessageHandler,
+    chain::chainmonitor::Persist, ln::msgs::RoutingMessageHandler,
 };
 
 use crate::{
@@ -14,7 +11,7 @@ use crate::{
         LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
         SignerType,
     },
-    event::{EventHandleError, EventId},
+    event::LexeEventHandlerMethods,
     persister::LexePersisterMethods,
 };
 
@@ -108,21 +105,12 @@ where
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe event handler.
-pub trait LexeEventHandler: Clone + Send + Sync + 'static {
-    /// Given a LDK [`Event`], get a future which handles it.
-    /// The BGP passes this future to LDK for async event handling.
-    fn get_ldk_handler_future(
-        &self,
-        event: Event,
-    ) -> impl Future<Output = Result<(), ReplayEvent>> + Send;
+pub trait LexeEventHandler:
+    LexeEventHandlerMethods + Clone + Send + Sync + 'static
+{
+}
 
-    /// Handle an event.
-    fn handle_event(
-        &self,
-        event_id: &EventId,
-        event: Event,
-    ) -> impl Future<Output = Result<(), EventHandleError>> + Send;
-
-    fn persister(&self) -> &impl LexePersister;
-    fn shutdown(&self) -> &NotifyOnce;
+impl<T: LexeEventHandlerMethods + Clone + Send + Sync + 'static>
+    LexeEventHandler for T
+{
 }

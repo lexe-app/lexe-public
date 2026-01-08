@@ -59,11 +59,14 @@ use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::ChannelEvent,
     esplora::FeeEstimates,
-    event::{self, EventHandleError, EventHandlerExt, EventId, HtlcsForwarded},
+    event::{
+        self, EventHandleError, EventId, HtlcsForwarded,
+        LexeEventHandlerMethods,
+    },
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
-    traits::{LexeEventHandler, LexePersister},
+    traits::LexePersister,
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
@@ -111,7 +114,7 @@ pub(crate) struct EventCtx {
     pub shutdown: NotifyOnce,
 }
 
-impl LexeEventHandler for NodeEventHandler {
+impl LexeEventHandlerMethods for NodeEventHandler {
     #[allow(clippy::manual_async_fn)] // Be more explicit re LDK's API.
     fn get_ldk_handler_future(
         &self,
