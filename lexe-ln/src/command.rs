@@ -1603,10 +1603,6 @@ mod validate {
             ));
         }
 
-        if amount <= max_sendable {
-            return Ok(());
-        }
-
         // If they have a balance but not enough to exceed the channel reserve,
         // return a dedicated error message, instead of "cannot find route".
         if usable_lightning_balance > Amount::ZERO
@@ -1618,6 +1614,10 @@ mod validate {
                  Consider adding to your Lightning balance in order to send \
                  this amount.",
             ));
+        }
+
+        if amount <= max_sendable {
+            return Ok(());
         }
 
         // Since we know the recipient, we can compute a more accurate maximum
