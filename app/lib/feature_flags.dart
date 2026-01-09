@@ -56,26 +56,32 @@ final class FeatureFlags {
 
   /// Disable all features.
   const FeatureFlags.none({
+    this.allowEditPaymentAddress = false,
     this.showBolt12OffersRecvPage = false,
-    this.showProfilePage = false,
+    this.showPaymentAddress = false,
   });
 
   /// Enable all features.
   const FeatureFlags.all({
+    this.allowEditPaymentAddress = true,
     this.showBolt12OffersRecvPage = true,
-    this.showProfilePage = true,
+    this.showPaymentAddress = true,
   });
 
   const FeatureFlags.some({
+    this.allowEditPaymentAddress = false,
     this.showBolt12OffersRecvPage = true,
-    this.showProfilePage = false,
+    this.showPaymentAddress = false,
   });
+
+  /// On the Wallet > Wallet Drawer, allow the user to edit their payment
+  /// address.
+  final bool allowEditPaymentAddress;
 
   /// On the Wallet > Receive page, show the experimental BOLT12 offer receive
   /// QR code.
   final bool showBolt12OffersRecvPage;
 
-  /// On the Wallet > Wallet Drawer, show the profile header that let's the user
-  /// see and edit their payment address.
-  final bool showProfilePage;
+  /// On the Wallet > Wallet Drawer, show the payment address with copy/share.
+  final bool showPaymentAddress;
 }

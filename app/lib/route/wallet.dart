@@ -1127,7 +1127,8 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
 
-  bool get showUserPayAddress => this.featureFlags.showProfilePage;
+  bool get showPaymentAddress => this.featureFlags.showPaymentAddress;
+  bool get allowEditPaymentAddress => this.featureFlags.allowEditPaymentAddress;
 
   @override
   Widget build(BuildContext context) {
@@ -1207,14 +1208,17 @@ class WalletDrawer extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (this.showUserPayAddress)
+                  if (this.showPaymentAddress)
                     ValueListenableBuilder(
                       valueListenable:
                           this.paymentAddressService.paymentAddress,
                       builder: (context, paymentAddress, child) {
                         return DrawerProfile(
+                          allowEdit: this.allowEditPaymentAddress,
+                          onEditProfilePressed: this.allowEditPaymentAddress
+                              ? this.onProfileMenuPressed
+                              : null,
                           paymentAddress: paymentAddress,
-                          onEditProfilePressed: this.onProfileMenuPressed,
                         );
                       },
                     ),
@@ -1294,9 +1298,11 @@ enum DrawerPaymentAddressStatus { error, notClaimed, claimed, updatable }
 class DrawerProfile extends StatelessWidget {
   const DrawerProfile({
     super.key,
+    this.allowEdit = false,
     this.onEditProfilePressed,
     this.paymentAddress,
   });
+  final bool allowEdit;
   final VoidCallback? onEditProfilePressed;
   final PaymentAddress? paymentAddress;
 
@@ -1341,17 +1347,18 @@ class DrawerProfile extends StatelessWidget {
           const SizedBox(height: Space.s200),
           switch (this.status) {
             DrawerPaymentAddressStatus.error => const SizedBox(),
-            DrawerPaymentAddressStatus.notClaimed => ClaimPaymentAddress(
-              onTap: this.onEditProfilePressed,
-            ),
+            DrawerPaymentAddressStatus.notClaimed =>
+              this.allowEdit
+                  ? ClaimPaymentAddress(onTap: this.onEditProfilePressed)
+                  : const SizedBox(),
             DrawerPaymentAddressStatus.claimed => ClaimedPaymentAddress(
               paymentAddress: this.paymentAddress!,
               showEditButton: false,
             ),
             DrawerPaymentAddressStatus.updatable => ClaimedPaymentAddress(
               paymentAddress: this.paymentAddress!,
-              showEditButton: true,
-              onTapEdit: this.onEditProfilePressed,
+              showEditButton: this.allowEdit,
+              onTapEdit: this.allowEdit ? this.onEditProfilePressed : null,
             ),
           },
         ],
