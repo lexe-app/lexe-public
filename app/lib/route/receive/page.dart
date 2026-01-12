@@ -134,6 +134,12 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     this.widget.designInitialPageIdx ?? 0,
   );
 
+  /// Which Lightning payment type is selected (invoice or offer).
+  /// Only used when [showOffer] is true.
+  final ValueNotifier<PaymentOfferKind> selectedLightningType = ValueNotifier(
+    PaymentOfferKind.lightningInvoice,
+  );
+
   /// Inputs that determine when we should fetch a new lightning invoice.
   final ValueNotifier<LnInvoiceInputs> lnInvoiceInputs = ValueNotifier(
     const LnInvoiceInputs(amountSats: null, description: null),
@@ -165,9 +171,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   ];
 
   // TODO(phlip9): once offers always enabled, make these constants again.
-  int get lnInvoicePageIdx => 0;
-  int get lnOfferPageIdx => this.showOffer ? 1 : -1;
-  int get btcPageIdx => this.showOffer ? 2 : 1;
+  int get lnPageIdx => 0;
+  int get btcPageIdx => 1;
+
+  // Data indices in paymentOffers list.
+  int get lnInvoiceDataIdx => 0;
+  int get lnOfferDataIdx => this.showOffer ? 1 : -1;
+  int get btcDataIdx => this.showOffer ? 2 : 1;
 
   @override
   void initState() {
@@ -205,6 +215,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   void dispose() {
     this.pageController.dispose();
     this.selectedPageIndex.dispose();
+    this.selectedLightningType.dispose();
 
     this.lnInvoiceInputs.dispose();
     this.lnOfferInputs.dispose();
@@ -244,11 +255,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       this.paymentOffers[this.selectedPageIndex.value];
 
   ValueNotifier<PaymentOffer> lnInvoicePaymentOffer() =>
-      this.paymentOffers[this.lnInvoicePageIdx];
+      this.paymentOffers[this.lnInvoiceDataIdx];
   ValueNotifier<PaymentOffer> lnOfferPaymentOffer() =>
-      this.paymentOffers[this.lnOfferPageIdx];
+      this.paymentOffers[this.lnOfferDataIdx];
   ValueNotifier<PaymentOffer> btcPaymentOffer() =>
-      this.paymentOffers[this.btcPageIdx];
+      this.paymentOffers[this.btcDataIdx];
 
   /// Fetch a bitcoin address for the given [BtcAddrInputs] and return a
   /// full [PaymentOffer].
@@ -569,6 +580,64 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     this.lnOfferInputs.value = inputs;
   }
 
+  /// Build the PageView children based on whether BOLT12 offers are shown.
+  // TODO(a-mpch): remove the conditional page build when BOLT12 is live
+  List<Widget> _buildPageViewChildren() {
+    final btcPage = ValueListenableBuilder(
+      valueListenable: this.btcPaymentOffer(),
+      builder: (context, offer, _) => PaymentOfferPage(
+        paymentOffer: offer,
+        fiatRate: this.widget.fiatRate,
+        openSetAmountPage: () => this.openEditPage(offer.kind),
+        refreshPaymentOffer: null,
+      ),
+    );
+
+    if (this.showOffer) {
+      // Lightning page with toggle to switch between invoice and offer
+      final lightningPage = ValueListenableBuilder(
+        valueListenable: this.selectedLightningType,
+        builder: (context, selectedType, _) {
+          final isInvoice = selectedType == PaymentOfferKind.lightningInvoice;
+          final offerNotifier = isInvoice
+              ? this.lnInvoicePaymentOffer()
+              : this.lnOfferPaymentOffer();
+
+          return ValueListenableBuilder(
+            valueListenable: offerNotifier,
+            builder: (context, offer, _) => PaymentOfferPage(
+              paymentOffer: offer,
+              fiatRate: this.widget.fiatRate,
+              openSetAmountPage: () => this.openEditPage(offer.kind),
+              refreshPaymentOffer: isInvoice ? this.doRefreshLnInvoice : null,
+              toggleWidget: LightningTypeToggle(
+                selected: selectedType,
+                onChanged: (newType) {
+                  this.selectedLightningType.value = newType;
+                },
+              ),
+            ),
+          );
+        },
+      );
+
+      return [lightningPage, btcPage];
+    } else {
+      // Invoice page (no toggle)
+      final invoicePage = ValueListenableBuilder(
+        valueListenable: this.lnInvoicePaymentOffer(),
+        builder: (context, offer, _) => PaymentOfferPage(
+          paymentOffer: offer,
+          fiatRate: this.widget.fiatRate,
+          openSetAmountPage: () => this.openEditPage(offer.kind),
+          refreshPaymentOffer: this.doRefreshLnInvoice,
+        ),
+      );
+
+      return [invoicePage, btcPage];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -607,25 +676,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                   if (!this.mounted) return;
                   this.selectedPageIndex.value = pageIdx;
                 },
-                children: this.paymentOffers
-                    .map(
-                      (offer) => ValueListenableBuilder(
-                        valueListenable: offer,
-                        builder: (_context, offer, _child) => PaymentOfferPage(
-                          paymentOffer: offer,
-                          fiatRate: this.widget.fiatRate,
-                          openSetAmountPage: () =>
-                              this.openEditPage(offer.kind),
-                          refreshPaymentOffer:
-                              // Only invoices need to be refresh-able since
-                              // they're single-use.
-                              offer.kind == PaymentOfferKind.lightningInvoice
-                              ? this.doRefreshLnInvoice
-                              : null,
-                        ),
-                      ),
-                    )
-                    .toList(),
+                children: this._buildPageViewChildren(),
               ),
             ),
           ),
@@ -633,7 +684,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
         bottom: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Space.s600),
           child: CarouselIndicatorsAndButtons(
-            numPages: this.paymentOffers.length,
+            numPages: 2,
             selectedPageIndex: this.selectedPageIndex,
             onTapPrev: () => unawaited(
               this.pageController.previousPage(
@@ -661,6 +712,7 @@ class PaymentOfferPage extends StatelessWidget {
     required this.fiatRate,
     required this.openSetAmountPage,
     required this.refreshPaymentOffer,
+    this.toggleWidget,
   });
 
   final PaymentOffer paymentOffer;
@@ -668,6 +720,9 @@ class PaymentOfferPage extends StatelessWidget {
 
   final VoidCallback openSetAmountPage;
   final VoidCallback? refreshPaymentOffer;
+
+  /// Optional toggle widget to switch between Lightning types.
+  final Widget? toggleWidget;
 
   void onTapSetAmount() {
     this.openSetAmountPage();
@@ -1037,10 +1092,22 @@ class PaymentOfferPage extends StatelessWidget {
           ),
           const SizedBox(height: Space.s400),
 
+          // Toggle button (only for Lightning with BOLT12 enabled)
+          if (this.toggleWidget != null)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: Space.s450,
+                right: Space.s450,
+                bottom: Space.s400,
+              ),
+              child: this.toggleWidget!,
+            ),
+
           // Under-card section
 
-          // Warning/info block
-          if (warningStr != null)
+          // Warning/info block (hidden when toggle is shown)
+          // TODO(a-mpch): after bolt12 is live, remove the warning str.
+          if (warningStr != null && this.toggleWidget == null)
             Padding(
               padding: const EdgeInsets.only(
                 left: Space.s450,
@@ -1228,6 +1295,94 @@ class CopyCodeButtonOrPlaceholder extends StatelessWidget {
         ),
       );
     }
+  }
+}
+
+/// Toggle button to switch between Lightning invoice and offer.
+class LightningTypeToggle extends StatelessWidget {
+  const LightningTypeToggle({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final PaymentOfferKind selected;
+  final ValueChanged<PaymentOfferKind> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isInvoice = this.selected == PaymentOfferKind.lightningInvoice;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: LxColors.grey850,
+        borderRadius: BorderRadius.circular(LxRadius.r300),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          Expanded(
+            child: LightningToggleButton(
+              label: "Single use",
+              isSelected: isInvoice,
+              onTap: () => this.onChanged(PaymentOfferKind.lightningInvoice),
+            ),
+          ),
+          Expanded(
+            child: LightningToggleButton(
+              label: "Reusable",
+              isSelected: !isInvoice,
+              onTap: () => this.onChanged(PaymentOfferKind.lightningOffer),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class LightningToggleButton extends StatelessWidget {
+  const LightningToggleButton({
+    super.key,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(LxRadius.r300);
+
+    return Material(
+      color: this.isSelected ? LxColors.grey1000 : Colors.transparent,
+      borderRadius: borderRadius,
+      child: InkWell(
+        onTap: this.onTap,
+        borderRadius: borderRadius,
+        splashColor: LxColors.grey925,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: Space.s200,
+            horizontal: Space.s300,
+          ),
+          child: Text(
+            this.label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: Fonts.size200,
+              fontVariations: [
+                this.isSelected ? Fonts.weightMedium : Fonts.weightNormal,
+              ],
+              color: this.isSelected ? LxColors.foreground : LxColors.grey550,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
