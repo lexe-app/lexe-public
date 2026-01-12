@@ -12,6 +12,9 @@ use lexe_ln::command::CreateInvoiceCaller;
 
 use crate::server::RouterState;
 
+/// Supported NWC methods for this wallet.
+const SUPPORTED_NWC_METHODS: &[&str] = &["get_info", "make_invoice"];
+
 /// Handle an NWC request by routing to the appropriate command handler.
 pub(super) async fn handle_nwc_request(
     state: &RouterState,
@@ -56,16 +59,16 @@ async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
     };
 
     Ok(GetInfoResult {
-        alias: format!(
-            "lexe-{}",
-            state.user_pk.to_string()[..8].to_lowercase()
-        ),
+        alias: format!("lexe-{}", &state.user_pk.to_string()[..8]),
         color: "000000".to_string(),
-        pubkey: hex::encode(&state.node_pk.serialize()),
+        pubkey: state.node_pk.to_string(),
         network: network.to_string(),
         block_height: best_block.height,
         block_hash: hex::encode(&best_block.block_hash.to_byte_array()),
-        methods: vec!["get_info".to_string(), "make_invoice".to_string()],
+        methods: SUPPORTED_NWC_METHODS
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
     })
 }
 

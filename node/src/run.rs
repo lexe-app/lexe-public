@@ -796,7 +796,7 @@ impl UserNode {
             gdrive_status: Arc::new(tokio::sync::Mutex::new(gdrive_status)),
             gdrive_oauth_config,
             deploy_env,
-            node_pk,
+            node_pk: NodePk(node_pk),
             // --- Actors --- //
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),
