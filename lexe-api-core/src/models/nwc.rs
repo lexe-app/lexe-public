@@ -280,7 +280,7 @@ pub mod nip47 {
         /// Hex-encoded block hash.
         pub block_hash: String,
         /// List of supported NWC methods for this connection.
-        pub methods: Vec<String>,
+        pub methods: Vec<NwcMethod>,
     }
 
     /// Result for `make_invoice` command.
