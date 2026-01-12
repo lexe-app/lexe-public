@@ -691,17 +691,17 @@ pub(super) async fn list_nwc_clients(
         .await
         .map_err(NodeApiError::command)?;
 
-    // Decrypt each client ciphertext to get the label and expose the client
-    // info.
-    let mut clients = Vec::new();
-    for client in vec_nwc_client.nwc_clients {
-        let decrypted =
-            NwcClient::decrypt(state.persister.vfs_master_key(), client);
-        match decrypted {
-            Ok(nwc_client) => clients.push(nwc_client.to_nwc_client_info()),
-            Err(e) => tracing::warn!("Failed to decrypt NWC client: {e:#}"),
-        }
-    }
+    // Decrypt each ciphertext to get the label and expose the client info.
+    let clients = vec_nwc_client
+        .nwc_clients
+        .into_iter()
+        .filter_map(|client| {
+            NwcClient::decrypt(state.persister.vfs_master_key(), client)
+                .map(|c| c.to_nwc_client_info())
+                .inspect_err(|e| warn!("Failed to decrypt NWC client: {e:#}"))
+                .ok()
+        })
+        .collect();
 
     Ok(LxJson(ListNwcClientResponse { clients }))
 }
@@ -762,20 +762,18 @@ pub(super) async fn update_nwc_client(
     //
     // TODO(max): Add synchronization for NwcClient updates - could use a
     // write-through cache similar to PaymentsManager.
-    let vec_nwc_client = state
+    let mut db_nwc_clients = state
         .persister
         .backend_api()
         .get_nwc_clients(params, token.clone())
         .await
-        .map_err(NodeApiError::command)?;
+        .map_err(NodeApiError::command)?
+        .nwc_clients;
 
-    let db_nwc_client = {
-        let mut db_nwc_clients = vec_nwc_client.nwc_clients;
-        match db_nwc_clients.len() {
-            0 => Err(NodeApiError::command("NWC client not found")),
-            1 => Ok(db_nwc_clients.pop().unwrap()),
-            _ => Err(NodeApiError::command("More than one NWC client found")),
-        }
+    let db_nwc_client = match db_nwc_clients.len() {
+        0 => Err(NodeApiError::command("NWC client not found")),
+        1 => Ok(db_nwc_clients.pop().unwrap()),
+        _ => Err(NodeApiError::command("More than one NWC client found")),
     }?;
 
     let mut nwc_client =
@@ -793,8 +791,8 @@ pub(super) async fn update_nwc_client(
         .await
         .map_err(NodeApiError::command)?;
 
-    // We build the nwc client from the already decrypted ciphertext and
-    // update the timestamps from the backend response.
+    // We build the client info from the plaintext and update the timestamps
+    // from the backend response.
     let mut client_info = nwc_client.to_nwc_client_info();
     client_info.updated_at = db_nwc_client.updated_at;
     client_info.created_at = db_nwc_client.created_at;
