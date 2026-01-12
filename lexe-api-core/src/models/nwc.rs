@@ -214,10 +214,15 @@ pub struct NostrSignedEvent {
 pub mod nip47 {
     use std::fmt;
 
+    #[cfg(any(test, feature = "test-utils"))]
+    use common::test_utils::arbitrary;
+    #[cfg(any(test, feature = "test-utils"))]
+    use proptest_derive::Arbitrary;
     use serde::{Deserialize, Serialize};
 
     /// NWC request method.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     #[serde(rename_all = "snake_case")]
     pub enum NwcMethod {
         GetInfo,
@@ -289,6 +294,7 @@ pub mod nip47 {
 
     /// NWC error codes.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
     pub enum NwcErrorCode {
         RateLimited,
@@ -303,8 +309,13 @@ pub mod nip47 {
 
     /// NWC error response.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct NwcError {
         pub code: NwcErrorCode,
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_string()")
+        )]
         pub message: String,
     }
 
@@ -340,9 +351,16 @@ pub mod nip47 {
 
     /// NWC response payload (to be encrypted).
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct NwcResponsePayload {
         pub result_type: NwcMethod,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(
+                strategy = "arbitrary::any_option_json_value_skip_none()"
+            )
+        )]
         pub result: Option<serde_json::Value>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub error: Option<NwcError>,
@@ -413,5 +431,10 @@ mod test {
     #[test]
     fn nostr_sk_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<NostrSk>();
+    }
+
+    #[test]
+    fn nwc_response_payload_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<nip47::NwcResponsePayload>();
     }
 }

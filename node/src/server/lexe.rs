@@ -20,6 +20,7 @@ use lexe_api::{
     types::Empty,
 };
 use lexe_ln::test_event;
+use tracing::warn;
 
 use crate::server::RouterState;
 
@@ -108,16 +109,18 @@ pub(super) async fn nwc_request(
             result: Some(value),
             error: None,
         },
-        Err(error) => NwcResponsePayload {
-            result_type: request_payload.method,
-            result: None,
-            error: Some(error),
-        },
+        Err(error) => {
+            warn!("NWC request failed: {error:?}");
+            NwcResponsePayload {
+                result_type: request_payload.method,
+                result: None,
+                error: Some(error),
+            }
+        }
     };
 
     let response_json = serde_json::to_string(&response_payload)
-        .context("Failed to serialize NWC response")
-        .map_err(NodeApiError::command)?;
+        .expect("NwcResponsePayload serialization cannot fail");
 
     let mut rng = SysRng::new();
 

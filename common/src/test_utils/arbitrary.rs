@@ -291,6 +291,41 @@ pub fn any_json_number() -> impl Strategy<Value = serde_json::value::Number> {
     ]
 }
 
+/// Returns `None` or `Some(non-null JSON value)`.
+///
+/// Use this for `Option<serde_json::Value>` fields with
+/// `#[serde(skip_serializing_if = "Option::is_none")]`. We exclude
+/// `Some(Value::Null)` because it serializes to `"field": null`, which serde
+/// deserializes back as `None`, breaking roundtrip equality.
+///
+/// For fields without `skip_serializing_if`, use
+/// `proptest::option::of(any_json_value())` instead.
+pub fn any_option_json_value_skip_none()
+-> impl Strategy<Value = Option<serde_json::Value>> {
+    proptest::option::of(any_json_value_non_null())
+}
+
+/// Like [`any_json_value`] but excludes `Value::Null` at the top level.
+pub fn any_json_value_non_null() -> impl Strategy<Value = serde_json::Value> {
+    use serde_json::Value;
+
+    const MAX_COLLECTION_LEN: usize = 3;
+
+    prop_oneof![
+        any::<bool>().prop_map(Value::Bool),
+        any_json_number().prop_map(Value::Number),
+        any_string().prop_map(Value::String),
+    ]
+    .prop_recursive(3, 8, MAX_COLLECTION_LEN as u32, |element| {
+        prop_oneof![
+            vec(element.clone(), 0..MAX_COLLECTION_LEN).prop_map(Value::Array),
+            vec((any_string(), element), 0..MAX_COLLECTION_LEN)
+                .prop_map(serde_json::value::Map::from_iter)
+                .prop_map(Value::Object),
+        ]
+    })
+}
+
 // --- Bitcoin types --- //
 
 pub fn any_network() -> impl Strategy<Value = bitcoin::Network> {
