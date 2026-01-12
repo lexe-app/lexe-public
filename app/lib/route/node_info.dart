@@ -102,6 +102,14 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
             ),
           ),
 
+          // UserPk
+          InfoCard(
+            header: const Text("User"),
+            children: [
+              InfoRow(label: "Lexe pubkey (user_pk)", value: userInfo.userPk),
+            ],
+          ),
+
           // NodeInfo and userInfo.nodePk{Proof}
           InfoCard(
             header: const Text("Node"),
@@ -123,7 +131,7 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
                   value: nodeInfo?.measurement ?? " ",
                 ),
               ),
-              InfoRow(label: "Node public key", value: userInfo.nodePk),
+              InfoRow(label: "Node pubkey", value: userInfo.nodePk),
               // Show the NodePkProof here so a user can prove possession of their
               // node key pair.
               InfoRow(
@@ -133,16 +141,8 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
             ],
           ),
 
-          // UserPk
           InfoCard(
-            header: const Text("User"),
-            children: [
-              InfoRow(label: "User public key", value: userInfo.userPk),
-            ],
-          ),
-
-          InfoCard(
-            header: const Text("Node internals"),
+            header: const Text("Technical details"),
             children: [
               InfoRowButton(
                 label: Text("View broadcasted transactions"),
