@@ -632,7 +632,9 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                             ),
                           if (finalizedAt != null)
                             InfoRow(
-                              label: "Finalized at",
+                              label: status == PaymentStatus.completed
+                                  ? "Completed at"
+                                  : "Failed at",
                               value: date_format.formatDateFull(finalizedAt),
                             ),
                         ],
