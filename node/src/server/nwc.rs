@@ -75,7 +75,7 @@ async fn handle_make_invoice(
 ) -> anyhow::Result<MakeInvoiceResult> {
     let amount = Amount::from_msat(params.amount_msat);
 
-    let expiry_secs = params.expiry.unwrap_or(3600);
+    let expiry_secs = params.expiry_secs.unwrap_or(3600);
 
     let description_hash = if let Some(ref h) = params.description_hash {
         let mut arr = [0u8; 32];

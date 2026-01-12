@@ -10,15 +10,7 @@ use common::{
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[repr(transparent)]
-pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
-
-byte_array::impl_byte_array!(NostrPk, 32);
-byte_array::impl_debug_display_as_hex!(NostrPk);
-
+/// A 32-byte Nostr event id.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -27,6 +19,16 @@ pub struct NostrEventId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 byte_array::impl_byte_array!(NostrEventId, 32);
 byte_array::impl_debug_display_as_hex!(NostrEventId);
+
+/// A 32-byte Nostr public key.
+#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[repr(transparent)]
+pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
+
+byte_array::impl_byte_array!(NostrPk, 32);
+byte_array::impl_debug_display_as_hex!(NostrPk);
 
 /// A 32-byte Nostr secret key.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
@@ -114,14 +116,15 @@ pub struct CreateNwcClientRequest {
 }
 
 /// Request to update an existing NWC client.
-// TODO(maurice): Add option to update budget limits, budget restriction type
+// TODO(a-mpch): Add option to update budget limits, budget restriction type
 // (single-use, monthly, yearly, total, etc.).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct UpdateNwcClientRequest {
     /// The client public key identifying the client to update.
     pub client_nostr_pk: NostrPk,
-    /// Updated human-readable label for this client.
+    /// Updated human-readable label for this client. If `None`, the label is
+    /// not updated.
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_option_string()")
@@ -241,8 +244,8 @@ pub mod nip47 {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description_hash: Option<String>,
         /// Invoice expiry in seconds.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub expiry: Option<u32>,
+        #[serde(rename = "expiry", skip_serializing_if = "Option::is_none")]
+        pub expiry_secs: Option<u32>,
         /// Generic metadata (e.g., zap/boostagram details). Optional and
         /// ignored.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -259,12 +262,19 @@ pub mod nip47 {
     /// Result for `get_info` command.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     pub struct GetInfoResult {
+        /// LN node alias (e.g., "lexe-abc12345").
         pub alias: String,
+        /// RGB hex string (e.g., "000000").
         pub color: String,
+        /// LN node public key as hex string.
         pub pubkey: String,
+        /// Network name: "mainnet", "testnet", "signet", or "regtest".
         pub network: String,
+        /// Current block height.
         pub block_height: u32,
+        /// Hex-encoded block hash.
         pub block_hash: String,
+        /// List of supported NWC methods for this connection.
         pub methods: Vec<String>,
     }
 
