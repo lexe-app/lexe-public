@@ -354,8 +354,8 @@ where
 /// Wait for the next relevant channel event for a new `open_channel` with this
 /// `user_channel_id`.
 ///
-/// If this is a JIT channel open, we can wait for channel `Ready` and not
-/// just `Pending`.
+/// For JIT channel opens, we specifically wait for `Ready` since the channel
+/// opens quickly. For regular opens, we return on any channel event.
 async fn wait_for_our_channel_open_event(
     channel_events_rx: &mut EventsRx<'_, ChannelEvent>,
     is_jit_channel: bool,
@@ -368,12 +368,14 @@ async fn wait_for_our_channel_open_event(
             }
 
             if is_jit_channel {
+                // JIT channels open quickly; skip Pending, wait for Ready
                 matches!(
                     event,
                     ChannelEvent::Ready { .. } | ChannelEvent::Closed { .. }
                 )
             } else {
-                matches!(event, ChannelEvent::Pending { .. })
+                // Regular opens: return on any event
+                true
             }
         })
         .apply(|fut| tokio::time::timeout(Duration::from_secs(15), fut))
