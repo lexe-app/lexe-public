@@ -1,12 +1,8 @@
-/// Implementation of [PaymentService] that delegates to [AppHandle].
+/// Implementation of [SendPaymentService] that delegates to [AppHandle].
 library;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
-        CreateInvoiceRequest,
-        CreateInvoiceResponse,
-        CreateOfferRequest,
-        CreateOfferResponse,
         PayInvoiceRequest,
         PayInvoiceResponse,
         PayOfferRequest,
@@ -23,11 +19,12 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show Invoice, LnurlPayRequest, Network, PaymentMethod;
 import 'package:lexeapp/result.dart' show FfiResult, Result;
-import 'package:lexeapp/service/payment_service.dart' show PaymentService;
+import 'package:lexeapp/service/send_payment_service.dart'
+    show SendPaymentService;
 
-/// Implementation of [PaymentService] that delegates to [AppHandle] (Rust FFI).
-class PaymentServiceImpl implements PaymentService {
-  const PaymentServiceImpl(this._app);
+/// Implementation of [SendPaymentService] that delegates to [AppHandle] (Rust FFI).
+class SendPaymentServiceImpl implements SendPaymentService {
+  const SendPaymentServiceImpl(this._app);
 
   final AppHandle _app;
 
@@ -76,18 +73,4 @@ class PaymentServiceImpl implements PaymentService {
   Future<FfiResult<PayOfferResponse>> payOffer({
     required PayOfferRequest req,
   }) => Result.tryFfiAsync(() => this._app.payOffer(req: req));
-
-  @override
-  Future<FfiResult<CreateInvoiceResponse>> createInvoice({
-    required CreateInvoiceRequest req,
-  }) => Result.tryFfiAsync(() => this._app.createInvoice(req: req));
-
-  @override
-  Future<FfiResult<CreateOfferResponse>> createOffer({
-    required CreateOfferRequest req,
-  }) => Result.tryFfiAsync(() => this._app.createOffer(req: req));
-
-  @override
-  Future<FfiResult<String>> getAddress() =>
-      Result.tryFfiAsync(() => this._app.getAddress());
 }

@@ -1,12 +1,8 @@
-/// Abstract interface for payment operations for ease of testing.
+/// Abstract interface for send payment operations for ease of testing.
 library;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
-        CreateInvoiceRequest,
-        CreateInvoiceResponse,
-        CreateOfferRequest,
-        CreateOfferResponse,
         PayInvoiceRequest,
         PayInvoiceResponse,
         PayOfferRequest,
@@ -23,8 +19,8 @@ import 'package:app_rs_dart/ffi/types.dart'
     show Invoice, LnurlPayRequest, Network, PaymentMethod;
 import 'package:lexeapp/result.dart' show FfiResult;
 
-/// Abstract interface for payment operations.
-abstract class PaymentService {
+/// Abstract interface for send payment operations.
+abstract class SendPaymentService {
   /// Resolve a payment URI to the best payment method.
   Future<FfiResult<PaymentMethod>> resolveBest({
     required Network network,
@@ -64,17 +60,4 @@ abstract class PaymentService {
 
   /// Pay a BOLT12 offer.
   Future<FfiResult<PayOfferResponse>> payOffer({required PayOfferRequest req});
-
-  /// Create a BOLT11 invoice.
-  Future<FfiResult<CreateInvoiceResponse>> createInvoice({
-    required CreateInvoiceRequest req,
-  });
-
-  /// Create a BOLT12 offer.
-  Future<FfiResult<CreateOfferResponse>> createOffer({
-    required CreateOfferRequest req,
-  });
-
-  /// Get a new onchain address.
-  Future<FfiResult<String>> getAddress();
 }

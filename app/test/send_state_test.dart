@@ -1,4 +1,4 @@
-// Unit tests for send state logic, using MockPaymentService to avoid FFI.
+// Unit tests for send state logic, using MockSendPaymentService to avoid FFI.
 
 import 'dart:typed_data' show Uint8List;
 
@@ -38,7 +38,7 @@ import 'package:lexeapp/route/send/state.dart'
         SendState_NeedUri,
         SendState_Preflighted;
 
-import 'mocks/mock_payment_service.dart';
+import 'mocks/mock_send_payment_service.dart';
 
 // Test constants for invoice and offer strings.
 const testInvoice =
@@ -71,7 +71,7 @@ Balance testBalance({
 );
 
 void main() {
-  late MockPaymentService mockService;
+  late MockSendPaymentService mockService;
   late ValueNotifier<FiatRate?> fiatRate;
 
   setUpAll(() async {
@@ -79,7 +79,7 @@ void main() {
   });
 
   setUp(() {
-    mockService = MockPaymentService();
+    mockService = MockSendPaymentService();
     fiatRate = ValueNotifier(null);
   });
 
@@ -465,7 +465,7 @@ void main() {
 
 /// Create a preflighted onchain state for testing pay().
 SendState_Preflighted _createPreflightedOnchain(
-  MockPaymentService mockService,
+  MockSendPaymentService mockService,
   ValueNotifier<FiatRate?> fiatRate,
 ) {
   return SendState_Preflighted(
@@ -488,7 +488,7 @@ SendState_Preflighted _createPreflightedOnchain(
 
 /// Create a preflighted invoice state for testing pay().
 SendState_Preflighted _createPreflightedInvoice(
-  MockPaymentService mockService,
+  MockSendPaymentService mockService,
   ValueNotifier<FiatRate?> fiatRate,
 ) {
   return SendState_Preflighted(
@@ -513,7 +513,7 @@ SendState_Preflighted _createPreflightedInvoice(
 
 /// Create a preflighted offer state for testing pay().
 SendState_Preflighted _createPreflightedOffer(
-  MockPaymentService mockService,
+  MockSendPaymentService mockService,
   ValueNotifier<FiatRate?> fiatRate,
 ) {
   return SendState_Preflighted(

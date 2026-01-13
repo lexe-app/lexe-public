@@ -1,12 +1,8 @@
-/// Mock PaymentService for unit tests.
+/// Mock SendPaymentService for unit tests.
 library;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
-        CreateInvoiceRequest,
-        CreateInvoiceResponse,
-        CreateOfferRequest,
-        CreateOfferResponse,
         PayInvoiceRequest,
         PayInvoiceResponse,
         PayOfferRequest,
@@ -22,13 +18,14 @@ import 'package:app_rs_dart/ffi/api.dart'
 import 'package:app_rs_dart/ffi/types.dart'
     show Invoice, LnurlPayRequest, Network, PaymentMethod;
 import 'package:lexeapp/result.dart' show Err, FfiError, FfiResult;
-import 'package:lexeapp/service/payment_service.dart' show PaymentService;
+import 'package:lexeapp/service/send_payment_service.dart'
+    show SendPaymentService;
 
-/// Mock PaymentService for unit tests.
+/// Mock SendPaymentService for unit tests.
 ///
 /// Configure return values before each test by setting the appropriate
 /// `*Result` field. Call tracking is available via the `calls` list.
-class MockPaymentService implements PaymentService {
+class MockSendPaymentService implements SendPaymentService {
   // Configurable responses for send operations
   FfiResult<PaymentMethod>? resolveBestResult;
   FfiResult<PreflightPayOnchainResponse>? preflightPayOnchainResult;
@@ -38,11 +35,6 @@ class MockPaymentService implements PaymentService {
   FfiResult<PayOnchainResponse>? payOnchainResult;
   FfiResult<PayInvoiceResponse>? payInvoiceResult;
   FfiResult<PayOfferResponse>? payOfferResult;
-
-  // Configurable responses for receive operations
-  FfiResult<CreateInvoiceResponse>? createInvoiceResult;
-  FfiResult<CreateOfferResponse>? createOfferResult;
-  FfiResult<String>? getAddressResult;
 
   /// Tracked method calls for verification in tests.
   final List<String> calls = [];
@@ -57,9 +49,6 @@ class MockPaymentService implements PaymentService {
     this.payOnchainResult = null;
     this.payInvoiceResult = null;
     this.payOfferResult = null;
-    this.createInvoiceResult = null;
-    this.createOfferResult = null;
-    this.getAddressResult = null;
     this.calls.clear();
   }
 
@@ -135,30 +124,5 @@ class MockPaymentService implements PaymentService {
     this.calls.add('payOffer(${req.offer})');
     return this.payOfferResult ??
         Err(const FfiError('payOffer not configured'));
-  }
-
-  @override
-  Future<FfiResult<CreateInvoiceResponse>> createInvoice({
-    required CreateInvoiceRequest req,
-  }) async {
-    this.calls.add('createInvoice(${req.amountSats})');
-    return this.createInvoiceResult ??
-        Err(const FfiError('createInvoice not configured'));
-  }
-
-  @override
-  Future<FfiResult<CreateOfferResponse>> createOffer({
-    required CreateOfferRequest req,
-  }) async {
-    this.calls.add('createOffer(${req.amountSats})');
-    return this.createOfferResult ??
-        Err(const FfiError('createOffer not configured'));
-  }
-
-  @override
-  Future<FfiResult<String>> getAddress() async {
-    this.calls.add('getAddress()');
-    return this.getAddressResult ??
-        Err(const FfiError('getAddress not configured'));
   }
 }

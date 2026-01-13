@@ -39,7 +39,8 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/service/payment_service.dart' show PaymentService;
+import 'package:lexeapp/service/send_payment_service.dart'
+    show SendPaymentService;
 
 /// The outcome of a successful send flow.
 @immutable
@@ -74,7 +75,7 @@ class SendState_NeedUri implements SendState {
     required this.fiatRate,
   });
 
-  final PaymentService paymentService;
+  final SendPaymentService paymentService;
   final Network configNetwork;
   final Balance balance;
   final ClientPaymentId cid;
@@ -146,7 +147,7 @@ class SendState_NeedAmount implements SendState {
     required this.paymentMethod,
   });
 
-  final PaymentService paymentService;
+  final SendPaymentService paymentService;
   final Network configNetwork;
   final Balance balance;
   final ClientPaymentId cid;
@@ -313,7 +314,7 @@ class SendState_Preflighted implements SendState {
     required this.preflightedPayment,
   });
 
-  final PaymentService paymentService;
+  final SendPaymentService paymentService;
   final Network configNetwork;
   final Balance balance;
   final ClientPaymentId cid;
