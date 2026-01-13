@@ -296,6 +296,12 @@ class PaymentDetailPageInner extends StatelessWidget {
           final description = (direction == PaymentDirection.outbound)
               ? payment.description
               : null;
+          final hasDescription = description != null && description.isNotEmpty;
+
+          final payerName = payment.payerName;
+          final payerNote = payment.payerNote;
+          final hasPayerName = payerName != null && payerName.isNotEmpty;
+          final hasPayerNote = payerNote != null && payerNote.isNotEmpty;
 
           final initialNote = payment.note;
 
@@ -366,15 +372,52 @@ class PaymentDetailPageInner extends StatelessWidget {
                     ),
                   const SizedBox(height: Space.s600),
 
-                  if (description != null && description.isNotEmpty)
+                  if (hasDescription)
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: bodyPadding,
+                      padding: const EdgeInsets.fromLTRB(
+                        bodyPadding,
+                        0,
+                        bodyPadding,
+                        Space.s400,
                       ),
-                      child: PaymentDetailDescription(description: description),
+                      child: PaymentDetailLabeledCard(
+                        label: "Description",
+                        content: description,
+                        maxLines: 3,
+                      ),
                     ),
-                  if (description != null && description.isNotEmpty)
-                    const SizedBox(height: Space.s500),
+
+                  // Payer name for inbound offer payments.
+                  if (hasPayerName)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        bodyPadding,
+                        0,
+                        bodyPadding,
+                        Space.s400,
+                      ),
+                      child: PaymentDetailLabeledCard(
+                        label: "From",
+                        content: payerName,
+                        maxLines: 1,
+                      ),
+                    ),
+
+                  // Payer note for inbound offer payments.
+                  if (hasPayerNote)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        bodyPadding,
+                        0,
+                        bodyPadding,
+                        Space.s400,
+                      ),
+                      child: PaymentDetailLabeledCard(
+                        label: "Payer note",
+                        content: payerNote,
+                        maxLines: 3,
+                      ),
+                    ),
 
                   // The payment's note field
                   Padding(
@@ -1103,11 +1146,14 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text(
-              "Payment note",
-              style: TextStyle(
-                fontSize: Fonts.size200,
-                color: LxColors.fgTertiary,
+            Padding(
+              padding: const EdgeInsets.only(left: bodyPadding),
+              child: const Text(
+                "Payment note",
+                style: TextStyle(
+                  fontSize: Fonts.size200,
+                  color: LxColors.fgTertiary,
+                ),
               ),
             ),
             const SizedBox(width: Space.s400),
@@ -1136,10 +1182,11 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
         ValueListenableBuilder(
           valueListenable: this.isSubmitting,
           builder: (_context, submitting, _child) => PaymentNoteInput(
+            contentPadding: const EdgeInsets.only(left: bodyPadding),
             fieldKey: this.fieldKey,
-            onSubmit: this.onSubmit,
             initialNote: this.widget.initialNote,
             isEnabled: !submitting,
+            onSubmit: this.onSubmit,
           ),
         ),
       ],
@@ -1156,10 +1203,18 @@ class PaymentDetailInfoCard extends InfoCard {
   }) : super(bodyPadding: bodyPadding);
 }
 
-class PaymentDetailDescription extends StatelessWidget {
-  const PaymentDetailDescription({super.key, required this.description});
+/// A labeled card that displays text content with tap-to-copy functionality.
+class PaymentDetailLabeledCard extends StatelessWidget {
+  const PaymentDetailLabeledCard({
+    super.key,
+    required this.label,
+    required this.content,
+    required this.maxLines,
+  });
 
-  final String description;
+  final String label;
+  final String content;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -1169,42 +1224,38 @@ class PaymentDetailDescription extends StatelessWidget {
       height: 1.2,
     );
 
-    final descriptionText = Text(
-      this.description,
-      style: valueStyle,
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-    );
+    void copyContent() {
+      unawaited(LxClipboard.copyTextWithFeedback(context, this.content));
+    }
 
-    final card = Card(
+    final clickableCard = Card(
+      clipBehavior: Clip.hardEdge,
       color: LxColors.grey1000,
       elevation: 0.0,
       margin: const EdgeInsets.all(0),
-      child: Padding(
-        padding: const EdgeInsets.all(bodyPadding),
-        child: descriptionText,
+      child: InkWell(
+        onTap: copyContent,
+        onLongPress: copyContent,
+        child: Padding(
+          padding: const EdgeInsets.all(bodyPadding),
+          child: Text(
+            this.content,
+            style: valueStyle,
+            maxLines: this.maxLines,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ),
-    );
-
-    // Tap/long-press to copy description to clipboard.
-    void copyDescription() {
-      unawaited(LxClipboard.copyTextWithFeedback(context, this.description));
-    }
-
-    final clickableCard = InkWell(
-      onTap: copyDescription,
-      onLongPress: copyDescription,
-      child: card,
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: Space.s200),
+        Padding(
+          padding: const EdgeInsets.only(left: bodyPadding, bottom: Space.s200),
           child: Text(
-            "Description",
-            style: TextStyle(
+            this.label,
+            style: const TextStyle(
               fontSize: Fonts.size200,
               color: LxColors.fgTertiary,
             ),

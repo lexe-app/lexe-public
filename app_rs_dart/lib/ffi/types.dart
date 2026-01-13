@@ -350,6 +350,8 @@ sealed class Payment with _$Payment {
     required String statusStr,
     String? description,
     String? note,
+    String? payerName,
+    String? payerNote,
     required int createdAt,
     int? finalizedAt,
   }) = _Payment;

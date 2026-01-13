@@ -1044,11 +1044,13 @@ class PaymentNoteInput extends StatefulWidget {
     super.key,
     required this.fieldKey,
     required this.onSubmit,
+    this.contentPadding,
     this.initialNote,
     this.hintText = "Optional note (visible to you only)",
     this.isEnabled = true,
   });
 
+  final EdgeInsetsGeometry? contentPadding;
   final GlobalKey<FormFieldState<String>> fieldKey;
   final VoidCallback onSubmit;
   final String? initialNote;
@@ -1120,6 +1122,7 @@ class _PaymentNoteInputState extends State<PaymentNoteInput> {
                 ],
 
                 decoration: InputDecoration(
+                  contentPadding: this.widget.contentPadding,
                   hintStyle: const TextStyle(color: LxColors.grey550),
                   hintText: this.widget.hintText,
                   // We build the counter outside the text field, so we can
@@ -2257,6 +2260,7 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      clipBehavior: Clip.hardEdge,
       color: LxColors.grey1000,
       elevation: 0.0,
       margin: const EdgeInsets.all(0),

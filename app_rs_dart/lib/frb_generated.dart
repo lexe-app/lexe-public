@@ -4112,8 +4112,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Payment dco_decode_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 16)
-      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
     return Payment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
@@ -4129,8 +4129,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       statusStr: dco_decode_String(arr[11]),
       description: dco_decode_opt_String(arr[12]),
       note: dco_decode_opt_String(arr[13]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[14]),
-      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[15]),
+      payerName: dco_decode_opt_String(arr[14]),
+      payerNote: dco_decode_opt_String(arr[15]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[16]),
+      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[17]),
     );
   }
 
@@ -5786,6 +5788,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_statusStr = sse_decode_String(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
+    var var_payerName = sse_decode_opt_String(deserializer);
+    var var_payerNote = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_finalizedAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     return Payment(
@@ -5803,6 +5807,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       statusStr: var_statusStr,
       description: var_description,
       note: var_note,
+      payerName: var_payerName,
+      payerNote: var_payerNote,
       createdAt: var_createdAt,
       finalizedAt: var_finalizedAt,
     );
@@ -7385,6 +7391,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.statusStr, serializer);
     sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.note, serializer);
+    sse_encode_opt_String(self.payerName, serializer);
+    sse_encode_opt_String(self.payerNote, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
     sse_encode_opt_CastedPrimitive_i_64(self.finalizedAt, serializer);
   }

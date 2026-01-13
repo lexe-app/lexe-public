@@ -469,6 +469,9 @@ pub struct Payment {
     pub description: Option<String>,
     pub note: Option<String>,
 
+    pub payer_name: Option<String>,
+    pub payer_note: Option<String>,
+
     pub created_at: i64,
     pub finalized_at: Option<i64>,
 }
@@ -510,6 +513,9 @@ impl From<&BasicPaymentV1Rs> for Payment {
             description: payment.description().map(String::from),
             note: payment.note.as_deref().map(String::from),
 
+            payer_name: None,
+            payer_note: None,
+
             created_at: payment.created_at().to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),
         }
@@ -540,6 +546,9 @@ impl From<&BasicPaymentV2Rs> for Payment {
 
             description: payment.description().map(String::from),
             note: payment.note.as_deref().map(String::from),
+
+            payer_name: payment.payer_name.clone(),
+            payer_note: payment.payer_note.clone(),
 
             created_at: payment.created_at.to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),

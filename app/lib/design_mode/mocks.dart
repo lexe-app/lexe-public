@@ -1340,6 +1340,10 @@ const Payment dummyOfferInboundPayment01 = Payment(
   status: PaymentStatus.completed,
   statusStr: "completed",
   note: null,
+  payerName: "satoshi@bitcoin.org",
+  payerNote:
+      "Thanks for the coffee! Great to meet you at the conference. "
+      "Looking forward to collaborating on the project.",
   createdAt: 1748999074000,
   finalizedAt: 1748999075000,
 );
