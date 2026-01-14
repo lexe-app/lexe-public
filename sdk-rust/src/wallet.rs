@@ -433,15 +433,17 @@ impl<D> LexeWallet<D> {
             .context("Could not fetch enclaves to provision")?;
 
         // Client-side verification: ensure backend only returned enclaves we
-        // trust.
-        for enclave in &enclaves_to_provision.enclaves {
-            if !provision::LATEST_TRUSTED_MEASUREMENTS
-                .contains(&enclave.measurement)
-            {
-                return Err(anyhow!(
-                    "Backend returned untrusted enclave: {}",
-                    enclave.measurement
-                ));
+        // trust. Skip in dev mode since measurements are mocked.
+        if wallet_env.deploy_env.is_staging_or_prod() {
+            for enclave in &enclaves_to_provision.enclaves {
+                if !provision::LATEST_TRUSTED_MEASUREMENTS
+                    .contains(&enclave.measurement)
+                {
+                    return Err(anyhow!(
+                        "Backend returned untrusted enclave: {}",
+                        enclave.measurement
+                    ));
+                }
             }
         }
 
