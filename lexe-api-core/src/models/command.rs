@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use bitcoin::address::NetworkUnchecked;
 #[cfg(doc)]
 use common::root_seed::RootSeed;
@@ -5,6 +7,7 @@ use common::root_seed::RootSeed;
 use common::test_utils::arbitrary;
 use common::{
     api::user::{NodePk, UserPk},
+    ed25519,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -17,6 +20,7 @@ use common::{
     serde_helpers::hexstr_or_bytes,
     time::TimestampMs,
 };
+use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -78,6 +82,21 @@ pub enum GDriveStatus {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BackupInfo {
     pub gdrive_status: GDriveStatus,
+}
+
+/// Query which node enclaves needs provisioning, given the client's trusted
+/// measurements.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct ProvisionQueryRequest {
+    /// The enclave measurements the client trusts.
+    /// Typically the 3 latest from releases.json.
+    pub trusted_measurements: BTreeSet<Measurement>,
+}
+
+impl ed25519::Signable for ProvisionQueryRequest {
+    const DOMAIN_SEPARATOR: [u8; 32] =
+        array::pad(*b"LEXE-REALM::ProvisionQuery");
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -591,10 +610,21 @@ mod arbitrary_impl {
 #[cfg(test)]
 mod test {
     use common::test_utils::roundtrip::{
-        self, query_string_roundtrip_proptest,
+        self, bcs_roundtrip_proptest, query_string_roundtrip_proptest,
+        signed_roundtrip_proptest,
     };
 
     use super::*;
+
+    #[test]
+    fn provision_query_request_bcs_roundtrip() {
+        bcs_roundtrip_proptest::<ProvisionQueryRequest>();
+    }
+
+    #[test]
+    fn provision_query_request_signed_roundtrip() {
+        signed_roundtrip_proptest::<ProvisionQueryRequest>();
+    }
 
     #[test]
     fn preflight_pay_onchain_roundtrip() {

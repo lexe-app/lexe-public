@@ -288,7 +288,8 @@ pub enum Error {
 /// Get the current enclave measurement with [`measurement`].
 /// Get the current signer measurement with [`signer`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 

@@ -1,7 +1,7 @@
 //! Provision-related helpers and utilities.
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet},
     sync::{Arc, LazyLock, Mutex},
 };
 
@@ -29,7 +29,7 @@ pub static RELEASES_JSON: &str = include_str!("../../../releases.json");
 /// This is the set of measurements that we want to provision.
 /// There is no need to provision anything older than this.
 pub static LATEST_TRUSTED_MEASUREMENTS: LazyLock<
-    HashSet<enclave::Measurement>,
+    BTreeSet<enclave::Measurement>,
 > = LazyLock::new(|| {
     trusted_node_releases()
         .values()
