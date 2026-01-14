@@ -94,8 +94,8 @@ use crate::{
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            ResyncRequest, SetupGDrive, UpdatePaymentAddress,
-            UpdatePaymentNote, VecLxPaymentId,
+            ProvisionQueryRequest, ResyncRequest, SetupGDrive,
+            UpdatePaymentAddress, UpdatePaymentNote, VecLxPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -151,6 +151,15 @@ pub trait AppBackendApi {
         &self,
         signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError>;
+
+    /// Query which node enclaves the user needs to provision to.
+    ///
+    /// POST /app/v1/enclaves_to_provision
+    /// [`ed25519::Signed<ProvisionQueryRequest>`] -> [`CurrentEnclaves`]
+    async fn enclaves_to_provision(
+        &self,
+        signed_req: &ed25519::Signed<&ProvisionQueryRequest>,
+    ) -> Result<CurrentEnclaves, BackendApiError>;
 }
 
 /// Defines the api that the gateway directly exposes to the app.

@@ -63,7 +63,8 @@ use lexe_api::{
             PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOfferRequest,
             PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, SetupGDrive, UpdatePaymentNote,
+            PreflightPayOnchainResponse, ProvisionQueryRequest, SetupGDrive,
+            UpdatePaymentNote,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -184,6 +185,22 @@ impl AppBackendApi for GatewayClient {
     ) -> Result<Empty, BackendApiError> {
         debug_assert!(false, "Use `signup_v2`");
         Err(BackendApiError::not_found("Use `/app/v2/signup`"))
+    }
+
+    async fn enclaves_to_provision(
+        &self,
+        signed_req: &ed25519::Signed<&ProvisionQueryRequest>,
+    ) -> Result<CurrentEnclaves, BackendApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .builder(
+                POST,
+                format!("{gateway_url}/app/v1/enclaves_to_provision"),
+            )
+            .signed_bcs(signed_req)
+            .map_err(BackendApiError::bcs_serialize)?;
+        self.rest.send(req).await
     }
 }
 
