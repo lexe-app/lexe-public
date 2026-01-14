@@ -2,7 +2,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    sync::{Arc, LazyLock, Mutex},
+    sync::LazyLock,
 };
 
 use anyhow::Context;
@@ -19,7 +19,6 @@ use node_client::client::NodeClient;
 use serde::Deserialize;
 use tracing::{info, info_span, warn};
 
-use super::{ffs::Ffs, provision_history::ProvisionHistory};
 use crate::config::WalletEnv;
 
 /// The contents of `public/releases.json`.
@@ -66,15 +65,13 @@ pub fn releases_json() -> ReleasesJson {
 // `LexeWallet`s without persistence won't need to always try to provision
 // everything returned by `current_enclaves()`.
 
-/// Helper to provision to the given enclaves and update the provision history.
+/// Helper to provision to the given enclaves.
 ///
 /// - `allow_gvfs_access`: See [`NodeProvisionRequest::allow_gvfs_access`].
 /// - `google_auth_code`: See [`NodeProvisionRequest::google_auth_code`].
 /// - `maybe_encrypted_seed`: See [`NodeProvisionRequest::encrypted_seed`].
 pub(crate) async fn provision_all(
     node_client: NodeClient,
-    provision_ffs: Option<impl Ffs + Clone + Send + Sync + 'static>,
-    provision_history: Option<Arc<Mutex<ProvisionHistory>>>,
     mut enclaves_to_provision: BTreeSet<NodeEnclave>,
     root_seed: RootSeed,
     wallet_env: WalletEnv,
@@ -98,8 +95,6 @@ pub(crate) async fn provision_all(
     let root_seed_clone = clone_root_seed(&root_seed);
     provision_one(
         &node_client,
-        provision_ffs.as_ref(),
-        provision_history.as_ref(),
         latest,
         root_seed_clone,
         wallet_env,
@@ -145,8 +140,6 @@ pub(crate) async fn provision_all(
                 let root_seed_clone = clone_root_seed(&root_seed);
                 let provision_result = provision_one(
                     &node_client,
-                    provision_ffs.as_ref(),
-                    provision_history.as_ref(),
                     node_enclave.clone(),
                     root_seed_clone,
                     wallet_env,
@@ -177,11 +170,9 @@ pub(crate) async fn provision_all(
     Ok(())
 }
 
-/// Provisions a single release and updates the provision history.
+/// Provisions a single enclave.
 async fn provision_one(
     node_client: &NodeClient,
-    provision_ffs: Option<&impl Ffs>,
-    provision_history: Option<&Arc<Mutex<ProvisionHistory>>>,
     enclave: NodeEnclave,
     root_seed: RootSeed,
     wallet_env: WalletEnv,
@@ -202,17 +193,6 @@ async fn provision_one(
         .provision(enclave.measurement, provision_req)
         .await
         .context("Failed to provision node")?;
-
-    // Provision success; Mark this release as provisioned
-    if let Some((provision_history, provision_ffs)) =
-        provision_history.zip(provision_ffs)
-    {
-        provision_history
-            .lock()
-            .unwrap()
-            .update_and_persist(enclave.clone(), provision_ffs)
-            .context("Could not add to provision history")?;
-    }
 
     info!(
         version = %enclave.version,

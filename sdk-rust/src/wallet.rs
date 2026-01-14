@@ -456,12 +456,8 @@ impl<D> LexeWallet<D> {
         );
 
         let root_seed = provision::clone_root_seed(root_seed_ref);
-        // TODO(a-mpch): Remove provision_ffs/provision_history params from
-        // provision_all since the backend now tracks provisioning.
         provision::provision_all(
             self.node_client.clone(),
-            None::<DiskFs>,
-            None,
             enclaves_to_provision.enclaves,
             root_seed,
             wallet_env,
