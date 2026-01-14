@@ -167,6 +167,10 @@ pub struct PaymentMetadata {
     /// The ids of payments related to this payment.
     #[cfg_attr(
         test,
+        serde(default, skip_serializing_if = "HashSet::is_empty")
+    )]
+    #[cfg_attr(
+        test,
         proptest(strategy = "arbitrary::any_hashset::<LxPaymentId>()")
     )]
     pub related_ids: HashSet<LxPaymentId>,
@@ -174,6 +178,7 @@ pub struct PaymentMetadata {
     // --- Payment methods --- //
     // -
     /// (On-chain send only) The address that we're sending to.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,
         proptest(
@@ -183,6 +188,7 @@ pub struct PaymentMetadata {
     pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
 
     /// The BOLT11 invoice corresponding to this payment, if any.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,
         proptest(strategy = "arbitrary_helpers::any_option_arc_invoice()")
@@ -190,6 +196,7 @@ pub struct PaymentMetadata {
     pub invoice: Option<Arc<LxInvoice>>,
 
     /// The BOLT12 offer associated with this payment, if any.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,
         proptest(strategy = "arbitrary_helpers::any_option_arc_offer()")
@@ -200,6 +207,7 @@ pub struct PaymentMetadata {
     // -
     /// The payment note, private to the user.
     // Suppress useless unicode gibberish in tests.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,
         proptest(strategy = "option::of(Just(String::from(\"note\")))")
@@ -208,6 +216,7 @@ pub struct PaymentMetadata {
 
     /// (Inbound offer reusable only)
     /// The payer's self-reported human-readable name.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,
         proptest(strategy = "option::of(Just(String::from(\"payer name\")))")
@@ -216,6 +225,7 @@ pub struct PaymentMetadata {
 
     /// (Offers only) A payer-provided note for this payment.
     /// LDK truncates this to PAYER_NOTE_LIMIT bytes (512 B as of 2025-04-22).
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,
         proptest(strategy = "option::of(Just(String::from(\"payer note\")))")
@@ -225,12 +235,15 @@ pub struct PaymentMetadata {
     // --- Other --- //
     // -
     /// (On-chain send only) The confirmation priority used for this payment.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     pub priority: Option<ConfirmationPriority>,
 
     /// (Inbound offer reusable only) The number of items the payer bought.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     pub quantity: Option<NonZeroU64>,
 
     /// (Onchain payments only) The txid of the replacement tx, if one exists.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     pub replacement_txid: Option<LxTxid>,
 }
 
@@ -1161,6 +1174,11 @@ mod test {
     #[test]
     fn payment_serde_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<PaymentV2>();
+    }
+
+    #[test]
+    fn payment_metadata_serde_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<PaymentMetadata>();
     }
 
     // TODO(max): Add encryption roundtrips for v2 types
