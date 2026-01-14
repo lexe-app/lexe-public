@@ -58,12 +58,6 @@ mod unstable {
     pub mod ffs;
     /// Provision-related utilities.
     pub mod provision;
-    /// `ProvisionHistory`
-    // TODO(max): Delete this module once we calculate `enclaves_to_provision`
-    // in the backend, so provisioning can be stateless. Remember, however, that
-    // we have to check that all `NodeEnclave`s the backend returns is inside
-    // `LATEST_TRUSTED_MEASUREMENTS`.
-    pub mod provision_history;
     /// Wallet database.
     pub mod wallet_db;
 }
