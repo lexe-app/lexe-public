@@ -13,9 +13,10 @@ use common::{
     root_seed::RootSeed,
 };
 use lexe_api::{
-    def::{AppBackendApi, AppGatewayApi, AppNodeRunApi},
+    def::{AppBackendApi, AppNodeRunApi},
     models::command::{
-        LxPaymentIdStruct, PayInvoiceRequest, UpdatePaymentNote,
+        LxPaymentIdStruct, PayInvoiceRequest, ProvisionQueryRequest,
+        UpdatePaymentNote,
     },
     types::payments::PaymentCreatedIndex,
 };
@@ -40,10 +41,7 @@ use crate::{
         WalletUserDbConfig,
     },
     payments_db::PaymentsDb,
-    unstable::{
-        ffs::DiskFs, provision, provision_history::ProvisionHistory,
-        wallet_db::WalletDb,
-    },
+    unstable::{ffs::DiskFs, provision, wallet_db::WalletDb},
 };
 
 /// Type state indicating the wallet has persistence enabled.
@@ -71,10 +69,6 @@ pub struct LexeWallet<Db> {
     _marker: PhantomData<Db>,
 }
 
-// TODO(max): Move `enclaves_to_provision` calculation logic to the backend.
-// Add AppBackendApi::enclaves_to_provision() which takes the client's latest
-// three trusted measurements and returns which ones to provision. This way, SDK
-// clients can provision statelessly; no need to persist provision history.
 // TODO(max): Consider what happens if someone provides *both* a client
 // credential and a root seed for the same user. Do we need locks for the dbs?
 
@@ -411,88 +405,72 @@ impl<D> LexeWallet<D> {
         encrypted_seed: Option<Vec<u8>>,
         google_auth_code: Option<String>,
     ) -> anyhow::Result<()> {
-        // Early return: delegated provisioning not implemented yet
-        // TODO(max): Remove
-        if matches!(credentials, CredentialsRef::ClientCredentials(_)) {
+        // Only RootSeed can sign; delegated provisioning not implemented yet.
+        let CredentialsRef::RootSeed(root_seed_ref) = credentials else {
             return Err(anyhow!(
                 "Delegated provisioning is not implemented yet"
             ));
+        };
+
+        let user_key_pair = root_seed_ref.derive_user_key_pair();
+        let wallet_env = self.user_config.env_config.wallet_env;
+
+        // Build signed request with our trusted measurements
+        let req = ProvisionQueryRequest {
+            trusted_measurements: provision::LATEST_TRUSTED_MEASUREMENTS
+                .iter()
+                .cloned()
+                .collect(),
+        };
+        let (_, signed_req) = user_key_pair
+            .sign_struct(&req)
+            .expect("Should never fail to serialize ProvisionQueryRequest");
+
+        let enclaves_to_provision = self
+            .gateway_client
+            .enclaves_to_provision(&signed_req)
+            .await
+            .context("Could not fetch enclaves to provision")?;
+
+        // Client-side verification: ensure backend only returned enclaves we
+        // trust.
+        for enclave in &enclaves_to_provision.enclaves {
+            if !provision::LATEST_TRUSTED_MEASUREMENTS
+                .contains(&enclave.measurement)
+            {
+                return Err(anyhow!(
+                    "Backend returned untrusted enclave: {}",
+                    enclave.measurement
+                ));
+            }
         }
 
-        // Fetch the current enclaves
-        let current_enclaves = self
-            .gateway_client
-            .current_enclaves()
-            .await
-            .context("Could not fetch current enclaves")?;
-
-        let wallet_env = self.user_config.env_config.wallet_env;
-        let deploy_env = wallet_env.deploy_env;
-
-        // Compute the set of enclaves to provision.
-        // If persistence is enabled, provision all recent trusted releases
-        // that haven't been provisioned yet, according to our history.
-        // Otherwise, provision all recent trusted releases every time.
-        // TODO(max): Compute `enclaves_to_provision` server-side instead.
-        let (enclaves_to_provision, provision_ffs, provision_history) =
-            match &self.db {
-                Some(db) => {
-                    // With persistence: compute from provision history
-                    let provision_history = db.provision_history().clone();
-                    let enclaves_to_provision = {
-                        let locked_history = provision_history.lock().unwrap();
-                        locked_history
-                            .enclaves_to_provision(deploy_env, current_enclaves)
-                    };
-
-                    (
-                        enclaves_to_provision,
-                        Some(db.provision_ffs().clone()),
-                        Some(provision_history),
-                    )
-                }
-                None => {
-                    // Without persistence: use empty history, so we provision
-                    // all trusted current enclaves every time.
-                    let enclaves_to_provision = ProvisionHistory::new()
-                        .enclaves_to_provision(deploy_env, current_enclaves);
-                    let prov_ffs = None;
-                    let prov_history = None;
-
-                    (enclaves_to_provision, prov_ffs, prov_history)
-                }
-            };
-
-        if enclaves_to_provision.is_empty() {
+        if enclaves_to_provision.enclaves.is_empty() {
             info!("Already provisioned to all recent releases");
             return Ok(());
         }
 
-        info!("Provisioning enclaves: {enclaves_to_provision:?}");
-        match credentials {
-            CredentialsRef::RootSeed(root_seed_ref) => {
-                let root_seed = provision::clone_root_seed(root_seed_ref);
+        info!(
+            "Provisioning enclaves: {:?}",
+            enclaves_to_provision.enclaves
+        );
 
-                provision::provision_all(
-                    self.node_client.clone(),
-                    provision_ffs,
-                    provision_history,
-                    enclaves_to_provision,
-                    root_seed,
-                    wallet_env,
-                    google_auth_code,
-                    allow_gvfs_access,
-                    encrypted_seed,
-                )
-                .await
-                .context("Root seed provision_all failed")?;
-            }
-            // TODO(max): Implement delegated provisioning
-            CredentialsRef::ClientCredentials(_) =>
-                return Err(anyhow!(
-                    "Delegated provisioning is not implemented yet"
-                )),
-        }
+        let root_seed = provision::clone_root_seed(root_seed_ref);
+        // TODO(a-mpch): Remove provision_ffs/provision_history params from
+        // provision_all since the backend now tracks provisioning.
+        provision::provision_all(
+            self.node_client.clone(),
+            None::<DiskFs>,
+            None,
+            enclaves_to_provision.enclaves,
+            root_seed,
+            wallet_env,
+            google_auth_code,
+            allow_gvfs_access,
+            encrypted_seed,
+        )
+        .await
+        .context("provision_all failed")?;
 
         Ok(())
     }
