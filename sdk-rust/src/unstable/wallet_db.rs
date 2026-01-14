@@ -1,15 +1,10 @@
 //! Lexe wallet database.
 
-use std::sync::{Arc, Mutex};
-
 use anyhow::{Context, anyhow};
 use node_client::client::NodeClient;
 use tracing::{info, warn};
 
-use super::{
-    ffs::{DiskFs, fsext},
-    provision_history::ProvisionHistory,
-};
+use super::ffs::{DiskFs, fsext};
 use crate::{
     config::WalletUserDbConfig,
     payments_db::{self, PaymentSyncSummary, PaymentsDb},
@@ -24,10 +19,6 @@ pub struct WalletDb<F> {
 
     payments_db: PaymentsDb<F>,
     payment_sync_lock: tokio::sync::Mutex<()>,
-
-    // TODO(max): Remove once enclaves_to_provision is calculated server-side.
-    provision_ffs: F,
-    provision_history: Arc<Mutex<ProvisionHistory>>,
 }
 
 // TODO(max): Rework Ffs so this impl can be generic across all Ffs impls.
@@ -53,17 +44,10 @@ impl WalletDb<DiskFs> {
             }
         }
 
-        let provision_ffs =
-            DiskFs::create_clean_dir_all(user_db_config.provision_db_dir())
-                .context("Could not create provision ffs")?;
-        let provision_history = Arc::new(Mutex::new(ProvisionHistory::new()));
-
         Ok(Self {
             user_db_config,
             payments_db: PaymentsDb::empty(payments_ffs),
             payment_sync_lock: tokio::sync::Mutex::new(()),
-            provision_ffs,
-            provision_history,
         })
     }
 
@@ -101,29 +85,10 @@ impl WalletDb<DiskFs> {
             "Loaded WalletDb."
         );
 
-        let provision_ffs =
-            DiskFs::create_dir_all(user_db_config.provision_db_dir())
-                .context("Could not create provision ffs")?;
-        let provision_history = ProvisionHistory::read_from_ffs(&provision_ffs)
-            .context("Could not read provision history")?;
-
-        // Log the latest provisioned enclave as of this load.
-        match provision_history.provisioned.last() {
-            Some(latest) => info!(
-                version = %latest.version,
-                measurement = %latest.measurement,
-                machine_id = %latest.machine_id,
-                "Latest provisioned: "
-            ),
-            None => info!("Empty provision history"),
-        }
-
         Ok(Some(Self {
             user_db_config,
             payments_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
-            provision_ffs,
-            provision_history: Arc::new(Mutex::new(provision_history)),
         }))
     }
 
@@ -152,16 +117,6 @@ impl WalletDb<DiskFs> {
     /// Get a reference to the payments database.
     pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
         &self.payments_db
-    }
-
-    /// Get a reference to the provision file system.
-    pub fn provision_ffs(&self) -> &DiskFs {
-        &self.provision_ffs
-    }
-
-    /// Get a reference to the provision history.
-    pub fn provision_history(&self) -> &Arc<Mutex<ProvisionHistory>> {
-        &self.provision_history
     }
 
     /// Sync payments from the user node.

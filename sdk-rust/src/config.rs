@@ -293,15 +293,6 @@ impl WalletUserDbConfig {
         self.user_db_dir.join("payments_db")
     }
 
-    /// Node provisioning history.
-    ///
-    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>/
-    /// provision_db`
-    // Unstable
-    pub(crate) fn provision_db_dir(&self) -> PathBuf {
-        self.user_db_dir.join("provision_db")
-    }
-
     // --- Old dirs --- //
 
     /// Old payment database directories that may need cleanup after migration.
