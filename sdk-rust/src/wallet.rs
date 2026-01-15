@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, path::PathBuf};
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, ensure};
 use common::{
     api::{
         auth::{
@@ -435,16 +435,12 @@ impl<D> LexeWallet<D> {
         // Client-side verification: ensure backend only returned enclaves we
         // trust. Skip in dev mode since measurements are mocked.
         if wallet_env.deploy_env.is_staging_or_prod() {
-            for enclave in &enclaves_to_provision.enclaves {
-                if !provision::LATEST_TRUSTED_MEASUREMENTS
-                    .contains(&enclave.measurement)
-                {
-                    return Err(anyhow!(
-                        "Backend returned untrusted enclave: {}",
-                        enclave.measurement
-                    ));
-                }
-            }
+            let all_trusted =
+                enclaves_to_provision.enclaves.iter().all(|enclave| {
+                    provision::LATEST_TRUSTED_MEASUREMENTS
+                        .contains(&enclave.measurement)
+                });
+            ensure!(all_trusted, "Backend returned untrusted enclaves:");
         }
 
         if enclaves_to_provision.enclaves.is_empty() {
@@ -457,18 +453,28 @@ impl<D> LexeWallet<D> {
             enclaves_to_provision.enclaves
         );
 
-        let root_seed = provision::clone_root_seed(root_seed_ref);
-        provision::provision_all(
-            self.node_client.clone(),
-            enclaves_to_provision.enclaves,
-            root_seed,
-            wallet_env,
-            google_auth_code,
-            allow_gvfs_access,
-            encrypted_seed,
-        )
-        .await
-        .context("provision_all failed")?;
+        match credentials {
+            CredentialsRef::RootSeed(root_seed_ref) => {
+                let root_seed = provision::clone_root_seed(root_seed_ref);
+
+                provision::provision_all(
+                    self.node_client.clone(),
+                    enclaves_to_provision.enclaves,
+                    root_seed,
+                    wallet_env,
+                    google_auth_code,
+                    allow_gvfs_access,
+                    encrypted_seed,
+                )
+                .await
+                .context("Root seed provision_all failed")?;
+            }
+            // TODO(max): Implement delegated provisioning
+            CredentialsRef::ClientCredentials(_) =>
+                return Err(anyhow!(
+                    "Delegated provisioning is not implemented yet"
+                )),
+        }
 
         Ok(())
     }
