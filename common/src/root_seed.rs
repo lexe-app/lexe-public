@@ -842,4 +842,76 @@ mod test {
         assert_eq!(str2, seed2.to_mnemonic().to_string());
         assert_eq!(str3, seed3.to_mnemonic().to_string());
     }
+
+    /// Snapshot tests to ensure key derivations don't change.
+    /// These protect backwards compatibility for existing wallets.
+    #[test]
+    fn derive_snapshots() {
+        let seed = RootSeed::from_u64(20240506);
+
+        // Lexe user pubkey
+        let user_pk = seed.derive_user_pk();
+        assert_eq!(
+            user_pk.to_string(),
+            "a9edf9596ddf589918beca32d148a7d0ba59273b419ccf63a910f1b75861ff06",
+        );
+
+        // Lightning node pubkey
+        let node_pk = seed.derive_node_pk(&mut FastRng::from_u64(1234));
+        assert_eq!(
+            node_pk.to_string(),
+            "035a70d45eec7efb270319f116a9684250acb4ef282a26d21874878e7c5088f73b",
+        );
+
+        // LDK seed (used to initialize KeysManager)
+        let ldk_seed = seed.derive_ldk_seed(&mut FastRng::from_u64(1234));
+        assert_eq!(
+            hex::encode(ldk_seed.expose_secret()),
+            "551444699ae8acbebe67d5b54da844e8297b83e26e205203a65f29564eaf3787",
+        );
+
+        // Legacy Lexe master xpriv (used for existing on-chain wallets)
+        let master_xpriv = seed.derive_bip32_master_xprv(Network::Bitcoin);
+        assert_eq!(
+            master_xpriv.to_string(),
+            "xprv9s21ZrQH143K42JPXVa2Q7nAp6XB3FVwyYdGkQetMYRcprZXKvt52p1tqg\
+             9fwyFJaL6Ki92bCdRNDPAnyddy7CzpQAEktM8nMtNGw4Xj6vt",
+        );
+
+        // Legacy Lexe testnet xpriv
+        let master_xpriv_testnet =
+            seed.derive_bip32_master_xprv(Network::Testnet);
+        assert_eq!(
+            master_xpriv_testnet.to_string(),
+            "tprv8ZgxMBicQKsPeqXvC4RXZmQA8DwPGmXxK6YPcq5LqWv6cTJcKJDpYZPLk\
+             rKKxLdcwmd6iEeMMz1AgEiY6qyuvGGQvoT4YhrqGz7hNoR5R4G",
+        );
+
+        // Ephemeral issuing CA pubkey
+        let ephemeral_ca = seed.derive_ephemeral_issuing_ca_key_pair();
+        assert_eq!(
+            ephemeral_ca.public_key().to_string(),
+            "70656b5a6084c457bf004dad264cecc131879b7e6791fe0cc828c38cc0df6e92",
+        );
+
+        // Revocable issuing CA pubkey
+        let revocable_ca = seed.derive_revocable_issuing_ca_key_pair();
+        assert_eq!(
+            revocable_ca.public_key().to_string(),
+            "efe6e020ba9ca4a50467cdbaff469f9d465f21d1c6fe976868a20d97bbaa2ee3",
+        );
+
+        // VFS master key (via derivation + encryption)
+        let vfs_ctxt = seed.derive_vfs_master_key().encrypt(
+            &mut FastRng::from_u64(1234),
+            &[],
+            None,
+            &|out: &mut Vec<u8>| out.extend_from_slice(b"test"),
+        );
+        assert_eq!(
+            hex::encode(&vfs_ctxt),
+            "0000a7e6a0514440b57fcf6df97b46132adde062f1a5a224aacf4fa0f286b4c56\
+             fe2768b7dad22333936638c5734f0d529a74880aa",
+        );
+    }
 }
