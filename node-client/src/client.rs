@@ -53,18 +53,18 @@ use lexe_api::{
         command::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetAddressResponse, GetNewPayments, GetUpdatedPayments,
-            ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
-            PaymentCreatedIndexes, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-            PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, ProvisionQueryRequest, SetupGDrive,
-            UpdatePaymentNote,
+            EnclavesToProvisionRequest, GetAddressResponse, GetNewPayments,
+            GetUpdatedPayments, ListChannelsResponse, LxPaymentIdStruct,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            PayOfferResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentAddress, PaymentCreatedIndexes,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOfferRequest, PreflightPayOfferResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            SetupGDrive, UpdatePaymentNote,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -189,7 +189,7 @@ impl AppBackendApi for GatewayClient {
 
     async fn enclaves_to_provision(
         &self,
-        signed_req: &ed25519::Signed<&ProvisionQueryRequest>,
+        signed_req: &ed25519::Signed<&EnclavesToProvisionRequest>,
     ) -> Result<CurrentEnclaves, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self

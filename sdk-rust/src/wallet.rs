@@ -15,7 +15,7 @@ use common::{
 use lexe_api::{
     def::{AppBackendApi, AppNodeRunApi},
     models::command::{
-        LxPaymentIdStruct, PayInvoiceRequest, ProvisionQueryRequest,
+        EnclavesToProvisionRequest, LxPaymentIdStruct, PayInvoiceRequest,
         UpdatePaymentNote,
     },
     types::payments::PaymentCreatedIndex,
@@ -416,15 +416,15 @@ impl<D> LexeWallet<D> {
         let wallet_env = self.user_config.env_config.wallet_env;
 
         // Build signed request with our trusted measurements
-        let req = ProvisionQueryRequest {
+        let req = EnclavesToProvisionRequest {
             trusted_measurements: provision::LATEST_TRUSTED_MEASUREMENTS
                 .iter()
                 .cloned()
                 .collect(),
         };
-        let (_, signed_req) = user_key_pair
-            .sign_struct(&req)
-            .expect("Should never fail to serialize ProvisionQueryRequest");
+        let (_, signed_req) = user_key_pair.sign_struct(&req).expect(
+            "Should never fail to serialize EnclavesToProvisionRequest",
+        );
 
         let enclaves_to_provision = self
             .gateway_client

@@ -81,8 +81,8 @@ use crate::{
         command::{
             BackupInfo, ClaimGeneratedPaymentAddress, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, GetAddressResponse,
-            GetGeneratedUsernameResponse, GetNewPayments,
+            CreateOfferResponse, EnclavesToProvisionRequest,
+            GetAddressResponse, GetGeneratedUsernameResponse, GetNewPayments,
             GetUpdatedPaymentMetadata, GetUpdatedPayments,
             ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -94,8 +94,8 @@ use crate::{
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            ProvisionQueryRequest, ResyncRequest, SetupGDrive,
-            UpdatePaymentAddress, UpdatePaymentNote, VecLxPaymentId,
+            ResyncRequest, SetupGDrive, UpdatePaymentAddress,
+            UpdatePaymentNote, VecLxPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -155,10 +155,10 @@ pub trait AppBackendApi {
     /// Query which node enclaves the user needs to provision to.
     ///
     /// POST /app/v1/enclaves_to_provision
-    /// [`ed25519::Signed<ProvisionQueryRequest>`] -> [`CurrentEnclaves`]
+    /// [`ed25519::Signed<EnclavesToProvisionRequest>`] -> [`CurrentEnclaves`]
     async fn enclaves_to_provision(
         &self,
-        signed_req: &ed25519::Signed<&ProvisionQueryRequest>,
+        signed_req: &ed25519::Signed<&EnclavesToProvisionRequest>,
     ) -> Result<CurrentEnclaves, BackendApiError>;
 }
 

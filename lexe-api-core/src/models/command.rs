@@ -84,19 +84,19 @@ pub struct BackupInfo {
     pub gdrive_status: GDriveStatus,
 }
 
-/// Query which node enclaves needs provisioning, given the client's trusted
-/// measurements.
+/// Request to query which node enclaves need provisioning, given the client's
+/// trusted measurements.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ProvisionQueryRequest {
+pub struct EnclavesToProvisionRequest {
     /// The enclave measurements the client trusts.
     /// Typically the 3 latest from releases.json.
     pub trusted_measurements: BTreeSet<Measurement>,
 }
 
-impl ed25519::Signable for ProvisionQueryRequest {
+impl ed25519::Signable for EnclavesToProvisionRequest {
     const DOMAIN_SEPARATOR: [u8; 32] =
-        array::pad(*b"LEXE-REALM::ProvisionQuery");
+        array::pad(*b"LEXE-REALM::EnclavesToProvision");
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -617,13 +617,13 @@ mod test {
     use super::*;
 
     #[test]
-    fn provision_query_request_bcs_roundtrip() {
-        bcs_roundtrip_proptest::<ProvisionQueryRequest>();
+    fn enclaves_to_provision_request_bcs_roundtrip() {
+        bcs_roundtrip_proptest::<EnclavesToProvisionRequest>();
     }
 
     #[test]
-    fn provision_query_request_signed_roundtrip() {
-        signed_roundtrip_proptest::<ProvisionQueryRequest>();
+    fn enclaves_to_provision_request_signed_roundtrip() {
+        signed_roundtrip_proptest::<EnclavesToProvisionRequest>();
     }
 
     #[test]
