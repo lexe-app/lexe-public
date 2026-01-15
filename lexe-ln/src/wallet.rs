@@ -202,7 +202,7 @@ impl OnchainWallet {
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
-        let master_xprv = root_seed.derive_bip32_master_xprv(network);
+        let master_xprv = root_seed.derive_legacy_master_xprv(network);
 
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
         let external = Bip84(master_xprv, KeychainKind::External);
@@ -1393,7 +1393,7 @@ mod arbitrary_impl {
     pub(super) fn any_changeset() -> impl Strategy<Value = ChangeSet> {
         let network = bitcoin::Network::Bitcoin;
         let seed = RootSeed::from_u64(20241114);
-        let master_xprv = seed.derive_bip32_master_xprv(network);
+        let master_xprv = seed.derive_legacy_master_xprv(network);
         let just_descriptor = Just({
             let (descriptor, _, _) = Bip84(master_xprv, KeychainKind::External)
                 .build(network)

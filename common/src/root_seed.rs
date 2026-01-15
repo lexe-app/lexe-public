@@ -139,11 +139,18 @@ impl RootSeed {
         UserPk::new(self.derive_user_key_pair().public_key().into_inner())
     }
 
-    /// Derive the BIP32 master xprv used for the BDK (on-chain) wallet as well
-    /// as in an intermediate step when deriving the LDK seed. See
-    /// `OnchainWallet` init and `LexeKeysManager` init respectively for
-    /// details.
-    pub fn derive_bip32_master_xprv(&self, network: Network) -> bip32::Xpriv {
+    /// Derive the "legacy" BIP-32 master xpriv by feeding the 32-byte
+    /// [`RootSeed`] directly into BIP-32's HMAC-SHA512.
+    ///
+    /// This is used for LDK seed derivation (via [`Self::derive_ldk_seed`]) and
+    /// for existing on-chain wallets created before BIP39 compatibility.
+    ///
+    /// It's called "legacy" because standard BIP39 wallets derive the master
+    /// xpriv from a 64-byte seed (produced by PBKDF2), not the 32-byte entropy.
+    /// This makes Lexe's old on-chain addresses incompatible with external
+    /// wallets. New on-chain wallets use the BIP39-compatible derivation
+    /// instead.
+    pub fn derive_legacy_master_xprv(&self, network: Network) -> bip32::Xpriv {
         bip32::Xpriv::new_master(network, self.0.expose_secret())
             .expect("Should never fail")
     }
@@ -153,7 +160,7 @@ impl RootSeed {
     pub fn derive_ldk_seed<R: Crng>(&self, rng: &mut R) -> Secret<[u8; 32]> {
         // The [u8; 32] output will be the same regardless of the network the
         // master_xprv uses, as tested in `when_does_network_matter`
-        let master_xprv = self.derive_bip32_master_xprv(Network::Bitcoin);
+        let master_xprv = self.derive_legacy_master_xprv(Network::Bitcoin);
 
         // Derive the hardened child key at `m/535h`, where 535 is T9 for "LDK"
         let secp_ctx = rng.gen_secp256k1_ctx();
@@ -623,8 +630,8 @@ mod test {
             // Network DOES matter for master xprvs (and all xprvs in general),
             // but only to the extent that their `NetworkKind` is different.
             // i.e. a `Signet` and `Testnet` xprv may be considered the same.
-            let master_xprv1 = root_seed.derive_bip32_master_xprv(network1);
-            let master_xprv2 = root_seed.derive_bip32_master_xprv(network2);
+            let master_xprv1 = root_seed.derive_legacy_master_xprv(network1);
+            let master_xprv2 = root_seed.derive_legacy_master_xprv(network2);
             // Assert: "master xprvs are equal iff network kinds are equal"
             let master_xprvs_equal = master_xprv1 == master_xprv2;
             let network_kinds_equal = network_kind1 == network_kind2;
@@ -871,7 +878,7 @@ mod test {
         );
 
         // Legacy Lexe master xpriv (used for existing on-chain wallets)
-        let master_xpriv = seed.derive_bip32_master_xprv(Network::Bitcoin);
+        let master_xpriv = seed.derive_legacy_master_xprv(Network::Bitcoin);
         assert_eq!(
             master_xpriv.to_string(),
             "xprv9s21ZrQH143K42JPXVa2Q7nAp6XB3FVwyYdGkQetMYRcprZXKvt52p1tqg\
@@ -880,7 +887,7 @@ mod test {
 
         // Legacy Lexe testnet xpriv
         let master_xpriv_testnet =
-            seed.derive_bip32_master_xprv(Network::Testnet);
+            seed.derive_legacy_master_xprv(Network::Testnet);
         assert_eq!(
             master_xpriv_testnet.to_string(),
             "tprv8ZgxMBicQKsPeqXvC4RXZmQA8DwPGmXxK6YPcq5LqWv6cTJcKJDpYZPLk\
