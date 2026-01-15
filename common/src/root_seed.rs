@@ -77,7 +77,7 @@ impl RootSeed {
     /// New Lexe wallets created after node-v0.8.12 use this to derive
     /// their on-chain wallet BIP32 master xprivs.
     ///
-    /// Old Lexe on-chain wallets use the [Self::derive_legacy_master_xprv]
+    /// Old Lexe on-chain wallets use the [`Self::derive_legacy_master_xprv`]
     /// instead.
     pub fn derive_bip39_seed(&self) -> Secret<[u8; 64]> {
         // RootSeed ("entropy") -> mnemonic
@@ -193,17 +193,31 @@ impl RootSeed {
         UserPk::new(self.derive_user_key_pair().public_key().into_inner())
     }
 
-    /// Derive the "legacy" BIP-32 master xpriv by feeding the 32-byte
-    /// [`RootSeed`] directly into BIP-32's HMAC-SHA512.
+    /// Derive the BIP32 master xpriv using the BIP39-compatible derived 64-byte
+    /// seed.
+    ///
+    /// This is used for new Lexe on-chain wallets created after node-v0.8.12.
+    /// Wallets created before then use the [`Self::derive_legacy_master_xprv`].
+    ///
+    /// This produces keys compatible with standard wallets that follow the
+    /// BIP39 spec.
+    pub fn derive_bip32_master_xprv(&self, network: Network) -> bip32::Xpriv {
+        let bip39_seed = self.derive_bip39_seed();
+        bip32::Xpriv::new_master(network, bip39_seed.expose_secret())
+            .expect("Should never fail")
+    }
+
+    /// Derive the "legacy" BIP32 master xpriv by feeding the 32-byte
+    /// [`RootSeed`] directly into BIP32's HMAC-SHA512.
     ///
     /// This is used for LDK seed derivation (via [`Self::derive_ldk_seed`]) and
     /// for existing on-chain wallets created before BIP39 compatibility.
     ///
     /// It's called "legacy" because standard BIP39 wallets derive the master
-    /// xpriv from a 64-byte seed (produced by PBKDF2), not the 32-byte entropy.
-    /// This makes Lexe's old on-chain addresses incompatible with external
-    /// wallets. New on-chain wallets use the BIP39-compatible derivation
-    /// instead.
+    /// xpriv from a 64-byte seed (produced by PBKDF2), not the original 32-byte
+    /// entropy. This makes Lexe's old on-chain addresses incompatible with
+    /// external wallets. New on-chain wallets use the BIP39-compatible
+    /// derivation instead.
     pub fn derive_legacy_master_xprv(&self, network: Network) -> bip32::Xpriv {
         bip32::Xpriv::new_master(network, self.0.expose_secret())
             .expect("Should never fail")
@@ -938,6 +952,24 @@ mod test {
              dc3c3d7d662c98806ce59c0e59911a249533ca0c82dea3780cdf040f9a3dfe09",
         );
 
+        // BIP39-compatible master xpriv (for new on-chain wallets)
+        let bip39_master_xpriv =
+            seed.derive_bip32_master_xprv(Network::Bitcoin);
+        assert_eq!(
+            bip39_master_xpriv.to_string(),
+            "xprv9s21ZrQH143K3BwTSDGEpsQA99b5fmckcX2s4dBbxojs287ApWXGThVTu9\
+             TmogYG8A1JiUnbD6gHSfw5hXsTduny878ygutaCaCvg1KTvgM",
+        );
+
+        // BIP39-compatible master xpriv (Testnet)
+        let bip39_testnet_xpriv =
+            seed.derive_bip32_master_xprv(Network::Testnet);
+        assert_eq!(
+            bip39_testnet_xpriv.to_string(),
+            "tprv8ZgxMBicQKsPe1Az6n7jzX29TH1HuHekx4wyw3c4SnELoirFoss1ySrupK\
+             dRp3vaVbY5iaQMNTG5uXUppkDQSy4ZekMHMGcd7fxM7h7WWqo"
+        );
+
         // Legacy Lexe master xpriv (used for existing on-chain wallets)
         let master_xpriv = seed.derive_legacy_master_xprv(Network::Bitcoin);
         assert_eq!(
@@ -946,7 +978,7 @@ mod test {
              9fwyFJaL6Ki92bCdRNDPAnyddy7CzpQAEktM8nMtNGw4Xj6vt",
         );
 
-        // Legacy Lexe testnet xpriv
+        // Legacy Lexe master xpriv (Testnet)
         let master_xpriv_testnet =
             seed.derive_legacy_master_xprv(Network::Testnet);
         assert_eq!(
