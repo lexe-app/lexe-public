@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::{fmt, num::NonZeroU32, str::FromStr};
 
 use anyhow::{Context, bail, ensure};
 use bitcoin::{
@@ -7,7 +7,7 @@ use bitcoin::{
     secp256k1,
 };
 use lexe_std::array;
-use secrecy::{ExposeSecret, Secret, SecretVec};
+use secrecy::{ExposeSecret, Secret, SecretVec, Zeroize};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 use crate::{
@@ -32,6 +32,10 @@ impl RootSeed {
 
     /// We salt the HKDF for domain separation purposes.
     const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::RootSeed");
+
+    /// Buffer size for writing a BIP39 mnemonic sentence.
+    /// 24 words * max 8 chars + 23 spaces = 215 <= 216 bytes max
+    const BIP39_MNEMONIC_BUF_SIZE: usize = 216;
 
     pub fn new(bytes: Secret<[u8; Self::LENGTH]>) -> Self {
         Self(bytes)
@@ -60,6 +64,57 @@ impl RootSeed {
             self.0.expose_secret().as_slice(),
         )
         .expect("Always succeeds for 256 bits")
+    }
+
+    /// Derives the BIP39-compatible 64-byte seed from this [`RootSeed`].
+    ///
+    /// This uses the standard BIP39 derivation:
+    /// `PBKDF2(password=mnemonic, salt="mnemonic", 2048 rounds, HMAC-SHA512)`
+    ///
+    /// The resulting seed is compatible with standard wallets when used to
+    /// derive a BIP32 master xpriv.
+    ///
+    /// New Lexe wallets created after node-v0.8.12 use this to derive
+    /// their on-chain wallet BIP32 master xprivs.
+    ///
+    /// Old Lexe on-chain wallets use the [Self::derive_legacy_master_xprv]
+    /// instead.
+    pub fn derive_bip39_seed(&self) -> Secret<[u8; 64]> {
+        // RootSeed ("entropy") -> mnemonic
+        let mnemonic = self.to_mnemonic();
+
+        // Write out mnemonic words separated by spaces. Do it on the stack
+        // to avoid allocations.
+        let mut buf = [0u8; Self::BIP39_MNEMONIC_BUF_SIZE];
+        let mut len = 0;
+        for (i, word) in mnemonic.words().enumerate() {
+            if i > 0 {
+                buf[len] = b' ';
+                len += 1;
+            }
+            let word_bytes = word.as_bytes();
+            buf[len..len + word_bytes.len()].copy_from_slice(word_bytes);
+            len += word_bytes.len();
+        }
+        let mnemonic_bytes = &buf[..len];
+
+        // BIP39 salt is "mnemonic" + passphrase (empty for standard wallets)
+        let salt = b"mnemonic";
+
+        // mnemonic -- PBKDF2 -> BIP39 seed
+        let mut seed = [0u8; 64];
+        ring::pbkdf2::derive(
+            ring::pbkdf2::PBKDF2_HMAC_SHA512,
+            const { NonZeroU32::new(2048).unwrap() },
+            salt,
+            mnemonic_bytes,
+            &mut seed,
+        );
+
+        // Zeroize the temporary buffer
+        buf.zeroize();
+
+        Secret::new(seed)
     }
 
     // --- Key derivations --- //
@@ -875,6 +930,14 @@ mod test {
             "551444699ae8acbebe67d5b54da844e8297b83e26e205203a65f29564eaf3787",
         );
 
+        // BIP39 compatible 64-byte seed
+        let bip39_seed = seed.derive_bip39_seed();
+        assert_eq!(
+            hex::encode(bip39_seed.expose_secret()),
+            "30dc1cca6811e6f52a6efba751db4fe9495883b778c72b28ee248f0076cf03b9\
+             dc3c3d7d662c98806ce59c0e59911a249533ca0c82dea3780cdf040f9a3dfe09",
+        );
+
         // Legacy Lexe master xpriv (used for existing on-chain wallets)
         let master_xpriv = seed.derive_legacy_master_xprv(Network::Bitcoin);
         assert_eq!(
@@ -918,5 +981,39 @@ mod test {
             "0000a7e6a0514440b57fcf6df97b46132adde062f1a5a224aacf4fa0f286b4c56\
              fe2768b7dad22333936638c5734f0d529a74880aa",
         );
+    }
+
+    /// Verify the BIP39 mnemonic buffer size constant is large enough.
+    #[test]
+    fn bip39_mnemonic_buf_size() {
+        let words = bip39::Language::English.word_list();
+        let max_word_len = words.iter().map(|w| w.len()).max().unwrap();
+        assert_eq!(max_word_len, 8);
+
+        let root_seed = RootSeed::from_u64(20240506);
+        let mnemonic = root_seed.to_mnemonic();
+        let num_words = mnemonic.words().count();
+        assert_eq!(num_words, 24);
+
+        // Max size: 24 words * 8 chars + 23 spaces = 215 bytes
+        assert!(
+            (max_word_len + 1) * num_words <= RootSeed::BIP39_MNEMONIC_BUF_SIZE
+        );
+    }
+
+    /// Verify our BIP39 seed derivation matches the rust-bip39 crate.
+    #[test]
+    fn derive_bip39_seed_matches_rust_bip39() {
+        proptest!(|(root_seed in any::<RootSeed>())| {
+            let mnemonic = root_seed.to_mnemonic();
+
+            // Our implementation
+            let our_seed = root_seed.derive_bip39_seed();
+
+            // rust-bip39 implementation (empty passphrase)
+            let their_seed = mnemonic.to_seed_normalized("");
+
+            prop_assert_eq!(our_seed.expose_secret(), &their_seed);
+        });
     }
 }
