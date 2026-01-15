@@ -303,6 +303,11 @@ impl WalletUserDbConfig {
             // Add more here as needed
         ]
     }
+
+    /// Old provision database directory that may need cleanup.
+    pub(crate) fn old_provision_db_dir(&self) -> PathBuf {
+        self.user_db_dir.join("provision_db")
+    }
 }
 
 #[cfg(test)]

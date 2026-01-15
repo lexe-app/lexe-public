@@ -78,6 +78,16 @@ impl WalletDb<DiskFs> {
             }
         }
 
+        // Try to delete old provision_db since provision history is now on the
+        // backend.
+        let old_provision_db_dir = user_db_config.old_provision_db_dir();
+        match fsext::remove_dir_all_idempotent(&old_provision_db_dir) {
+            Ok(()) =>
+                info!("Deleted old provision_db dir: {old_provision_db_dir:?}"),
+            Err(e) =>
+                warn!(?old_provision_db_dir, "Couldn't delete old dir: {e:#}"),
+        }
+
         let num_pending = payments_db.num_pending();
         let latest_updated_index = payments_db.latest_updated_index();
         info!(
