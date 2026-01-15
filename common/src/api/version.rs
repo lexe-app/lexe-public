@@ -32,6 +32,13 @@ impl CurrentEnclaves {
     }
 }
 
+/// The subset of node enclaves that a specific user needs to provision to.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub struct EnclavesToProvision {
+    pub enclaves: BTreeSet<NodeEnclave>,
+}
+
 /// The machine_id, semver version and measurement of a node enclave.
 ///
 /// [`Ord`]ered by [`semver::Version`] precedence.

@@ -63,7 +63,7 @@ use common::{
         },
         test_event::TestEventOp,
         user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
-        version::{CurrentEnclaves, NodeEnclave},
+        version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
     },
     ed25519,
     enclave::Measurement,
@@ -155,11 +155,12 @@ pub trait AppBackendApi {
     /// Query which node enclaves the user needs to provision to.
     ///
     /// POST /app/v1/enclaves_to_provision
-    /// [`ed25519::Signed<EnclavesToProvisionRequest>`] -> [`CurrentEnclaves`]
+    /// [`ed25519::Signed<EnclavesToProvisionRequest>`] ->
+    /// [`EnclavesToProvision`]
     async fn enclaves_to_provision(
         &self,
         signed_req: &ed25519::Signed<&EnclavesToProvisionRequest>,
-    ) -> Result<CurrentEnclaves, BackendApiError>;
+    ) -> Result<EnclavesToProvision, BackendApiError>;
 }
 
 /// Defines the api that the gateway directly exposes to the app.

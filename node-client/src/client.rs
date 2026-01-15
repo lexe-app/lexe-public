@@ -33,7 +33,7 @@ use common::{
             GetRevocableClients, RevocableClient, RevocableClients,
             UpdateClientRequest, UpdateClientResponse,
         },
-        version::{CurrentEnclaves, NodeEnclave},
+        version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
     },
     byte_str::ByteStr,
     constants::{self, node_provision_dns},
@@ -190,14 +190,12 @@ impl AppBackendApi for GatewayClient {
     async fn enclaves_to_provision(
         &self,
         signed_req: &ed25519::Signed<&EnclavesToProvisionRequest>,
-    ) -> Result<CurrentEnclaves, BackendApiError> {
+    ) -> Result<EnclavesToProvision, BackendApiError> {
         let gateway_url = &self.gateway_url;
+        let url = format!("{gateway_url}/app/v1/enclaves_to_provision");
         let req = self
             .rest
-            .builder(
-                POST,
-                format!("{gateway_url}/app/v1/enclaves_to_provision"),
-            )
+            .builder(POST, url)
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send(req).await
