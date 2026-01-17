@@ -2368,20 +2368,16 @@ mod test {
         );
     }
 
-    // Snapshot taken 2024-11-14 @ bdk-v1.0.0-beta.5
-    const CHANGESET_SNAPSHOT_1_0_0_BETA_5: &str =
-        include_str!("../data/changeset-snapshot.v1.0.0-beta.5.json");
-
-    // Snapshot taken 2025-03-16 @ bdk-v1.1.0
-    const CHANGESET_SNAPSHOT_1_1_0: &str =
-        include_str!("../data/changeset-snapshot.v1.1.0.json");
-
     #[test]
     fn test_changeset_snapshots() {
-        serde_json::from_str::<Vec<ChangeSet>>(CHANGESET_SNAPSHOT_1_0_0_BETA_5)
-            .unwrap();
-        serde_json::from_str::<Vec<ChangeSet>>(CHANGESET_SNAPSHOT_1_1_0)
-            .unwrap();
+        let snapshot =
+            fs::read_to_string("data/changeset-snapshot.v1.0.0-beta.5.json")
+                .unwrap();
+        serde_json::from_str::<Vec<ChangeSet>>(&snapshot).unwrap();
+
+        let snapshot =
+            fs::read_to_string("data/changeset-snapshot.v1.1.0.json").unwrap();
+        serde_json::from_str::<Vec<ChangeSet>>(&snapshot).unwrap();
     }
 
     /// ```bash
@@ -2416,11 +2412,11 @@ mod test {
     /// Dumps a JSON array of three `ChangeSet`s using the proptest strategy.
     ///
     /// ```bash
-    /// $ cargo test -p lexe-ln --lib -- --ignored dump_changesets --show-output
+    /// $ cargo test -p lexe-ln --lib -- --ignored dump_proptest_wallet_snapshot --show-output
     /// ```
     #[ignore]
     #[test]
-    fn dump_changesets() {
+    fn dump_proptest_wallet_snapshot() {
         let mut rng = FastRng::from_u64(20250316);
         let strategy = arbitrary_impl::any_changeset();
         let changesets = arbitrary::gen_value_iter(&mut rng, strategy)
@@ -2429,5 +2425,50 @@ mod test {
         println!("---");
         println!("{}", serde_json::to_string_pretty(&changesets).unwrap());
         println!("---");
+    }
+
+    /// Tests that we can load a legacy wallet from the saved snapshot.
+    ///
+    /// These tests ensure we can load wallets created with the legacy
+    /// derivation (RootSeed directly into BIP32) even after we change to
+    /// BIP39-compatible derivation for new wallets.
+    #[test]
+    fn test_legacy_wallet_snapshot_loads() {
+        let snapshot =
+            fs::read_to_string("data/legacy-onchain-wallet-snapshot.json")
+                .unwrap();
+        let changeset: ChangeSet = serde_json::from_str(&snapshot).unwrap();
+
+        // Verify we can load the wallet from this changeset
+        let root_seed = RootSeed::from_u64(20260117);
+        let wallet = OnchainWallet::dummy(&root_seed, Some(changeset));
+
+        // Sanity checks: 100k external + 50k internal = 150k total
+        let balance = wallet.read().balance();
+        assert_eq!(balance.confirmed.to_sat(), 150_000);
+    }
+
+    /// Regenerates the wallet snapshot file.
+    ///
+    /// ```bash
+    /// $ cargo test -p lexe-ln --lib -- --ignored dump_wallet_snapshot --show-output
+    /// ```
+    #[ignore]
+    #[test]
+    fn dump_wallet_snapshot() {
+        let h = Harness::new(20260117);
+
+        // Fund both keychains with confirmed UTXOs
+        {
+            let mut w = h.ww();
+            w.fund(External, sat!(100_000));
+            w.fund(Internal, sat!(50_000));
+        }
+        h.persist();
+
+        let changeset = h.wallet.changeset.lock().unwrap().clone();
+
+        let json = serde_json::to_string_pretty(&changeset).unwrap();
+        println!("---\n{json}\n---");
     }
 }

@@ -1,0 +1,81 @@
+{
+  "descriptor": "wpkh([5f1b2ef4/84'/1'/0']tpubDDTTmiCC1tVriu8y1xYKS3Ux12Fjs1f16qzEiGX8CbrpKtT5m4vgiVP264bsvVcSYdfvbKArqQbghVq4Y3FwD1YCbMpQdUUZxeqTQYTKgAv/0/*)#snchk6r6",
+  "change_descriptor": "wpkh([5f1b2ef4/84'/1'/0']tpubDDTTmiCC1tVriu8y1xYKS3Ux12Fjs1f16qzEiGX8CbrpKtT5m4vgiVP264bsvVcSYdfvbKArqQbghVq4Y3FwD1YCbMpQdUUZxeqTQYTKgAv/1/*)#p8akt0nz",
+  "network": "regtest",
+  "local_chain": {
+    "blocks": {
+      "0": "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
+      "100": "0000000000000000000000000000000000000000000000000000000000000064",
+      "1000": "00000000000000000000000000000000000000000000000000000000000003e8",
+      "1001": "00000000000000000000000000000000000000000000000000000000000003e9",
+      "1006": "00000000000000000000000000000000000000000000000000000000000003ee",
+      "1007": "00000000000000000000000000000000000000000000000000000000000003ef",
+      "1012": "00000000000000000000000000000000000000000000000000000000000003f4"
+    }
+  },
+  "tx_graph": {
+    "txs": [
+      {
+        "version": 2,
+        "lock_time": 0,
+        "input": [],
+        "output": [
+          {
+            "value": 50000,
+            "script_pubkey": "00146c4de244a716b06de19e7694af436ce35ab434e6"
+          }
+        ]
+      },
+      {
+        "version": 2,
+        "lock_time": 0,
+        "input": [],
+        "output": [
+          {
+            "value": 100000,
+            "script_pubkey": "001465335ddcc7dd9c34ba7f6519d10bba78711ae29d"
+          }
+        ]
+      }
+    ],
+    "txouts": {},
+    "anchors": [
+      [
+        {
+          "block_id": {
+            "height": 1001,
+            "hash": "00000000000000000000000000000000000000000000000000000000000003e9"
+          },
+          "confirmation_time": 100100
+        },
+        "829fca2fe3f32fad51311aa1debb8764ae0de5249bee8a9d52029e522f0148ba"
+      ],
+      [
+        {
+          "block_id": {
+            "height": 1007,
+            "hash": "00000000000000000000000000000000000000000000000000000000000003ef"
+          },
+          "confirmation_time": 100700
+        },
+        "bb4dc68ab7701ea9f10434456d9b32078be85167d46b361273bde133cd9e5808"
+      ]
+    ],
+    "last_seen": {
+      "bb4dc68ab7701ea9f10434456d9b32078be85167d46b361273bde133cd9e5808": 100600,
+      "829fca2fe3f32fad51311aa1debb8764ae0de5249bee8a9d52029e522f0148ba": 100000
+    },
+    "last_evicted": {},
+    "first_seen": {
+      "bb4dc68ab7701ea9f10434456d9b32078be85167d46b361273bde133cd9e5808": 100600,
+      "829fca2fe3f32fad51311aa1debb8764ae0de5249bee8a9d52029e522f0148ba": 100000
+    }
+  },
+  "indexer": {
+    "last_revealed": {
+      "42ecc3ee35388330528e982973b3bdfea8917d60a3a13c0ca335417ac99924ca": 0,
+      "7fc20a65696964af22462e7b87d1ba0b2928f73c6a4bbf503df0f5c038d995da": 0
+    },
+    "spk_cache": {}
+  }
+}
