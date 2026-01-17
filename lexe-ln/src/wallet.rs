@@ -27,6 +27,7 @@
 //! [`Wallet`]: bdk_wallet::Wallet
 //! [`OnchainWallet`]: crate::wallet::OnchainWallet
 //! [`OnchainWallet::trigger_persist`]: crate::wallet::OnchainWallet::trigger_persist
+//! [`RootSeed`]: common::root_seed::RootSeed
 
 use std::{
     collections::{HashMap, HashSet},
@@ -49,7 +50,7 @@ use bdk_wallet::{
     coin_selection::{
         CoinSelectionAlgorithm, CoinSelectionResult, InsufficientFunds,
     },
-    template::Bip84,
+    template::{Bip84, DescriptorTemplate},
 };
 use bitcoin::{Psbt, Transaction};
 #[cfg(test)]
@@ -202,7 +203,40 @@ impl OnchainWallet {
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
-        let master_xprv = root_seed.derive_legacy_master_xprv(network);
+
+        // Determine which master xprv to use:
+        // - Legacy (RootSeed directly into BIP32) for existing legacy wallets
+        // - BIP39-compatible derivation for new wallets and existing wallets
+        //   created from node-v0.8.12 onwards.
+        //
+        // TODO(phlip9): when BDK wallet supports multiple keychains per wallet
+        // <https://github.com/bitcoindevkit/bdk_wallet/pull/318>, we can
+        // upgrade existing legacy wallets so they use the BIP39-compatible
+        // descriptors for all new addresses.
+        let master_xprv = {
+            let maybe_changeset_desc = maybe_changeset
+                .as_ref()
+                .and_then(|cs| cs.descriptor.as_ref());
+            match maybe_changeset_desc {
+                Some(changeset_desc) => {
+                    let legacy_xprv =
+                        root_seed.derive_legacy_master_xprv(network);
+                    let (legacy_desc, _keymap, _networks) =
+                        Bip84(legacy_xprv, KeychainKind::External)
+                            .build(network)
+                            .expect("Bip84 template build should never fail");
+                    // Existing wallet using legacy derivation -> legacy xprv
+                    if changeset_desc == &legacy_desc {
+                        legacy_xprv
+                    } else {
+                        // Existing wallet w/ BIP39 derivation -> BIP32 xprv
+                        root_seed.derive_bip32_master_xprv(network)
+                    }
+                }
+                // No changeset or descriptor -> new wallet -> BIP32 xprv
+                None => root_seed.derive_bip32_master_xprv(network),
+            }
+        };
 
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
         let external = Bip84(master_xprv, KeychainKind::External);
@@ -2436,6 +2470,23 @@ mod test {
     fn test_legacy_wallet_snapshot_loads() {
         let snapshot =
             fs::read_to_string("data/legacy-onchain-wallet-snapshot.json")
+                .unwrap();
+        let changeset: ChangeSet = serde_json::from_str(&snapshot).unwrap();
+
+        // Verify we can load the wallet from this changeset
+        let root_seed = RootSeed::from_u64(20260117);
+        let wallet = OnchainWallet::dummy(&root_seed, Some(changeset));
+
+        // Sanity checks: 100k external + 50k internal = 150k total
+        let balance = wallet.read().balance();
+        assert_eq!(balance.confirmed.to_sat(), 150_000);
+    }
+
+    /// Tests that we can load a new BIP39-compatible wallet from snapshot.
+    #[test]
+    fn test_bip39_wallet_snapshot_loads() {
+        let snapshot =
+            fs::read_to_string("data/bip39-onchain-wallet-snapshot.json")
                 .unwrap();
         let changeset: ChangeSet = serde_json::from_str(&snapshot).unwrap();
 
