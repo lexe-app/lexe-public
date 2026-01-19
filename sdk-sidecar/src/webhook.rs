@@ -7,20 +7,20 @@ use std::{
     borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc, time::Duration,
 };
 
-use common::{api::user::UserPk, env::DeployEnv};
+use common::{api::user::UserPk, env::DeployEnv, rng::SysRng};
 use lexe_api::types::payments::{
     LxPaymentId, PaymentCreatedIndex, PaymentUpdatedIndex,
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use node_client::{
-    client::NodeClient,
+    client::{GatewayClient, NodeClient},
     credentials::{ClientCredentials, Credentials},
 };
 use reqwest::Url;
 use sdk_core::types::SdkPayment;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use tracing::{info, info_span};
+use tracing::{info, info_span, warn};
 
 /// Polling interval for checking payment updates.
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
@@ -84,7 +84,7 @@ impl WebhookSender {
     }
 
     /// Spawn a new task that runs the webhook sender.
-    pub fn spawn(self) -> LxTask<()> {
+    pub(crate) fn spawn(self) -> LxTask<()> {
         LxTask::spawn_with_span(
             "(webhook-sender)",
             info_span!("(webhook-sender)"),
@@ -122,9 +122,59 @@ impl WebhookSender {
         info!("Webhook sender task stopped");
     }
 
-    /// Handle a track request: add payment to tracking, min-set cursor.
-    fn handle_track_request(&mut self, _req: TrackRequest) {
-        // TODO(a-mpch): Implement handle_track_request
+    /// Handle a track request idempotently by adding payment to tracking and
+    /// min-setting cursor.
+    fn handle_track_request(&mut self, req: TrackRequest) {
+        let payment_id = req.payment_created_index.id;
+        let new_cursor = PaymentUpdatedIndex {
+            updated_at: req.payment_created_index.created_at,
+            id: payment_id,
+        };
+
+        let (client_creds, node_client) =
+            match self.build_node_client(&req.credentials) {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!(user_pk = %req.user_pk,
+                        "Failed to build NodeClient: {e:#}"
+                    );
+                    return;
+                }
+            };
+
+        match self.users.get_mut(&req.user_pk) {
+            Some(state) => {
+                // User exists: add payment, min-set cursor
+                if !state.inner.pending.contains(&payment_id) {
+                    state.inner.pending.push(payment_id);
+                }
+
+                // Min-set the cursor in case we receive the payment finalized
+                // update before the payment has started tracking.
+                if new_cursor < state.inner.cursor {
+                    state.inner.cursor = new_cursor;
+                }
+
+                // Update the credentials to the latest given in case the
+                // user has rotated to a different client credential.
+                if state.inner.credentials.client_pk != client_creds.client_pk {
+                    state.inner.credentials = client_creds;
+                    state.node_client = node_client;
+                }
+            }
+            None => {
+                // New user: create tracking state
+                let state = UserTrackingState {
+                    inner: PersistedUserTrackingState {
+                        credentials: client_creds,
+                        cursor: new_cursor,
+                        pending: vec![payment_id],
+                    },
+                    node_client,
+                };
+                self.users.insert(req.user_pk, state);
+            }
+        }
     }
 
     /// Poll all users for payment updates and send webhooks.
@@ -140,6 +190,32 @@ impl WebhookSender {
     /// Load persisted tracking state from disk.
     fn load_state(&self) {
         // TODO(a-mpch): Implement load_state
+    }
+
+    /// Build a [`NodeClient`] from credentials.
+    fn build_node_client(
+        &self,
+        credentials: &Credentials,
+    ) -> anyhow::Result<(ClientCredentials, NodeClient)> {
+        let Credentials::ClientCredentials(client_creds) = credentials else {
+            anyhow::bail!("Webhooks don't support RootSeed credentials");
+        };
+
+        let gateway_client = GatewayClient::new(
+            self.deploy_env,
+            self.gateway_url.clone(),
+            crate::USER_AGENT,
+        )?;
+
+        let node_client = NodeClient::new(
+            &mut SysRng::new(),
+            true, // use_sgx
+            self.deploy_env,
+            gateway_client,
+            credentials.as_ref(),
+        )?;
+
+        Ok((client_creds.clone(), node_client))
     }
 }
 
