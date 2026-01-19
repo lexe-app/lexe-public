@@ -189,15 +189,12 @@ impl AppBackendApi for GatewayClient {
 
     async fn enclaves_to_provision(
         &self,
-        signed_req: &ed25519::Signed<&EnclavesToProvisionRequest>,
+        req: &EnclavesToProvisionRequest,
+        auth: BearerAuthToken,
     ) -> Result<EnclavesToProvision, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let url = format!("{gateway_url}/app/v1/enclaves_to_provision");
-        let req = self
-            .rest
-            .builder(POST, url)
-            .signed_bcs(signed_req)
-            .map_err(BackendApiError::bcs_serialize)?;
+        let req = self.rest.post(url, req).bearer_auth(&auth);
         self.rest.send(req).await
     }
 }
@@ -475,6 +472,32 @@ impl NodeClient {
         .context("Failed to get long-lived connect token")?;
 
         Ok(long_lived_connect_token.token)
+    }
+
+    /// Get a short-lived auth token with [`Scope::All`] for provisioning.
+    pub async fn request_provision_token(
+        &self,
+    ) -> anyhow::Result<BearerAuthToken> {
+        let user_key_pair = self
+            .inner
+            .authenticator
+            .user_key_pair()
+            .context("Somehow using a static bearer auth token")?;
+
+        let now = SystemTime::now();
+        let lifetime_secs = 60; // 1 minute
+        let scope = Some(Scope::All);
+        let token = lexe_api::auth::do_bearer_auth(
+            &self.inner.gateway_client,
+            now,
+            user_key_pair,
+            lifetime_secs,
+            scope,
+        )
+        .await
+        .context("Failed to get app token")?;
+
+        Ok(token.token)
     }
 }
 

@@ -406,29 +406,30 @@ impl<D> LexeWallet<D> {
         google_auth_code: Option<String>,
     ) -> anyhow::Result<()> {
         // Only RootSeed can sign; delegated provisioning not implemented yet.
-        let CredentialsRef::RootSeed(root_seed_ref) = credentials else {
+        let CredentialsRef::RootSeed(_root_seed_ref) = credentials else {
             return Err(anyhow!(
                 "Delegated provisioning is not implemented yet"
             ));
         };
 
-        let user_key_pair = root_seed_ref.derive_user_key_pair();
         let wallet_env = self.user_config.env_config.wallet_env;
 
-        // Build signed request with our trusted measurements
+        // Get a bearer token for authentication.
+        let token = self
+            .node_client
+            .request_provision_token()
+            .await
+            .context("Could not get bearer token")?;
+
+        // Build request with our trusted measurements.
         let req = EnclavesToProvisionRequest {
             trusted_measurements: provision::LATEST_TRUSTED_MEASUREMENTS
-                .iter()
-                .cloned()
-                .collect(),
+                .clone(),
         };
-        let (_, signed_req) = user_key_pair.sign_struct(&req).expect(
-            "Should never fail to serialize EnclavesToProvisionRequest",
-        );
 
         let enclaves_to_provision = self
             .gateway_client
-            .enclaves_to_provision(&signed_req)
+            .enclaves_to_provision(&req, token)
             .await
             .context("Could not fetch enclaves to provision")?;
 

@@ -155,11 +155,11 @@ pub trait AppBackendApi {
     /// Query which node enclaves the user needs to provision to.
     ///
     /// POST /app/v1/enclaves_to_provision
-    /// [`ed25519::Signed<EnclavesToProvisionRequest>`] ->
-    /// [`EnclavesToProvision`]
+    /// [`EnclavesToProvisionRequest`] -> [`EnclavesToProvision`]
     async fn enclaves_to_provision(
         &self,
-        signed_req: &ed25519::Signed<&EnclavesToProvisionRequest>,
+        req: &EnclavesToProvisionRequest,
+        auth: BearerAuthToken,
     ) -> Result<EnclavesToProvision, BackendApiError>;
 }
 

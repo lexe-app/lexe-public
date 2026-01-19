@@ -7,7 +7,6 @@ use common::root_seed::RootSeed;
 use common::test_utils::arbitrary;
 use common::{
     api::user::{NodePk, UserPk},
-    ed25519,
     enclave::Measurement,
     ln::{
         amount::Amount,
@@ -20,7 +19,6 @@ use common::{
     serde_helpers::hexstr_or_bytes,
     time::TimestampMs,
 };
-use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -92,11 +90,6 @@ pub struct EnclavesToProvisionRequest {
     /// The enclave measurements the client trusts.
     /// Typically the 3 latest from releases.json.
     pub trusted_measurements: BTreeSet<Measurement>,
-}
-
-impl ed25519::Signable for EnclavesToProvisionRequest {
-    const DOMAIN_SEPARATOR: [u8; 32] =
-        array::pad(*b"LEXE-REALM::EnclavesToProvision");
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -610,21 +603,10 @@ mod arbitrary_impl {
 #[cfg(test)]
 mod test {
     use common::test_utils::roundtrip::{
-        self, bcs_roundtrip_proptest, query_string_roundtrip_proptest,
-        signed_roundtrip_proptest,
+        self, query_string_roundtrip_proptest,
     };
 
     use super::*;
-
-    #[test]
-    fn enclaves_to_provision_request_bcs_roundtrip() {
-        bcs_roundtrip_proptest::<EnclavesToProvisionRequest>();
-    }
-
-    #[test]
-    fn enclaves_to_provision_request_signed_roundtrip() {
-        signed_roundtrip_proptest::<EnclavesToProvisionRequest>();
-    }
 
     #[test]
     fn preflight_pay_onchain_roundtrip() {
