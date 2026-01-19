@@ -4267,6 +4267,7 @@ dependencies = [
  "http",
  "lexe-api",
  "lexe-std",
+ "lexe-tls-core",
  "lexe-tokio",
  "logger",
  "node-client",

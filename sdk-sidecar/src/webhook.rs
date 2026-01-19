@@ -88,11 +88,22 @@ impl WebhookSender {
     ) -> (Self, mpsc::Sender<TrackRequest>) {
         let (tx, rx) = mpsc::channel(TRACK_REQUEST_BUFFER);
 
+        // Build HTTP client with proper TLS configuration
+        #[allow(clippy::disallowed_methods)]
+        let tls_config = lexe_tls_core::rustls::ClientConfig::builder()
+            .with_root_certificates(lexe_tls_core::WEBPKI_ROOT_CERTS.clone())
+            .with_no_client_auth();
+        let http_client = reqwest::ClientBuilder::new()
+            .use_preconfigured_tls(tls_config)
+            .timeout(Duration::from_secs(5))
+            .build()
+            .expect("reqwest::ClientBuilder::build failed");
+
         let mut sender = Self {
             users: HashMap::new(),
             webhook_sender_rx: rx,
             webhook_url: config.url,
-            http_client: reqwest::Client::new(),
+            http_client,
             sidecar_dir: config.sidecar_dir,
             gateway_url: config.gateway_url,
             deploy_env: config.deploy_env,
