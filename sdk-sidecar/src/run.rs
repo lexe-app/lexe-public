@@ -2,6 +2,8 @@ use std::{
     borrow::Cow,
     env,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    path::PathBuf,
+    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -19,7 +21,11 @@ use node_client::{
 };
 use tracing::{info, info_span, instrument};
 
-use crate::{cli::SidecarArgs, server};
+use crate::{
+    cli::SidecarArgs,
+    server,
+    webhook::{WebhookSender, WebhookSenderConfig},
+};
 
 /// `127.0.0.1:5393` We use IPv4 because it's more approachable to newbie devs.
 /// The docs note that IPv6 is still supported.
@@ -93,20 +99,48 @@ impl Sidecar {
                 )
                 .context("Failed to create node client")?;
 
-                Some((node_client, credentials))
+                Some((node_client, Arc::new(credentials)))
             }
             None => None,
         };
 
         // Spawn HTTP server
+        let shutdown = NotifyOnce::new();
+
+        // Parse webhook URL if provided
+        let webhook_url = args
+            .webhook_url
+            .map(|s| reqwest::Url::from_str(&s))
+            .transpose()
+            .context("Invalid webhook URL")?;
+
+        // Create WebhookSender if webhook URL is configured
+        let webhook_tx = match webhook_url {
+            Some(url) => {
+                let sidecar_dir =
+                    resolve_data_dir(args.data_dir).join("sidecar");
+                let config = WebhookSenderConfig {
+                    url,
+                    sidecar_dir,
+                    deploy_env,
+                    gateway_url: gateway_url.clone(),
+                    shutdown: shutdown.clone(),
+                };
+                let (sender, tx) = WebhookSender::new(config);
+                static_tasks.push(sender.spawn());
+                Some(tx)
+            }
+            None => None,
+        };
+
         let router_state = Arc::new(server::RouterState::new(
             default,
             deploy_env,
             gateway_url,
+            webhook_tx,
         ));
         let maybe_tls_and_dns = None;
         const SERVER_SPAN_NAME: &str = "(server)";
-        let shutdown = NotifyOnce::new();
         let (server_task, sidecar_url) = lexe_api::server::spawn_server_task(
             listen_addr,
             server::router(router_state),
@@ -192,4 +226,9 @@ impl Sidecar {
 
         Ok(())
     }
+}
+
+/// Resolve data directory, defaulting to `.lexe` in current directory.
+fn resolve_data_dir(data_dir: Option<PathBuf>) -> PathBuf {
+    data_dir.unwrap_or_else(|| PathBuf::from(".lexe"))
 }

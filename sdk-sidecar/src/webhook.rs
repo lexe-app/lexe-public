@@ -1,8 +1,5 @@
 //! Webhook types and functionality for payment notifications.
 
-// TODO(a-mpch): Remove once types are used
-#![allow(dead_code)]
-
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::{

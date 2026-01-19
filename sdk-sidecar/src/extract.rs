@@ -7,7 +7,7 @@ use http::header::AUTHORIZATION;
 use lexe_api::error::SdkApiError;
 use node_client::{
     client::{GatewayClient, NodeClient},
-    credentials::{ClientCredentials, CredentialsRef},
+    credentials::{ClientCredentials, Credentials, CredentialsRef},
 };
 
 use crate::server::RouterState;
@@ -72,10 +72,15 @@ where
 /// Extracts a [`NodeClient`] for the request.
 ///
 /// If any client credentials were found in the `Authorization` header, returns
-/// `NodeClient` based on those credentials.
-/// Otherwise, returns the default client configured at startup.
-/// Errors if no credentials are provided and no default client exists.
-pub(crate) struct NodeClientExtractor(pub NodeClient);
+/// a `NodeClient` based on those credentials along with the credentials.
+/// Otherwise, returns the default client configured at startup along with
+/// the default credentials. Errors if no credentials are provided and no
+/// default client exists.
+pub(crate) struct NodeClientExtractor {
+    pub node_client: NodeClient,
+    /// The credentials used, for webhook tracking.
+    pub credentials: Arc<Credentials>,
+}
 
 impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
     type Rejection = SdkApiError;
@@ -87,12 +92,12 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
         let maybe_credentials =
             CredentialsExtractor::from_request_parts(parts, state).await?;
 
-        if let Some(credentials) = maybe_credentials.0 {
-            let client_pk = credentials.client_pk;
+        if let Some(client_credentials) = maybe_credentials.0 {
+            let client_pk = client_credentials.client_pk;
             let mut locked_cache = state.client_cache.lock().unwrap();
 
-            let client = match locked_cache.get(&client_pk) {
-                Some(c) => c,
+            let node_client = match locked_cache.get(&client_pk) {
+                Some(c) => c.clone(),
                 None => {
                     // Create new client and insert into cache
 
@@ -104,7 +109,8 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
                     .context("Failed to create gateway client")
                     .map_err(SdkApiError::bad_auth)?;
 
-                    let credentials = CredentialsRef::from(&credentials);
+                    let credentials_ref =
+                        CredentialsRef::from(&client_credentials);
 
                     let mut rng = SysRng::new();
                     let use_sgx = true;
@@ -114,21 +120,26 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
                         use_sgx,
                         state.deploy_env,
                         gateway_client,
-                        credentials,
+                        credentials_ref,
                     )
                     .context("Failed to create node client")
                     .map_err(SdkApiError::bad_auth)?;
 
-                    locked_cache.insert(client_pk, client);
-                    locked_cache.get(&client_pk).unwrap()
+                    locked_cache.insert(client_pk, client.clone());
+                    client
                 }
             };
 
-            return Ok(Self(client.clone()));
+            let credentials =
+                Credentials::ClientCredentials(client_credentials);
+            return Ok(Self {
+                node_client,
+                credentials: Arc::new(credentials),
+            });
         }
 
         // Fall back to the default client if available, otherwise error.
-        let (client, _credentials) = state
+        let (node_client, credentials) = state
             .default
             .as_ref()
             .ok_or(
@@ -138,6 +149,9 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
             )
             .map_err(SdkApiError::bad_auth)?;
 
-        Ok(Self(client.clone()))
+        Ok(Self {
+            node_client: node_client.clone(),
+            credentials: credentials.clone(),
+        })
     }
 }

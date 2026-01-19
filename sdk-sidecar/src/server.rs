@@ -26,11 +26,13 @@ use sdk_core::{
     },
     types::SdkPayment,
 };
-use tracing::instrument;
+use tokio::sync::mpsc;
+use tracing::{instrument, warn};
 
 use crate::{
     api::HealthCheckResponse,
     extract::{CredentialsExtractor, NodeClientExtractor},
+    webhook::TrackRequest,
 };
 
 const CLIENT_CACHE_CAPACITY: usize = 64;
@@ -38,18 +40,21 @@ const CLIENT_CACHE_CAPACITY: usize = 64;
 pub(crate) struct RouterState {
     /// The default [`NodeClient`] and [`Credentials`] from env/CLI.
     /// Used when no per-request credentials are provided.
-    pub default: Option<(NodeClient, Credentials)>,
+    pub default: Option<(NodeClient, Arc<Credentials>)>,
     /// Caches `NodeClient`s by their `client_pk`.
     pub client_cache: Mutex<unsync::Cache<ed25519::PublicKey, NodeClient>>,
     pub deploy_env: DeployEnv,
     pub gateway_url: Cow<'static, str>,
+    /// Channel to send track requests to the webhook sender.
+    pub webhook_tx: Option<mpsc::Sender<TrackRequest>>,
 }
 
 impl RouterState {
     pub fn new(
-        default: Option<(NodeClient, Credentials)>,
+        default: Option<(NodeClient, Arc<Credentials>)>,
         deploy_env: DeployEnv,
         gateway_url: Cow<'static, str>,
+        webhook_tx: Option<mpsc::Sender<TrackRequest>>,
     ) -> Self {
         let client_cache =
             Mutex::new(unsync::Cache::new(CLIENT_CACHE_CAPACITY));
@@ -58,6 +63,7 @@ impl RouterState {
             client_cache,
             deploy_env,
             gateway_url,
+            webhook_tx,
         }
     }
 }
@@ -118,7 +124,7 @@ mod node {
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
         State(_): State<Arc<RouterState>>,
-        NodeClientExtractor(node_client): NodeClientExtractor,
+        NodeClientExtractor { node_client, .. }: NodeClientExtractor,
     ) -> Result<LxJson<SdkNodeInfo>, SdkApiError> {
         let info = node_client
             .node_info()
@@ -129,8 +135,11 @@ mod node {
 
     #[instrument(skip_all, name = "(create-invoice)")]
     pub(crate) async fn create_invoice(
-        State(_): State<Arc<RouterState>>,
-        NodeClientExtractor(node_client): NodeClientExtractor,
+        State(state): State<Arc<RouterState>>,
+        NodeClientExtractor {
+            node_client,
+            credentials,
+        }: NodeClientExtractor,
         LxJson(req): LxJson<SdkCreateInvoiceRequest>,
     ) -> Result<LxJson<SdkCreateInvoiceResponse>, SdkApiError> {
         let CreateInvoiceResponse {
@@ -145,13 +154,18 @@ mod node {
             .ok_or("Node out-of-date. Upgrade to node-v0.8.10 or later.")
             .map_err(SdkApiError::command)?;
 
+        try_track_payment(&state, &node_client, credentials, index);
+
         Ok(LxJson(SdkCreateInvoiceResponse::new(index, invoice)))
     }
 
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub(crate) async fn pay_invoice(
-        State(_): State<Arc<RouterState>>,
-        NodeClientExtractor(node_client): NodeClientExtractor,
+        State(state): State<Arc<RouterState>>,
+        NodeClientExtractor {
+            node_client,
+            credentials,
+        }: NodeClientExtractor,
         LxJson(req): LxJson<SdkPayInvoiceRequest>,
     ) -> Result<LxJson<SdkPayInvoiceResponse>, SdkApiError> {
         let id = req.invoice.payment_id();
@@ -160,12 +174,11 @@ mod node {
             .await
             .map_err(SdkApiError::command)?
             .created_at;
-        let resp = SdkPayInvoiceResponse {
-            index: PaymentCreatedIndex { id, created_at },
-            created_at,
-        };
 
-        Ok(LxJson(resp))
+        let index = PaymentCreatedIndex { id, created_at };
+        try_track_payment(&state, &node_client, credentials, index);
+
+        Ok(LxJson(SdkPayInvoiceResponse { index, created_at }))
     }
 
     /// Legacy: Returns `{ "payment": null }` if not found.
@@ -199,7 +212,7 @@ mod node {
     #[instrument(skip_all, name = "(get-payment)")]
     pub(crate) async fn get_payment(
         State(_): State<Arc<RouterState>>,
-        NodeClientExtractor(node_client): NodeClientExtractor,
+        NodeClientExtractor { node_client, .. }: NodeClientExtractor,
         LxQuery(req): LxQuery<SdkGetPaymentRequest>,
     ) -> Result<LxJson<SdkPayment>, SdkApiError> {
         let id = req.index.id;
@@ -216,5 +229,35 @@ mod node {
         };
 
         Ok(LxJson(SdkPayment::from(basic_payment)))
+    }
+
+    /// Try to track a payment for webhook notifications.
+    ///
+    /// No-op if webhooks are not configured.
+    fn try_track_payment(
+        state: &RouterState,
+        node_client: &NodeClient,
+        credentials: Arc<Credentials>,
+        index: PaymentCreatedIndex,
+    ) {
+        let Some(tx) = &state.webhook_tx else { return };
+
+        let Some(user_pk) = node_client.user_pk() else {
+            warn!(
+                "Webhook tracking unavailable: credentials created \
+                 before node-v0.8.11 do not include user_pk"
+            );
+            return;
+        };
+
+        let req = TrackRequest {
+            user_pk,
+            credentials,
+            payment_created_index: index,
+        };
+
+        if tx.try_send(req).is_err() {
+            warn!("Webhook channel full, payment not tracked");
+        }
     }
 }
