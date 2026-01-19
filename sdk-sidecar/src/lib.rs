@@ -174,6 +174,8 @@ mod server;
 
 /// Sidecar-specific axum extractors
 mod extract;
+/// Webhook types and functionality for payment notifications.
+mod webhook;
 
 /// Reexport Lexe crates, as various interfaces may need these types.
 pub mod lexe {
