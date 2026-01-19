@@ -29,6 +29,7 @@ axum.workspace = true
 dotenvy.workspace = true
 http.workspace = true
 quick_cache.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = [

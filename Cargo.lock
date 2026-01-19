@@ -4270,6 +4270,7 @@ dependencies = [
  "logger",
  "node-client",
  "quick_cache",
+ "reqwest",
  "sdk-core",
  "serde",
  "serde_json",
