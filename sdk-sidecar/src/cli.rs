@@ -79,6 +79,17 @@ pub struct SidecarArgs {
     /// (default=`mainnet`, env=`NETWORK`)
     #[argh(option, hidden_help)] // hide option until we support staging
     pub network: Option<LxNetwork>,
+
+    /// webhook URL for payment notifications. when a payment is finalized
+    /// (completed or failed), the sidecar will POST a JSON payload to this
+    /// URL. (env=`LEXE_WEBHOOK_URL`)
+    #[argh(option)]
+    pub webhook_url: Option<String>,
+
+    /// data directory for persisted state.
+    /// (default=`$CWD/.lexe`, env=`LEXE_DATA_DIR`)
+    #[argh(option)]
+    pub data_dir: Option<PathBuf>,
 }
 
 impl SidecarArgs {
@@ -100,6 +111,8 @@ impl SidecarArgs {
         self.listen_addr.or_env_mut("LISTEN_ADDR")?;
         self.deploy_env.or_env_mut("DEPLOY_ENVIRONMENT")?;
         self.network.or_env_mut("NETWORK")?;
+        self.webhook_url.or_env_mut("LEXE_WEBHOOK_URL")?;
+        self.data_dir.or_env_mut("LEXE_DATA_DIR")?;
         Ok(())
     }
 
