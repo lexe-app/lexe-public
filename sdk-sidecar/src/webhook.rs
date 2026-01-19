@@ -3,8 +3,16 @@
 // TODO(a-mpch): Remove once types are used
 #![allow(dead_code)]
 
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 use std::{
-    borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc, time::Duration,
+    borrow::Cow,
+    collections::HashMap,
+    fs::{self, OpenOptions},
+    io::Write,
+    path::PathBuf,
+    sync::Arc,
+    time::Duration,
 };
 
 use common::{api::user::UserPk, env::DeployEnv, rng::SysRng};
@@ -40,10 +48,13 @@ const MAX_CONCURRENT_API_CALLS: usize = 4;
 /// Maximum number of webhook delivery attempts.
 const MAX_WEBHOOK_ATTEMPTS: u32 = 3;
 
+/// Filename for persisted tracking state.
+const TRACKED_PAYMENTS_FILE: &str = "tracked_payments.json";
+
 /// Configuration for spawning a [`WebhookSender`].
 pub(crate) struct WebhookSenderConfig {
     pub url: Url,
-    pub sidecar_dir: Option<PathBuf>,
+    pub sidecar_dir: PathBuf,
     pub deploy_env: DeployEnv,
     pub gateway_url: Cow<'static, str>,
     pub shutdown: NotifyOnce,
@@ -63,7 +74,7 @@ pub(crate) struct WebhookSender {
     /// HTTP client for webhook delivery.
     http_client: reqwest::Client,
     /// Data directory for persisting tracking state.
-    sidecar_dir: Option<PathBuf>,
+    sidecar_dir: PathBuf,
     /// Gateway URL used to construct [`NodeClient`].
     gateway_url: Cow<'static, str>,
     /// Deploy environment used to construct [`NodeClient`].
@@ -80,7 +91,7 @@ impl WebhookSender {
     ) -> (Self, mpsc::Sender<TrackRequest>) {
         let (tx, rx) = mpsc::channel(TRACK_REQUEST_BUFFER);
 
-        let sender = Self {
+        let mut sender = Self {
             users: HashMap::new(),
             webhook_sender_rx: rx,
             webhook_url: config.url,
@@ -317,12 +328,93 @@ impl WebhookSender {
 
     /// Persist tracking state to disk.
     fn persist_state(&self) {
-        // TODO(a-mpch): Implement persist_state
+        if let Err(e) = self.persist_state_inner() {
+            warn!("Failed to persist tracking state: {e:#}");
+        }
+    }
+
+    fn persist_state_inner(&self) -> anyhow::Result<()> {
+        let state = PersistedTrackingState {
+            users: self
+                .users
+                .iter()
+                .map(|(user_pk, state)| (*user_pk, state.inner.clone()))
+                .collect(),
+        };
+
+        fs::create_dir_all(&self.sidecar_dir)?;
+
+        let path = self.sidecar_dir.join(TRACKED_PAYMENTS_FILE);
+        let json = serde_json::to_string(&state)?;
+
+        let mut opts = OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+
+        #[cfg(unix)]
+        opts.mode(0o600);
+
+        let mut file = opts.open(&path)?;
+        file.write_all(json.as_bytes())?;
+        file.sync_all()?;
+
+        Ok(())
     }
 
     /// Load persisted tracking state from disk.
-    fn load_state(&self) {
-        // TODO(a-mpch): Implement load_state
+    fn load_state(&mut self) {
+        let path = self.sidecar_dir.join(TRACKED_PAYMENTS_FILE);
+
+        if !path.exists() {
+            warn!("No persisted tracking state found");
+            return;
+        }
+
+        let json = match std::fs::read_to_string(&path) {
+            Ok(json) => json,
+            Err(e) => {
+                warn!(?path, "Failed to read tracking state: {e:#}");
+                return;
+            }
+        };
+
+        let state: PersistedTrackingState = match serde_json::from_str(&json) {
+            Ok(state) => state,
+            Err(e) => {
+                warn!(?path, "Failed to deserialize tracking state: {e:#}");
+                return;
+            }
+        };
+
+        // Rebuild NodeClients from persisted credentials
+        for (user_pk, persisted) in state.users {
+            let credentials =
+                Credentials::ClientCredentials(persisted.credentials.clone());
+            let (client_creds, node_client) =
+                match self.build_node_client(&credentials) {
+                    Ok(result) => result,
+                    Err(e) => {
+                        warn!(%user_pk, "Failed to rebuild NodeClient: {e:#}");
+                        continue;
+                    }
+                };
+
+            self.users.insert(
+                user_pk,
+                UserTrackingState {
+                    inner: PersistedUserTrackingState {
+                        credentials: client_creds,
+                        cursor: persisted.cursor,
+                        pending: persisted.pending,
+                    },
+                    node_client,
+                },
+            );
+        }
+
+        info!(
+            num_users = self.users.len(),
+            "Loaded persisted tracking state"
+        );
     }
 
     /// Build a [`NodeClient`] from credentials.
@@ -382,7 +474,7 @@ pub(crate) struct UserTrackingState {
 ///
 /// Note: Only users with [`ClientCredentials`] are be persisted. Users with
 /// `RootSeed` credentials are skipped during persistence.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct PersistedUserTrackingState {
     pub credentials: ClientCredentials,
     /// Cursor for `get_updated_payments`. Initialized from the payment's
