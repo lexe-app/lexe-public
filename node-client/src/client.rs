@@ -33,6 +33,7 @@ use common::{
             GetRevocableClients, RevocableClient, RevocableClients,
             UpdateClientRequest, UpdateClientResponse,
         },
+        user::UserPk,
         version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
     },
     byte_str::ByteStr,
@@ -110,6 +111,8 @@ pub struct NodeClient {
 }
 
 struct NodeClientInner {
+    /// The user's public key, if available from credentials.
+    user_pk: Option<UserPk>,
     gateway_client: GatewayClient,
     /// The [`RestClient`] used to communicate with a Run node.
     ///
@@ -271,12 +274,14 @@ impl NodeClient {
             "proxy connection must be https: gateway url: {gateway_url}",
         );
 
+        let user_pk = credentials.user_pk();
         let authenticator = credentials.bearer_authenticator();
         let tls_config = credentials.tls_config(rng, deploy_env)?;
         let run_rest = ArcSwapOption::from(None);
 
         Ok(Self {
             inner: Arc::new(NodeClientInner {
+                user_pk,
                 gateway_client,
                 run_rest,
                 run_url,
@@ -286,6 +291,14 @@ impl NodeClient {
                 tls_config,
             }),
         })
+    }
+
+    /// Returns the user's public key, if available from the credentials.
+    ///
+    /// Returns `None` if credentials were created before node v0.8.11,
+    /// which didn't include user_pk.
+    pub fn user_pk(&self) -> Option<UserPk> {
+        self.inner.user_pk
     }
 
     /// Get an authenticated [`RunRestClient`] for making requests to the user
