@@ -16,7 +16,7 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
 };
-use node_client::client::NodeClient;
+use node_client::{client::NodeClient, credentials::Credentials};
 use quick_cache::unsync;
 use sdk_core::{
     models::{
@@ -36,9 +36,9 @@ use crate::{
 const CLIENT_CACHE_CAPACITY: usize = 64;
 
 pub(crate) struct RouterState {
-    /// The default [`NodeClient`] created from credentials in env/CLI.
-    /// Used as the default when no per-request credentials are provided.
-    pub default_client: Option<NodeClient>,
+    /// The default [`NodeClient`] and [`Credentials`] from env/CLI.
+    /// Used when no per-request credentials are provided.
+    pub default: Option<(NodeClient, Credentials)>,
     /// Caches `NodeClient`s by their `client_pk`.
     pub client_cache: Mutex<unsync::Cache<ed25519::PublicKey, NodeClient>>,
     pub deploy_env: DeployEnv,
@@ -47,14 +47,14 @@ pub(crate) struct RouterState {
 
 impl RouterState {
     pub fn new(
-        default_client: Option<NodeClient>,
+        default: Option<(NodeClient, Credentials)>,
         deploy_env: DeployEnv,
         gateway_url: Cow<'static, str>,
     ) -> Self {
         let client_cache =
             Mutex::new(unsync::Cache::new(CLIENT_CACHE_CAPACITY));
         Self {
-            default_client,
+            default,
             client_cache,
             deploy_env,
             gateway_url,
@@ -94,7 +94,7 @@ mod sidecar {
             CredentialsExtractor::from_request_parts(&mut parts, &state)
                 .await?;
 
-        let has_default = state.default_client.is_some();
+        let has_default = state.default.is_some();
         let has_request_credentials = maybe_credentials.0.is_some();
 
         let status = if has_default || has_request_credentials {

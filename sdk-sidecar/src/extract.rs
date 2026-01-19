@@ -128,9 +128,9 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
         }
 
         // Fall back to the default client if available, otherwise error.
-        let client = state
-            .default_client
-            .clone()
+        let (client, _credentials) = state
+            .default
+            .as_ref()
             .ok_or(
                 "No client credentials configured. \
                  Set LEXE_CLIENT_CREDENTIALS in env or .env, \
@@ -138,6 +138,6 @@ impl FromRequestParts<Arc<RouterState>> for NodeClientExtractor {
             )
             .map_err(SdkApiError::bad_auth)?;
 
-        Ok(Self(client))
+        Ok(Self(client.clone()))
     }
 }

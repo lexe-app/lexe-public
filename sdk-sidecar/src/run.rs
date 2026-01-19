@@ -72,8 +72,8 @@ impl Sidecar {
         let dev_gateway_url = env::var("DEV_GATEWAY_URL").ok().map(Cow::Owned);
         let gateway_url = deploy_env.gateway_url(dev_gateway_url);
 
-        // Create the default node client if default credentials were provided
-        let default_client = match maybe_credentials {
+        // Create the default node client if default credentials were provided.
+        let default = match maybe_credentials {
             Some(credentials) => {
                 let gateway_client = GatewayClient::new(
                     deploy_env,
@@ -93,14 +93,14 @@ impl Sidecar {
                 )
                 .context("Failed to create node client")?;
 
-                Some(node_client)
+                Some((node_client, credentials))
             }
             None => None,
         };
 
         // Spawn HTTP server
         let router_state = Arc::new(server::RouterState::new(
-            default_client,
+            default,
             deploy_env,
             gateway_url,
         ));
