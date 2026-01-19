@@ -4263,6 +4263,7 @@ dependencies = [
  "axum",
  "common",
  "dotenvy",
+ "futures",
  "http",
  "lexe-api",
  "lexe-std",

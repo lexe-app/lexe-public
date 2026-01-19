@@ -8,9 +8,15 @@ use std::{
 };
 
 use common::{api::user::UserPk, env::DeployEnv, rng::SysRng};
-use lexe_api::types::payments::{
-    LxPaymentId, PaymentCreatedIndex, PaymentUpdatedIndex,
+use lexe_api::{
+    def::AppNodeRunApi,
+    models::command::GetUpdatedPayments,
+    types::payments::{
+        LxPaymentId, PaymentCreatedIndex, PaymentStatus, PaymentUpdatedIndex,
+        VecBasicPaymentV2,
+    },
 };
+use lexe_std::{Apply, backoff};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use node_client::{
     client::{GatewayClient, NodeClient},
@@ -19,7 +25,7 @@ use node_client::{
 use reqwest::Url;
 use sdk_core::types::SdkPayment;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
+use tokio::sync::{Semaphore, mpsc};
 use tracing::{info, info_span, warn};
 
 /// Polling interval for checking payment updates.
@@ -27,6 +33,12 @@ const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Channel buffer size for track requests.
 const TRACK_REQUEST_BUFFER: usize = 64;
+
+/// Maximum concurrent `get_updated_payments` API calls.
+const MAX_CONCURRENT_API_CALLS: usize = 4;
+
+/// Maximum number of webhook delivery attempts.
+const MAX_WEBHOOK_ATTEMPTS: u32 = 3;
 
 /// Configuration for spawning a [`WebhookSender`].
 pub(crate) struct WebhookSenderConfig {
@@ -111,7 +123,7 @@ impl WebhookSender {
                 }
 
                 () = tokio::time::sleep(POLL_INTERVAL) => {
-                    self.poll_all_users().await;
+                    self.poll_all_users_and_send_webhooks().await;
                     self.persist_state();
                 }
             }
@@ -178,8 +190,129 @@ impl WebhookSender {
     }
 
     /// Poll all users for payment updates and send webhooks.
-    async fn poll_all_users(&mut self) {
-        // TODO(a-mpch): Implement poll_all_users
+    async fn poll_all_users_and_send_webhooks(&mut self) {
+        let semaphore = Semaphore::new(MAX_CONCURRENT_API_CALLS);
+
+        let results = self
+            .users
+            .iter()
+            .map(|(user_pk, state)| async {
+                let user_pk = *user_pk;
+                let semaphore = &semaphore;
+                let _permit = match semaphore.acquire().await {
+                    Ok(p) => p,
+                    Err(_) => return None,
+                };
+                let req = GetUpdatedPayments {
+                    start_index: Some(state.inner.cursor),
+                    limit: None,
+                };
+                let result = state.node_client.get_updated_payments(req).await;
+                Some((user_pk, result))
+            })
+            .apply(futures::future::join_all)
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Vec<(UserPk, Result<VecBasicPaymentV2, _>)>>();
+
+        let mut finalized: Vec<(UserPk, SdkPayment)> = Vec::new();
+
+        for (user_pk, result) in results {
+            let payments = match result {
+                Ok(resp) => resp.payments,
+                Err(e) => {
+                    warn!(%user_pk, "Failed to get updated payments: {e:#}");
+                    continue;
+                }
+            };
+
+            let state = self
+                .users
+                .get_mut(&user_pk)
+                .expect("Should always find user_pk");
+
+            for payment in payments {
+                let payment_index = PaymentUpdatedIndex {
+                    updated_at: payment.updated_at,
+                    id: payment.id,
+                };
+                if payment_index > state.inner.cursor {
+                    state.inner.cursor = payment_index;
+                }
+
+                // Check if this payment is one we're tracking
+                if !state.inner.pending.contains(&payment.id) {
+                    continue;
+                }
+
+                // Check if payment is finalized (completed or failed)
+                if payment.status == PaymentStatus::Pending {
+                    continue;
+                }
+
+                // Remove from pending and queue webhook
+                state.inner.pending.retain(|id| *id != payment.id);
+                finalized.push((user_pk, SdkPayment::from(payment)));
+            }
+        }
+
+        // Send all webhooks in parallel
+        finalized
+            .into_iter()
+            .map(|(user_pk, payment)| self.send_webhook(user_pk, payment))
+            .apply(futures::future::join_all)
+            .await;
+
+        // Cleanup users with no pending payments
+        self.users
+            .retain(|_, state| !state.inner.pending.is_empty());
+    }
+
+    /// Send a webhook for a finalized payment with exponential backoff retry.
+    async fn send_webhook(&self, user_pk: UserPk, payment: SdkPayment) {
+        let payment_id = payment.id;
+        let payload = WebhookPayload { user_pk, payment };
+        let mut backoff = backoff::get_backoff_iter();
+
+        for attempt in 1..=MAX_WEBHOOK_ATTEMPTS {
+            let result = self
+                .http_client
+                .post(self.webhook_url.clone())
+                .json(&payload)
+                .send()
+                .await;
+
+            match result {
+                Ok(resp) if resp.status().is_success() => {
+                    info!(
+                        %user_pk, %payment_id, "Webhook delivered successfully"
+                    );
+                    return;
+                }
+                Ok(resp) => warn!(
+                    %user_pk, %payment_id, attempt,
+                    status = %resp.status(),
+                    "Webhook delivery failed with non-success status"
+                ),
+
+                Err(e) => warn!(
+                    %user_pk, %payment_id, attempt,
+                    "Webhook delivery failed: {e:#}"
+                ),
+            }
+
+            if attempt < MAX_WEBHOOK_ATTEMPTS {
+                let delay =
+                    backoff.next().expect("Backoff iterator is infinite");
+                tokio::time::sleep(delay).await;
+            }
+        }
+
+        warn!(
+            %user_pk, %payment_id,
+            "Webhook delivery failed after {MAX_WEBHOOK_ATTEMPTS} attempts"
+        );
     }
 
     /// Persist tracking state to disk.
