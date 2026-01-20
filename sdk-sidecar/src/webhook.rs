@@ -4,10 +4,10 @@
 use std::os::unix::fs::OpenOptionsExt;
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::{self, OpenOptions},
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
@@ -99,8 +99,12 @@ impl WebhookSender {
             .build()
             .expect("reqwest::ClientBuilder::build failed");
 
-        let mut sender = Self {
-            users: HashMap::new(),
+        let sender = Self {
+            users: Self::load_state(
+                &config.sidecar_dir,
+                config.deploy_env,
+                config.gateway_url.clone(),
+            ),
             webhook_sender_rx: rx,
             webhook_url: config.url,
             http_client,
@@ -109,7 +113,6 @@ impl WebhookSender {
             deploy_env: config.deploy_env,
             shutdown: config.shutdown,
         };
-        sender.load_state();
 
         (sender, tx)
     }
@@ -162,22 +165,25 @@ impl WebhookSender {
             id: payment_id,
         };
 
-        let (client_creds, node_client) =
-            match self.build_node_client(&req.credentials) {
-                Ok(result) => result,
-                Err(e) => {
-                    warn!(user_pk = %req.user_pk,
-                        "Failed to build NodeClient: {e:#}"
-                    );
-                    return;
-                }
-            };
+        let (client_creds, node_client) = match Self::build_node_client(
+            &req.credentials,
+            self.deploy_env,
+            self.gateway_url.clone(),
+        ) {
+            Ok(result) => result,
+            Err(e) => {
+                warn!(user_pk = %req.user_pk,
+                    "Failed to build NodeClient: {e:#}"
+                );
+                return;
+            }
+        };
 
         match self.users.get_mut(&req.user_pk) {
             Some(state) => {
                 // User exists: add payment, min-set cursor
                 if !state.inner.pending.contains(&payment_id) {
-                    state.inner.pending.push(payment_id);
+                    state.inner.pending.insert(payment_id);
                 }
 
                 // Min-set the cursor in case we receive the payment finalized
@@ -199,7 +205,7 @@ impl WebhookSender {
                     inner: PersistedUserTrackingState {
                         credentials: client_creds,
                         cursor: new_cursor,
-                        pending: vec![payment_id],
+                        pending: HashSet::from([payment_id]),
                     },
                     node_client,
                 };
@@ -271,7 +277,7 @@ impl WebhookSender {
                 }
 
                 // Remove from pending and queue webhook
-                state.inner.pending.retain(|id| *id != payment.id);
+                state.inner.pending.remove(&payment.id);
                 finalized.push((user_pk, SdkPayment::from(payment)));
             }
         }
@@ -369,19 +375,23 @@ impl WebhookSender {
     }
 
     /// Load persisted tracking state from disk.
-    fn load_state(&mut self) {
-        let path = self.sidecar_dir.join(TRACKED_PAYMENTS_FILE);
+    fn load_state(
+        sidecar_dir: &Path,
+        deploy_env: DeployEnv,
+        gateway_url: Cow<'static, str>,
+    ) -> HashMap<UserPk, UserTrackingState> {
+        let path = sidecar_dir.join(TRACKED_PAYMENTS_FILE);
 
         if !path.exists() {
-            warn!("No persisted tracking state found");
-            return;
+            info!("No persisted tracking state found");
+            return HashMap::new();
         }
 
         let json = match std::fs::read_to_string(&path) {
             Ok(json) => json,
             Err(e) => {
                 warn!(?path, "Failed to read tracking state: {e:#}");
-                return;
+                return HashMap::new();
             }
         };
 
@@ -389,24 +399,29 @@ impl WebhookSender {
             Ok(state) => state,
             Err(e) => {
                 warn!(?path, "Failed to deserialize tracking state: {e:#}");
-                return;
+                return HashMap::new();
             }
         };
+
+        let mut users = HashMap::new();
 
         // Rebuild NodeClients from persisted credentials
         for (user_pk, persisted) in state.users {
             let credentials =
                 Credentials::ClientCredentials(persisted.credentials.clone());
-            let (client_creds, node_client) =
-                match self.build_node_client(&credentials) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        warn!(%user_pk, "Failed to rebuild NodeClient: {e:#}");
-                        continue;
-                    }
-                };
+            let (client_creds, node_client) = match Self::build_node_client(
+                &credentials,
+                deploy_env,
+                gateway_url.clone(),
+            ) {
+                Ok(result) => result,
+                Err(e) => {
+                    warn!(%user_pk, "Failed to rebuild NodeClient: {e:#}");
+                    continue;
+                }
+            };
 
-            self.users.insert(
+            users.insert(
                 user_pk,
                 UserTrackingState {
                     inner: PersistedUserTrackingState {
@@ -419,31 +434,27 @@ impl WebhookSender {
             );
         }
 
-        info!(
-            num_users = self.users.len(),
-            "Loaded persisted tracking state"
-        );
+        info!(num_users = users.len(), "Loaded persisted tracking state");
+        users
     }
 
     /// Build a [`NodeClient`] from credentials.
     fn build_node_client(
-        &self,
         credentials: &Credentials,
+        deploy_env: DeployEnv,
+        gateway_url: Cow<'static, str>,
     ) -> anyhow::Result<(ClientCredentials, NodeClient)> {
         let Credentials::ClientCredentials(client_creds) = credentials else {
             anyhow::bail!("Webhooks don't support RootSeed credentials");
         };
 
-        let gateway_client = GatewayClient::new(
-            self.deploy_env,
-            self.gateway_url.clone(),
-            crate::USER_AGENT,
-        )?;
+        let gateway_client =
+            GatewayClient::new(deploy_env, gateway_url, crate::USER_AGENT)?;
 
         let node_client = NodeClient::new(
             &mut SysRng::new(),
             true, // use_sgx
-            self.deploy_env,
+            deploy_env,
             gateway_client,
             credentials.as_ref(),
         )?;
@@ -489,7 +500,7 @@ pub(crate) struct PersistedUserTrackingState {
     /// `created_at` timestamp.
     pub cursor: PaymentUpdatedIndex,
     /// Payment IDs we're tracking.
-    pub pending: Vec<LxPaymentId>,
+    pub pending: HashSet<LxPaymentId>,
 }
 
 /// Wrapper for JSON persistence of all users' payment tracking state.
