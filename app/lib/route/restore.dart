@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
 import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -27,6 +28,7 @@ import 'package:lexeapp/components.dart'
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 
@@ -691,6 +693,29 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
     return form.isMnemonicWord(word: word);
   }
 
+  Future<void> onPaste() async {
+    final clipboardText = await LxClipboard.getText();
+    if (clipboardText == null || clipboardText.isEmpty) return;
+
+    final result = Result.tryFfi(
+      () => form.parseMnemonicPhrase(raw: clipboardText),
+    );
+
+    switch (result) {
+      case Ok(:final ok):
+        this.mnemonicWords.value = ok;
+        this.textController.clear();
+        this.suggestions.value = [];
+        this.errorMessage.value = null;
+        this.textFocusNode.unfocus();
+      case Err(:final err):
+        this.errorMessage.value = ErrorMessage(
+          title: "Invalid seed phrase",
+          message: err.message,
+        );
+    }
+  }
+
   Future<void> onSubmit() async {
     if (this.isRestoring.value) return;
 
@@ -811,27 +836,66 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
           ),
         ],
         bottom: Padding(
-          padding: const EdgeInsets.only(top: Space.s500),
-          child: ValueListenableBuilder(
-            valueListenable: this.mnemonicWords,
-            builder: (context, mnemonicWords, child) {
-              return ValueListenableBuilder(
-                valueListenable: this.isRestoring,
-                builder: (context, isRestoring, widget) => AnimatedFillButton(
-                  onTap: mnemonicWords.length >= amountWords
-                      ? this.onSubmit
-                      : null,
-                  loading: isRestoring,
-                  label: const Text("Restore"),
-                  icon: const Icon(LxIcons.next),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: LxColors.moneyGoUp,
-                    foregroundColor: LxColors.grey1000,
-                    iconColor: LxColors.grey1000,
+          padding: const EdgeInsets.only(top: Space.s300, bottom: Space.s200),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  // Paste
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: this.onPaste,
+                      child: StackedButton(
+                        button: LxFilledButton(
+                          onTap: this.onPaste,
+                          icon: const Center(child: Icon(LxIcons.paste)),
+                        ),
+                        label: "Paste",
+                      ),
+                    ),
                   ),
-                ),
-              );
-            },
+                  const SizedBox(width: Space.s200),
+                  // Restore ->
+                  Expanded(
+                    child: ValueListenableBuilder(
+                      valueListenable: this.mnemonicWords,
+                      builder: (context, mnemonicWords, child) {
+                        return ValueListenableBuilder(
+                          valueListenable: this.isRestoring,
+                          builder: (context, isRestoring, widget) {
+                            final isEnabled =
+                                mnemonicWords.length >= amountWords &&
+                                !isRestoring;
+
+                            return GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onTap: isEnabled ? this.onSubmit : null,
+                              child: StackedButton(
+                                button: AnimatedFillButton(
+                                  onTap: isEnabled ? this.onSubmit : null,
+                                  loading: isRestoring,
+                                  label: const Icon(LxIcons.next),
+                                  icon: const Icon(null),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: LxColors.moneyGoUp,
+                                    foregroundColor: LxColors.grey1000,
+                                    iconColor: LxColors.grey1000,
+                                  ),
+                                ),
+                                label: "Restore",
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
