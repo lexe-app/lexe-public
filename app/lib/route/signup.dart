@@ -702,9 +702,7 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
   }
 
   void onCopy() {
-    final words = this.seedWords.indexed
-        .map((x) => "${x.$1 + 1}. ${x.$2}")
-        .join(" ");
+    final words = this.seedWords.join(" ");
     unawaited(LxClipboard.copyTextWithFeedback(this.context, words));
   }
 

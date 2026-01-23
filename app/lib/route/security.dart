@@ -214,9 +214,7 @@ class _SeedPhrasePageState extends State<SeedPhrasePage> {
   }
 
   void onCopy() {
-    final words = this.widget.seedPhrase.indexed
-        .map((x) => "${x.$1 + 1}. ${x.$2}")
-        .join(" ");
+    final words = this.widget.seedPhrase.join(" ");
     unawaited(LxClipboard.copyTextWithFeedback(this.context, words));
   }
 
