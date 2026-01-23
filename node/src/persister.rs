@@ -470,11 +470,28 @@ impl NodePersister {
             .context("Failed to decrypt NWC client data")
     }
 
+    /// Read the wallet changeset, if it exists.
     pub(crate) async fn read_wallet_changeset(
         &self,
     ) -> anyhow::Result<Option<ChangeSet>> {
-        let file_id =
-            VfsFileId::new(SINGLETON_DIRECTORY, vfs::WALLET_CHANGESET_FILENAME);
+        self.read_wallet_changeset_inner(vfs::WALLET_CHANGESET_V2_FILENAME)
+            .await
+    }
+
+    /// Read the pre- node-v0.8.12 legacy wallet changeset, if it exists.
+    #[allow(dead_code)] // TODO(phlip9): remove
+    pub(crate) async fn read_wallet_changeset_legacy(
+        &self,
+    ) -> anyhow::Result<Option<ChangeSet>> {
+        self.read_wallet_changeset_inner(vfs::WALLET_CHANGESET_LEGACY_FILENAME)
+            .await
+    }
+
+    async fn read_wallet_changeset_inner(
+        &self,
+        filename: &'static str,
+    ) -> anyhow::Result<Option<ChangeSet>> {
+        let file_id = VfsFileId::new(SINGLETON_DIRECTORY, filename);
 
         let maybe_changeset =
             self.read_bytes(&file_id).await?.and_then(|bytes| {

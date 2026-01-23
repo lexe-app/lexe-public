@@ -75,7 +75,7 @@ use lexe_api::{
         PreflightPayOnchainResponse,
     },
     types::payments::PaymentKind,
-    vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_FILENAME},
+    vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_V2_FILENAME},
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use rand::RngCore;
@@ -1194,7 +1194,7 @@ async fn do_wallet_persist<PS: LexePersister>(
         locked_changeset.merge(new_changes);
 
         let file_id =
-            VfsFileId::new(SINGLETON_DIRECTORY, WALLET_CHANGESET_FILENAME);
+            VfsFileId::new(SINGLETON_DIRECTORY, WALLET_CHANGESET_V2_FILENAME);
         persister.encrypt_json(file_id, &*locked_changeset)
     };
 
