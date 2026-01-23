@@ -195,9 +195,20 @@ pub fn any_duration() -> impl Strategy<Value = Duration> {
         .prop_map(|(secs, nanos)| Duration::new(secs, nanos))
 }
 
+/// An `Arbitrary`-like [`Strategy`] for [`Duration`]s with second-level
+/// precision (no sub-second component).
+pub fn any_duration_secs() -> impl Strategy<Value = Duration> {
+    any::<u64>().prop_map(Duration::from_secs)
+}
+
 /// An [`Option`] version of [`any_duration`] that works inside SGX.
 pub fn any_option_duration() -> impl Strategy<Value = Option<Duration>> {
     option::of(any_duration())
+}
+
+/// An [`Option`] version of [`any_duration_secs`].
+pub fn any_option_duration_secs() -> impl Strategy<Value = Option<Duration>> {
+    option::of(any_duration_secs())
 }
 
 // --- General --- //

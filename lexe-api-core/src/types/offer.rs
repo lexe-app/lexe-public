@@ -469,7 +469,8 @@ mod arb {
             let any_is_blinded = any::<bool>();
             let any_description = arbitrary::any_option_string();
             let any_amount = any::<Option<Amount>>();
-            let any_expiry = arbitrary::any_option_duration();
+            // BOLT12 offers only support second-level precision for expiry
+            let any_expiry = arbitrary::any_option_duration_secs();
             let any_issuer = any_option_string();
             let any_max_quantity = any::<MaxQuantity>();
             let any_paths = proptest::collection::vec(any_path(), 0..3);
