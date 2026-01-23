@@ -21,6 +21,11 @@
 //! any staged changes are persisted, but this should be OK because all data in
 //! the [`ChangeSet`] can be re-derived with a full sync
 //!
+//! NOTE: a key design requirement is that we should be able to recover all BDK
+//! on-chain wallet funds from just the [`RootSeed`]. In other words, if we blow
+//! away the persisted [`ChangeSet`]s for all on-chain BDK wallets, we can still
+//! recover all funds by full-syncing.
+//!
 //! [`Serialize`]: serde::Serialize
 //! [`Deserialize`]: serde::Deserialize
 //! [`ChangeSet`]: bdk_wallet::ChangeSet
@@ -187,8 +192,6 @@ impl OnchainWallet {
                 .full_sync(esplora)
                 .await
                 .context("Failed to conduct initial full sync")?;
-        } else {
-            lexe_wallet.trigger_persist();
         }
 
         Ok(lexe_wallet)
