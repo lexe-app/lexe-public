@@ -42,9 +42,6 @@ pub fn is_mnemonic_word(word: &str) -> bool {
 /// or an error with a user-friendly message.
 ///
 /// flutter_rust_bridge:sync
-// TODO(a-mpch): Remove `allow(dead_code)` once FFI codegen exposes this
-// function.
-#[allow(dead_code)]
 pub fn parse_mnemonic_phrase(raw: String) -> anyhow::Result<Vec<String>> {
     let lang = bip39::Language::English;
     let is_number = |t: &str| t.trim_end_matches('.').parse::<u32>().is_ok();

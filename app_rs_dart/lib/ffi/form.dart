@@ -34,3 +34,12 @@ List<String> suggestMnemonicWords({
 /// flutter_rust_bridge:sync
 bool isMnemonicWord({required String word}) =>
     AppRs.instance.api.crateFfiFormIsMnemonicWord(word: word);
+
+/// Parse a raw mnemonic phrase from clipboard text.
+///
+/// Returns `Ok(Vec<String>)` with exactly 24 valid BIP-39 words,
+/// or an error with a user-friendly message.
+///
+/// flutter_rust_bridge:sync
+List<String> parseMnemonicPhrase({required String raw}) =>
+    AppRs.instance.api.crateFfiFormParseMnemonicPhrase(raw: raw);
