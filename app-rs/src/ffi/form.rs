@@ -47,18 +47,22 @@ pub fn parse_mnemonic_phrase(raw: String) -> anyhow::Result<Vec<String>> {
     let is_number = |t: &str| t.trim_end_matches('.').parse::<u32>().is_ok();
 
     // Preprocess: filter out numbered prefixes, normalize to lowercase.
-    let preprocessed = raw
+    let words = raw
         .split_whitespace()
         .filter(|t| !is_number(t))
         .map(|t| t.trim_end_matches('.').to_lowercase())
-        .collect::<Vec<_>>()
-        .join(" ");
+        .collect::<Vec<_>>();
 
-    // Parse and validate (word count, valid words, checksum).
-    let mnemonic = bip39::Mnemonic::parse_in_normalized(lang, &preprocessed)
+    anyhow::ensure!(
+        words.len() == 24,
+        "seed phrase must have exactly 24 words"
+    );
+
+    // Validate words and checksum.
+    let _ = bip39::Mnemonic::parse_in_normalized(lang, &words.join(" "))
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    Ok(mnemonic.words().map(|w| w.to_owned()).collect())
+    Ok(words)
 }
 
 #[cfg(test)]
@@ -104,10 +108,16 @@ mod test {
 
     #[test]
     fn error_invalid_input() {
-        // Invalid word count (5 words is not a valid BIP-39 length).
+        // Wrong word count.
         let err =
             parse_mnemonic_phrase(VALID_WORDS[0..5].join(" ")).unwrap_err();
-        assert!(err.to_string().contains("invalid"));
+        assert!(err.to_string().contains("24 words"));
+
+        // Valid 12-word mnemonic rejected (we require exactly 24).
+        let twelve = "abandon abandon abandon abandon abandon abandon \
+                      abandon abandon abandon abandon abandon about";
+        let err = parse_mnemonic_phrase(twelve.to_owned()).unwrap_err();
+        assert!(err.to_string().contains("24 words"));
 
         // Invalid word.
         let mut words = VALID_WORDS.to_vec();
