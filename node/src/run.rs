@@ -60,7 +60,7 @@ use lexe_ln::{
     sync::{self, BdkSyncRequest},
     test_event,
     tx_broadcaster::TxBroadcaster,
-    wallet::{self, LexeCoinSelector, OnchainWallet},
+    wallet::{self, LexeCoinSelector, LexeKeychain, OnchainWallet},
 };
 use lexe_std::{Apply, const_assert};
 use lexe_tls::shared_seed::certs::{
@@ -440,6 +440,7 @@ impl UserNode {
         let wallet = OnchainWallet::init(
             &root_seed,
             network,
+            LexeKeychain::Bip39,
             &esplora,
             fee_estimates.clone(),
             coin_selector,

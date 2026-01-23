@@ -55,7 +55,7 @@ use bdk_wallet::{
     coin_selection::{
         CoinSelectionAlgorithm, CoinSelectionResult, InsufficientFunds,
     },
-    template::{Bip84, DescriptorTemplate},
+    template::Bip84,
 };
 use bitcoin::{Psbt, Transaction};
 #[cfg(test)]
@@ -116,6 +116,21 @@ const BDK_LOOKAHEAD: u32 = 1;
 const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
     ConfirmationPriority::Normal;
 
+/// Controls which key derivation method to use for the wallet.
+#[derive(Clone, Copy, Debug)]
+pub enum LexeKeychain {
+    /// BIP39-compatible derivation (new wallets, node >= v0.8.12).
+    ///
+    /// Converts the [`RootSeed`] to a BIP39 mnemonic, then derives the master
+    /// xprv using the standard BIP39 PBKDF2 key stretching.
+    Bip39,
+    /// Legacy derivation (existing wallets before v0.8.12).
+    ///
+    /// Feeds the [`RootSeed`] bytes directly into BIP32 master key derivation.
+    /// Non-standard but maintained for backward compatibility.
+    Legacy,
+}
+
 /// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
 pub struct OnchainWallet {
@@ -172,6 +187,7 @@ impl OnchainWallet {
     pub async fn init(
         root_seed: &RootSeed,
         network: LxNetwork,
+        keychain: LexeKeychain,
         esplora: &LexeEsplora,
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
@@ -181,6 +197,7 @@ impl OnchainWallet {
         let (lexe_wallet, wallet_created) = Self::new(
             root_seed,
             network,
+            keychain,
             fee_estimates,
             coin_selector,
             maybe_changeset,
@@ -200,6 +217,7 @@ impl OnchainWallet {
     fn new(
         root_seed: &RootSeed,
         network: LxNetwork,
+        keychain: LexeKeychain,
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
@@ -207,38 +225,10 @@ impl OnchainWallet {
     ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
 
-        // Determine which master xprv to use:
-        // - Legacy (RootSeed directly into BIP32) for existing legacy wallets
-        // - BIP39-compatible derivation for new wallets and existing wallets
-        //   created from node-v0.8.12 onwards.
-        //
-        // TODO(phlip9): when BDK wallet supports multiple keychains per wallet
-        // <https://github.com/bitcoindevkit/bdk_wallet/pull/318>, we can
-        // upgrade existing legacy wallets so they use the BIP39-compatible
-        // descriptors for all new addresses.
-        let master_xprv = {
-            let maybe_changeset_desc = maybe_changeset
-                .as_ref()
-                .and_then(|cs| cs.descriptor.as_ref());
-            match maybe_changeset_desc {
-                Some(changeset_desc) => {
-                    let legacy_xprv =
-                        root_seed.derive_legacy_master_xprv(network);
-                    let (legacy_desc, _keymap, _networks) =
-                        Bip84(legacy_xprv, KeychainKind::External)
-                            .build(network)
-                            .expect("Bip84 template build should never fail");
-                    // Existing wallet using legacy derivation -> legacy xprv
-                    if changeset_desc == &legacy_desc {
-                        legacy_xprv
-                    } else {
-                        // Existing wallet w/ BIP39 derivation -> BIP32 xprv
-                        root_seed.derive_bip32_master_xprv(network)
-                    }
-                }
-                // No changeset or descriptor -> new wallet -> BIP32 xprv
-                None => root_seed.derive_bip32_master_xprv(network),
-            }
+        let master_xprv = match keychain {
+            LexeKeychain::Bip39 => root_seed.derive_bip32_master_xprv(network),
+            LexeKeychain::Legacy =>
+                root_seed.derive_legacy_master_xprv(network),
         };
 
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
@@ -349,6 +339,7 @@ impl OnchainWallet {
     #[cfg(test)]
     pub(crate) fn dummy(
         root_seed: &RootSeed,
+        keychain: LexeKeychain,
         maybe_changeset: Option<ChangeSet>,
     ) -> Self {
         let fee_estimates = FeeEstimates::dummy();
@@ -358,6 +349,7 @@ impl OnchainWallet {
         let (wallet, _wallet_created) = OnchainWallet::new(
             root_seed,
             network,
+            keychain,
             fee_estimates,
             coin_selector,
             maybe_changeset,
@@ -1615,7 +1607,11 @@ mod test {
         fn new(seed: u64) -> Self {
             let root_seed = RootSeed::from_u64(seed);
             let maybe_changeset = None;
-            let wallet = OnchainWallet::dummy(&root_seed, maybe_changeset);
+            let wallet = OnchainWallet::dummy(
+                &root_seed,
+                LexeKeychain::Bip39,
+                maybe_changeset,
+            );
             let network = LxNetwork::Regtest;
 
             // Add some initial confirmed blocks
@@ -1771,7 +1767,11 @@ mod test {
                 changeset.merge(update);
             }
 
-            let wallet = OnchainWallet::dummy(&self.root_seed, Some(changeset));
+            let wallet = OnchainWallet::dummy(
+                &self.root_seed,
+                LexeKeychain::Bip39,
+                Some(changeset),
+            );
             assert!(wallet.read().have_unused_spk(KeychainKind::External));
             assert!(wallet.read().have_unused_spk(KeychainKind::Internal));
         }
@@ -2478,7 +2478,11 @@ mod test {
 
         // Verify we can load the wallet from this changeset
         let root_seed = RootSeed::from_u64(20260117);
-        let wallet = OnchainWallet::dummy(&root_seed, Some(changeset));
+        let wallet = OnchainWallet::dummy(
+            &root_seed,
+            LexeKeychain::Legacy,
+            Some(changeset),
+        );
 
         // Sanity checks: 100k external + 50k internal = 150k total
         let balance = wallet.read().balance();
@@ -2495,7 +2499,11 @@ mod test {
 
         // Verify we can load the wallet from this changeset
         let root_seed = RootSeed::from_u64(20260117);
-        let wallet = OnchainWallet::dummy(&root_seed, Some(changeset));
+        let wallet = OnchainWallet::dummy(
+            &root_seed,
+            LexeKeychain::Bip39,
+            Some(changeset),
+        );
 
         // Sanity checks: 100k external + 50k internal = 150k total
         let balance = wallet.read().balance();

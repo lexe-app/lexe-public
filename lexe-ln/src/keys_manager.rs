@@ -281,6 +281,7 @@ mod test {
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
+    use crate::wallet::LexeKeychain;
 
     /// Tests that [`RootSeed::derive_node_pk`] generates the same [`NodePk`]
     /// that [`KeysManager::get_node_id`] does.
@@ -317,12 +318,14 @@ mod test {
         )| {
             // Create users 1 and 2
             let maybe_changeset = None;
-            let wallet1 = OnchainWallet::dummy(&root_seed1, maybe_changeset);
+            let wallet1 =
+                OnchainWallet::dummy(&root_seed1, LexeKeychain::Bip39, maybe_changeset);
             let keys_manager1 =
                 LexeKeysManager::new(&mut rng, &root_seed1, wallet1).unwrap();
             let node_pk1 = keys_manager1.node_pk();
             let maybe_changeset = None;
-            let wallet2 = OnchainWallet::dummy(&root_seed2, maybe_changeset);
+            let wallet2 =
+                OnchainWallet::dummy(&root_seed2, LexeKeychain::Bip39, maybe_changeset);
             let keys_manager2 =
                 LexeKeysManager::new(&mut rng, &root_seed2, wallet2).unwrap();
 
