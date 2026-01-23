@@ -43,6 +43,7 @@ bdk_chain.workspace = true
 bdk_esplora.workspace = true
 bech32.workspace = true
 bitcoin.workspace = true
+bytes.workspace = true
 cfg-if.workspace = true
 either.workspace = true
 esplora-client.workspace = true

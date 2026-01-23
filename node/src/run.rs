@@ -53,6 +53,7 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     message_router::LexeMessageRouter,
+    migrations::Migrations,
     payments::manager::PaymentsManager,
     persister::LexePersisterMethods,
     route::LexeRouter,
@@ -328,6 +329,10 @@ impl UserNode {
             shutdown.clone(),
         ));
 
+        // Read initial applied migrations
+        // TODO(phlip9): fetch migrations concurrently in main fetch block
+        let initial_migrations = Migrations::read(&*persister).await?;
+
         // A future which reads the approved versions list
         let read_maybe_approved_versions = persister::read_approved_versions(
             &backend_api,
@@ -339,7 +344,7 @@ impl UserNode {
         let pending_payments_fut = async {
             // But first, migrate to payments v2 if needed
             persister
-                .migrate_to_payments_v2()
+                .migrate_to_payments_v2(&initial_migrations)
                 .await
                 .context("payments_v2 migration failed")?;
 

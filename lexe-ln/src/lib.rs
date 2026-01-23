@@ -41,6 +41,8 @@ pub mod keys_manager;
 pub mod logger;
 /// Route onion messages. Create blinded paths to self.
 pub mod message_router;
+/// Node/LSP VFS migrations.
+pub mod migrations;
 /// Shared functionality relating to LN P2P.
 pub mod p2p;
 /// Payments types.

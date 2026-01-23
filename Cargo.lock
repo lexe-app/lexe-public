@@ -2650,6 +2650,7 @@ dependencies = [
  "bdk_wallet",
  "bech32",
  "bitcoin",
+ "bytes",
  "cfg-if 1.0.4",
  "common",
  "either",

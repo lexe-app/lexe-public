@@ -23,11 +23,12 @@ use lexe_api::{
 use lexe_std::fmt::DisplayOption;
 use lightning::{events::Event, util::ser::Writeable};
 use serde::{Serialize, de::DeserializeOwned};
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
     event::EventId,
+    migrations::{self, Migrations},
     payments::{
         PaymentMetadata, PaymentV2, PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
@@ -576,15 +577,12 @@ pub trait LexePersisterMethods: Vfs {
     /// Idempotent: Creates a marker file at `migrations/payments_v2` once
     /// complete, and skips the migration if the marker file already exists.
     #[tracing::instrument(skip_all, name = "(migrate-payments-v2)")]
-    async fn migrate_to_payments_v2(&self) -> anyhow::Result<()> {
-        const PAYMENTS_V2_MARKER: &str = "payments_v2";
-
-        let marker_file_id =
-            VfsFileId::new(vfs::MIGRATIONS_DIR, PAYMENTS_V2_MARKER);
-
+    async fn migrate_to_payments_v2(
+        &self,
+        initial_migrations: &Migrations,
+    ) -> anyhow::Result<()> {
         // Check if migration has already run
-        if self.read_file(&marker_file_id).await?.is_some() {
-            debug!("Skipping payments_v2 migration: marker exists");
+        if initial_migrations.is_applied(migrations::MARKER_PAYMENTS_V2) {
             return Ok(());
         }
 
@@ -680,12 +678,7 @@ pub trait LexePersisterMethods: Vfs {
         }
 
         // Persist marker file (empty file)
-        let retries = 1;
-        let marker_file = VfsFile {
-            id: marker_file_id,
-            data: Vec::new(),
-        };
-        self.persist_file(marker_file, retries).await?;
+        Migrations::mark_applied(self, migrations::MARKER_PAYMENTS_V2).await?;
 
         info!(
             "Migration complete: \
