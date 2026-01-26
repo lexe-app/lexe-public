@@ -754,6 +754,28 @@ impl LxOutboundPaymentFailure {
             Self::Unknown => "unknown error, app is likely out-of-date",
         }
     }
+
+    /// Returns `true` if this failure is permanent and should not be retried.
+    pub fn is_permanent(&self) -> bool {
+        match self {
+            Self::Rejected => true,
+            Self::Abandoned => true,
+            Self::Expired => true,
+            Self::InvoiceRequestExpired => true,
+            Self::InvoiceRequestRejected => true,
+            Self::MetadataTooLarge => true,
+            Self::UnknownFeatures => true,
+            Self::InvalidOffer => true,
+            // LDK's `RetriesExhausted` maps here. Since we manage retries
+            // with send_payment_with_route, we should continue retrying
+            // if we have attempts remaining.
+            Self::NoRetries => false,
+            Self::NoRoute => false,
+            Self::BlindedPathCreationFailed => false,
+            Self::LexeErr => false,
+            Self::Unknown => false,
+        }
+    }
 }
 
 impl From<PaymentFailureReason> for LxOutboundPaymentFailure {

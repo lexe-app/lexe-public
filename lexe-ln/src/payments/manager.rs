@@ -792,6 +792,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check in-memory retry state to decide whether to retry or fail.
         if let Some(state) = locked_data.get_in_flight(&id)
+            && !failure.is_permanent()
             && state.attempts_count < state.max_attempts
             && self.retry_tx.try_send(id).is_ok()
         {
