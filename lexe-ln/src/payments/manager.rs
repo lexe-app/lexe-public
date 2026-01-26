@@ -26,7 +26,10 @@ use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(doc)]
 use lightning::events::Event::PaymentFailed;
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
-use tokio::{sync::MutexGuard, time::Instant};
+use tokio::{
+    sync::{MutexGuard, mpsc},
+    time::Instant,
+};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
@@ -53,6 +56,8 @@ const PAYMENT_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const PAYMENT_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
 const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
+/// Channel capacity for the retry task mpsc channel.
+const RETRY_CHANNEL_CAPACITY: usize = 32;
 
 /// Annotates that a given [`PaymentV2`] was returned by a `check_*` method
 /// which successfully validated a proposed state transition.
@@ -90,6 +95,7 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
     persister: PS,
     channel_manager: CM,
     test_event_tx: TestEventSender,
+    retry_tx: mpsc::Sender<LxPaymentId>,
 }
 
 /// The main payments state machine, exposing private methods available only to
@@ -155,7 +161,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
-    ) -> (Self, [LxTask<()>; 3]) {
+    ) -> (Self, [LxTask<()>; 4]) {
         let pending = pending_payments
             .into_iter()
             // Check that payments are indeed pending before adding to hashmap
@@ -183,10 +189,13 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             in_flight: HashMap::new(),
         }));
 
+        let (retry_tx, retry_rx) = mpsc::channel(RETRY_CHANNEL_CAPACITY);
+
         let myself = Self {
             data,
             persister,
             channel_manager,
+            retry_tx,
             test_event_tx,
         };
 
@@ -196,8 +205,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             myself.spawn_onchain_recv_checker(
                 wallet,
                 onchain_recv_rx,
-                shutdown,
+                shutdown.clone(),
             ),
+            myself.spawn_payment_retry_task(retry_rx, shutdown),
         ];
 
         (myself, payments_tasks)
@@ -306,6 +316,39 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 }
 
                 info!("Onchain receive checker task shutting down");
+            },
+        )
+    }
+
+    /// Spawns a task that handles payment retries.
+    ///
+    /// When a payment fails but has retries remaining, its ID is sent to
+    /// `retry_rx`. This task receives those IDs and attempts retries.
+    fn spawn_payment_retry_task(
+        &self,
+        mut retry_rx: mpsc::Receiver<LxPaymentId>,
+        mut shutdown: NotifyOnce,
+    ) -> LxTask<()> {
+        let _payman = self.clone();
+        LxTask::spawn_with_span(
+            "payment retry task",
+            info_span!("(payment-retry-task)"),
+            async move {
+                loop {
+                    let maybe_id = tokio::select! {
+                        id = retry_rx.recv() => id,
+                        () = shutdown.recv() => break,
+                    };
+
+                    let Some(_id) = maybe_id else {
+                        // Channel closed, all senders dropped
+                        break;
+                    };
+
+                    // TODO(a-mpch): Implement retry_payment(id)
+                }
+
+                info!("Payment retry task shutting down");
             },
         )
     }
@@ -746,6 +789,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             //              we don't need to do anything.
             return Ok(());
         }
+
+        // Check in-memory retry state to decide whether to retry or fail.
+        if let Some(state) = locked_data.get_in_flight(&id)
+            && state.attempts_count < state.max_attempts
+            && self.retry_tx.try_send(id).is_ok()
+        {
+            return Ok(());
+        }
+
+        // No in-flight state or max retries exceeded: persist as Failed.
+        locked_data.remove_in_flight(&id);
 
         // Check
         let checked = locked_data
