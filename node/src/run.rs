@@ -700,6 +700,7 @@ impl UserNode {
         let (payments_manager, payments_tasks) = PaymentsManager::new(
             persister.clone(),
             channel_manager.clone(),
+            router.clone(),
             finalized_cache_capacity,
             esplora.clone(),
             pending_payments,

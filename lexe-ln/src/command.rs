@@ -69,7 +69,7 @@ use lightning::{
         msgs::RoutingMessageHandler,
         types::ChannelId,
     },
-    routing::{gossip::NodeId, router::RouteParameters},
+    routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
     types::payment::PaymentHash,
     util::config::UserConfig,
@@ -87,10 +87,11 @@ use crate::{
     payments::{
         PaymentWithMetadata,
         inbound::InboundInvoicePaymentV2,
-        manager::PaymentsManager,
+        manager::{PaymentsManager, recipient_onion_fields},
         outbound::{
-            LxOutboundPaymentFailure, OUTBOUND_PAYMENT_RETRY_STRATEGY,
-            OutboundInvoicePaymentV2, OutboundOfferPaymentV2,
+            DEFAULT_MAX_RETRY_ATTEMPTS, LxOutboundPaymentFailure,
+            OUTBOUND_PAYMENT_RETRY_STRATEGY, OutboundInvoicePaymentV2,
+            OutboundOfferPaymentV2,
         },
     },
     route::{self, LastHopHint, RoutingContext},
@@ -910,7 +911,7 @@ where
     // Pre-flight the invoice payment (verify and route).
     let PreflightedPayInvoice {
         oipwm,
-        route_params,
+        ldk_route,
         recipient_fields,
         ..
     } = preflight_pay_invoice_inner(
@@ -925,6 +926,15 @@ where
     .await?;
     let hash = oipwm.payment.hash;
     let id = oipwm.payment.id();
+    let amount = oipwm.payment.amount;
+
+    // Extract invoice for retry state. For outbound invoice payments, the
+    // invoice should always be present in metadata.
+    let invoice = oipwm
+        .metadata
+        .invoice
+        .clone()
+        .expect("Outbound invoice payment must have invoice in metadata");
 
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
@@ -943,22 +953,31 @@ where
     // Maybe we can check `channel_manager.list_recent_payments()` sometime
     // after startup to see if we have any `Pending` or `Abandoning` LN payments
     // that aren't tracked by the CM?
+    //
+    // With send_payment_with_route, we track in-flight state in-memory.
+    // Handle crash scenario where payment is in-flight but status is `Pending`.
 
     // NOTE(phlip9): we rely on `payment_id == payment_hash` to disambiguate
     // invoice/spontaneous payments from offer payments.
     let payment_id = PaymentId::from(hash);
 
-    // Send the payment, letting LDK handle payment retries, and match on the
-    // result, registering a failure with the payments manager if appropriate.
-    match channel_manager.send_payment(
+    // Send the payment using send_payment_with_route (Lexe manages retries).
+    match channel_manager.send_payment_with_route(
+        ldk_route,
         PaymentHash::from(hash),
         recipient_fields,
         payment_id,
-        route_params,
-        OUTBOUND_PAYMENT_RETRY_STRATEGY,
     ) {
         Ok(()) => {
-            info!(%hash, "Success: OIP initiated immediately");
+            payments_manager
+                .start_in_flight(
+                    id,
+                    DEFAULT_MAX_RETRY_ATTEMPTS,
+                    invoice,
+                    amount,
+                )
+                .await;
+            info!(%hash, "Success: OIP initiated with Lexe-managed retries");
             Ok(PayInvoiceResponse { created_at })
         }
         Err(RetryableSendFailure::DuplicatePayment) => {
@@ -1037,7 +1056,7 @@ where
     Ok(PreflightPayInvoiceResponse {
         amount: preflight.oipwm.payment.amount,
         fees: preflight.oipwm.payment.routing_fee,
-        route: preflight.route,
+        route: preflight.lx_route,
     })
 }
 
@@ -1293,8 +1312,10 @@ pub fn preflight_pay_onchain(
 // validating and routing a BOLT11 invoice, without actually paying yet.
 struct PreflightedPayInvoice {
     oipwm: PaymentWithMetadata<OutboundInvoicePaymentV2>,
-    route: LxRoute,
-    route_params: RouteParameters,
+    /// The raw LDK route, needed for `send_payment_with_route`.
+    ldk_route: Route,
+    /// The Lexe route wrapper with node alias annotations.
+    lx_route: LxRoute,
     recipient_fields: RecipientOnionFields,
 }
 
@@ -1356,6 +1377,8 @@ where
     let payment_params = route::build_payment_params(
         Either::Right(&invoice),
         Some(num_usable_channels),
+        // For initial sends, we don't have any failed channels to avoid.
+        Vec::new(),
     )
     .context("Couldn't build payment parameters")?;
 
@@ -1373,7 +1396,7 @@ where
     .await?;
 
     // Try to find a Route with the full intended amount.
-    let (route, route_params) = validate::can_route_amount(
+    let (ldk_route, lx_route) = validate::can_route_amount(
         router,
         network_graph,
         &routing_context,
@@ -1381,20 +1404,19 @@ where
     )
     .await?;
 
-    let payment_secret = invoice.payment_secret().into();
-    let recipient_fields = RecipientOnionFields::secret_only(payment_secret);
+    let recipient_fields = recipient_onion_fields(&invoice);
 
     let kind = PaymentKind::Invoice;
-    let amount = route.amount();
-    let fees = route.fees();
+    let amount = lx_route.amount();
+    let fees = lx_route.fees();
     let oipwm =
         OutboundInvoicePaymentV2::new(invoice, kind, amount, fees, req.note)
             .context("Failed to create payment")?;
 
     Ok(PreflightedPayInvoice {
         oipwm,
-        route,
-        route_params,
+        ldk_route,
+        lx_route,
         recipient_fields,
     })
 }
@@ -1477,6 +1499,8 @@ where
     let payment_params = route::build_payment_params(
         Either::Left(route_target),
         Some(num_usable_channels),
+        // For initial sends, we don't have any failed channels to avoid.
+        Vec::new(),
     )
     .context("Couldn't build payment parameters")?;
 
@@ -1496,7 +1520,7 @@ where
     // Try to find a Route with the full intended amount (well, to the first
     // publicly routable node so this will underestimate the route cost by
     // whatever the blinded hops charge).
-    let (route, _route_params) = validate::can_route_amount(
+    let (_ldk_route, lx_route) = validate::can_route_amount(
         router,
         network_graph,
         &routing_context,
@@ -1504,8 +1528,8 @@ where
     )
     .await?;
 
-    let amount = route.amount();
-    let routing_fee = route.fees();
+    let amount = lx_route.amount();
+    let routing_fee = lx_route.fees();
     let kind = PaymentKind::Offer;
 
     // TODO(max): Include these fields in `PayOfferRequest`
@@ -1525,7 +1549,10 @@ where
     )
     .context("Failed to create payment")?;
 
-    Ok(PreflightedPayOffer { oopwm, route })
+    Ok(PreflightedPayOffer {
+        oopwm,
+        route: lx_route,
+    })
 }
 
 /// Payments preflight validation helpers.
@@ -1656,10 +1683,10 @@ mod validate {
         network_graph: &NetworkGraphType,
         routing_context: &RoutingContext,
         amount: Amount,
-    ) -> anyhow::Result<(LxRoute, RouteParameters)> {
+    ) -> anyhow::Result<(Route, LxRoute)> {
         let route_result = routing_context.find_route(router, amount);
-        let (route, route_params) = match route_result {
-            Ok((r, p)) => (r, p),
+        let route = match route_result {
+            Ok((route, _route_params)) => route,
             // This error is just "Failed to find a path to the given
             // destination", which is not helpful, so we don't include it in our
             // error message.
@@ -1704,10 +1731,10 @@ mod validate {
             }
         };
 
-        let route = LxRoute::from_ldk(route, network_graph);
+        let lx_route = LxRoute::from_ldk(route.clone(), network_graph);
         // TODO(max): Don't log for privacy; instead, expose in app.
-        info!("Preflighted route: {route}");
-        Ok((route, route_params))
+        info!("Preflighted route: {lx_route}");
+        Ok((route, lx_route))
     }
 }
 

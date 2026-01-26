@@ -429,6 +429,7 @@ impl RoutingContext {
 pub fn build_payment_params(
     payee_pk_or_invoice: Either<NodePk, &LxInvoice>,
     num_usable_channels: Option<usize>,
+    previously_failed_channels: Vec<u64>,
 ) -> anyhow::Result<PaymentParameters> {
     let maybe_invoice = payee_pk_or_invoice.right();
 
@@ -502,7 +503,7 @@ pub fn build_payment_params(
 
         // Everything else uses LDK defaults.
         max_path_length: MAX_PATH_LENGTH_ESTIMATE,
-        previously_failed_channels: Vec::new(),
+        previously_failed_channels,
         previously_failed_blinded_path_idxs: Vec::new(),
     })
 }
