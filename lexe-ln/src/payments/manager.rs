@@ -122,8 +122,6 @@ struct PaymentsData {
     finalized_payments_cache:
         quick_cache::unsync::Cache<LxPaymentId, PaymentWithMetadata>,
     /// In-memory retry state for outbound payments currently in-flight.
-    // TODO(a-mpch): Remove #[allow(dead_code)] once retry logic is implemented
-    #[allow(dead_code)]
     in_flight: HashMap<LxPaymentId, InFlightRetryState>,
 }
 
@@ -1070,6 +1068,40 @@ impl PaymentsData {
             assert!(!self.pending.contains_key(id));
             pwm.payment.debug_assert_invariants();
         }
+    }
+
+    // --- In-flight retry state management ---
+    // TODO(a-mpch): Remove #[allow(dead_code)] once retry logic is wired
+    // through
+
+    /// Store retry state when a payment starts.
+    #[allow(dead_code)]
+    fn start_in_flight(&mut self, id: LxPaymentId, state: InFlightRetryState) {
+        self.in_flight.insert(id, state);
+    }
+
+    /// Get a reference to the in-flight retry state for a payment.
+    #[allow(dead_code)]
+    fn get_in_flight(&self, id: &LxPaymentId) -> Option<&InFlightRetryState> {
+        self.in_flight.get(id)
+    }
+
+    /// Get a mutable reference to the in-flight retry state for a payment.
+    #[allow(dead_code)]
+    fn get_in_flight_mut(
+        &mut self,
+        id: &LxPaymentId,
+    ) -> Option<&mut InFlightRetryState> {
+        self.in_flight.get_mut(id)
+    }
+
+    /// Remove and return the in-flight retry state for a payment.
+    #[allow(dead_code)]
+    fn remove_in_flight(
+        &mut self,
+        id: &LxPaymentId,
+    ) -> Option<InFlightRetryState> {
+        self.in_flight.remove(id)
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
