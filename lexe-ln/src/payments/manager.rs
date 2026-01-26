@@ -791,9 +791,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         }
 
         // Check in-memory retry state to decide whether to retry or fail.
-        if let Some(state) = locked_data.get_in_flight(&id)
-            && !failure.is_permanent()
-            && state.attempts_count < state.max_attempts
+        if locked_data.should_retry(&id, &failure)
             && self.retry_tx.try_send(id).is_ok()
         {
             return Ok(());
@@ -1186,6 +1184,18 @@ impl PaymentsData {
             return;
         };
         state.failed_channel_scids.insert(scid);
+    }
+
+    /// Determines whether a failed payment should be retried.
+    fn should_retry(
+        &self,
+        id: &LxPaymentId,
+        failure: &LxOutboundPaymentFailure,
+    ) -> bool {
+        let Some(state) = self.get_in_flight(id) else {
+            return false;
+        };
+        !failure.is_permanent() && state.attempts_count < state.max_attempts
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
@@ -1937,5 +1947,48 @@ mod test {
             let expected: HashSet<u64> = scids.into_iter().collect();
             assert_eq!(state.failed_channel_scids, expected);
         });
+    }
+
+    #[test]
+    fn test_should_retry() {
+        // Test invoice from lexe-api-core tests
+        const TEST_INVOICE: &str = "lnbc1pnap4p0dqqpp5e6wxwnkvtsf9eehvqg3\
+            q04wm0rv2vlmaswky4naakc083kxa439qcqpcsp5k8vexrcrthdcdyazfv3c7r8za\
+            7mw3sl9c6hefwu0ll3ef8uwzu0q9qyysgqxqyz5vqnp4q0w73a6xytxxrhuuvqnqj\
+            ckemyhv6avveuftl64zzm5878vq3zr4jrzjqv22wafr68wtchd4vzq7mj7zf2uzpv\
+            67xsaxcemfzak7wp7p0r29wz0nfsqq0mgqqvqqqqqqqqqqhwqqfqawdgj4wyt2gcp\
+            2k6yqwzdpymmlgearh5hu8vz24r5my73vdv3zuyyra8yxa9zkf26fvjf8ru3rfjam\
+            q9agkw6ta9wect076du6p3mvcp9w4lu3";
+
+        let mut data = PaymentsData::from_vec(vec![]);
+        let id = LxPaymentId::from_u8(1);
+        let unknown_id = LxPaymentId::from_u8(2);
+        let invoice: LxInvoice = TEST_INVOICE.parse().unwrap();
+        let amount = Amount::from_sats_u32(1000);
+        let transient = LxOutboundPaymentFailure::NoRoute;
+        let permanent = LxOutboundPaymentFailure::Rejected;
+
+        // No in-flight state: should NOT retry
+        assert!(!data.should_retry(&unknown_id, &transient));
+
+        // Start in-flight state with max_attempts=3, attempts_count=1
+        let state = InFlightRetryState {
+            max_attempts: 3,
+            attempts_count: 1,
+            failed_channel_scids: HashSet::new(),
+            invoice: Arc::new(invoice),
+            amount,
+        };
+        data.start_in_flight(id, state);
+
+        // Retries remaining + transient failure: should retry
+        assert!(data.should_retry(&id, &transient));
+
+        // Retries remaining + permanent failure: should NOT retry
+        assert!(!data.should_retry(&id, &permanent));
+
+        // Max retries exceeded: should NOT retry
+        data.get_in_flight_mut(&id).unwrap().attempts_count = 3;
+        assert!(!data.should_retry(&id, &transient));
     }
 }
