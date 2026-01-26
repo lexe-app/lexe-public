@@ -1015,9 +1015,8 @@ impl LxPaymentId {
         }
     }
 
-    /// From the data we get in a `PaymentSent` event, determine the payment id
-    /// for this outbound lightning payment.
-    pub fn from_payment_sent(
+    /// Construct an [`LxPaymentId`] from LDK event fields.
+    pub fn from_ldk_event(
         ldk_payment_id: Option<lightning::ln::channelmanager::PaymentId>,
         payment_hash: LxPaymentHash,
     ) -> Self {

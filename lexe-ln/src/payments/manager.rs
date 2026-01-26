@@ -700,6 +700,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Commit
         locked_data.commit(persisted);
 
+        // Clean up in-flight retry state since payment succeeded
+        locked_data.remove_in_flight(&id);
+
         // TODO(phlip9): test event is not the right approach for observing
         // a payment's status.
         self.test_event_tx.send(TestEvent::PaymentSent);

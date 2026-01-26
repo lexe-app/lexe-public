@@ -441,7 +441,7 @@ async fn do_handle_event(
         } => {
             // NOTE: Err(Replay) ==> must be handled idempotently
             let hash = LxPaymentHash::from(payment_hash);
-            let id = LxPaymentId::from_payment_sent(payment_id, hash);
+            let id = LxPaymentId::from_ldk_event(payment_id, hash);
             ctx.payments_manager
                 .payment_sent(id, hash, payment_preimage.into(), fee_paid_msat)
                 .await
@@ -501,6 +501,13 @@ async fn do_handle_event(
             path,
             short_channel_id,
         } => {
+            // Record path failure for in-memory retry tracking.
+            if let Some(scid) = short_channel_id {
+                let hash = LxPaymentHash::from(payment_hash);
+                let id = LxPaymentId::from_ldk_event(payment_id, hash);
+                ctx.payments_manager.record_path_failure(&id, scid).await;
+            }
+
             let maybe_event = anonymize::failed_path(
                 ctx,
                 payment_id,
