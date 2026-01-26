@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 
 use anyhow::{Context, anyhow, bail, ensure};
 use bdk_wallet::KeychainKind;
@@ -9,9 +14,12 @@ use common::{
 };
 use lexe_api::{
     models::command::UpdatePaymentNote,
-    types::payments::{
-        LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        PaymentCreatedIndex, PaymentKind, PaymentStatus,
+    types::{
+        invoice::LxInvoice,
+        payments::{
+            LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
+            PaymentCreatedIndex, PaymentKind, PaymentStatus,
+        },
     },
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -113,6 +121,28 @@ struct PaymentsData {
     /// A non-exhaustive cache of finalized payments.
     finalized_payments_cache:
         quick_cache::unsync::Cache<LxPaymentId, PaymentWithMetadata>,
+    /// In-memory retry state for outbound payments currently in-flight.
+    // TODO(a-mpch): Remove #[allow(dead_code)] once retry logic is implemented
+    #[allow(dead_code)]
+    in_flight: HashMap<LxPaymentId, InFlightRetryState>,
+}
+
+/// In-memory state for an outbound payment that is currently being retried.
+// TODO(a-mpch): Remove #[allow(dead_code)] once retry logic is implemented
+#[allow(dead_code)]
+#[cfg_attr(test, derive(Clone, Debug))]
+pub(crate) struct InFlightRetryState {
+    /// Maximum number of retry attempts for this payment.
+    pub max_attempts: u8,
+    /// Number of send attempts made so far (starts at 1 after initial send).
+    pub attempts_count: u8,
+    /// SCIDs of channels that failed during previous attempts.
+    /// Used to exclude these channels when computing retry routes.
+    pub failed_channel_scids: HashSet<u64>,
+    /// The invoice being paid (contains hash and secret).
+    pub invoice: Arc<LxInvoice>,
+    /// The amount being sent (excluding fees).
+    pub amount: Amount,
 }
 
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
@@ -152,6 +182,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let data = Arc::new(tokio::sync::Mutex::new(PaymentsData {
             pending,
             finalized_payments_cache,
+            in_flight: HashMap::new(),
         }));
 
         let myself = Self {
@@ -1454,6 +1485,7 @@ mod test {
             let mut out = Self {
                 pending,
                 finalized_payments_cache,
+                in_flight: HashMap::new(),
             };
             for payment in payments {
                 let id = payment.id();

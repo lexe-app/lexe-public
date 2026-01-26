@@ -33,6 +33,11 @@ use crate::{
 /// The retry strategy we pass to LDK for outbound Lightning payments.
 pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(3);
 
+/// Default max retry attempts for Lexe-managed payment retries.
+// TODO(a-mpch): Remove #[allow(dead_code)] once retry logic is implemented
+#[allow(dead_code)]
+pub(crate) const DEFAULT_MAX_RETRY_ATTEMPTS: u8 = 3;
+
 // --- ExpireError --- //
 
 /// Errors that can occur when expiring an outbound invoice payment.
