@@ -766,6 +766,20 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
+    /// Records a path failure for an in-flight payment.
+    ///
+    /// Called in response to [`PaymentPathFailed`] events. Adds the SCID to the
+    /// set of failed channels to avoid on retry. Silently ignores if the
+    /// payment is not in-flight.
+    ///
+    /// [`PaymentPathFailed`]: lightning::events::Event::PaymentPathFailed
+    // TODO(a-mpch): Remove #[allow(dead_code)] once retry logic is wired
+    #[allow(dead_code)]
+    pub async fn record_path_failure(&self, id: &LxPaymentId, scid: u64) {
+        let mut locked_data = self.data.lock().await;
+        locked_data.record_path_failure(id, scid);
+    }
+
     /// Times out any pending inbound or outbound payments that have expired.
     /// This function should be called regularly.
     //
@@ -1102,6 +1116,18 @@ impl PaymentsData {
         id: &LxPaymentId,
     ) -> Option<InFlightRetryState> {
         self.in_flight.remove(id)
+    }
+
+    /// Record a path failure for an in-flight payment.
+    ///
+    /// Adds the SCID to the set of failed channels to avoid on retry.
+    /// Silently ignores if the payment is not in-flight.
+    #[allow(dead_code)]
+    fn record_path_failure(&mut self, id: &LxPaymentId, scid: u64) {
+        let Some(state) = self.get_in_flight_mut(id) else {
+            return;
+        };
+        state.failed_channel_scids.insert(scid);
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
@@ -1816,6 +1842,42 @@ mod test {
                 .check_payment_expiries(expires_at)
                 .unwrap();
             prop_assert_eq!(0, checked_payments.len());
+        });
+    }
+
+    #[test]
+    fn prop_record_path_failure() {
+        proptest!(|(
+            id in any::<LxPaymentId>(),
+            unknown_id in any::<LxPaymentId>(),
+            invoice in any::<LxInvoice>(),
+            amount in any::<Amount>(),
+            scids in proptest::collection::vec(any::<u64>(), 1..10),
+        )| {
+            let mut data = PaymentsData::from_vec(vec![]);
+
+            // Unknown ID is a silent no-op
+            data.record_path_failure(&unknown_id, scids[0]);
+            assert!(data.get_in_flight(&unknown_id).is_none());
+
+            // Start in-flight state
+            let state = InFlightRetryState {
+                max_attempts: 3,
+                attempts_count: 1,
+                failed_channel_scids: HashSet::new(),
+                invoice: Arc::new(invoice),
+                amount,
+            };
+            data.start_in_flight(id, state);
+
+            // Adding SCIDs accumulates them
+            for scid in &scids {
+                data.record_path_failure(&id, *scid);
+            }
+
+            let state = data.get_in_flight(&id).unwrap();
+            let expected: HashSet<u64> = scids.into_iter().collect();
+            assert_eq!(state.failed_channel_scids, expected);
         });
     }
 }
