@@ -1230,6 +1230,12 @@ impl LexePersisterMethods for NodePersister {
             updated_at,
         )
     }
+
+    async fn read_wallet_changeset_legacy(
+        &self,
+    ) -> anyhow::Result<Option<ChangeSet>> {
+        NodePersister::read_wallet_changeset_legacy(self).await
+    }
 }
 
 /// NOTE: See module docs for info on how manager/monitor persist works.

@@ -53,14 +53,14 @@ use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     message_router::LexeMessageRouter,
-    migrations::Migrations,
+    migrations::{self, Migrations},
     payments::manager::PaymentsManager,
     persister::LexePersisterMethods,
     route::LexeRouter,
     sync::{self, BdkSyncRequest},
     test_event,
     tx_broadcaster::TxBroadcaster,
-    wallet::{self, LexeCoinSelector, OnchainWallet},
+    wallet::{self, LexeCoinSelector, OnchainWallet, legacy_sweep},
 };
 use lexe_std::{Apply, const_assert};
 use lexe_tls::shared_seed::certs::{
@@ -1007,6 +1007,26 @@ impl UserNode {
             .await
             .context("claim payment address task panicked")?
             .context("Failed to claim payment address")?;
+
+        // Spawn legacy wallet sweep task if migration marker exists.
+        // This sweeps funds from the old non-BIP39-compatible derivation path
+        // to the new BIP39-compatible wallet.
+        if initial_migrations.is_applied(migrations::MARKER_LEGACY_BDK) {
+            let legacy_master_xprv =
+                root_seed.derive_legacy_master_xprv(network);
+            let sweep_ctx = legacy_sweep::LegacySweepCtx {
+                legacy_master_xprv,
+                network,
+                esplora: esplora.clone(),
+                tx_broadcaster: tx_broadcaster.clone(),
+                fee_estimates: fee_estimates.clone(),
+                coin_selector: LexeCoinSelector::default(),
+                persister: persister.clone(),
+                new_wallet: wallet.clone(),
+            };
+            let sweep_task = legacy_sweep::spawn_legacy_sweep_task(sweep_ctx);
+            let _ = eph_tasks_tx.try_send(sweep_task);
+        }
 
         let elapsed = init_start.elapsed().as_millis();
         info!("Node initialization complete. <{elapsed}ms>");

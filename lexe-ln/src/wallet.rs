@@ -34,6 +34,8 @@
 //! [`OnchainWallet::trigger_persist`]: crate::wallet::OnchainWallet::trigger_persist
 //! [`RootSeed`]: common::root_seed::RootSeed
 
+pub mod legacy_sweep;
+
 use std::{
     collections::{HashMap, HashSet},
     ops::DerefMut,
@@ -1140,7 +1142,11 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
             tokio::select! {
                 biased;
                 () = wallet_persister_rx.recv() => {
-                    do_wallet_persist(&persister, &wallet).await;
+                    do_wallet_persist(
+                        &persister,
+                        &wallet,
+                        WALLET_CHANGESET_V2_FILENAME,
+                    ).await;
                 }
                 () = shutdown.recv() => break,
             }
@@ -1153,6 +1159,7 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
 async fn do_wallet_persist<PS: LexePersister>(
     persister: &PS,
     wallet: &OnchainWallet,
+    filename: &'static str,
 ) {
     // Take any staged changes from the wallet and merge them
     // into the combined changeset (i.e. our write-back cache),
@@ -1169,8 +1176,7 @@ async fn do_wallet_persist<PS: LexePersister>(
         let mut locked_changeset = wallet.changeset.lock().unwrap();
         locked_changeset.merge(new_changes);
 
-        let file_id =
-            VfsFileId::new(SINGLETON_DIRECTORY, WALLET_CHANGESET_V2_FILENAME);
+        let file_id = VfsFileId::new(SINGLETON_DIRECTORY, filename);
         persister.encrypt_json(file_id, &*locked_changeset)
     };
 
@@ -1562,7 +1568,7 @@ mod test {
     };
     use bitcoin::{TxOut, Txid, hashes::Hash as _};
     use common::{
-        ln::{channel::LxOutPoint, hashes::LxTxid},
+        ln::hashes::LxTxid,
         rng::FastRng,
         root_seed::RootSeed,
         sat,

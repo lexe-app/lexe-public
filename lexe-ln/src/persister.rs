@@ -267,6 +267,13 @@ pub trait LexePersisterMethods: Vfs {
         db_metadata: DbPaymentMetadata,
     ) -> anyhow::Result<PaymentMetadata>;
 
+    // --- Required methods: wallet --- //
+
+    /// Read the legacy (pre-v0.8.12) wallet changeset, if it exists.
+    async fn read_wallet_changeset_legacy(
+        &self,
+    ) -> anyhow::Result<Option<bdk_wallet::ChangeSet>>;
+
     // --- Provided methods --- //
 
     async fn get_payment_with_metadata_by_id(
