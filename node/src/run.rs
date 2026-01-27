@@ -60,7 +60,7 @@ use lexe_ln::{
     sync::{self, BdkSyncRequest},
     test_event,
     tx_broadcaster::TxBroadcaster,
-    wallet::{self, LexeCoinSelector, LexeKeychain, OnchainWallet},
+    wallet::{self, LexeCoinSelector, OnchainWallet},
 };
 use lexe_std::{Apply, const_assert};
 use lexe_tls::shared_seed::certs::{
@@ -437,10 +437,10 @@ impl UserNode {
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let (wallet_persister_tx, wallet_persister_rx) = notify::channel();
         let coin_selector = LexeCoinSelector::default();
+        let bip39_master_xprv = root_seed.derive_bip32_master_xprv(network);
         let wallet = OnchainWallet::init(
-            &root_seed,
+            bip39_master_xprv,
             network,
-            LexeKeychain::Bip39,
             &esplora,
             fee_estimates.clone(),
             coin_selector,

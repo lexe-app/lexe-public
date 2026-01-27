@@ -66,7 +66,6 @@ use common::{
         amount::Amount, balance::OnchainBalance, hashes::LxTxid,
         network::LxNetwork, priority::ConfirmationPriority,
     },
-    root_seed::RootSeed,
     time::TimestampMs,
 };
 use lexe_api::{
@@ -116,21 +115,6 @@ const BDK_LOOKAHEAD: u32 = 1;
 const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
     ConfirmationPriority::Normal;
 
-/// Controls which key derivation method to use for the wallet.
-#[derive(Clone, Copy, Debug)]
-pub enum LexeKeychain {
-    /// BIP39-compatible derivation (new wallets, node >= v0.8.12).
-    ///
-    /// Converts the [`RootSeed`] to a BIP39 mnemonic, then derives the master
-    /// xprv using the standard BIP39 PBKDF2 key stretching.
-    Bip39,
-    /// Legacy derivation (existing wallets before v0.8.12).
-    ///
-    /// Feeds the [`RootSeed`] bytes directly into BIP32 master key derivation.
-    /// Non-standard but maintained for backward compatibility.
-    Legacy,
-}
-
 /// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
 pub struct OnchainWallet {
@@ -177,17 +161,19 @@ pub struct SyncStats {
 }
 
 impl OnchainWallet {
-    /// Init a [`OnchainWallet`] from a [`RootSeed`] and [`ChangeSet`].
-    /// Wallet addresses are generated according to the [BIP 84] standard.
-    /// See also [BIP 44].
+    /// Init a [`OnchainWallet`] from a master extended private key and
+    /// [`ChangeSet`]. Wallet addresses are generated according to the
+    /// [BIP 84] standard. See also [BIP 44].
+    ///
+    /// The master xprv is normally from [`RootSeed::derive_bip32_master_xprv`].
     ///
     /// [BIP 84]: https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
+    /// [`RootSeed::derive_bip32_master_xprv`]: common::root_seed::RootSeed::derive_bip32_master_xprv
     #[instrument(skip_all, name = "(wallet-init)")]
     pub async fn init(
-        root_seed: &RootSeed,
+        master_xprv: bitcoin::bip32::Xpriv,
         network: LxNetwork,
-        keychain: LexeKeychain,
         esplora: &LexeEsplora,
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
@@ -195,9 +181,8 @@ impl OnchainWallet {
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<Self> {
         let (lexe_wallet, wallet_created) = Self::new(
-            root_seed,
+            master_xprv,
             network,
-            keychain,
             fee_estimates,
             coin_selector,
             maybe_changeset,
@@ -215,21 +200,14 @@ impl OnchainWallet {
     }
 
     fn new(
-        root_seed: &RootSeed,
+        master_xprv: bitcoin::bip32::Xpriv,
         network: LxNetwork,
-        keychain: LexeKeychain,
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
-
-        let master_xprv = match keychain {
-            LexeKeychain::Bip39 => root_seed.derive_bip32_master_xprv(network),
-            LexeKeychain::Legacy =>
-                root_seed.derive_legacy_master_xprv(network),
-        };
 
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
         let external = Bip84(master_xprv, KeychainKind::External);
@@ -338,8 +316,7 @@ impl OnchainWallet {
     /// Constructs a dummy [`OnchainWallet`] useful for tests.
     #[cfg(test)]
     pub(crate) fn dummy(
-        root_seed: &RootSeed,
-        keychain: LexeKeychain,
+        master_xprv: bitcoin::bip32::Xpriv,
         maybe_changeset: Option<ChangeSet>,
     ) -> Self {
         let fee_estimates = FeeEstimates::dummy();
@@ -347,9 +324,8 @@ impl OnchainWallet {
         let network = LxNetwork::Regtest;
         let (persist_tx, _persist_rx) = notify::channel();
         let (wallet, _wallet_created) = OnchainWallet::new(
-            root_seed,
+            master_xprv,
             network,
-            keychain,
             fee_estimates,
             coin_selector,
             maybe_changeset,
@@ -1420,18 +1396,18 @@ mod arbitrary_impl {
     type TxGraphChangeset = tx_graph::ChangeSet<ConfirmationBlockTime>;
 
     pub(super) fn any_changeset() -> impl Strategy<Value = ChangeSet> {
-        let network = bitcoin::Network::Bitcoin;
+        let network = LxNetwork::Mainnet;
         let seed = RootSeed::from_u64(20241114);
         let master_xprv = seed.derive_legacy_master_xprv(network);
         let just_descriptor = Just({
             let (descriptor, _, _) = Bip84(master_xprv, KeychainKind::External)
-                .build(network)
+                .build(network.to_bitcoin())
                 .unwrap();
             descriptor
         });
         let just_change_descriptor = Just({
             let (descriptor, _, _) = Bip84(master_xprv, KeychainKind::Internal)
-                .build(network)
+                .build(network.to_bitcoin())
                 .unwrap();
             descriptor
         });
@@ -1586,8 +1562,9 @@ mod test {
     };
     use bitcoin::{TxOut, Txid, hashes::Hash as _};
     use common::{
-        ln::hashes::LxTxid,
+        ln::{channel::LxOutPoint, hashes::LxTxid},
         rng::FastRng,
+        root_seed::RootSeed,
         sat,
         test_utils::{arbitrary, roundtrip},
     };
@@ -1606,13 +1583,10 @@ mod test {
     impl Harness {
         fn new(seed: u64) -> Self {
             let root_seed = RootSeed::from_u64(seed);
-            let maybe_changeset = None;
-            let wallet = OnchainWallet::dummy(
-                &root_seed,
-                LexeKeychain::Bip39,
-                maybe_changeset,
-            );
             let network = LxNetwork::Regtest;
+            let master_xprv = root_seed.derive_bip32_master_xprv(network);
+            let changeset = None;
+            let wallet = OnchainWallet::dummy(master_xprv, changeset);
 
             // Add some initial confirmed blocks
             {
@@ -1767,11 +1741,9 @@ mod test {
                 changeset.merge(update);
             }
 
-            let wallet = OnchainWallet::dummy(
-                &self.root_seed,
-                LexeKeychain::Bip39,
-                Some(changeset),
-            );
+            let master_xprv =
+                self.root_seed.derive_bip32_master_xprv(self.network);
+            let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
             assert!(wallet.read().have_unused_spk(KeychainKind::External));
             assert!(wallet.read().have_unused_spk(KeychainKind::Internal));
         }
@@ -2478,11 +2450,9 @@ mod test {
 
         // Verify we can load the wallet from this changeset
         let root_seed = RootSeed::from_u64(20260117);
-        let wallet = OnchainWallet::dummy(
-            &root_seed,
-            LexeKeychain::Legacy,
-            Some(changeset),
-        );
+        let network = LxNetwork::Regtest;
+        let master_xprv = root_seed.derive_legacy_master_xprv(network);
+        let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
 
         // Sanity checks: 100k external + 50k internal = 150k total
         let balance = wallet.read().balance();
@@ -2499,11 +2469,9 @@ mod test {
 
         // Verify we can load the wallet from this changeset
         let root_seed = RootSeed::from_u64(20260117);
-        let wallet = OnchainWallet::dummy(
-            &root_seed,
-            LexeKeychain::Bip39,
-            Some(changeset),
-        );
+        let network = LxNetwork::Regtest;
+        let master_xprv = root_seed.derive_bip32_master_xprv(network);
+        let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
 
         // Sanity checks: 100k external + 50k internal = 150k total
         let balance = wallet.read().balance();

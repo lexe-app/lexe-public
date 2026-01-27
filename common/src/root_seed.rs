@@ -13,7 +13,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use crate::{
     aes::{self, AesMasterKey},
     api::user::{NodePk, UserPk},
-    ed25519, password,
+    ed25519,
+    ln::network::LxNetwork,
+    password,
     rng::{Crng, RngExt},
 };
 
@@ -201,10 +203,13 @@ impl RootSeed {
     ///
     /// This produces keys compatible with standard wallets that follow the
     /// BIP39 spec.
-    pub fn derive_bip32_master_xprv(&self, network: Network) -> bip32::Xpriv {
+    pub fn derive_bip32_master_xprv(&self, network: LxNetwork) -> bip32::Xpriv {
         let bip39_seed = self.derive_bip39_seed();
-        bip32::Xpriv::new_master(network, bip39_seed.expose_secret())
-            .expect("Should never fail")
+        bip32::Xpriv::new_master(
+            network.to_bitcoin(),
+            bip39_seed.expose_secret(),
+        )
+        .expect("Should never fail")
     }
 
     /// Derive the "legacy" BIP32 master xpriv by feeding the 32-byte
@@ -218,8 +223,11 @@ impl RootSeed {
     /// entropy. This makes Lexe's old on-chain addresses incompatible with
     /// external wallets. New on-chain wallets use the BIP39-compatible
     /// derivation instead.
-    pub fn derive_legacy_master_xprv(&self, network: Network) -> bip32::Xpriv {
-        bip32::Xpriv::new_master(network, self.0.expose_secret())
+    pub fn derive_legacy_master_xprv(
+        &self,
+        network: LxNetwork,
+    ) -> bip32::Xpriv {
+        bip32::Xpriv::new_master(network.to_bitcoin(), self.0.expose_secret())
             .expect("Should never fail")
     }
 
@@ -228,7 +236,7 @@ impl RootSeed {
     pub fn derive_ldk_seed<R: Crng>(&self, rng: &mut R) -> Secret<[u8; 32]> {
         // The [u8; 32] output will be the same regardless of the network the
         // master_xprv uses, as tested in `when_does_network_matter`
-        let master_xprv = self.derive_legacy_master_xprv(Network::Bitcoin);
+        let master_xprv = self.derive_legacy_master_xprv(LxNetwork::Mainnet);
 
         // Derive the hardened child key at `m/535h`, where 535 is T9 for "LDK"
         let secp_ctx = rng.gen_secp256k1_ctx();
@@ -688,10 +696,8 @@ mod test {
             network1 in any::<LxNetwork>(),
             network2 in any::<LxNetwork>(),
         )| {
-            let network1 = network1.to_bitcoin();
-            let network2 = network2.to_bitcoin();
-            let network_kind1 = NetworkKind::from(network1);
-            let network_kind2 = NetworkKind::from(network2);
+            let network_kind1 = NetworkKind::from(network1.to_bitcoin());
+            let network_kind2 = NetworkKind::from(network2.to_bitcoin());
             let secp_ctx = rng.gen_secp256k1_ctx();
 
             // Network DOES matter for master xprvs (and all xprvs in general),
@@ -724,9 +730,9 @@ mod test {
             // Test derive_node_key_pair() and derive_node_pk(): The outputted
             // secp256k1::Keypair should be the same regardless of the network
             // of the ldk_xprv it was based on
-            let ldk_xprv1 = bip32::Xpriv::new_master(network1, &ldk_seed)
+            let ldk_xprv1 = bip32::Xpriv::new_master(network1.to_bitcoin(), &ldk_seed)
                 .expect("Should never fail");
-            let ldk_xprv2 = bip32::Xpriv::new_master(network2, &ldk_seed)
+            let ldk_xprv2 = bip32::Xpriv::new_master(network2.to_bitcoin(), &ldk_seed)
                 .expect("Should never fail");
             // Assert: "ldk_xprvs are equal iff network kinds are equal"
             let ldk_xprvs_equal = ldk_xprv1 == ldk_xprv2;
@@ -954,7 +960,7 @@ mod test {
 
         // BIP39-compatible master xpriv (for new on-chain wallets)
         let bip39_master_xpriv =
-            seed.derive_bip32_master_xprv(Network::Bitcoin);
+            seed.derive_bip32_master_xprv(LxNetwork::Mainnet);
         assert_eq!(
             bip39_master_xpriv.to_string(),
             "xprv9s21ZrQH143K3BwTSDGEpsQA99b5fmckcX2s4dBbxojs287ApWXGThVTu9\
@@ -963,7 +969,7 @@ mod test {
 
         // BIP39-compatible master xpriv (Testnet)
         let bip39_testnet_xpriv =
-            seed.derive_bip32_master_xprv(Network::Testnet);
+            seed.derive_bip32_master_xprv(LxNetwork::Testnet3);
         assert_eq!(
             bip39_testnet_xpriv.to_string(),
             "tprv8ZgxMBicQKsPe1Az6n7jzX29TH1HuHekx4wyw3c4SnELoirFoss1ySrupK\
@@ -971,7 +977,7 @@ mod test {
         );
 
         // Legacy Lexe master xpriv (used for existing on-chain wallets)
-        let master_xpriv = seed.derive_legacy_master_xprv(Network::Bitcoin);
+        let master_xpriv = seed.derive_legacy_master_xprv(LxNetwork::Mainnet);
         assert_eq!(
             master_xpriv.to_string(),
             "xprv9s21ZrQH143K42JPXVa2Q7nAp6XB3FVwyYdGkQetMYRcprZXKvt52p1tqg\
@@ -980,7 +986,7 @@ mod test {
 
         // Legacy Lexe master xpriv (Testnet)
         let master_xpriv_testnet =
-            seed.derive_legacy_master_xprv(Network::Testnet);
+            seed.derive_legacy_master_xprv(LxNetwork::Testnet3);
         assert_eq!(
             master_xpriv_testnet.to_string(),
             "tprv8ZgxMBicQKsPeqXvC4RXZmQA8DwPGmXxK6YPcq5LqWv6cTJcKJDpYZPLk\
