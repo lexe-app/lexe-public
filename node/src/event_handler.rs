@@ -97,7 +97,7 @@ pub(crate) struct EventCtx {
     pub lsp_api: Arc<NodeLspClient>,
     pub persister: Arc<NodePersister>,
     pub fee_estimates: Arc<FeeEstimates>,
-    pub tx_broadcaster: Arc<TxBroadcaster>,
+    pub tx_broadcaster: TxBroadcaster,
     pub wallet: OnchainWallet,
     pub channel_manager: NodeChannelManager,
     pub keys_manager: Arc<LexeKeysManager>,

@@ -30,7 +30,7 @@ use crate::{
 pub type LexeChainMonitorType<PERSISTER> = ChainMonitor<
     SignerType,
     Arc<EsploraSyncClientType>,
-    Arc<BroadcasterType>,
+    BroadcasterType,
     Arc<FeeEstimatorType>,
     LexeTracingLogger,
     PERSISTER,
@@ -38,7 +38,7 @@ pub type LexeChainMonitorType<PERSISTER> = ChainMonitor<
 
 pub type LexeChannelManagerType<PERSISTER> = ChannelManager<
     Arc<LexeChainMonitorType<PERSISTER>>,
-    Arc<BroadcasterType>,
+    BroadcasterType,
     Arc<LexeKeysManager>,
     Arc<LexeKeysManager>,
     Arc<LexeKeysManager>,

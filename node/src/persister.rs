@@ -669,7 +669,7 @@ impl NodePersister {
         keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
-        broadcaster: Arc<BroadcasterType>,
+        broadcaster: BroadcasterType,
         router: Arc<RouterType>,
         message_router: Arc<MessageRouterType>,
         logger: LexeTracingLogger,

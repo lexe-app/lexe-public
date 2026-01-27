@@ -88,7 +88,7 @@ pub(crate) struct RouterState {
     pub wallet: OnchainWallet,
 
     // --- Channels --- //
-    pub tx_broadcaster: Arc<TxBroadcaster>,
+    pub tx_broadcaster: TxBroadcaster,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,

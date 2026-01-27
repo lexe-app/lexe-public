@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{ops::Deref, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use common::api::test_event::TestEvent;
@@ -62,7 +62,18 @@ struct BroadcastRequest {
 
 /// A handle to a task responsible for broadcasting transactions.
 /// We do this in a task because LDK's [`BroadcasterInterface`] isn't async.
+///
+/// `TxBroadcaster` is cheaply cloneable and impls
+/// `Deref<Target = TxBroadcasterInner>`, allowing it to be passed directly to
+/// LDK without an additional `Arc` wrapper.
+#[derive(Clone)]
 pub struct TxBroadcaster {
+    inner: TxBroadcasterInner,
+}
+
+/// The inner struct that actually impls [`BroadcasterInterface`].
+#[derive(Clone)]
+pub struct TxBroadcasterInner {
     sender: mpsc::Sender<BroadcastRequest>,
 }
 
@@ -73,11 +84,13 @@ impl TxBroadcaster {
         broadcast_hook: Option<PreBroadcastHook>,
         test_event_sender: TestEventSender,
         mut shutdown: NotifyOnce,
-    ) -> (Arc<Self>, LxTask<()>) {
+    ) -> (Self, LxTask<()>) {
         // Avoid tx/rx idiom here since "transaction" also abbreviates to "tx"
         let (sender, mut receiver) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
-        let myself = Arc::new(Self { sender });
+        let myself = Self {
+            inner: TxBroadcasterInner { sender },
+        };
 
         const SPAN_NAME: &str = "(tx-broadcaster)";
         let task = LxTask::spawn_with_span(
@@ -126,7 +139,8 @@ impl TxBroadcaster {
             span,
             responder,
         };
-        self.sender
+        self.inner
+            .sender
             .try_send(request)
             .context("Couldn't queue tx for broadcast")?;
 
@@ -191,7 +205,15 @@ impl TxBroadcaster {
     }
 }
 
-impl BroadcasterInterface for TxBroadcaster {
+impl Deref for TxBroadcaster {
+    type Target = TxBroadcasterInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl BroadcasterInterface for TxBroadcasterInner {
     fn broadcast_transactions(&self, txs: &[&bitcoin::Transaction]) {
         let span = tracing::Span::current();
         for &tx in txs {

@@ -39,7 +39,7 @@ pub struct LegacySweepCtx<PS: LexePersister> {
     pub esplora: Arc<LexeEsplora>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub coin_selector: LexeCoinSelector,
-    pub tx_broadcaster: Arc<TxBroadcaster>,
+    pub tx_broadcaster: TxBroadcaster,
     pub persister: PS,
     /// The new BIP39-compatible wallet to sweep funds into.
     pub new_wallet: OnchainWallet,

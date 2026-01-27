@@ -164,7 +164,7 @@ pub struct UserNode {
     esplora: Arc<LexeEsplora>,
     wallet: OnchainWallet,
     fee_estimates: Arc<FeeEstimatorType>,
-    tx_broadcaster: Arc<BroadcasterType>,
+    tx_broadcaster: BroadcasterType,
     keys_manager: Arc<LexeKeysManager>,
     logger: LexeTracingLogger,
     network_graph: Arc<NetworkGraphType>,
