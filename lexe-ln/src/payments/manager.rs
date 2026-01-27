@@ -385,7 +385,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         struct RetryInfo {
             invoice: Arc<LxInvoice>,
             amount: Amount,
-            failed_channel_scids: Vec<u64>,
+            failed_channel_scids: HashSet<u64>,
         }
 
         // Get in-flight state and extract info needed for routing.
@@ -395,11 +395,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             locked_data.get_in_flight(&id).map(|state| RetryInfo {
                 invoice: state.invoice.clone(),
                 amount: state.amount,
-                failed_channel_scids: state
-                    .failed_channel_scids
-                    .iter()
-                    .copied()
-                    .collect(),
+                failed_channel_scids: state.failed_channel_scids.clone(),
             })
         };
 
@@ -420,7 +416,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             // TODO(a-mpch): Review if we should compute `num_usable_channels`
             // here.
             None, // Don't need channel count for retry
-            retry_info.failed_channel_scids,
+            retry_info.failed_channel_scids.into_iter().collect(),
         ) {
             Ok(params) => params,
             Err(_) => {
