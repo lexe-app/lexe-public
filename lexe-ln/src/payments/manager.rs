@@ -1019,6 +1019,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         if locked_data.should_retry(&id, &failure)
             && self.retry_tx.try_send(id).is_ok()
         {
+            self.test_event_tx.send(TestEvent::PaymentRetried);
             return Ok(());
         }
 
@@ -2191,7 +2192,7 @@ mod test {
         let unknown_id = LxPaymentId::from_u8(2);
         let invoice: LxInvoice = TEST_INVOICE.parse().unwrap();
         let amount = Amount::from_sats_u32(1000);
-        let transient = LxOutboundPaymentFailure::NoRoute;
+        let transient = LxOutboundPaymentFailure::NoRetries;
         let permanent = LxOutboundPaymentFailure::Rejected;
 
         // No in-flight state: should NOT retry

@@ -52,6 +52,8 @@ pub enum TestEvent {
     ///
     /// [`PaymentFailed`]: lightning::events::Event::PaymentFailed
     PaymentFailed,
+    /// A payment was enqueued for retry after a transient failure.
+    PaymentRetried,
     /// A [`ChannelClosed`] event was handled.
     ///
     /// [`ChannelClosed`]: lightning::events::Event::ChannelClosed
