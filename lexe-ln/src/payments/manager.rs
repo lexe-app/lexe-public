@@ -442,13 +442,29 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let (route, _route_params) = match route_result {
             Ok(r) => r,
             Err(_) => {
-                // No route found during retry. Fail the payment permanently.
-                self.fail_payment_permanently(
-                    id,
-                    LxOutboundPaymentFailure::NoRoute,
-                )
-                .await
-                .context("Failed to persist no-route payment")?;
+                // No route found. Re-enqueue if under max attempts.
+                let should_requeue = {
+                    let mut locked_data = self.data.lock().await;
+                    locked_data.increment_attempt(&id);
+                    locked_data.has_remaining_attempts(&id)
+                };
+
+                if should_requeue {
+                    debug!("No route found, re-enqueueing for retry");
+                    let _ = self.retry_tx.try_send(id);
+                    self.test_event_tx.send(TestEvent::PaymentRetried);
+                } else {
+                    debug!(
+                        "No route found, no more retries, failing permanently"
+                    );
+
+                    self.fail_payment_permanently(
+                        id,
+                        LxOutboundPaymentFailure::NoRoute,
+                    )
+                    .await
+                    .context("Failed to persist no-route payment")?;
+                }
                 return Err(anyhow!("No route found"));
             }
         };
@@ -476,11 +492,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         match send_result {
             Ok(()) => {
-                let mut locked_data = self.data.lock().await;
-                if let Some(state) = locked_data.get_in_flight_mut(&id) {
-                    state.attempts_count =
-                        state.attempts_count.saturating_add(1);
-                }
+                self.data.lock().await.increment_attempt(&id);
                 info!("Retry send succeeded, waiting for events");
                 Ok(())
             }
@@ -1021,6 +1033,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         if locked_data.should_retry(&id, &failure)
             && self.retry_tx.try_send(id).is_ok()
         {
+            debug!("Payment should be retried, re-enqueueing");
             self.test_event_tx.send(TestEvent::PaymentRetried);
             return Ok(());
         }
@@ -1411,10 +1424,20 @@ impl PaymentsData {
         id: &LxPaymentId,
         failure: &LxOutboundPaymentFailure,
     ) -> bool {
-        let Some(state) = self.get_in_flight(id) else {
-            return false;
-        };
-        !failure.is_permanent() && state.attempts_count < state.max_attempts
+        !failure.is_permanent() && self.has_remaining_attempts(id)
+    }
+
+    /// Increments the attempt count for an in-flight payment.
+    fn increment_attempt(&mut self, id: &LxPaymentId) {
+        if let Some(state) = self.get_in_flight_mut(id) {
+            state.attempts_count = state.attempts_count.saturating_add(1);
+        }
+    }
+
+    /// Returns whether the payment has remaining retry attempts.
+    fn has_remaining_attempts(&self, id: &LxPaymentId) -> bool {
+        self.get_in_flight(id)
+            .is_some_and(|s| s.attempts_count < s.max_attempts)
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).

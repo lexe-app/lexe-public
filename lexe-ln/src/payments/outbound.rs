@@ -768,7 +768,7 @@ impl LxOutboundPaymentFailure {
             // with send_payment_with_route, we should continue retrying
             // if we have attempts remaining.
             Self::NoRetries => false,
-            Self::NoRoute => true,
+            Self::NoRoute => false,
             Self::BlindedPathCreationFailed => false,
             Self::LexeErr => false,
             Self::Unknown => false,
