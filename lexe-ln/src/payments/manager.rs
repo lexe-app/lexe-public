@@ -392,13 +392,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // We clone the necessary info to avoid holding the lock during routing.
         let retry_info = {
             let locked_data = self.data.lock().await;
-            let Some(state) = locked_data.get_in_flight(&id) else {
-                // No in-memory state (restart scenario) - fail the payment.
-                // This is intentional: payments should fail fast after restart.
-                return Err(anyhow!("No in-flight state"));
-            };
-
-            RetryInfo {
+            locked_data.get_in_flight(&id).map(|state| RetryInfo {
                 invoice: state.invoice.clone(),
                 amount: state.amount,
                 failed_channel_scids: state
@@ -406,7 +400,19 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     .iter()
                     .copied()
                     .collect(),
-            }
+            })
+        };
+
+        // Fail the payment since we can't retry without in-flight state.
+        let Some(retry_info) = retry_info else {
+            info!("No in-flight state found, failing payment permanently");
+            self.fail_payment_permanently(
+                id,
+                LxOutboundPaymentFailure::NoRetries,
+            )
+            .await
+            .context("Failed to persist missing-state payment")?;
+            return Err(anyhow!("No in-flight state (restart scenario)"));
         };
 
         let payment_params = match route::build_payment_params(
