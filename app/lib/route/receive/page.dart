@@ -1,12 +1,13 @@
 /// Receive payment page.
 library;
 
-import 'dart:async' show unawaited;
+import 'dart:async' show Completer, unawaited;
 import 'dart:math' show min;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show CreateInvoiceRequest, CreateOfferRequest, FiatRate;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/settings.dart' show OnboardingStatus, Settings;
 import 'package:app_rs_dart/ffi/types.dart' show Invoice, Offer;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
@@ -41,6 +42,7 @@ import 'package:lexeapp/route/receive/state.dart'
         PaymentOffer,
         PaymentOfferKind;
 import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
+import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
@@ -67,9 +69,10 @@ class ReceivePaymentPage extends StatelessWidget {
   const ReceivePaymentPage({
     super.key,
     required this.app,
+    required this.appData,
     required this.featureFlags,
     required this.fiatRate,
-    required this.appData,
+    required this.settings,
     this.designInitialPageIdx,
   });
 
@@ -80,16 +83,20 @@ class ReceivePaymentPage extends StatelessWidget {
   /// Updating stream of fiat rates.
   final ValueListenable<FiatRate?> fiatRate;
 
+  /// User settings.
+  final LxSettings settings;
+
   /// (Design mode screenshot automation only) Initial page to show.
   final int? designInitialPageIdx;
 
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
     app: this.app,
+    appData: this.appData,
     featureFlags: this.featureFlags,
     fiatRate: this.fiatRate,
+    settings: this.settings,
     viewportWidth: MediaQuery.sizeOf(context).width,
-    appData: this.appData,
     designInitialPageIdx: this.designInitialPageIdx,
   );
 }
@@ -100,18 +107,19 @@ class ReceivePaymentPageInner extends StatefulWidget {
   const ReceivePaymentPageInner({
     super.key,
     required this.app,
+    required this.appData,
     required this.featureFlags,
     required this.fiatRate,
+    required this.settings,
     required this.viewportWidth,
-    required this.appData,
     this.designInitialPageIdx,
   });
 
   final AppHandle app;
+  final LxAppData appData;
   final FeatureFlags featureFlags;
   final ValueListenable<FiatRate?> fiatRate;
-
-  final LxAppData appData;
+  final LxSettings settings;
   final double viewportWidth;
 
   /// (Design mode screenshot automation only) Initial page to show.
@@ -128,6 +136,15 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   /// Controls the [PageView].
   late PageController pageController = this.newPageController();
+
+  /// Whether the peek hint animation is currently in progress.
+  bool peekAnimationInProgress = false;
+
+  /// Whether the peek animation can continue or was cancelled.
+  bool get canContinuePeekAnimation =>
+      this.mounted &&
+      this.peekAnimationInProgress &&
+      this.pageController.hasClients;
 
   /// The current primary page on-screen.
   late final ValueNotifier<int> selectedPageIndex = ValueNotifier(
@@ -209,10 +226,119 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       }
     }
     unawaited(this.doFetchBtc());
+
+    // Schedule the peek hint animation if the user hasn't seen it yet.
+    this.maybeSchedulePeekHint();
+  }
+
+  /// Schedule a subtle "peek" animation to hint that the carousel has multiple
+  /// pages (BTC address). Only runs once per user.
+  void maybeSchedulePeekHint() {
+    // Skip if user has already seen the hint.
+    final onboardingStatus = this.widget.settings.onboardingStatus.value;
+    if (onboardingStatus?.hasSeenReceiveHint == true) return;
+
+    // Schedule the peek animation after a delay to let the page settle.
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      if (!this.mounted) return;
+
+      await this.waitForAddressAndInvoiceLoaded();
+      if (!this.mounted) return;
+
+      // Mark as seen immediately to prevent re-triggering.
+      this.markReceiveHintSeen();
+
+      await this.playPeekAnimation();
+    });
+  }
+
+  /// Wait until both the Lightning invoice and BTC address are loaded.
+  /// NOTE: Needed for slow connections where data may not be ready immediately.
+  Future<void> waitForAddressAndInvoiceLoaded() async {
+    final lnInvoice = this.lnInvoicePaymentOffer();
+    final btcAddress = this.btcPaymentOffer();
+
+    // Check if already loaded.
+    if (lnInvoice.value.code != null && btcAddress.value.code != null) {
+      return;
+    }
+
+    // Wait for both to be loaded.
+    final completer = Completer<void>();
+
+    void checkLoaded() {
+      if (lnInvoice.value.code != null && btcAddress.value.code != null) {
+        lnInvoice.removeListener(checkLoaded);
+        btcAddress.removeListener(checkLoaded);
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      }
+    }
+
+    lnInvoice.addListener(checkLoaded);
+    btcAddress.addListener(checkLoaded);
+
+    // Check again in case they loaded between the initial check and adding
+    // listeners.
+    checkLoaded();
+
+    await completer.future;
+  }
+
+  /// Play a subtle peek animation: shift carousel to reveal more of the BTC
+  /// page, bounce twice, then return to original position.
+  Future<void> playPeekAnimation() async {
+    // Only animate if we're still on the first page and controller is attached.
+    if (!this.mounted || !this.pageController.hasClients) return;
+    if (this.selectedPageIndex.value != 0) return;
+
+    this.peekAnimationInProgress = true;
+
+    // Calculate peek offset: ~90 pixels to the right (revealing BTC page).
+    final currentOffset = this.pageController.offset;
+    final peekOffset = currentOffset + 90.0;
+
+    // Bounce twice to draw attention.
+    for (var i = 0; i < 2; i++) {
+      if (!this.canContinuePeekAnimation) return;
+
+      // Animate to peek position with pause at end.
+      // Interval(0.0, 0.8): animate 0-400ms, hold 400-500ms.
+      await this.pageController.animateTo(
+        peekOffset,
+        duration: const Duration(milliseconds: 500),
+        curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+      );
+
+      if (!this.canContinuePeekAnimation) return;
+
+      // Animate back to original position with pause at end.
+      // Interval(0.0, 0.8): animate 0-400ms, hold 400-800ms.
+      await this.pageController.animateTo(
+        currentOffset,
+        duration: const Duration(milliseconds: 800),
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+      );
+    }
+
+    this.peekAnimationInProgress = false;
+  }
+
+  /// Mark the receive hint as seen in settings.
+  void markReceiveHintSeen() {
+    this.widget.settings.update(
+      const Settings(
+        onboardingStatus: OnboardingStatus(hasSeenReceiveHint: true),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    // Cancel any in-progress peek animation before disposing the controller.
+    this.peekAnimationInProgress = false;
+
     this.pageController.dispose();
     this.selectedPageIndex.dispose();
     this.selectedLightningType.dispose();
@@ -675,6 +801,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                 onPageChanged: (pageIdx) {
                   if (!this.mounted) return;
                   this.selectedPageIndex.value = pageIdx;
+
+                  // Cancel peek animation if user manually swiped.
+                  this.peekAnimationInProgress = false;
                 },
                 children: this._buildPageViewChildren(),
               ),

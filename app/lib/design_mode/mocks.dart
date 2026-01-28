@@ -43,7 +43,8 @@ import 'package:app_rs_dart/ffi/app.dart'
     show App, AppHandle, WritebackDbRsSettingsRs;
 import 'package:app_rs_dart/ffi/app_data.dart'
     show AppData, AppDataDb, WritebackDbRsAppDataRs;
-import 'package:app_rs_dart/ffi/settings.dart' show Settings, SettingsDb;
+import 'package:app_rs_dart/ffi/settings.dart'
+    show OnboardingStatus, Settings, SettingsDb;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
@@ -807,6 +808,22 @@ class MockSettingsDb extends SettingsDb {
 
   @override
   Settings read() => const Settings();
+
+  @override
+  void reset() {}
+
+  @override
+  void update({required Settings update}) {}
+}
+
+/// Mock settings DB with `hasSeenReceiveHint: true`.
+class MockSettingsDbWithSeenHint extends SettingsDb {
+  MockSettingsDbWithSeenHint() : super(inner: MockSettingsDbRs());
+
+  @override
+  Settings read() => const Settings(
+    onboardingStatus: OnboardingStatus(hasSeenReceiveHint: true),
+  );
 
   @override
   void reset() {}

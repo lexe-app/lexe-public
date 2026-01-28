@@ -386,9 +386,10 @@ class WalletPageState extends State<WalletPage> {
       MaterialPageRoute(
         builder: (context) => ReceivePaymentPage(
           app: this.widget.app,
+          appData: this.widget.appData,
           featureFlags: this.widget.featureFlags,
           fiatRate: this.fiatRateService.fiatRate,
-          appData: this.widget.appData,
+          settings: this.widget.settings,
         ),
       ),
     );

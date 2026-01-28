@@ -628,11 +628,24 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "ReceivePaymentPage",
+        subtitle: "with peek hint animation",
         (context) => ReceivePaymentPage(
           app: mockApp,
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
           fiatRate: this.makeFiatRateStream(),
+          settings: LxSettings(mockApp.settingsDb()),
+        ),
+      ),
+      Component(
+        "ReceivePaymentPage",
+        subtitle: "hint already seen",
+        (context) => ReceivePaymentPage(
+          app: mockApp,
+          appData: LxAppData(mockApp.appDataDb()),
+          featureFlags: const FeatureFlags.all(),
+          fiatRate: this.makeFiatRateStream(),
+          settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
       ),
       Component(
@@ -640,9 +653,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         subtitle: "BOLT12 offers feature disabled",
         (context) => ReceivePaymentPage(
           app: mockApp,
+          appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(showBolt12OffersRecvPage: false),
           fiatRate: this.makeFiatRateStream(),
-          appData: LxAppData(mockApp.appDataDb()),
+          settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
       ),
       Component(
@@ -650,9 +664,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         subtitle: "fetch invoice error",
         (context) => ReceivePaymentPage(
           app: mockAppErr,
+          appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
           fiatRate: this.makeFiatRateStream(),
-          appData: LxAppData(mockApp.appDataDb()),
+          settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
       ),
       Component(
@@ -930,9 +945,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         subtitle: "ReceivePage (Invoice)",
         (_) => ReceivePaymentPage(
           app: mocks.MockAppHandleScreenshots(),
+          appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
           fiatRate: ValueNotifier(const FiatRate(fiat: "USD", rate: 96626.76)),
-          appData: LxAppData(mockApp.appDataDb()),
+          settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
       ),
       Component(
@@ -1066,6 +1082,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
           fiatRate: this.makeFiatRateStream(),
+          settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
         screenshot:
             "lexe-docs/docs.lexe.app./images/getting-started/08-receive-lightning.png",
@@ -1107,6 +1124,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
           fiatRate: this.makeFiatRateStream(),
+          settings: LxSettings(mockApp.settingsDb()),
           designInitialPageIdx: btcPageIdx,
         ),
         screenshot:
