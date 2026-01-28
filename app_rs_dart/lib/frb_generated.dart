@@ -3922,11 +3922,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   OnboardingStatus dco_decode_onboarding_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return OnboardingStatus(
-      hasConnectedGdrive: dco_decode_opt_box_autoadd_bool(arr[0]),
-      hasBackedUpSeedPhrase: dco_decode_opt_box_autoadd_bool(arr[1]),
+      hasBackedUpSeedPhrase: dco_decode_opt_box_autoadd_bool(arr[0]),
+      hasConnectedGdrive: dco_decode_opt_box_autoadd_bool(arr[1]),
+      hasSeenReceiveHint: dco_decode_opt_box_autoadd_bool(arr[2]),
     );
   }
 
@@ -5484,13 +5485,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   OnboardingStatus sse_decode_onboarding_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_hasConnectedGdrive = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_hasBackedUpSeedPhrase = sse_decode_opt_box_autoadd_bool(
       deserializer,
     );
+    var var_hasConnectedGdrive = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_hasSeenReceiveHint = sse_decode_opt_box_autoadd_bool(deserializer);
     return OnboardingStatus(
-      hasConnectedGdrive: var_hasConnectedGdrive,
       hasBackedUpSeedPhrase: var_hasBackedUpSeedPhrase,
+      hasConnectedGdrive: var_hasConnectedGdrive,
+      hasSeenReceiveHint: var_hasSeenReceiveHint,
     );
   }
 
@@ -7110,8 +7113,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_bool(self.hasConnectedGdrive, serializer);
     sse_encode_opt_box_autoadd_bool(self.hasBackedUpSeedPhrase, serializer);
+    sse_encode_opt_box_autoadd_bool(self.hasConnectedGdrive, serializer);
+    sse_encode_opt_box_autoadd_bool(self.hasSeenReceiveHint, serializer);
   }
 
   @protected

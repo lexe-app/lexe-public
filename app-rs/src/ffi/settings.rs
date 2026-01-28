@@ -16,8 +16,9 @@ pub struct SettingsDb {
 }
 
 pub struct OnboardingStatus {
-    pub has_connected_gdrive: Option<bool>,
     pub has_backed_up_seed_phrase: Option<bool>,
+    pub has_connected_gdrive: Option<bool>,
+    pub has_seen_receive_hint: Option<bool>,
 }
 
 pub struct Settings {
@@ -81,8 +82,9 @@ impl From<SettingsRs> for Settings {
 impl From<OnboardingStatusRs> for OnboardingStatus {
     fn from(s: OnboardingStatusRs) -> Self {
         Self {
-            has_connected_gdrive: s.has_connected_gdrive,
             has_backed_up_seed_phrase: s.has_backed_up_seed_phrase,
+            has_connected_gdrive: s.has_connected_gdrive,
+            has_seen_receive_hint: s.has_seen_receive_hint,
         }
     }
 }
@@ -90,8 +92,9 @@ impl From<OnboardingStatusRs> for OnboardingStatus {
 impl From<OnboardingStatus> for OnboardingStatusRs {
     fn from(s: OnboardingStatus) -> Self {
         Self {
-            has_connected_gdrive: s.has_connected_gdrive,
             has_backed_up_seed_phrase: s.has_backed_up_seed_phrase,
+            has_connected_gdrive: s.has_connected_gdrive,
+            has_seen_receive_hint: s.has_seen_receive_hint,
         }
     }
 }

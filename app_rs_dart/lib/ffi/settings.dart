@@ -16,22 +16,30 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `try_from`
 
 class OnboardingStatus {
-  final bool? hasConnectedGdrive;
   final bool? hasBackedUpSeedPhrase;
+  final bool? hasConnectedGdrive;
+  final bool? hasSeenReceiveHint;
 
-  const OnboardingStatus({this.hasConnectedGdrive, this.hasBackedUpSeedPhrase});
+  const OnboardingStatus({
+    this.hasBackedUpSeedPhrase,
+    this.hasConnectedGdrive,
+    this.hasSeenReceiveHint,
+  });
 
   @override
   int get hashCode =>
-      hasConnectedGdrive.hashCode ^ hasBackedUpSeedPhrase.hashCode;
+      hasBackedUpSeedPhrase.hashCode ^
+      hasConnectedGdrive.hashCode ^
+      hasSeenReceiveHint.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is OnboardingStatus &&
           runtimeType == other.runtimeType &&
+          hasBackedUpSeedPhrase == other.hasBackedUpSeedPhrase &&
           hasConnectedGdrive == other.hasConnectedGdrive &&
-          hasBackedUpSeedPhrase == other.hasBackedUpSeedPhrase;
+          hasSeenReceiveHint == other.hasSeenReceiveHint;
 }
 
 class Settings {

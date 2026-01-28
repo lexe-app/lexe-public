@@ -71,18 +71,22 @@ impl Default for SettingsRs {
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub(crate) struct OnboardingStatus {
-    /// Whether the user has successfully connected ther Google Drive.
-    pub has_connected_gdrive: Option<bool>,
     /// Whether the user confirmed they have backed up their seed phrase.
     pub has_backed_up_seed_phrase: Option<bool>,
+    /// Whether the user has successfully connected their Google Drive.
+    pub has_connected_gdrive: Option<bool>,
+    /// Whether the user has seen the receive page carousel hint animation.
+    pub has_seen_receive_hint: Option<bool>,
 }
 
 impl Update for OnboardingStatus {
     fn update(&mut self, update: Self) -> anyhow::Result<()> {
-        self.has_connected_gdrive
-            .update(update.has_connected_gdrive)?;
         self.has_backed_up_seed_phrase
             .update(update.has_backed_up_seed_phrase)?;
+        self.has_connected_gdrive
+            .update(update.has_connected_gdrive)?;
+        self.has_seen_receive_hint
+            .update(update.has_seen_receive_hint)?;
         Ok(())
     }
 }
@@ -279,11 +283,12 @@ mod test {
                 }
             );
 
-            // update: onbarding_status={ has_connected_gdrive: true }
+            // update: onboarding_status={ has_connected_gdrive: true }
             db.update(SettingsRs {
                 onboarding_status: Some(OnboardingStatus {
-                    has_connected_gdrive: Some(true),
                     has_backed_up_seed_phrase: None,
+                    has_connected_gdrive: Some(true),
+                    has_seen_receive_hint: None,
                 }),
                 ..Default::default()
             })
@@ -295,18 +300,20 @@ mod test {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
-                        has_connected_gdrive: Some(true),
                         has_backed_up_seed_phrase: None,
+                        has_connected_gdrive: Some(true),
+                        has_seen_receive_hint: None,
                     }),
                     ..Default::default()
                 }
             );
 
-            // update: onbarding_status={ has_connected_gdrive: true }
+            // update: onboarding_status={ has_backed_up_seed_phrase: true }
             db.update(SettingsRs {
                 onboarding_status: Some(OnboardingStatus {
-                    has_connected_gdrive: None,
                     has_backed_up_seed_phrase: Some(true),
+                    has_connected_gdrive: None,
+                    has_seen_receive_hint: None,
                 }),
                 ..Default::default()
             })
@@ -318,8 +325,34 @@ mod test {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
-                        has_connected_gdrive: Some(true),
                         has_backed_up_seed_phrase: Some(true),
+                        has_connected_gdrive: Some(true),
+                        has_seen_receive_hint: None,
+                    }),
+                    ..Default::default()
+                }
+            );
+
+            // update: onboarding_status={ has_seen_receive_hint: true }
+            db.update(SettingsRs {
+                onboarding_status: Some(OnboardingStatus {
+                    has_backed_up_seed_phrase: None,
+                    has_connected_gdrive: None,
+                    has_seen_receive_hint: Some(true),
+                }),
+                ..Default::default()
+            })
+            .unwrap();
+
+            assert_eq!(
+                db.db().lock().unwrap().deref(),
+                &SettingsRs {
+                    locale: Some("USD".to_owned()),
+                    fiat_currency: Some(IsoCurrencyCode::USD),
+                    onboarding_status: Some(OnboardingStatus {
+                        has_backed_up_seed_phrase: Some(true),
+                        has_connected_gdrive: Some(true),
+                        has_seen_receive_hint: Some(true),
                     }),
                     ..Default::default()
                 }
@@ -336,8 +369,9 @@ mod test {
                     locale: Some("USD".to_owned()),
                     fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
-                        has_connected_gdrive: Some(true),
                         has_backed_up_seed_phrase: Some(true),
+                        has_connected_gdrive: Some(true),
+                        has_seen_receive_hint: Some(true),
                     }),
                     ..Default::default()
                 }
