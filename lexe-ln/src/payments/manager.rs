@@ -33,10 +33,7 @@ use lightning::{
     },
     types::payment::PaymentHash,
 };
-use tokio::{
-    sync::{MutexGuard, mpsc},
-    time::Instant,
-};
+use tokio::{sync::MutexGuard, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
@@ -64,9 +61,6 @@ const PAYMENT_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const PAYMENT_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
 const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
-/// Channel capacity for the retry task mpsc channel.
-const RETRY_CHANNEL_CAPACITY: usize = 32;
-
 /// Annotates that a given [`PaymentV2`] was returned by a `check_*` method
 /// which successfully validated a proposed state transition.
 /// [`CheckedPayment`]s should be persisted in order to transform into
@@ -104,7 +98,6 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
     channel_manager: CM,
     router: Arc<LexeRouter>,
     test_event_tx: TestEventSender,
-    retry_tx: mpsc::Sender<LxPaymentId>,
 }
 
 /// The main payments state machine, exposing private methods available only to
@@ -169,7 +162,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
-    ) -> (Self, [LxTask<()>; 4]) {
+    ) -> (Self, [LxTask<()>; 3]) {
         let pending = pending_payments
             .into_iter()
             // Check that payments are indeed pending before adding to hashmap
@@ -197,14 +190,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             in_flight: HashMap::new(),
         }));
 
-        let (retry_tx, retry_rx) = mpsc::channel(RETRY_CHANNEL_CAPACITY);
-
         let myself = Self {
             data,
             persister,
             channel_manager,
             router,
-            retry_tx,
             test_event_tx,
         };
 
@@ -214,9 +204,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             myself.spawn_onchain_recv_checker(
                 wallet,
                 onchain_recv_rx,
-                shutdown.clone(),
+                shutdown,
             ),
-            myself.spawn_payment_retry_task(retry_rx, shutdown),
         ];
 
         (myself, payments_tasks)
@@ -329,49 +318,13 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         )
     }
 
-    /// Spawns a task that handles payment retries.
-    ///
-    /// When a payment fails but has retries remaining, its ID is sent to
-    /// `retry_rx`. This task receives those IDs and attempts retries.
-    fn spawn_payment_retry_task(
-        &self,
-        mut retry_rx: mpsc::Receiver<LxPaymentId>,
-        mut shutdown: NotifyOnce,
-    ) -> LxTask<()> {
-        let payman = self.clone();
-        LxTask::spawn_with_span(
-            "payment retry task",
-            info_span!("(payment-retry-task)"),
-            async move {
-                loop {
-                    let maybe_id = tokio::select! {
-                        id = retry_rx.recv() => id,
-                        () = shutdown.recv() => break,
-                    };
-
-                    let Some(id) = maybe_id else {
-                        // Channel closed, all senders dropped
-                        break;
-                    };
-
-                    if let Err(e) = payman.retry_payment(id).await {
-                        warn!(id = %id, "Retry failed: {e:#}");
-                    }
-                }
-
-                info!("Payment retry task shutting down");
-            },
-        )
-    }
-
     /// Attempts to retry a failed outbound invoice payment.
     ///
     /// Gets the in-flight state, computes a new route avoiding previously
     /// failed channels, and sends the payment again.
     ///
     /// NOTE: This performs full routing and should only be called from
-    /// out-of-line `Event` handlers (e.g., `payment_failed`), not from
-    /// inline event processing.
+    /// out-of-line `Event` handlers.
     ///
     /// Returns `Ok(())` if the payment was sent or is already in-flight.
     /// Returns `Err(failure)` if the payment should be failed permanently;
@@ -380,188 +333,123 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     // Event sources:
     // - `payment_failed` handler (after PaymentFailed event)
     #[instrument(skip_all, name = "(retry-payment)", fields(%id))]
-    async fn retry_payment(&self, id: LxPaymentId) -> anyhow::Result<()> {
+    async fn retry_payment(
+        &self,
+        id: LxPaymentId,
+    ) -> Result<(), LxOutboundPaymentFailure> {
         debug!("Attempting retry");
+
         struct RetryInfo {
             invoice: Arc<LxInvoice>,
             amount: Amount,
             failed_channel_scids: HashSet<u64>,
         }
 
-        // Get in-flight state and extract info needed for routing.
-        // We clone the necessary info to avoid holding the lock during routing.
-        let retry_info = {
-            let locked_data = self.data.lock().await;
-            locked_data.get_in_flight(&id).map(|state| RetryInfo {
-                invoice: state.invoice.clone(),
-                amount: state.amount,
-                failed_channel_scids: state.failed_channel_scids.clone(),
-            })
-        };
+        // Loop until we either send successfully or exhaust retries.
+        loop {
+            // Get in-flight state and extract info needed for routing.
+            // Clone the necessary info to avoid holding the lock during
+            // routing.
+            let retry_info = {
+                let locked_data = self.data.lock().await;
+                locked_data.get_in_flight(&id).map(|state| RetryInfo {
+                    invoice: state.invoice.clone(),
+                    amount: state.amount,
+                    failed_channel_scids: state.failed_channel_scids.clone(),
+                })
+            };
 
-        // Fail the payment since we can't retry without in-flight state.
-        let Some(retry_info) = retry_info else {
-            info!("No in-flight state found, failing payment permanently");
-            self.fail_payment_permanently(
-                id,
-                LxOutboundPaymentFailure::NoRetries,
-            )
-            .await
-            .context("Failed to persist missing-state payment")?;
-            return Err(anyhow!("No in-flight state (restart scenario)"));
-        };
+            // Can't retry without in-flight state.
+            let Some(retry_info) = retry_info else {
+                info!("No in-flight state found");
+                return Err(LxOutboundPaymentFailure::NoRetries);
+            };
 
-        let payment_params = match route::build_payment_params(
-            Either::Right(retry_info.invoice.as_ref()),
-            // TODO(a-mpch): Review if we should compute `num_usable_channels`
-            // here.
-            None, // Don't need channel count for retry
-            retry_info.failed_channel_scids.into_iter().collect(),
-        ) {
-            Ok(params) => params,
-            Err(_) => {
-                // Failed to build params (unlikely). Fail permanently.
-                self.fail_payment_permanently(
-                    id,
-                    LxOutboundPaymentFailure::LexeErr,
-                )
-                .await
-                .context("Failed to persist payment params error")?;
-                return Err(anyhow!("Failed to build payment params"));
-            }
-        };
+            let payment_params = match route::build_payment_params(
+                Either::Right(retry_info.invoice.as_ref()),
+                // TODO(a-mpch): Review if we should compute
+                // `num_usable_channels` here.
+                None, // Don't need channel count for retry
+                retry_info.failed_channel_scids.into_iter().collect(),
+            ) {
+                Ok(params) => params,
+                // Failed to build params (unlikely).
+                Err(_) => return Err(LxOutboundPaymentFailure::LexeErr),
+            };
 
-        // Create routing context and find a new route.
-        let routing_context = RoutingContext::from_payment_params(
-            &self.channel_manager,
-            payment_params,
-        );
+            // Create routing context and find a new route.
+            let routing_context = RoutingContext::from_payment_params(
+                &self.channel_manager,
+                payment_params,
+            );
 
-        let route_result =
-            routing_context.find_route(&self.router, retry_info.amount);
-        let (route, _route_params) = match route_result {
-            Ok(r) => r,
-            Err(_) => {
-                // No route found. Re-enqueue if under max attempts.
-                let should_requeue = {
-                    let mut locked_data = self.data.lock().await;
-                    locked_data.increment_attempt(&id);
-                    locked_data.has_remaining_attempts(&id)
-                };
+            let route_result =
+                routing_context.find_route(&self.router, retry_info.amount);
+            let (route, _route_params) = match route_result {
+                Ok(r) => r,
+                Err(_) => {
+                    // No route found. Retry immediately if under max attempts.
+                    let should_retry = {
+                        let mut locked_data = self.data.lock().await;
+                        locked_data.increment_attempt(&id);
+                        locked_data.has_remaining_attempts(&id)
+                    };
 
-                if should_requeue {
-                    debug!("No route found, re-enqueueing for retry");
-                    let _ = self.retry_tx.try_send(id);
-                    self.test_event_tx.send(TestEvent::PaymentRetried);
-                } else {
-                    debug!(
-                        "No route found, no more retries, failing permanently"
-                    );
+                    if should_retry {
+                        debug!("No route found, retrying immediately");
+                        self.test_event_tx.send(TestEvent::PaymentRetried);
+                        continue;
+                    }
 
-                    self.fail_payment_permanently(
-                        id,
-                        LxOutboundPaymentFailure::NoRoute,
-                    )
-                    .await
-                    .context("Failed to persist no-route payment")?;
+                    debug!("No route found, no more retries");
+                    return Err(LxOutboundPaymentFailure::NoRoute);
                 }
-                return Err(anyhow!("No route found"));
-            }
-        };
+            };
 
-        // Build recipient onion fields (includes payment_metadata if present).
-        let recipient_fields = recipient_onion_fields(&retry_info.invoice);
+            // Build recipient onion fields (includes payment_metadata if
+            // present).
+            let recipient_fields = recipient_onion_fields(&retry_info.invoice);
 
-        // Reuse the same payment ID from the original payment.
-        let payment_id = match id {
-            LxPaymentId::Lightning(hash) =>
-                lightning::ln::channelmanager::PaymentId::from(hash),
-            _ => {
-                return Err(anyhow!("Retry only supported on bolt11 payments"));
-            }
-        };
+            let (payment_id, payment_hash) = match id {
+                LxPaymentId::Lightning(hash) => (
+                    lightning::ln::channelmanager::PaymentId::from(hash),
+                    PaymentHash::from(hash),
+                ),
+                _ => return Err(LxOutboundPaymentFailure::LexeErr),
+            };
 
-        // Send the payment.
-        let payment_hash = PaymentHash::from(retry_info.invoice.payment_hash());
-        let send_result = self.channel_manager.send_payment_with_route(
-            route,
-            payment_hash,
-            recipient_fields,
-            payment_id,
-        );
+            // Send the payment.
+            let send_result = self.channel_manager.send_payment_with_route(
+                route,
+                payment_hash,
+                recipient_fields,
+                payment_id,
+            );
 
-        match send_result {
-            Ok(()) => {
-                self.data.lock().await.increment_attempt(&id);
-                info!("Retry send succeeded, waiting for events");
-                Ok(())
-            }
-            Err(RetryableSendFailure::DuplicatePayment) => {
-                debug!("Payment in-flight, re-enqueueing");
-                let _ = self.retry_tx.try_send(id);
-                Ok(())
-            }
-            Err(RetryableSendFailure::PaymentExpired) => {
-                // Invoice expired. Persist as Failed.
-                self.fail_payment_permanently(
-                    id,
-                    LxOutboundPaymentFailure::Expired,
-                )
-                .await
-                .context("Failed to persist expired payment")?;
-                Err(anyhow!("Payment expired"))
-            }
-            Err(RetryableSendFailure::RouteNotFound) => {
-                // This shouldn't happen after find_route succeeded, but handle
-                // it as a permanent failure.
-                self.fail_payment_permanently(
-                    id,
-                    LxOutboundPaymentFailure::NoRoute,
-                )
-                .await
-                .context("Failed to persist no-route payment")?;
-                Err(anyhow!("Route not found during send"))
-            }
-            Err(RetryableSendFailure::OnionPacketSizeExceeded) => {
-                // Metadata too large. Persist as Failed.
-                self.fail_payment_permanently(
-                    id,
-                    LxOutboundPaymentFailure::MetadataTooLarge,
-                )
-                .await
-                .context("Failed to persist metadata-too-large payment")?;
-                Err(anyhow!("Onion packet size exceeded"))
+            match send_result {
+                Ok(()) => {
+                    self.data.lock().await.increment_attempt(&id);
+                    info!("Retry send succeeded, waiting for events");
+                    return Ok(());
+                }
+                Err(RetryableSendFailure::DuplicatePayment) => {
+                    // Payment is already in-flight with LDK. We'll receive
+                    // PaymentSent or PaymentFailed events when it completes.
+                    debug!("Payment already in-flight, waiting for events");
+                    return Ok(());
+                }
+                Err(RetryableSendFailure::PaymentExpired) => {
+                    return Err(LxOutboundPaymentFailure::Expired);
+                }
+                Err(RetryableSendFailure::RouteNotFound) => {
+                    // Shouldn't happen after find_route succeeded.
+                    return Err(LxOutboundPaymentFailure::NoRoute);
+                }
+                Err(RetryableSendFailure::OnionPacketSizeExceeded) => {
+                    return Err(LxOutboundPaymentFailure::MetadataTooLarge);
+                }
             }
         }
-    }
-
-    /// Fails a payment permanently: removes in-flight state and persists
-    /// Failed.
-    async fn fail_payment_permanently(
-        &self,
-        id: LxPaymentId,
-        failure: LxOutboundPaymentFailure,
-    ) -> anyhow::Result<()> {
-        let mut locked_data = self.data.lock().await;
-
-        // Check and persist as Failed.
-        let checked = locked_data
-            .check_payment_failed(id, failure)
-            .context("Error validating PaymentFailed")?;
-
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Could not persist payment")?;
-
-        locked_data.commit(persisted);
-
-        // Remove in-flight state.
-        locked_data.remove_in_flight(&id);
-
-        self.test_event_tx.send(TestEvent::PaymentFailed);
-        Ok(())
     }
 
     /// Register a new, globally-unique payment.
@@ -1014,36 +902,45 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         warn!("handling PaymentFailed");
 
-        let mut locked_data = self.data.lock().await;
+        let should_retry = {
+            let mut locked_data = self.data.lock().await;
 
-        // check_payment_failed precondition: Must not be finalized
-        let is_finalized = self
-            .get_cow_payment(&mut locked_data, &id)
-            .await
-            .context("Could not get payment")?
-            .is_some_and(|p| p.payment.status().is_finalized());
-        if is_finalized {
-            warn!(%id, "Already finalized");
-            // Idempotency: If the payment was already finalized,
-            //              we don't need to do anything.
-            return Ok(());
-        }
+            let is_finalized = self
+                .get_cow_payment(&mut locked_data, &id)
+                .await
+                .context("Could not get payment")?
+                .is_some_and(|p| p.payment.status().is_finalized());
 
-        // Check in-memory retry state to decide whether to retry or fail.
-        if locked_data.should_retry(&id, &failure)
-            && self.retry_tx.try_send(id).is_ok()
-        {
-            debug!("Payment should be retried, re-enqueueing");
+            if is_finalized {
+                warn!(%id, "Already finalized");
+                return Ok(());
+            }
+
+            locked_data.should_retry(&id, &failure)
+        };
+
+        let final_failure = if should_retry {
+            debug!("Payment should be retried, attempting retry inline");
             self.test_event_tx.send(TestEvent::PaymentRetried);
-            return Ok(());
-        }
 
-        // No in-flight state or max retries exceeded: persist as Failed.
+            match self.retry_payment(id).await {
+                // Retry succeeded, payment is in-flight.
+                Ok(()) => return Ok(()),
+                // Retry failed, use this as the latest failure reason.
+                Err(retry_failure) => retry_failure,
+            }
+        } else {
+            // No retry attempted, use the original failure.
+            failure
+        };
+
+        // Persist the payment as Failed.
+        let mut locked_data = self.data.lock().await;
         locked_data.remove_in_flight(&id);
 
         // Check
         let checked = locked_data
-            .check_payment_failed(id, failure)
+            .check_payment_failed(id, final_failure)
             .context("Error validating PaymentFailed")?;
 
         // Persist
