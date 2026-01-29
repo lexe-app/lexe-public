@@ -70,6 +70,8 @@ import 'package:lexeapp/route/channels.dart'
 import 'package:lexeapp/route/clients.dart' show ClientsPage;
 import 'package:lexeapp/route/close_channel.dart'
     show CloseChannelConfirmPage, CloseChannelPage;
+import 'package:lexeapp/route/initial_deposit/page.dart'
+    show InitialDepositChooseMethodPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart'
@@ -417,6 +419,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           config: this.widget.config,
           restoreApi: mockRestoreApiErr,
         ),
+      ),
+      Component(
+        "InitialDepositChooseMethodPage",
+        (context) => const InitialDepositChooseMethodPage(),
       ),
       Component(
         "WalletPage",
