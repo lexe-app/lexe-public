@@ -25,6 +25,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ShortPayment;
 import 'package:app_rs_dart/ffi/types.ext.dart' show ShortPaymentExt;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:lexeapp/app_data.dart' show LxAppData;
@@ -730,10 +731,25 @@ class WalletPageState extends State<WalletPage> {
                     },
                   )
                 else
-                  WalletActions(
-                    onScanPressed: this.onScanPressed,
-                    onReceivePressed: this.onReceivePressed,
-                    onSendPressed: this.onSendPressed,
+                  Column(
+                    children: [
+                      // Primary wallet actions
+                      WalletActions(
+                        onScanPressed: this.onScanPressed,
+                        onReceivePressed: this.onReceivePressed,
+                        onSendPressed: this.onSendPressed,
+                      ),
+
+                      // Situational hints and prompts
+                      ValueListenableBuilder(
+                        valueListenable: this.balanceState,
+                        builder: (_context, balanceState, _child) =>
+                            WalletHints(
+                              balanceState: balanceState,
+                              onOpenChannelPage: this.onOpenChannelPage,
+                            ),
+                      ),
+                    ],
                   ),
                 const SizedBox(height: Space.s600),
               ],
@@ -1997,6 +2013,123 @@ class WalletBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Situational hints to the user on the wallet page.
+/// 1. When the user has zero funds, prompt them to receive via Lightning.
+/// 2. When the user has only on-chain funds, prompt them to open a channel.
+///
+/// Used when the `showWalletBanners` feature flag is OFF.
+// TODO(phlip9): make this dismissable.
+class WalletHints extends StatelessWidget {
+  const WalletHints({
+    super.key,
+    required this.balanceState,
+    required this.onOpenChannelPage,
+  });
+
+  final BalanceState balanceState;
+  final VoidCallback onOpenChannelPage;
+
+  Widget? buildChild() {
+    final balance = this.balanceState.balanceSats;
+    // Haven't finished loading yet, don't know whether to show hints.
+    if (balance == null) return null;
+
+    // Zero funds, prompt user to receive
+    if (balance.totalSats == 0) {
+      return this.buildZeroBalanceHint();
+    }
+
+    // Only on-chain funds, prompt user to open a channel
+    // TODO(phlip9): use num channels == 0?
+    if (balance.onchainSats > 0 && balance.lightningSats == 0) {
+      return this.buildOnChainOnlyHint();
+    }
+
+    return null;
+  }
+
+  /// Hint for completely fresh wallet with zero balance, prompt user to receive
+  /// via Lightning.
+  Widget buildZeroBalanceHint() {
+    return const WalletHintBox(
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: "It looks like you don't have any funds yet!\n"),
+            TextSpan(text: "Tap "),
+            TextSpan(
+              text: "Receive",
+              style: TextStyle(fontVariations: [Fonts.weightSemiBold]),
+            ),
+            TextSpan(text: " to accept your first Lightning payment.\n"),
+            WidgetSpan(child: SizedBox(height: Space.s550)),
+            TextSpan(
+              text: "All just-in-time channel opens are free during our beta!",
+            ),
+          ],
+        ),
+        style: hintStyle,
+      ),
+    );
+  }
+
+  /// Hint for on-chain only wallet, prompt user to open a channel.
+  Widget buildOnChainOnlyHint() {
+    return WalletHintBox(
+      child: Text.rich(
+        TextSpan(
+          children: [
+            const TextSpan(text: "You only have on-chain funds.\n"),
+            const TextSpan(text: "To send Lightning payments, "),
+            TextSpan(
+              text: "open a channel!",
+              style: const TextStyle(
+                decoration: TextDecoration.underline,
+                decorationColor: LxColors.grey600,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = this.onOpenChannelPage,
+            ),
+          ],
+        ),
+        style: hintStyle,
+      ),
+    );
+  }
+
+  static const TextStyle hintStyle = TextStyle(
+    color: LxColors.grey550,
+    fontSize: Fonts.size200,
+    height: 1.4,
+  );
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: const Duration(milliseconds: 250),
+    child: this.buildChild(),
+  );
+}
+
+class WalletHintBox extends StatelessWidget {
+  const WalletHintBox({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      Space.s450,
+      Space.s500,
+      Space.s450,
+      Space.s200,
+    ),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320.0),
+      child: this.child,
+    ),
+  );
 }
 
 enum PaymentsListFilter {
