@@ -104,9 +104,13 @@ class MockAppHandle extends AppHandle {
     required this.balance,
     required this.payments,
     required this.channels,
+    this.walletFundingState,
   }) : assert(payments.isSortedBy((payment) => payment.index.field0)),
        assert(balance.totalSats == balance.lightningSats + balance.onchainSats),
        super(inner: MockApp());
+
+  /// Optional funding state to return from settings.
+  final WalletFundingState? walletFundingState;
 
   // Wallet balance
   Balance balance;
@@ -118,7 +122,8 @@ class MockAppHandle extends AppHandle {
   List<LxChannelDetails> channels;
 
   @override
-  SettingsDb settingsDb() => MockSettingsDb();
+  SettingsDb settingsDb() =>
+      MockSettingsDb(walletFundingState: this.walletFundingState);
 
   @override
   AppDataDb appDataDb() => MockAppDataDb();
@@ -804,10 +809,16 @@ class MockAppHandleScreenshots extends MockAppHandle {
 }
 
 class MockSettingsDb extends SettingsDb {
-  MockSettingsDb() : super(inner: MockSettingsDbRs());
+  MockSettingsDb({this.walletFundingState}) : super(inner: MockSettingsDbRs());
+
+  final WalletFundingState? walletFundingState;
 
   @override
-  Settings read() => const Settings();
+  Settings read() => Settings(
+    onboardingStatus: this.walletFundingState != null
+        ? OnboardingStatus(walletFundingState: this.walletFundingState!)
+        : null,
+  );
 
   @override
   void reset() {}

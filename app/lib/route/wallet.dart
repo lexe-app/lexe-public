@@ -6,7 +6,8 @@ import 'dart:math' as math;
 import 'package:app_rs_dart/ffi/api.dart'
     show FiatRate, NodeInfo, PaymentAddress;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/settings.dart' show Settings;
+import 'package:app_rs_dart/ffi/settings.dart'
+    show Settings, WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -24,7 +25,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         ShortPayment;
 import 'package:app_rs_dart/ffi/types.ext.dart' show ShortPaymentExt;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:lexeapp/app_data.dart' show LxAppData;
@@ -54,6 +54,8 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/channels.dart' show ChannelsPage;
 import 'package:lexeapp/route/clients.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
+import 'package:lexeapp/route/initial_deposit/page.dart'
+    show InitialDepositPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart' show OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart'
@@ -400,6 +402,31 @@ class WalletPageState extends State<WalletPage> {
     this.triggerBurstRefresh();
   }
 
+  /// Called when the "Fund your wallet" banner is tapped (NonFunded state).
+  Future<void> onInitialDepositBannerTap() async {
+    await Navigator.of(
+      this.context,
+    ).push(MaterialPageRoute(builder: (context) => const InitialDepositPage()));
+    if (!this.mounted) return;
+
+    // Maybe user received a payment, burst refresh to pick it up.
+    this.triggerBurstRefresh();
+  }
+
+  /// Called when the "Add more funds" banner is tapped (ChannelReserveNotMet).
+  /// Skips method selection and goes directly to Lightning amount page.
+  Future<void> onLightningOnlyDepositBannerTap() async {
+    await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => const InitialDepositPage(lightningOnly: true),
+      ),
+    );
+    if (!this.mounted) return;
+
+    // Maybe user received a payment, burst refresh to pick it up.
+    this.triggerBurstRefresh();
+  }
+
   /// Called when the "Send" button is pressed. Pushes the send payment page
   /// onto the navigation stack.
   Future<void> onSendPressed() async {
@@ -647,25 +674,68 @@ class WalletPageState extends State<WalletPage> {
                 ),
                 const SizedBox(height: Space.s700),
 
-                // Primary wallet actions
-                WalletActions(
-                  // ☐ - Quickly scan a QR code
-                  onScanPressed: this.onScanPressed,
-                  // ↓ - Open BTC/LN receive payment page
-                  onReceivePressed: this.onReceivePressed,
-                  // ↑ - Open BTC/LN send payment page
-                  onSendPressed: this.onSendPressed,
-                ),
-                const SizedBox(height: Space.s600),
-
-                // Situational hints and prompts
-                ValueListenableBuilder(
-                  valueListenable: this.balanceState,
-                  builder: (_context, balanceState, _child) => WalletHints(
-                    balanceState: balanceState,
-                    onOpenChannelPage: this.onOpenChannelPage,
+                // Primary wallet actions and/or funding state banners
+                if (this.widget.featureFlags.showWalletBanners)
+                  ValueListenableBuilder(
+                    valueListenable: this.widget.settings.onboardingStatus,
+                    builder: (context, onboardingStatus, child) {
+                      final fundingState =
+                          onboardingStatus?.walletFundingState ??
+                          WalletFundingState.funded;
+                      return switch (fundingState) {
+                        // Banner only (no WalletActions)
+                        WalletFundingState.nonFunded => WalletBanner.nonFunded(
+                          onTap: this.onInitialDepositBannerTap,
+                        ),
+                        // Banner only (no WalletActions)
+                        WalletFundingState.channelReserveNotMet =>
+                          WalletBanner.channelReserveNotMet(
+                            onTap: this.onLightningOnlyDepositBannerTap,
+                          ),
+                        // WalletActions + banner below
+                        WalletFundingState.onChainDeposited => Column(
+                          children: [
+                            WalletActions(
+                              onScanPressed: this.onScanPressed,
+                              onReceivePressed: this.onReceivePressed,
+                              onSendPressed: this.onSendPressed,
+                            ),
+                            const SizedBox(height: Space.s500),
+                            WalletBanner.onChainDeposited(
+                              onTap: this.onOpenChannelPage,
+                            ),
+                          ],
+                        ),
+                        // WalletActions + banner below
+                        WalletFundingState.channelOpening => Column(
+                          children: [
+                            WalletActions(
+                              onScanPressed: this.onScanPressed,
+                              onReceivePressed: this.onReceivePressed,
+                              onSendPressed: this.onSendPressed,
+                            ),
+                            const SizedBox(height: Space.s500),
+                            WalletBanner.channelOpening(
+                              onTap: this.onOpenChannelsPage,
+                            ),
+                          ],
+                        ),
+                        // WalletActions only (no banner)
+                        WalletFundingState.funded => WalletActions(
+                          onScanPressed: this.onScanPressed,
+                          onReceivePressed: this.onReceivePressed,
+                          onSendPressed: this.onSendPressed,
+                        ),
+                      };
+                    },
+                  )
+                else
+                  WalletActions(
+                    onScanPressed: this.onScanPressed,
+                    onReceivePressed: this.onReceivePressed,
+                    onSendPressed: this.onSendPressed,
                   ),
-                ),
+                const SizedBox(height: Space.s600),
               ],
             ),
           ),
@@ -1825,120 +1895,108 @@ class WalletActionButton extends StatelessWidget {
   }
 }
 
-/// Situational hints to the user on the wallet page.
-/// 1. When the user has zero funds, prompt them to receive via Lightning.
-/// 2. When the user has only on-chain funds, prompt them to open a channel.
-// TODO(phlip9): make this dismissable.
-class WalletHints extends StatelessWidget {
-  const WalletHints({
+/// A tappable card banner with an icon, title, and subtitle.
+///
+/// Used for wallet funding state CTAs on the wallet page.
+class WalletBanner extends StatelessWidget {
+  const WalletBanner({
     super.key,
-    required this.balanceState,
-    required this.onOpenChannelPage,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
   });
 
-  final BalanceState balanceState;
-  final VoidCallback onOpenChannelPage;
+  /// Banner for NonFunded state: prompt user to fund their wallet.
+  const WalletBanner.nonFunded({super.key, required this.onTap})
+    : icon = LxIcons.lightning,
+      title = "Fund your wallet",
+      subtitle = "Receive your first deposit";
 
-  Widget? buildChild() {
-    final balance = this.balanceState.balanceSats;
-    // Haven't finished loading yet, don't know whether to show hints.
-    if (balance == null) return null;
+  /// Banner for OnChainDeposited state: prompt user to open a channel.
+  const WalletBanner.onChainDeposited({super.key, required this.onTap})
+    : icon = LxIcons.openCloseChannel,
+      title = "Open a channel",
+      subtitle = "Use your on-chain funds on Lightning";
 
-    // Zero funds, prompt user to receive
-    if (balance.totalSats == 0) {
-      return this.buildZeroBalanceHint();
-    }
+  /// Banner for ChannelOpening state: inform user channel is being opened.
+  const WalletBanner.channelOpening({super.key, required this.onTap})
+    : icon = LxIcons.pendingBadge,
+      title = "Channel is opening",
+      subtitle = "Waiting for blockchain confirmation";
 
-    // Only on-chain funds, prompt user to open a channel
-    // TODO(phlip9): use num channels == 0?
-    if (balance.onchainSats > 0 && balance.lightningSats == 0) {
-      return this.buildOnChainOnlyHint();
-    }
+  /// Banner for ChannelReserveNotMet state: prompt user to add more funds.
+  const WalletBanner.channelReserveNotMet({super.key, required this.onTap})
+    : icon = LxIcons.lightning,
+      title = "Add more funds",
+      subtitle = "Receive more to cover reserve and start sending";
 
-    return null;
-  }
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
-  /// Hint for completely fresh wallet with zero balance, prompt user to receive
-  /// via Lightning.
-  Widget buildZeroBalanceHint() {
-    return const WalletHintBox(
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(text: "It looks like you don't have any funds yet!\n"),
-            // WidgetSpan(child: SizedBox(height: Space.s550)),
-            TextSpan(text: "Tap "),
-            TextSpan(
-              text: "Receive",
-              style: TextStyle(fontVariations: [Fonts.weightSemiBold]),
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.s400),
+      child: Material(
+        color: LxColors.grey1000,
+        borderRadius: BorderRadius.circular(LxRadius.r400),
+        child: InkWell(
+          onTap: this.onTap,
+          borderRadius: BorderRadius.circular(LxRadius.r400),
+          child: Padding(
+            padding: const EdgeInsets.all(Space.s400),
+            child: Row(
+              children: [
+                // Icon
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: LxColors.moneyGoUp.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(LxRadius.r300),
+                  ),
+                  child: Icon(this.icon, size: 20, color: LxColors.moneyGoUp),
+                ),
+                const SizedBox(width: Space.s300),
+
+                // Text content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        this.title,
+                        style: Fonts.fontUI.copyWith(
+                          fontSize: Fonts.size300,
+                          fontVariations: [Fonts.weightSemiBold],
+                          color: LxColors.foreground,
+                        ),
+                      ),
+                      const SizedBox(height: Space.s100),
+                      Text(
+                        this.subtitle,
+                        style: Fonts.fontUI.copyWith(
+                          fontSize: Fonts.size200,
+                          color: LxColors.fgSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Chevron
+                const Icon(LxIcons.next, size: 20, color: LxColors.fgTertiary),
+              ],
             ),
-            TextSpan(text: " to accept your first Lightning payment.\n"),
-            WidgetSpan(child: SizedBox(height: Space.s550)),
-            TextSpan(
-              text: "All just-in-time channel opens are free during our beta!",
-            ),
-          ],
+          ),
         ),
-        style: hintStyle,
       ),
     );
   }
-
-  /// Hint for on-chain only wallet, prompt user to open a channel.
-  Widget buildOnChainOnlyHint() {
-    return WalletHintBox(
-      child: Text.rich(
-        TextSpan(
-          children: [
-            const TextSpan(text: "You only have on-chain funds.\n"),
-            const TextSpan(text: "To send Lightning payments, "),
-            TextSpan(
-              text: "open a channel!",
-              style: const TextStyle(
-                decoration: TextDecoration.underline,
-                decorationColor: LxColors.grey600,
-              ),
-              recognizer: TapGestureRecognizer()
-                ..onTap = this.onOpenChannelPage,
-            ),
-          ],
-        ),
-        style: hintStyle,
-      ),
-    );
-  }
-
-  static const TextStyle hintStyle = TextStyle(
-    color: LxColors.grey550,
-    fontSize: Fonts.size200,
-    height: 1.4,
-  );
-
-  @override
-  Widget build(BuildContext context) => AnimatedSwitcher(
-    duration: const Duration(milliseconds: 250),
-    child: this.buildChild(),
-  );
-}
-
-class WalletHintBox extends StatelessWidget {
-  const WalletHintBox({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      Space.s450,
-      Space.s500,
-      Space.s450,
-      Space.s200,
-    ),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 320.0),
-      child: this.child,
-    ),
-  );
 }
 
 enum PaymentsListFilter {

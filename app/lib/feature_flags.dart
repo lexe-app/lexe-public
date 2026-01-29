@@ -58,17 +58,20 @@ final class FeatureFlags {
   const FeatureFlags.none({
     this.allowEditPaymentAddress = false,
     this.showPaymentAddress = false,
+    this.showWalletBanners = false,
   });
 
   /// Enable all features.
   const FeatureFlags.all({
     this.allowEditPaymentAddress = true,
     this.showPaymentAddress = true,
+    this.showWalletBanners = false,
   });
 
   const FeatureFlags.some({
     this.allowEditPaymentAddress = false,
     this.showPaymentAddress = false,
+    this.showWalletBanners = false,
   });
 
   /// On the Wallet > Wallet Drawer, allow the user to edit their payment
@@ -77,4 +80,8 @@ final class FeatureFlags {
 
   /// On the Wallet > Wallet Drawer, show the payment address with copy/share.
   final bool showPaymentAddress;
+
+  /// On the Wallet page, show funding state banners below WalletActions.
+  /// When false, no banners are shown (assumes `funded` state).
+  final bool showWalletBanners;
 }

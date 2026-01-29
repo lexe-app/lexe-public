@@ -16,6 +16,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayInvoiceResponse,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show U8Array16;
+import 'package:app_rs_dart/ffi/settings.dart' show WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
@@ -109,7 +110,8 @@ import 'package:lexeapp/route/signup.dart'
         SignupCtx,
         SignupGDriveAuthPage,
         SignupPage;
-import 'package:lexeapp/route/wallet.dart' show WalletActionButton, WalletPage;
+import 'package:lexeapp/route/wallet.dart'
+    show WalletActionButton, WalletBanner, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
 import 'package:lexeapp/service/node_info.dart';
 import 'package:lexeapp/service/payment_address.dart'
@@ -482,6 +484,75 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           gdriveAuth: GDriveAuth.mock,
         ),
       ),
+      Component("WalletPage", subtitle: "banner: nonFunded (no payments)", (_) {
+        final app = mocks.MockAppHandle(
+          payments: [],
+          channels: [],
+          balance: mocks.balanceZero,
+          walletFundingState: WalletFundingState.nonFunded,
+        );
+        return WalletPage(
+          config: this.widget.config,
+          app: app,
+          settings: LxSettings(app.settingsDb()),
+          appData: LxAppData(app.appDataDb()),
+          featureFlags: const FeatureFlags.all(showWalletBanners: true),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        );
+      }),
+      Component("WalletPage", subtitle: "banner: onChainDeposited", (_) {
+        final app = mocks.MockAppHandle(
+          payments: [mocks.dummyOnchainInboundCompleted01],
+          channels: [],
+          balance: mocks.balanceOnchainOnly,
+          walletFundingState: WalletFundingState.onChainDeposited,
+        );
+        return WalletPage(
+          config: this.widget.config,
+          app: app,
+          settings: LxSettings(app.settingsDb()),
+          appData: LxAppData(app.appDataDb()),
+          featureFlags: const FeatureFlags.all(showWalletBanners: true),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        );
+      }),
+      Component("WalletPage", subtitle: "banner: channelOpening", (_) {
+        final app = mocks.MockAppHandle(
+          payments: [mocks.dummyOnchainInboundCompleted01],
+          channels: [],
+          balance: mocks.balanceOnchainOnly,
+          walletFundingState: WalletFundingState.channelOpening,
+        );
+        return WalletPage(
+          config: this.widget.config,
+          app: app,
+          settings: LxSettings(app.settingsDb()),
+          appData: LxAppData(app.appDataDb()),
+          featureFlags: const FeatureFlags.all(showWalletBanners: true),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        );
+      }),
+      Component("WalletPage", subtitle: "banner: channelReserveNotMet", (_) {
+        final app = mocks.MockAppHandle(
+          payments: [mocks.dummyInvoiceInboundCompleted03],
+          channels: [mocks.dummyChannelLightningOnly],
+          balance: mocks.balanceLightningOnly,
+          walletFundingState: WalletFundingState.channelReserveNotMet,
+        );
+        return WalletPage(
+          config: this.widget.config,
+          app: app,
+          settings: LxSettings(app.settingsDb()),
+          appData: LxAppData(app.appDataDb()),
+          featureFlags: const FeatureFlags.all(showWalletBanners: true),
+          uriEvents: this.widget.uriEvents,
+          gdriveAuth: GDriveAuth.mock,
+        );
+      }),
+
       Component(
         "SendPaymentNeedUriPage",
         (context) => SendPaymentPage(
@@ -1338,6 +1409,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => const ErrorMessageSectionPage(),
       ),
       Component("SaveFile", (context) => const SaveFilePage()),
+      Component("WalletBanner", (context) => const WalletBannerPage()),
     ];
   }
 
@@ -2145,6 +2217,79 @@ class SaveFilePage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// View all [WalletBanner] variants for each [WalletFundingState].
+class WalletBannerPage extends StatelessWidget {
+  const WalletBannerPage({super.key});
+
+  static void onTap() {
+    info("Banner tapped");
+  }
+
+  static Widget _label(String text) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: Space.s600),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontVariations: [Fonts.weightSemiBold],
+        color: LxColors.fgSecondary,
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: const LxBackButton(isLeading: true),
+        leadingWidth: Space.appBarLeadingWidth,
+      ),
+      body: ScrollableSinglePageBody(
+        padding: EdgeInsets.zero,
+        body: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: Space.s600),
+            child: HeadingText(text: "WalletBanner"),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: Space.s600),
+            child: SubheadingText(
+              text: "Banners shown based on wallet funding state",
+            ),
+          ),
+          const SizedBox(height: Space.s600),
+
+          // NonFunded
+          _label("NonFunded"),
+          const SizedBox(height: Space.s200),
+          WalletBanner.nonFunded(onTap: onTap),
+          const SizedBox(height: Space.s500),
+
+          // OnChainDeposited
+          _label("OnChainDeposited"),
+          const SizedBox(height: Space.s200),
+          WalletBanner.onChainDeposited(onTap: onTap),
+          const SizedBox(height: Space.s500),
+
+          // ChannelOpening
+          _label("ChannelOpening"),
+          const SizedBox(height: Space.s200),
+          WalletBanner.channelOpening(onTap: onTap),
+          const SizedBox(height: Space.s500),
+
+          // ChannelReserveNotMet
+          _label("ChannelReserveNotMet"),
+          const SizedBox(height: Space.s200),
+          WalletBanner.channelReserveNotMet(onTap: onTap),
+          const SizedBox(height: Space.s500),
+
+          // Note about Funded state
+          _label("Funded (no banner)"),
+        ],
       ),
     );
   }
