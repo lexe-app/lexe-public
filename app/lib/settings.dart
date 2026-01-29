@@ -1,5 +1,5 @@
 import 'package:app_rs_dart/ffi/settings.dart'
-    show OnboardingStatus, Settings, SettingsDb;
+    show OnboardingStatus, Settings, SettingsDb, WalletFundingState;
 import 'package:flutter/foundation.dart';
 import 'package:lexeapp/notifier_ext.dart' show ValueNotifierExt;
 import 'package:lexeapp/prelude.dart';
@@ -45,6 +45,12 @@ class LxSettings {
   final ValueNotifier<OnboardingStatus?> _onboardingStatus;
   ValueListenable<OnboardingStatus?> get onboardingStatus =>
       this._onboardingStatus;
+
+  /// Convenience getter for wallet funding state.
+  /// Defaults to [WalletFundingState.nonFunded] if onboarding status is null.
+  WalletFundingState get walletFundingState =>
+      this._onboardingStatus.value?.walletFundingState ??
+      WalletFundingState.nonFunded;
 
   void reset() {
     this._db.reset();
