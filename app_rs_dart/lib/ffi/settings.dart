@@ -13,24 +13,29 @@ import 'app.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `try_from`
 
 class OnboardingStatus {
   final bool? hasBackedUpSeedPhrase;
   final bool? hasConnectedGdrive;
   final bool? hasSeenReceiveHint;
 
+  /// The current wallet funding state. Defaults to `NonFunded` if not set.
+  final WalletFundingState? walletFundingState;
+
   const OnboardingStatus({
     this.hasBackedUpSeedPhrase,
     this.hasConnectedGdrive,
     this.hasSeenReceiveHint,
+    this.walletFundingState,
   });
 
   @override
   int get hashCode =>
       hasBackedUpSeedPhrase.hashCode ^
       hasConnectedGdrive.hashCode ^
-      hasSeenReceiveHint.hashCode;
+      hasSeenReceiveHint.hashCode ^
+      walletFundingState.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -39,7 +44,8 @@ class OnboardingStatus {
           runtimeType == other.runtimeType &&
           hasBackedUpSeedPhrase == other.hasBackedUpSeedPhrase &&
           hasConnectedGdrive == other.hasConnectedGdrive &&
-          hasSeenReceiveHint == other.hasSeenReceiveHint;
+          hasSeenReceiveHint == other.hasSeenReceiveHint &&
+          walletFundingState == other.walletFundingState;
 }
 
 class Settings {
@@ -107,4 +113,25 @@ class SettingsDb {
       other is SettingsDb &&
           runtimeType == other.runtimeType &&
           inner == other.inner;
+}
+
+/// Wallet funding state machine.
+///
+/// Tracks whether the user has funded their wallet and how.
+enum WalletFundingState {
+  /// Initial state. User has no funds and no channel.
+  nonFunded,
+
+  /// User has received on-chain funds but has no Lightning channel yet.
+  onChainDeposited,
+
+  /// User has a pending channel open. Waiting for confirmation.
+  channelOpening,
+
+  /// User has a usable Lightning channel but channel reserve is not met.
+  /// Can receive but can't send.
+  channelReserveNotMet,
+
+  /// User has a usable Lightning channel with outbound capacity.
+  funded,
 }

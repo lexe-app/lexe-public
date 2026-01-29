@@ -3519,6 +3519,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  WalletFundingState dco_decode_box_autoadd_wallet_funding_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_wallet_funding_state(raw);
+  }
+
+  @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3922,12 +3928,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   OnboardingStatus dco_decode_onboarding_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return OnboardingStatus(
       hasBackedUpSeedPhrase: dco_decode_opt_box_autoadd_bool(arr[0]),
       hasConnectedGdrive: dco_decode_opt_box_autoadd_bool(arr[1]),
       hasSeenReceiveHint: dco_decode_opt_box_autoadd_bool(arr[2]),
+      walletFundingState: dco_decode_opt_box_autoadd_wallet_funding_state(
+        arr[3],
+      ),
     );
   }
 
@@ -4063,6 +4072,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Username? dco_decode_opt_box_autoadd_username(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_username(raw);
+  }
+
+  @protected
+  WalletFundingState? dco_decode_opt_box_autoadd_wallet_funding_state(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_wallet_funding_state(raw);
   }
 
   @protected
@@ -4528,6 +4547,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  WalletFundingState dco_decode_wallet_funding_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return WalletFundingState.values[raw as int];
   }
 
   @protected
@@ -5021,6 +5046,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  WalletFundingState sse_decode_box_autoadd_wallet_funding_state(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_wallet_funding_state(deserializer));
+  }
+
+  @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_u_8_array_32(deserializer);
@@ -5490,10 +5523,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     );
     var var_hasConnectedGdrive = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_hasSeenReceiveHint = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_walletFundingState =
+        sse_decode_opt_box_autoadd_wallet_funding_state(deserializer);
     return OnboardingStatus(
       hasBackedUpSeedPhrase: var_hasBackedUpSeedPhrase,
       hasConnectedGdrive: var_hasConnectedGdrive,
       hasSeenReceiveHint: var_hasSeenReceiveHint,
+      walletFundingState: var_walletFundingState,
     );
   }
 
@@ -5718,6 +5754,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_username(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  WalletFundingState? sse_decode_opt_box_autoadd_wallet_funding_state(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_wallet_funding_state(deserializer));
     } else {
       return null;
     }
@@ -6203,6 +6252,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  WalletFundingState sse_decode_wallet_funding_state(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return WalletFundingState.values[inner];
   }
 
   @protected
@@ -6733,6 +6791,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_wallet_funding_state(
+    WalletFundingState self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_wallet_funding_state(self, serializer);
+  }
+
+  @protected
   void sse_encode_client_payment_id(
     ClientPaymentId self,
     SseSerializer serializer,
@@ -7116,6 +7183,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_box_autoadd_bool(self.hasBackedUpSeedPhrase, serializer);
     sse_encode_opt_box_autoadd_bool(self.hasConnectedGdrive, serializer);
     sse_encode_opt_box_autoadd_bool(self.hasSeenReceiveHint, serializer);
+    sse_encode_opt_box_autoadd_wallet_funding_state(
+      self.walletFundingState,
+      serializer,
+    );
   }
 
   @protected
@@ -7339,6 +7410,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_username(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_wallet_funding_state(
+    WalletFundingState? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_wallet_funding_state(self, serializer);
     }
   }
 
@@ -7730,6 +7814,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_wallet_funding_state(
+    WalletFundingState self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 }
 

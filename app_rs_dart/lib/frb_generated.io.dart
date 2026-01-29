@@ -269,6 +269,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Username dco_decode_box_autoadd_username(dynamic raw);
 
   @protected
+  WalletFundingState dco_decode_box_autoadd_wallet_funding_state(dynamic raw);
+
+  @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
 
   @protected
@@ -446,6 +449,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Username? dco_decode_opt_box_autoadd_username(dynamic raw);
 
   @protected
+  WalletFundingState? dco_decode_opt_box_autoadd_wallet_funding_state(
+    dynamic raw,
+  );
+
+  @protected
   PayInvoiceRequest dco_decode_pay_invoice_request(dynamic raw);
 
   @protected
@@ -580,6 +588,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
+
+  @protected
+  WalletFundingState dco_decode_wallet_funding_state(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -830,6 +841,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Username sse_decode_box_autoadd_username(SseDeserializer deserializer);
 
   @protected
+  WalletFundingState sse_decode_box_autoadd_wallet_funding_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
 
   @protected
@@ -1055,6 +1071,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Username? sse_decode_opt_box_autoadd_username(SseDeserializer deserializer);
 
   @protected
+  WalletFundingState? sse_decode_opt_box_autoadd_wallet_funding_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PayInvoiceRequest sse_decode_pay_invoice_request(
     SseDeserializer deserializer,
   );
@@ -1205,6 +1226,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  WalletFundingState sse_decode_wallet_funding_state(
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_encode_AnyhowException(
@@ -1507,6 +1533,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_username(Username self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_wallet_funding_state(
+    WalletFundingState self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_client_payment_id(
     ClientPaymentId self,
     SseSerializer serializer,
@@ -1783,6 +1815,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_wallet_funding_state(
+    WalletFundingState? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_pay_invoice_request(
     PayInvoiceRequest self,
     SseSerializer serializer,
@@ -1964,6 +2002,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wallet_funding_state(
+    WalletFundingState self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

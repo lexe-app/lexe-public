@@ -44,7 +44,7 @@ import 'package:app_rs_dart/ffi/app.dart'
 import 'package:app_rs_dart/ffi/app_data.dart'
     show AppData, AppDataDb, WritebackDbRsAppDataRs;
 import 'package:app_rs_dart/ffi/settings.dart'
-    show OnboardingStatus, Settings, SettingsDb;
+    show OnboardingStatus, Settings, SettingsDb, WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
@@ -822,7 +822,10 @@ class MockSettingsDbWithSeenHint extends SettingsDb {
 
   @override
   Settings read() => const Settings(
-    onboardingStatus: OnboardingStatus(hasSeenReceiveHint: true),
+    onboardingStatus: OnboardingStatus(
+      hasSeenReceiveHint: true,
+      walletFundingState: WalletFundingState.funded,
+    ),
   );
 
   @override

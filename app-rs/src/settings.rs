@@ -65,6 +65,33 @@ impl Default for SettingsRs {
     }
 }
 
+/// Wallet funding state machine.
+///
+/// Tracks whether the user has funded their wallet.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, Arbitrary))]
+pub enum WalletFundingState {
+    /// Initial state. User has no funds and no channel.
+    NonFunded,
+    /// User has received on-chain funds but has no Lightning channel yet.
+    OnChainDeposited,
+    /// User has a pending channel open. Waiting for confirmation.
+    ChannelOpening,
+    /// User has a usable Lightning channel but channel reserve is not met.
+    /// Can receive but can't send.
+    ChannelReserveNotMet,
+    /// User has a usable Lightning channel with outbound capacity.
+    Funded,
+}
+
+impl Default for WalletFundingState {
+    fn default() -> Self {
+        Self::NonFunded
+    }
+}
+
+impl Update for WalletFundingState {}
+
 /// In-Memory onboarding user state. Used to determine if we should ask
 /// the user to finish their onboarding.
 // TODO(maurice): Move this to the app_data module
@@ -77,6 +104,8 @@ pub(crate) struct OnboardingStatus {
     pub has_connected_gdrive: Option<bool>,
     /// Whether the user has seen the receive page carousel hint animation.
     pub has_seen_receive_hint: Option<bool>,
+    /// The current wallet funding state.
+    pub wallet_funding_state: Option<WalletFundingState>,
 }
 
 impl Update for OnboardingStatus {
@@ -87,6 +116,8 @@ impl Update for OnboardingStatus {
             .update(update.has_connected_gdrive)?;
         self.has_seen_receive_hint
             .update(update.has_seen_receive_hint)?;
+        self.wallet_funding_state
+            .update(update.wallet_funding_state)?;
         Ok(())
     }
 }
@@ -289,6 +320,7 @@ mod test {
                     has_backed_up_seed_phrase: None,
                     has_connected_gdrive: Some(true),
                     has_seen_receive_hint: None,
+                    wallet_funding_state: None,
                 }),
                 ..Default::default()
             })
@@ -303,6 +335,7 @@ mod test {
                         has_backed_up_seed_phrase: None,
                         has_connected_gdrive: Some(true),
                         has_seen_receive_hint: None,
+                        wallet_funding_state: None,
                     }),
                     ..Default::default()
                 }
@@ -314,6 +347,7 @@ mod test {
                     has_backed_up_seed_phrase: Some(true),
                     has_connected_gdrive: None,
                     has_seen_receive_hint: None,
+                    wallet_funding_state: None,
                 }),
                 ..Default::default()
             })
@@ -328,6 +362,7 @@ mod test {
                         has_backed_up_seed_phrase: Some(true),
                         has_connected_gdrive: Some(true),
                         has_seen_receive_hint: None,
+                        wallet_funding_state: None,
                     }),
                     ..Default::default()
                 }
@@ -339,6 +374,7 @@ mod test {
                     has_backed_up_seed_phrase: None,
                     has_connected_gdrive: None,
                     has_seen_receive_hint: Some(true),
+                    wallet_funding_state: None,
                 }),
                 ..Default::default()
             })
@@ -353,6 +389,66 @@ mod test {
                         has_backed_up_seed_phrase: Some(true),
                         has_connected_gdrive: Some(true),
                         has_seen_receive_hint: Some(true),
+                        wallet_funding_state: None,
+                    }),
+                    ..Default::default()
+                }
+            );
+
+            // update: onboarding_status={ wallet_funding_state:
+            // OnChainDeposited }
+            db.update(SettingsRs {
+                onboarding_status: Some(OnboardingStatus {
+                    has_backed_up_seed_phrase: None,
+                    has_connected_gdrive: None,
+                    has_seen_receive_hint: None,
+                    wallet_funding_state: Some(
+                        WalletFundingState::OnChainDeposited,
+                    ),
+                }),
+                ..Default::default()
+            })
+            .unwrap();
+
+            assert_eq!(
+                db.db().lock().unwrap().deref(),
+                &SettingsRs {
+                    locale: Some("USD".to_owned()),
+                    fiat_currency: Some(IsoCurrencyCode::USD),
+                    onboarding_status: Some(OnboardingStatus {
+                        has_backed_up_seed_phrase: Some(true),
+                        has_connected_gdrive: Some(true),
+                        has_seen_receive_hint: Some(true),
+                        wallet_funding_state: Some(
+                            WalletFundingState::OnChainDeposited
+                        ),
+                    }),
+                    ..Default::default()
+                }
+            );
+
+            // update: onboarding_status={ wallet_funding_state: Funded }
+            db.update(SettingsRs {
+                onboarding_status: Some(OnboardingStatus {
+                    has_backed_up_seed_phrase: None,
+                    has_connected_gdrive: None,
+                    has_seen_receive_hint: None,
+                    wallet_funding_state: Some(WalletFundingState::Funded),
+                }),
+                ..Default::default()
+            })
+            .unwrap();
+
+            assert_eq!(
+                db.db().lock().unwrap().deref(),
+                &SettingsRs {
+                    locale: Some("USD".to_owned()),
+                    fiat_currency: Some(IsoCurrencyCode::USD),
+                    onboarding_status: Some(OnboardingStatus {
+                        has_connected_gdrive: Some(true),
+                        has_backed_up_seed_phrase: Some(true),
+                        has_seen_receive_hint: Some(true),
+                        wallet_funding_state: Some(WalletFundingState::Funded),
                     }),
                     ..Default::default()
                 }
@@ -372,6 +468,7 @@ mod test {
                         has_backed_up_seed_phrase: Some(true),
                         has_connected_gdrive: Some(true),
                         has_seen_receive_hint: Some(true),
+                        wallet_funding_state: Some(WalletFundingState::Funded),
                     }),
                     ..Default::default()
                 }

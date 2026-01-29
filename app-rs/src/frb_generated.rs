@@ -2085,10 +2085,14 @@ impl SseDecode for crate::ffi::settings::OnboardingStatus {
             <Option<bool>>::sse_decode(deserializer);
         let mut var_hasSeenReceiveHint =
             <Option<bool>>::sse_decode(deserializer);
+        let mut var_walletFundingState = <Option<
+            crate::ffi::settings::WalletFundingState,
+        >>::sse_decode(deserializer);
         return crate::ffi::settings::OnboardingStatus {
             has_backed_up_seed_phrase: var_hasBackedUpSeedPhrase,
             has_connected_gdrive: var_hasConnectedGdrive,
             has_seen_receive_hint: var_hasSeenReceiveHint,
+            wallet_funding_state: var_walletFundingState,
         };
     }
 }
@@ -2362,6 +2366,23 @@ impl SseDecode for Option<crate::ffi::types::Username> {
             return Some(<crate::ffi::types::Username>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::settings::WalletFundingState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::ffi::settings::WalletFundingState>::sse_decode(
+                    deserializer,
+                ),
+            );
         } else {
             return None;
         }
@@ -3010,6 +3031,26 @@ impl SseDecode for usize {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
+    }
+}
+
+impl SseDecode for crate::ffi::settings::WalletFundingState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ffi::settings::WalletFundingState::NonFunded,
+            1 => crate::ffi::settings::WalletFundingState::OnChainDeposited,
+            2 => crate::ffi::settings::WalletFundingState::ChannelOpening,
+            3 => crate::ffi::settings::WalletFundingState::ChannelReserveNotMet,
+            4 => crate::ffi::settings::WalletFundingState::Funded,
+            _ => unreachable!(
+                "Invalid variant for WalletFundingState: {}",
+                inner
+            ),
+        };
     }
 }
 
@@ -3858,6 +3899,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::settings::OnboardingStatus {
             self.has_backed_up_seed_phrase.into_into_dart().into_dart(),
             self.has_connected_gdrive.into_into_dart().into_dart(),
             self.has_seen_receive_hint.into_into_dart().into_dart(),
+            self.wallet_funding_state.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4678,6 +4720,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Username>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::settings::WalletFundingState
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::NonFunded => 0.into_dart(),
+            Self::OnChainDeposited => 1.into_dart(),
+            Self::ChannelOpening => 2.into_dart(),
+            Self::ChannelReserveNotMet => 3.into_dart(),
+            Self::Funded => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::settings::WalletFundingState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::settings::WalletFundingState>
+    for crate::ffi::settings::WalletFundingState
+{
+    fn into_into_dart(self) -> crate::ffi::settings::WalletFundingState {
+        self
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -5399,6 +5467,10 @@ impl SseEncode for crate::ffi::settings::OnboardingStatus {
         <Option<bool>>::sse_encode(self.has_backed_up_seed_phrase, serializer);
         <Option<bool>>::sse_encode(self.has_connected_gdrive, serializer);
         <Option<bool>>::sse_encode(self.has_seen_receive_hint, serializer);
+        <Option<crate::ffi::settings::WalletFundingState>>::sse_encode(
+            self.wallet_funding_state,
+            serializer,
+        );
     }
 }
 
@@ -5647,6 +5719,21 @@ impl SseEncode for Option<crate::ffi::types::Username> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::types::Username>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::settings::WalletFundingState> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::settings::WalletFundingState>::sse_encode(
+                value, serializer,
+            );
         }
     }
 }
@@ -6226,6 +6313,21 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
+    }
+}
+
+impl SseEncode for crate::ffi::settings::WalletFundingState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(match self {crate::ffi::settings::WalletFundingState::NonFunded => { 0 }
+crate::ffi::settings::WalletFundingState::OnChainDeposited => { 1 }
+crate::ffi::settings::WalletFundingState::ChannelOpening => { 2 }
+crate::ffi::settings::WalletFundingState::ChannelReserveNotMet => { 3 }
+crate::ffi::settings::WalletFundingState::Funded => { 4 }
+ _ => { unimplemented!(""); }}, serializer);
     }
 }
 
