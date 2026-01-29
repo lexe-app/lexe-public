@@ -3,7 +3,6 @@ library;
 
 import 'dart:async' show unawaited;
 
-import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
@@ -16,6 +15,7 @@ import 'package:lexeapp/components.dart'
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
+        MultistepFlow,
         PaymentAmountInput,
         ScrollableSinglePageBody,
         SubheadingText;
@@ -35,6 +35,24 @@ const int minLightningDepositSats = 5000;
 /// URL explaining the channel reserve concept.
 const String channelReserveLearnMoreUrl =
     "https://bitcoin.design/guide/how-it-works/liquidity/#what-is-a-channel-reserve";
+
+/// The entry point for the initial deposit onboarding flow.
+///
+/// Set [lightningOnly] to skip method selection and go directly to the amount
+/// page.
+class InitialDepositPage extends StatelessWidget {
+  const InitialDepositPage({super.key, this.lightningOnly = false});
+
+  /// If true, skip method selection and go directly to Lightning amount page.
+  final bool lightningOnly;
+
+  @override
+  Widget build(BuildContext context) => MultistepFlow<void>(
+    builder: (context) => this.lightningOnly
+        ? const InitialDepositAmountPage()
+        : const InitialDepositChooseMethodPage(),
+  );
+}
 
 /// Choose between Lightning or On-chain deposit method.
 class InitialDepositChooseMethodPage extends StatelessWidget {
@@ -88,12 +106,19 @@ class InitialDepositChooseMethodPage extends StatelessWidget {
   }
 
   void _onMethodSelected(BuildContext context, DepositMethod method) {
-    // TODO(a-mpch): Navigate to appropriate next page based on method
     switch (method) {
       case DepositMethod.lightning:
-        break;
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const InitialDepositAmountPage(),
+          ),
+        );
       case DepositMethod.onchain:
-        break;
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const InitialDepositOnchainPage(),
+          ),
+        );
     }
   }
 }
@@ -299,7 +324,12 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
       this.lowAmountAcknowledged.value = false;
     }
 
-    // TODO(a-mpch): Navigate to InitialDepositLightningPage with amountSats
+    // Navigate to Lightning page with the requested amount
+    Navigator.of(this.context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => InitialDepositLightningPage(amountSats: amountSats),
+      ),
+    );
   }
 
   @override
@@ -308,6 +338,10 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxBackButton(isLeading: true),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.appBarTrailingPadding),
+        ],
       ),
       body: ScrollableSinglePageBody(
         body: [
@@ -603,12 +637,42 @@ class InitialDepositSuccessPage extends StatelessWidget {
 }
 
 /// Lightning deposit page showing a BOLT11 invoice QR code.
-class InitialDepositLightningPage extends StatelessWidget {
-  const InitialDepositLightningPage({super.key, required this.invoiceUri});
+class InitialDepositLightningPage extends StatefulWidget {
+  const InitialDepositLightningPage({super.key, required this.amountSats});
 
-  /// The invoice URI to display in the QR code, or null to show loading state.
-  // TODO(a-mpch): wire this up to fetch a real invoice
-  final ValueListenable<String?> invoiceUri;
+  /// The amount to request in the invoice.
+  final int amountSats;
+
+  @override
+  State<InitialDepositLightningPage> createState() =>
+      _InitialDepositLightningPageState();
+}
+
+class _InitialDepositLightningPageState
+    extends State<InitialDepositLightningPage> {
+  /// The invoice URI to display, or null while loading.
+  // TODO(a-mpch): Wire up to fetch a real invoice from the node.
+  final ValueNotifier<String?> invoiceUri = ValueNotifier(null);
+
+  @override
+  void initState() {
+    super.initState();
+    // Simulate invoice generation with a placeholder after a short delay.
+    // TODO(a-mpch): Remove this when adding real logic.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (this.mounted) {
+        // Placeholder invoice for UI testing
+        this.invoiceUri.value =
+            "lightning:lnbc${this.widget.amountSats}n1pn9example";
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    this.invoiceUri.dispose();
+    super.dispose();
+  }
 
   void onCopy(BuildContext context, String? uri) {
     if (uri == null) return;
@@ -652,28 +716,29 @@ class InitialDepositLightningPage extends StatelessWidget {
 
             const SizedBox(height: Space.s600),
 
-            // Waiting indicator
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: LxColors.fgTertiary,
+            // Waiting indicator (only shown when QR is loaded)
+            if (uri != null)
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: LxColors.fgTertiary,
+                    ),
                   ),
-                ),
-                SizedBox(width: Space.s300),
-                Text(
-                  "Waiting for payment...",
-                  style: TextStyle(
-                    fontSize: Fonts.size200,
-                    color: LxColors.fgSecondary,
+                  SizedBox(width: Space.s300),
+                  Text(
+                    "Waiting for payment...",
+                    style: TextStyle(
+                      fontSize: Fonts.size200,
+                      color: LxColors.fgSecondary,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),
@@ -780,21 +845,45 @@ class _PaymentQrCard extends StatelessWidget {
 }
 
 /// On-chain deposit page showing a Bitcoin address QR code.
-class InitialDepositOnchainPage extends StatelessWidget {
-  const InitialDepositOnchainPage({super.key, this.addressUri});
+class InitialDepositOnchainPage extends StatefulWidget {
+  const InitialDepositOnchainPage({super.key});
 
-  /// The Bitcoin address URI (e.g. "bitcoin:bc1q..."), or null for loading state.
-  // TODO(a-mpch): wire this up to fetch a real address
-  final String? addressUri;
+  @override
+  State<InitialDepositOnchainPage> createState() =>
+      _InitialDepositOnchainPageState();
+}
 
-  void onCopy(BuildContext context) {
-    final uri = this.addressUri;
+class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
+  /// The Bitcoin address URI, or null while loading.
+  // TODO(a-mpch): Wire up to fetch a real address from the node.
+  final ValueNotifier<String?> addressUri = ValueNotifier(null);
+
+  @override
+  void initState() {
+    super.initState();
+    // Simulate address generation with a placeholder after a short delay.
+    // TODO(a-mpch): Remove this when adding real logic.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (this.mounted) {
+        // Placeholder address for UI testing
+        this.addressUri.value =
+            "bitcoin:bc1qexampleaddressforuitesting0000000000";
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    this.addressUri.dispose();
+    super.dispose();
+  }
+
+  void onCopy(BuildContext context, String? uri) {
     if (uri == null) return;
     unawaited(LxClipboard.copyTextWithFeedback(context, uri));
   }
 
-  Future<void> onShare(BuildContext context) async {
-    final uri = this.addressUri;
+  Future<void> onShare(BuildContext context, String? uri) async {
     if (uri == null) return;
     await LxShare.sharePaymentUri(context, Uri.parse(uri));
   }
@@ -810,47 +899,51 @@ class InitialDepositOnchainPage extends StatelessWidget {
           SizedBox(width: Space.appBarTrailingPadding),
         ],
       ),
-      body: ScrollableSinglePageBody(
-        body: [
-          const HeadingText(text: "Receive Bitcoin"),
-          const SubheadingText(
-            text: "Send Bitcoin to this address from any wallet.",
-          ),
+      body: ValueListenableBuilder<String?>(
+        valueListenable: this.addressUri,
+        builder: (context, uri, child) => ScrollableSinglePageBody(
+          body: [
+            const HeadingText(text: "Receive Bitcoin"),
+            const SubheadingText(
+              text: "Send Bitcoin to this address from any wallet.",
+            ),
 
-          const SizedBox(height: Space.s600),
+            const SizedBox(height: Space.s600),
 
-          // Address QR code card
-          _PaymentQrCard(
-            uri: this.addressUri,
-            onCopy: () => this.onCopy(context),
-            onShare: () => this.onShare(context),
-          ),
+            // Address QR code card
+            _PaymentQrCard(
+              uri: uri,
+              onCopy: () => this.onCopy(context, uri),
+              onShare: () => this.onShare(context, uri),
+            ),
 
-          const SizedBox(height: Space.s600),
+            const SizedBox(height: Space.s600),
 
-          // Waiting indicator
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: LxColors.fgTertiary,
-                ),
+            // Waiting indicator (only shown when QR is loaded)
+            if (uri != null)
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: LxColors.fgTertiary,
+                    ),
+                  ),
+                  SizedBox(width: Space.s300),
+                  Text(
+                    "Waiting for payment...",
+                    style: TextStyle(
+                      fontSize: Fonts.size200,
+                      color: LxColors.fgSecondary,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: Space.s300),
-              Text(
-                "Waiting for payment...",
-                style: TextStyle(
-                  fontSize: Fonts.size200,
-                  color: LxColors.fgSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

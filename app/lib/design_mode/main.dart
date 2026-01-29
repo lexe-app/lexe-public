@@ -71,12 +71,7 @@ import 'package:lexeapp/route/clients.dart' show ClientsPage;
 import 'package:lexeapp/route/close_channel.dart'
     show CloseChannelConfirmPage, CloseChannelPage;
 import 'package:lexeapp/route/initial_deposit/page.dart'
-    show
-        InitialDepositAmountPage,
-        InitialDepositChooseMethodPage,
-        InitialDepositLightningPage,
-        InitialDepositOnchainPage,
-        InitialDepositSuccessPage;
+    show InitialDepositPage, InitialDepositSuccessPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart'
@@ -425,42 +420,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           restoreApi: mockRestoreApiErr,
         ),
       ),
+      Component("Initial Deposit", (context) => const InitialDepositPage()),
       Component(
-        "InitialDepositChooseMethodPage",
-        (context) => const InitialDepositChooseMethodPage(),
-      ),
-      Component(
-        "InitialDepositAmountPage",
-        (context) => const InitialDepositAmountPage(),
-      ),
-      Component("InitialDepositLightningPage", (context) {
-        final invoiceUri = ValueNotifier<String?>(null);
-        // Simulate fetching invoice after a delay
-        unawaited(
-          Future.delayed(const Duration(seconds: 2), () {
-            invoiceUri.value =
-                "bitcoin:?lightning=lnbcrt10u1pnxxx00pp5abc123def456xyz";
-          }),
-        );
-        return InitialDepositLightningPage(invoiceUri: invoiceUri);
-      }),
-      Component("InitialDepositOnchainPage", (context) {
-        final addressUri = ValueNotifier<String?>(null);
-        unawaited(
-          Future.delayed(const Duration(seconds: 2), () {
-            addressUri.value =
-                "bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
-          }),
-        );
-        return ValueListenableBuilder(
-          valueListenable: addressUri,
-          builder: (context, uri, _) =>
-              InitialDepositOnchainPage(addressUri: uri),
-        );
-      }),
-      Component(
-        "InitialDepositSuccessPage",
-        (context) => const InitialDepositSuccessPage(amountSats: 50000),
+        "Initial Deposit",
+        subtitle: "lightning only",
+        (context) => const InitialDepositPage(lightningOnly: true),
       ),
       Component(
         "InitialDepositSuccessPage",
