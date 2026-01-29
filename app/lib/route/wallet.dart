@@ -1631,7 +1631,7 @@ class BalanceWidget extends StatelessWidget {
 
   /// Toggle expanding the sub-balances drop down
   void toggleSplitBalancesExpanded() {
-    final value = this.settings.showSplitBalances.value ?? true;
+    final value = this.settings.showSplitBalances.value ?? false;
     this.settings.update(Settings(showSplitBalances: !value)).unwrap();
   }
 
@@ -1680,7 +1680,7 @@ class BalanceWidget extends StatelessWidget {
     final icon = ValueListenableBuilder(
       valueListenable: this.settings.showSplitBalances,
       builder: (context, showSplitBalances, child) =>
-          (showSplitBalances ?? true)
+          (showSplitBalances ?? false)
           ? const ListIcon(
               Icon(LxIcons.expandUpSmall, size: iconSize, color: iconColor),
               background: iconBg,
@@ -1756,7 +1756,7 @@ class BalanceWidget extends StatelessWidget {
     final subBalances = ValueListenableBuilder(
       valueListenable: this.settings.showSplitBalances,
       builder: (context, showSplitBalances, child) =>
-          (showSplitBalances ?? true) ? child! : const SizedBox(),
+          (showSplitBalances ?? false) ? child! : const SizedBox(),
       child: Stack(
         alignment: Alignment.center,
         children: <Widget>[
