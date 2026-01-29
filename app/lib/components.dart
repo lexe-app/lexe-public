@@ -917,6 +917,7 @@ class PaymentAmountInput extends StatelessWidget {
     required this.allowEmpty,
     required this.allowZero,
     this.validate,
+    this.onChanged,
     this.onEditingComplete,
     this.initialValue,
   });
@@ -935,6 +936,9 @@ class PaymentAmountInput extends StatelessWidget {
   /// the value is a non-zero unsigned integer. Return `Err(null)` to prevent
   /// submission without displaying an error bar.
   final Result<(), String> Function(int amount)? validate;
+
+  /// Called when the text field value changes.
+  final ValueChanged<String>? onChanged;
 
   final VoidCallback? onEditingComplete;
 
@@ -1017,6 +1021,7 @@ class PaymentAmountInput extends StatelessWidget {
             textDirection: TextDirection.ltr,
             textInputAction: TextInputAction.next,
             textAlign: TextAlign.left,
+            onChanged: this.onChanged,
             onEditingComplete: this.onEditingComplete,
             validator: (str) => this.validateAmountStr(str).err,
             decoration: baseInputDecoration.copyWith(
