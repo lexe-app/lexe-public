@@ -144,29 +144,34 @@ class _MethodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Primary (Lightning): emphasized with border and icon highlight
+    // Primary (Lightning): CTA-style with black background
     // Secondary (On-chain): subdued appearance
-    final borderColor = this.isPrimary
+    final cardBgColor = this.isPrimary
         ? LxColors.foreground
-        : Colors.transparent;
+        : LxColors.grey1000;
     final iconBgColor = this.isPrimary
-        ? LxColors.foreground
+        ? LxColors.clearW100
         : LxColors.fgTertiary.withValues(alpha: 0.1);
     final iconColor = this.isPrimary
         ? LxColors.background
         : LxColors.fgSecondary;
+    final titleColor = this.isPrimary
+        ? LxColors.background
+        : LxColors.foreground;
+    final descriptionColor = this.isPrimary
+        ? LxColors.grey700
+        : LxColors.fgSecondary;
+    final arrowColor = this.isPrimary
+        ? LxColors.background
+        : LxColors.fgTertiary;
 
     return Material(
-      color: LxColors.grey1000,
+      color: cardBgColor,
       borderRadius: BorderRadius.circular(LxRadius.r400),
       child: InkWell(
         onTap: this.onTap,
         borderRadius: BorderRadius.circular(LxRadius.r400),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor, width: 1.5),
-            borderRadius: BorderRadius.circular(LxRadius.r400),
-          ),
+        child: Padding(
           padding: const EdgeInsets.all(Space.s400),
           child: Row(
             children: [
@@ -190,18 +195,18 @@ class _MethodCard extends StatelessWidget {
                   children: [
                     Text(
                       this.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: Fonts.size400,
-                        fontVariations: [Fonts.weightSemiBold],
-                        color: LxColors.foreground,
+                        fontVariations: const [Fonts.weightSemiBold],
+                        color: titleColor,
                       ),
                     ),
                     const SizedBox(height: Space.s100),
                     Text(
                       this.description,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: Fonts.size200,
-                        color: LxColors.fgSecondary,
+                        color: descriptionColor,
                         height: 1.3,
                       ),
                     ),
@@ -212,7 +217,7 @@ class _MethodCard extends StatelessWidget {
               const SizedBox(width: Space.s200),
 
               // Arrow indicator
-              const Icon(LxIcons.next, size: 20, color: LxColors.fgTertiary),
+              Icon(LxIcons.next, size: 20, color: arrowColor),
             ],
           ),
         ),
