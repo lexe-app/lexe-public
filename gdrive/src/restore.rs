@@ -2,7 +2,10 @@
 //! they need to restore their wallet from a prior Google Drive backup.
 
 use anyhow::Context;
-use common::{env::DeployEnv, ln::network::LxNetwork};
+use bytes::Bytes;
+use common::{
+    env::DeployEnv, ln::network::LxNetwork, rng::Crng, root_seed::RootSeed,
+};
 use lexe_api_core::vfs::{
     PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY, VfsFile, VfsFileId,
 };
@@ -15,6 +18,7 @@ use crate::{
     gvfs::GvfsRootName,
     gvfs_file_id::GvfsFileId,
     lexe_dir::find_lexe_dir,
+    models::GFile,
     oauth2::{GDriveCredentials, ReqwestClient},
 };
 
@@ -76,6 +80,63 @@ impl GDriveRestoreClient {
         Ok(out)
     }
 
+    /// Rotate the password used to encrypt the root seed backup in GDrive.
+    ///
+    /// Finds all restore candidates, filters by `user_pk`, then re-encrypts the
+    /// existing root seed under `new_password` and updates the backup file.
+    #[instrument(skip_all, name = "(rotate-backup-password)")]
+    pub async fn rotate_backup_password(
+        &self,
+        rng: &mut impl Crng,
+        deploy_env: DeployEnv,
+        network: LxNetwork,
+        use_sgx: bool,
+        root_seed: &RootSeed,
+        new_password: &str,
+    ) -> anyhow::Result<()> {
+        let candidates = self
+            .find_restore_candidates(deploy_env, network, use_sgx)
+            .await?;
+
+        let user_pk = root_seed.derive_user_pk();
+        let gvfs_root = candidates
+            .into_iter()
+            .find(|candidate| candidate.gvfs_root.name.user_pk == user_pk)
+            .map(|candidate| candidate.gvfs_root)
+            .context("No root seed backup found for user_pk")?;
+
+        let encrypted_seed = root_seed
+            .password_encrypt(rng, new_password)
+            .context("Could not encrypt root seed under new password")?;
+
+        let vfs_id =
+            VfsFileId::new(SINGLETON_DIRECTORY, PW_ENC_ROOT_SEED_FILENAME);
+        let gfile = self
+            .find_pw_enc_root_seed_gfile(&vfs_id, &gvfs_root)
+            .await?;
+        match gfile {
+            Some(gfile) => {
+                self.client
+                    .update_blob_file(gfile.id, Bytes::from(encrypted_seed))
+                    .await
+                    .context("Request for root seed backup update failed")?;
+            }
+            None => {
+                let gvfs_id = GvfsFileId::try_from(&vfs_id)?;
+                self.client
+                    .create_blob_file(
+                        gvfs_root.gid.clone(),
+                        gvfs_id.into_inner(),
+                        encrypted_seed,
+                    )
+                    .await
+                    .context("Request for root seed backup create failed")?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Locate the LexeData dir and find all GVFS roots inside it that match the
     /// given env (deploy_env, network, sgx).
     async fn find_gvfs_root_candidates(
@@ -128,13 +189,8 @@ impl GDriveRestoreClient {
     ) -> anyhow::Result<Option<VfsFile>> {
         let vfs_id =
             VfsFileId::new(SINGLETON_DIRECTORY, PW_ENC_ROOT_SEED_FILENAME);
-        let gvfs_id = GvfsFileId::try_from(&vfs_id)?;
-        let gvfs_file_name = gvfs_id.into_inner();
-        let gfile = self
-            .client
-            .search_direct_children(&gvfs_root.gid, &gvfs_file_name)
-            .await
-            .context("Request for root seed backup file metadata failed")?;
+        let gfile =
+            self.find_pw_enc_root_seed_gfile(&vfs_id, gvfs_root).await?;
 
         let gfile = match gfile {
             Some(x) => x,
@@ -148,5 +204,18 @@ impl GDriveRestoreClient {
             .context("Request for root seed backup data failed")?;
 
         Ok(Some(VfsFile { id: vfs_id, data }))
+    }
+
+    async fn find_pw_enc_root_seed_gfile(
+        &self,
+        vfs_id: &VfsFileId,
+        gvfs_root: &GvfsRoot,
+    ) -> anyhow::Result<Option<GFile>> {
+        let gvfs_id = GvfsFileId::try_from(vfs_id)?;
+        let gvfs_file_name = gvfs_id.into_inner();
+        self.client
+            .search_direct_children(&gvfs_root.gid, &gvfs_file_name)
+            .await
+            .context("Request for root seed backup file metadata failed")
     }
 }
