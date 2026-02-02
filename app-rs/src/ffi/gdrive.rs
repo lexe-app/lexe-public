@@ -266,6 +266,26 @@ impl GDriveRestoreClient {
             })
             .collect::<Vec<_>>())
     }
+
+    pub async fn rotate_backup_password(
+        &self,
+        deploy_env: DeployEnv,
+        network: Network,
+        use_sgx: bool,
+        root_seed: RootSeed,
+        new_password: String,
+    ) -> anyhow::Result<()> {
+        self.inner
+            .rotate_backup_password(
+                &mut SysRng::new(),
+                deploy_env.into(),
+                network.into(),
+                use_sgx,
+                &root_seed.inner,
+                &new_password,
+            )
+            .await
+    }
 }
 
 impl GDriveRestoreCandidate {

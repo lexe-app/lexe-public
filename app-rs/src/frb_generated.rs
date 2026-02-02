@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -197591559;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 687671934;
 
 // Section: executor
 
@@ -1016,6 +1016,26 @@ let api_network = <crate::ffi::types::Network>::sse_decode(&mut deserializer);
 let api_use_sgx = <bool>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::gdrive::GDriveRestoreClient::find_restore_candidates(&api_that, api_deploy_env, api_network, api_use_sgx).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "g_drive_restore_client_rotate_backup_password", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::gdrive::GDriveRestoreClient>::sse_decode(&mut deserializer);
+let api_deploy_env = <crate::ffi::types::DeployEnv>::sse_decode(&mut deserializer);
+let api_network = <crate::ffi::types::Network>::sse_decode(&mut deserializer);
+let api_use_sgx = <bool>::sse_decode(&mut deserializer);
+let api_root_seed = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);
+let api_new_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::gdrive::GDriveRestoreClient::rotate_backup_password(&api_that, api_deploy_env, api_network, api_use_sgx, api_root_seed, api_new_password).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -3126,9 +3146,10 @@ fn pde_ffi_dispatcher_primary_impl(
 58 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
 61 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
 65 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
-66 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-80 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-81 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+66 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
+67 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
+81 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+82 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3169,22 +3190,22 @@ fn pde_ffi_dispatcher_sync_impl(
 62 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
 63 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
 64 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
-67 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
-68 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-69 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
-70 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
-71 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
-72 => wire__crate__ffi__types__root_seed_from_sys_rng_impl(ptr, rust_vec_len, data_len),
-73 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-74 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-75 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-76 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-77 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-78 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-79 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
-82 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-83 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-84 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+68 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
+69 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+70 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
+71 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
+72 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
+73 => wire__crate__ffi__types__root_seed_from_sys_rng_impl(ptr, rust_vec_len, data_len),
+74 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
+75 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+76 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+77 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+78 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+79 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+80 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
+83 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+84 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+85 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

@@ -167,6 +167,22 @@ class GDriveRestoreClient {
         useSgx: useSgx,
       );
 
+  Future<void> rotateBackupPassword({
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+    required RootSeed rootSeed,
+    required String newPassword,
+  }) =>
+      AppRs.instance.api.crateFfiGdriveGDriveRestoreClientRotateBackupPassword(
+        that: this,
+        deployEnv: deployEnv,
+        network: network,
+        useSgx: useSgx,
+        rootSeed: rootSeed,
+        newPassword: newPassword,
+      );
+
   @override
   int get hashCode => inner.hashCode;
 

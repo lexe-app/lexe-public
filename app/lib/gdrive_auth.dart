@@ -245,6 +245,15 @@ class MockGDriveRestoreClient implements GDriveRestoreClient {
   );
 
   @override
+  Future<void> rotateBackupPassword({
+    required DeployEnv deployEnv,
+    required Network network,
+    required bool useSgx,
+    required RootSeed rootSeed,
+    required String newPassword,
+  }) => Future.value();
+
+  @override
   GDriveRestoreClientRs get inner => throw UnimplementedError();
 }
 
