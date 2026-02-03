@@ -81,7 +81,7 @@ class InitialDepositChooseMethodPage extends StatelessWidget {
           // Lightning option
           _MethodCard(
             icon: LxIcons.lightning,
-            title: "Lightning",
+            title: "Receive ₿ via Lightning",
             description:
                 "Instant and low fees. "
                 "Receiving funds will open a channel.",
@@ -95,7 +95,7 @@ class InitialDepositChooseMethodPage extends StatelessWidget {
           // On-chain option
           _MethodCard(
             icon: LxIcons.bitcoin,
-            title: "On-chain",
+            title: "Receive ₿ on-chain",
             description: "Send from any Bitcoin wallet. Slower, higher fees.",
             isPrimary: false,
             onTap: () => this._onMethodSelected(context, DepositMethod.onchain),
@@ -196,7 +196,7 @@ class _MethodCard extends StatelessWidget {
                     Text(
                       this.title,
                       style: TextStyle(
-                        fontSize: Fonts.size400,
+                        fontSize: Fonts.size300,
                         fontVariations: const [Fonts.weightSemiBold],
                         color: titleColor,
                       ),
