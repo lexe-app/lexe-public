@@ -431,12 +431,18 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       Component(
         "InitialDepositSuccessPage",
         subtitle: "small amount",
-        (context) => const InitialDepositSuccessPage(amountSats: 1234),
+        (context) => const InitialDepositSuccessPage(
+          amountSats: 1234,
+          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
+        ),
       ),
       Component(
         "InitialDepositSuccessPage",
         subtitle: "large amount",
-        (context) => const InitialDepositSuccessPage(amountSats: 12345678),
+        (context) => const InitialDepositSuccessPage(
+          amountSats: 12345678,
+          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
+        ),
       ),
       Component(
         "WalletPage",

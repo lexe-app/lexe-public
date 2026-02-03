@@ -3,6 +3,7 @@ library;
 
 import 'dart:async' show unawaited;
 
+import 'package:app_rs_dart/ffi/api.dart' show FiatRate;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
@@ -540,9 +541,14 @@ class _LowAmountWarningCard extends StatelessWidget {
 
 /// Success page shown after initial deposit is received.
 class InitialDepositSuccessPage extends StatelessWidget {
-  const InitialDepositSuccessPage({super.key, required this.amountSats});
+  const InitialDepositSuccessPage({
+    super.key,
+    required this.amountSats,
+    this.fiatRate,
+  });
 
   final int amountSats;
+  final FiatRate? fiatRate;
 
   void _onDone(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
@@ -551,6 +557,15 @@ class InitialDepositSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amountSatsStr = currency_format.formatSatsAmount(this.amountSats);
+
+    // Format fiat amount if rate is available
+    String? fiatAmountStr;
+    final fiatRate = this.fiatRate;
+    if (fiatRate != null) {
+      final fiatAmount =
+          currency_format.satsToBtc(this.amountSats) * fiatRate.rate;
+      fiatAmountStr = currency_format.formatFiat(fiatAmount, fiatRate.fiat);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -623,6 +638,19 @@ class InitialDepositSuccessPage extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+
+          // Fiat amount (if available)
+          if (fiatAmountStr != null) ...[
+            const SizedBox(height: Space.s200),
+            Text(
+              "≈ $fiatAmountStr",
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size300,
+                color: LxColors.fgSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
 
           const SizedBox(height: Space.s600),
 
