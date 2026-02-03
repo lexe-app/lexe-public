@@ -2361,10 +2361,16 @@ class _InfoCard extends StatelessWidget {
 
 /// A clickable [Row] as button that goes inside a [InfoCard].
 class InfoRowButton extends StatelessWidget {
-  const InfoRowButton({super.key, required this.onTap, required this.label});
+  const InfoRowButton({
+    super.key,
+    required this.onTap,
+    required this.label,
+    this.trailingIcon,
+  });
 
   final VoidCallback? onTap;
   final Widget label;
+  final Widget? trailingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -2372,6 +2378,9 @@ class InfoRowButton extends StatelessWidget {
     final Color color = (!isDisabled)
         ? LxColors.fgSecondary
         : LxColors.fgTertiary;
+    final Widget trailingIcon =
+        this.trailingIcon ??
+        Icon(LxIcons.next, size: Fonts.size100, color: color);
 
     return InkWell(
       onTap: this.onTap,
@@ -2398,7 +2407,7 @@ class InfoRowButton extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Padding(
                 padding: const EdgeInsets.only(right: Space.s300),
-                child: Icon(LxIcons.next, size: Fonts.size100, color: color),
+                child: trailingIcon,
               ),
             ),
           ),
