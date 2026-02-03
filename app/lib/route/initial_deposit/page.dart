@@ -512,40 +512,22 @@ class _LowAmountWarningCard extends StatelessWidget {
               // Checkbox row
               ValueListenableBuilder(
                 valueListenable: this.acknowledged,
-                builder: (context, isChecked, child) => GestureDetector(
-                  onTap: () => this.acknowledged.value = !isChecked,
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Checkbox(
-                          value: isChecked,
-                          onChanged: (value) =>
-                              this.acknowledged.value = value ?? false,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                      const SizedBox(width: Space.s200),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            "I understand that my funds might not cover "
-                            "the channel reserve",
-                            style: TextStyle(
-                              fontSize: Fonts.size200,
-                              color: LxColors.fgSecondary,
-                              height: 1.3,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                builder: (context, isChecked, child) => CheckboxListTile(
+                  value: isChecked,
+                  onChanged: (value) =>
+                      this.acknowledged.value = value ?? false,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  title: Text(
+                    "I understand that my funds might not cover "
+                    "the channel reserve",
+                    style: TextStyle(
+                      fontSize: Fonts.size200,
+                      color: LxColors.fgSecondary,
+                      height: 1.3,
+                    ),
                   ),
                 ),
               ),
