@@ -457,10 +457,11 @@ class _LowAmountWarningCard extends StatelessWidget {
               Text.rich(
                 TextSpan(
                   children: [
-                    const TextSpan(
+                    TextSpan(
                       text:
                           "For the best experience, we recommend depositing "
-                          "at least ₿5,000 to cover the channel reserve. ",
+                          "at least ${currency_format.formatSatsAmount(minLightningDepositSats)} "
+                          "to cover the channel reserve. ",
                     ),
                     WidgetSpan(
                       alignment: PlaceholderAlignment.baseline,
