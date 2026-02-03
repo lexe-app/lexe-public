@@ -108,11 +108,11 @@ impl WalletEnv {
         }
     }
 
-    /// Staging environment: staging, testnet4, SGX.
+    /// Staging environment: staging, testnet3, SGX.
     pub fn staging() -> Self {
         Self {
             deploy_env: DeployEnv::Staging,
-            network: LxNetwork::Testnet4,
+            network: LxNetwork::Testnet3,
             use_sgx: true,
         }
     }

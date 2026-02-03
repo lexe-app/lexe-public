@@ -4219,7 +4219,11 @@ dependencies = [
  "anyhow",
  "common",
  "lexe-api-core",
+ "lexe-std",
  "node-client",
+ "sdk-rust",
+ "secrecy",
+ "tokio",
  "uniffi",
 ]
 
