@@ -1,9 +1,9 @@
 /// UI flow for changing the Google Drive backup password.
 library;
 
-import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/gdrive.dart' show GDriveClient;
-import 'package:app_rs_dart/ffi/types.dart' show Config;
+import 'package:app_rs_dart/ffi/secret_store.dart' show SecretStore;
+import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
     show MarkdownBody;
@@ -19,7 +19,6 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
-        SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/prelude.dart';
@@ -32,19 +31,16 @@ class ChangeBackupPasswordPage extends StatelessWidget {
   const ChangeBackupPasswordPage({
     super.key,
     required this.config,
-    required this.app,
     required this.gdriveAuth,
   });
 
   final Config config;
-  final AppHandle app;
   final GDriveAuth gdriveAuth;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<void>(
     builder: (_) => ChangeBackupPasswordIntroPage(
       config: this.config,
-      app: this.app,
       gdriveAuth: this.gdriveAuth,
     ),
   );
@@ -54,12 +50,10 @@ class ChangeBackupPasswordIntroPage extends StatefulWidget {
   const ChangeBackupPasswordIntroPage({
     super.key,
     required this.config,
-    required this.app,
     required this.gdriveAuth,
   });
 
   final Config config;
-  final AppHandle app;
   final GDriveAuth gdriveAuth;
 
   @override
@@ -117,7 +111,6 @@ class _ChangeBackupPasswordIntroPageState
       MaterialPageRoute(
         builder: (_) => ChangeBackupPasswordFormPage(
           config: this.widget.config,
-          app: this.widget.app,
           gdriveClient: gdriveClient,
         ),
       ),
@@ -193,12 +186,10 @@ class ChangeBackupPasswordFormPage extends StatefulWidget {
   const ChangeBackupPasswordFormPage({
     super.key,
     required this.config,
-    required this.app,
     required this.gdriveClient,
   });
 
   final Config config;
-  final AppHandle app;
   final GDriveClient gdriveClient;
 
   @override
@@ -208,7 +199,6 @@ class ChangeBackupPasswordFormPage extends StatefulWidget {
 
 class _ChangeBackupPasswordFormPageState
     extends State<ChangeBackupPasswordFormPage> {
-  final GlobalKey<FormFieldState<String>> currentPasswordFieldKey = GlobalKey();
   final GlobalKey<FormFieldState<String>> newPasswordFieldKey = GlobalKey();
   final GlobalKey<FormFieldState<String>> confirmPasswordFieldKey = GlobalKey();
 
@@ -227,25 +217,13 @@ class _ChangeBackupPasswordFormPageState
 
     this.errorMessage.value = null;
 
-    final currentPasswordState = this.currentPasswordFieldKey.currentState!;
     final newPasswordState = this.newPasswordFieldKey.currentState!;
     final confirmPasswordState = this.confirmPasswordFieldKey.currentState!;
 
-    final currentPasswordIsValid = currentPasswordState.validate();
     final newPasswordIsValid = newPasswordState.validate();
     final confirmPasswordIsValid = confirmPasswordState.validate();
-    if (!currentPasswordIsValid ||
-        !newPasswordIsValid ||
-        !confirmPasswordIsValid) {
+    if (!newPasswordIsValid || !confirmPasswordIsValid) {
       return;
-    }
-
-    final String currentPassword;
-    switch (validators.validatePassword(currentPasswordState.value)) {
-      case Ok(:final ok):
-        currentPassword = ok;
-      case Err():
-        return;
     }
 
     final String newPassword;
@@ -258,29 +236,42 @@ class _ChangeBackupPasswordFormPageState
 
     this.isSaving.value = true;
     try {
-      await this.onSubmitInner(
-        currentPassword: currentPassword,
-        newPassword: newPassword,
-      );
+      await this.onSubmitInner(newPassword: newPassword);
     } finally {
       if (this.mounted) this.isSaving.value = false;
     }
   }
 
-  Future<void> onSubmitInner({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
+  Future<void> onSubmitInner({required String newPassword}) async {
     final config = this.widget.config;
-    final userPk = this.widget.app.walletUser().userPk;
+    RootSeed rootSeed;
+    final rootSeedResult = Result.tryFfi(
+      () => SecretStore(config: config).readRootSeed(),
+    );
+    switch (rootSeedResult) {
+      case Ok(:final ok):
+        if (ok == null) {
+          this.errorMessage.value = const ErrorMessage(
+            title: "Failed to change backup password",
+            message: "Could not open secret store",
+          );
+          return;
+        }
+        rootSeed = ok;
+      case Err(:final err):
+        this.errorMessage.value = ErrorMessage(
+          title: "Failed to change backup password",
+          message: "$err",
+        );
+        return;
+    }
 
     final result = await Result.tryFfiAsync(
       () => this.widget.gdriveClient.intoRestoreClient().rotateBackupPassword(
         deployEnv: config.deployEnv,
         network: config.network,
         useSgx: config.useSgx,
-        userPk: userPk,
-        currentPassword: currentPassword,
+        rootSeed: rootSeed,
         newPassword: newPassword,
       ),
     );
@@ -325,57 +316,33 @@ class _ChangeBackupPasswordFormPageState
         body: [
           const HeadingText(text: "Change backup password"),
           const SizedBox(height: Space.s200),
-          const SubheadingText(
-            text: "Enter your current backup password, then choose a new one.",
-          ),
-          const SizedBox(height: Space.s400),
-          const Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: "WARNING: ",
-                  style: TextStyle(color: LxColors.warningText),
-                ),
-                TextSpan(
-                  text:
-                      "Store this password in a safe place, like a password manager. You need it to recover your funds.",
-                  style: TextStyle(color: LxColors.fgTertiary),
-                ),
-              ],
+          MarkdownBody(
+            data: '''
+Enter at least 12 characters.
+
+This password encrypts your recovery data so Google can't read it.
+Store it in a safe place, like a password manager—you **need this to
+recover your funds**.
+''',
+            styleSheet: LxTheme.markdownStyle.copyWith(
+              blockSpacing: Space.s0,
+              pPadding: const EdgeInsets.symmetric(vertical: Space.s100),
             ),
           ),
           const SizedBox(height: Space.s600),
 
-          // Current password
-          TextFormField(
-            key: this.currentPasswordFieldKey,
-            autofocus: true,
-            textInputAction: TextInputAction.next,
-            validator: (str) => validators.validatePassword(str).err,
-            onEditingComplete: () {
-              final state = this.currentPasswordFieldKey.currentState!;
-              if (state.validate()) {
-                FocusScope.of(this.context).nextFocus();
-              }
-            },
-            decoration: baseInputDecoration.copyWith(
-              hintText: "Current password",
-            ),
-            obscureText: true,
-            style: textFieldStyle,
-          ),
-          const SizedBox(height: Space.s200),
-
           // New password
           TextFormField(
             key: this.newPasswordFieldKey,
-            autofocus: false,
+            autofocus: true,
             textInputAction: TextInputAction.next,
             validator: (str) => validators.validatePassword(str).err,
             onEditingComplete: () {
               final state = this.newPasswordFieldKey.currentState!;
               if (state.validate()) {
                 FocusScope.of(this.context).nextFocus();
+              } else {
+                FocusScope.of(this.context).unfocus();
               }
             },
             decoration: baseInputDecoration.copyWith(hintText: "New password"),
@@ -395,7 +362,10 @@ class _ChangeBackupPasswordFormPageState
                   confirmPassword: str,
                 )
                 .err,
-            onEditingComplete: this.onSubmit,
+            onEditingComplete: () {
+              FocusScope.of(this.context).unfocus();
+              this.onSubmit();
+            },
             decoration: baseInputDecoration.copyWith(
               hintText: "Confirm new password",
             ),

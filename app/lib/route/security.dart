@@ -16,17 +16,26 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SeedWordsCard,
         SubheadingText;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/change_backup_password.dart'
+    show ChangeBackupPasswordPage;
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// Basic security page that leads to displa SeedPhrase, connect GDrive or
 /// test GDrive connection.
 class SecurityPage extends StatefulWidget {
-  const SecurityPage({super.key, required this.config, required this.app});
+  const SecurityPage({
+    super.key,
+    required this.config,
+    required this.app,
+    required this.gdriveAuth,
+  });
 
   final Config config;
   final AppHandle app;
+  final GDriveAuth gdriveAuth;
 
   @override
   State<SecurityPage> createState() => _SecurityPageState();
@@ -88,6 +97,17 @@ class _SecurityPageState extends State<SecurityPage> {
     );
   }
 
+  void onChangeBackupPasswordTap() {
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => ChangeBackupPasswordPage(
+          config: this.widget.config,
+          gdriveAuth: this.widget.gdriveAuth,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const cardPad = Space.s300;
@@ -140,7 +160,14 @@ class _SecurityPageState extends State<SecurityPage> {
           ValueListenableBuilder(
             valueListenable: this.backupInfo,
             builder: (_, backupInfo, _) {
-              return GDriveStatusCard(backupStatus: backupInfo?.gdriveStatus);
+              final onChangeBackupPasswordTap =
+                  (backupInfo?.gdriveStatus is GDriveStatus_Ok)
+                  ? this.onChangeBackupPasswordTap
+                  : null;
+              return GDriveStatusCard(
+                backupStatus: backupInfo?.gdriveStatus,
+                onChangeBackupPasswordTap: onChangeBackupPasswordTap,
+              );
             },
           ),
         ],
@@ -150,35 +177,75 @@ class _SecurityPageState extends State<SecurityPage> {
 }
 
 class GDriveStatusCard extends StatelessWidget {
-  const GDriveStatusCard({super.key, required this.backupStatus});
+  const GDriveStatusCard({
+    super.key,
+    required this.backupStatus,
+    required this.onChangeBackupPasswordTap,
+  });
 
   final GDriveStatus? backupStatus;
+  final VoidCallback? onChangeBackupPasswordTap;
 
   @override
   Widget build(BuildContext context) {
-    return InfoCard(
-      header: const Text("Google drive backup status"),
-      description: const Text(
-        "Your node can automatically back up your encrypted wallet data to Google Drive. Neither Google nor Lexe can decrypt this data.",
-      ),
+    const description = Text(
+      "Your node can automatically back up your encrypted wallet data to Google Drive. Neither Google nor Lexe can decrypt this data.",
+    );
+    final onChangePasswordTap = switch (this.backupStatus) {
+      GDriveStatus_Ok() => this.onChangeBackupPasswordTap,
+      _ => null,
+    };
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InfoRowButton(
-          onTap: null,
-          label: switch (this.backupStatus) {
-            null => SizedBox.square(
-              dimension: Fonts.size200,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.0,
-                color: LxColors.grey750,
+        InfoCard(
+          header: const Text("Google drive backup status"),
+          children: [
+            InfoRowButton(
+              onTap: null,
+              trailingIcon: const SizedBox(
+                width: Fonts.size100,
+                height: Fonts.size100,
               ),
+              label: switch (this.backupStatus) {
+                null => SizedBox.square(
+                  dimension: Fonts.size200,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.0,
+                    color: LxColors.grey750,
+                  ),
+                ),
+                GDriveStatus_Disabled() => Text("Not connected"),
+                GDriveStatus_Error() => Text(
+                  "Connection failed - reconnect required",
+                ),
+                GDriveStatus_Ok() => Text("Connected and syncing"),
+              },
             ),
-            GDriveStatus_Disabled() => Text("Not connected"),
-            GDriveStatus_Error() => Text(
-              "Connection failed - reconnect required",
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: Space.s300, right: Space.s300),
+          child: DefaultTextStyle(
+            style: const TextStyle(
+              color: LxColors.fgTertiary,
+              fontSize: Fonts.size200,
+              fontVariations: [Fonts.weightNormal],
             ),
-            GDriveStatus_Ok() => Text("Connected and syncing"),
-          },
+            child: description,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: Space.s200),
+          child: InfoCard(
+            children: [
+              InfoRowButton(
+                onTap: onChangePasswordTap,
+                label: const Text("Change backup password"),
+              ),
+            ],
+          ),
         ),
       ],
     );
