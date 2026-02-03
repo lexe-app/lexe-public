@@ -1746,6 +1746,72 @@ class ButtonDesignPage extends StatelessWidget {
             ),
             const SizedBox(height: Space.s600),
 
+            //
+            // Checkboxes
+            //
+            const HeadingText(text: "Checkboxes"),
+            const SizedBox(height: Space.s400),
+
+            // Row of checkbox states
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Unchecked
+                Column(
+                  children: [
+                    Checkbox(value: false, onChanged: (_) {}),
+                    const Text("Unchecked", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+                // Checked
+                Column(
+                  children: [
+                    Checkbox(value: true, onChanged: (_) {}),
+                    const Text("Checked", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+                // Disabled unchecked
+                const Column(
+                  children: [
+                    Checkbox(value: false, onChanged: null),
+                    Text("Disabled", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+                // Disabled checked
+                const Column(
+                  children: [
+                    Checkbox(value: true, onChanged: null),
+                    Text("Disabled ✓", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s400),
+
+            // CheckboxListTile example
+            const SubheadingText(text: "CheckboxListTile"),
+            const SizedBox(height: Space.s200),
+
+            CheckboxListTile(
+              value: false,
+              onChanged: (_) {},
+              title: const Text("Unchecked list tile"),
+              subtitle: const Text("With subtitle text"),
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+            CheckboxListTile(
+              value: true,
+              onChanged: (_) {},
+              title: const Text("Checked list tile"),
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+            const CheckboxListTile(
+              value: false,
+              onChanged: null,
+              title: Text("Disabled list tile"),
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+
             const SizedBox(height: Space.s1200),
           ],
         ),
