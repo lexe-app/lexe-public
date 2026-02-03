@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/form.dart' as form;
 import 'package:app_rs_dart/ffi/types.dart'
     show Config, DeployEnv, GDriveSignupCredentials, RootSeed;
 import 'package:flutter/material.dart';
@@ -30,6 +29,7 @@ import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/url.dart' as url;
+import 'package:lexeapp/validators.dart' as validators;
 
 /// Require a signup code to complete signup.
 const bool requireSignupCode = true;
@@ -400,36 +400,6 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
     super.dispose();
   }
 
-  Result<String, String?> validatePassword(String? password) {
-    if (password == null || password.isEmpty) {
-      return const Err("");
-    }
-
-    // TODO(phlip9): this API should return a bare error enum and flutter should
-    // convert that to a human-readable error message (for translations).
-    final maybeErrMsg = form.validatePassword(password: password);
-    if (maybeErrMsg == null) {
-      return Ok(password);
-    } else {
-      return Err(maybeErrMsg);
-    }
-  }
-
-  Result<String, String?> validateConfirmPassword(String? confirmPassword) {
-    if (confirmPassword == null || confirmPassword.isEmpty) {
-      return const Err("");
-    }
-
-    final password = this.passwordFieldKey.currentState!.value;
-    if (password == confirmPassword) {
-      return Ok(confirmPassword);
-    } else if (password == null) {
-      return const Err("");
-    } else {
-      return const Err("Passwords don't match");
-    }
-  }
-
   Future<void> onSubmit() async {
     // Ignore press while signing up
     if (this.isSigningUp.value) return;
@@ -444,7 +414,9 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
     }
 
     final String password;
-    switch (this.validatePassword(fieldState.value!)) {
+    switch (validators.validatePassword(
+      this.passwordFieldKey.currentState!.value,
+    )) {
       case Ok(:final ok):
         password = ok;
       case Err():
@@ -539,7 +511,7 @@ recover your funds**.
             key: this.passwordFieldKey,
             autofocus: true,
             textInputAction: TextInputAction.next,
-            validator: (str) => this.validatePassword(str).err,
+            validator: (str) => validators.validatePassword(str).err,
             onEditingComplete: () {
               // Only show the input error on field completion (good UX).
               // Only move to the next field if the input is valid.
@@ -559,7 +531,12 @@ recover your funds**.
             key: this.confirmPasswordFieldKey,
             autofocus: false,
             textInputAction: TextInputAction.done,
-            validator: (str) => this.validateConfirmPassword(str).err,
+            validator: (str) => validators
+                .validateConfirmPassword(
+                  password: this.passwordFieldKey.currentState!.value,
+                  confirmPassword: str,
+                )
+                .err,
             onEditingComplete: this.onSubmit,
             decoration: baseInputDecoration.copyWith(
               hintText: "Confirm password",
