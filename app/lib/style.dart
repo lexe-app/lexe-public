@@ -253,6 +253,26 @@ final class LxTheme {
         ),
       ),
 
+      // [Checkbox]
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return LxColors.fgTertiary;
+          }
+          if (states.contains(WidgetState.selected)) {
+            return LxColors.foreground;
+          }
+          return LxColors.clearB0;
+        }),
+        checkColor: WidgetStateProperty.all(LxColors.background),
+        side: WidgetStateBorderSide.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return const BorderSide(color: LxColors.fgTertiary, width: 2.0);
+          }
+          return const BorderSide(color: LxColors.foreground, width: 2.0);
+        }),
+      ),
+
       // [ListTile]
       listTileTheme: ListTileThemeData(
         minVerticalPadding: Space.s200,
