@@ -67,6 +67,8 @@ import 'package:lexeapp/gdrive_auth.dart'
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/app_load_error.dart' show AppLoadErrorPage;
+import 'package:lexeapp/route/change_backup_password.dart'
+    show ChangeBackupPasswordPage;
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelButton, ChannelsList, ChannelsPage;
 import 'package:lexeapp/route/clients.dart' show ClientsPage;
@@ -991,8 +993,32 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       }),
       Component(
         "SecurityPage",
-        subtitle: "seed phrase will fail",
-        (_) => SecurityPage(config: this.widget.config, app: mockApp),
+        (_) => SecurityPage(
+          config: this.widget.config,
+          app: mockApp,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+      ),
+      Component(
+        "ChangeBackupPasswordPage (mock gdrive)",
+        (context) => ChangeBackupPasswordPage(
+          config: this.widget.config,
+          gdriveAuth: GDriveAuth.mock,
+        ),
+      ),
+      Component(
+        "ChangeBackupPasswordPage (mock gdrive error)",
+        (context) => ChangeBackupPasswordPage(
+          config: this.widget.config,
+          gdriveAuth: GDriveAuth.mockError,
+        ),
+      ),
+      Component(
+        "ChangeBackupPasswordPage (real gdrive)",
+        (context) => ChangeBackupPasswordPage(
+          config: this.widget.config,
+          gdriveAuth: GDriveAuth.prod,
+        ),
       ),
       Component("SeedPhrasePage", (_) {
         return const SeedPhrasePage(seedPhrase: mocks.seedWords1);
