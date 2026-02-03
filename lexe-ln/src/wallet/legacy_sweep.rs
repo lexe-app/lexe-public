@@ -1,7 +1,7 @@
 //! Legacy BDK wallet sweep functionality.
 //!
-//! This module handles sweeping funds from legacy BDK wallets (created before
-//! node-v0.8.12, using non-BIP39-compatible derivation) to the new
+//! This module handles sweeping funds from legacy BDK wallets (created <=
+//! node-v0.9.1, using non-BIP39-compatible derivation) to the new
 //! BIP39-compatible wallet.
 //!
 //! ## Dust handling
@@ -36,7 +36,7 @@ use crate::{
     wallet::{LexeCoinSelector, OnchainWallet},
 };
 
-/// The legacy wallet changeset filename (pre-v0.8.12).
+/// The legacy wallet changeset filename (for wallets created <= node-v0.9.1).
 const WALLET_CHANGESET_LEGACY_FILENAME: &str = "bdk_wallet_changeset";
 
 /// Context required for legacy wallet sweep.

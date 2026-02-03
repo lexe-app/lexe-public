@@ -48,7 +48,7 @@ pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 // - "bdk_wallet_db" for our pre BDK 1.0 wallet DB.
 // - "bdk_wallet_db_v1" for our BDK 1.0.0-alpha.X wallet DB.
 // - "bdk_wallet_changeset" since BDK 1.0.0-beta.X. (legacy descriptor)
-// - "bdk_wallet_changeset_v2" since node-v0.8.12 (bip39-compat descriptor)
+// - "bdk_wallet_changeset_v2" for > node-v0.9.1 (bip39-compat descriptor)
 pub const WALLET_CHANGESET_LEGACY_FILENAME: &str = "bdk_wallet_changeset";
 pub const WALLET_CHANGESET_V2_FILENAME: &str = "bdk_wallet_changeset_v2";
 

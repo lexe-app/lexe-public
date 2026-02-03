@@ -269,7 +269,7 @@ pub trait LexePersisterMethods: Vfs {
 
     // --- Required methods: wallet --- //
 
-    /// Read the legacy (pre-v0.8.12) wallet changeset, if it exists.
+    /// Read the legacy (<= node-v0.9.1) wallet changeset, if it exists.
     async fn read_wallet_changeset_legacy(
         &self,
     ) -> anyhow::Result<Option<bdk_wallet::ChangeSet>>;

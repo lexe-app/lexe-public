@@ -76,8 +76,8 @@ impl RootSeed {
     /// The resulting seed is compatible with standard wallets when used to
     /// derive a BIP32 master xpriv.
     ///
-    /// New Lexe wallets created after node-v0.8.12 use this to derive
-    /// their on-chain wallet BIP32 master xprivs.
+    /// New Lexe wallets created > node-v0.9.1 use this to derive their
+    /// on-chain wallet BIP32 master xprivs.
     ///
     /// Old Lexe on-chain wallets use the [`Self::derive_legacy_master_xprv`]
     /// instead.
@@ -198,7 +198,7 @@ impl RootSeed {
     /// Derive the BIP32 master xpriv using the BIP39-compatible derived 64-byte
     /// seed.
     ///
-    /// This is used for new Lexe on-chain wallets created after node-v0.8.12.
+    /// This is used for new Lexe on-chain wallets created > node-v0.9.1.
     /// Wallets created before then use the [`Self::derive_legacy_master_xprv`].
     ///
     /// This produces keys compatible with standard wallets that follow the

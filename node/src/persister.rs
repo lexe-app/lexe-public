@@ -478,8 +478,7 @@ impl NodePersister {
             .await
     }
 
-    /// Read the pre- node-v0.8.12 legacy wallet changeset, if it exists.
-    #[allow(dead_code)] // TODO(phlip9): remove
+    /// Read the <= node-v0.9.1 legacy wallet changeset, if it exists.
     pub(crate) async fn read_wallet_changeset_legacy(
         &self,
     ) -> anyhow::Result<Option<ChangeSet>> {

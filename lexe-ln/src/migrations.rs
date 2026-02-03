@@ -16,7 +16,7 @@ use tracing::debug;
 /// Marker filename for the payments_v2 migration.
 pub const MARKER_PAYMENTS_V2: &str = "payments_v2";
 
-/// Marker for wallets created before node-v0.8.12 that use legacy derivation.
+/// Marker for wallets created <= node-v0.9.1 that use legacy derivation.
 ///
 /// If this marker exists, we need to check for funds in the legacy wallet and
 /// sweep them to the new BIP39-compatible wallet.
