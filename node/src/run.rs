@@ -1021,6 +1021,7 @@ impl UserNode {
                 tx_broadcaster: tx_broadcaster.clone(),
                 fee_estimates: fee_estimates.clone(),
                 coin_selector: LexeCoinSelector::default(),
+                payments_manager: payments_manager.clone(),
                 persister: persister.clone(),
                 new_wallet: wallet.clone(),
             };

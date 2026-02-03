@@ -106,7 +106,8 @@ pub fn spawn_bdk_sync_task(
 
                     match sync_result {
                         Ok(sync_stats) => {
-                            sync_stats.log_sync_complete(elapsed_ms);
+                            let is_legacy = false;
+                            sync_stats.log_sync_complete(is_legacy, elapsed_ms);
                             onchain_recv_tx.send();
                             for tx in synced_txs.drain(..) {
                                 let _ = tx.send(());
