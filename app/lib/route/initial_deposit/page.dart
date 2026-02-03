@@ -835,11 +835,7 @@ class _PaymentQrCard extends StatelessWidget {
       this.fiatRate.fiat,
     );
 
-    // Format amount as raw number (without ₿ symbol) for "X sats" display
-    final amountNum = currency_format.formatSatsAmount(
-      this.amountSats,
-      bitcoinSymbol: false,
-    );
+    final amountStr = currency_format.formatSatsAmount(this.amountSats);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: Space.s200),
@@ -937,24 +933,16 @@ class _PaymentQrCard extends StatelessWidget {
                 if (uri != null) ...[
                   const SizedBox(height: Space.s400),
 
-                  // Amount (sats)
+                  // Amount
                   Padding(
                     padding: const EdgeInsets.only(bottom: Space.s100),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(text: amountNum),
-                          const TextSpan(
-                            text: " sats",
-                            style: TextStyle(color: LxColors.grey550),
-                          ),
-                        ],
-                        style: const TextStyle(
-                          fontSize: Fonts.size600,
-                          letterSpacing: -0.5,
-                          fontVariations: [Fonts.weightMedium],
-                          height: 1.0,
-                        ),
+                    child: Text(
+                      amountStr,
+                      style: const TextStyle(
+                        fontSize: Fonts.size600,
+                        letterSpacing: -0.5,
+                        fontVariations: [Fonts.weightMedium],
+                        height: 1.0,
                       ),
                     ),
                   ),

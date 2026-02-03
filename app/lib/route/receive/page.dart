@@ -865,7 +865,7 @@ class PaymentOfferPage extends StatelessWidget {
     // final amountSats = 5300;
     // final amountSats = null;
     final amountSatsStr = (amountSats != null)
-        ? currency_format.formatSatsAmount(amountSats, bitcoinSymbol: false)
+        ? currency_format.formatSatsAmount(amountSats)
         : null;
 
     final description = this.paymentOffer.description;
@@ -1069,29 +1069,19 @@ class PaymentOfferPage extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Amount (sats)
+                            // Amount
                             if (amountSatsStr != null)
                               Padding(
                                 padding: const EdgeInsets.only(
                                   bottom: Space.s100,
                                 ),
-                                child: Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(text: amountSatsStr),
-                                      const TextSpan(
-                                        text: " sats",
-                                        style: TextStyle(
-                                          color: LxColors.grey550,
-                                        ),
-                                      ),
-                                    ],
-                                    style: const TextStyle(
-                                      fontSize: Fonts.size600,
-                                      letterSpacing: -0.5,
-                                      fontVariations: [Fonts.weightMedium],
-                                      height: 1.0,
-                                    ),
+                                child: Text(
+                                  amountSatsStr,
+                                  style: const TextStyle(
+                                    fontSize: Fonts.size600,
+                                    letterSpacing: -0.5,
+                                    fontVariations: [Fonts.weightMedium],
+                                    height: 1.0,
                                   ),
                                 ),
                               ),
