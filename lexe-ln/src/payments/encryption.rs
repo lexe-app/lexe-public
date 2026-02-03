@@ -171,10 +171,10 @@ fn encrypt_payment_v1(
 
     DbPaymentV2 {
         id: payment.id().to_string(),
-        kind: None,
-        direction: None,
-        amount: None,
-        fee: None,
+        kind: Some(payment.kind().to_str()),
+        direction: Some(Cow::Borrowed(payment.direction().as_str())),
+        amount: payment.amount(),
+        fee: Some(payment.fees()),
         status: Cow::Borrowed(payment.status().as_str()),
         data,
         version: 1,
@@ -236,12 +236,6 @@ fn decrypt_payment_v1(
 
     ensure!(version == 1, "expected version 1, got {version}");
 
-    // Version 1 should have no plaintext fields
-    ensure!(kind.is_none(), "v1 payment has unexpected 'kind'");
-    ensure!(direction.is_none(), "v1 payment has unexpected 'direction'");
-    ensure!(amount.is_none(), "v1 payment has unexpected 'amount'");
-    ensure!(fee.is_none(), "v1 payment has unexpected 'fee'");
-
     let aad = &[];
     let plaintext_bytes = vfs_master_key
         .decrypt(aad, data)
@@ -251,18 +245,46 @@ fn decrypt_payment_v1(
         serde_json::from_slice::<PaymentV1>(plaintext_bytes.as_slice())
             .context("Could not deserialize PaymentV1")?;
 
-    // Validate id and status match
+    // Validate plaintext fields match decrypted values
     let db_id = LxPaymentId::from_str(&db_id).context("invalid db id")?;
     ensure!(
         payment.id() == db_id,
-        "id mismatch: db={db_id}, payment={}",
+        "Payment id mismatch: db={db_id}, payment={}",
         payment.id(),
     );
     ensure!(
         payment.status().as_str() == db_status,
-        "status mismatch: db={db_status}, payment={}",
+        "Payment status mismatch: db={db_status}, payment={}",
         payment.status().as_str(),
     );
+    if let Some(db_kind) = kind {
+        ensure!(
+            payment.kind().to_str() == db_kind,
+            "Payment kind mismatch: db={db_kind}, payment={}",
+            payment.kind().to_str(),
+        );
+    }
+    if let Some(db_direction) = direction {
+        ensure!(
+            payment.direction().as_str() == db_direction,
+            "Payment direction mismatch: db={db_direction}, payment={}",
+            payment.direction().as_str(),
+        );
+    }
+    if let Some(db_amount) = amount {
+        ensure!(
+            payment.amount() == Some(db_amount),
+            "Payment amount mismatch: db={db_amount}, payment={}",
+            DisplayOption(payment.amount()),
+        );
+    }
+    if let Some(db_fee) = fee {
+        ensure!(
+            payment.fees() == db_fee,
+            "Payment fee mismatch: db={db_fee:?}, payment={:?}",
+            payment.fees(),
+        );
+    }
 
     Ok(payment)
 }

@@ -14,7 +14,7 @@ use lexe_api::types::{
     offer::LxOffer,
     payments::{
         BasicPaymentV1, LxOfferId, LxPaymentId, PaymentCreatedIndex,
-        PaymentDirection, PaymentRail, PaymentStatus,
+        PaymentDirection, PaymentKind, PaymentRail, PaymentStatus,
     },
 };
 #[cfg(test)]
@@ -376,6 +376,19 @@ impl PaymentV1 {
             Self::OutboundInvoice(_) => PaymentRail::Invoice,
             Self::OutboundOffer(_) => PaymentRail::Offer,
             Self::OutboundSpontaneous(_) => PaymentRail::Spontaneous,
+        }
+    }
+
+    /// The application-level kind of this payment.
+    /// For v1 payments, kind is derived directly from rail.
+    pub fn kind(&self) -> PaymentKind {
+        match self.rail() {
+            PaymentRail::Onchain => PaymentKind::Onchain,
+            PaymentRail::Invoice => PaymentKind::Invoice,
+            PaymentRail::Offer => PaymentKind::Offer,
+            PaymentRail::Spontaneous => PaymentKind::Spontaneous,
+            // V1 payments don't have these rails
+            PaymentRail::WaivedFee | PaymentRail::Unknown(_) => unreachable!(),
         }
     }
 
