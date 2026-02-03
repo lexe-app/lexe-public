@@ -37,3 +37,9 @@ include = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["python/tests"]
+# Skip integration tests by default (run with -m integration to include)
+addopts = "-m 'not integration'"
+markers = [
+    "integration: marks tests as integration tests (require gateway/network)"
+]
