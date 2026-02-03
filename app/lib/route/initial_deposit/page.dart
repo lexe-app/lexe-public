@@ -106,20 +106,11 @@ class InitialDepositChooseMethodPage extends StatelessWidget {
   }
 
   void _onMethodSelected(BuildContext context, DepositMethod method) {
-    switch (method) {
-      case DepositMethod.lightning:
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const InitialDepositAmountPage(),
-          ),
-        );
-      case DepositMethod.onchain:
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const InitialDepositOnchainPage(),
-          ),
-        );
-    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => InitialDepositAmountPage(method: method),
+      ),
+    );
   }
 }
 
@@ -228,7 +219,13 @@ class _MethodCard extends StatelessWidget {
 
 /// Enter the amount for a Lightning deposit.
 class InitialDepositAmountPage extends StatefulWidget {
-  const InitialDepositAmountPage({super.key});
+  const InitialDepositAmountPage({
+    super.key,
+    this.method = DepositMethod.lightning,
+  });
+
+  /// The deposit method to use after amount entry.
+  final DepositMethod method;
 
   @override
   State<InitialDepositAmountPage> createState() =>
@@ -329,12 +326,19 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
       this.lowAmountAcknowledged.value = false;
     }
 
-    // Navigate to Lightning page with the requested amount
-    Navigator.of(this.context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => InitialDepositLightningPage(amountSats: amountSats),
+    // Navigate to appropriate page based on deposit method
+    final Widget nextPage = switch (this.widget.method) {
+      DepositMethod.lightning => InitialDepositLightningPage(
+        amountSats: amountSats,
       ),
-    );
+      DepositMethod.onchain => InitialDepositOnchainPage(
+        amountSats: amountSats,
+      ),
+    };
+
+    Navigator.of(
+      this.context,
+    ).push(MaterialPageRoute<void>(builder: (_) => nextPage));
   }
 
   @override
@@ -851,7 +855,10 @@ class _PaymentQrCard extends StatelessWidget {
 
 /// On-chain deposit page showing a Bitcoin address QR code.
 class InitialDepositOnchainPage extends StatefulWidget {
-  const InitialDepositOnchainPage({super.key});
+  const InitialDepositOnchainPage({super.key, required this.amountSats});
+
+  /// The requested amount in satoshis.
+  final int amountSats;
 
   @override
   State<InitialDepositOnchainPage> createState() =>
@@ -870,9 +877,10 @@ class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
     // TODO(a-mpch): Remove this when adding real logic.
     Future.delayed(const Duration(milliseconds: 500), () {
       if (this.mounted) {
-        // Placeholder address for UI testing
-        this.addressUri.value =
-            "bitcoin:bc1qexampleaddressforuitesting0000000000";
+        // Generate BIP21 URI with amount
+        final address = "bc1qexampleaddressforuitesting0000000000";
+        final amountBtc = currency_format.satsToBtc(this.widget.amountSats);
+        this.addressUri.value = "bitcoin:$address?amount=$amountBtc";
       }
     });
   }
