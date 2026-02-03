@@ -5,6 +5,7 @@ import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate;
 import 'package:flutter/material.dart';
+import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
@@ -42,22 +43,32 @@ const String channelReserveLearnMoreUrl =
 /// Set [lightningOnly] to skip method selection and go directly to the amount
 /// page.
 class InitialDepositPage extends StatelessWidget {
-  const InitialDepositPage({super.key, this.lightningOnly = false});
+  const InitialDepositPage({
+    super.key,
+    this.lightningOnly = false,
+    required this.fiatRate,
+  });
 
   /// If true, skip method selection and go directly to Lightning amount page.
   final bool lightningOnly;
 
+  /// Fiat rate for displaying fiat equivalent.
+  final FiatRate fiatRate;
+
   @override
   Widget build(BuildContext context) => MultistepFlow<void>(
     builder: (context) => this.lightningOnly
-        ? const InitialDepositAmountPage()
-        : const InitialDepositChooseMethodPage(),
+        ? InitialDepositAmountPage(fiatRate: this.fiatRate)
+        : InitialDepositChooseMethodPage(fiatRate: this.fiatRate),
   );
 }
 
 /// Choose between Lightning or On-chain deposit method.
 class InitialDepositChooseMethodPage extends StatelessWidget {
-  const InitialDepositChooseMethodPage({super.key});
+  const InitialDepositChooseMethodPage({super.key, required this.fiatRate});
+
+  /// Fiat rate for displaying fiat equivalent.
+  final FiatRate fiatRate;
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +120,8 @@ class InitialDepositChooseMethodPage extends StatelessWidget {
   void _onMethodSelected(BuildContext context, DepositMethod method) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => InitialDepositAmountPage(method: method),
+        builder: (_) =>
+            InitialDepositAmountPage(method: method, fiatRate: this.fiatRate),
       ),
     );
   }
@@ -218,15 +230,19 @@ class _MethodCard extends StatelessWidget {
   }
 }
 
-/// Enter the amount for a Lightning deposit.
+/// Enter the amount for a deposit.
 class InitialDepositAmountPage extends StatefulWidget {
   const InitialDepositAmountPage({
     super.key,
     this.method = DepositMethod.lightning,
+    required this.fiatRate,
   });
 
   /// The deposit method to use after amount entry.
   final DepositMethod method;
+
+  /// Fiat rate for displaying fiat equivalent.
+  final FiatRate fiatRate;
 
   @override
   State<InitialDepositAmountPage> createState() =>
@@ -331,9 +347,11 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
     final Widget nextPage = switch (this.widget.method) {
       DepositMethod.lightning => InitialDepositLightningPage(
         amountSats: amountSats,
+        fiatRate: this.widget.fiatRate,
       ),
       DepositMethod.onchain => InitialDepositOnchainPage(
         amountSats: amountSats,
+        fiatRate: this.widget.fiatRate,
       ),
     };
 
@@ -544,11 +562,11 @@ class InitialDepositSuccessPage extends StatelessWidget {
   const InitialDepositSuccessPage({
     super.key,
     required this.amountSats,
-    this.fiatRate,
+    required this.fiatRate,
   });
 
   final int amountSats;
-  final FiatRate? fiatRate;
+  final FiatRate fiatRate;
 
   void _onDone(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
@@ -558,14 +576,13 @@ class InitialDepositSuccessPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final amountSatsStr = currency_format.formatSatsAmount(this.amountSats);
 
-    // Format fiat amount if rate is available
-    String? fiatAmountStr;
-    final fiatRate = this.fiatRate;
-    if (fiatRate != null) {
-      final fiatAmount =
-          currency_format.satsToBtc(this.amountSats) * fiatRate.rate;
-      fiatAmountStr = currency_format.formatFiat(fiatAmount, fiatRate.fiat);
-    }
+    // Format fiat amount
+    final fiatAmount =
+        currency_format.satsToBtc(this.amountSats) * this.fiatRate.rate;
+    final fiatAmountStr = currency_format.formatFiat(
+      fiatAmount,
+      this.fiatRate.fiat,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -639,18 +656,16 @@ class InitialDepositSuccessPage extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
 
-          // Fiat amount (if available)
-          if (fiatAmountStr != null) ...[
-            const SizedBox(height: Space.s200),
-            Text(
-              "≈ $fiatAmountStr",
-              style: Fonts.fontUI.copyWith(
-                fontSize: Fonts.size300,
-                color: LxColors.fgSecondary,
-              ),
-              textAlign: TextAlign.center,
+          // Fiat amount
+          const SizedBox(height: Space.s200),
+          Text(
+            "≈ $fiatAmountStr",
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size300,
+              color: LxColors.fgSecondary,
             ),
-          ],
+            textAlign: TextAlign.center,
+          ),
 
           const SizedBox(height: Space.s600),
 
@@ -676,10 +691,17 @@ class InitialDepositSuccessPage extends StatelessWidget {
 
 /// Lightning deposit page showing a BOLT11 invoice QR code.
 class InitialDepositLightningPage extends StatefulWidget {
-  const InitialDepositLightningPage({super.key, required this.amountSats});
+  const InitialDepositLightningPage({
+    super.key,
+    required this.amountSats,
+    required this.fiatRate,
+  });
 
   /// The amount to request in the invoice.
   final int amountSats;
+
+  /// Fiat rate for displaying fiat equivalent.
+  final FiatRate fiatRate;
 
   @override
   State<InitialDepositLightningPage> createState() =>
@@ -688,9 +710,12 @@ class InitialDepositLightningPage extends StatefulWidget {
 
 class _InitialDepositLightningPageState
     extends State<InitialDepositLightningPage> {
-  /// The invoice URI to display, or null while loading.
+  /// The BOLT11 invoice string, or null while loading.
   // TODO(a-mpch): Wire up to fetch a real invoice from the node.
-  final ValueNotifier<String?> invoiceUri = ValueNotifier(null);
+  final ValueNotifier<String?> invoice = ValueNotifier(null);
+
+  /// Compute the lightning: URI from the invoice.
+  static String invoiceToUri(String invoice) => "lightning:$invoice";
 
   @override
   void initState() {
@@ -700,25 +725,24 @@ class _InitialDepositLightningPageState
     Future.delayed(const Duration(milliseconds: 500), () {
       if (this.mounted) {
         // Placeholder invoice for UI testing
-        this.invoiceUri.value =
-            "lightning:lnbc${this.widget.amountSats}n1pn9example";
+        this.invoice.value = "lnbc${this.widget.amountSats}n1pn9example";
       }
     });
   }
 
   @override
   void dispose() {
-    this.invoiceUri.dispose();
+    this.invoice.dispose();
     super.dispose();
   }
 
-  void onCopy(BuildContext context, String? uri) {
-    if (uri == null) return;
+  void onCopy(BuildContext context, String invoice) {
+    final uri = invoiceToUri(invoice);
     unawaited(LxClipboard.copyTextWithFeedback(context, uri));
   }
 
-  Future<void> onShare(BuildContext context, String? uri) async {
-    if (uri == null) return;
+  Future<void> onShare(BuildContext context, String invoice) async {
+    final uri = invoiceToUri(invoice);
     await LxShare.sharePaymentUri(context, Uri.parse(uri));
   }
 
@@ -734,51 +758,57 @@ class _InitialDepositLightningPageState
         ],
       ),
       body: ValueListenableBuilder<String?>(
-        valueListenable: this.invoiceUri,
-        builder: (context, uri, child) => ScrollableSinglePageBody(
-          body: [
-            const HeadingText(text: "Receive payment"),
-            const SubheadingText(
-              text:
-                  "Scan this QR code with a Lightning wallet to send payment.",
-            ),
-
-            const SizedBox(height: Space.s600),
-
-            // Invoice QR code card
-            _PaymentQrCard(
-              uri: uri,
-              onCopy: () => this.onCopy(context, uri),
-              onShare: () => this.onShare(context, uri),
-            ),
-
-            const SizedBox(height: Space.s600),
-
-            // Waiting indicator (only shown when QR is loaded)
-            if (uri != null)
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: LxColors.fgTertiary,
-                    ),
-                  ),
-                  SizedBox(width: Space.s300),
-                  Text(
-                    "Waiting for payment...",
-                    style: TextStyle(
-                      fontSize: Fonts.size200,
-                      color: LxColors.fgSecondary,
-                    ),
-                  ),
-                ],
+        valueListenable: this.invoice,
+        builder: (context, invoice, child) {
+          final uri = invoice != null ? invoiceToUri(invoice) : null;
+          return ScrollableSinglePageBody(
+            body: [
+              const HeadingText(text: "Receive payment"),
+              const SubheadingText(
+                text:
+                    "Scan this QR code with a Lightning wallet to send payment.",
               ),
-          ],
-        ),
+
+              const SizedBox(height: Space.s600),
+
+              // Invoice QR code card
+              _PaymentQrCard(
+                uri: uri,
+                code: invoice,
+                amountSats: this.widget.amountSats,
+                fiatRate: this.widget.fiatRate,
+                onCopy: () => this.onCopy(context, invoice!),
+                onShare: () => this.onShare(context, invoice!),
+              ),
+
+              const SizedBox(height: Space.s600),
+
+              // Waiting indicator (only shown when invoice is loaded)
+              if (invoice != null)
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: LxColors.fgTertiary,
+                      ),
+                    ),
+                    SizedBox(width: Space.s300),
+                    Text(
+                      "Waiting for payment...",
+                      style: TextStyle(
+                        fontSize: Fonts.size200,
+                        color: LxColors.fgSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -788,18 +818,46 @@ class _InitialDepositLightningPageState
 class _PaymentQrCard extends StatelessWidget {
   const _PaymentQrCard({
     required this.uri,
+    required this.code,
+    required this.amountSats,
+    required this.fiatRate,
     required this.onCopy,
     required this.onShare,
   });
 
   /// The URI to display in the QR code, or null while loading.
   final String? uri;
+
+  /// The raw code (address or invoice) to display, or null while loading.
+  final String? code;
+
+  /// The requested amount in satoshis.
+  final int amountSats;
+
+  /// Fiat rate for displaying fiat equivalent.
+  final FiatRate fiatRate;
+
   final VoidCallback onCopy;
   final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
     final uri = this.uri;
+    final code = this.code;
+
+    // Format fiat amount
+    final fiatAmount =
+        currency_format.satsToBtc(this.amountSats) * this.fiatRate.rate;
+    final fiatAmountStr = currency_format.formatFiat(
+      fiatAmount,
+      this.fiatRate.fiat,
+    );
+
+    // Format amount as raw number (without ₿ symbol) for "X sats" display
+    final amountNum = currency_format.formatSatsAmount(
+      this.amountSats,
+      bitcoinSymbol: false,
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: Space.s200),
@@ -813,44 +871,124 @@ class _PaymentQrCard extends StatelessWidget {
               color: LxColors.grey1000,
               borderRadius: BorderRadius.circular(LxRadius.r300),
             ),
-            padding: const EdgeInsets.all(Space.s450),
+            padding: const EdgeInsets.fromLTRB(
+              Space.s450,
+              Space.s200,
+              Space.s450,
+              Space.s400,
+            ),
             clipBehavior: Clip.antiAlias,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double dim = constraints.maxWidth;
-                final key = ValueKey(uri ?? "");
-                return AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: (uri != null)
-                      ? Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6.0),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: InteractiveQrImage(
-                            key: key,
-                            value: uri,
-                            dimension: dim,
-                          ),
-                        )
-                      : FilledPlaceholder(
-                          key: key,
-                          width: dim,
-                          height: dim,
-                          color: LxColors.background,
-                          borderRadius: 6.0,
-                          child: const Center(
-                            child: SizedBox.square(
-                              dimension: Fonts.size800,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3.0,
-                                color: LxColors.clearB200,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Code display with copy button (icon next to text)
+                GestureDetector(
+                  onTap: code != null ? this.onCopy : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        code != null
+                            ? address_format.ellipsizeBtcAddress(code)
+                            : "Loading...",
+                        style: TextStyle(
+                          fontSize: Fonts.size100,
+                          color: LxColors.grey550,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (code != null) ...[
+                        const SizedBox(width: Space.s200),
+                        const Icon(
+                          LxIcons.copy,
+                          size: Fonts.size300,
+                          color: LxColors.grey550,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: Space.s100),
+
+                // QR code
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double dim = constraints.maxWidth;
+                    final key = ValueKey(uri ?? "");
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: (uri != null)
+                          ? Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6.0),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: InteractiveQrImage(
+                                key: key,
+                                value: uri,
+                                dimension: dim,
+                              ),
+                            )
+                          : FilledPlaceholder(
+                              key: key,
+                              width: dim,
+                              height: dim,
+                              color: LxColors.background,
+                              borderRadius: 6.0,
+                              child: const Center(
+                                child: SizedBox.square(
+                                  dimension: Fonts.size800,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3.0,
+                                    color: LxColors.clearB200,
+                                  ),
+                                ),
                               ),
                             ),
+                    );
+                  },
+                ),
+
+                // Amount display (left-aligned, only shown when QR is loaded)
+                if (uri != null) ...[
+                  const SizedBox(height: Space.s400),
+
+                  // Amount (sats)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Space.s100),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(text: amountNum),
+                          const TextSpan(
+                            text: " sats",
+                            style: TextStyle(color: LxColors.grey550),
                           ),
+                        ],
+                        style: const TextStyle(
+                          fontSize: Fonts.size600,
+                          letterSpacing: -0.5,
+                          fontVariations: [Fonts.weightMedium],
+                          height: 1.0,
                         ),
-                );
-              },
+                      ),
+                    ),
+                  ),
+
+                  // Fiat amount
+                  Text(
+                    "≈ $fiatAmountStr",
+                    style: const TextStyle(
+                      color: LxColors.fgTertiary,
+                      fontSize: Fonts.size400,
+                      letterSpacing: -0.25,
+                      height: 1.0,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
 
@@ -884,10 +1022,17 @@ class _PaymentQrCard extends StatelessWidget {
 
 /// On-chain deposit page showing a Bitcoin address QR code.
 class InitialDepositOnchainPage extends StatefulWidget {
-  const InitialDepositOnchainPage({super.key, required this.amountSats});
+  const InitialDepositOnchainPage({
+    super.key,
+    required this.amountSats,
+    required this.fiatRate,
+  });
 
   /// The requested amount in satoshis.
   final int amountSats;
+
+  /// Fiat rate for displaying fiat equivalent.
+  final FiatRate fiatRate;
 
   @override
   State<InitialDepositOnchainPage> createState() =>
@@ -895,9 +1040,15 @@ class InitialDepositOnchainPage extends StatefulWidget {
 }
 
 class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
-  /// The Bitcoin address URI, or null while loading.
+  /// The Bitcoin address, or null while loading.
   // TODO(a-mpch): Wire up to fetch a real address from the node.
-  final ValueNotifier<String?> addressUri = ValueNotifier(null);
+  final ValueNotifier<String?> address = ValueNotifier(null);
+
+  /// Compute the BIP21 URI from the address and amount.
+  String addressToUri(String address) {
+    final amountBtc = currency_format.satsToBtc(this.widget.amountSats);
+    return "bitcoin:$address?amount=$amountBtc";
+  }
 
   @override
   void initState() {
@@ -906,27 +1057,24 @@ class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
     // TODO(a-mpch): Remove this when adding real logic.
     Future.delayed(const Duration(milliseconds: 500), () {
       if (this.mounted) {
-        // Generate BIP21 URI with amount
-        final address = "bc1qexampleaddressforuitesting0000000000";
-        final amountBtc = currency_format.satsToBtc(this.widget.amountSats);
-        this.addressUri.value = "bitcoin:$address?amount=$amountBtc";
+        this.address.value = "bc1qexampleaddressforuitesting0000000000";
       }
     });
   }
 
   @override
   void dispose() {
-    this.addressUri.dispose();
+    this.address.dispose();
     super.dispose();
   }
 
-  void onCopy(BuildContext context, String? uri) {
-    if (uri == null) return;
+  void onCopy(BuildContext context, String address) {
+    final uri = this.addressToUri(address);
     unawaited(LxClipboard.copyTextWithFeedback(context, uri));
   }
 
-  Future<void> onShare(BuildContext context, String? uri) async {
-    if (uri == null) return;
+  Future<void> onShare(BuildContext context, String address) async {
+    final uri = this.addressToUri(address);
     await LxShare.sharePaymentUri(context, Uri.parse(uri));
   }
 
@@ -942,50 +1090,56 @@ class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
         ],
       ),
       body: ValueListenableBuilder<String?>(
-        valueListenable: this.addressUri,
-        builder: (context, uri, child) => ScrollableSinglePageBody(
-          body: [
-            const HeadingText(text: "Receive Bitcoin"),
-            const SubheadingText(
-              text: "Send Bitcoin to this address from any wallet.",
-            ),
-
-            const SizedBox(height: Space.s600),
-
-            // Address QR code card
-            _PaymentQrCard(
-              uri: uri,
-              onCopy: () => this.onCopy(context, uri),
-              onShare: () => this.onShare(context, uri),
-            ),
-
-            const SizedBox(height: Space.s600),
-
-            // Waiting indicator (only shown when QR is loaded)
-            if (uri != null)
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: LxColors.fgTertiary,
-                    ),
-                  ),
-                  SizedBox(width: Space.s300),
-                  Text(
-                    "Waiting for payment...",
-                    style: TextStyle(
-                      fontSize: Fonts.size200,
-                      color: LxColors.fgSecondary,
-                    ),
-                  ),
-                ],
+        valueListenable: this.address,
+        builder: (context, address, child) {
+          final uri = address != null ? this.addressToUri(address) : null;
+          return ScrollableSinglePageBody(
+            body: [
+              const HeadingText(text: "Receive Bitcoin"),
+              const SubheadingText(
+                text: "Send Bitcoin to this address from any wallet.",
               ),
-          ],
-        ),
+
+              const SizedBox(height: Space.s600),
+
+              // Address QR code card
+              _PaymentQrCard(
+                uri: uri,
+                code: address,
+                amountSats: this.widget.amountSats,
+                fiatRate: this.widget.fiatRate,
+                onCopy: () => this.onCopy(context, address!),
+                onShare: () => this.onShare(context, address!),
+              ),
+
+              const SizedBox(height: Space.s600),
+
+              // Waiting indicator (only shown when address is loaded)
+              if (address != null)
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: LxColors.fgTertiary,
+                      ),
+                    ),
+                    SizedBox(width: Space.s300),
+                    Text(
+                      "Waiting for payment...",
+                      style: TextStyle(
+                        fontSize: Fonts.size200,
+                        color: LxColors.fgSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          );
+        },
       ),
     );
   }

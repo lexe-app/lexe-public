@@ -422,11 +422,19 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           restoreApi: mockRestoreApiErr,
         ),
       ),
-      Component("Initial Deposit", (context) => const InitialDepositPage()),
+      Component(
+        "Initial Deposit",
+        (context) => const InitialDepositPage(
+          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
+        ),
+      ),
       Component(
         "Initial Deposit",
         subtitle: "lightning only",
-        (context) => const InitialDepositPage(lightningOnly: true),
+        (context) => const InitialDepositPage(
+          lightningOnly: true,
+          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
+        ),
       ),
       Component(
         "InitialDepositSuccessPage",
