@@ -34,8 +34,6 @@
 //! [`OnchainWallet::trigger_persist`]: crate::wallet::OnchainWallet::trigger_persist
 //! [`RootSeed`]: common::root_seed::RootSeed
 
-pub mod legacy_sweep;
-
 use std::{
     collections::{HashMap, HashSet},
     ops::DerefMut,
@@ -87,6 +85,9 @@ use crate::{
     payments::{PaymentWithMetadata, onchain::OnchainSendV2},
     traits::LexePersister,
 };
+
+/// Sweeping legacy on-chain wallets to new BIP39-compatible wallets
+pub mod legacy_sweep;
 
 /// The number of confirmations required to consider a transaction finalized.
 /// This determines when we'll stop syncing an internal spk (script pubkey)

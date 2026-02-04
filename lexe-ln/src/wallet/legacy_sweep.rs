@@ -87,7 +87,7 @@ async fn do_legacy_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
 
     // Initialize the legacy wallet. If no changeset exists, init will
     // full_sync to discover any funds.
-    let (persist_tx, mut persist_rx) = notify::channel();
+    let (wallet_persister_tx, mut wallet_persister_rx) = notify::channel();
     let legacy_wallet_res = OnchainWallet::init(
         ctx.legacy_master_xprv,
         ctx.network,
@@ -95,7 +95,7 @@ async fn do_legacy_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
         ctx.fee_estimates.clone(),
         ctx.coin_selector,
         maybe_legacy_changeset,
-        persist_tx,
+        wallet_persister_tx,
     )
     .await
     .context("Failed to init legacy wallet");
@@ -114,7 +114,7 @@ async fn do_legacy_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
     }
 
     // See if we need to persist the legacy wallet changeset
-    if !persist_rx.try_recv() {
+    if !wallet_persister_rx.try_recv() {
         return;
     }
 
@@ -176,7 +176,6 @@ async fn sync_and_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
         priority,
         note: Some("Sweep to BIP39-compatible on-chain wallet".to_owned()),
     };
-    // TODO(phlip9): add new PaymentKind? Seems a bit overkill...
     let oswm = OnchainSendV2::new(tx, req, PaymentKind::Onchain, fee)
         .context("Failed to create onchain send")?;
 
