@@ -424,32 +424,26 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "Initial Deposit",
-        (context) => const InitialDepositPage(
-          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
-        ),
+        (context) => InitialDepositPage(fiatRate: mockFiatRate),
       ),
       Component(
         "Initial Deposit",
         subtitle: "lightning only",
-        (context) => const InitialDepositPage(
-          lightningOnly: true,
-          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
-        ),
+        (context) =>
+            InitialDepositPage(lightningOnly: true, fiatRate: mockFiatRate),
       ),
       Component(
         "InitialDepositSuccessPage",
         subtitle: "small amount",
-        (context) => const InitialDepositSuccessPage(
-          amountSats: 1234,
-          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
-        ),
+        (context) =>
+            InitialDepositSuccessPage(amountSats: 1234, fiatRate: mockFiatRate),
       ),
       Component(
         "InitialDepositSuccessPage",
         subtitle: "large amount",
-        (context) => const InitialDepositSuccessPage(
+        (context) => InitialDepositSuccessPage(
           amountSats: 12345678,
-          fiatRate: FiatRate(fiat: "USD", rate: 96626.76),
+          fiatRate: mockFiatRate,
         ),
       ),
       Component(

@@ -18,17 +18,16 @@ import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         CarouselIndicatorsAndButtons,
-        FilledPlaceholder,
         FilledTextPlaceholder,
         HeadingText,
         LxBackButton,
         LxFilledButton,
         PaymentAmountInput,
         PaymentNoteInput,
+        PaymentQrCard,
         ScrollableSinglePageBody,
         SubheadingText,
         VoidContextCallback;
-import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
@@ -41,7 +40,6 @@ import 'package:lexeapp/route/receive/state.dart'
         LnOfferInputs,
         PaymentOffer,
         PaymentOfferKind;
-import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
@@ -864,9 +862,6 @@ class PaymentOfferPage extends StatelessWidget {
     final amountSats = this.paymentOffer.amountSats;
     // final amountSats = 5300;
     // final amountSats = null;
-    final amountSatsStr = (amountSats != null)
-        ? currency_format.formatSatsAmount(amountSats)
-        : null;
 
     final description = this.paymentOffer.description;
     // final description = "the rice house 🍕";
@@ -921,260 +916,14 @@ class PaymentOfferPage extends StatelessWidget {
           ),
 
           // Card
-          CardBox(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // code + tertiary icons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    // `<code> <copy-icon>` button
-                    CopyCodeButtonOrPlaceholder(
-                      code: code,
-                      onTapCopy: this.onTapCopy,
-                    ),
-
-                    const Expanded(child: Center()),
-
-                    // // TODO(phlip9): use "..." to show actions w/
-                    // // human-readable labels
-                    // Transform.translate(
-                    //   offset: const Offset(Space.s200, 0.0),
-                    //   child: IconButton(
-                    //     onPressed: () {},
-                    //     icon: const Icon(
-                    //       LxIcons.moreHoriz,
-                    //       opticalSize: LxIcons.opszSemiDense,
-                    //     ),
-                    //     visualDensity: VisualDensity.compact,
-                    //   ),
-                    // ),
-                  ],
-                ),
-                const SizedBox(height: Space.s100),
-
-                // QR code
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double dim = constraints.maxWidth;
-                    final key = ValueKey(uri ?? "");
-
-                    // TODO(phlip9): likely perf issue with `clipBehavior` and
-                    // AnimatedSwitcher. Pre-render QR with borderRadius?
-                    // Use `FadeInImage`? Build custom `ImageProvider` for QR?
-                    return AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: (uri != null)
-                          ? Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6.0),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: InteractiveQrImage(
-                                // `AnimatedSwitcher` should also run the switch
-                                // animation when the QR code contents change.
-                                key: key,
-                                value: uri.toString(),
-                                dimension: dim,
-                              ),
-                            )
-                          : FilledPlaceholder(
-                              key: key,
-                              width: dim,
-                              height: dim,
-                              color: LxColors.background,
-                              borderRadius: 6.0,
-                              child: const Center(
-                                child: SizedBox.square(
-                                  dimension: Fonts.size800,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3.0,
-                                    color: LxColors.clearB200,
-                                  ),
-                                ),
-                              ),
-                            ),
-                    );
-                  },
-                ),
-
-                if (!isEditable && amountSatsStr == null && description == null)
-                  const SizedBox(height: Space.s300),
-
-                // "Edit amount or description" button
-                //
-                // We only allow editing the amount for LN, since we can't yet
-                // accurately correlate info we put in a BIP21 URI with the
-                // actual tx that comes in.
-                if (isEditable && amountSatsStr == null && description == null)
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      top: Space.s100,
-                      bottom: Space.s100,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: TextButton.icon(
-                            onPressed: this.onTapEdit,
-                            style: const ButtonStyle(
-                              padding: WidgetStatePropertyAll(EdgeInsets.zero),
-                              visualDensity: VisualDensity(
-                                horizontal: -3.0,
-                                vertical: -3.0,
-                              ),
-                            ),
-                            label: const Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Edit amount or description",
-                                  style: TextStyle(
-                                    fontSize: Fonts.size200,
-                                    color: LxColors.fgSecondary,
-                                    fontVariations: [Fonts.weightNormal],
-                                    letterSpacing: -0.25,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            icon: const Icon(
-                              LxIcons.edit,
-                              size: Fonts.size300,
-                              color: LxColors.fgSecondary,
-                              opticalSize: LxIcons.opszDense,
-                              weight: LxIcons.weightNormal,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                if (amountSatsStr != null || description != null)
-                  const SizedBox(height: Space.s400),
-
-                if (amountSatsStr != null || description != null)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Amount and/or description
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Amount
-                            if (amountSatsStr != null)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: Space.s100,
-                                ),
-                                child: Text(
-                                  amountSatsStr,
-                                  style: const TextStyle(
-                                    fontSize: Fonts.size600,
-                                    letterSpacing: -0.5,
-                                    fontVariations: [Fonts.weightMedium],
-                                    height: 1.0,
-                                  ),
-                                ),
-                              ),
-
-                            // Amount (fiat)
-                            ValueListenableBuilder(
-                              valueListenable: this.fiatRate,
-                              builder: (context, fiatRate, child) {
-                                if (amountSats == null) {
-                                  return const SizedBox.shrink();
-                                }
-
-                                final String? amountFiatStr;
-                                if (fiatRate != null) {
-                                  final amountFiat =
-                                      fiatRate.rate *
-                                      currency_format.satsToBtc(amountSats);
-                                  amountFiatStr = currency_format.formatFiat(
-                                    amountFiat,
-                                    fiatRate.fiat,
-                                  );
-                                } else {
-                                  amountFiatStr = null;
-                                }
-
-                                const fontSize = Fonts.size400;
-                                const style = TextStyle(
-                                  color: LxColors.fgTertiary,
-                                  fontSize: fontSize,
-                                  letterSpacing: -0.25,
-                                  height: 1.0,
-                                );
-
-                                return (amountFiatStr != null)
-                                    ? Text("≈ $amountFiatStr", style: style)
-                                    : const FilledTextPlaceholder(
-                                        width: Space.s900,
-                                        color: LxColors.background,
-                                        style: style,
-                                      );
-                              },
-                            ),
-
-                            if (amountSatsStr != null && description != null)
-                              const SizedBox(height: Space.s300),
-
-                            // Description
-                            if (description != null)
-                              Text(
-                                description,
-                                style: const TextStyle(
-                                  color: LxColors.foreground,
-                                  fontSize: Fonts.size200,
-                                  height: 1.25,
-                                  letterSpacing: -0.25,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-
-                            const SizedBox(height: Space.s300),
-                          ],
-                        ),
-                      ),
-
-                      // edit icon
-                      Transform.translate(
-                        // TODO(phlip9): this should be baseline aligned?
-                        offset: (amountSatsStr != null)
-                            ? const Offset(Space.s200, -Space.s200)
-                            : const Offset(Space.s200, -Space.s300),
-                        // offset: const Offset(Space.s200, 0.0),
-                        child: TextButton.icon(
-                          onPressed: this.onTapEdit,
-                          label: const Text(
-                            "Edit",
-                            style: TextStyle(
-                              fontSize: Fonts.size200,
-                              color: LxColors.fgSecondary,
-                              letterSpacing: -0.25,
-                            ),
-                          ),
-                          icon: const Icon(
-                            LxIcons.edit,
-                            size: Fonts.size300,
-                            color: LxColors.fgSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
+          PaymentQrCard(
+            uri: uri?.toString(),
+            code: code,
+            onCopy: () => this.onTapCopy(context),
+            fiatRate: this.fiatRate,
+            amountSats: amountSats,
+            description: description,
+            onEdit: isEditable ? this.onTapEdit : null,
           ),
           const SizedBox(height: Space.s400),
 

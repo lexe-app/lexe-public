@@ -4,14 +4,13 @@ library;
 import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
-import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         ErrorMessage,
         ErrorMessageSection,
-        FilledPlaceholder,
         HeadingText,
         LxBackButton,
         LxCloseButton,
@@ -19,13 +18,13 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         PaymentAmountInput,
+        PaymentQrCard,
         ScrollableSinglePageBody,
         SubheadingText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/initial_deposit/state.dart' show DepositMethod;
-import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
@@ -53,7 +52,7 @@ class InitialDepositPage extends StatelessWidget {
   final bool lightningOnly;
 
   /// Fiat rate for displaying fiat equivalent.
-  final FiatRate fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<void>(
@@ -68,7 +67,7 @@ class InitialDepositChooseMethodPage extends StatelessWidget {
   const InitialDepositChooseMethodPage({super.key, required this.fiatRate});
 
   /// Fiat rate for displaying fiat equivalent.
-  final FiatRate fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +241,7 @@ class InitialDepositAmountPage extends StatefulWidget {
   final DepositMethod method;
 
   /// Fiat rate for displaying fiat equivalent.
-  final FiatRate fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   State<InitialDepositAmountPage> createState() =>
@@ -548,7 +547,7 @@ class InitialDepositSuccessPage extends StatelessWidget {
   });
 
   final int amountSats;
-  final FiatRate fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   void _onDone(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
@@ -557,14 +556,6 @@ class InitialDepositSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amountSatsStr = currency_format.formatSatsAmount(this.amountSats);
-
-    // Format fiat amount
-    final fiatAmount =
-        currency_format.satsToBtc(this.amountSats) * this.fiatRate.rate;
-    final fiatAmountStr = currency_format.formatFiat(
-      fiatAmount,
-      this.fiatRate.fiat,
-    );
 
     return Scaffold(
       appBar: AppBar(
@@ -640,13 +631,25 @@ class InitialDepositSuccessPage extends StatelessWidget {
 
           // Fiat amount
           const SizedBox(height: Space.s200),
-          Text(
-            "≈ $fiatAmountStr",
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size300,
-              color: LxColors.fgSecondary,
-            ),
-            textAlign: TextAlign.center,
+          ValueListenableBuilder<FiatRate?>(
+            valueListenable: this.fiatRate,
+            builder: (context, fiatRate, child) {
+              if (fiatRate == null) return const SizedBox.shrink();
+              final fiatAmount =
+                  currency_format.satsToBtc(this.amountSats) * fiatRate.rate;
+              final fiatAmountStr = currency_format.formatFiat(
+                fiatAmount,
+                fiatRate.fiat,
+              );
+              return Text(
+                "≈ $fiatAmountStr",
+                style: Fonts.fontUI.copyWith(
+                  fontSize: Fonts.size300,
+                  color: LxColors.fgSecondary,
+                ),
+                textAlign: TextAlign.center,
+              );
+            },
           ),
 
           const SizedBox(height: Space.s600),
@@ -683,7 +686,7 @@ class InitialDepositLightningPage extends StatefulWidget {
   final int amountSats;
 
   /// Fiat rate for displaying fiat equivalent.
-  final FiatRate fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   State<InitialDepositLightningPage> createState() =>
@@ -754,13 +757,39 @@ class _InitialDepositLightningPageState
               const SizedBox(height: Space.s600),
 
               // Invoice QR code card
-              _PaymentQrCard(
+              PaymentQrCard(
                 uri: uri,
                 code: invoice,
                 amountSats: this.widget.amountSats,
                 fiatRate: this.widget.fiatRate,
                 onCopy: () => this.onCopy(context, invoice!),
-                onShare: () => this.onShare(context, invoice!),
+              ),
+
+              const SizedBox(height: Space.s400),
+
+              // Copy and Share buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+                    child: FilledButton(
+                      onPressed: uri != null
+                          ? () => this.onCopy(context, invoice!)
+                          : null,
+                      child: const Icon(LxIcons.copy),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+                    child: FilledButton(
+                      onPressed: uri != null
+                          ? () => this.onShare(context, invoice!)
+                          : null,
+                      child: const Icon(LxIcons.share),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: Space.s600),
@@ -796,200 +825,6 @@ class _InitialDepositLightningPageState
   }
 }
 
-/// QR card widget for displaying a payment code with copy/share actions.
-class _PaymentQrCard extends StatelessWidget {
-  const _PaymentQrCard({
-    required this.uri,
-    required this.code,
-    required this.amountSats,
-    required this.fiatRate,
-    required this.onCopy,
-    required this.onShare,
-  });
-
-  /// The URI to display in the QR code, or null while loading.
-  final String? uri;
-
-  /// The raw code (address or invoice) to display, or null while loading.
-  final String? code;
-
-  /// The requested amount in satoshis.
-  final int amountSats;
-
-  /// Fiat rate for displaying fiat equivalent.
-  final FiatRate fiatRate;
-
-  final VoidCallback onCopy;
-  final VoidCallback onShare;
-
-  @override
-  Widget build(BuildContext context) {
-    final uri = this.uri;
-    final code = this.code;
-
-    // Format fiat amount
-    final fiatAmount =
-        currency_format.satsToBtc(this.amountSats) * this.fiatRate.rate;
-    final fiatAmountStr = currency_format.formatFiat(
-      fiatAmount,
-      this.fiatRate.fiat,
-    );
-
-    final amountStr = currency_format.formatSatsAmount(this.amountSats);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: Space.s200),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Card with QR code
-          Container(
-            decoration: BoxDecoration(
-              color: LxColors.grey1000,
-              borderRadius: BorderRadius.circular(LxRadius.r300),
-            ),
-            padding: const EdgeInsets.fromLTRB(
-              Space.s450,
-              Space.s200,
-              Space.s450,
-              Space.s400,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Code display with copy button (icon next to text)
-                GestureDetector(
-                  onTap: code != null ? this.onCopy : null,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        code != null
-                            ? address_format.ellipsizeBtcAddress(code)
-                            : "Loading...",
-                        style: TextStyle(
-                          fontSize: Fonts.size100,
-                          color: LxColors.grey550,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (code != null) ...[
-                        const SizedBox(width: Space.s200),
-                        const Icon(
-                          LxIcons.copy,
-                          size: Fonts.size300,
-                          color: LxColors.grey550,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: Space.s100),
-
-                // QR code
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double dim = constraints.maxWidth;
-                    final key = ValueKey(uri ?? "");
-                    return AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: (uri != null)
-                          ? Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6.0),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: InteractiveQrImage(
-                                key: key,
-                                value: uri,
-                                dimension: dim,
-                              ),
-                            )
-                          : FilledPlaceholder(
-                              key: key,
-                              width: dim,
-                              height: dim,
-                              color: LxColors.background,
-                              borderRadius: 6.0,
-                              child: const Center(
-                                child: SizedBox.square(
-                                  dimension: Fonts.size800,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3.0,
-                                    color: LxColors.clearB200,
-                                  ),
-                                ),
-                              ),
-                            ),
-                    );
-                  },
-                ),
-
-                // Amount display (left-aligned, only shown when QR is loaded)
-                if (uri != null) ...[
-                  const SizedBox(height: Space.s400),
-
-                  // Amount
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: Space.s100),
-                    child: Text(
-                      amountStr,
-                      style: const TextStyle(
-                        fontSize: Fonts.size600,
-                        letterSpacing: -0.5,
-                        fontVariations: [Fonts.weightMedium],
-                        height: 1.0,
-                      ),
-                    ),
-                  ),
-
-                  // Fiat amount
-                  Text(
-                    "≈ $fiatAmountStr",
-                    style: const TextStyle(
-                      color: LxColors.fgTertiary,
-                      fontSize: Fonts.size400,
-                      letterSpacing: -0.25,
-                      height: 1.0,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          const SizedBox(height: Space.s400),
-
-          // Copy and Share buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Space.s200),
-                child: FilledButton(
-                  onPressed: uri != null ? this.onCopy : null,
-                  child: const Icon(LxIcons.copy),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Space.s200),
-                child: FilledButton(
-                  onPressed: uri != null ? this.onShare : null,
-                  child: const Icon(LxIcons.share),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// On-chain deposit page showing a Bitcoin address QR code.
 class InitialDepositOnchainPage extends StatefulWidget {
   const InitialDepositOnchainPage({
@@ -1002,7 +837,7 @@ class InitialDepositOnchainPage extends StatefulWidget {
   final int amountSats;
 
   /// Fiat rate for displaying fiat equivalent.
-  final FiatRate fiatRate;
+  final ValueListenable<FiatRate?> fiatRate;
 
   @override
   State<InitialDepositOnchainPage> createState() =>
@@ -1073,13 +908,39 @@ class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
               const SizedBox(height: Space.s600),
 
               // Address QR code card
-              _PaymentQrCard(
+              PaymentQrCard(
                 uri: uri,
                 code: address,
                 amountSats: this.widget.amountSats,
                 fiatRate: this.widget.fiatRate,
                 onCopy: () => this.onCopy(context, address!),
-                onShare: () => this.onShare(context, address!),
+              ),
+
+              const SizedBox(height: Space.s400),
+
+              // Copy and Share buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+                    child: FilledButton(
+                      onPressed: uri != null
+                          ? () => this.onCopy(context, address!)
+                          : null,
+                      child: const Icon(LxIcons.copy),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+                    child: FilledButton(
+                      onPressed: uri != null
+                          ? () => this.onShare(context, address!)
+                          : null,
+                      child: const Icon(LxIcons.share),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: Space.s600),

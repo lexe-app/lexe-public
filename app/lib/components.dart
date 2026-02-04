@@ -5,16 +5,19 @@ import 'dart:async' show Timer, unawaited;
 import 'dart:io' show Platform;
 import 'dart:math' show max;
 
+import 'package:app_rs_dart/ffi/api.dart' show FiatRate;
 import 'package:flutter/cupertino.dart'
     show CupertinoScrollBehavior, CupertinoSliverRefreshControl;
 import 'package:flutter/foundation.dart' show ValueListenable, clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
+import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
@@ -2652,5 +2655,388 @@ class SeedWord extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// --- Payment QR Card ---
+
+/// A card displaying a payment QR code with optional amount display.
+///
+/// Used by both the receive page and initial deposit flow for consistent
+/// QR code presentation.
+class PaymentQrCard extends StatelessWidget {
+  const PaymentQrCard({
+    super.key,
+    required this.uri,
+    required this.code,
+    required this.onCopy,
+    required this.fiatRate,
+    this.amountSats,
+    this.description,
+    this.onEdit,
+  });
+
+  /// The URI to encode in the QR code, or null while loading.
+  final String? uri;
+
+  /// The raw code (address or invoice) to display, or null while loading.
+  final String? code;
+
+  /// Callback when copy button is tapped.
+  final VoidCallback onCopy;
+
+  /// Fiat rate for displaying fiat equivalent.
+  final ValueListenable<FiatRate?> fiatRate;
+
+  /// Optional amount in satoshis. If provided, displays below the QR code.
+  final int? amountSats;
+
+  /// Optional description to display below the amount.
+  final String? description;
+
+  /// Optional edit callback. If provided, shows Edit button.
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = this.uri;
+    final code = this.code;
+    final amountSats = this.amountSats;
+    final description = this.description;
+    final onEdit = this.onEdit;
+    final hasAmountOrDescription = amountSats != null || description != null;
+
+    // Format amount if provided
+    final amountStr = amountSats != null
+        ? currency_format.formatSatsAmount(amountSats)
+        : null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: LxColors.grey1000,
+        borderRadius: BorderRadius.circular(LxRadius.r300),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        Space.s450,
+        Space.s200,
+        Space.s450,
+        Space.s200,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Code display with copy button
+          _PaymentQrCardCodeRow(code: code, onCopy: this.onCopy),
+
+          const SizedBox(height: Space.s100),
+
+          // QR code
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double dim = constraints.maxWidth;
+              final key = ValueKey(uri ?? "");
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: (uri != null)
+                    ? Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6.0),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: InteractiveQrImage(
+                          key: key,
+                          value: uri,
+                          dimension: dim,
+                        ),
+                      )
+                    : FilledPlaceholder(
+                        key: key,
+                        width: dim,
+                        height: dim,
+                        color: LxColors.background,
+                        borderRadius: 6.0,
+                        child: const Center(
+                          child: SizedBox.square(
+                            dimension: Fonts.size800,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3.0,
+                              color: LxColors.clearB200,
+                            ),
+                          ),
+                        ),
+                      ),
+              );
+            },
+          ),
+
+          // "Edit amount or description" button (when no amount/description)
+          if (onEdit != null && !hasAmountOrDescription)
+            Padding(
+              padding: const EdgeInsets.only(
+                top: Space.s100,
+                bottom: Space.s100,
+              ),
+              child: _PaymentQrCardEditButton(onEdit: onEdit, isCompact: true),
+            ),
+
+          // Spacer when no edit button and no amount/description
+          if (onEdit == null && !hasAmountOrDescription)
+            const SizedBox(height: Space.s300),
+
+          // Amount/description section (only shown when QR is loaded)
+          if (uri != null && hasAmountOrDescription) ...[
+            const SizedBox(height: Space.s400),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Amount and/or description
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Amount
+                      if (amountStr != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: Space.s100),
+                          child: Text(
+                            amountStr,
+                            style: const TextStyle(
+                              fontSize: Fonts.size600,
+                              letterSpacing: -0.5,
+                              fontVariations: [Fonts.weightMedium],
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+
+                      // Fiat amount
+                      if (amountSats != null)
+                        _PaymentQrCardFiatAmount(
+                          amountSats: amountSats,
+                          fiatRate: this.fiatRate,
+                        ),
+
+                      if (amountStr != null && description != null)
+                        const SizedBox(height: Space.s300),
+
+                      // Description
+                      if (description != null)
+                        Text(
+                          description,
+                          style: const TextStyle(
+                            color: LxColors.foreground,
+                            fontSize: Fonts.size200,
+                            height: 1.25,
+                            letterSpacing: -0.25,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                      const SizedBox(height: Space.s300),
+                    ],
+                  ),
+                ),
+
+                // Edit button (when amount/description present)
+                if (onEdit != null)
+                  Transform.translate(
+                    offset: amountStr != null
+                        ? const Offset(Space.s200, -Space.s200)
+                        : const Offset(Space.s200, -Space.s300),
+                    child: _PaymentQrCardEditButton(onEdit: onEdit),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Fiat amount display for [PaymentQrCard].
+class _PaymentQrCardFiatAmount extends StatelessWidget {
+  const _PaymentQrCardFiatAmount({
+    required this.amountSats,
+    required this.fiatRate,
+  });
+
+  final int amountSats;
+  final ValueListenable<FiatRate?> fiatRate;
+
+  @override
+  Widget build(BuildContext context) {
+    const fontSize = Fonts.size400;
+    const style = TextStyle(
+      color: LxColors.fgTertiary,
+      fontSize: fontSize,
+      letterSpacing: -0.25,
+      height: 1.0,
+    );
+
+    return ValueListenableBuilder<FiatRate?>(
+      valueListenable: this.fiatRate,
+      builder: (context, fiatRate, child) {
+        if (fiatRate == null) {
+          return const FilledTextPlaceholder(
+            width: Space.s900,
+            color: LxColors.background,
+            style: style,
+          );
+        }
+        final fiatAmount =
+            currency_format.satsToBtc(this.amountSats) * fiatRate.rate;
+        final fiatAmountStr = currency_format.formatFiat(
+          fiatAmount,
+          fiatRate.fiat,
+        );
+        return Text("≈ $fiatAmountStr", style: style);
+      },
+    );
+  }
+}
+
+/// Edit button for [PaymentQrCard].
+class _PaymentQrCardEditButton extends StatelessWidget {
+  const _PaymentQrCardEditButton({
+    required this.onEdit,
+    this.isCompact = false,
+  });
+
+  final VoidCallback onEdit;
+  final bool isCompact;
+
+  @override
+  Widget build(BuildContext context) {
+    if (this.isCompact) {
+      // "Edit amount or description" full-width button
+      return Row(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TextButton.icon(
+              onPressed: this.onEdit,
+              style: const ButtonStyle(
+                padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                visualDensity: VisualDensity(horizontal: -3.0, vertical: -3.0),
+              ),
+              label: const Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Text(
+                    "Edit amount or description",
+                    style: TextStyle(
+                      fontSize: Fonts.size200,
+                      color: LxColors.fgSecondary,
+                      fontVariations: [Fonts.weightNormal],
+                      letterSpacing: -0.25,
+                    ),
+                  ),
+                ],
+              ),
+              icon: const Icon(
+                LxIcons.edit,
+                size: Fonts.size300,
+                color: LxColors.fgSecondary,
+                opticalSize: LxIcons.opszDense,
+                weight: LxIcons.weightNormal,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Small "Edit" button
+    return TextButton.icon(
+      onPressed: this.onEdit,
+      label: const Text(
+        "Edit",
+        style: TextStyle(
+          fontSize: Fonts.size200,
+          color: LxColors.fgSecondary,
+          letterSpacing: -0.25,
+        ),
+      ),
+      icon: const Icon(
+        LxIcons.edit,
+        size: Fonts.size300,
+        color: LxColors.fgSecondary,
+      ),
+    );
+  }
+}
+
+/// Code display row with copy button for [PaymentQrCard].
+class _PaymentQrCardCodeRow extends StatelessWidget {
+  const _PaymentQrCardCodeRow({required this.code, required this.onCopy});
+
+  final String? code;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = this.code;
+
+    const double buttonWidth = Space.s950;
+    const double buttonHeight = Space.s600;
+    const double buttonPadHoriz = Space.s300;
+    const double fontSize = Fonts.size100;
+    const Color fontColor = LxColors.grey550;
+
+    if (code != null) {
+      // Align text with QR code
+      return Transform.translate(
+        offset: const Offset(-buttonPadHoriz, Space.s0),
+        child: TextButton.icon(
+          onPressed: this.onCopy,
+          icon: Text(
+            address_format.ellipsizeBtcAddress(code),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: fontSize, color: fontColor),
+          ),
+          label: const Icon(
+            LxIcons.copy,
+            opticalSize: LxIcons.opszDense,
+            weight: LxIcons.weightNormal,
+            size: Fonts.size300,
+            color: fontColor,
+          ),
+          style: const ButtonStyle(
+            padding: WidgetStatePropertyAll(
+              EdgeInsets.symmetric(
+                vertical: Space.s0,
+                horizontal: buttonPadHoriz,
+              ),
+            ),
+            minimumSize: WidgetStatePropertyAll(
+              Size(buttonWidth, buttonHeight),
+            ),
+            maximumSize: WidgetStatePropertyAll(Size.fromHeight(buttonHeight)),
+            visualDensity: VisualDensity(horizontal: 0.0, vertical: 0.0),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      );
+    } else {
+      return const SizedBox(
+        width: buttonWidth,
+        height: buttonHeight,
+        child: Center(
+          child: FilledTextPlaceholder(
+            color: LxColors.background,
+            style: TextStyle(fontSize: fontSize, color: fontColor),
+          ),
+        ),
+      );
+    }
   }
 }

@@ -405,10 +405,10 @@ class WalletPageState extends State<WalletPage> {
 
   /// Called when the "Fund your wallet" banner is tapped (NonFunded state).
   Future<void> onInitialDepositBannerTap() async {
-    final fiatRate = this.fiatRateService.fiatRate.value!;
     await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) => InitialDepositPage(fiatRate: fiatRate),
+        builder: (context) =>
+            InitialDepositPage(fiatRate: this.fiatRateService.fiatRate),
       ),
     );
     if (!this.mounted) return;
@@ -420,11 +420,12 @@ class WalletPageState extends State<WalletPage> {
   /// Called when the "Add more funds" banner is tapped (ChannelReserveNotMet).
   /// Skips method selection and goes directly to Lightning amount page.
   Future<void> onLightningOnlyDepositBannerTap() async {
-    final fiatRate = this.fiatRateService.fiatRate.value!;
     await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            InitialDepositPage(lightningOnly: true, fiatRate: fiatRate),
+        builder: (context) => InitialDepositPage(
+          lightningOnly: true,
+          fiatRate: this.fiatRateService.fiatRate,
+        ),
       ),
     );
     if (!this.mounted) return;
