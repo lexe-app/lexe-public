@@ -329,9 +329,8 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // Read initial applied migrations
-        // TODO(phlip9): fetch migrations concurrently in main fetch block
-        let initial_migrations = Migrations::read(&*persister).await?;
+        // Future that reads initial applied migrations
+        let initial_migrations_fut = Migrations::read_once(&*persister);
 
         // A future which reads the approved versions list
         let read_maybe_approved_versions = persister::read_approved_versions(
@@ -341,10 +340,11 @@ impl UserNode {
         );
 
         // Fetch pending payments to initialize payments manager with
+        let initial_migrations_fut_clone = initial_migrations_fut.clone();
         let pending_payments_fut = async {
             // But first, migrate to payments v2 if needed
             persister
-                .migrate_to_payments_v2(&initial_migrations)
+                .migrate_to_payments_v2(initial_migrations_fut_clone)
                 .await
                 .context("payments_v2 migration failed")?;
 
@@ -357,6 +357,7 @@ impl UserNode {
         // Read as much as possible concurrently to reduce init time
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
+            try_initial_migrations,
             try_maybe_approved_versions,
             try_maybe_changeset,
             try_existing_scids,
@@ -364,6 +365,7 @@ impl UserNode {
             try_maybe_revocable_clients,
             try_channel_monitor_bytes,
         ) = tokio::join!(
+            initial_migrations_fut,
             read_maybe_approved_versions,
             persister.read_wallet_changeset(),
             persister.read_scids(),
@@ -371,6 +373,7 @@ impl UserNode {
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
             persister.fetch_channel_monitor_bytes(),
         );
+        let initial_migrations = try_initial_migrations?;
         if deploy_env.is_staging_or_prod() {
             // Erroring here prevents an attacker with access to a target user's
             // gdrive from deleting the user's approved versions list in an

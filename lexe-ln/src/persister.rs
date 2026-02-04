@@ -28,7 +28,7 @@ use tracing::{info, warn};
 use crate::{
     alias::LexeChainMonitorType,
     event::EventId,
-    migrations::{self, Migrations},
+    migrations::{self, Migrations, MigrationsReadOnce},
     payments::{
         PaymentMetadata, PaymentV2, PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
@@ -583,12 +583,13 @@ pub trait LexePersisterMethods: Vfs {
     ///
     /// Idempotent: Creates a marker file at `migrations/payments_v2` once
     /// complete, and skips the migration if the marker file already exists.
-    #[tracing::instrument(skip_all, name = "(migrate-payments-v2)")]
+    // #[tracing::instrument(skip_all, name = "(migrate-payments-v2)")]
     async fn migrate_to_payments_v2(
         &self,
-        initial_migrations: &Migrations,
+        initial_migrations_fut: MigrationsReadOnce<'_>,
     ) -> anyhow::Result<()> {
         // Check if migration has already run
+        let initial_migrations = initial_migrations_fut.await?;
         if initial_migrations.is_applied(migrations::MARKER_PAYMENTS_V2) {
             return Ok(());
         }

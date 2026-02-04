@@ -3,10 +3,14 @@
 //! Similar to database migrations but for VFS-persisted state. Each migration
 //! creates an empty marker file in `migrations/<name>` when complete.
 
-use std::collections::HashSet;
+use std::{collections::HashSet, future::Future, pin::Pin, sync::Arc};
 
-use anyhow::Context;
+use anyhow::{Context, format_err};
 use bytes::Bytes;
+use futures::{
+    FutureExt,
+    future::{self, BoxFuture},
+};
 use lexe_api::{
     types::Empty,
     vfs::{self, Vfs, VfsDirectory, VfsFileId},
@@ -31,8 +35,20 @@ pub struct Migrations {
 }
 
 impl Migrations {
+    /// Return a future that reads migrations once and shares the result with
+    /// all awaiters.
+    pub fn read_once<'vfs>(
+        vfs: &'vfs (impl Vfs + Send + Sync),
+    ) -> MigrationsReadOnce<'vfs> {
+        let fut = Migrations::read(vfs)
+            .map(|res| res.map(Arc::new).map_err(Arc::new))
+            .boxed()
+            .shared();
+        MigrationsReadOnce { fut }
+    }
+
     /// Read all applied migrations from the VFS.
-    pub async fn read(vfs: &impl Vfs) -> anyhow::Result<Self> {
+    async fn read(vfs: &(impl Vfs + Send + Sync)) -> anyhow::Result<Self> {
         let dir = VfsDirectory::new(vfs::MIGRATIONS_DIR);
         let dir_list = vfs
             .list_directory(&dir)
@@ -65,5 +81,26 @@ impl Migrations {
     /// Check if a migration has been applied.
     pub fn is_applied(&self, name: &str) -> bool {
         self.applied.contains(name)
+    }
+}
+
+/// A future that reads migrations once and shares the result with all awaiters.
+#[derive(Clone)]
+pub struct MigrationsReadOnce<'vfs> {
+    fut: future::Shared<
+        BoxFuture<'vfs, Result<Arc<Migrations>, Arc<anyhow::Error>>>,
+    >,
+}
+
+impl<'vfs> Future for MigrationsReadOnce<'vfs> {
+    type Output = anyhow::Result<Arc<Migrations>>;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        Pin::new(&mut self.get_mut().fut)
+            .poll(cx)
+            .map_err(|err| format_err!("Could not read migrations: {err:#}"))
     }
 }
