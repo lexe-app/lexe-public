@@ -40,7 +40,7 @@ const String channelReserveLearnMoreUrl =
 /// The entry point for the initial deposit onboarding flow.
 ///
 /// Set [lightningOnly] to skip method selection and go directly to the amount
-/// page.
+/// page. [fiatRate] is required for showing fiat equivalents.
 class InitialDepositPage extends StatelessWidget {
   const InitialDepositPage({
     super.key,
@@ -74,7 +74,6 @@ class InitialDepositChooseMethodPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const SizedBox.shrink(),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
           SizedBox(width: Space.appBarTrailingPadding),
@@ -751,7 +750,7 @@ class _InitialDepositLightningPageState
               const HeadingText(text: "Receive payment"),
               const SubheadingText(
                 text:
-                    "Scan this QR code with a Lightning wallet to send payment.",
+                    "Scan this QR code with a Lightning wallet to fund your wallet.",
               ),
 
               const SizedBox(height: Space.s600),

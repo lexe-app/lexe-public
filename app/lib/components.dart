@@ -2704,12 +2704,23 @@ class PaymentQrCard extends StatelessWidget {
     final amountSats = this.amountSats;
     final description = this.description;
     final onEdit = this.onEdit;
-    final hasAmountOrDescription = amountSats != null || description != null;
 
     // Format amount if provided
     final amountStr = amountSats != null
         ? currency_format.formatSatsAmount(amountSats)
         : null;
+
+    // Show edit button when amount/description are missing.
+    final showSetAmountButton =
+        onEdit != null && amountStr == null && description == null;
+
+    // Show amount/description section if QR is loaded and amount or description
+    // is present.
+    final showAmountSection =
+        uri != null && (amountStr != null || description != null);
+
+    // Show spacer if neither edit button nor amount section is shown.
+    final showSpacer = !showSetAmountButton && !showAmountSection;
 
     return Container(
       decoration: BoxDecoration(
@@ -2771,7 +2782,7 @@ class PaymentQrCard extends StatelessWidget {
           ),
 
           // "Edit amount or description" button (when no amount/description)
-          if (onEdit != null && !hasAmountOrDescription)
+          if (showSetAmountButton)
             Padding(
               padding: const EdgeInsets.only(
                 top: Space.s100,
@@ -2780,12 +2791,11 @@ class PaymentQrCard extends StatelessWidget {
               child: _PaymentQrCardEditButton(onEdit: onEdit, isCompact: true),
             ),
 
-          // Spacer when no edit button and no amount/description
-          if (onEdit == null && !hasAmountOrDescription)
-            const SizedBox(height: Space.s300),
+          // Spacer when neither edit button nor amount section is shown
+          if (showSpacer) const SizedBox(height: Space.s300),
 
           // Amount/description section (only shown when QR is loaded)
-          if (uri != null && hasAmountOrDescription) ...[
+          if (showAmountSection) ...[
             const SizedBox(height: Space.s400),
 
             Row(
