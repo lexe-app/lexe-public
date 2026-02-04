@@ -363,7 +363,7 @@ impl DbPaymentV2 {
             fee: None,
             status: Cow::Owned(v1.status),
             data: v1.data,
-            version: 2,
+            version: 1,
             created_at: v1.created_at,
             updated_at,
         }
