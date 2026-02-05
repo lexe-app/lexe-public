@@ -290,15 +290,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SignupPage(ctx: mockSignupCtxErr),
       ),
       Component(
-        "ProfilePage",
-        (context) => ProfilePage(
-          paymentAddressService: PaymentAddressService(
-            app: mockApp,
-            appData: LxAppData(mockApp.appDataDb()),
-          ),
-        ),
-      ),
-      Component(
         "SignupPage (real gdrive)",
         (context) => SignupPage(
           ctx: SignupCtx(
@@ -561,6 +552,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         );
       }),
 
+      Component(
+        "ProfilePage",
+        (context) => ProfilePage(
+          paymentAddressService: PaymentAddressService(
+            app: mockApp,
+            appData: LxAppData(mockApp.appDataDb()),
+          ),
+        ),
+      ),
       Component(
         "SendPaymentNeedUriPage",
         (context) => SendPaymentPage(
