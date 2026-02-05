@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
-import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownStyleSheet;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
+    show MarkdownStyleSheet;
 import 'package:material_symbols_icons/symbols.dart';
 
 /// Our global flutter theme overrides.
@@ -326,11 +327,11 @@ final class LxTheme {
       letterSpacing: -0.3,
     );
 
-    // TODO(phlip9): fork flutter_markdown (which is apparently deprecated now?)
-    // so we can actually get proper spacing on lists. Right now there's always
-    // zero padding after a list block, and no way to cleanly set padding
-    // between list items. So we just have to avoid placing any text beneath a
-    // list for now lol...
+    // TODO(phlip9): submit a pr to flutter_markdown_plus so we can actually
+    // get proper spacing on lists. Right now there's always zero padding after
+    // a list block, and no way to cleanly set padding between list items. So
+    // we just have to avoid placing any text beneath a list for now lol...
+    // Issue: <https://github.com/foresightmobile/flutter_markdown_plus/issues/43>
     return MarkdownStyleSheet(
       // Spacing between all blocks.
       //

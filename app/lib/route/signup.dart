@@ -6,7 +6,8 @@ import 'package:app_rs_dart/ffi/types.dart'
     show Config, DeployEnv, GDriveSignupCredentials, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
-import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
+    show MarkdownBody;
 import 'package:lexeapp/clipboard.dart';
 import 'package:lexeapp/components.dart'
     show

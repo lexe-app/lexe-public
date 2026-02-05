@@ -62,7 +62,7 @@ dependencies:
   flutter_file_saver: ^0.9.0
 
   # markdown rendering
-  flutter_markdown: ^0.7.3
+  flutter_markdown_plus: ^1.0.7
 
   # allow gdrive auth with more control
   flutter_web_auth_2: ^4.0.0-alpha.8

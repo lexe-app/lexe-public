@@ -8,7 +8,7 @@ import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
-import 'package:flutter_markdown/flutter_markdown.dart'
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
     show MarkdownBody, MarkdownStyleSheet;
 import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/components.dart'

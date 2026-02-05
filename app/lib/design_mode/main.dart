@@ -35,7 +35,8 @@ import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
 import 'package:app_rs_dart/lib.dart' show U8Array32;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
+    show MarkdownBody;
 import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/cfg.dart' as cfg;

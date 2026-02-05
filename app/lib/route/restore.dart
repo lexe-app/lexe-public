@@ -9,7 +9,8 @@ import 'package:app_rs_dart/ffi/gdrive.dart'
     show GDriveClient, GDriveRestoreCandidate;
 import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart' show MarkdownBody;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
+    show MarkdownBody;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
