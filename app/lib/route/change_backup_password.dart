@@ -2,7 +2,6 @@
 library;
 
 import 'package:app_rs_dart/ffi/gdrive.dart' show GDriveClient;
-import 'package:app_rs_dart/ffi/secret_store.dart' show SecretStore;
 import 'package:app_rs_dart/ffi/types.dart' show Config, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
@@ -22,6 +21,7 @@ import 'package:lexeapp/components.dart'
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/validators.dart' as validators;
@@ -32,16 +32,19 @@ class ChangeBackupPasswordPage extends StatelessWidget {
     super.key,
     required this.config,
     required this.gdriveAuth,
+    required this.rootSeedStore,
   });
 
   final Config config;
   final GDriveAuth gdriveAuth;
+  final RootSeedStore rootSeedStore;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<void>(
     builder: (_) => ChangeBackupPasswordIntroPage(
       config: this.config,
       gdriveAuth: this.gdriveAuth,
+      rootSeedStore: this.rootSeedStore,
     ),
   );
 }
@@ -51,10 +54,12 @@ class ChangeBackupPasswordIntroPage extends StatefulWidget {
     super.key,
     required this.config,
     required this.gdriveAuth,
+    required this.rootSeedStore,
   });
 
   final Config config;
   final GDriveAuth gdriveAuth;
+  final RootSeedStore rootSeedStore;
 
   @override
   State<ChangeBackupPasswordIntroPage> createState() =>
@@ -112,6 +117,7 @@ class _ChangeBackupPasswordIntroPageState
         builder: (_) => ChangeBackupPasswordFormPage(
           config: this.widget.config,
           gdriveClient: gdriveClient,
+          rootSeedStore: this.widget.rootSeedStore,
         ),
       ),
     );
@@ -187,10 +193,12 @@ class ChangeBackupPasswordFormPage extends StatefulWidget {
     super.key,
     required this.config,
     required this.gdriveClient,
+    required this.rootSeedStore,
   });
 
   final Config config;
   final GDriveClient gdriveClient;
+  final RootSeedStore rootSeedStore;
 
   @override
   State<ChangeBackupPasswordFormPage> createState() =>
@@ -246,7 +254,7 @@ class _ChangeBackupPasswordFormPageState
     final config = this.widget.config;
     RootSeed rootSeed;
     final rootSeedResult = Result.tryFfi(
-      () => SecretStore(config: config).readRootSeed(),
+      () => this.widget.rootSeedStore.readRootSeed(),
     );
     switch (rootSeedResult) {
       case Ok(:final ok):

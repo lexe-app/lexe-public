@@ -77,6 +77,8 @@ import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
+import 'package:lexeapp/service/root_seed_store.dart'
+    show SecretStoreRootSeedStore;
 import 'package:lexeapp/service/send_payment_service_impl.dart'
     show SendPaymentServiceImpl;
 import 'package:lexeapp/settings.dart' show LxSettings;
@@ -617,6 +619,7 @@ class WalletPageState extends State<WalletPage> {
           config: this.widget.config,
           app: this.widget.app,
           gdriveAuth: this.widget.gdriveAuth,
+          rootSeedStore: SecretStoreRootSeedStore(config: this.widget.config),
         ),
       ),
     );

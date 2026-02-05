@@ -1,7 +1,6 @@
 import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/app.dart';
-import 'package:app_rs_dart/ffi/secret_store.dart' show SecretStore;
 import 'package:app_rs_dart/ffi/types.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -21,6 +20,7 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/change_backup_password.dart'
     show ChangeBackupPasswordPage;
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
+import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// Basic security page that leads to displa SeedPhrase, connect GDrive or
@@ -31,11 +31,13 @@ class SecurityPage extends StatefulWidget {
     required this.config,
     required this.app,
     required this.gdriveAuth,
+    required this.rootSeedStore,
   });
 
   final Config config;
   final AppHandle app;
   final GDriveAuth gdriveAuth;
+  final RootSeedStore rootSeedStore;
 
   @override
   State<SecurityPage> createState() => _SecurityPageState();
@@ -64,8 +66,7 @@ class _SecurityPageState extends State<SecurityPage> {
   }
 
   Result<List<String>, String> getSeedPhrase() {
-    final secretStore = SecretStore(config: this.widget.config);
-    final result = Result.tryFfi(secretStore.readRootSeed);
+    final result = Result.tryFfi(this.widget.rootSeedStore.readRootSeed);
     final RootSeed? rootSeed;
     switch (result) {
       case Ok(:final ok):
@@ -103,6 +104,7 @@ class _SecurityPageState extends State<SecurityPage> {
         builder: (context) => ChangeBackupPasswordPage(
           config: this.widget.config,
           gdriveAuth: this.widget.gdriveAuth,
+          rootSeedStore: this.widget.rootSeedStore,
         ),
       ),
     );

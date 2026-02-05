@@ -83,6 +83,7 @@ import 'package:collection/collection.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/restore.dart' show RestoreApi;
 import 'package:lexeapp/route/signup.dart' show SignupApi;
+import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
 
 // TODO(phlip9): unhack
 // TODO(phlip9): add a `App::mock` constructor?
@@ -950,6 +951,15 @@ class MockRestoreApiErr implements RestoreApi {
     const Duration(milliseconds: 2000),
     () => const Err(FfiError("[Connect=10] Could not connect")),
   );
+}
+
+class MockRootSeedStore implements RootSeedStore {
+  const MockRootSeedStore({required this.rootSeed});
+
+  final RootSeed rootSeed;
+
+  @override
+  RootSeed? readRootSeed() => this.rootSeed;
 }
 
 //

@@ -239,6 +239,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final mockRestoreApi = mocks.MockRestoreApi(app: mockApp);
     const mockRestoreApiErr = mocks.MockRestoreApiErr();
     const mockRootSeed = MockRootSeed();
+    const mockRootSeedStore = mocks.MockRootSeedStore(rootSeed: mockRootSeed);
     final mockSignupCtx = SignupCtx(
       this.widget.config,
       mockRootSeed,
@@ -997,6 +998,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           config: this.widget.config,
           app: mockApp,
           gdriveAuth: GDriveAuth.mock,
+          rootSeedStore: mockRootSeedStore,
         ),
       ),
       Component(
@@ -1004,6 +1006,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => ChangeBackupPasswordPage(
           config: this.widget.config,
           gdriveAuth: GDriveAuth.mock,
+          rootSeedStore: mockRootSeedStore,
         ),
       ),
       Component(
@@ -1011,6 +1014,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => ChangeBackupPasswordPage(
           config: this.widget.config,
           gdriveAuth: GDriveAuth.mockError,
+          rootSeedStore: mockRootSeedStore,
         ),
       ),
       Component(
@@ -1018,6 +1022,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => ChangeBackupPasswordPage(
           config: this.widget.config,
           gdriveAuth: GDriveAuth.prod,
+          rootSeedStore: mockRootSeedStore,
         ),
       ),
       Component("SeedPhrasePage", (_) {
