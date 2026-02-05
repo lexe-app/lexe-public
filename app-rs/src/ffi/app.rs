@@ -612,13 +612,18 @@ impl AppHandle {
         &self,
         req: LnurlPayRequest,
         amount_msats: u64,
+        comment: Option<String>,
     ) -> anyhow::Result<Invoice> {
         let pay_req = LnurlPayRequestRs::from(req);
 
         let lx_invoice = self
             .inner
             .lnurl_client()
-            .resolve_pay_request(&pay_req, Amount::from_msat(amount_msats))
+            .resolve_pay_request(
+                &pay_req,
+                Amount::from_msat(amount_msats),
+                comment.as_deref(),
+            )
             .await?;
         Ok(Invoice::from(lx_invoice))
     }

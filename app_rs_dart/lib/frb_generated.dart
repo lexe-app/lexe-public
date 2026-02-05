@@ -254,6 +254,7 @@ abstract class AppRsApi extends BaseApi {
     required AppHandle that,
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   });
 
   Future<AppHandle> crateFfiAppAppHandleRestore({
@@ -1752,6 +1753,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     required AppHandle that,
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1760,6 +1762,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_box_autoadd_lnurl_pay_request(req, serializer);
           sse_encode_CastedPrimitive_u_64(amountMsats, serializer);
+          sse_encode_opt_String(comment, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1772,7 +1775,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateFfiAppAppHandleResolveLnurlPayRequestConstMeta,
-        argValues: [that, req, amountMsats],
+        argValues: [that, req, amountMsats, comment],
         apiImpl: this,
       ),
     );
@@ -1781,7 +1784,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   TaskConstMeta get kCrateFfiAppAppHandleResolveLnurlPayRequestConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_resolve_lnurl_pay_request",
-        argNames: ["that", "req", "amountMsats"],
+        argNames: ["that", "req", "amountMsats", "comment"],
       );
 
   @override

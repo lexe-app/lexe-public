@@ -658,9 +658,10 @@ fn wire__crate__ffi__app__app_handle_resolve_lnurl_pay_request_impl(
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_req = <crate::ffi::types::LnurlPayRequest>::sse_decode(&mut deserializer);
-let api_amount_msats = <u64>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_amount_msats = <u64>::sse_decode(&mut deserializer);
+let api_comment = <Option<String>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::resolve_lnurl_pay_request(&api_that, api_req, api_amount_msats).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::resolve_lnurl_pay_request(&api_that, api_req, api_amount_msats, api_comment).await?;   Ok(output_ok)
                     })().await)
                 } })
 }

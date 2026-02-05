@@ -224,10 +224,12 @@ class AppHandle {
   Future<Invoice> resolveLnurlPayRequest({
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   }) => AppRs.instance.api.crateFfiAppAppHandleResolveLnurlPayRequest(
     that: this,
     req: req,
     amountMsats: amountMsats,
+    comment: comment,
   );
 
   static Future<AppHandle> restore({

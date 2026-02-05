@@ -211,10 +211,13 @@ impl LnurlClient {
     /// Resolves a given [`LnurlPayRequest`] and amount into a BOLT11 invoice.
     ///
     /// The amount must be within the min/max range from the pay request.
+    /// If `comment` is provided (LUD-12), it is validated against
+    /// `comment_allowed` and appended to the callback URL.
     pub async fn resolve_pay_request(
         &self,
         pay_req: &LnurlPayRequest,
         amount: Amount,
+        comment: Option<&str>,
     ) -> anyhow::Result<LxInvoice> {
         let callback = &pay_req.callback;
         debug!(%amount, %callback, "Resolving LNURL-pay request");
@@ -232,14 +235,34 @@ impl LnurlClient {
              allowed by LNURL-pay request",
         );
 
-        // Build callback URL with amount parameter
+        // LUD-12: validate comment against comment_allowed.
+        if let Some(comment) = comment {
+            let max_len = pay_req.comment_allowed.ok_or_else(|| {
+                anyhow!("Recipient doesn't support comments (LUD-12)")
+            })?;
+            let char_count = comment.chars().count();
+            ensure!(
+                char_count <= usize::from(max_len),
+                "Comment is {char_count} chars, \
+                 exceeds maximum of {max_len} chars",
+            );
+        }
+
+        // Build callback URL with amount and optional comment.
         let callback_url = {
             let amount_msat = amount.msat();
-            if callback.contains('?') {
-                format!("{callback}&amount={amount_msat}")
-            } else {
-                format!("{callback}?amount={amount_msat}")
+            let sep = if callback.contains('?') { '&' } else { '?' };
+            let mut url = format!("{callback}{sep}amount={amount_msat}");
+
+            if let Some(comment) = comment
+                && !comment.is_empty()
+            {
+                use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+                let encoded = utf8_percent_encode(comment, NON_ALPHANUMERIC);
+                url.push_str(&format!("&comment={encoded}"));
             }
+
+            url
         };
 
         /// The raw LNURL-pay callback response prior to parsing and validation.
@@ -349,10 +372,12 @@ mod test {
         let callback = &pay_request.callback;
         let min_sendable = pay_request.min_sendable;
         let max_sendable = pay_request.max_sendable;
+        let comment_allowed = pay_request.comment_allowed;
         info!("Callback URL: {callback}");
         info!("Min amount: {min_sendable} sats");
         info!("Max amount: {max_sendable} sats");
         info!("Description: {}", pay_request.metadata.description);
+        info!("Comment allowed: {comment_allowed:?}");
 
         // Request invoice with random amount within allowed range
         let amount = {
@@ -361,10 +386,12 @@ mod test {
                 rng.gen_range(min_sendable.msat()..=max_sendable.msat());
             Amount::from_msat(amount_msat)
         };
+        // Send a comment if the recipient supports it.
+        let comment = comment_allowed.map(|_| "Hello from Lexe! 🚀");
         info!("Requesting invoice for {amount} sats");
         let invoice = tokio::time::timeout(
             Duration::from_secs(10),
-            lnurl_client.resolve_pay_request(&pay_request, amount),
+            lnurl_client.resolve_pay_request(&pay_request, amount, comment),
         )
         .await
         .unwrap()

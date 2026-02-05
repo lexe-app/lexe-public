@@ -20,6 +20,7 @@ payment-uri-core.path = "../payment-uri-core"
 anyhow.workspace = true
 base64.workspace = true
 bitcoin.workspace = true
+percent-encoding.workspace = true
 dnssec-prover = { workspace = true, features = ["std", "tokio", "validation"] }
 reqwest.workspace = true
 serde.workspace = true

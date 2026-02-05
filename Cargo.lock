@@ -3415,6 +3415,7 @@ dependencies = [
  "lexe-tls-core",
  "logger",
  "payment-uri-core",
+ "percent-encoding",
  "reqwest",
  "serde",
  "serde_json",
