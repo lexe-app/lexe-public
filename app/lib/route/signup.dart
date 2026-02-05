@@ -28,6 +28,7 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
+import 'package:lexeapp/url.dart' as url;
 
 /// Require a signup code to complete signup.
 const bool requireSignupCode = true;
@@ -163,17 +164,30 @@ class _SignupCodePageState extends State<SignupCodePage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Enter signup code"),
-          const SizedBox(height: Space.s600),
+          MarkdownBody(
+            data: '''
+# Enter your beta signup code
+
+During Lexe's closed beta, a signup code is required to create a wallet.
+
+We'll send you a signup code to your email. If you
+would like to join the beta, add your email to the waitlist at:
+[lexe.app](https://lexe.app)
+''',
+            // styleSheet: LxTheme.buildMarkdownStyle(),
+            styleSheet: LxTheme.markdownStyle,
+            onTapLink: (_, href, _) => unawaited(url.open(href!)),
+          ),
+          const SizedBox(height: Space.s300),
 
           // Signup code field
           TextFormField(
             key: this.signupCodeKey,
-            autofocus: false,
+            autofocus: true,
             textInputAction: TextInputAction.done,
             validator: (str) => this.validateSignupCode(str).err,
             onEditingComplete: this.onSubmit,
-            decoration: baseInputDecoration.copyWith(hintText: "Signup code"),
+            decoration: baseInputDecoration.copyWith(hintText: "XXXX-XXXX"),
             obscureText: false,
             enableSuggestions: false,
             autocorrect: false,
