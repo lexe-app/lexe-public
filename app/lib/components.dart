@@ -1056,6 +1056,7 @@ class PaymentNoteInput extends StatefulWidget {
     this.initialNote,
     this.hintText = "Optional note (visible to you only)",
     this.isEnabled = true,
+    this.maxLength = 200,
   });
 
   final EdgeInsetsGeometry? contentPadding;
@@ -1064,6 +1065,7 @@ class PaymentNoteInput extends StatefulWidget {
   final String? initialNote;
   final String hintText;
   final bool isEnabled;
+  final int maxLength;
 
   @override
   State<PaymentNoteInput> createState() => _PaymentNoteInputState();
@@ -1119,7 +1121,7 @@ class _PaymentNoteInputState extends State<PaymentNoteInput> {
                 textInputAction: TextInputAction.send,
                 onEditingComplete: this.widget.onSubmit,
                 maxLines: null,
-                maxLength: 200,
+                maxLength: this.widget.maxLength,
                 maxLengthEnforcement: MaxLengthEnforcement.enforced,
 
                 // Silently limit input to 512 bytes. This could be a little

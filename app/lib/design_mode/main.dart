@@ -661,6 +661,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             paymentMethod: PaymentMethod.lnurlPayRequest(
               LnurlPayRequest(
                 callback: "https://example.com/pay",
+                commentAllowed: 140,
                 minSendableMsat: 1000,
                 maxSendableMsat: 10000,
                 metadata: LnurlPayRequestMetadata(

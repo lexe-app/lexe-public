@@ -1680,6 +1680,7 @@ const Offer defaultOffer = Offer(
 
 final LnurlPayRequest defaultLnurlPayRequest = LnurlPayRequest(
   callback: "https://example.com/callback",
+  commentAllowed: 140,
   minSendableMsat: 1000,
   maxSendableMsat: 10000,
   metadata: LnurlPayRequestMetadata(

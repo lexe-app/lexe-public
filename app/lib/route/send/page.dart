@@ -349,6 +349,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
+  final GlobalKey<FormFieldState<String>> commentFieldKey = GlobalKey();
+
   @override
   void dispose() {
     this.estimatingFee.dispose();
@@ -380,9 +382,18 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     // done.
     this.estimatingFee.value = true;
 
+    // Get the comment if the user entered one.
+    final commentText = this.commentFieldKey.currentState?.value;
+    final comment = (commentText != null && commentText.isNotEmpty)
+        ? commentText
+        : null;
+
     // Preflight the payment. That means we're checking, on the node itself,
     // for enough balance, if there's a route, fees, etc...
-    final result = await this.widget.sendCtx.preflight(amountSats);
+    final result = await this.widget.sendCtx.preflight(
+      amountSats,
+      comment: comment,
+    );
 
     if (!this.mounted) return;
 
@@ -455,6 +466,12 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     ),
   };
 
+  /// Max comment length if the recipient supports comments.
+  int? commentAllowed() => switch (this.widget.sendCtx.paymentMethod) {
+    PaymentMethod_LnurlPayRequest(:final field0) => field0.commentAllowed,
+    _ => null,
+  };
+
   @override
   Widget build(BuildContext context) {
     final kind = this.widget.sendCtx.paymentMethod.kind();
@@ -498,6 +515,15 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             MetadataRow(title: "Description", value: description),
           if (this.extraDetails() != null) this.extraDetails()!,
           const SizedBox(height: Space.s300),
+
+          // Comment input for LNURL-pay recipients that support it.
+          if (this.commentAllowed() case final maxLen? when maxLen > 0)
+            PaymentNoteInput(
+              fieldKey: this.commentFieldKey,
+              onSubmit: this.onNext,
+              hintText: "Add a message to the recipient",
+              maxLength: maxLen,
+            ),
 
           // Error fetching fee estimate
           ValueListenableBuilder(
@@ -1011,6 +1037,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               fieldKey: this.noteFieldKey,
               onSubmit: this.onConfirm,
               isEnabled: !isSending,
+              initialNote: switch (preflighted) {
+                PreflightedPayment_Invoice(:final comment) => comment,
+                _ => null,
+              },
             ),
           ),
 
