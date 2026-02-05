@@ -700,6 +700,8 @@ pub struct LnurlPayRequest {
     pub min_sendable_msat: u64,
     pub max_sendable_msat: u64,
     pub metadata: LnurlPayRequestMetadata,
+    /// LUD-12: Max comment length in characters, if comments are supported.
+    pub comment_allowed: Option<u16>,
 }
 
 pub struct LnurlPayRequestMetadata {
@@ -720,6 +722,7 @@ impl From<LnurlPayRequestRs> for LnurlPayRequest {
             min_sendable_msat: value.min_sendable.msat(),
             max_sendable_msat: value.max_sendable.msat(),
             metadata: LnurlPayRequestMetadata::from(value.metadata),
+            comment_allowed: value.comment_allowed,
         }
     }
 }
@@ -746,6 +749,7 @@ impl From<LnurlPayRequest> for LnurlPayRequestRs {
             min_sendable: AmountRs::from_msat(value.min_sendable_msat),
             max_sendable: AmountRs::from_msat(value.max_sendable_msat),
             metadata: LnurlPayRequestMetadataRs::from(value.metadata),
+            comment_allowed: value.comment_allowed,
         }
     }
 }

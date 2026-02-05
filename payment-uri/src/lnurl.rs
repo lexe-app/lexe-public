@@ -170,6 +170,7 @@ impl LnurlClient {
             min_sendable_msat,
             max_sendable_msat,
             metadata,
+            comment_allowed,
             tag,
         } = pay_req_wire;
 
@@ -193,16 +194,17 @@ impl LnurlClient {
 
         let metadata = LnurlPayRequestMetadata::from_raw_string(metadata)?;
         debug!(
-            %callback, %min_sendable, %max_sendable,
+            %callback, ?comment_allowed, %min_sendable, %max_sendable,
             description = %metadata.description,
             "Fetched LNURL-pay payRequest",
         );
 
         Ok(LnurlPayRequest {
             callback,
+            min_sendable,
             max_sendable,
             metadata,
-            min_sendable,
+            comment_allowed,
         })
     }
 

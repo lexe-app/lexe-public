@@ -165,11 +165,15 @@ class LnurlPayRequest {
   final int maxSendableMsat;
   final LnurlPayRequestMetadata metadata;
 
+  /// LUD-12: Max comment length in characters, if comments are supported.
+  final int? commentAllowed;
+
   const LnurlPayRequest({
     required this.callback,
     required this.minSendableMsat,
     required this.maxSendableMsat,
     required this.metadata,
+    this.commentAllowed,
   });
 
   @override
@@ -177,7 +181,8 @@ class LnurlPayRequest {
       callback.hashCode ^
       minSendableMsat.hashCode ^
       maxSendableMsat.hashCode ^
-      metadata.hashCode;
+      metadata.hashCode ^
+      commentAllowed.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -187,7 +192,8 @@ class LnurlPayRequest {
           callback == other.callback &&
           minSendableMsat == other.minSendableMsat &&
           maxSendableMsat == other.maxSendableMsat &&
-          metadata == other.metadata;
+          metadata == other.metadata &&
+          commentAllowed == other.commentAllowed;
 }
 
 class LnurlPayRequestMetadata {

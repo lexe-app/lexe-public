@@ -1952,11 +1952,13 @@ impl SseDecode for crate::ffi::types::LnurlPayRequest {
             <crate::ffi::types::LnurlPayRequestMetadata>::sse_decode(
                 deserializer,
             );
+        let mut var_commentAllowed = <Option<u16>>::sse_decode(deserializer);
         return crate::ffi::types::LnurlPayRequest {
             callback: var_callback,
             min_sendable_msat: var_minSendableMsat,
             max_sendable_msat: var_maxSendableMsat,
             metadata: var_metadata,
+            comment_allowed: var_commentAllowed,
         };
     }
 }
@@ -2338,6 +2340,19 @@ impl SseDecode for Option<crate::ffi::types::ShortPayment> {
             return Some(<crate::ffi::types::ShortPayment>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u16>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -2918,6 +2933,15 @@ impl SseDecode for crate::ffi::types::ShortPayment {
             note: var_note,
             created_at: var_createdAt,
         };
+    }
+}
+
+impl SseDecode for u16 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        deserializer.cursor.read_u16::<NativeEndian>().unwrap()
     }
 }
 
@@ -3745,6 +3769,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlPayRequest {
             self.min_sendable_msat.into_into_dart().into_dart(),
             self.max_sendable_msat.into_into_dart().into_dart(),
             self.metadata.into_into_dart().into_dart(),
+            self.comment_allowed.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5371,6 +5396,7 @@ impl SseEncode for crate::ffi::types::LnurlPayRequest {
             self.metadata,
             serializer,
         );
+        <Option<u16>>::sse_encode(self.comment_allowed, serializer);
     }
 }
 
@@ -5693,6 +5719,19 @@ impl SseEncode for Option<crate::ffi::types::ShortPayment> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::types::ShortPayment>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<u16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u16>::sse_encode(value, serializer);
         }
     }
 }
@@ -6185,6 +6224,16 @@ impl SseEncode for crate::ffi::types::ShortPayment {
         <Option<String>>::sse_encode(self.description, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
         <i64>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for u16 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        serializer.cursor.write_u16::<NativeEndian>(self).unwrap();
     }
 }
 

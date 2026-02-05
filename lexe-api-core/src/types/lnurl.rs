@@ -24,6 +24,8 @@ pub struct LnurlPayRequest {
     pub max_sendable: Amount,
     /// Parsed metadata with description and description hash.
     pub metadata: LnurlPayRequestMetadata,
+    /// LUD-12: Max comment length in characters, if comments are supported.
+    pub comment_allowed: Option<u16>,
 }
 
 /// The QueryString parameters internally required in lnurl-pay callbacks.
@@ -199,14 +201,17 @@ impl From<LnurlError> for LnurlErrorWire {
 pub struct LnurlPayRequestWire {
     /// The URL which will accept the pay request parameters.
     pub callback: String,
-    /// Max millisatoshi amount willing to receive.
-    #[serde(rename = "maxSendable")]
-    pub max_sendable_msat: u64,
     /// Min millisatoshi amount willing to receive.
     #[serde(rename = "minSendable")]
     pub min_sendable_msat: u64,
+    /// Max millisatoshi amount willing to receive.
+    #[serde(rename = "maxSendable")]
+    pub max_sendable_msat: u64,
     /// Metadata json as raw string (required for signature verification).
     pub metadata: String,
+    /// LUD-12: Max comment length in characters, if comments are supported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment_allowed: Option<u16>,
     /// Type of LNURL (always "payRequest").
     pub tag: String,
 }
@@ -215,9 +220,10 @@ impl From<LnurlPayRequest> for LnurlPayRequestWire {
     fn from(value: LnurlPayRequest) -> Self {
         Self {
             callback: value.callback,
-            max_sendable_msat: value.max_sendable.msat(),
             min_sendable_msat: value.min_sendable.msat(),
+            max_sendable_msat: value.max_sendable.msat(),
             metadata: value.metadata.raw,
+            comment_allowed: value.comment_allowed,
             tag: "payRequest".to_owned(),
         }
     }
@@ -227,10 +233,11 @@ impl From<LnurlPayRequestWire> for LnurlPayRequest {
     fn from(value: LnurlPayRequestWire) -> Self {
         Self {
             callback: value.callback,
-            max_sendable: Amount::from_msat(value.max_sendable_msat),
             min_sendable: Amount::from_msat(value.min_sendable_msat),
+            max_sendable: Amount::from_msat(value.max_sendable_msat),
             metadata: LnurlPayRequestMetadata::from_raw_string(value.metadata)
                 .expect("LnurlPayRequestWire should contain valid metadata"),
+            comment_allowed: value.comment_allowed,
         }
     }
 }
@@ -427,6 +434,7 @@ pub mod arbitrary_impl {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
                 any_string(),
+                option::of(any::<u16>()),
                 any::<Amount>(),
                 any::<Amount>(),
                 any::<LnurlPayRequestMetadata>(),
@@ -434,6 +442,7 @@ pub mod arbitrary_impl {
                 .prop_map(
                     |(
                         callback,
+                        comment_allowed,
                         mut min_sendable,
                         mut max_sendable,
                         metadata,
@@ -448,9 +457,10 @@ pub mod arbitrary_impl {
 
                         LnurlPayRequest {
                             callback,
+                            min_sendable,
                             max_sendable,
                             metadata,
-                            min_sendable,
+                            comment_allowed,
                         }
                     },
                 )

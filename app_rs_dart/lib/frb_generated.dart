@@ -3493,6 +3493,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  int dco_decode_box_autoadd_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -3841,13 +3847,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   LnurlPayRequest dco_decode_lnurl_pay_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return LnurlPayRequest(
       callback: dco_decode_String(arr[0]),
       minSendableMsat: dco_decode_CastedPrimitive_u_64(arr[1]),
       maxSendableMsat: dco_decode_CastedPrimitive_u_64(arr[2]),
       metadata: dco_decode_lnurl_pay_request_metadata(arr[3]),
+      commentAllowed: dco_decode_opt_box_autoadd_u_16(arr[4]),
     );
   }
 
@@ -4060,6 +4067,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ShortPayment? dco_decode_opt_box_autoadd_short_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_short_payment(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_16(raw);
   }
 
   @protected
@@ -4463,6 +4476,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       note: dco_decode_opt_String(arr[6]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[7]),
     );
+  }
+
+  @protected
+  int dco_decode_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -5018,6 +5037,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_16(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
@@ -5412,11 +5437,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_minSendableMsat = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_maxSendableMsat = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_metadata = sse_decode_lnurl_pay_request_metadata(deserializer);
+    var var_commentAllowed = sse_decode_opt_box_autoadd_u_16(deserializer);
     return LnurlPayRequest(
       callback: var_callback,
       minSendableMsat: var_minSendableMsat,
       maxSendableMsat: var_maxSendableMsat,
       metadata: var_metadata,
+      commentAllowed: var_commentAllowed,
     );
   }
 
@@ -5732,6 +5759,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_short_payment(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_16(deserializer));
     } else {
       return null;
     }
@@ -6175,6 +6213,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       note: var_note,
       createdAt: var_createdAt,
     );
+  }
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint16();
   }
 
   @protected
@@ -6758,6 +6802,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
@@ -7113,6 +7163,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_u_64(self.minSendableMsat, serializer);
     sse_encode_CastedPrimitive_u_64(self.maxSendableMsat, serializer);
     sse_encode_lnurl_pay_request_metadata(self.metadata, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.commentAllowed, serializer);
   }
 
   @protected
@@ -7387,6 +7438,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_short_payment(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_16(self, serializer);
     }
   }
 
@@ -7738,6 +7799,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.note, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
+  }
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint16(self);
   }
 
   @protected
