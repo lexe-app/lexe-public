@@ -46,6 +46,7 @@ abstract class SendPaymentService {
   Future<FfiResult<Invoice>> resolveLnurlPayRequest({
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   });
 
   /// Pay onchain.

@@ -55,8 +55,13 @@ class SendPaymentServiceImpl implements SendPaymentService {
   Future<FfiResult<Invoice>> resolveLnurlPayRequest({
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   }) => Result.tryFfiAsync(
-    () => this._app.resolveLnurlPayRequest(req: req, amountMsats: amountMsats),
+    () => this._app.resolveLnurlPayRequest(
+      req: req,
+      amountMsats: amountMsats,
+      comment: comment,
+    ),
   );
 
   @override

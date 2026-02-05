@@ -544,6 +544,7 @@ class MockAppHandle extends AppHandle {
   Future<Invoice> resolveLnurlPayRequest({
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   }) => Future.delayed(const Duration(milliseconds: 1000), () {
     final now = DateTime.now();
     final createdAt = now.millisecondsSinceEpoch;
@@ -701,6 +702,7 @@ class MockAppHandleErr extends MockAppHandle {
   Future<Invoice> resolveLnurlPayRequest({
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   }) => Future.delayed(
     const Duration(milliseconds: 1000),
     () => throw const FfiError(

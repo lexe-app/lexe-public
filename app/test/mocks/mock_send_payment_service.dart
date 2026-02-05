@@ -93,6 +93,7 @@ class MockSendPaymentService implements SendPaymentService {
   Future<FfiResult<Invoice>> resolveLnurlPayRequest({
     required LnurlPayRequest req,
     required int amountMsats,
+    String? comment,
   }) async {
     this.calls.add('resolveLnurlPayRequest($amountMsats)');
     return this.resolveLnurlPayRequestResult ??
