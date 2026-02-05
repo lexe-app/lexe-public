@@ -319,9 +319,24 @@ final class LxTheme {
   /// Build the default stylesheet (fonts, typography, margins, etc...) used for
   /// rendering [Markdown] widgets.
   static MarkdownStyleSheet buildMarkdownStyle() {
+    const pStyle = TextStyle(
+      fontSize: Fonts.size300,
+      color: LxColors.foreground,
+      height: 1.45,
+      letterSpacing: -0.3,
+    );
+
+    // TODO(phlip9): fork flutter_markdown (which is apparently deprecated now?)
+    // so we can actually get proper spacing on lists. Right now there's always
+    // zero padding after a list block, and no way to cleanly set padding
+    // between list items. So we just have to avoid placing any text beneath a
+    // list for now lol...
     return MarkdownStyleSheet(
-      // Spacing between all blocks
-      blockSpacing: Space.s200,
+      // Spacing between all blocks.
+      //
+      // Set this to zero to avoid double-spacing. Instead, we set per-block
+      // spacing.
+      blockSpacing: 0,
 
       // <a/>
       a: const TextStyle(
@@ -337,13 +352,9 @@ final class LxTheme {
       em: const TextStyle(fontVariations: [Fonts.italic]),
 
       // <p>
-      p: const TextStyle(
-        fontSize: Fonts.size300,
-        color: LxColors.foreground,
-        height: 1.45,
-        letterSpacing: -0.5,
-      ),
-      pPadding: const EdgeInsets.symmetric(vertical: Space.s200),
+      p: pStyle,
+      // Bottom-only prevents double-spacing when next block has top padding.
+      pPadding: const EdgeInsets.only(bottom: Space.s400),
 
       // <h1>
       h1: const TextStyle(
@@ -352,18 +363,34 @@ final class LxTheme {
         height: 1.15,
         letterSpacing: -0.5,
       ),
-      h1Padding: const EdgeInsets.fromLTRB(0, Space.s400, 0, Space.s100),
+      h1Padding: const EdgeInsets.fromLTRB(0, Space.s400, 0, Space.s200),
 
       // <h2>
       h2: const TextStyle(
+        fontSize: Fonts.size500,
         fontVariations: [Fonts.weightMedium],
         height: 1.25,
-        letterSpacing: -0.5,
+        letterSpacing: -0.4,
       ),
-      h2Padding: const EdgeInsets.fromLTRB(0, Space.s400, 0, 0),
+      h2Padding: const EdgeInsets.fromLTRB(0, Space.s400, 0, Space.s200),
+
+      // <h3>
+      h3: const TextStyle(
+        fontSize: Fonts.size400,
+        fontVariations: [Fonts.weightMedium],
+        height: 1.3,
+        letterSpacing: -0.3,
+      ),
+      h3Padding: const EdgeInsets.fromLTRB(0, Space.s400, 0, Space.s200),
 
       listIndent: Space.s400,
-      listBulletPadding: const EdgeInsets.all(Space.s100),
+      listBulletPadding: const EdgeInsets.fromLTRB(
+        Space.s100,
+        Space.s200,
+        Space.s200,
+        0,
+      ),
+      listBullet: pStyle,
     );
   }
 }

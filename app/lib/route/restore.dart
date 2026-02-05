@@ -279,6 +279,7 @@ Connect your Google Drive to restore from an existing Lexe Wallet backup.
 - **Your wallet backup is encrypted**. You'll need your backup password in a moment.
 - Lexe cannot access any files in your Drive.
 ''',
+            // styleSheet: LxTheme.buildMarkdownStyle(),
             styleSheet: LxTheme.markdownStyle,
           ),
 

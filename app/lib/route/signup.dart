@@ -511,10 +511,9 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const SizedBox(height: Space.s100),
           MarkdownBody(
             data: '''
-## Enter your backup password
+# Enter your backup password
 
 Enter at least 12 characters.
 
@@ -524,13 +523,15 @@ recover your funds**.
 ''',
             // styleSheet: LxTheme.buildMarkdownStyle().copyWith(
             styleSheet: LxTheme.markdownStyle.copyWith(
-              blockSpacing: Space.s0,
-              pPadding: const EdgeInsets.symmetric(vertical: Space.s100),
-              h2Padding: const EdgeInsets.only(bottom: Space.s300),
+              h1Padding: const EdgeInsets.only(
+                top: Space.s200,
+                bottom: Space.s200,
+              ),
             ),
+            // styleSheet: LxTheme.buildMarkdownStyle(),
             // styleSheet: LxTheme.markdownStyle,
           ),
-          const SizedBox(height: Space.s500),
+          const SizedBox(height: Space.s100),
 
           // Password field
           TextFormField(
@@ -550,7 +551,7 @@ recover your funds**.
             obscureText: true,
             style: textFieldStyle,
           ),
-          const SizedBox(height: Space.s200),
+          const SizedBox(height: Space.s100),
 
           // Confirm password field
           TextFormField(
@@ -568,17 +569,21 @@ recover your funds**.
 
           // Error message
           Padding(
-            padding: const EdgeInsets.only(top: Space.s400),
+            padding: const EdgeInsets.only(top: Space.s300),
             child: ValueListenableBuilder(
               valueListenable: this.errorMessage,
-              builder: (_context, errorMessage, _widget) =>
-                  ErrorMessageSection(errorMessage),
+              builder: (_context, errorMessage, _widget) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: errorMessage != null ? Space.s300 : 0,
+                ),
+                child: ErrorMessageSection(errorMessage),
+              ),
             ),
           ),
         ],
         bottomPadding: EdgeInsets.zero,
         bottom: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Space.s400),
+          padding: const EdgeInsets.symmetric(vertical: Space.s300),
           child: ValueListenableBuilder(
             valueListenable: this.isSigningUp,
             builder: (context, isSending, widget) => SignupButton(
@@ -642,10 +647,10 @@ class SignupBackupSeedConfirmPage extends StatelessWidget {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Only backup seed phrase?"),
-          const SizedBox(height: Space.s300),
           MarkdownBody(
             data: '''
+# Only backup seed phrase?
+
 A seed phrase-only backup allows you to restore your node if you lose your
 phone, but relies on Lexe to provide your encrypted recovery data.
 ''',
