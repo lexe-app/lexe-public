@@ -1003,6 +1003,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       }),
       Component(
         "SecurityPage",
+        subtitle: "seed phrase will fail",
         (_) => SecurityPage(
           config: this.widget.config,
           app: mockApp,
@@ -1143,31 +1144,31 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         subtitle: "Connect Google Drive",
       ),
       Component(
-        "DocsGettingStarted04",
+        "DocsGettingStarted03",
         (context) => SignupBackupPasswordPage(
           ctx: mockSignupCtx,
           authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/04-backup-password.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/03-backup-password.png",
         subtitle: "Enter backup password",
       ),
       Component(
-        "DocsGettingStarted05",
+        "DocsGettingStarted04",
         (context) => SignupBackupSeedConfirmPage(ctx: mockSignupCtx),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/05-seed-only-confirm.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/04-seed-only-confirm.png",
         subtitle: "Seed phrase-only confirm",
       ),
       Component(
-        "DocsGettingStarted06",
+        "DocsGettingStarted05",
         (context) => SignupBackupSeedPage(ctx: mockSignupCtx),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/06-seed-phrase.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/05-seed-phrase.png",
         subtitle: "Backup seed phrase",
       ),
       Component(
-        "DocsGettingStarted07",
+        "DocsGettingStarted06",
         (_) => WalletPage(
           config: this.widget.config,
           app: mocks.MockAppHandle(
@@ -1182,11 +1183,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           gdriveAuth: GDriveAuth.mock,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/07-home.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/06-home.png",
         subtitle: "Empty home screen",
       ),
       Component(
-        "DocsGettingStarted08",
+        "DocsGettingStarted07",
         (context) => ReceivePaymentPage(
           app: mockApp,
           appData: LxAppData(mockApp.appDataDb()),
@@ -1195,11 +1196,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/08-receive-lightning.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/07-receive-lightning.png",
         subtitle: "Receive Lightning invoice",
       ),
       Component(
-        "DocsGettingStarted09",
+        "DocsGettingStarted08",
         (context) {
           final mockAppLightningOnly = mocks.MockAppHandle(
             balance: mocks.balanceLightningOnly,
@@ -1224,11 +1225,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           );
         },
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/09-channels-after-lightning.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/08-channels-after-lightning.png",
         subtitle: "Channels after JIT open",
       ),
       Component(
-        "DocsGettingStarted10",
+        "DocsGettingStarted09",
         (context) => ReceivePaymentPage(
           app: mockApp,
           appData: LxAppData(mockApp.appDataDb()),
@@ -1238,11 +1239,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           designInitialPageIdx: btcPageIdx,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/10-receive-onchain.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/09-receive-onchain.png",
         subtitle: "Receive Bitcoin address",
       ),
       Component(
-        "DocsGettingStarted11",
+        "DocsGettingStarted10",
         (_) => WalletPage(
           config: this.widget.config,
           app: mocks.MockAppHandle(
@@ -1257,11 +1258,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           gdriveAuth: GDriveAuth.mock,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/11-onchain-received.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/10-onchain-received.png",
         subtitle: "On-chain funds received",
       ),
       Component(
-        "DocsGettingStarted12",
+        "DocsGettingStarted11",
         (context) => OpenChannelPage(
           app: mockApp,
           balanceState: ValueNotifier(
@@ -1273,11 +1274,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           designInitialAmount: 80000,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/12-open-channel-amount.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/11-open-channel-amount.png",
         subtitle: "Open channel amount",
       ),
       Component(
-        "DocsGettingStarted13",
+        "DocsGettingStarted12",
         (context) => OpenChannelConfirmPage(
           app: mockApp,
           balanceState: ValueNotifier(
@@ -1291,11 +1292,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           preflight: const PreflightOpenChannelResponse(feeEstimateSats: 123),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/13-open-channel-confirm.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/12-open-channel-confirm.png",
         subtitle: "Confirm channel open",
       ),
       Component(
-        "DocsGettingStarted14",
+        "DocsGettingStarted13",
         (context) {
           final mockAppOneChannel = mocks.MockAppHandle(
             balance: mocks.balanceOneChannel,
@@ -1320,11 +1321,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           );
         },
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/14-channels-after-open.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/13-channels-after-open.png",
         subtitle: "Channel opened",
       ),
       Component(
-        "DocsGettingStarted15",
+        "DocsGettingStarted14",
         (_) => WalletPage(
           config: this.widget.config,
           app: mocks.MockAppHandle(
@@ -1339,11 +1340,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           gdriveAuth: GDriveAuth.mock,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/15-home-funded.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/14-home-funded.png",
         subtitle: "Funded wallet (Lightning)",
       ),
       Component(
-        "DocsGettingStarted16",
+        "DocsGettingStarted15",
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedUri(
@@ -1355,11 +1356,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/16-send-who.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/15-send-who.png",
         subtitle: "Send - Who are we paying?",
       ),
       Component(
-        "DocsGettingStarted17",
+        "DocsGettingStarted16",
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_Preflighted(
@@ -1383,11 +1384,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/17-send-confirm.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/16-send-confirm.png",
         subtitle: "Confirm payment",
       ),
       Component(
-        "DocsGettingStarted18",
+        "DocsGettingStarted17",
         (context) => PaymentDetailPageInner(
           app: mockApp,
           payment: ValueNotifier(mocks.dummyInvoiceOutboundCompleted02),
@@ -1397,7 +1398,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           triggerRefresh: () {},
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/18-send-success.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/17-send-success.png",
         subtitle: "Payment sent",
       ),
 
