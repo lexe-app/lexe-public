@@ -733,14 +733,13 @@ class MockAppHandleErr extends MockAppHandle {
 class MockAppHandleScreenshots extends MockAppHandle {
   MockAppHandleScreenshots()
     : super(
-        payments: [
-          dummyOnchainInboundCompleted02,
-          dummyInvoiceOutboundCompleted01,
-          dummyInvoiceInboundCompleted02,
-        ],
-        channels: [],
-        balance: balanceDefault,
+        balance: balanceAppStoreWallet,
+        payments: appStoreWalletPayments(),
+        channels: [dummyChannelAppStoreWallet],
       );
+
+  @override
+  Future<void> provision() => Future.value();
 
   @override
   Future<bool> syncPayments() => Future.value(false);
@@ -764,16 +763,10 @@ class MockAppHandleScreenshots extends MockAppHandle {
     const NodeInfo(
       nodePk:
           "024de9a91aaf32588a7b0bb97ba7fad3db22fcfe62a52bc2b2d389c5fa9d946e1b",
-      version: "0.6.15",
+      version: "0.9.1",
       measurement:
           "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-      balance: Balance(
-        totalSats: 233671,
-        lightningSats: 154226,
-        lightningUsableSats: 154226,
-        lightningMaxSendableSats: 154226 - 4500,
-        onchainSats: 233671 - 154226,
-      ),
+      balance: balanceAppStoreWallet,
     ),
   );
 
@@ -802,6 +795,21 @@ class MockAppHandleScreenshots extends MockAppHandle {
       ),
     );
   }
+
+  @override
+  Future<CreateOfferResponse> createOffer({
+    required CreateOfferRequest req,
+  }) => Future.value(
+    CreateOfferResponse(
+      offer: Offer(
+        string:
+            "lno1zrxq8pjw7qjlm68mtp7e3yvxee4y5xrgjhhyf2fxhlphpckrvevh50u0qdp2nyl5lh362fu4r6ycw59tul97ptq57j9mhusk4dyqed0nytnzyqsz0qduahca4eryls267a72a4rtcnk4p6ululyvg7a7pdczg8ha8e6qqval7cremj65ut2k087xdhay6qvv0dtljppyd80zyj68f748jt569nutyznpf9qms39a06ecl0tw9w6ky9xpqd4k7hl4phttq9lkdrhjffv08tc04yxf4pfexypwt0e8zlmdeuf4qqqsdt4qevd84nlmks62nzzz9swwpu",
+        expiresAt: null,
+        amountSats: 600,
+        description: "Pour-over coffee",
+      ),
+    ),
+  );
 
   @override
   Future<String> getAddress() =>
@@ -985,6 +993,137 @@ const Balance balanceLightningOnly = Balance(
   lightningUsableSats: 60000 - 1000,
   lightningMaxSendableSats: 60000 - 1000 - 1198,
   onchainSats: 0,
+);
+
+// App store screenshot wallet amounts.
+const int appStoreWalletInitialLexeDepositSats = 250000;
+const int appStoreWalletStackerNewsSendSats = 4200;
+const int appStoreWalletLunchAtCeciliasReceiveSats = 12000;
+const int appStoreWalletBalanceSats =
+    appStoreWalletInitialLexeDepositSats -
+    appStoreWalletStackerNewsSendSats +
+    appStoreWalletLunchAtCeciliasReceiveSats;
+
+const Balance balanceAppStoreWallet = Balance(
+  totalSats: appStoreWalletBalanceSats,
+  lightningSats: appStoreWalletBalanceSats,
+  lightningUsableSats: appStoreWalletBalanceSats - 1000,
+  lightningMaxSendableSats: appStoreWalletBalanceSats - 1000 - 1198,
+  onchainSats: 0,
+);
+
+String _lightningPaymentIndex({
+  required int createdAtMs,
+  required String paymentHash,
+}) => "${createdAtMs.toString().padLeft(19, "0")}-ln_$paymentHash";
+
+/// Three completed Lightning payments for the app store wallet screenshot.
+///
+/// Generated from `now` so their relative timestamps are always <8h old.
+List<Payment> appStoreWalletPayments({DateTime? now}) {
+  final now2 = now ?? DateTime.now();
+  final depositCreatedAt = now2
+      .subtract(const Duration(hours: 7, minutes: 20))
+      .millisecondsSinceEpoch;
+  final stackerNewsCreatedAt = now2
+      .subtract(const Duration(hours: 3, minutes: 45))
+      .millisecondsSinceEpoch;
+  final lunchCreatedAt = now2
+      .subtract(const Duration(hours: 1, minutes: 10))
+      .millisecondsSinceEpoch;
+
+  final inboundTemplate = dummyInvoiceInboundCompleted03.invoice!;
+  final outboundTemplate = dummyInvoiceOutboundCompleted01.invoice!;
+
+  return <Payment>[
+    Payment(
+      index: PaymentCreatedIndex(
+        field0: _lightningPaymentIndex(
+          createdAtMs: depositCreatedAt,
+          paymentHash:
+              "0d5af6a9ec1d95ff0b0ea1275a1be7296c5848a2e4b77aca37318e32fc244111",
+        ),
+      ),
+      kind: PaymentKind_Invoice(),
+      direction: PaymentDirection.inbound,
+      invoice: Invoice(
+        string: inboundTemplate.string,
+        description: "Initial Lexe deposit",
+        createdAt: depositCreatedAt,
+        expiresAt: depositCreatedAt + const Duration(hours: 1).inMilliseconds,
+        amountSats: appStoreWalletInitialLexeDepositSats,
+        payeePubkey: inboundTemplate.payeePubkey,
+      ),
+      amountSat: appStoreWalletInitialLexeDepositSats,
+      feesSat: 0,
+      status: PaymentStatus.completed,
+      statusStr: "completed",
+      note: "Initial Lexe deposit",
+      createdAt: depositCreatedAt,
+      finalizedAt: depositCreatedAt + const Duration(minutes: 2).inMilliseconds,
+      replacement: null,
+    ),
+    Payment(
+      index: PaymentCreatedIndex(
+        field0: _lightningPaymentIndex(
+          createdAtMs: stackerNewsCreatedAt,
+          paymentHash:
+              "267bc8fcc8a0db2cb143cf77c17f48f99c9ecde7d1044c3a5703226224e00222",
+        ),
+      ),
+      kind: PaymentKind_Invoice(),
+      direction: PaymentDirection.outbound,
+      invoice: Invoice(
+        string: outboundTemplate.string,
+        description: "stacker.news",
+        createdAt: stackerNewsCreatedAt,
+        expiresAt:
+            stackerNewsCreatedAt + const Duration(hours: 1).inMilliseconds,
+        amountSats: appStoreWalletStackerNewsSendSats,
+        payeePubkey: outboundTemplate.payeePubkey,
+      ),
+      amountSat: appStoreWalletStackerNewsSendSats,
+      feesSat: 0,
+      status: PaymentStatus.completed,
+      statusStr: "completed",
+      note: "stacker.news",
+      createdAt: stackerNewsCreatedAt,
+      finalizedAt:
+          stackerNewsCreatedAt + const Duration(minutes: 2).inMilliseconds,
+    ),
+    Payment(
+      index: PaymentCreatedIndex(
+        field0: _lightningPaymentIndex(
+          createdAtMs: lunchCreatedAt,
+          paymentHash:
+              "ec58d122968e3a12fc6d280defb455572f6f0fa5f0e8a80a62c3da18d7a4f333",
+        ),
+      ),
+      kind: PaymentKind_Invoice(),
+      direction: PaymentDirection.inbound,
+      invoice: Invoice(
+        string: inboundTemplate.string,
+        description: "Lunch at Cecilia's",
+        createdAt: lunchCreatedAt,
+        expiresAt: lunchCreatedAt + const Duration(hours: 1).inMilliseconds,
+        amountSats: appStoreWalletLunchAtCeciliasReceiveSats,
+        payeePubkey: inboundTemplate.payeePubkey,
+      ),
+      amountSat: appStoreWalletLunchAtCeciliasReceiveSats,
+      feesSat: 0,
+      status: PaymentStatus.completed,
+      statusStr: "completed",
+      note: "Lunch at Cecilia's",
+      createdAt: lunchCreatedAt,
+      finalizedAt: lunchCreatedAt + const Duration(minutes: 2).inMilliseconds,
+    ),
+  ].sortedBy((payment) => payment.index.field0);
+}
+
+MockAppHandle appStoreWalletMockApp({DateTime? now}) => MockAppHandle(
+  balance: balanceAppStoreWallet,
+  payments: appStoreWalletPayments(now: now),
+  channels: [dummyChannelAppStoreWallet],
 );
 
 //
@@ -1475,6 +1614,20 @@ const LxChannelDetails dummyChannelLightningOnly = LxChannelDetails(
   nextOutboundHtlcLimitSats: 60000 - 1000 - 1198,
   theirBalanceSats: 50000,
   inboundCapacitySats: 50000 - 1000,
+);
+
+/// Channel used by the app store wallet screenshot mock.
+const LxChannelDetails dummyChannelAppStoreWallet = LxChannelDetails(
+  channelId: "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
+  counterpartyNodeId:
+      "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
+  channelValueSats: appStoreWalletBalanceSats + 180000,
+  isUsable: true,
+  ourBalanceSats: appStoreWalletBalanceSats,
+  outboundCapacitySats: appStoreWalletBalanceSats - 1000,
+  nextOutboundHtlcLimitSats: appStoreWalletBalanceSats - 1000 - 1198,
+  theirBalanceSats: 180000,
+  inboundCapacitySats: 180000 - 1000,
 );
 
 // Default set of sample channels

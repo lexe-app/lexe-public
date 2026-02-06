@@ -82,7 +82,8 @@ import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/profile.dart' show ProfilePage;
 import 'package:lexeapp/route/receive/page.dart'
     show ReceivePaymentEditPage, ReceivePaymentPage, btcPageIdx;
-import 'package:lexeapp/route/receive/state.dart' show AmountDescription;
+import 'package:lexeapp/route/receive/state.dart'
+    show AmountDescription, PaymentOfferKind;
 import 'package:lexeapp/route/restore.dart'
     show
         RestoreChooseWalletPage,
@@ -1001,21 +1002,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         subtitle: "error",
         (_) => ClientsPage(app: mockAppErr),
       ),
+
+      // --- App Store Screenshots ---
       Component(
-        "Screenshot 01",
-        subtitle: "LandingPage",
-        (context) => LandingPage(
-          config: this.widget.config,
-          rootSeed: mockRootSeed,
-          gdriveAuth: GDriveAuth.mock,
-          signupApi: mockSignupApi,
-          restoreApi: mockRestoreApi,
-          uriEvents: this.widget.uriEvents,
-          fixedShaderTime: 8.5,
-        ),
-      ),
-      Component(
-        "Screenshot 02",
+        "App Store Screenshot 01",
         subtitle: "WalletPage",
         (_) => WalletPage(
           config: this.widget.config,
@@ -1028,18 +1018,19 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         ),
       ),
       Component(
-        "Screenshot 03",
-        subtitle: "ReceivePage (Invoice)",
+        "App Store Screenshot 02",
+        subtitle: "ReceivePaymentPage (Offer)",
         (_) => ReceivePaymentPage(
           app: mocks.MockAppHandleScreenshots(),
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
           fiatRate: ValueNotifier(const FiatRate(fiat: "USD", rate: 96626.76)),
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
+          designInitialLightningType: PaymentOfferKind.lightningOffer,
         ),
       ),
       Component(
-        "Screenshot 04",
+        "App Store Screenshot 03",
         subtitle: "SendPaymentConfirmPage (Invoice)",
         (_) => SendPaymentPage(
           startNewFlow: true,

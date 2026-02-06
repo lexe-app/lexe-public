@@ -72,6 +72,7 @@ class ReceivePaymentPage extends StatelessWidget {
     required this.fiatRate,
     required this.settings,
     this.designInitialPageIdx,
+    this.designInitialLightningType,
   });
 
   final AppHandle app;
@@ -87,6 +88,9 @@ class ReceivePaymentPage extends StatelessWidget {
   /// (Design mode screenshot automation only) Initial page to show.
   final int? designInitialPageIdx;
 
+  /// (Design mode screenshot automation only) Initial Lightning type to show.
+  final PaymentOfferKind? designInitialLightningType;
+
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
     app: this.app,
@@ -96,6 +100,7 @@ class ReceivePaymentPage extends StatelessWidget {
     settings: this.settings,
     viewportWidth: MediaQuery.sizeOf(context).width,
     designInitialPageIdx: this.designInitialPageIdx,
+    designInitialLightningType: this.designInitialLightningType,
   );
 }
 
@@ -111,6 +116,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
     required this.settings,
     required this.viewportWidth,
     this.designInitialPageIdx,
+    this.designInitialLightningType,
   });
 
   final AppHandle app;
@@ -120,8 +126,8 @@ class ReceivePaymentPageInner extends StatefulWidget {
   final LxSettings settings;
   final double viewportWidth;
 
-  /// (Design mode screenshot automation only) Initial page to show.
   final int? designInitialPageIdx;
+  final PaymentOfferKind? designInitialLightningType;
 
   @override
   State<ReceivePaymentPageInner> createState() =>
@@ -182,6 +188,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   @override
   void initState() {
     super.initState();
+
+    final initialLightningType = this.widget.designInitialLightningType;
+    if (initialLightningType != null) {
+      this.selectedLightningType.value = initialLightningType;
+    }
 
     // Fetch a new lightning invoice when its inputs change.
     this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
