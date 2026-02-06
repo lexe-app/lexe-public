@@ -110,7 +110,6 @@ import 'package:lexeapp/route/signup.dart'
         SignupBackupPasswordPage,
         SignupBackupSeedConfirmPage,
         SignupBackupSeedPage,
-        SignupCodePage,
         SignupCtx,
         SignupGDriveAuthPage,
         SignupPage;
@@ -1143,16 +1142,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "DocsGettingStarted02",
-        (context) => SignupCodePage(ctx: mockSignupCtx),
+        (context) => SignupGDriveAuthPage(ctx: mockSignupCtx),
         screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/02-signup-code.png",
-        subtitle: "Enter signup code",
-      ),
-      Component(
-        "DocsGettingStarted03",
-        (context) => SignupGDriveAuthPage(ctx: mockSignupCtx, signupCode: null),
-        screenshot:
-            "lexe-docs/docs.lexe.app/images/getting-started/03-google-drive.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/02-google-drive.png",
         subtitle: "Connect Google Drive",
       ),
       Component(

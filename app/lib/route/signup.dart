@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
-    show Config, DeployEnv, GDriveSignupCredentials, RootSeed;
+    show Config, GDriveSignupCredentials, RootSeed;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
@@ -31,9 +31,6 @@ import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/url.dart' as url;
 import 'package:lexeapp/validators.dart' as validators;
-
-/// Require a signup code to complete signup.
-const bool requireSignupCode = true;
 
 /// A tiny interface so we can mock the [AppHandle.signup] call in design mode.
 abstract interface class SignupApi {
@@ -87,140 +84,15 @@ class SignupPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
-    builder: (_) => (requireSignupCode)
-        ? SignupCodePage(ctx: this.ctx)
-        : SignupGDriveAuthPage(ctx: this.ctx, signupCode: null),
+    builder: (_) => SignupGDriveAuthPage(ctx: this.ctx),
   );
-}
-
-/// Ask the user for a signup code. While we're in closed beta, we'll require a
-/// signup code to limit testers.
-class SignupCodePage extends StatefulWidget {
-  const SignupCodePage({super.key, required this.ctx});
-
-  final SignupCtx ctx;
-
-  @override
-  State<SignupCodePage> createState() => _SignupCodePageState();
-}
-
-class _SignupCodePageState extends State<SignupCodePage> {
-  final GlobalKey<FormFieldState<String>> signupCodeKey = GlobalKey();
-
-  Result<String?, String?> validateSignupCode(final String? signupCode) {
-    final ctx = this.widget.ctx;
-    if (signupCode == null || signupCode.isEmpty) {
-      // Signup code is only required in prod.
-      if (ctx.config.deployEnv == DeployEnv.prod) {
-        return const Err("");
-      } else {
-        return const Ok(null);
-      }
-    }
-
-    // Remove whitespace and ensure all alphanumeric or dash.
-    final trimmed = signupCode.trim();
-    final nonAlphanumDash = RegExp(r'[^a-zA-Z0-9-]');
-    if (!trimmed.contains(nonAlphanumDash)) {
-      return Ok(trimmed);
-    } else {
-      return const Err("");
-    }
-  }
-
-  Future<void> onSubmit() async {
-    final codeField = this.signupCodeKey.currentState!;
-    if (!codeField.validate()) {
-      return;
-    }
-    final String? signupCode;
-    switch (this.validateSignupCode(codeField.value)) {
-      case Ok(:final ok):
-        signupCode = ok;
-      case Err():
-        return;
-    }
-
-    final AppHandle? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            SignupGDriveAuthPage(ctx: this.widget.ctx, signupCode: signupCode),
-      ),
-    );
-    if (flowResult == null) return;
-    if (!this.mounted) return;
-
-    unawaited(Navigator.of(this.context).maybePop(flowResult));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(isLeading: true),
-        actions: const [
-          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-          SizedBox(width: Space.s400),
-        ],
-      ),
-      body: ScrollableSinglePageBody(
-        body: [
-          MarkdownBody(
-            data: '''
-# Enter your beta signup code
-
-During Lexe's closed beta, a signup code is required to create a wallet.
-
-We'll send you a signup code to your email. If you
-would like to join the beta, add your email to the waitlist at:
-[lexe.app](https://lexe.app)
-''',
-            // styleSheet: LxTheme.buildMarkdownStyle(),
-            styleSheet: LxTheme.markdownStyle,
-            onTapLink: (_, href, _) => unawaited(url.open(href!)),
-          ),
-          const SizedBox(height: Space.s300),
-
-          // Signup code field
-          TextFormField(
-            key: this.signupCodeKey,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            validator: (str) => this.validateSignupCode(str).err,
-            onEditingComplete: this.onSubmit,
-            decoration: baseInputDecoration.copyWith(hintText: "XXXX-XXXX"),
-            obscureText: false,
-            enableSuggestions: false,
-            autocorrect: false,
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size700,
-              fontVariations: [Fonts.weightMedium],
-              fontFeatures: [Fonts.featDisambugation],
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-        bottom: LxFilledButton.strong(
-          label: const Text("Continue"),
-          icon: const Icon(LxIcons.next),
-          onTap: this.onSubmit,
-        ),
-      ),
-    );
-  }
 }
 
 /// This page has a button to ask for the user's consent for GDrive permissions.
 class SignupGDriveAuthPage extends StatefulWidget {
-  const SignupGDriveAuthPage({
-    super.key,
-    required this.ctx,
-    required this.signupCode,
-  });
+  const SignupGDriveAuthPage({super.key, required this.ctx});
 
   final SignupCtx ctx;
-  final String? signupCode;
 
   @override
   State<StatefulWidget> createState() => _SignupGDriveAuthPageState();
@@ -276,7 +148,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         builder: (_) => SignupBackupPasswordPage(
           ctx: ctx,
           authInfo: authInfo,
-          signupCode: this.widget.signupCode,
+          signupCode: null,
         ),
       ),
     );
@@ -295,7 +167,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
       MaterialPageRoute(
         builder: (_) => SignupBackupSeedConfirmPage(
           ctx: this.widget.ctx,
-          signupCode: this.widget.signupCode,
+          signupCode: null,
         ),
       ),
     );
