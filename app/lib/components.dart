@@ -1570,6 +1570,10 @@ class ChannelBalanceBarPainter extends CustomPainter {
 /// ```
 /// <      * * --      >
 /// ```
+///
+/// Supports showing an optional "auto-advance" progress indicator around the
+/// "next" button, using [autoAdvanceProgressAnimation] and
+/// [showAutoAdvanceProgress] signals.
 class CarouselIndicatorsAndButtons extends StatelessWidget {
   const CarouselIndicatorsAndButtons({
     super.key,
@@ -1577,8 +1581,12 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
     required this.selectedPageIndex,
     this.onTapPrev,
     this.onTapNext,
+    this.showAutoAdvanceProgress,
+    this.autoAdvanceProgressAnimation,
     this.arrowColor = LxColors.clearB400,
     this.arrowDisabledOpacity = 0.0,
+    this.autoAdvanceProgressBackgroundColor = LxColors.clearB100,
+    this.autoAdvanceProgressColor = LxColors.clearB300,
     this.indicatorActiveColor = LxColors.clearB600,
     this.indicatorInactiveColor = LxColors.clearB200,
   });
@@ -1588,9 +1596,13 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
 
   final VoidCallback? onTapPrev;
   final VoidCallback? onTapNext;
+  final ValueListenable<bool>? showAutoAdvanceProgress;
+  final Animation<double>? autoAdvanceProgressAnimation;
 
   final Color arrowColor;
   final double arrowDisabledOpacity;
+  final Color autoAdvanceProgressBackgroundColor;
+  final Color? autoAdvanceProgressColor;
   final Color indicatorActiveColor;
   final Color indicatorInactiveColor;
 
@@ -1610,7 +1622,11 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               child: IconButton(
                 onPressed: (isEnabled) ? this.onTapPrev : null,
-                icon: const Icon(LxIcons.backSecondary),
+                // left-shift the icon a bit to center it visually
+                icon: Padding(
+                  padding: EdgeInsets.only(right: 2.0),
+                  child: const Icon(LxIcons.backSecondary),
+                ),
                 color: this.arrowColor,
                 disabledColor: this.arrowColor,
               ),
@@ -1631,15 +1647,76 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
           valueListenable: this.selectedPageIndex,
           builder: (_context, idx, _child) {
             final isEnabled = idx < this.numPages - 1;
+
+            // ">" next arrow button
+            final nextButton = IconButton(
+              onPressed: (isEnabled) ? this.onTapNext : null,
+              // right-shift the icon a bit to center it visually
+              icon: Padding(
+                padding: EdgeInsets.only(left: 2.0),
+                child: const Icon(LxIcons.nextSecondary),
+              ),
+              color: this.arrowColor,
+              disabledColor: this.arrowColor,
+            );
+
+            final autoAdvanceProgressAnimation =
+                this.autoAdvanceProgressAnimation;
+            final showAutoAdvanceProgress = this.showAutoAdvanceProgress;
+
+            final child =
+                (autoAdvanceProgressAnimation == null ||
+                    showAutoAdvanceProgress == null)
+                ? nextButton
+                : Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // If this is enabled, show a circular progress indicator
+                      // around the next button, showing how long until
+                      // next auto-advance.
+                      ValueListenableBuilder(
+                        valueListenable: showAutoAdvanceProgress,
+                        builder: (_context, showAutoAdvanceProgress, _child) =>
+                            IgnorePointer(
+                              child: AnimatedOpacity(
+                                opacity: (isEnabled && showAutoAdvanceProgress)
+                                    ? 1.0
+                                    : 0.0,
+                                duration: const Duration(milliseconds: 150),
+                                curve: Curves.easeOut,
+                                child: SizedBox(
+                                  width: Space.s500,
+                                  height: Space.s500,
+                                  child: AnimatedBuilder(
+                                    animation: autoAdvanceProgressAnimation,
+                                    builder: (_context, _child) =>
+                                        CircularProgressIndicator(
+                                          value: clampDouble(
+                                            autoAdvanceProgressAnimation.value,
+                                            0.0,
+                                            1.0,
+                                          ),
+                                          strokeWidth: 2.5,
+                                          color:
+                                              this.autoAdvanceProgressColor ??
+                                              this.arrowColor,
+                                          backgroundColor: this
+                                              .autoAdvanceProgressBackgroundColor,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                      ),
+
+                      nextButton,
+                    ],
+                  );
+
             return AnimatedOpacity(
               opacity: (isEnabled) ? 1.0 : this.arrowDisabledOpacity,
               duration: const Duration(milliseconds: 150),
-              child: IconButton(
-                onPressed: (isEnabled) ? this.onTapNext : null,
-                icon: const Icon(LxIcons.nextSecondary),
-                color: this.arrowColor,
-                disabledColor: this.arrowColor,
-              ),
+              child: child,
             );
           },
         ),

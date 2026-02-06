@@ -55,20 +55,55 @@ class LandingPage extends StatefulWidget {
   State<LandingPage> createState() => _LandingPageState();
 }
 
-class _LandingPageState extends State<LandingPage> {
+class _LandingPageState extends State<LandingPage>
+    with SingleTickerProviderStateMixin {
   final PageController carouselScrollController = PageController();
   final ValueNotifier<int> selectedPageIndex = ValueNotifier(0);
 
+  // LandingPage carousel auto-advance
+  //
+  // From user feedback, it's not 100% clear that the landing carousel is
+  // scrollable. So to help fix that, we'll show an auto-advance progress
+  // indicator and auto-advance the carousel every few seconds. If the user
+  // interacts with the carousel, we'll stop auto-advancing.
+
+  // Whether the auto-advance progress indicator is enabled.
+  final ValueNotifier<bool> showAutoAdvanceProgress = ValueNotifier(true);
+  // The animation controller for the auto-advance progress circle animation.
+  late final AnimationController autoAdvanceProgressController;
+  // Whether an auto-advance initiated scroll is currently in-flight.
+  bool autoAdvanceInFlight = false;
+  // Idx of the last page in the landing carousel. Since we make the pages list
+  // `build()`, this needs to be computed there.
+  int landingLastPageIndex = 0;
+
   @override
   void dispose() {
-    this.carouselScrollController.dispose();
+    this.autoAdvanceProgressController.dispose();
+    this.showAutoAdvanceProgress.dispose();
     this.selectedPageIndex.dispose();
+    this.carouselScrollController.dispose();
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+
+    this.autoAdvanceProgressController = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: 5),
+      value: 1.0,
+    );
+
+    this.autoAdvanceProgressController.addStatusListener(
+      this.onAutoAdvanceStatusChanged,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!this.mounted) return;
+      this.startAutoAdvanceCountdown();
+    });
   }
 
   /// Start the Signup UI flow. Future resolves when the user has either
@@ -164,6 +199,16 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
+  void onTapPrev() {
+    this.stopAutoAdvance(); // stop auto-advancing on user interaction
+    this.prevPage();
+  }
+
+  void onTapNext() {
+    this.stopAutoAdvance(); // stop auto-advancing on user interaction
+    this.nextPage();
+  }
+
   void prevPage() {
     unawaited(
       this.carouselScrollController.previousPage(
@@ -180,6 +225,90 @@ class _LandingPageState extends State<LandingPage> {
         curve: Curves.ease,
       ),
     );
+  }
+
+  /// Stop auto-advancing the carousel.
+  void stopAutoAdvance() {
+    if (!this.mounted) return;
+    this.showAutoAdvanceProgress.value = false;
+    this.autoAdvanceProgressController.stop();
+    this.autoAdvanceInFlight = false;
+  }
+
+  /// Start the next auto-advance countdown animation cycle.
+  void startAutoAdvanceCountdown() {
+    if (!this.mounted || !this.showAutoAdvanceProgress.value) return;
+
+    // Stop auto-advancing once we hit the last page.
+    if (this.selectedPageIndex.value >= this.landingLastPageIndex) {
+      this.stopAutoAdvance();
+      return;
+    }
+
+    this.autoAdvanceProgressController
+      ..stop()
+      ..value = 1.0
+      ..reverse(from: 1.0);
+  }
+
+  /// Called when the auto-advance progress animation completes a cycle or
+  /// is dismissed.
+  void onAutoAdvanceStatusChanged(AnimationStatus status) {
+    if (status != AnimationStatus.dismissed) return;
+    if (!this.mounted || !this.showAutoAdvanceProgress.value) return;
+    if (!this.carouselScrollController.hasClients) return;
+    if (this.selectedPageIndex.value >= this.landingLastPageIndex) return;
+
+    // Start scrolling to the next page.
+    this.autoAdvanceInFlight = true;
+    unawaited(
+      this.carouselScrollController.nextPage(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.ease,
+      ),
+    );
+  }
+
+  /// Get notified when the user manually scrolls the carousel, so we can
+  /// stop auto-advancing.
+  bool onCarouselScrollNotification(ScrollNotification notification) {
+    final userStartedDrag =
+        notification is ScrollStartNotification &&
+        notification.dragDetails != null;
+    final userIsDragging =
+        notification is ScrollUpdateNotification &&
+        notification.dragDetails != null;
+    if (userStartedDrag || userIsDragging) {
+      this.stopAutoAdvance();
+    }
+    return false;
+  }
+
+  void onCarouselPageChanged(int pageIndex) {
+    if (!this.mounted) return;
+    this.selectedPageIndex.value = pageIndex;
+
+    // Auto-advance
+
+    if (!this.showAutoAdvanceProgress.value) return;
+
+    // Must have been a user scroll. Stop auto-advance.
+    if (!this.autoAdvanceInFlight) {
+      this.stopAutoAdvance();
+      return;
+    }
+
+    // Stop auto-advancing once we hit the last page.
+    if (this.selectedPageIndex.value >= this.landingLastPageIndex) {
+      this.stopAutoAdvance();
+      return;
+    }
+
+    // Done scrolling to next page and still have more pages to go.
+    if (this.autoAdvanceInFlight) {
+      this.autoAdvanceInFlight = false;
+      this.startAutoAdvanceCountdown();
+    }
   }
 
   @override
@@ -260,6 +389,7 @@ Your wallet always verifies your node's software before sharing any keys.
     ];
 
     final numPages = landingPages.length;
+    this.landingLastPageIndex = (numPages > 0) ? numPages - 1 : 0;
 
     // set the SystemUiOverlay bars to transparent so the background shader
     // shows through.
@@ -307,29 +437,29 @@ Your wallet always verifies your node's software before sharing any keys.
                         // Landing marketing pages.
                         Container(
                           padding: EdgeInsets.only(top: top),
-                          child: PageView.builder(
-                            controller: this.carouselScrollController,
-                            scrollBehavior: const CupertinoScrollBehavior(),
-                            onPageChanged: (pageIndex) {
-                              if (!this.mounted) return;
-                              this.selectedPageIndex.value = pageIndex;
-                            },
-                            itemBuilder: (context, idx) {
-                              if (idx < 0 || idx >= numPages) return null;
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: this.onCarouselScrollNotification,
+                            child: PageView.builder(
+                              controller: this.carouselScrollController,
+                              scrollBehavior: const CupertinoScrollBehavior(),
+                              onPageChanged: this.onCarouselPageChanged,
+                              itemBuilder: (context, idx) {
+                                if (idx < 0 || idx >= numPages) return null;
 
-                              return Container(
-                                alignment: Alignment.topCenter,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: horizPadding,
-                                ),
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: maxWidth,
+                                return Container(
+                                  alignment: Alignment.topCenter,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: horizPadding,
                                   ),
-                                  child: landingPages[idx],
-                                ),
-                              );
-                            },
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: maxWidth,
+                                    ),
+                                    child: landingPages[idx],
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
 
@@ -354,8 +484,12 @@ Your wallet always verifies your node's software before sharing any keys.
                                   unawaited(this.doSignupFlow()),
                               onRestorePressed: () =>
                                   unawaited(this.doRestoreFlow()),
-                              onTapPrev: this.prevPage,
-                              onTapNext: this.nextPage,
+                              onTapPrev: this.onTapPrev,
+                              onTapNext: this.onTapNext,
+                              autoAdvanceProgressAnimation:
+                                  this.autoAdvanceProgressController,
+                              showAutoAdvanceProgress:
+                                  this.showAutoAdvanceProgress,
                             ),
                           ),
                         ),
@@ -415,6 +549,8 @@ class LandingButtons extends StatelessWidget {
     required this.numPages,
     required this.onTapPrev,
     required this.onTapNext,
+    required this.showAutoAdvanceProgress,
+    this.autoAdvanceProgressAnimation,
   });
 
   final Config config;
@@ -426,6 +562,8 @@ class LandingButtons extends StatelessWidget {
   final VoidCallback onRestorePressed;
   final VoidCallback onTapPrev;
   final VoidCallback onTapNext;
+  final ValueListenable<bool> showAutoAdvanceProgress;
+  final Animation<double>? autoAdvanceProgressAnimation;
 
   @override
   Widget build(BuildContext context) {
@@ -440,6 +578,8 @@ class LandingButtons extends StatelessWidget {
             selectedPageIndex: this.selectedPageIndex,
             onTapPrev: this.onTapPrev,
             onTapNext: this.onTapNext,
+            showAutoAdvanceProgress: this.showAutoAdvanceProgress,
+            autoAdvanceProgressAnimation: this.autoAdvanceProgressAnimation,
           ),
         ),
         const SizedBox(height: Space.s300),
