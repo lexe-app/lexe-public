@@ -1,34 +1,39 @@
-Get the self-custodial BITCOIN and LIGHTNING wallet that receives payments 24/7.
+The self-custodial BITCOIN wallet that's always on. Send and receive payments 24/7 - even when your phone's offline.
 
-Download the Lexe app and get started in less than a minute.
+Lexe is currently in CLOSED BETA. Join the waitlist at https://lexe.app to get access.
 
-RECEIVE PAYMENTS 24/7.
-Your Lexe Lightning node is always ready to stack sats. Get paid anytime,
-anywhere. Even if your phone's offline.
+Lexe is a self-custodial Lightning wallet with a secure cloud node that's always online, so you never miss a payment. Only you control your funds. We handle the infrastructure.
 
-SEND BITCOIN INSTANTLY.
-Pay anyone in the world with instant bitcoin payments to compatible wallets
-over the LIGHTNING NETWORK.
+Download Lexe and get started in minutes.
 
-YOUR BITCOIN'S SAFE, EVEN FROM US.
-Your node runs in a secure enclave in the cloud, so your funds are protected
-even if Lexe gets hacked. With Lexe, only you control your funds. Let us
-handle the infrastructure.
+LIGHTNING PAYMENTS.
+• Send & receive bitcoin instantly with low fees
+• Pay any way: Lightning Address, BOLT11 invoice, BOLT12 offer, on-chain
+• Your own ₿me@lexe.app human bitcoin address
 
-STAY PRIVATE.
-Send and receive bitcoin privately over Lightning. Your payments are between
-you and your node; we don't know who you send or receive to.
+ALWAYS ONLINE.
+• Your Lightning node runs 24/7 in the cloud
+• Receive payments anytime, even when your phone is off
+• Never miss a payment again
 
-DON'T TRUST, VERIFY.
-The Lexe Lightning node is open-source and fully reproducible. Your wallet
-always verifies the node software before sharing any keys.
+SELF-CUSTODY, SIMPLIFIED.
+• Your keys, your coins. Only you control your funds
+• Your node runs in a secure enclave, protecting funds even from us
 
-RECOVERY MADE EASY.
-Lose your phone? Multiple devices? Your wallet is always encrypted and backed
-up to Google Drive so you can get back up and running in minutes.
+PRIVATE BY DEFAULT.
+• Payments stay between you and your node
+• We can't see who you pay or who pays you
+
+OPEN SOURCE & VERIFIABLE.
+• Fully open-source Lightning node
+• Reproducible builds you can verify yourself
+• Your wallet securely verifies the node before sharing keys
+
+EASY RECOVERY.
+• Easy encrypted backups to Google Drive keep your wallet safe
+• Lose your phone? Restore your wallet in minutes
 
 Need help? Got feedback? Reach us at support+ios@lexe.app.
 
+Source: https://github.com/lexe-app/lexe-public
 Privacy: https://lexe.app/privacy-policy
-Security: https://github.com/lexe-app/lexe-public/blob/master/SECURITY.md
-Github: https://github.com/lexe-app/lexe-public
