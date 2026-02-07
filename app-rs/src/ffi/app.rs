@@ -121,7 +121,6 @@ impl AppHandle {
         config: Config,
         root_seed: RootSeed,
         partner: Option<String>,
-        signup_code: Option<String>,
         gdrive_signup_creds: Option<GDriveSignupCredentials>,
     ) -> anyhow::Result<AppHandle> {
         config.validate();
@@ -156,7 +155,6 @@ impl AppHandle {
             config.use_mock_secret_store,
             &root_seed.sdk,
             partner,
-            signup_code,
             backup_password.as_deref(),
             google_auth_code,
         )

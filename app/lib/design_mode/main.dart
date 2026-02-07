@@ -309,7 +309,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SignupBackupPasswordPage(
           ctx: mockSignupCtx,
           authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
-          signupCode: null,
         ),
       ),
       Component(
@@ -318,23 +317,20 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SignupBackupPasswordPage(
           ctx: mockSignupCtxErr,
           authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
-          signupCode: null,
         ),
       ),
       Component(
         "SignupBackupSeedConfirmPage",
-        (context) =>
-            SignupBackupSeedConfirmPage(ctx: mockSignupCtx, signupCode: null),
+        (context) => SignupBackupSeedConfirmPage(ctx: mockSignupCtx),
       ),
       Component(
         "SignupBackupSeedPage",
-        (context) => SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
+        (context) => SignupBackupSeedPage(ctx: mockSignupCtx),
       ),
       Component(
         "SignupBackupSeedPage",
         subtitle: "signup error",
-        (context) =>
-            SignupBackupSeedPage(ctx: mockSignupCtxErr, signupCode: null),
+        (context) => SignupBackupSeedPage(ctx: mockSignupCtxErr),
       ),
       Component(
         "SignupBackupSeedPage",
@@ -346,7 +342,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             GDriveAuth.mock,
             mockSignupApi,
           ),
-          signupCode: null,
         ),
       ),
       Component(
@@ -1152,7 +1147,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SignupBackupPasswordPage(
           ctx: mockSignupCtx,
           authInfo: const GDriveServerAuthCode(serverAuthCode: "fake"),
-          signupCode: null,
         ),
         screenshot:
             "lexe-docs/docs.lexe.app/images/getting-started/04-backup-password.png",
@@ -1160,15 +1154,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "DocsGettingStarted05",
-        (context) =>
-            SignupBackupSeedConfirmPage(ctx: mockSignupCtx, signupCode: null),
+        (context) => SignupBackupSeedConfirmPage(ctx: mockSignupCtx),
         screenshot:
             "lexe-docs/docs.lexe.app/images/getting-started/05-seed-only-confirm.png",
         subtitle: "Seed phrase-only confirm",
       ),
       Component(
         "DocsGettingStarted06",
-        (context) => SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
+        (context) => SignupBackupSeedPage(ctx: mockSignupCtx),
         screenshot:
             "lexe-docs/docs.lexe.app/images/getting-started/06-seed-phrase.png",
         subtitle: "Backup seed phrase",

@@ -707,10 +707,9 @@ fn wire__crate__ffi__app__app_handle_signup_impl(
             let api_config = <crate::ffi::types::Config>::sse_decode(&mut deserializer);
 let api_root_seed = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer);
 let api_partner = <Option<String>>::sse_decode(&mut deserializer);
-let api_signup_code = <Option<String>>::sse_decode(&mut deserializer);
 let api_gdrive_signup_creds = <Option<crate::ffi::types::GDriveSignupCredentials>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_root_seed, api_partner, api_signup_code, api_gdrive_signup_creds).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::signup(api_config, api_root_seed, api_partner, api_gdrive_signup_creds).await?;   Ok(output_ok)
                     })().await)
                 } })
 }

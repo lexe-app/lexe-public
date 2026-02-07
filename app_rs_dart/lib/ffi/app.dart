@@ -250,13 +250,11 @@ class AppHandle {
     required Config config,
     required RootSeed rootSeed,
     String? partner,
-    String? signupCode,
     GDriveSignupCredentials? gdriveSignupCreds,
   }) => AppRs.instance.api.crateFfiAppAppHandleSignup(
     config: config,
     rootSeed: rootSeed,
     partner: partner,
-    signupCode: signupCode,
     gdriveSignupCreds: gdriveSignupCreds,
   );
 

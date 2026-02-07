@@ -81,7 +81,6 @@ impl App {
         use_mock_secret_store: bool,
         root_seed: &SdkRootSeed,
         partner_pk: Option<UserPk>,
-        signup_code: Option<String>,
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
     ) -> anyhow::Result<Self> {
@@ -109,7 +108,6 @@ impl App {
             .signup_custom(
                 root_seed,
                 partner_pk,
-                signup_code,
                 allow_gvfs_access,
                 backup_password,
                 google_auth_code,

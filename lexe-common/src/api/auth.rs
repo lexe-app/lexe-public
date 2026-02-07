@@ -89,13 +89,24 @@ pub struct UserSignupRequestWireV2 {
 pub struct UserSignupRequestWireV1 {
     /// The lightning node pubkey in a Proof-of-Key-Possession
     pub node_pk_proof: NodePkProof,
-
-    /// The user's signup code, if provided.
+    /// Signup codes are no longer required. This field is kept for BCS
+    /// backwards compatibility with old clients sending `Option<String>`.
+    /// New clients serialize `None` (1 byte). Old clients may send
+    /// `Some(code)` which is consumed and ignored.
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_option_string()")
     )]
-    pub signup_code: Option<String>,
+    _signup_code: Option<String>,
+}
+
+impl UserSignupRequestWireV1 {
+    pub fn new(node_pk_proof: NodePkProof) -> Self {
+        Self {
+            node_pk_proof,
+            _signup_code: None,
+        }
+    }
 }
 
 /// A client's request for a new [`BearerAuthToken`].
@@ -202,12 +213,6 @@ impl UserSignupRequestWire {
     pub fn node_pk_proof(&self) -> &NodePkProof {
         match self {
             UserSignupRequestWire::V2(v2) => &v2.v1.node_pk_proof,
-        }
-    }
-
-    pub fn signup_code(&self) -> Option<&str> {
-        match self {
-            UserSignupRequestWire::V2(v2) => v2.v1.signup_code.as_deref(),
         }
     }
 

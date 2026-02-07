@@ -477,7 +477,6 @@ impl LexeWallet {
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
     ) -> anyhow::Result<()> {
-        let signup_code = None;
         let allow_gvfs_access = false;
         let backup_password = None;
         let google_auth_code = None;
@@ -485,7 +484,6 @@ impl LexeWallet {
         self.signup_inner(
             root_seed,
             partner_pk,
-            signup_code,
             allow_gvfs_access,
             backup_password,
             google_auth_code,
@@ -500,7 +498,6 @@ impl LexeWallet {
         &self,
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
-        signup_code: Option<String>,
         allow_gvfs_access: bool,
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
@@ -508,7 +505,6 @@ impl LexeWallet {
         self.signup_inner(
             root_seed,
             partner_pk,
-            signup_code,
             allow_gvfs_access,
             backup_password,
             google_auth_code,
@@ -522,7 +518,6 @@ impl LexeWallet {
         &self,
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
-        signup_code: Option<String>,
         allow_gvfs_access: bool,
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
@@ -533,10 +528,7 @@ impl LexeWallet {
         let node_pk_proof = NodePkProof::sign(&node_key_pair);
 
         let signup_req = UserSignupRequestWire::V2(UserSignupRequestWireV2 {
-            v1: UserSignupRequestWireV1 {
-                node_pk_proof,
-                signup_code,
-            },
+            v1: UserSignupRequestWireV1::new(node_pk_proof),
             partner: partner_pk.map(UserPk::unstable),
         });
         let signed_signup_req = user_key_pair

@@ -236,7 +236,6 @@ impl BlockingLexeWallet {
         &self,
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
-        signup_code: Option<String>,
         allow_gvfs_access: bool,
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
@@ -244,7 +243,6 @@ impl BlockingLexeWallet {
         block_on(self.inner.signup_custom(
             root_seed,
             partner_pk,
-            signup_code,
             allow_gvfs_access,
             backup_password,
             google_auth_code,

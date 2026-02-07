@@ -905,7 +905,6 @@ class MockSignupApi implements SignupApi {
     required Config config,
     required RootSeed rootSeed,
     required GDriveSignupCredentials? gdriveSignupCreds,
-    required String? signupCode,
     required String? partner,
   }) => Future.delayed(const Duration(milliseconds: 2000), () => Ok(this.app));
 }
@@ -918,7 +917,6 @@ class MockSignupApiErr implements SignupApi {
     required Config config,
     required RootSeed rootSeed,
     required GDriveSignupCredentials? gdriveSignupCreds,
-    required String? signupCode,
     required String? partner,
   }) => Future.delayed(
     const Duration(milliseconds: 1000),

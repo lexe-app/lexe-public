@@ -269,7 +269,6 @@ abstract class AppRsApi extends BaseApi {
     required Config config,
     required RootSeed rootSeed,
     String? partner,
-    String? signupCode,
     GDriveSignupCredentials? gdriveSignupCreds,
   });
 
@@ -1864,7 +1863,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     required Config config,
     required RootSeed rootSeed,
     String? partner,
-    String? signupCode,
     GDriveSignupCredentials? gdriveSignupCreds,
   }) {
     return handler.executeNormal(
@@ -1874,7 +1872,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           sse_encode_box_autoadd_config(config, serializer);
           sse_encode_box_autoadd_root_seed(rootSeed, serializer);
           sse_encode_opt_String(partner, serializer);
-          sse_encode_opt_String(signupCode, serializer);
           sse_encode_opt_box_autoadd_g_drive_signup_credentials(
             gdriveSignupCreds,
             serializer,
@@ -1891,7 +1888,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateFfiAppAppHandleSignupConstMeta,
-        argValues: [config, rootSeed, partner, signupCode, gdriveSignupCreds],
+        argValues: [config, rootSeed, partner, gdriveSignupCreds],
         apiImpl: this,
       ),
     );
@@ -1899,13 +1896,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
   TaskConstMeta get kCrateFfiAppAppHandleSignupConstMeta => const TaskConstMeta(
     debugName: "app_handle_signup",
-    argNames: [
-      "config",
-      "rootSeed",
-      "partner",
-      "signupCode",
-      "gdriveSignupCreds",
-    ],
+    argNames: ["config", "rootSeed", "partner", "gdriveSignupCreds"],
   );
 
   @override

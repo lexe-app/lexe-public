@@ -40,7 +40,6 @@ abstract interface class SignupApi {
     required Config config,
     required RootSeed rootSeed,
     required GDriveSignupCredentials? gdriveSignupCreds,
-    required String? signupCode,
     required String? partner,
   });
 }
@@ -63,14 +62,12 @@ class _ProdSignupApi implements SignupApi {
     required Config config,
     required RootSeed rootSeed,
     required GDriveSignupCredentials? gdriveSignupCreds,
-    required String? signupCode,
     required String? partner,
   }) => Result.tryFfiAsync(
     () => AppHandle.signup(
       config: config,
       rootSeed: rootSeed,
       gdriveSignupCreds: gdriveSignupCreds,
-      signupCode: signupCode,
       partner: partner,
     ),
   );
@@ -145,11 +142,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
     // ignore: use_build_context_synchronously
     final AppHandle? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (_) => SignupBackupPasswordPage(
-          ctx: ctx,
-          authInfo: authInfo,
-          signupCode: null,
-        ),
+        builder: (_) => SignupBackupPasswordPage(ctx: ctx, authInfo: authInfo),
       ),
     );
     if (flowResult == null || !this.mounted) return;
@@ -165,10 +158,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
 
     final AppHandle? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (_) => SignupBackupSeedConfirmPage(
-          ctx: this.widget.ctx,
-          signupCode: null,
-        ),
+        builder: (_) => SignupBackupSeedConfirmPage(ctx: this.widget.ctx),
       ),
     );
     if (flowResult == null || !this.mounted) return;
@@ -247,12 +237,10 @@ class SignupBackupPasswordPage extends StatefulWidget {
     super.key,
     required this.ctx,
     required this.authInfo,
-    required this.signupCode,
   });
 
   final SignupCtx ctx;
   final GDriveServerAuthCode authInfo;
-  final String? signupCode;
 
   @override
   State<SignupBackupPasswordPage> createState() =>
@@ -316,7 +304,6 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
       config: ctx.config,
       rootSeed: ctx.rootSeed,
       gdriveSignupCreds: gdriveSignupCreds,
-      signupCode: this.widget.signupCode,
       partner: null,
     );
     if (!this.mounted) return;
@@ -459,14 +446,9 @@ recover your funds**.
 /// Once we have VSS backup to a third party, the messaging can change since
 /// all users will be OK.
 class SignupBackupSeedConfirmPage extends StatelessWidget {
-  const SignupBackupSeedConfirmPage({
-    super.key,
-    required this.ctx,
-    required this.signupCode,
-  });
+  const SignupBackupSeedConfirmPage({super.key, required this.ctx});
 
   final SignupCtx ctx;
-  final String? signupCode;
 
   Future<void> onConfirmPressed(BuildContext context) async {
     info(
@@ -475,10 +457,7 @@ class SignupBackupSeedConfirmPage extends StatelessWidget {
     );
 
     final AppHandle? flowResult = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            SignupBackupSeedPage(ctx: this.ctx, signupCode: this.signupCode),
-      ),
+      MaterialPageRoute(builder: (_) => SignupBackupSeedPage(ctx: this.ctx)),
     );
     if (flowResult == null || !context.mounted) return;
 
@@ -528,14 +507,9 @@ phone, but relies on Lexe to provide your encrypted recovery data.
 /// Show the user their 24 word seed phrase. Require them to actively confirm
 /// that they've backed it up before they can finish signup.
 class SignupBackupSeedPage extends StatefulWidget {
-  const SignupBackupSeedPage({
-    super.key,
-    required this.ctx,
-    required this.signupCode,
-  });
+  const SignupBackupSeedPage({super.key, required this.ctx});
 
   final SignupCtx ctx;
-  final String? signupCode;
 
   @override
   State<SignupBackupSeedPage> createState() => _SignupBackupSeedPageState();
@@ -593,7 +567,6 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
       config: ctx.config,
       rootSeed: ctx.rootSeed,
       gdriveSignupCreds: null,
-      signupCode: this.widget.signupCode,
       partner: null,
     );
     if (!this.mounted) return;
