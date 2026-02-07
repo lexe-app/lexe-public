@@ -158,8 +158,8 @@ Future<Config> build(final UserAgent userAgent) async {
 
   // Keep in sync with `sdk-sidecar/src/run.rs`.
   final gatewayUrl = switch (deployEnv) {
-    DeployEnv.prod => "https://lexe-prod.uswest2.prod.lexe.app",
-    DeployEnv.staging => "https://lexe-staging-sgx.uswest2.staging.lexe.app",
+    DeployEnv.prod => "https://gateway.lexe.app",
+    DeployEnv.staging => "https://gateway.staging.lexe.app",
     // Use the build-time env $DEV_GATEWAY_URL in local dev.
     // We can't hard code this since deploying to a real mobile device in dev
     // requires connecting to the dev machine over the local LAN.

@@ -94,11 +94,8 @@ impl DeployEnv {
         match self {
             Self::Dev => dev_gateway_url
                 .unwrap_or(Cow::Borrowed("https://localhost:4040")),
-            Self::Staging => Cow::Borrowed(
-                "https://lexe-staging-sgx.uswest2.staging.lexe.app",
-            ),
-            Self::Prod =>
-                Cow::Borrowed("https://lexe-prod.uswest2.prod.lexe.app"),
+            Self::Staging => Cow::Borrowed("https://gateway.staging.lexe.app"),
+            Self::Prod => Cow::Borrowed("https://gateway.lexe.app"),
         }
     }
 
