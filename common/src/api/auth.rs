@@ -396,6 +396,8 @@ impl Scope {
 
 #[cfg(test)]
 mod test {
+    use base64::Engine;
+
     use super::*;
     use crate::test_utils::roundtrip::{
         bcs_roundtrip_ok, bcs_roundtrip_proptest, signed_roundtrip_proptest,
@@ -465,5 +467,32 @@ mod test {
         let input = b"\x01";
         let scope = Scope::NodeConnect;
         bcs_roundtrip_ok(input, &scope);
+    }
+
+    /// Snapshot test for UserSignupRequestWireV1 BCS serialization.
+    /// These snapshots were generated with the old `signup_code:
+    /// Option<String>` field. Since BCS ignores field names, the current
+    /// `_signup_code` field produces identical serialization.
+    #[test]
+    fn test_user_signup_request_wire_v1_snapshot() {
+        let b64 = base64::engine::general_purpose::STANDARD;
+
+        // Old client with signup_code = Some("ABCD-1234")
+        let input_with_code = "AqqWkI6A9EExJ9suasa1a4Vte7dSztOpSsGNVUHClpLb\
+            RjBEAiANgXon77EhDl3dq6ZASg9u/xjS3OET2um+OA6+/58UmQIgEYmJGcNNWfMy\
+            npScmW9joOortpvHul9bHyojSj3Im70BCUFCQ0QtMTIzNA==";
+        let bytes_with_code = b64.decode(input_with_code).unwrap();
+        let req: UserSignupRequestWireV1 =
+            bcs::from_bytes(&bytes_with_code).unwrap();
+        assert!(req.node_pk_proof.verify().is_ok());
+
+        // Old client with signup_code = None
+        let input_none = "AqqWkI6A9EExJ9suasa1a4Vte7dSztOpSsGNVUHClpLbRjBE\
+            AiANgXon77EhDl3dq6ZASg9u/xjS3OET2um+OA6+/58UmQIgEYmJGcNNWfMynpSc\
+            mW9joOortpvHul9bHyojSj3Im70A";
+        let bytes_none = b64.decode(input_none).unwrap();
+        let req: UserSignupRequestWireV1 =
+            bcs::from_bytes(&bytes_none).unwrap();
+        assert!(req.node_pk_proof.verify().is_ok());
     }
 }
