@@ -208,7 +208,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     unawaited(this.doFetchLnInvoice());
 
-    final cachedOffer = this.widget.appData.paymentAddress.value?.offer;
+    // Use the payment-address offer as the default reusable offer only when
+    // the human bitcoin address feature is enabled.
+    final cachedOffer = this.widget.featureFlags.showPaymentAddress
+        ? this.widget.appData.paymentAddress.value?.offer
+        : null;
     if (cachedOffer != null) {
       this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(
         offer: cachedOffer,
@@ -667,10 +671,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> openEditLnOfferPage() async {
-    final prevOffer = this.lnOfferInputs.value;
+    final prevOfferInputs = this.lnOfferInputs.value;
+    final currentOffer = this.lnOfferPaymentOffer().value;
     final prev = AmountDescription(
-      amountSats: prevOffer.amountSats,
-      description: prevOffer.description,
+      amountSats: prevOfferInputs.amountSats ?? currentOffer.amountSats,
+      description: prevOfferInputs.description ?? currentOffer.description,
     );
 
     final AmountDescription? flowResult = await Navigator.of(this.context).push(
