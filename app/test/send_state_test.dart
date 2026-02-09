@@ -314,10 +314,13 @@ void main() {
         paymentMethod: const PaymentMethod.offer(offer),
       );
 
-      final result = await state.preflight(3000);
+      final result = await state.preflight(3000, payerNote: 'payer note');
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendState_Preflighted>());
+      final preflighted =
+          result.ok!.preflightedPayment as PreflightedPayment_Offer;
+      expect(preflighted.payerNote, 'payer note');
       expect(mockService.calls, ['preflightPayOffer($testOffer)']);
     });
 
@@ -382,13 +385,19 @@ void main() {
         PayOfferResponse(index: PaymentCreatedIndex(field0: 'test-index')),
       );
 
-      final state = _createPreflightedOffer(mockService, fiatRate);
+      final state = _createPreflightedOffer(
+        mockService,
+        fiatRate,
+        payerNote: 'payer note',
+      );
 
       final result = await state.pay('Offer payment', null);
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
       expect(mockService.calls.first, startsWith('payOffer('));
+      expect(mockService.lastPayOfferRequest?.note, 'Offer payment');
+      expect(mockService.lastPayOfferRequest?.payerNote, 'payer note');
     });
 
     test('pay returns error on failure', () async {
@@ -514,18 +523,20 @@ SendState_Preflighted _createPreflightedInvoice(
 /// Create a preflighted offer state for testing pay().
 SendState_Preflighted _createPreflightedOffer(
   MockSendPaymentService mockService,
-  ValueNotifier<FiatRate?> fiatRate,
-) {
+  ValueNotifier<FiatRate?> fiatRate, {
+  String? payerNote,
+}) {
   return SendState_Preflighted(
     paymentService: mockService,
     configNetwork: Network.mainnet,
     balance: testBalance(),
     cid: testCid(),
     fiatRate: fiatRate,
-    preflightedPayment: const PreflightedPayment_Offer(
+    preflightedPayment: PreflightedPayment_Offer(
       offer: Offer(string: testOffer),
       amountSats: 3000,
       preflight: PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
+      payerNote: payerNote,
     ),
   );
 }

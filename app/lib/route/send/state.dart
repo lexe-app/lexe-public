@@ -245,6 +245,7 @@ class SendState_NeedAmount implements SendState {
               offer: offer,
               amountSats: amountSats,
               preflight: ok,
+              payerNote: payerNote,
             );
           case Err(:final err):
             return Err(err);
@@ -438,6 +439,7 @@ class SendState_Preflighted implements SendState {
           ? preflighted.amountSats
           : null,
       note: note,
+      payerNote: preflighted.payerNote,
     );
 
     final res = await this.paymentService.payOffer(req: req);
@@ -452,6 +454,7 @@ class SendState_Preflighted implements SendState {
           offer: preflighted.offer,
           description: preflighted.offer.description,
           note: note,
+          payerNote: preflighted.payerNote,
 
           // Choose some reasonable values until we can get these from the
           // response.
@@ -522,11 +525,13 @@ class PreflightedPayment_Offer implements PreflightedPayment {
     required this.offer,
     required this.amountSats,
     required this.preflight,
+    this.payerNote,
   });
 
   final Offer offer;
   final int amountSats;
   final PreflightPayOfferResponse preflight;
+  final String? payerNote;
 
   @override
   PaymentKind kind() => const PaymentKind_Offer();
