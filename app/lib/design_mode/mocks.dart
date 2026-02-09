@@ -1505,6 +1505,7 @@ const Payment dummyOfferOutboundPayment01 = Payment(
   status: PaymentStatus.completed,
   statusStr: "completed",
   note: "Donation",
+  payerNote: "Thanks for building this project.",
   createdAt: 1748993362000,
   finalizedAt: 1748993364000,
 );

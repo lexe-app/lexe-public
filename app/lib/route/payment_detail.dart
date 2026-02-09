@@ -297,11 +297,15 @@ class PaymentDetailPageInner extends StatelessWidget {
               ? payment.description
               : null;
           final hasDescription = description != null && description.isNotEmpty;
-
           final payerName = payment.payerName;
-          final payerNote = payment.payerNote;
           final hasPayerName = payerName != null && payerName.isNotEmpty;
+          final payerNote = payment.payerNote;
           final hasPayerNote = payerNote != null && payerNote.isNotEmpty;
+          final payerNoteLabel = switch (direction) {
+            PaymentDirection.inbound => "Payer note",
+            PaymentDirection.outbound => "Message to recipient",
+            PaymentDirection.info => "Payer note",
+          };
 
           final initialNote = payment.note;
 
@@ -387,7 +391,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                       ),
                     ),
 
-                  // Payer name for inbound offer payments.
+                  // Payer name metadata.
                   if (hasPayerName)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
@@ -403,7 +407,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                       ),
                     ),
 
-                  // Payer note for inbound offer payments.
+                  // Recipient metadata provided by the payment protocol.
                   if (hasPayerNote)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
@@ -413,7 +417,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                         Space.s400,
                       ),
                       child: PaymentDetailLabeledCard(
-                        label: "Payer note",
+                        label: payerNoteLabel,
                         content: payerNote,
                         maxLines: 3,
                       ),
