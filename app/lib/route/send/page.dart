@@ -35,6 +35,7 @@ import 'package:lexeapp/components.dart'
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
+        MAX_OFFER_PAYMENT_NOTE_CHARS,
         MultistepFlow,
         PaymentAmountInput,
         PaymentNoteInput,
@@ -468,8 +469,16 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   /// Max payer note length if the recipient supports it.
   int? maxPayerNoteLen() => switch (this.widget.sendCtx.paymentMethod) {
+    PaymentMethod_Offer() => MAX_OFFER_PAYMENT_NOTE_CHARS,
     PaymentMethod_LnurlPayRequest(:final field0) => field0.commentAllowed,
     _ => null,
+  };
+
+  String payerNoteHintText() => switch (this.widget.sendCtx.paymentMethod) {
+    PaymentMethod_Offer() => "Optional message (visible to recipient)",
+    PaymentMethod_LnurlPayRequest() =>
+      "Optional comment (visible to recipient)",
+    _ => "Optional message (visible to recipient)",
   };
 
   @override
@@ -516,12 +525,12 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           if (this.extraDetails() != null) this.extraDetails()!,
           const SizedBox(height: Space.s300),
 
-          // Payer note input for recipients that support it (e.g. LNURL-pay).
+          // Recipient-facing payer note for payment methods that support it.
           if (this.maxPayerNoteLen() case final maxLen? when maxLen > 0)
             PaymentNoteInput(
               fieldKey: this.payerNoteFieldKey,
               onSubmit: this.onNext,
-              hintText: "Add a message to the recipient",
+              hintText: this.payerNoteHintText(),
               maxLength: maxLen,
             ),
 

@@ -29,6 +29,14 @@ import 'package:rxdart_ext/rxdart_ext.dart';
 // ignore: constant_identifier_names
 const int MAX_PAYMENT_NOTE_BYTES = 512;
 
+/// Maximum note length shown in app input fields, in characters.
+///
+/// We also enforce [`MAX_PAYMENT_NOTE_BYTES`] (512 UTF-8 bytes) via
+/// [`MaxUtf8BytesInputFormatter`] to match LDK's `invreq_payer_note` limit,
+/// which truncates overlong notes.
+// ignore: constant_identifier_names
+const int MAX_OFFER_PAYMENT_NOTE_CHARS = 200;
+
 typedef VoidContextCallback = void Function(BuildContext);
 
 const InputDecoration baseInputDecoration = InputDecoration(
