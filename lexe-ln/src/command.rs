@@ -1229,6 +1229,7 @@ where
         fallback_amount: req.fallback_amount,
         // User note not relevant for pre-flight.
         note: None,
+        payer_note: None,
     };
     let PreflightedPayOffer { oopwm, route } = preflight_pay_offer_inner(
         req,

@@ -632,6 +632,7 @@ pub struct PayOfferRequest {
     pub offer: String,
     pub fallback_amount_sats: Option<u64>,
     pub note: Option<String>,
+    pub payer_note: Option<String>,
 }
 
 impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
@@ -646,6 +647,7 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
                 .map(Amount::try_from_sats_u64)
                 .transpose()?,
             note: value.note,
+            payer_note: value.payer_note,
         })
     }
 }

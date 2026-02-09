@@ -435,6 +435,9 @@ pub struct PayOfferRequest {
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
     pub note: Option<String>,
+    /// An optional note included in the BOLT12 invoice request and visible to
+    /// the recipient.
+    pub payer_note: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

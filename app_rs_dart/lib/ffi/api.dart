@@ -204,6 +204,7 @@ sealed class PayOfferRequest with _$PayOfferRequest {
     required String offer,
     int? fallbackAmountSats,
     String? note,
+    String? payerNote,
   }) = _PayOfferRequest;
 }
 
