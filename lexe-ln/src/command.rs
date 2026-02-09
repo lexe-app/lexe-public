@@ -1533,9 +1533,9 @@ where
     let routing_fee = lx_route.fees();
     let kind = PaymentKind::Offer;
 
-    // TODO(max): Include these fields in `PayOfferRequest`
+    // TODO(max): Include `payer_name` in `PayOfferRequest`
     let payer_name = None;
-    let payer_note = None;
+    let payer_note = req.payer_note;
 
     let oopwm = OutboundOfferPaymentV2::new(
         req.cid,
