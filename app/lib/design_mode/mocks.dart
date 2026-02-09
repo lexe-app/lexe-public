@@ -557,7 +557,7 @@ class MockAppHandle extends AppHandle {
       createdAt: createdAt,
       expiresAt: expiresAt,
       amountSats: amountMsats,
-      description: "pour-over coffee",
+      description: comment ?? "pour-over coffee",
       payeePubkey: dummy.payeePubkey,
     );
   });

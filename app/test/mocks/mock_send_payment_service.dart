@@ -95,7 +95,7 @@ class MockSendPaymentService implements SendPaymentService {
     required int amountMsats,
     String? comment,
   }) async {
-    this.calls.add('resolveLnurlPayRequest($amountMsats)');
+    this.calls.add('resolveLnurlPayRequest($amountMsats, comment: $comment)');
     return this.resolveLnurlPayRequestResult ??
         Err(const FfiError('resolveLnurlPayRequest not configured'));
   }

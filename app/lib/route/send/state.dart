@@ -175,11 +175,10 @@ class SendState_NeedAmount implements SendState {
   };
 
   /// Using the current [PaymentMethod], preflight the payment with the given
-  /// amount. For LNURL-pay, an optional [comment] can be sent to the
-  /// recipient.
+  /// amount. An optional [payerNote] can be sent to the recipient.
   Future<FfiResult<SendState_Preflighted>> preflight(
     final int amountSats, {
-    final String? comment,
+    final String? payerNote,
   }) async {
     final paymentMethod = this.paymentMethod;
 
@@ -256,7 +255,7 @@ class SendState_NeedAmount implements SendState {
         final result = await this.paymentService.resolveLnurlPayRequest(
           req: lnurlPayRequest,
           amountMsats: amountSats * 1000,
-          comment: comment,
+          comment: payerNote,
         );
 
         final Invoice invoice;
@@ -282,7 +281,7 @@ class SendState_NeedAmount implements SendState {
               invoice: invoice,
               amountSats: amountSats,
               preflight: ok,
-              comment: comment,
+              payerNote: payerNote,
               sendTo:
                   lnurlPayRequest.metadata.email ??
                   lnurlPayRequest.metadata.identifier,
@@ -486,7 +485,7 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
     required this.invoice,
     required this.amountSats,
     required this.preflight,
-    this.comment,
+    this.payerNote,
     this.sendTo,
   });
 
@@ -494,8 +493,8 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
   final int amountSats;
   final PreflightPayInvoiceResponse preflight;
 
-  /// LNURL-pay: comment sent to the recipient, stored locally as the note.
-  final String? comment;
+  /// Message sent to the recipient, stored locally as the note.
+  final String? payerNote;
   final String? sendTo;
 
   @override

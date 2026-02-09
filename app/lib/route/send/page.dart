@@ -349,7 +349,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
-  final GlobalKey<FormFieldState<String>> commentFieldKey = GlobalKey();
+  final GlobalKey<FormFieldState<String>> payerNoteFieldKey = GlobalKey();
 
   @override
   void dispose() {
@@ -382,17 +382,17 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     // done.
     this.estimatingFee.value = true;
 
-    // Get the comment if the user entered one.
-    final commentText = this.commentFieldKey.currentState?.value;
-    final comment = (commentText != null && commentText.isNotEmpty)
-        ? commentText
+    // Get the payer note if the user entered one.
+    final payerNoteText = this.payerNoteFieldKey.currentState?.value;
+    final payerNote = (payerNoteText != null && payerNoteText.isNotEmpty)
+        ? payerNoteText
         : null;
 
     // Preflight the payment. That means we're checking, on the node itself,
     // for enough balance, if there's a route, fees, etc...
     final result = await this.widget.sendCtx.preflight(
       amountSats,
-      comment: comment,
+      payerNote: payerNote,
     );
 
     if (!this.mounted) return;
@@ -466,8 +466,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     ),
   };
 
-  /// Max comment length if the recipient supports comments.
-  int? commentAllowed() => switch (this.widget.sendCtx.paymentMethod) {
+  /// Max payer note length if the recipient supports it.
+  int? maxPayerNoteLen() => switch (this.widget.sendCtx.paymentMethod) {
     PaymentMethod_LnurlPayRequest(:final field0) => field0.commentAllowed,
     _ => null,
   };
@@ -516,10 +516,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           if (this.extraDetails() != null) this.extraDetails()!,
           const SizedBox(height: Space.s300),
 
-          // Comment input for LNURL-pay recipients that support it.
-          if (this.commentAllowed() case final maxLen? when maxLen > 0)
+          // Payer note input for recipients that support it (e.g. LNURL-pay).
+          if (this.maxPayerNoteLen() case final maxLen? when maxLen > 0)
             PaymentNoteInput(
-              fieldKey: this.commentFieldKey,
+              fieldKey: this.payerNoteFieldKey,
               onSubmit: this.onNext,
               hintText: "Add a message to the recipient",
               maxLength: maxLen,
@@ -1038,7 +1038,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               onSubmit: this.onConfirm,
               isEnabled: !isSending,
               initialNote: switch (preflighted) {
-                PreflightedPayment_Invoice(:final comment) => comment,
+                PreflightedPayment_Invoice(:final payerNote) => payerNote,
                 _ => null,
               },
             ),
