@@ -112,19 +112,19 @@ class _AssertBoolEnv {
   const _AssertBoolEnv(String s) : assert(s == "true" || s == "false");
 }
 
-class _AssertAppFlavor {
-  const _AssertAppFlavor(
-    String envDeployEnv,
-    String envNetwork,
-    bool envUseSgx,
-    String flavorDeployEnv,
-    String flavorNetwork,
-    bool flavorUseSgx,
-  ) : assert(
-        envDeployEnv == flavorDeployEnv &&
-            envNetwork == flavorNetwork &&
-            envUseSgx == flavorUseSgx,
-      );
+class _AssertAppFlavorDeployEnv {
+  const _AssertAppFlavorDeployEnv(String envDeployEnv, String flavorDeployEnv)
+    : assert(envDeployEnv == flavorDeployEnv);
+}
+
+class _AssertAppFlavorNetwork {
+  const _AssertAppFlavorNetwork(String envNetwork, String flavorNetwork)
+    : assert(envNetwork == flavorNetwork);
+}
+
+class _AssertAppFlavorUseSgx {
+  const _AssertAppFlavorUseSgx(bool envUseSgx, bool flavorUseSgx)
+    : assert(envUseSgx == flavorUseSgx);
 }
 
 // ignore: unused_element,  constant_identifier_names
@@ -134,14 +134,11 @@ const _2 = _AssertNetworkEnv(_networkStr);
 // ignore: unused_element, constant_identifier_names
 const _3 = _AssertBoolEnv(_useSgxStr);
 // ignore: unused_element, constant_identifier_names
-const _4 = _AssertAppFlavor(
-  _deployEnvStr,
-  _networkStr,
-  _useSgx,
-  _flavorDeployEnvStr,
-  _flavorNetworkStr,
-  _flavorUseSgx,
-);
+const _4 = _AssertAppFlavorDeployEnv(_deployEnvStr, _flavorDeployEnvStr);
+// ignore: unused_element, constant_identifier_names
+const _5 = _AssertAppFlavorNetwork(_networkStr, _flavorNetworkStr);
+// ignore: unused_element, constant_identifier_names
+const _6 = _AssertAppFlavorUseSgx(_useSgx, _flavorUseSgx);
 
 /// Build a [Config] that will actually talk to the lexe backend. That could be
 /// the real production backend or just a local development version.
