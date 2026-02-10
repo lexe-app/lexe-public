@@ -1075,7 +1075,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           uriEvents: this.widget.uriEvents,
           gdriveAuth: GDriveAuth.mock,
         ),
-        screenshot: "lexe-docs/docs.lexe.app./images/landing/01-home.png",
+        screenshot: "lexe-docs/docs.lexe.app/images/landing/01-home.png",
         subtitle: "Home screen",
       ),
 
@@ -1092,21 +1092,21 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           fixedShaderTime: 8.5,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/01-welcome.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/01-welcome.png",
         subtitle: "Welcome screen",
       ),
       Component(
         "DocsGettingStarted02",
         (context) => SignupCodePage(ctx: mockSignupCtx),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/02-signup-code.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/02-signup-code.png",
         subtitle: "Enter signup code",
       ),
       Component(
         "DocsGettingStarted03",
         (context) => SignupGDriveAuthPage(ctx: mockSignupCtx, signupCode: null),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/03-google-drive.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/03-google-drive.png",
         subtitle: "Connect Google Drive",
       ),
       Component(
@@ -1117,7 +1117,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           signupCode: null,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/04-backup-password.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/04-backup-password.png",
         subtitle: "Enter backup password",
       ),
       Component(
@@ -1125,14 +1125,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) =>
             SignupBackupSeedConfirmPage(ctx: mockSignupCtx, signupCode: null),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/05-seed-only-confirm.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/05-seed-only-confirm.png",
         subtitle: "Seed phrase-only confirm",
       ),
       Component(
         "DocsGettingStarted06",
         (context) => SignupBackupSeedPage(ctx: mockSignupCtx, signupCode: null),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/06-seed-phrase.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/06-seed-phrase.png",
         subtitle: "Backup seed phrase",
       ),
       Component(
@@ -1151,7 +1151,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           gdriveAuth: GDriveAuth.mock,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/07-home.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/07-home.png",
         subtitle: "Empty home screen",
       ),
       Component(
@@ -1164,7 +1164,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/08-receive-lightning.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/08-receive-lightning.png",
         subtitle: "Receive Lightning invoice",
       ),
       Component(
@@ -1193,7 +1193,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           );
         },
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/09-channels-after-lightning.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/09-channels-after-lightning.png",
         subtitle: "Channels after JIT open",
       ),
       Component(
@@ -1207,7 +1207,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           designInitialPageIdx: btcPageIdx,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/10-receive-onchain.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/10-receive-onchain.png",
         subtitle: "Receive Bitcoin address",
       ),
       Component(
@@ -1226,7 +1226,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           gdriveAuth: GDriveAuth.mock,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/11-onchain-received.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/11-onchain-received.png",
         subtitle: "On-chain funds received",
       ),
       Component(
@@ -1242,7 +1242,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           designInitialAmount: 80000,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/12-open-channel-amount.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/12-open-channel-amount.png",
         subtitle: "Open channel amount",
       ),
       Component(
@@ -1260,7 +1260,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           preflight: const PreflightOpenChannelResponse(feeEstimateSats: 123),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/13-open-channel-confirm.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/13-open-channel-confirm.png",
         subtitle: "Confirm channel open",
       ),
       Component(
@@ -1289,7 +1289,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           );
         },
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/14-channels-after-open.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/14-channels-after-open.png",
         subtitle: "Channel opened",
       ),
       Component(
@@ -1308,7 +1308,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           gdriveAuth: GDriveAuth.mock,
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/15-home-funded.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/15-home-funded.png",
         subtitle: "Funded wallet (Lightning)",
       ),
       Component(
@@ -1324,7 +1324,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/16-send-who.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/16-send-who.png",
         subtitle: "Send - Who are we paying?",
       ),
       Component(
@@ -1352,7 +1352,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/17-send-confirm.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/17-send-confirm.png",
         subtitle: "Confirm payment",
       ),
       Component(
@@ -1366,7 +1366,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           triggerRefresh: () {},
         ),
         screenshot:
-            "lexe-docs/docs.lexe.app./images/getting-started/18-send-success.png",
+            "lexe-docs/docs.lexe.app/images/getting-started/18-send-success.png",
         subtitle: "Payment sent",
       ),
 
@@ -1453,7 +1453,7 @@ class Component extends StatelessWidget {
 
   /// (Screenshot automation only) Path where screenshot should be saved,
   /// relative to repository root.
-  /// Example: "lexe-docs/docs.lexe.app./images/landing/01-home.png"
+  /// Example: "lexe-docs/docs.lexe.app/images/landing/01-home.png"
   final String? screenshot;
   final String? subtitle;
 
