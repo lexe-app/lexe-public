@@ -630,6 +630,21 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "SendPaymentAmountPage",
+        subtitle: "offer",
+        (context) => SendPaymentPage(
+          startNewFlow: true,
+          sendCtx: SendState_NeedAmount(
+            paymentService: SendPaymentServiceImpl(mockApp),
+            configNetwork: this.widget.config.network,
+            balance: mockApp.balance,
+            cid: cid,
+            fiatRate: mockFiatRate,
+            paymentMethod: const PaymentMethod.offer(mocks.defaultOffer),
+          ),
+        ),
+      ),
+      Component(
+        "SendPaymentAmountPage",
         subtitle: "onchain (preflight error)",
         (context) => SendPaymentPage(
           startNewFlow: true,

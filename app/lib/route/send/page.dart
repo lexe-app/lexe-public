@@ -351,6 +351,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
   final GlobalKey<FormFieldState<String>> payerNoteFieldKey = GlobalKey();
+  final GlobalKey<FormFieldState<String>> noteFieldKey = GlobalKey();
 
   @override
   void dispose() {
@@ -389,6 +390,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         ? payerNoteText
         : null;
 
+    // Get a personal note if the user entered one.
+    final noteText = this.noteFieldKey.currentState?.value;
+    final note = (noteText != null && noteText.isNotEmpty) ? noteText : null;
+
     // Preflight the payment. That means we're checking, on the node itself,
     // for enough balance, if there's a route, fees, etc...
     final result = await this.widget.sendCtx.preflight(
@@ -421,7 +426,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(
           MaterialPageRoute(
-            builder: (_) => SendPaymentConfirmPage(sendCtx: nextSendCtx),
+            builder: (_) =>
+                SendPaymentConfirmPage(sendCtx: nextSendCtx, initialNote: note),
           ),
         );
 
@@ -483,7 +489,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kind = this.widget.sendCtx.paymentMethod.kind();
+    final paymentMethod = this.widget.sendCtx.paymentMethod;
+    final kind = paymentMethod.kind();
     final balance = this.widget.sendCtx.balance;
     final balanceMaxSendableStr = currency_format.formatSatsAmount(
       balance.maxSendableByKind(kind),
@@ -491,6 +498,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     );
 
     final description = this.description();
+    final maxPayerNoteLen = this.maxPayerNoteLen();
+    final showOptionalNotesSection = maxPayerNoteLen != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -525,13 +534,13 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           if (this.extraDetails() != null) this.extraDetails()!,
           const SizedBox(height: Space.s300),
 
-          // Recipient-facing payer note for payment methods that support it.
-          if (this.maxPayerNoteLen() case final maxLen? when maxLen > 0)
-            PaymentNoteInput(
-              fieldKey: this.payerNoteFieldKey,
+          if (showOptionalNotesSection)
+            OptionalNotes(
+              maxPayerNoteLen: maxPayerNoteLen,
+              noteFieldKey: this.noteFieldKey,
               onSubmit: this.onNext,
-              hintText: this.payerNoteHintText(),
-              maxLength: maxLen,
+              payerNoteFieldKey: this.payerNoteFieldKey,
+              payerNoteHintText: this.payerNoteHintText(),
             ),
 
           // Error fetching fee estimate
@@ -556,6 +565,76 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class OptionalNotes extends StatefulWidget {
+  const OptionalNotes({
+    super.key,
+    required this.maxPayerNoteLen,
+    required this.noteFieldKey,
+    required this.onSubmit,
+    required this.payerNoteFieldKey,
+    required this.payerNoteHintText,
+  });
+
+  final int? maxPayerNoteLen;
+  final GlobalKey<FormFieldState<String>> noteFieldKey;
+  final VoidCallback onSubmit;
+  final GlobalKey<FormFieldState<String>> payerNoteFieldKey;
+  final String payerNoteHintText;
+
+  @override
+  State<OptionalNotes> createState() => _OptionalNotesState();
+}
+
+class _OptionalNotesState extends State<OptionalNotes> {
+  final FocusNode payerNoteFocusNode = FocusNode();
+  final FocusNode personalNoteFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    this.payerNoteFocusNode.dispose();
+    this.personalNoteFocusNode.dispose();
+    super.dispose();
+  }
+
+  void focusPersonalNote() {
+    this.personalNoteFocusNode.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Optional notes",
+          style: TextStyle(fontSize: Fonts.size200, color: LxColors.fgTertiary),
+        ),
+        const SizedBox(height: Space.s200),
+
+        if (this.widget.maxPayerNoteLen case final maxLen? when maxLen > 0) ...[
+          PaymentNoteInput(
+            fieldKey: this.widget.payerNoteFieldKey,
+            focusNode: this.payerNoteFocusNode,
+            onSubmit: this.focusPersonalNote,
+            hintText: this.widget.payerNoteHintText,
+            maxLength: maxLen,
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: Space.s300),
+        ],
+
+        PaymentNoteInput(
+          fieldKey: this.widget.noteFieldKey,
+          focusNode: this.personalNoteFocusNode,
+          onSubmit: this.widget.onSubmit,
+          hintText: "Optional personal note (visible to you only)",
+          textInputAction: TextInputAction.next,
+        ),
+      ],
     );
   }
 }
@@ -642,9 +721,14 @@ class MetadataRow extends StatelessWidget {
 /// 3. Allows the user to adjust the tx priority for high+fast or low+slow
 ///    fee/confirmation time.
 class SendPaymentConfirmPage extends StatefulWidget {
-  const SendPaymentConfirmPage({super.key, required this.sendCtx});
+  const SendPaymentConfirmPage({
+    super.key,
+    required this.sendCtx,
+    this.initialNote,
+  });
 
   final SendState_Preflighted sendCtx;
+  final String? initialNote;
 
   @override
   State<SendPaymentConfirmPage> createState() => _SendPaymentConfirmPageState();
@@ -1046,10 +1130,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               fieldKey: this.noteFieldKey,
               onSubmit: this.onConfirm,
               isEnabled: !isSending,
-              initialNote: switch (preflighted) {
-                PreflightedPayment_Invoice(:final payerNote) => payerNote,
-                _ => null,
-              },
+              initialNote: this.widget.initialNote,
             ),
           ),
 

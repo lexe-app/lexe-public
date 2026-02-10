@@ -1061,19 +1061,23 @@ class PaymentNoteInput extends StatefulWidget {
     required this.fieldKey,
     required this.onSubmit,
     this.contentPadding,
+    this.focusNode,
     this.initialNote,
     this.hintText = "Optional note (visible to you only)",
     this.isEnabled = true,
     this.maxLength = 200,
+    this.textInputAction = TextInputAction.send,
   });
 
   final EdgeInsetsGeometry? contentPadding;
   final GlobalKey<FormFieldState<String>> fieldKey;
+  final FocusNode? focusNode;
   final VoidCallback onSubmit;
   final String? initialNote;
   final String hintText;
   final bool isEnabled;
   final int maxLength;
+  final TextInputAction textInputAction;
 
   @override
   State<PaymentNoteInput> createState() => _PaymentNoteInputState();
@@ -1082,7 +1086,12 @@ class PaymentNoteInput extends StatefulWidget {
 class _PaymentNoteInputState extends State<PaymentNoteInput> {
   final ValueNotifier<String> currentValue = ValueNotifier("");
   final ValueNotifier<bool> isTextFocused = ValueNotifier(false);
-  final FocusNode textFocus = FocusNode();
+  final FocusNode fallbackTextFocus = FocusNode();
+
+  FocusNode get textFocus => this.widget.focusNode ?? this.fallbackTextFocus;
+
+  FocusNode getFocusNode(PaymentNoteInput widget) =>
+      widget.focusNode ?? this.fallbackTextFocus;
 
   void onTextFocusChange() {
     this.isTextFocused.value = this.textFocus.hasFocus;
@@ -1096,9 +1105,22 @@ class _PaymentNoteInputState extends State<PaymentNoteInput> {
   }
 
   @override
+  void didUpdateWidget(covariant PaymentNoteInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final oldFocus = this.getFocusNode(oldWidget);
+    final newFocus = this.getFocusNode(this.widget);
+    if (oldFocus != newFocus) {
+      oldFocus.removeListener(this.onTextFocusChange);
+      newFocus.addListener(this.onTextFocusChange);
+      this.onTextFocusChange();
+    }
+  }
+
+  @override
   void dispose() {
     this.textFocus.removeListener(this.onTextFocusChange);
-    this.textFocus.dispose();
+    this.fallbackTextFocus.dispose();
     this.isTextFocused.dispose();
     this.currentValue.dispose();
     super.dispose();
@@ -1126,7 +1148,7 @@ class _PaymentNoteInputState extends State<PaymentNoteInput> {
 
                 autofocus: false,
                 keyboardType: TextInputType.text,
-                textInputAction: TextInputAction.send,
+                textInputAction: this.widget.textInputAction,
                 onEditingComplete: this.widget.onSubmit,
                 maxLines: null,
                 maxLength: this.widget.maxLength,
