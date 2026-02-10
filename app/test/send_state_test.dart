@@ -524,7 +524,7 @@ SendState_Preflighted _createPreflightedInvoice(
 SendState_Preflighted _createPreflightedOffer(
   MockSendPaymentService mockService,
   ValueNotifier<FiatRate?> fiatRate, {
-  String? payerNote,
+  required String? payerNote,
 }) {
   return SendState_Preflighted(
     paymentService: mockService,

@@ -525,7 +525,7 @@ class PreflightedPayment_Offer implements PreflightedPayment {
     required this.offer,
     required this.amountSats,
     required this.preflight,
-    this.payerNote,
+    required this.payerNote,
   });
 
   final Offer offer;
