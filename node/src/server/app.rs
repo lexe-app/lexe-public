@@ -26,17 +26,17 @@ use lexe_api::{
         command::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
             CreateOfferResponse, GDriveStatus, GetAddressResponse,
-            GetNewPayments, GetUpdatedPayments, ListChannelsResponse,
-            LxPaymentIdStruct, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
+            GetNewPayments, GetUpdatedPayments, HumanAddress,
+            ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            SetupGDrive, UpdatePaymentAddress, UpdatePaymentNote,
+            SetupGDrive, UpdateHumanAddress, UpdatePaymentNote,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
@@ -613,26 +613,26 @@ pub(super) async fn setup_gdrive(
 
 pub(super) async fn get_payment_address(
     State(state): State<Arc<RouterState>>,
-) -> Result<LxJson<PaymentAddress>, NodeApiError> {
+) -> Result<LxJson<HumanAddress>, NodeApiError> {
     let token = state
         .persister
         .get_token()
         .await
         .map_err(NodeApiError::command)?;
 
-    let payment_address = state
+    let human_address = state
         .persister
         .backend_api()
-        .get_payment_address(token)
+        .get_human_address(token)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(payment_address))
+    Ok(LxJson(human_address))
 }
 
 pub(super) async fn update_payment_address(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UsernameStruct>,
-) -> Result<LxJson<PaymentAddress>, NodeApiError> {
+) -> Result<LxJson<HumanAddress>, NodeApiError> {
     let token = state
         .persister
         .get_token()
@@ -655,17 +655,17 @@ pub(super) async fn update_payment_address(
             .await
             .map_err(NodeApiError::command)?;
 
-    let req = UpdatePaymentAddress {
+    let req = UpdateHumanAddress {
         username: req.username,
         offer: offer.offer,
     };
-    let payment_address = state
+    let human_address = state
         .persister
         .backend_api()
-        .update_payment_address(req, token)
+        .update_human_address(req, token)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(payment_address))
+    Ok(LxJson(human_address))
 }
 
 /// List all NWC clients for the current user.

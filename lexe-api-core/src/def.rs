@@ -79,11 +79,12 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, ClaimGeneratedPaymentAddress, CloseChannelRequest,
+            BackupInfo, ClaimGeneratedHumanAddress,
+            ClaimGeneratedPaymentAddress, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, EnclavesToProvisionRequest,
             GetAddressResponse, GetGeneratedUsernameResponse, GetNewPayments,
-            GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanAddress,
             ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
@@ -94,8 +95,8 @@ use crate::{
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            ResyncRequest, SetupGDrive, UpdatePaymentAddress,
-            UpdatePaymentNote, VecLxPaymentId,
+            ResyncRequest, SetupGDrive, UpdateHumanAddress,
+            UpdatePaymentAddress, UpdatePaymentNote, VecLxPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -446,19 +447,41 @@ pub trait AppNodeRunApi {
         req: SetupGDrive,
     ) -> Result<Empty, NodeApiError>;
 
+    /// Get current user's human address.
+    ///
+    /// GET /app/human_address [`Empty`] -> [`HumanAddress`]
+    async fn get_human_address(&self) -> Result<HumanAddress, NodeApiError>;
+
+    /// Update current user's human address.
+    ///
+    /// PUT /app/human_address [`UsernameStruct`] -> [`HumanAddress`]
+    async fn update_human_address(
+        &self,
+        req: UsernameStruct,
+    ) -> Result<HumanAddress, NodeApiError>;
+
+    /// Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.1:
+    /// use [`AppNodeRunApi::get_human_address`].
     /// Get current user's payment address.
     ///
     /// GET /app/payment_address [`Empty`] -> [`PaymentAddress`]
-    async fn get_payment_address(&self)
-    -> Result<PaymentAddress, NodeApiError>;
+    async fn get_payment_address(
+        &self,
+    ) -> Result<PaymentAddress, NodeApiError> {
+        self.get_human_address().await
+    }
 
+    /// Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.1:
+    /// use [`AppNodeRunApi::update_human_address`].
     /// Update current user's payment address.
     ///
     /// PUT /app/payment_address [`UsernameStruct`] -> [`PaymentAddress`]
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
-    ) -> Result<PaymentAddress, NodeApiError>;
+    ) -> Result<PaymentAddress, NodeApiError> {
+        self.update_human_address(req).await
+    }
 
     /// List NWC clients for the current user.
     /// Returns client info without sensitive data (no connection strings).
@@ -945,6 +968,18 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentMetadata, BackendApiError>;
 
+    /// PUT /node/v1/human_address [`UpdateHumanAddress`]
+    ///                         -> [`HumanAddress`]
+    ///
+    /// Updates the human address (Username and Offer) of the given node.
+    async fn update_human_address(
+        &self,
+        req: UpdateHumanAddress,
+        auth: BearerAuthToken,
+    ) -> Result<HumanAddress, BackendApiError>;
+
+    /// Deprecated since node-v0.9.3:
+    /// use [`NodeBackendApi::update_human_address`].
     /// PUT /node/v1/payment_address [`UpdatePaymentAddress`]
     ///                           -> [`PaymentAddress`]
     ///
@@ -953,8 +988,21 @@ pub trait NodeBackendApi {
         &self,
         req: UpdatePaymentAddress,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError>;
+    ) -> Result<PaymentAddress, BackendApiError> {
+        self.update_human_address(req, auth).await
+    }
 
+    /// GET /node/v1/human_address [`Empty`] -> [`HumanAddress`]
+    ///
+    /// Fetches the node's primary human address (Username and Offer) of the
+    /// given node.
+    async fn get_human_address(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<HumanAddress, BackendApiError>;
+
+    /// Deprecated since node-v0.9.3:
+    /// use [`NodeBackendApi::get_human_address`].
     /// GET /node/v1/payment_address [`Empty`] -> [`PaymentAddress`]
     ///
     /// Fetches the node's primary payment_address (Username and Offer) of the
@@ -962,8 +1010,22 @@ pub trait NodeBackendApi {
     async fn get_payment_address(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError>;
+    ) -> Result<PaymentAddress, BackendApiError> {
+        self.get_human_address(auth).await
+    }
 
+    /// POST /node/v1/claim_generated_human_address
+    ///   [`ClaimGeneratedHumanAddress`] -> [`Empty`]
+    ///
+    /// Claims a generated human address given by the node.
+    async fn claim_generated_human_address(
+        &self,
+        req: ClaimGeneratedHumanAddress,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
+    /// Deprecated since node-v0.9.3:
+    /// use [`NodeBackendApi::claim_generated_human_address`].
     /// POST /node/v1/claim_generated_payment_address
     ///   [`ClaimGeneratedPaymentAddress`] -> [`Empty`]
     ///
@@ -972,7 +1034,9 @@ pub trait NodeBackendApi {
         &self,
         req: ClaimGeneratedPaymentAddress,
         auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError>;
+    ) -> Result<Empty, BackendApiError> {
+        self.claim_generated_human_address(req, auth).await
+    }
 
     /// GET /node/v1/generated_username [`Empty`]
     ///                              -> [`GetGeneratedUsernameResponse`]

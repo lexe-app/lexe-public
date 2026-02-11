@@ -528,24 +528,28 @@ pub struct ResyncRequest {
 
 // --- Username --- //
 
-/// Creates or updates a payment address.
+/// Creates or updates a human address.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct UpdatePaymentAddress {
-    /// Payment address to be used on BIP-353 and LNURL.
+pub struct UpdateHumanAddress {
+    /// Human address to be used on BIP-353 and LNURL.
     pub username: Username,
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: LxOffer,
 }
 
-/// Claims a generated payment address.
+/// Deprecated since node-v0.9.3.
+/// TODO(a-mpch): Remove once all clients have migrated to `UpdateHumanAddress`.
+pub type UpdatePaymentAddress = UpdateHumanAddress;
+
+/// Claims a generated human address.
 ///
 /// This endpoint is used during node initialization to claim an auto-generated
-/// payment address. The address will have `is_primary: false` and
+/// human address. The address will have `is_primary: false` and
 /// `is_generated: true`.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ClaimGeneratedPaymentAddress {
+pub struct ClaimGeneratedHumanAddress {
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: LxOffer,
     /// The username to claim. This must be the username returned by
@@ -553,31 +557,40 @@ pub struct ClaimGeneratedPaymentAddress {
     pub username: Username,
 }
 
+/// Deprecated since node-v0.9.3.
+/// TODO(a-mpch): Remove once all clients have migrated to
+/// `ClaimGeneratedHumanAddress`.
+pub type ClaimGeneratedPaymentAddress = ClaimGeneratedHumanAddress;
+
 /// Response for `get_generated_username` endpoint.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetGeneratedUsernameResponse {
-    /// The generated username that can be used for claiming a payment address.
+    /// The generated username that can be used for claiming a human address.
     pub username: Username,
-    /// Whether this user already has a claimed generated payment address.
+    /// Whether this user already has a claimed generated human address.
     /// If true, the caller should skip calling
-    /// `claim_generated_payment_address`.
+    /// `claim_generated_human_address`.
     pub already_claimed: bool,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct PaymentAddress {
-    /// Current payment address to be used on BIP-353 and LNURL.
+pub struct HumanAddress {
+    /// Current human address to be used on BIP-353 and LNURL.
     pub username: Option<Username>,
     /// Current offer to be used to fetch invoices on BIP-353.
     pub offer: Option<LxOffer>,
-    /// Last time the payment address was updated.
+    /// Last time the human address was updated.
     pub updated_at: Option<TimestampMs>,
-    /// Whether the payment address can be updated. Always `true` for generated
+    /// Whether the human address can be updated. Always `true` for generated
     /// addresses; for claimed addresses, depends on time-based freeze rules.
     pub updatable: bool,
 }
+
+/// Deprecated since node-v0.9.3.
+/// TODO(a-mpch): Remove once all clients have migrated to `HumanAddress`.
+pub type PaymentAddress = HumanAddress;
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
@@ -645,8 +658,19 @@ mod test {
     }
 
     #[test]
+    fn human_address_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<UpdateHumanAddress>();
+    }
+
+    #[test]
     fn payment_address_request_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<UpdatePaymentAddress>();
+    }
+
+    #[test]
+    fn claim_generated_human_address_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<ClaimGeneratedHumanAddress>(
+        );
     }
 
     #[test]
@@ -659,6 +683,11 @@ mod test {
     fn get_generated_username_response_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<GetGeneratedUsernameResponse>(
         );
+    }
+
+    #[test]
+    fn human_address_response_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<HumanAddress>();
     }
 
     #[test]

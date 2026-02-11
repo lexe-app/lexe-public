@@ -137,7 +137,13 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         .route("/app/list_broadcasted_txs", get(app::list_broadcasted_txs))
         .route("/app/backup", get(app::backup_info))
         .route("/app/backup/gdrive", post(app::setup_gdrive))
+        // TODO(a-mpch): Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2.
+        // Remove once unused.
         .route("/app/payment_address", 
+            get(app::get_payment_address)
+            .put(app::update_payment_address)
+        )
+        .route("/app/human_address",
             get(app::get_payment_address)
             .put(app::update_payment_address)
         )

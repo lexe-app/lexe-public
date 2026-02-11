@@ -55,11 +55,11 @@ use lexe_api::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             EnclavesToProvisionRequest, GetAddressResponse, GetNewPayments,
-            GetUpdatedPayments, ListChannelsResponse, LxPaymentIdStruct,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-            PayOfferResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentAddress, PaymentCreatedIndexes,
+            GetUpdatedPayments, HumanAddress, ListChannelsResponse,
+            LxPaymentIdStruct, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -834,25 +834,40 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
+    async fn get_human_address(&self) -> Result<HumanAddress, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/human_address");
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
+    }
+
+    async fn update_human_address(
+        &self,
+        req: UsernameStruct,
+    ) -> Result<HumanAddress, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/human_address");
+        let req = run_rest.put(url, &req);
+        run_rest.send(req).await
+    }
+
     async fn get_payment_address(
         &self,
     ) -> Result<PaymentAddress, NodeApiError> {
-        let run_rest = &self.authed_run_rest().await?.client;
-        let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/payment_address");
-        let req = run_rest.get(url, &Empty {});
-        run_rest.send(req).await
+        // Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2;
+        // prefer `get_human_address`.
+        self.get_human_address().await
     }
 
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError> {
-        let run_rest = &self.authed_run_rest().await?.client;
-        let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/payment_address");
-        let req = run_rest.put(url, &req);
-        run_rest.send(req).await
+        // Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2;
+        // prefer `update_human_address`.
+        self.update_human_address(req).await
     }
 
     async fn list_nwc_clients(

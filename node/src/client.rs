@@ -25,10 +25,12 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            ClaimGeneratedPaymentAddress, GetGeneratedUsernameResponse,
-            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            ClaimGeneratedHumanAddress, ClaimGeneratedPaymentAddress,
+            GetGeneratedUsernameResponse, GetNewPayments,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanAddress,
             LxPaymentIdStruct, PaymentAddress, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, UpdatePaymentAddress, VecLxPaymentId,
+            PaymentCreatedIndexes, UpdateHumanAddress, UpdatePaymentAddress,
+            VecLxPaymentId,
         },
         nwc::{
             DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPkStruct,
@@ -581,8 +583,8 @@ impl NodeBackendApi for NodeBackendClient {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV1, BackendApiError> {
         // NOTE: This fn is used in the app->node handler for /app/payments/new,
-        // so the node->backend client code must remain until all app and
-        // sdk-sidecar clients have been updated.
+        // so the node->backend client code must remain until all legacy
+        // clients have been updated.
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -706,35 +708,35 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn update_payment_address(
+    async fn update_human_address(
         &self,
-        req: UpdatePaymentAddress,
+        req: UpdateHumanAddress,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError> {
+    ) -> Result<HumanAddress, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .put(format!("{backend}/node/v1/payment_address"), &req)
+            .put(format!("{backend}/node/v1/human_address"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
 
-    async fn get_payment_address(
+    async fn get_human_address(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError> {
+    ) -> Result<HumanAddress, BackendApiError> {
         let backend = &self.backend_url;
         let data = Empty {};
         let req = self
             .rest
-            .get(format!("{backend}/node/v1/payment_address"), &data)
+            .get(format!("{backend}/node/v1/human_address"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
 
-    async fn claim_generated_payment_address(
+    async fn claim_generated_human_address(
         &self,
-        req: ClaimGeneratedPaymentAddress,
+        req: ClaimGeneratedHumanAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
@@ -742,11 +744,38 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .post(
-                format!("{backend}/node/v1/claim_generated_payment_address"),
+                format!("{backend}/node/v1/claim_generated_human_address"),
                 &data,
             )
             .bearer_auth(&auth);
         self.rest.send(req).await
+    }
+
+    async fn update_payment_address(
+        &self,
+        req: UpdatePaymentAddress,
+        auth: BearerAuthToken,
+    ) -> Result<PaymentAddress, BackendApiError> {
+        // Deprecated since node-v0.9.3; prefer `update_human_address`.
+        self.update_human_address(req, auth).await
+    }
+
+    async fn get_payment_address(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<PaymentAddress, BackendApiError> {
+        // Deprecated since node-v0.9.3; prefer `get_human_address`.
+        self.get_human_address(auth).await
+    }
+
+    async fn claim_generated_payment_address(
+        &self,
+        req: ClaimGeneratedPaymentAddress,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        // Deprecated since node-v0.9.3; prefer
+        // `claim_generated_human_address`.
+        self.claim_generated_human_address(req, auth).await
     }
 
     async fn get_generated_username(
