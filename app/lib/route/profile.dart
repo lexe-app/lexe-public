@@ -17,53 +17,48 @@ import 'package:lexeapp/components.dart'
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/service/payment_address.dart'
-    show PaymentAddressService;
+import 'package:lexeapp/service/human_address.dart' show HumanAddressService;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// The entry point for the profile flow.
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.paymentAddressService});
+  const ProfilePage({super.key, required this.humanAddressService});
 
-  final PaymentAddressService paymentAddressService;
+  final HumanAddressService humanAddressService;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<String?>(
-    builder: (_) => EditPaymentAddressPage(
-      paymentAddressService: this.paymentAddressService,
-    ),
+    builder: (_) =>
+        EditHumanAddressPage(humanAddressService: this.humanAddressService),
   );
 }
 
-/// Page to edit/set the user's payment address (username@lexe.app).
-class EditPaymentAddressPage extends StatefulWidget {
-  const EditPaymentAddressPage({
-    super.key,
-    required this.paymentAddressService,
-  });
+/// Page to edit/set the user's human address (username@lexe.app).
+class EditHumanAddressPage extends StatefulWidget {
+  const EditHumanAddressPage({super.key, required this.humanAddressService});
 
-  final PaymentAddressService paymentAddressService;
+  final HumanAddressService humanAddressService;
 
   @override
-  State<EditPaymentAddressPage> createState() => _EditPaymentAddressPageState();
+  State<EditHumanAddressPage> createState() => _EditHumanAddressPageState();
 }
 
-class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
+class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
   final GlobalKey<FormFieldState<String>> usernameKey = GlobalKey();
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
   ValueListenable<bool> get isLoading =>
-      this.widget.paymentAddressService.isUpdating;
+      this.widget.humanAddressService.isUpdating;
 
   bool get isUpdatable =>
-      this.widget.paymentAddressService.paymentAddress.value?.updatable == true;
+      this.widget.humanAddressService.humanAddress.value?.updatable == true;
 
   String? get initialUsername =>
-      this.widget.paymentAddressService.paymentAddress.value?.username?.field0;
+      this.widget.humanAddressService.humanAddress.value?.username?.field0;
 
   @override
   void initState() {
-    this.widget.paymentAddressService.fetch();
+    this.widget.humanAddressService.fetch();
     super.initState();
   }
 
@@ -95,12 +90,12 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
   }
 
   Future<void> onSubmit() async {
-    if (this.widget.paymentAddressService.isDisposed) return;
+    if (this.widget.humanAddressService.isDisposed) return;
     if (this.isLoading.value) return;
     if (!this.isUpdatable) {
       this.errorMessage.value = const ErrorMessage(
         title: "Error",
-        message: "Payment address is not updatable. Please try later.",
+        message: "Human address is not updatable. Please try later.",
       );
       return;
     }
@@ -121,8 +116,8 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
     // Clear error message
     this.errorMessage.value = null;
 
-    info("EditPaymentAddressPage: updating username to ${username.field0}");
-    final res = await this.widget.paymentAddressService.update(
+    info("EditHumanAddressPage: updating username to ${username.field0}");
+    final res = await this.widget.humanAddressService.update(
       username: username,
     );
     if (!this.mounted) return;
@@ -134,7 +129,7 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
     await Navigator.of(this.context).pushReplacement(
       MaterialPageRoute(
         builder: (context) =>
-            PaymentAddressSuccessPage(username: username.field0),
+            HumanAddressSuccessPage(username: username.field0),
       ),
     );
   }
@@ -151,7 +146,7 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
           const HeadingText(text: "Update your username"),
           const SubheadingText(
             text:
-                "Receive money into your wallet instantly with only your ₿itcoin payment address.",
+                "Receive money into your wallet instantly with only your Human ₿itcoin address.",
           ),
           const SizedBox(height: Space.s600),
 
@@ -210,13 +205,13 @@ class _EditPaymentAddressPageState extends State<EditPaymentAddressPage> {
   }
 }
 
-/// Success page shown after payment address is updated.
-class PaymentAddressSuccessPage extends StatelessWidget {
-  const PaymentAddressSuccessPage({super.key, required this.username});
+/// Success page shown after human address is updated.
+class HumanAddressSuccessPage extends StatelessWidget {
+  const HumanAddressSuccessPage({super.key, required this.username});
 
   final String username;
 
-  String get paymentAddress => "₿${this.username}@lexe.app";
+  String get humanAddress => "₿${this.username}@lexe.app";
 
   void onDone(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop(this.username);
@@ -248,7 +243,7 @@ class PaymentAddressSuccessPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "₿itcoin payment address",
+                  "Human ₿itcoin address",
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
                     color: LxColors.grey600,
@@ -256,7 +251,7 @@ class PaymentAddressSuccessPage extends StatelessWidget {
                 ),
                 const SizedBox(height: Space.s200),
                 Text(
-                  this.paymentAddress,
+                  this.humanAddress,
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size500,
                     fontVariations: [Fonts.weightMedium],

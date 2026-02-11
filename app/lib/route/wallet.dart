@@ -71,9 +71,8 @@ import 'package:lexeapp/route/send/state.dart'
 import 'package:lexeapp/service/background_error.dart'
     show BackgroundError, BackgroundErrorKind, BackgroundErrorService;
 import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
+import 'package:lexeapp/service/human_address.dart' show HumanAddressService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
-import 'package:lexeapp/service/payment_address.dart'
-    show PaymentAddressService;
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
@@ -143,9 +142,11 @@ class WalletPageState extends State<WalletPage> {
   );
   late final LxListener provisionOnRefresh;
 
-  /// Fetch [PaymentAddress].
-  late final PaymentAddressService paymentAddressService =
-      PaymentAddressService(app: this.widget.app, appData: this.widget.appData);
+  /// Fetch Human Address.
+  late final HumanAddressService humanAddressService = HumanAddressService(
+    app: this.widget.app,
+    appData: this.widget.appData,
+  );
 
   /// Compute [BalanceState] from [FiatRate] and [NodeInfo] signals.
   late final ComputedValueListenable<BalanceState> balanceState;
@@ -165,7 +166,7 @@ class WalletPageState extends State<WalletPage> {
     this.balanceState.dispose();
     this.provisionOnRefresh.dispose();
     this.provisionService.dispose();
-    this.paymentAddressService.dispose();
+    this.humanAddressService.dispose();
     this.nodeInfoFetchOnRefresh.dispose();
     this.nodeInfoService.dispose();
     this.paymentSyncOnRefresh.dispose();
@@ -244,8 +245,8 @@ class WalletPageState extends State<WalletPage> {
     this.provisionService.isProvisioned.addListener(() {
       if (this.provisionService.isProvisioned.value) {
         this.refreshService.triggerRefreshUnthrottled();
-        // Tries to fetch and update the cached [PaymentAddress] from the node.
-        this.paymentAddressService.fetch();
+        // Tries to fetch and update the cached Human Address from the node.
+        this.humanAddressService.fetch();
       }
     });
 
@@ -622,7 +623,7 @@ class WalletPageState extends State<WalletPage> {
     await Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) =>
-            ProfilePage(paymentAddressService: this.paymentAddressService),
+            ProfilePage(humanAddressService: this.humanAddressService),
       ),
     );
   }
@@ -647,7 +648,7 @@ class WalletPageState extends State<WalletPage> {
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
-        paymentAddressService: this.paymentAddressService,
+        humanAddressService: this.humanAddressService,
         featureFlags: this.widget.featureFlags,
         onChannelsMenuPressed: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
@@ -1191,7 +1192,7 @@ class WalletDrawer extends StatelessWidget {
   const WalletDrawer({
     super.key,
     required this.config,
-    required this.paymentAddressService,
+    required this.humanAddressService,
     required this.featureFlags,
     // this.onSettingsPressed,
     // this.onBackupPressed,
@@ -1207,7 +1208,7 @@ class WalletDrawer extends StatelessWidget {
   });
 
   final Config config;
-  final PaymentAddressService paymentAddressService;
+  final HumanAddressService humanAddressService;
   final FeatureFlags featureFlags;
 
   // final VoidCallback? onSettingsPressed;
@@ -1222,8 +1223,8 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
 
-  bool get showPaymentAddress => this.featureFlags.showPaymentAddress;
-  bool get allowEditPaymentAddress => this.featureFlags.allowEditPaymentAddress;
+  bool get showHumanAddress => this.featureFlags.showHumanAddress;
+  bool get allowEditHumanAddress => this.featureFlags.allowEditHumanAddress;
 
   @override
   Widget build(BuildContext context) {
@@ -1303,17 +1304,16 @@ class WalletDrawer extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (this.showPaymentAddress)
+                  if (this.showHumanAddress)
                     ValueListenableBuilder(
-                      valueListenable:
-                          this.paymentAddressService.paymentAddress,
-                      builder: (context, paymentAddress, child) {
+                      valueListenable: this.humanAddressService.humanAddress,
+                      builder: (context, humanAddress, child) {
                         return DrawerProfile(
-                          allowEdit: this.allowEditPaymentAddress,
-                          onEditProfilePressed: this.allowEditPaymentAddress
+                          allowEdit: this.allowEditHumanAddress,
+                          onEditProfilePressed: this.allowEditHumanAddress
                               ? this.onProfileMenuPressed
                               : null,
-                          paymentAddress: paymentAddress,
+                          humanAddress: humanAddress,
                         );
                       },
                     ),
@@ -1388,39 +1388,39 @@ class WalletDrawer extends StatelessWidget {
   }
 }
 
-enum DrawerPaymentAddressStatus { error, notClaimed, claimed, updatable }
+enum DrawerHumanAddressStatus { error, notClaimed, claimed, updatable }
 
 class DrawerProfile extends StatelessWidget {
   const DrawerProfile({
     super.key,
     this.allowEdit = false,
     this.onEditProfilePressed,
-    this.paymentAddress,
+    this.humanAddress,
   });
   final bool allowEdit;
   final VoidCallback? onEditProfilePressed;
-  final PaymentAddress? paymentAddress;
+  final PaymentAddress? humanAddress;
 
-  DrawerPaymentAddressStatus get status {
-    if (this.paymentAddress == null) {
-      return DrawerPaymentAddressStatus.error;
+  DrawerHumanAddressStatus get status {
+    if (this.humanAddress == null) {
+      return DrawerHumanAddressStatus.error;
     }
 
-    if (this.paymentAddress?.username == null) {
-      return DrawerPaymentAddressStatus.notClaimed;
+    if (this.humanAddress?.username == null) {
+      return DrawerHumanAddressStatus.notClaimed;
     }
 
-    if (this.paymentAddress?.updatable == true) {
-      return DrawerPaymentAddressStatus.updatable;
+    if (this.humanAddress?.updatable == true) {
+      return DrawerHumanAddressStatus.updatable;
     }
 
-    return DrawerPaymentAddressStatus.claimed;
+    return DrawerHumanAddressStatus.claimed;
   }
 
-  /// if PaymentAddress is null, means that we haven't checked in the backend yet.
-  /// Or some other error reading db happened. So we can't update the username.
+  /// If humanAddress is null, we haven't checked in the backend yet, or some
+  /// other error reading db happened. So we can't update the username.
   bool get isUpdatable =>
-      this.paymentAddress != null && this.paymentAddress?.updatable == true;
+      this.humanAddress != null && this.humanAddress?.updatable == true;
 
   @override
   Widget build(BuildContext context) {
@@ -1430,9 +1430,9 @@ class DrawerProfile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           switch (this.status) {
-            DrawerPaymentAddressStatus.error => const SizedBox(),
+            DrawerHumanAddressStatus.error => const SizedBox(),
             _ => Text(
-              "₿itcoin payment address",
+              "Human ₿itcoin address",
               style: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size300,
                 color: LxColors.grey600,
@@ -1441,17 +1441,17 @@ class DrawerProfile extends StatelessWidget {
           },
           const SizedBox(height: Space.s200),
           switch (this.status) {
-            DrawerPaymentAddressStatus.error => const SizedBox(),
-            DrawerPaymentAddressStatus.notClaimed =>
+            DrawerHumanAddressStatus.error => const SizedBox(),
+            DrawerHumanAddressStatus.notClaimed =>
               this.allowEdit
-                  ? ClaimPaymentAddress(onTap: this.onEditProfilePressed)
+                  ? ClaimHumanAddress(onTap: this.onEditProfilePressed)
                   : const SizedBox(),
-            DrawerPaymentAddressStatus.claimed => ClaimedPaymentAddress(
-              paymentAddress: this.paymentAddress!,
+            DrawerHumanAddressStatus.claimed => ClaimedHumanAddress(
+              humanAddress: this.humanAddress!,
               showEditButton: false,
             ),
-            DrawerPaymentAddressStatus.updatable => ClaimedPaymentAddress(
-              paymentAddress: this.paymentAddress!,
+            DrawerHumanAddressStatus.updatable => ClaimedHumanAddress(
+              humanAddress: this.humanAddress!,
               showEditButton: this.allowEdit,
               onTapEdit: this.allowEdit ? this.onEditProfilePressed : null,
             ),
@@ -1462,18 +1462,18 @@ class DrawerProfile extends StatelessWidget {
   }
 }
 
-class ClaimedPaymentAddress extends StatelessWidget {
-  const ClaimedPaymentAddress({
+class ClaimedHumanAddress extends StatelessWidget {
+  const ClaimedHumanAddress({
     super.key,
-    required this.paymentAddress,
+    required this.humanAddress,
     required this.showEditButton,
     this.onTapEdit,
   });
-  final PaymentAddress paymentAddress;
+  final PaymentAddress humanAddress;
   final bool showEditButton;
   final VoidCallback? onTapEdit;
 
-  String get username => this.paymentAddress.username!.field0;
+  String get username => this.humanAddress.username!.field0;
   String get emailLikeUsername => "${this.username}@lexe.app";
   String get displayUsername => "₿${this.emailLikeUsername}";
 
@@ -1499,7 +1499,7 @@ class ClaimedPaymentAddress extends StatelessWidget {
   double get actionButtonIconSize => Fonts.size300;
 
   Future<void> onTapShare(BuildContext context) async {
-    await LxShare.sharePaymentAddress(context, this.displayUsername);
+    await LxShare.shareHumanAddress(context, this.displayUsername);
   }
 
   void onTapCopy(BuildContext context) {
@@ -1556,8 +1556,8 @@ class ClaimedPaymentAddress extends StatelessWidget {
   }
 }
 
-class ClaimPaymentAddress extends StatelessWidget {
-  const ClaimPaymentAddress({super.key, required this.onTap});
+class ClaimHumanAddress extends StatelessWidget {
+  const ClaimHumanAddress({super.key, required this.onTap});
 
   final VoidCallback? onTap;
 

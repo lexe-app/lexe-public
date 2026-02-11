@@ -115,9 +115,8 @@ import 'package:lexeapp/route/signup.dart'
 import 'package:lexeapp/route/wallet.dart'
     show WalletActionButton, WalletBanner, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
+import 'package:lexeapp/service/human_address.dart' show HumanAddressService;
 import 'package:lexeapp/service/node_info.dart';
-import 'package:lexeapp/service/payment_address.dart'
-    show PaymentAddressService;
 import 'package:lexeapp/service/send_payment_service_impl.dart'
     show SendPaymentServiceImpl;
 import 'package:lexeapp/settings.dart' show LxSettings;
@@ -557,7 +556,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       Component(
         "ProfilePage",
         (context) => ProfilePage(
-          paymentAddressService: PaymentAddressService(
+          humanAddressService: HumanAddressService(
             app: mockApp,
             appData: LxAppData(mockApp.appDataDb()),
           ),

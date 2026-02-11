@@ -56,30 +56,30 @@ final class FeatureFlags {
 
   /// Disable all features.
   const FeatureFlags.none({
-    this.allowEditPaymentAddress = false,
-    this.showPaymentAddress = false,
+    this.allowEditHumanAddress = false,
+    this.showHumanAddress = false,
     this.showWalletBanners = false,
   });
 
   /// Enable all features.
   const FeatureFlags.all({
-    this.allowEditPaymentAddress = true,
-    this.showPaymentAddress = true,
+    this.allowEditHumanAddress = true,
+    this.showHumanAddress = true,
     this.showWalletBanners = false,
   });
 
   const FeatureFlags.some({
-    this.allowEditPaymentAddress = false,
-    this.showPaymentAddress = false,
+    this.allowEditHumanAddress = false,
+    this.showHumanAddress = false,
     this.showWalletBanners = false,
   });
 
-  /// On the Wallet > Wallet Drawer, allow the user to edit their payment
-  /// address.
-  final bool allowEditPaymentAddress;
+  /// On the Wallet > Wallet Drawer, allow the user to edit their Human
+  /// Bitcoin address.
+  final bool allowEditHumanAddress;
 
-  /// On the Wallet > Wallet Drawer, show the payment address with copy/share.
-  final bool showPaymentAddress;
+  /// On the Wallet > Wallet Drawer, show the human address with copy/share.
+  final bool showHumanAddress;
 
   /// On the Wallet page, show funding state banners below WalletActions.
   /// When false, no banners are shown (assumes `funded` state).

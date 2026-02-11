@@ -71,16 +71,16 @@ abstract final class LxShare {
     return;
   }
 
-  /// Share a payment address as a plain text message.
+  /// Share a human address as a plain text message.
   /// Supported on all platforms.
-  static Future<void> sharePaymentAddress(
+  static Future<void> shareHumanAddress(
     BuildContext context,
     String address,
   ) async {
     final box = context.findRenderObject() as RenderBox?;
     final origin = box!.localToGlobal(Offset.zero) & box.size;
 
-    final result = await LxShare._trySharePaymentAddressAsPlaintext(
+    final result = await LxShare._tryShareHumanAddressAsPlaintext(
       address,
       origin,
     );
@@ -159,7 +159,7 @@ abstract final class LxShare {
     }
   }
 
-  static Future<ShareResultStatus> _trySharePaymentAddressAsPlaintext(
+  static Future<ShareResultStatus> _tryShareHumanAddressAsPlaintext(
     String address,
     Rect origin,
   ) async {
@@ -178,10 +178,10 @@ abstract final class LxShare {
 
     switch (result) {
       case Ok(:final ok):
-        info("LxShare: share payment address: ok: $ok");
+        info("LxShare: share human address: ok: $ok");
         return ok.status;
       case Err(:final err):
-        warn("LxShare: share payment address: err: $err");
+        warn("LxShare: share human address: err: $err");
         return ShareResultStatus.unavailable;
     }
   }

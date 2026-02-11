@@ -9,10 +9,10 @@ import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
 import 'package:lexeapp/prelude.dart';
 
-/// Merge states from [AppHandle.getPaymentAddress] and [AppData.paymentAddress] but instrumented
-/// with various signals for UI consumption.
-class PaymentAddressService {
-  PaymentAddressService({required AppHandle app, required LxAppData appData})
+/// Merge states from [AppHandle.getPaymentAddress] and [AppData.humanAddress]
+/// but instrumented with various signals for UI consumption.
+class HumanAddressService {
+  HumanAddressService({required AppHandle app, required LxAppData appData})
     : _app = app,
       _appData = appData;
 
@@ -21,9 +21,9 @@ class PaymentAddressService {
   bool isDisposed = false;
   DateTime? _lastFetchedAt;
 
-  /// The most recent [PaymentAddress]. `null` if we haven't stored any payment address yet.
-  ValueListenable<PaymentAddress?> get paymentAddress =>
-      this._appData.paymentAddress;
+  /// The most recent human address. `null` if we haven't stored any yet.
+  ValueListenable<PaymentAddress?> get humanAddress =>
+      this._appData.humanAddress;
 
   /// Notifies after each completed fetch, successful or otherwise.
   Listenable get completed => this._completed;
@@ -56,7 +56,7 @@ class PaymentAddressService {
       // Stop retries early
       isCanceled: () => this.isDisposed,
       onError: (String err) {
-        error("paymentAddress: Failed to fetch: $err");
+        error("humanAddress: Failed to fetch: $err");
       },
     );
     if (this.isDisposed) return;
@@ -65,13 +65,13 @@ class PaymentAddressService {
 
     switch (res) {
       case null:
-        debug("paymentAddress: Cancelled");
+        debug("humanAddress: Cancelled");
         return;
       case Ok(:final ok):
         this._appData.update(AppData(paymentAddress: ok));
         this._lastFetchedAt = DateTime.now();
       case Err():
-        error("paymentAddress: Exhausted retries");
+        error("humanAddress: Exhausted retries");
     }
 
     this._completed.notify();
@@ -96,7 +96,7 @@ class PaymentAddressService {
         this._lastFetchedAt = DateTime.now();
         return Ok(null);
       case Err(:final err):
-        error("payment-address: err: ${err.message}");
+        error("humanAddress: err: ${err.message}");
         return Err(err.message);
     }
   }

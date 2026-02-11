@@ -208,10 +208,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     unawaited(this.doFetchLnInvoice());
 
-    // Use the payment-address offer as the default reusable offer only when
+    // Use the human-address offer as the default reusable offer only when
     // the human bitcoin address feature is enabled.
-    final cachedOffer = this.widget.featureFlags.showPaymentAddress
-        ? this.widget.appData.paymentAddress.value?.offer
+    final cachedOffer = this.widget.featureFlags.showHumanAddress
+        ? this.widget.appData.humanAddress.value?.offer
         : null;
     if (cachedOffer != null) {
       this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(
