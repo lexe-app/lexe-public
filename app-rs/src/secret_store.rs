@@ -67,6 +67,7 @@ impl SecretStore {
 
         cfg_if! {
             if #[cfg(target_os = "android")] {
+                let _ = wallet_env;
                 Self::file(env_db_dir)
             } else {
                 Self::keychain(wallet_env)

@@ -85,12 +85,16 @@ dependencies:
   # $ git commit -a -m "gitdep hack"
   # $ git push
   # ```
+  #
+  # Patches:
+  # * ffi: fix memory leaks
+  # * ios+macos: submodule hack so we can add this as a git dep
+  # * android: use recent NDK v28
   flutter_zxing:
-    # version: ^1.7.1
-    # TODO(phlip9): remove after master gets published
     git:
-      url: https://github.com/phlip9/flutter_zxing.git
-      ref: phlip9/revert-leak-fix-with-gitdep-hack
+      url: https://github.com/lexe-app/flutter_zxing.git
+      ref: lexe-v1.7.0-2026_02_11
+    # path: ../../../flutter_zxing
 
   # Immutable record types and Rust-style enums in Dart.
   freezed_annotation: ^3.1.0

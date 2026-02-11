@@ -10,7 +10,9 @@ android {
 
     // Match the values in `app_rs_dart/android/build.gradle`
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = android.ndkVersion
+
+    ndkVersion = "28.2.13676358"
+    // ndkVersion = android.ndkVersion
 
     // println("app: flutter.minSdkVersion: ${flutter.minSdkVersion}")
     // println("app: flutter.targetSdkVersion: ${flutter.targetSdkVersion}")
@@ -19,12 +21,12 @@ android {
     // println("app: android.ndkVersion: ${android.ndkVersion}")
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -61,7 +63,7 @@ android {
             // Lexe design mode.
             dimension = "default"
             // The app name. ex: displayed under the icon on the user's home screen.
-            resValue("string", "app_name", "Lexe Design")
+            resValue(type = "string", name = "app_name", value = "Lexe Design")
             applicationIdSuffix = ".design"
             versionNameSuffix = "-design"
 

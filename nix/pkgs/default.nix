@@ -512,21 +512,23 @@ rec {
   # , repoXmls ? null,
   # , extraLicenses ? [ ],
   # }:
+  #
+  # For the "standard" set of versions used by an Android Gradle Plugin version,
+  # See: <https://developer.android.com/build/releases/gradle-plugin>
   androidSdkComposition = pkgsUnfree.androidenv.composeAndroidPackages rec {
     abiVersions = [
       "armeabi-v7a"
       "arm64-v8a"
     ];
     platformVersions = [
-      "35" # lexe
-      "34" # app_links, flutter_zxing -> camera_android_camerax
+      "35" # lexe, flutter_zxing -> camera_android_camerax
+      "34" # app_links
     ];
     buildToolsVersions = [
-      "34.0.0" # gradle android plugin seems to want this?
+      "35.0.0"
     ];
     includeNDK = true;
-    # TODO(phlip9): use `28.1.13356709` for 16KiB page size support
-    ndkVersion = "27.0.12077973";
+    ndkVersion = "28.2.13676358";
     ndkVersions = [
       ndkVersion # lexe, flutter_zxing
     ];

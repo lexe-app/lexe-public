@@ -186,16 +186,17 @@ extras;google;google_play_services
 # .. this goes on for a while
 ```
 
-Install these. You may need to update the version #'s. They should generally
-match the values in [`app/android/app/build.gradle`](./android/app/build.gradle)
-and [`app_rs_dart/android/build.gradle`](../app_rs_dart/android/build.gradle).
+Install these. You may need to update the version #'s to match those set
+in the `androidSdkComposition` in <./nix/pkgs/default.nix>.
 
 ```bash
 $ sdkmanager --install \
-    "build-tools;34.0.0" \
-    "ndk;26.3.11579264" \
+    "build-tools;35.0.0" \
+    "ndk;28.2.13676358" \
     "platform-tools" \
+    "platforms;android-35" \
     "platforms;android-34" \
+    "sources;android-35" \
     "sources;android-34"
 ```
 
