@@ -1,4 +1,4 @@
-import 'package:app_rs_dart/ffi/api.dart' show PaymentAddress;
+import 'package:app_rs_dart/ffi/api.dart' show HumanAddress;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/app_data.dart' show AppData;
 import 'package:app_rs_dart/ffi/types.dart' show Username;
@@ -9,7 +9,7 @@ import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
 import 'package:lexeapp/prelude.dart';
 
-/// Merge states from [AppHandle.getPaymentAddress] and [AppData.humanAddress]
+/// Merge states from [AppHandle.getHumanAddress] and [AppData.humanAddress]
 /// but instrumented with various signals for UI consumption.
 class HumanAddressService {
   HumanAddressService({required AppHandle app, required LxAppData appData})
@@ -22,8 +22,7 @@ class HumanAddressService {
   DateTime? _lastFetchedAt;
 
   /// The most recent human address. `null` if we haven't stored any yet.
-  ValueListenable<PaymentAddress?> get humanAddress =>
-      this._appData.humanAddress;
+  ValueListenable<HumanAddress?> get humanAddress => this._appData.humanAddress;
 
   /// Notifies after each completed fetch, successful or otherwise.
   Listenable get completed => this._completed;
@@ -68,7 +67,7 @@ class HumanAddressService {
         debug("humanAddress: Cancelled");
         return;
       case Ok(:final ok):
-        this._appData.update(AppData(paymentAddress: ok));
+        this._appData.update(AppData(humanAddress: ok));
         this._lastFetchedAt = DateTime.now();
       case Err():
         error("humanAddress: Exhausted retries");
@@ -84,7 +83,7 @@ class HumanAddressService {
 
     this._isUpdating.value = true;
     final res = await Result.tryFfiAsync(
-      () => this._app.updatePaymentAddress(username: username),
+      () => this._app.updateHumanAddress(username: username),
     );
     if (this.isDisposed) return Err("Already disposed");
 
@@ -92,7 +91,7 @@ class HumanAddressService {
 
     switch (res) {
       case Ok(:final ok):
-        this._appData.update(AppData(paymentAddress: ok));
+        this._appData.update(AppData(humanAddress: ok));
         this._lastFetchedAt = DateTime.now();
         return Ok(null);
       case Err(:final err):
@@ -111,10 +110,10 @@ class HumanAddressService {
     this.isDisposed = true;
   }
 
-  Future<Result<PaymentAddress, void>> _fetch() async =>
-      Result.tryFfiAsync(this._app.getPaymentAddress);
+  Future<Result<HumanAddress, void>> _fetch() async =>
+      Result.tryFfiAsync(this._app.getHumanAddress);
 
-  Future<Result<PaymentAddress, void>?> _fetchWithRetries({
+  Future<Result<HumanAddress, void>?> _fetchWithRetries({
     required bool Function() isCanceled,
     void Function(String)? onError,
   }) async => retryWithBackoff(

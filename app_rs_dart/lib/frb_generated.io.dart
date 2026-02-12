@@ -189,6 +189,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  HumanAddress dco_decode_box_autoadd_human_address(dynamic raw);
+
+  @protected
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
 
   @protected
@@ -217,9 +220,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment dco_decode_box_autoadd_payment(dynamic raw);
-
-  @protected
-  PaymentAddress dco_decode_box_autoadd_payment_address(dynamic raw);
 
   @protected
   PaymentCreatedIndex dco_decode_box_autoadd_payment_created_index(dynamic raw);
@@ -338,6 +338,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveStatus dco_decode_g_drive_status(dynamic raw);
 
   @protected
+  HumanAddress dco_decode_human_address(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -425,6 +428,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   dco_decode_opt_box_autoadd_g_drive_signup_credentials(dynamic raw);
 
   @protected
+  HumanAddress? dco_decode_opt_box_autoadd_human_address(dynamic raw);
+
+  @protected
   Invoice? dco_decode_opt_box_autoadd_invoice(dynamic raw);
 
   @protected
@@ -435,9 +441,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw);
-
-  @protected
-  PaymentAddress? dco_decode_opt_box_autoadd_payment_address(dynamic raw);
 
   @protected
   RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw);
@@ -479,9 +482,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment dco_decode_payment(dynamic raw);
-
-  @protected
-  PaymentAddress dco_decode_payment_address(dynamic raw);
 
   @protected
   PaymentCreatedIndex dco_decode_payment_created_index(dynamic raw);
@@ -742,6 +742,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  HumanAddress sse_decode_box_autoadd_human_address(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
 
   @protected
@@ -782,11 +787,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment sse_decode_box_autoadd_payment(SseDeserializer deserializer);
-
-  @protected
-  PaymentAddress sse_decode_box_autoadd_payment_address(
-    SseDeserializer deserializer,
-  );
 
   @protected
   PaymentCreatedIndex sse_decode_box_autoadd_payment_created_index(
@@ -945,6 +945,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveStatus sse_decode_g_drive_status(SseDeserializer deserializer);
 
   @protected
+  HumanAddress sse_decode_human_address(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -1050,6 +1053,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  HumanAddress? sse_decode_opt_box_autoadd_human_address(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Invoice? sse_decode_opt_box_autoadd_invoice(SseDeserializer deserializer);
 
   @protected
@@ -1062,11 +1070,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment? sse_decode_opt_box_autoadd_payment(SseDeserializer deserializer);
-
-  @protected
-  PaymentAddress? sse_decode_opt_box_autoadd_payment_address(
-    SseDeserializer deserializer,
-  );
 
   @protected
   RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer);
@@ -1118,9 +1121,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment sse_decode_payment(SseDeserializer deserializer);
-
-  @protected
-  PaymentAddress sse_decode_payment_address(SseDeserializer deserializer);
 
   @protected
   PaymentCreatedIndex sse_decode_payment_created_index(
@@ -1422,6 +1422,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_human_address(
+    HumanAddress self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
 
   @protected
@@ -1468,12 +1474,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_payment(Payment self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_payment_address(
-    PaymentAddress self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_box_autoadd_payment_created_index(
@@ -1662,6 +1662,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_g_drive_status(GDriveStatus self, SseSerializer serializer);
 
   @protected
+  void sse_encode_human_address(HumanAddress self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1788,6 +1791,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_human_address(
+    HumanAddress? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_invoice(
     Invoice? self,
     SseSerializer serializer,
@@ -1805,12 +1814,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_payment(
     Payment? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_box_autoadd_payment_address(
-    PaymentAddress? self,
     SseSerializer serializer,
   );
 
@@ -1882,12 +1885,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_payment(Payment self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_payment_address(
-    PaymentAddress self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_payment_created_index(

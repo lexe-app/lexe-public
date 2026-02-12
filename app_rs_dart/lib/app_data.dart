@@ -17,7 +17,7 @@ class AppData {
   /// AppDb schema version.
   final SchemaVersion schema;
 
-  /// User's preferred Offer. Based on the user's PaymentAddress.
+  /// User's preferred Offer. Based on the user's human address.
   final String? offer;
 
   /// User's username to receive BIP353 and lnurl payments.

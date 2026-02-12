@@ -10,7 +10,7 @@ class LxAppData {
   factory LxAppData(final AppDataDb db) {
     final appData = db.read();
 
-    final humanAddress = ValueNotifier(appData.paymentAddress);
+    final humanAddress = ValueNotifier(appData.humanAddress);
 
     return LxAppData._(db, humanAddress);
   }
@@ -19,8 +19,8 @@ class LxAppData {
 
   final AppDataDb _db;
 
-  final ValueNotifier<PaymentAddress?> _humanAddress;
-  ValueListenable<PaymentAddress?> get humanAddress => this._humanAddress;
+  final ValueNotifier<HumanAddress?> _humanAddress;
+  ValueListenable<HumanAddress?> get humanAddress => this._humanAddress;
 
   void reset() {
     this._db.reset();
@@ -36,7 +36,7 @@ class LxAppData {
     }
 
     // Update ValueNotifier's
-    this._humanAddress.update(update.paymentAddress);
+    this._humanAddress.update(update.humanAddress);
 
     // Can't create an Ok(void), so just return this `result` that conveniently
     // has the right type.

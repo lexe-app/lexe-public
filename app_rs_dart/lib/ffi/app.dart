@@ -84,6 +84,10 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
+  /// Get the [`HumanAddress`] for the user and if it is updatable.
+  Future<HumanAddress> getHumanAddress() =>
+      AppRs.instance.api.crateFfiAppAppHandleGetHumanAddress(that: this);
+
   /// flutter_rust_bridge:sync
   int getNumFinalizedNotJunkPayments() => AppRs.instance.api
       .crateFfiAppAppHandleGetNumFinalizedNotJunkPayments(that: this);
@@ -103,10 +107,6 @@ class AppHandle {
   /// flutter_rust_bridge:sync
   int getNumPendingPayments() =>
       AppRs.instance.api.crateFfiAppAppHandleGetNumPendingPayments(that: this);
-
-  /// Get the [`PaymentAddress`] for the user and if it is updatable.
-  Future<PaymentAddress> getPaymentAddress() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetPaymentAddress(that: this);
 
   /// flutter_rust_bridge:sync
   Payment? getPaymentByCreatedIndex({
@@ -270,11 +270,10 @@ class AppHandle {
   Future<void> updateClient({required UpdateClientRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleUpdateClient(that: this, req: req);
 
-  Future<PaymentAddress> updatePaymentAddress({required Username username}) =>
-      AppRs.instance.api.crateFfiAppAppHandleUpdatePaymentAddress(
-        that: this,
-        username: username,
-      );
+  Future<HumanAddress> updateHumanAddress({required Username username}) => AppRs
+      .instance
+      .api
+      .crateFfiAppAppHandleUpdateHumanAddress(that: this, username: username);
 
   Future<void> updatePaymentNote({required UpdatePaymentNote req}) => AppRs
       .instance

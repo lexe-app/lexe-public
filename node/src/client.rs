@@ -751,30 +751,29 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    #[allow(deprecated)]
     async fn update_payment_address(
         &self,
         req: UpdatePaymentAddress,
         auth: BearerAuthToken,
     ) -> Result<PaymentAddress, BackendApiError> {
-        // Deprecated since node-v0.9.3; prefer `update_human_address`.
         self.update_human_address(req, auth).await
     }
 
+    #[allow(deprecated)]
     async fn get_payment_address(
         &self,
         auth: BearerAuthToken,
     ) -> Result<PaymentAddress, BackendApiError> {
-        // Deprecated since node-v0.9.3; prefer `get_human_address`.
         self.get_human_address(auth).await
     }
 
+    #[allow(deprecated)]
     async fn claim_generated_payment_address(
         &self,
         req: ClaimGeneratedPaymentAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        // Deprecated since node-v0.9.3; prefer
-        // `claim_generated_human_address`.
         self.claim_generated_human_address(req, auth).await
     }
 

@@ -3,8 +3,7 @@
 import 'dart:async' show StreamSubscription, TimeoutException;
 import 'dart:math' as math;
 
-import 'package:app_rs_dart/ffi/api.dart'
-    show FiatRate, NodeInfo, PaymentAddress;
+import 'package:app_rs_dart/ffi/api.dart' show FiatRate, HumanAddress, NodeInfo;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/settings.dart'
     show Settings, WalletFundingState;
@@ -1399,7 +1398,7 @@ class DrawerProfile extends StatelessWidget {
   });
   final bool allowEdit;
   final VoidCallback? onEditProfilePressed;
-  final PaymentAddress? humanAddress;
+  final HumanAddress? humanAddress;
 
   DrawerHumanAddressStatus get status {
     if (this.humanAddress == null) {
@@ -1469,7 +1468,7 @@ class ClaimedHumanAddress extends StatelessWidget {
     required this.showEditButton,
     this.onTapEdit,
   });
-  final PaymentAddress humanAddress;
+  final HumanAddress humanAddress;
   final bool showEditButton;
   final VoidCallback? onTapEdit;
 

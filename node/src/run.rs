@@ -581,11 +581,11 @@ impl UserNode {
         // then one succeeds at claiming while the other fails. This is unlikely
         // in practice (requires two users with colliding petnames to register
         // simultaneously) and not worth the complexity to handle.
-        let claim_payment_address_task = {
+        let claim_human_address_task = {
             let persister = persister.clone();
             let channel_manager = channel_manager.clone();
 
-            const SPAN_NAME: &str = "(claim-payment-address)";
+            const SPAN_NAME: &str = "(claim-human-address)";
             LxTask::spawn_with_span(
                 SPAN_NAME,
                 info_span!(SPAN_NAME),
@@ -1003,13 +1003,13 @@ impl UserNode {
         // Ensure channels are using the most up-to-date config.
         channel_manager.check_channel_configs(&config);
 
-        // Wait for the payment address claim task to complete before finishing
+        // Wait for the human address claim task to complete before finishing
         // init. A failure here should abort node startup since it indicates an
         // issue that requires investigation.
-        claim_payment_address_task
+        claim_human_address_task
             .await
-            .context("claim payment address task panicked")?
-            .context("Failed to claim payment address")?;
+            .context("claim human address task panicked")?
+            .context("Failed to claim human address")?;
 
         // Spawn legacy wallet sweep task if migration marker exists.
         // This sweeps funds from the old non-BIP39-compatible derivation path

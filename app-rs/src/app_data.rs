@@ -2,7 +2,7 @@
 
 use anyhow::Context;
 #[cfg(doc)]
-use lexe_api::models::command::PaymentAddress;
+use lexe_api::models::command::HumanAddress;
 use lexe_api::types::{offer::LxOffer, username::Username};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -24,8 +24,10 @@ const APP_JSON: &str = "app.json";
 pub(crate) struct AppDataRs {
     /// AppDb schema version.
     pub schema: SchemaVersion,
-    /// User's PaymentAddress.
-    pub payment_address: Option<PaymentAddressRs>,
+    /// User's human address.
+    // compat: alias added in app-v0.9.3
+    #[serde(alias = "payment_address")]
+    pub human_address: Option<HumanAddressRs>,
 }
 
 impl AppDataRs {
@@ -42,7 +44,7 @@ impl Update for AppDataRs {
         self.schema
             .ensure_matches(update.schema)
             .context("AppDb schema version mismatch")?;
-        self.payment_address.update(update.payment_address)?;
+        self.human_address.update(update.human_address)?;
         Ok(())
     }
 }
@@ -51,32 +53,32 @@ impl Default for AppDataRs {
     fn default() -> Self {
         Self {
             schema: AppDataRs::CURRENT_SCHEMA,
-            payment_address: None,
+            human_address: None,
         }
     }
 }
 
-/// In-Memory PaymentAddress state.
+/// In-Memory HumanAddress state.
 ///
-/// Serialized [`PaymentAddress`] struct that stores,
+/// Serialized [`HumanAddress`] struct that stores,
 /// Usename and Offer as Strings and timestamps as i64 since
 /// we don't want to leak the underlying types.
 /// TODO(maurice): We should probably want to use the LxOffer and Username
 /// types directly after fixing the leaks.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
-pub(crate) struct PaymentAddressRs {
+pub(crate) struct HumanAddressRs {
     /// User's username to receive BIP353 and lnurl payments.
     pub username: Option<String>,
     /// User's preferred Offer.
     pub offer: Option<String>,
     /// Last updated timestamp.
     pub updated_at: Option<i64>,
-    /// Whether the user can update their PaymentAddress.
+    /// Whether the user can update their HumanAddress.
     pub updatable: bool,
 }
 
-impl Default for PaymentAddressRs {
+impl Default for HumanAddressRs {
     fn default() -> Self {
         Self {
             username: None,
@@ -90,7 +92,7 @@ impl Default for PaymentAddressRs {
 impl Update for LxOffer {}
 impl Update for Username {}
 impl Update for i64 {}
-impl Update for PaymentAddressRs {
+impl Update for HumanAddressRs {
     fn update(&mut self, update: Self) -> anyhow::Result<()> {
         self.username = update.username;
         self.offer = update.offer;
@@ -126,7 +128,7 @@ mod test {
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    payment_address: None,
+                    human_address: None,
                     ..Default::default()
                 }
             );
@@ -139,7 +141,7 @@ mod test {
 
             // update: offer=DummyOffer
             db.update(AppDataRs {
-                payment_address: Some(PaymentAddressRs {
+                human_address: Some(HumanAddressRs {
                     offer: Some(dummy_offer.clone()),
                     ..Default::default()
                 }),
@@ -149,7 +151,7 @@ mod test {
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    payment_address: Some(PaymentAddressRs {
+                    human_address: Some(HumanAddressRs {
                         offer: Some(dummy_offer.clone()),
                         ..Default::default()
                     }),
@@ -159,7 +161,7 @@ mod test {
 
             // update: username=dummy
             db.update(AppDataRs {
-                payment_address: Some(PaymentAddressRs {
+                human_address: Some(HumanAddressRs {
                     username: Some(dummy_username.clone()),
                     ..Default::default()
                 }),
@@ -169,7 +171,7 @@ mod test {
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    payment_address: Some(PaymentAddressRs {
+                    human_address: Some(HumanAddressRs {
                         username: Some(dummy_username.clone()),
                         ..Default::default()
                     }),
@@ -179,7 +181,7 @@ mod test {
 
             // update: updated_at=1686743442000
             db.update(AppDataRs {
-                payment_address: Some(PaymentAddressRs {
+                human_address: Some(HumanAddressRs {
                     updated_at: Some(dummy_updated_at),
                     ..Default::default()
                 }),
@@ -189,7 +191,7 @@ mod test {
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    payment_address: Some(PaymentAddressRs {
+                    human_address: Some(HumanAddressRs {
                         updated_at: Some(dummy_updated_at),
                         ..Default::default()
                     }),
@@ -199,7 +201,7 @@ mod test {
 
             // update: updatable=true
             db.update(AppDataRs {
-                payment_address: Some(PaymentAddressRs {
+                human_address: Some(HumanAddressRs {
                     updatable: true,
                     ..Default::default()
                 }),
@@ -209,7 +211,7 @@ mod test {
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    payment_address: Some(PaymentAddressRs {
+                    human_address: Some(HumanAddressRs {
                         updatable: true,
                         ..Default::default()
                     }),
@@ -219,7 +221,7 @@ mod test {
 
             // update: all fields
             db.update(AppDataRs {
-                payment_address: Some(PaymentAddressRs {
+                human_address: Some(HumanAddressRs {
                     username: Some(dummy_username.clone()),
                     offer: Some(dummy_offer.clone()),
                     updated_at: Some(dummy_updated_at),
@@ -231,7 +233,7 @@ mod test {
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    payment_address: Some(PaymentAddressRs {
+                    human_address: Some(HumanAddressRs {
                         username: Some(dummy_username.clone()),
                         offer: Some(dummy_offer.clone()),
                         updated_at: Some(dummy_updated_at),
@@ -249,7 +251,7 @@ mod test {
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    payment_address: Some(PaymentAddressRs {
+                    human_address: Some(HumanAddressRs {
                         offer: Some(dummy_offer.clone()),
                         username: Some(dummy_username.clone()),
                         updated_at: Some(dummy_updated_at),

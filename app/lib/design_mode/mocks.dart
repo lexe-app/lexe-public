@@ -17,6 +17,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         FeeEstimate,
         FiatRate,
         FiatRates,
+        HumanAddress,
         ListChannelsResponse,
         NodeInfo,
         OpenChannelRequest,
@@ -27,7 +28,6 @@ import 'package:app_rs_dart/ffi/api.dart'
         PayOfferResponse,
         PayOnchainRequest,
         PayOnchainResponse,
-        PaymentAddress,
         PreflightCloseChannelResponse,
         PreflightOpenChannelRequest,
         PreflightOpenChannelResponse,
@@ -563,9 +563,9 @@ class MockAppHandle extends AppHandle {
   });
 
   @override
-  Future<PaymentAddress> getPaymentAddress() => Future.delayed(
+  Future<HumanAddress> getHumanAddress() => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => PaymentAddress(
+    () => HumanAddress(
       username: const Username(field0: "user"),
       offer: defaultOffer,
       updatedAt: DateTime.now().millisecondsSinceEpoch,
@@ -574,10 +574,10 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
-  Future<PaymentAddress> updatePaymentAddress({required Username username}) =>
+  Future<HumanAddress> updateHumanAddress({required Username username}) =>
       Future.delayed(
         const Duration(milliseconds: 1500),
-        () => PaymentAddress(
+        () => HumanAddress(
           username: username,
           offer: defaultOffer,
           updatedAt: DateTime.now().millisecondsSinceEpoch,
@@ -711,19 +711,19 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<PaymentAddress> getPaymentAddress() => Future.delayed(
+  Future<HumanAddress> getHumanAddress() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => throw const FfiError(
-      "[106=Command] Failed to get payment address",
+      "[106=Command] Failed to get human address",
     ).toFfi(),
   );
 
   @override
-  Future<PaymentAddress> updatePaymentAddress({required Username username}) =>
+  Future<HumanAddress> updateHumanAddress({required Username username}) =>
       Future.delayed(
         const Duration(milliseconds: 1500),
         () => throw const FfiError(
-          "[106=Command] Failed to update payment address",
+          "[106=Command] Failed to update human address",
         ).toFfi(),
       );
 }
@@ -871,8 +871,7 @@ class MockAppDataDb extends AppDataDb {
   MockAppDataDb() : super(inner: MockAppDataDbRs());
 
   @override
-  AppData read() =>
-      const AppData(paymentAddress: PaymentAddress(updatable: true));
+  AppData read() => const AppData(humanAddress: HumanAddress(updatable: true));
 
   @override
   void reset() {}

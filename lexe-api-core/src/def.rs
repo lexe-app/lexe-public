@@ -460,22 +460,18 @@ pub trait AppNodeRunApi {
         req: UsernameStruct,
     ) -> Result<HumanAddress, NodeApiError>;
 
-    /// Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.1:
-    /// use [`AppNodeRunApi::get_human_address`].
-    /// Get current user's payment address.
-    ///
     /// GET /app/payment_address [`Empty`] -> [`PaymentAddress`]
+    #[deprecated(note = "since app-v0.9.3 and sdk-sidecar-v0.4.2: \
+                         Use get_human_address instead")]
     async fn get_payment_address(
         &self,
     ) -> Result<PaymentAddress, NodeApiError> {
         self.get_human_address().await
     }
 
-    /// Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.1:
-    /// use [`AppNodeRunApi::update_human_address`].
-    /// Update current user's payment address.
-    ///
     /// PUT /app/payment_address [`UsernameStruct`] -> [`PaymentAddress`]
+    #[deprecated(note = "since app-v0.9.3 and sdk-sidecar-v0.4.2: \
+                         Use update_human_address instead")]
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
@@ -978,12 +974,10 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<HumanAddress, BackendApiError>;
 
-    /// Deprecated since node-v0.9.3:
-    /// use [`NodeBackendApi::update_human_address`].
     /// PUT /node/v1/payment_address [`UpdatePaymentAddress`]
     ///                           -> [`PaymentAddress`]
-    ///
-    /// Updates the payment_address (Username and Offer) of the given node.
+    #[deprecated(note = "since node-v0.9.3: \
+                         Use update_human_address instead")]
     async fn update_payment_address(
         &self,
         req: UpdatePaymentAddress,
@@ -1001,12 +995,9 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<HumanAddress, BackendApiError>;
 
-    /// Deprecated since node-v0.9.3:
-    /// use [`NodeBackendApi::get_human_address`].
     /// GET /node/v1/payment_address [`Empty`] -> [`PaymentAddress`]
-    ///
-    /// Fetches the node's primary payment_address (Username and Offer) of the
-    /// given node.
+    #[deprecated(note = "since node-v0.9.3: \
+                         Use get_human_address instead")]
     async fn get_payment_address(
         &self,
         auth: BearerAuthToken,
@@ -1024,12 +1015,10 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// Deprecated since node-v0.9.3:
-    /// use [`NodeBackendApi::claim_generated_human_address`].
     /// POST /node/v1/claim_generated_payment_address
     ///   [`ClaimGeneratedPaymentAddress`] -> [`Empty`]
-    ///
-    /// Claims a generated payment address given by the node.
+    #[deprecated(note = "since node-v0.9.3: \
+                         Use claim_generated_human_address instead")]
     async fn claim_generated_payment_address(
         &self,
         req: ClaimGeneratedPaymentAddress,

@@ -5,10 +5,10 @@ use flutter_rust_bridge::RustOpaqueNom;
 use lexe_api::types::offer::LxOffer as LxOfferRs;
 
 use crate::{
-    app_data::{AppDataRs, PaymentAddressRs},
+    app_data::{AppDataRs, HumanAddressRs},
     db::WritebackDb as WritebackDbRs,
     ffi::{
-        api::PaymentAddress,
+        api::HumanAddress,
         types::{Offer, Username},
     },
 };
@@ -18,7 +18,7 @@ pub struct AppDataDb {
 }
 
 pub struct AppData {
-    pub payment_address: Option<PaymentAddress>,
+    pub human_address: Option<HumanAddress>,
 }
 
 //  --- impl AppDataDb --- //
@@ -65,18 +65,16 @@ impl TryFrom<AppDataRs> for AppData {
     type Error = anyhow::Error;
 
     fn try_from(a: AppDataRs) -> Result<Self, Self::Error> {
-        let payment_address = a
-            .payment_address
-            .map(PaymentAddress::try_from)
-            .transpose()?;
+        let human_address =
+            a.human_address.map(HumanAddress::try_from).transpose()?;
 
-        Ok(Self { payment_address })
+        Ok(Self { human_address })
     }
 }
 
-impl TryFrom<PaymentAddressRs> for PaymentAddress {
+impl TryFrom<HumanAddressRs> for HumanAddress {
     type Error = anyhow::Error;
-    fn try_from(a: PaymentAddressRs) -> Result<Self, Self::Error> {
+    fn try_from(a: HumanAddressRs) -> Result<Self, Self::Error> {
         let username = a
             .username
             .map(|u| Username::parse(u.as_str()))
@@ -101,20 +99,18 @@ impl TryFrom<PaymentAddressRs> for PaymentAddress {
 impl TryFrom<AppData> for AppDataRs {
     type Error = anyhow::Error;
     fn try_from(a: AppData) -> Result<Self, Self::Error> {
-        let payment_address = a
-            .payment_address
-            .map(PaymentAddressRs::try_from)
-            .transpose()?;
+        let human_address =
+            a.human_address.map(HumanAddressRs::try_from).transpose()?;
 
         Ok(Self {
             schema: AppDataRs::CURRENT_SCHEMA,
-            payment_address,
+            human_address,
         })
     }
 }
-impl TryFrom<PaymentAddress> for PaymentAddressRs {
+impl TryFrom<HumanAddress> for HumanAddressRs {
     type Error = anyhow::Error;
-    fn try_from(a: PaymentAddress) -> Result<Self, Self::Error> {
+    fn try_from(a: HumanAddress) -> Result<Self, Self::Error> {
         let username = a.username.map(|u| u.into_inner());
         let offer = a.offer.map(|o| o.string);
         let updated_at = a.updated_at;

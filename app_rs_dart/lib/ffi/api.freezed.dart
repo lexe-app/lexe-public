@@ -691,6 +691,69 @@ String toString() {
 
 
 /// @nodoc
+mixin _$HumanAddress {
+
+ Username? get username; Offer? get offer; int? get updatedAt; bool get updatable;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HumanAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
+
+@override
+String toString() {
+  return 'HumanAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _HumanAddress implements HumanAddress {
+  const _HumanAddress({this.username, this.offer, this.updatedAt, required this.updatable});
+  
+
+@override final  Username? username;
+@override final  Offer? offer;
+@override final  int? updatedAt;
+@override final  bool updatable;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HumanAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
+
+@override
+String toString() {
+  return 'HumanAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$ListChannelsResponse {
 
  List<LxChannelDetails> get channels;
@@ -1302,69 +1365,6 @@ int get hashCode => Object.hash(runtimeType,index,txid);
 @override
 String toString() {
   return 'PayOnchainResponse(index: $index, txid: $txid)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PaymentAddress {
-
- Username? get username; Offer? get offer; int? get updatedAt; bool get updatable;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
-
-@override
-String toString() {
-  return 'PaymentAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PaymentAddress implements PaymentAddress {
-  const _PaymentAddress({this.username, this.offer, this.updatedAt, required this.updatable});
-  
-
-@override final  Username? username;
-@override final  Offer? offer;
-@override final  int? updatedAt;
-@override final  bool updatable;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PaymentAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
-
-@override
-String toString() {
-  return 'PaymentAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
 }
 
 

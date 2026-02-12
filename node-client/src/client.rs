@@ -853,20 +853,18 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
+    #[allow(deprecated)]
     async fn get_payment_address(
         &self,
     ) -> Result<PaymentAddress, NodeApiError> {
-        // Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2;
-        // prefer `get_human_address`.
         self.get_human_address().await
     }
 
+    #[allow(deprecated)]
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
     ) -> Result<PaymentAddress, NodeApiError> {
-        // Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2;
-        // prefer `update_human_address`.
         self.update_human_address(req).await
     }
 

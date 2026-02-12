@@ -25,7 +25,7 @@ use lexe_api::{
         CreateInvoiceResponse as CreateInvoiceResponseRs,
         CreateOfferRequest as CreateOfferRequestRs,
         CreateOfferResponse as CreateOfferResponseRs,
-        FeeEstimate as FeeEstimateRs,
+        FeeEstimate as FeeEstimateRs, HumanAddress as HumanAddressRs,
         ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
         OpenChannelRequest as OpenChannelRequestRs,
         OpenChannelResponse as OpenChannelResponseRs,
@@ -35,7 +35,6 @@ use lexe_api::{
         PayOfferResponse as PayOfferResponseRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PayOnchainResponse as PayOnchainResponseRs,
-        PaymentAddress as PaymentAddressRs,
         PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
         PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
@@ -740,21 +739,21 @@ impl TryFrom<UpdateClientRequest> for UpdateClientRequestRs {
     }
 }
 
-/// Whether the user has a payment address associated with their username and if
+/// Whether the user has a human address associated with their username and if
 /// it is updatable.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PaymentAddress {
+pub struct HumanAddress {
     pub username: Option<Username>,
     pub offer: Option<Offer>,
     pub updated_at: Option<i64>,
     pub updatable: bool,
 }
 
-impl TryFrom<PaymentAddressRs> for PaymentAddress {
+impl TryFrom<HumanAddressRs> for HumanAddress {
     type Error = anyhow::Error;
 
-    fn try_from(value: PaymentAddressRs) -> Result<Self, Self::Error> {
+    fn try_from(value: HumanAddressRs) -> Result<Self, Self::Error> {
         let username = value.username.map(Username::try_from).transpose()?;
         let offer = value.offer.map(Offer::try_from).transpose()?;
         let updated_at = value.updated_at.map(|u| u.to_i64());

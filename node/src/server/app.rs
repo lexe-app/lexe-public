@@ -611,7 +611,7 @@ pub(super) async fn setup_gdrive(
     Ok(LxJson(Empty {}))
 }
 
-pub(super) async fn get_payment_address(
+pub(super) async fn get_human_address(
     State(state): State<Arc<RouterState>>,
 ) -> Result<LxJson<HumanAddress>, NodeApiError> {
     let token = state
@@ -629,7 +629,7 @@ pub(super) async fn get_payment_address(
     Ok(LxJson(human_address))
 }
 
-pub(super) async fn update_payment_address(
+pub(super) async fn update_human_address(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UsernameStruct>,
 ) -> Result<LxJson<HumanAddress>, NodeApiError> {

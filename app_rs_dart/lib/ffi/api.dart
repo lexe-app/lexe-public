@@ -123,6 +123,20 @@ sealed class FiatRates with _$FiatRates {
   }) = _FiatRates;
 }
 
+/// Whether the user has a human address associated with their username and if
+/// it is updatable.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class HumanAddress with _$HumanAddress {
+  const factory HumanAddress({
+    Username? username,
+    Offer? offer,
+    int? updatedAt,
+    required bool updatable,
+  }) = _HumanAddress;
+}
+
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class ListChannelsResponse with _$ListChannelsResponse {
@@ -225,20 +239,6 @@ sealed class PayOnchainResponse with _$PayOnchainResponse {
     required PaymentCreatedIndex index,
     required String txid,
   }) = _PayOnchainResponse;
-}
-
-/// Whether the user has a payment address associated with their username and if
-/// it is updatable.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PaymentAddress with _$PaymentAddress {
-  const factory PaymentAddress({
-    Username? username,
-    Offer? offer,
-    int? updatedAt,
-    required bool updatable,
-  }) = _PaymentAddress;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
