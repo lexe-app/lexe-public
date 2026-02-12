@@ -361,20 +361,18 @@ class _LandingPageState extends State<LandingPage>
 ## NEXT-GEN LIGHTNING.
           '''),
           const SizedBox(height: Space.s300),
-          const Wrap(
-            spacing: Space.s200,
-            runSpacing: Space.s200,
-            children: [
-              _LandingKeywordPill("Instant payments"),
-              _LandingKeywordPill("BOLT12 offers"),
-              _LandingKeywordPill("\u20bfme@lexe.app"),
-              _LandingKeywordPill("Self-custodial"),
-              _LandingKeywordPill("Lightning Address"),
-              _LandingKeywordPill("Free hosting"),
-              _LandingKeywordPill("Managed liquidity"),
-              _LandingKeywordPill("Private"),
-              _LandingKeywordPill("Open-source"),
-              _LandingKeywordPill("Receive 24/7"),
+          _LandingKeywordPills(
+            labels: const [
+              "Instant payments",
+              "BOLT12 offers",
+              "\u20bfme@lexe.app",
+              "Self-custodial",
+              "Lightning Address",
+              "Free hosting",
+              "Managed liquidity",
+              "Private",
+              "Open-source",
+              "Receive 24/7",
             ],
           ),
         ],
@@ -567,41 +565,162 @@ class LandingMarkdownBody extends MarkdownBody {
     : super(data: data, styleSheet: _landingStyleSheet, onTapLink: _onTapLink);
 }
 
+/// Like [Wrap], but pills within each row expand evenly to fill the full
+/// row width. Row assignment is greedy, based on measured text widths.
+class _LandingKeywordPills extends StatelessWidget {
+  const _LandingKeywordPills({required this.labels});
+
+  final List<String> labels;
+
+  static const _spaceBetween = Space.s200;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final textScaler = MediaQuery.textScalerOf(context);
+        final rows = this._assignToRows(maxWidth, textScaler);
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (i, row) in rows.indexed) ...[
+              if (i > 0) const SizedBox(height: _spaceBetween),
+              _buildRow(row, maxWidth),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  /// Build a single row of pills. Each pill gets its natural width plus
+  /// an equal share of the leftover space, so text never wraps.
+  static Widget _buildRow(List<(String, double)> row, double maxWidth) {
+    final totalSpacing = _spaceBetween * (row.length - 1);
+    final naturalTotal = row.fold(0.0, (sum, item) => sum + item.$2);
+    final leftover = max(0.0, maxWidth - totalSpacing - naturalTotal);
+    final extra = leftover / row.length;
+
+    return Row(
+      children: [
+        for (final (j, (label, naturalWidth)) in row.indexed) ...[
+          if (j > 0) const SizedBox(width: _spaceBetween),
+          SizedBox(
+            width: naturalWidth + extra,
+            child: _LandingKeywordPill(label),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Measure each pill's natural width with [TextPainter], then greedily
+  /// pack pills into rows that fit within [maxWidth].
+  List<List<(String, double)>> _assignToRows(
+    double maxWidth,
+    TextScaler textScaler,
+  ) {
+    // Measure natural pill widths. Must use the same font + textScaler as the
+    // actual Text widget, otherwise the measurement will be off.
+    final tp = TextPainter(
+      textDirection: ui.TextDirection.ltr,
+      textScaler: textScaler,
+      maxLines: 1,
+    );
+    final List<(String, double)> pills;
+    try {
+      pills = this.labels.map((label) {
+        final layout = tp
+          ..text = TextSpan(text: label, style: _LandingKeywordPill._textStyle)
+          ..layout();
+        final naturalWidth =
+            layout.width +
+            _LandingKeywordPill._hPadding * 2 +
+            _LandingKeywordPill._borderWidth * 2;
+        return (label, naturalWidth);
+      }).toList();
+    } finally {
+      // Ensure we always dispose the TextPainter
+      tp.dispose();
+    }
+
+    // Greedy row assignment.
+    final rows = <List<(String, double)>>[];
+    var row = <(String, double)>[];
+    var rowWidth = 0.0;
+
+    for (final pill in pills) {
+      final needed = row.isEmpty ? pill.$2 : pill.$2 + _spaceBetween;
+      if (row.isNotEmpty && rowWidth + needed > maxWidth) {
+        rows.add(row);
+        row = [pill];
+        rowWidth = pill.$2;
+      } else {
+        row.add(pill);
+        rowWidth += needed;
+      }
+    }
+    if (row.isNotEmpty) rows.add(row);
+
+    return rows;
+  }
+}
+
+/// A single keyword pill on the "NEXT-GEN LIGHTNING" page
 class _LandingKeywordPill extends StatelessWidget {
   const _LandingKeywordPill(this.label);
 
   final String label;
 
+  static const _borderWidth = 1.0;
+  static const _hPadding = Space.s300;
+
+  /// NOTE: use a complete TextStyle here, without inherited properties, to
+  /// ensure that the TextPainter measurements in _assignToRows are accurate
+  static final _textStyle = Fonts.fontUI.copyWith(
+    fontSize: Fonts.size200,
+    fontVariations: [Fonts.weightSemiBold],
+    overflow: TextOverflow.ellipsis,
+  );
+
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: const BoxDecoration(
-      // Subtle 45-deg internal lighting: brighter top-left, dimmer
-      // bottom-right, with a thin glass-edge border highlight.
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        // colors: [LxColors.clearB50, LxColors.clearB100],
-        colors: [LxColors.clearW800, LxColors.clearW600],
-      ),
       borderRadius: BorderRadius.all(
         Radius.elliptical(LxRadius.r400, LxRadius.r400),
       ),
-      border: Border.fromBorderSide(
-        BorderSide(color: LxColors.clearW200, width: 1.0),
+      // 45-deg internal lighting
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [LxColors.clearW800, LxColors.clearW600],
       ),
+      // thin glass-edge border highlight
+      border: Border.fromBorderSide(
+        BorderSide(color: LxColors.clearW200, width: _borderWidth),
+      ),
+      // soft shadow to add some slight contrast against the background
+      boxShadow: [
+        BoxShadow(
+          color: LxColors.clearB50,
+          blurRadius: 8.0,
+          offset: Offset(0, 2.0),
+        ),
+      ],
     ),
     child: Padding(
       padding: const EdgeInsets.symmetric(
         vertical: Space.s200,
-        horizontal: Space.s300,
+        horizontal: _hPadding,
       ),
       child: Text(
         this.label,
-        style: TextStyle(
-          fontSize: Fonts.size200,
-          fontVariations: [Fonts.weightSemiBold],
-          color: LxColors.foreground,
-        ),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: _textStyle,
       ),
     ),
   );

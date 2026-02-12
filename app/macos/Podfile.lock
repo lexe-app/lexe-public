@@ -79,7 +79,7 @@ SPEC CHECKSUMS:
   app_rs_dart: ca6cae2fa1f07e4e259b171ee5ebf30418dd05e2
   desktop_webview_window: d4365e71bcd4e1aa0c14cf0377aa24db0c16a7e2
   device_info_plus: 1b14eed9bf95428983aed283a8d51cce3d8c4215
-  file_selector_macos: 54fdab7caa3ac3fc43c9fac4d7d8d231277f8cf2
+  file_selector_macos: cc3858c981fe6889f364731200d6232dac1d812d
   flutter_file_manager_macos: 11df72b919a6e010c8e03ec6adf7439f0319032b
   flutter_web_auth_2: 2e1dc2d2139973e4723c5286ce247dd590390d70
   flutter_zxing: ea030278aa2a051cd81a5b0053be9d0569d11c9a
