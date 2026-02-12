@@ -22,7 +22,7 @@ import 'package:lexeapp/route/signup.dart'
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/settings.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:lexeapp/url.dart' as url;
 
@@ -352,6 +352,34 @@ class _LandingPageState extends State<LandingPage>
         ],
       ),
 
+      // Keyword pills showcase
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LandingMarkdownBody('''
+## NEXT-GEN LIGHTNING.
+          '''),
+          const SizedBox(height: Space.s300),
+          const Wrap(
+            spacing: Space.s200,
+            runSpacing: Space.s200,
+            children: [
+              _LandingKeywordPill("Instant payments"),
+              _LandingKeywordPill("BOLT12 offers"),
+              _LandingKeywordPill("\u20bfme@lexe.app"),
+              _LandingKeywordPill("Self-custodial"),
+              _LandingKeywordPill("Lightning Address"),
+              _LandingKeywordPill("Free hosting"),
+              _LandingKeywordPill("Managed liquidity"),
+              _LandingKeywordPill("Private"),
+              _LandingKeywordPill("Open-source"),
+              _LandingKeywordPill("Receive 24/7"),
+            ],
+          ),
+        ],
+      ),
+
       //
       LandingMarkdownBody('''
 ## RECEIVE PAYMENTS 24/7.
@@ -537,6 +565,46 @@ Future<void> _onTapLink(String _text, String? href, String _title) async {
 class LandingMarkdownBody extends MarkdownBody {
   LandingMarkdownBody(final String data, {super.key})
     : super(data: data, styleSheet: _landingStyleSheet, onTapLink: _onTapLink);
+}
+
+class _LandingKeywordPill extends StatelessWidget {
+  const _LandingKeywordPill(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      // Subtle 45-deg internal lighting: brighter top-left, dimmer
+      // bottom-right, with a thin glass-edge border highlight.
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        // colors: [LxColors.clearB50, LxColors.clearB100],
+        colors: [LxColors.clearW800, LxColors.clearW600],
+      ),
+      borderRadius: BorderRadius.all(
+        Radius.elliptical(LxRadius.r400, LxRadius.r400),
+      ),
+      border: Border.fromBorderSide(
+        BorderSide(color: LxColors.clearW200, width: 1.0),
+      ),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: Space.s200,
+        horizontal: Space.s300,
+      ),
+      child: Text(
+        this.label,
+        style: TextStyle(
+          fontSize: Fonts.size200,
+          fontVariations: [Fonts.weightSemiBold],
+          color: LxColors.foreground,
+        ),
+      ),
+    ),
+  );
 }
 
 class LandingButtons extends StatelessWidget {

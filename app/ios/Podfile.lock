@@ -77,7 +77,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   app_links: f3e17e4ee5e357b39d8b95290a9b2c299fca71c6
   app_rs_dart: a1e1f11cc54d38820b575dc2d1634810e88a4acb
-  camera_avfoundation: dd002b0330f4981e1bbcb46ae9b62829237459a4
+  camera_avfoundation: adb0207d868b2d873e895371d88448399ab78d87
   device_info_plus: bf2e3232933866d73fe290f2942f2156cdd10342
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_file_manager_ios: a25a3d5f9473c8486213797d5f5e3c546e4a8c06
