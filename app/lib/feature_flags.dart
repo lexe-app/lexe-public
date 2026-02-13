@@ -57,29 +57,23 @@ final class FeatureFlags {
   /// Disable all features.
   const FeatureFlags.none({
     this.allowEditHumanAddress = false,
-    this.showHumanAddress = false,
     this.showWalletBanners = false,
   });
 
   /// Enable all features.
   const FeatureFlags.all({
     this.allowEditHumanAddress = true,
-    this.showHumanAddress = true,
     this.showWalletBanners = false,
   });
 
   const FeatureFlags.some({
     this.allowEditHumanAddress = false,
-    this.showHumanAddress = false,
     this.showWalletBanners = false,
   });
 
   /// On the Wallet > Wallet Drawer, allow the user to edit their Human
   /// Bitcoin address.
   final bool allowEditHumanAddress;
-
-  /// On the Wallet > Wallet Drawer, show the HBA with copy/share.
-  final bool showHumanAddress;
 
   /// On the Wallet page, show funding state banners below WalletActions.
   /// When false, no banners are shown (assumes `funded` state).

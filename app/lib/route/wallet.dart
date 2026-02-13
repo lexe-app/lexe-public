@@ -1240,7 +1240,6 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
 
-  bool get showHumanAddress => this.featureFlags.showHumanAddress;
   bool get allowEditHumanAddress => this.featureFlags.allowEditHumanAddress;
 
   @override
@@ -1320,20 +1319,19 @@ class WalletDrawer extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (this.showHumanAddress)
-                    ValueListenableBuilder(
-                      valueListenable:
-                          this.humanBitcoinAddressService.humanBitcoinAddress,
-                      builder: (context, humanBitcoinAddress, child) {
-                        return DrawerProfile(
-                          allowEdit: this.allowEditHumanAddress,
-                          onEditProfilePressed: this.allowEditHumanAddress
-                              ? this.onProfileMenuPressed
-                              : null,
-                          humanBitcoinAddress: humanBitcoinAddress,
-                        );
-                      },
-                    ),
+                  ValueListenableBuilder(
+                    valueListenable:
+                        this.humanBitcoinAddressService.humanBitcoinAddress,
+                    builder: (context, humanBitcoinAddress, child) {
+                      return DrawerProfile(
+                        allowEdit: this.allowEditHumanAddress,
+                        onEditProfilePressed: this.allowEditHumanAddress
+                            ? this.onProfileMenuPressed
+                            : null,
+                        humanBitcoinAddress: humanBitcoinAddress,
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: Space.s500),
                   const Divider(
