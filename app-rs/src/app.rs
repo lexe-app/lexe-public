@@ -48,7 +48,7 @@ pub struct App {
     user_db_config: WalletUserDbConfig,
     use_mock_secret_store: bool,
 
-    /// Whether we've called [`LexeWallet::ensure_provisioned`] yet.
+    /// Whether we've called [`LexeWallet::provision`] yet.
     is_provisioned: AtomicBool,
 }
 
@@ -101,7 +101,7 @@ impl App {
             rng,
             env_config.clone(),
             credentials,
-            env_db_config.lexe_data_dir().clone(),
+            Some(env_db_config.lexe_data_dir().clone()),
         )
         .context("Failed to init LexeWallet")?;
         let user_config = wallet.user_config().clone();
@@ -112,7 +112,7 @@ impl App {
         // Signup and provision
         let allow_gvfs_access: bool = true;
         wallet
-            .signup_and_provision(
+            .signup_custom(
                 rng,
                 root_seed,
                 partner,
@@ -187,7 +187,7 @@ impl App {
             rng,
             env_config.clone(),
             credentials,
-            env_db_config.lexe_data_dir().clone(),
+            Some(env_db_config.lexe_data_dir().clone()),
         )
         .context("Failed to build LexeWallet")?;
         let wallet = match maybe_wallet {
@@ -200,7 +200,7 @@ impl App {
                 rng,
                 env_config.clone(),
                 credentials,
-                env_db_config.lexe_data_dir().clone(),
+                Some(env_db_config.lexe_data_dir().clone()),
             )
             .context("Failed to build fresh LexeWallet")?,
         };
@@ -244,7 +244,7 @@ impl App {
             rng,
             env_config.clone(),
             credentials,
-            env_db_config.lexe_data_dir().clone(),
+            Some(env_db_config.lexe_data_dir().clone()),
         )
         .context("Failed to build LexeWallet")?;
         let user_config = wallet.user_config().clone();
@@ -258,7 +258,7 @@ impl App {
         let credentials = CredentialsRef::from(root_seed);
         let encrypted_seed = None;
         wallet
-            .ensure_provisioned(
+            .provision_custom(
                 credentials,
                 allow_gvfs_access,
                 encrypted_seed,
@@ -317,7 +317,7 @@ impl App {
         let encrypted_seed = None;
         let google_auth_code = None;
         self.wallet
-            .ensure_provisioned(
+            .provision_custom(
                 credentials,
                 allow_gvfs_access,
                 encrypted_seed,

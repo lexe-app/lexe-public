@@ -46,6 +46,30 @@ use secrecy::Secret;
 
 uniffi::setup_scaffolding!("lexe");
 
+// ================== //
+// --- Global API --- //
+// ================== //
+
+/// Returns the default Lexe data directory (`~/.lexe`).
+///
+/// - Unix: `$HOME/.lexe`
+/// - Windows: `%USERPROFILE%\.lexe`
+#[uniffi::export]
+pub fn default_lexe_data_dir() -> FfiResult<String> {
+    sdk_rust::wallet::default_lexe_data_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(Into::into)
+}
+
+/// Initialize the Lexe logger with the given default log level.
+///
+/// Call this once at startup to enable logging. Valid levels are:
+/// `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"`.
+#[uniffi::export]
+pub fn init_logger(default_level: String) {
+    sdk_rust::init_logger(&default_level);
+}
+
 // ===================== //
 // --- FFI Internals --- //
 // ===================== //
@@ -166,20 +190,20 @@ pub struct WalletEnvConfig {
 
 #[uniffi::export]
 impl WalletEnvConfig {
-    /// Create config for development environment.
-    #[uniffi::constructor(default(use_sgx = false, gateway_url = None))]
-    pub fn dev(use_sgx: bool, gateway_url: Option<String>) -> Arc<Self> {
+    /// Create config for Bitcoin mainnet.
+    #[uniffi::constructor]
+    pub fn mainnet() -> Arc<Self> {
         Arc::new(Self {
-            deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
-            use_sgx,
-            gateway_url,
+            deploy_env: DeployEnv::Prod,
+            network: LxNetwork::Mainnet,
+            use_sgx: true,
+            gateway_url: None,
         })
     }
 
-    /// Create config for staging environment.
+    /// Create config for Bitcoin testnet3.
     #[uniffi::constructor]
-    pub fn staging() -> Arc<Self> {
+    pub fn testnet3() -> Arc<Self> {
         Arc::new(Self {
             deploy_env: DeployEnv::Staging,
             network: LxNetwork::Testnet3,
@@ -188,14 +212,14 @@ impl WalletEnvConfig {
         })
     }
 
-    /// Create config for production environment.
-    #[uniffi::constructor]
-    pub fn prod() -> Arc<Self> {
+    /// Create config for local development (regtest).
+    #[uniffi::constructor(default(use_sgx = false, gateway_url = None))]
+    pub fn regtest(use_sgx: bool, gateway_url: Option<String>) -> Arc<Self> {
         Arc::new(Self {
-            deploy_env: DeployEnv::Prod,
-            network: LxNetwork::Mainnet,
-            use_sgx: true,
-            gateway_url: None,
+            deploy_env: DeployEnv::Dev,
+            network: LxNetwork::Regtest,
+            use_sgx,
+            gateway_url,
         })
     }
 
@@ -226,15 +250,28 @@ impl WalletEnvConfig {
                 Some(DeployEnvRs::Prod.gateway_url(None).into_owned()),
         }
     }
+
+    /// Returns the path to the seedphrase file for this environment.
+    ///
+    /// - Mainnet: `<lexe_data_dir>/seedphrase.txt`
+    /// - Other environments: `<lexe_data_dir>/seedphrase.<env>.txt`
+    pub fn seedphrase_path(&self, lexe_data_dir: String) -> String {
+        self.to_rs()
+            .seedphrase_path(&PathBuf::from(lexe_data_dir))
+            .to_string_lossy()
+            .into_owned()
+    }
 }
 
 impl WalletEnvConfig {
     fn to_rs(&self) -> WalletEnvConfigRs {
         match self.deploy_env {
-            DeployEnv::Prod => WalletEnvConfigRs::prod(),
-            DeployEnv::Staging => WalletEnvConfigRs::staging(),
-            DeployEnv::Dev =>
-                WalletEnvConfigRs::dev(self.use_sgx, self.gateway_url.clone()),
+            DeployEnv::Prod => WalletEnvConfigRs::mainnet(),
+            DeployEnv::Staging => WalletEnvConfigRs::testnet3(),
+            DeployEnv::Dev => WalletEnvConfigRs::regtest(
+                self.use_sgx,
+                self.gateway_url.clone(),
+            ),
         }
     }
 }
@@ -347,29 +384,29 @@ pub struct LexeWallet {
 
 #[uniffi::export(async_runtime = "tokio")]
 impl LexeWallet {
-    /// Create a fresh wallet, deleting any existing local state for this user
-    /// in `data_dir`. Data for other users and environments is not affected.
+    /// Create a fresh wallet, deleting any existing local state for this user.
+    /// Data for other users and environments is not affected.
     ///
-    /// It is recommended to always pass the same `data_dir`, regardless of
+    /// It is recommended to always pass the same `lexe_data_dir`, regardless of
     /// environment (dev/staging/prod) or user. Data is namespaced internally,
     /// so users and environments do not interfere with each other.
-    #[uniffi::constructor]
+    /// Defaults to `~/.lexe` if not specified.
+    #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn fresh(
         env_config: Arc<WalletEnvConfig>,
         root_seed: RootSeed,
-        data_dir: String,
+        lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
         let mut rng = SysRng::new();
         let root_seed_rs = root_seed.to_rs()?;
         let credentials = CredentialsRef::from(&root_seed_rs);
         let env_config_rs = env_config.to_rs();
-        let data_dir_path = PathBuf::from(data_dir);
 
         let inner = LexeWalletRs::fresh(
             &mut rng,
             env_config_rs,
             credentials,
-            data_dir_path,
+            lexe_data_dir.map(PathBuf::from),
         )?;
 
         Ok(Arc::new(Self {
@@ -377,29 +414,28 @@ impl LexeWallet {
         }))
     }
 
-    /// Load an existing wallet from `data_dir`, or create a fresh one if no
-    /// local data exists.
+    /// Load an existing wallet, or create a fresh one if no local data exists.
     ///
-    /// It is recommended to always pass the same `data_dir`, regardless of
+    /// It is recommended to always pass the same `lexe_data_dir`, regardless of
     /// environment (dev/staging/prod) or user. Data is namespaced internally,
     /// so users and environments do not interfere with each other.
-    #[uniffi::constructor]
+    /// Defaults to `~/.lexe` if not specified.
+    #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load_or_fresh(
         env_config: Arc<WalletEnvConfig>,
         root_seed: RootSeed,
-        data_dir: String,
+        lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
         let mut rng = SysRng::new();
         let root_seed_rs = root_seed.to_rs()?;
         let credentials = CredentialsRef::from(&root_seed_rs);
         let env_config_rs = env_config.to_rs();
-        let data_dir_path = PathBuf::from(data_dir);
 
         let inner = LexeWalletRs::load_or_fresh(
             &mut rng,
             env_config_rs,
             credentials,
-            data_dir_path,
+            lexe_data_dir.map(PathBuf::from),
         )?;
 
         Ok(Arc::new(Self {
@@ -409,7 +445,7 @@ impl LexeWallet {
 
     /// Sign up a new user and provision their node.
     /// `partner_user_pk` is an optional hex-encoded user public key.
-    pub async fn signup_and_provision(
+    pub async fn signup(
         &self,
         root_seed: RootSeed,
         partner_user_pk: Option<String>,
@@ -425,36 +461,15 @@ impl LexeWallet {
             })
             .transpose()?;
 
-        self.inner
-            .signup_and_provision(
-                &mut rng,
-                &root_seed_rs,
-                partner,
-                None,  // signup_code
-                false, // allow_gvfs_access
-                None,  // backup_password
-                None,  // google_auth_code
-            )
-            .await?;
+        self.inner.signup(&mut rng, &root_seed_rs, partner).await?;
         Ok(())
     }
 
     /// Ensure the wallet is provisioned to the latest enclave.
-    pub async fn ensure_provisioned(
-        &self,
-        root_seed: RootSeed,
-    ) -> FfiResult<()> {
+    pub async fn provision(&self, root_seed: RootSeed) -> FfiResult<()> {
         let root_seed_rs = root_seed.to_rs()?;
         let credentials = CredentialsRef::from(&root_seed_rs);
-
-        self.inner
-            .ensure_provisioned(
-                credentials,
-                false, // allow_gvfs_access
-                None,  // encrypted_seed
-                None,  // google_auth_code
-            )
-            .await?;
+        self.inner.provision(credentials).await?;
         Ok(())
     }
 
@@ -550,6 +565,28 @@ impl LexeWallet {
             num_new: summary.num_new as u64,
             num_updated: summary.num_updated as u64,
         })
+    }
+
+    /// Delete all local payment data for this wallet.
+    ///
+    /// This clears the local payment cache. Remote data on the node is not
+    /// affected. Call `sync_payments` to re-populate from the node.
+    pub fn delete_local_payments(&self) -> FfiResult<()> {
+        self.inner.payments_db().delete().map_err(|e| {
+            anyhow::anyhow!("Failed to delete local payments: {e}")
+        })?;
+        Ok(())
+    }
+
+    /// Get the latest payment sync index (watermark).
+    ///
+    /// Returns the `updated_at` index of the most recently synced payment,
+    /// or `None` if no payments have been synced yet.
+    pub fn latest_payment_sync_index(&self) -> Option<String> {
+        self.inner
+            .payments_db()
+            .latest_updated_index()
+            .map(|idx| idx.to_string())
     }
 
     /// List payments from local storage based on filters.
@@ -652,34 +689,33 @@ impl LexeWallet {
     }
 }
 
-/// Try to load an existing wallet from `data_dir`; return [`None`] if no local
-/// data exists.
+/// Try to load an existing wallet; return [`None`] if no local data exists.
 ///
 /// If this returns [`None`], call [`LexeWallet::fresh`] to create local state.
 ///
-/// It is recommended to always pass the same `data_dir`, regardless of
+/// It is recommended to always pass the same `lexe_data_dir`, regardless of
 /// environment (dev/staging/prod) or user. Data is namespaced internally, so
 /// users and environments do not interfere with each other.
+/// Defaults to `~/.lexe` if not specified.
 // This is a free function because uniffi constructors cannot return
 // `Option<Arc<Self>>`, and uniffi doesn't support static methods that
 // aren't constructors.
-#[uniffi::export]
+#[uniffi::export(default(lexe_data_dir = None))]
 pub fn try_load_wallet(
     env_config: Arc<WalletEnvConfig>,
     root_seed: RootSeed,
-    data_dir: String,
+    lexe_data_dir: Option<String>,
 ) -> FfiResult<Option<Arc<LexeWallet>>> {
     let mut rng = SysRng::new();
     let root_seed_rs = root_seed.to_rs()?;
     let credentials = CredentialsRef::from(&root_seed_rs);
     let env_config_rs = env_config.to_rs();
-    let data_dir_path = PathBuf::from(data_dir);
 
     let maybe_inner = LexeWalletRs::load(
         &mut rng,
         env_config_rs,
         credentials,
-        data_dir_path,
+        lexe_data_dir.map(PathBuf::from),
     )?;
 
     Ok(maybe_inner.map(|inner| {

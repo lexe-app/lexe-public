@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, path::PathBuf};
+use std::{env, marker::PhantomData, path::PathBuf};
 
 use anyhow::{Context, anyhow, ensure};
 use common::{
@@ -44,6 +44,21 @@ use crate::{
     unstable::{ffs::DiskFs, provision, wallet_db::WalletDb},
 };
 
+/// Returns the default Lexe data directory (`~/.lexe`).
+///
+/// - Unix: `$HOME/.lexe`
+/// - Windows: `%USERPROFILE%\.lexe`
+pub fn default_lexe_data_dir() -> anyhow::Result<PathBuf> {
+    // Try USERPROFILE first (Windows), then HOME (Unix)
+    let home = env::var("USERPROFILE")
+        .or_else(|_| env::var("HOME"))
+        .context(
+            "Could not determine home directory. \
+             Set HOME (Unix) or USERPROFILE (Windows) environment variable.",
+        )?;
+    Ok(PathBuf::from(home).join(".lexe"))
+}
+
 /// Type state indicating the wallet has persistence enabled.
 pub struct WithDb;
 /// Type state indicating the wallet has no persistence.
@@ -80,16 +95,17 @@ impl LexeWallet<WithDb> {
     /// regardless of which environment we're in (dev/staging/prod) and which
     /// user this [`LexeWallet`] is for. Users and environments will not
     /// interfere with each other as all data is namespaced internally.
+    /// Defaults to `~/.lexe` if not specified.
     pub fn fresh(
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
-        lexe_data_dir: PathBuf,
+        lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Self> {
-        let env_db_config = WalletEnvDbConfig::new(
-            env_config.wallet_env,
-            lexe_data_dir.to_path_buf(),
-        );
+        let lexe_data_dir =
+            lexe_data_dir.map_or_else(default_lexe_data_dir, Ok)?;
+        let env_db_config =
+            WalletEnvDbConfig::new(env_config.wallet_env, lexe_data_dir);
         let user_db_config =
             WalletUserDbConfig::from_credentials(credentials, env_db_config)?;
 
@@ -104,26 +120,27 @@ impl LexeWallet<WithDb> {
     /// [`fresh`] to create the wallet and local data cache.
     ///
     /// If you are authenticating with [`RootSeed`]s and this returns [`None`],
-    /// you should call [`signup_and_provision`] after creating the wallet
-    /// if you're not sure whether the user has been signed up with Lexe.
+    /// you should call [`signup`] after creating the wallet if you're not sure
+    /// whether the user has been signed up with Lexe.
     ///
     /// It is recommended to always pass the same `lexe_data_dir`,
     /// regardless of which environment we're in (dev/staging/prod) and which
     /// user this [`LexeWallet`] is for. Users and environments will not
     /// interfere with each other as all data is namespaced internally.
+    /// Defaults to `~/.lexe` if not specified.
     ///
     /// [`fresh`]: LexeWallet::fresh
-    /// [`signup_and_provision`]: LexeWallet::signup_and_provision
+    /// [`signup`]: LexeWallet::signup
     pub fn load(
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
-        lexe_data_dir: PathBuf,
+        lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Option<Self>> {
-        let env_db_config = WalletEnvDbConfig::new(
-            env_config.wallet_env,
-            lexe_data_dir.to_path_buf(),
-        );
+        let lexe_data_dir =
+            lexe_data_dir.map_or_else(default_lexe_data_dir, Ok)?;
+        let env_db_config =
+            WalletEnvDbConfig::new(env_config.wallet_env, lexe_data_dir);
         let user_db_config =
             WalletUserDbConfig::from_credentials(credentials, env_db_config)?;
 
@@ -145,16 +162,17 @@ impl LexeWallet<WithDb> {
     /// regardless of which environment we're in (dev/staging/prod) and which
     /// user this [`LexeWallet`] is for. Users and environments will not
     /// interfere with each other as all data is namespaced internally.
+    /// Defaults to `~/.lexe` if not specified.
     pub fn load_or_fresh(
         rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
-        lexe_data_dir: PathBuf,
+        lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Self> {
-        let env_db_config = WalletEnvDbConfig::new(
-            env_config.wallet_env,
-            lexe_data_dir.to_path_buf(),
-        );
+        let lexe_data_dir =
+            lexe_data_dir.map_or_else(default_lexe_data_dir, Ok)?;
+        let env_db_config =
+            WalletEnvDbConfig::new(env_config.wallet_env, lexe_data_dir);
         let user_db_config =
             WalletUserDbConfig::from_credentials(credentials, env_db_config)?;
 
@@ -317,21 +335,58 @@ impl<D> LexeWallet<D> {
     /// lose their funds forever. If adding Lexe to a broader wallet, a good
     /// strategy is to derive Lexe's [`RootSeed`] from your own root seed.
     ///
-    /// - `partner`: SDK users should set this to the [`UserPk`] of their
-    ///   company account. In the future, you may receive a share of the fees
-    ///   generated by users that you sign up to Lexe.
-    /// - `signup_code`: SDK users should generally set this to `None`.
-    /// - `allow_gvfs_access`: SDK users should generally set this to `false`.
-    /// - `backup_password`: SDK users should generally set this to `None`.
-    /// - `google_auth_code`: SDK users should generally set this to `None`.
+    /// - `partner_pk`: Set to your company's [`UserPk`] to earn a share of this
+    ///   wallet's fees.
     ///
     /// [`fresh()`]: LexeWallet::fresh
     /// [`without_db()`]: LexeWallet::without_db
-    pub async fn signup_and_provision(
+    pub async fn signup(
         &self,
         rng: &mut impl Crng,
         root_seed: &RootSeed,
-        partner: Option<UserPk>,
+        partner_pk: Option<UserPk>,
+    ) -> anyhow::Result<()> {
+        self.signup_inner(
+            rng, root_seed, partner_pk, None,  // signup_code
+            false, // allow_gvfs_access
+            None,  // backup_password
+            None,  // google_auth_code
+        )
+        .await
+    }
+
+    /// [`signup`](Self::signup) but with extra parameters generally only used
+    /// by the Lexe App.
+    #[cfg(feature = "unstable")]
+    pub async fn signup_custom(
+        &self,
+        rng: &mut impl Crng,
+        root_seed: &RootSeed,
+        partner_pk: Option<UserPk>,
+        signup_code: Option<String>,
+        allow_gvfs_access: bool,
+        backup_password: Option<&str>,
+        google_auth_code: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.signup_inner(
+            rng,
+            root_seed,
+            partner_pk,
+            signup_code,
+            allow_gvfs_access,
+            backup_password,
+            google_auth_code,
+        )
+        .await
+    }
+
+    // Inner implementation shared by both stable and unstable APIs.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
+    async fn signup_inner(
+        &self,
+        rng: &mut impl Crng,
+        root_seed: &RootSeed,
+        partner_pk: Option<UserPk>,
         signup_code: Option<String>,
         allow_gvfs_access: bool,
         backup_password: Option<&str>,
@@ -347,7 +402,7 @@ impl<D> LexeWallet<D> {
                 node_pk_proof,
                 signup_code,
             },
-            partner,
+            partner: partner_pk,
         });
         let signed_signup_req = user_key_pair
             .sign_struct(&signup_req)
@@ -369,7 +424,7 @@ impl<D> LexeWallet<D> {
 
         // Initial provisioning
         let credentials = CredentialsRef::from(root_seed);
-        self.ensure_provisioned(
+        self.provision_inner(
             credentials,
             allow_gvfs_access,
             encrypted_seed,
@@ -387,18 +442,41 @@ impl<D> LexeWallet<D> {
     ///
     /// This fetches the current enclaves from the gateway, computes which
     /// releases need to be provisioned, and provisions them.
-    ///
-    /// - `allow_gvfs_access`: SDK users should generally set this to `false`.
-    ///   See [`NodeProvisionRequest::allow_gvfs_access`][aga] for details.
-    /// - `encrypted_seed`: SDK users should generally set this to `None`. See
-    ///   [`NodeProvisionRequest::encrypted_seed`][es] for details.
-    /// - `google_auth_code`: SDK users should generally set this to `None`. See
-    ///   [`NodeProvisionRequest::google_auth_code`][gac] for details.
-    ///
-    /// [aga]: common::api::provision::NodeProvisionRequest::allow_gvfs_access
-    /// [es]: common::api::provision::NodeProvisionRequest::encrypted_seed
-    /// [gac]: common::api::provision::NodeProvisionRequest::google_auth_code
-    pub async fn ensure_provisioned(
+    pub async fn provision(
+        &self,
+        credentials: CredentialsRef<'_>,
+    ) -> anyhow::Result<()> {
+        self.provision_inner(
+            credentials,
+            false, // allow_gvfs_access
+            None,  // encrypted_seed
+            None,  // google_auth_code
+        )
+        .await
+    }
+
+    /// [`provision`](Self::provision) but with extra parameters generally only
+    /// used by the Lexe App.
+    #[cfg(feature = "unstable")]
+    pub async fn provision_custom(
+        &self,
+        credentials: CredentialsRef<'_>,
+        allow_gvfs_access: bool,
+        encrypted_seed: Option<Vec<u8>>,
+        google_auth_code: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.provision_inner(
+            credentials,
+            allow_gvfs_access,
+            encrypted_seed,
+            google_auth_code,
+        )
+        .await
+    }
+
+    // Inner implementation shared by both stable and unstable APIs.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
+    async fn provision_inner(
         &self,
         credentials: CredentialsRef<'_>,
         allow_gvfs_access: bool,

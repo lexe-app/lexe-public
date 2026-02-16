@@ -1184,6 +1184,7 @@ dependencies = [
  "sgx-isa",
  "sha256",
  "strum",
+ "tempfile",
  "thiserror 2.0.17",
  "tracing",
  "x509-parser",

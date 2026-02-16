@@ -91,3 +91,4 @@ yasna.workspace = true
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX
 proptest = { workspace = true, features = ["std"] }
+tempfile.workspace = true

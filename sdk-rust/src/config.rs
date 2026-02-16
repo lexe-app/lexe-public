@@ -1,4 +1,9 @@
-use std::{borrow::Cow, fmt, path::PathBuf, sync::LazyLock};
+use std::{
+    borrow::Cow,
+    fmt,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
 use anyhow::Context;
 use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
@@ -139,6 +144,44 @@ impl fmt::Display for WalletEnv {
 // --- impl WalletEnvConfig --- //
 
 impl WalletEnvConfig {
+    /// Standard wallet environment configuration for Bitcoin mainnet.
+    pub fn mainnet() -> Self {
+        let wallet_env = WalletEnv::prod();
+        Self {
+            gateway_url: wallet_env.deploy_env.gateway_url(None),
+            user_agent: Cow::Borrowed(*SDK_USER_AGENT),
+            wallet_env,
+        }
+    }
+
+    /// Standard wallet environment configuration for Bitcoin testnet3.
+    pub fn testnet3() -> Self {
+        let wallet_env = WalletEnv::staging();
+        Self {
+            gateway_url: wallet_env.deploy_env.gateway_url(None),
+            user_agent: Cow::Borrowed(*SDK_USER_AGENT),
+            wallet_env,
+        }
+    }
+
+    /// Regtest configuration for local development and testing.
+    ///
+    /// - `use_sgx`: Whether to use SGX enclaves.
+    /// - `gateway_url`: Custom gateway URL. If `None`, uses the default dev
+    ///   URL.
+    pub fn regtest(
+        use_sgx: bool,
+        gateway_url: Option<impl Into<Cow<'static, str>>>,
+    ) -> Self {
+        let wallet_env = WalletEnv::dev(use_sgx);
+        let gateway_url = gateway_url.map(Into::into);
+        Self {
+            gateway_url: wallet_env.deploy_env.gateway_url(gateway_url),
+            user_agent: Cow::Borrowed(*SDK_USER_AGENT),
+            wallet_env,
+        }
+    }
+
     /// Construct a [`WalletEnvConfig`].
     #[cfg(feature = "unstable")]
     pub fn new(
@@ -154,39 +197,33 @@ impl WalletEnvConfig {
     }
 
     /// Get a [`WalletEnvConfig`] for production.
+    //
+    // This is unstable because "Deploy environment" is an internal concept and
+    // should not be exposed to SDK users.
+    #[cfg(feature = "unstable")]
     pub fn prod() -> Self {
-        let wallet_env = WalletEnv::prod();
-        let dev_gateway_url = None;
-        Self {
-            gateway_url: wallet_env.deploy_env.gateway_url(dev_gateway_url),
-            user_agent: Cow::Borrowed(*SDK_USER_AGENT),
-            wallet_env,
-        }
+        Self::mainnet()
     }
 
     /// Get a [`WalletEnvConfig`] for staging.
+    //
+    // This is unstable because "Deploy environment" is an internal concept and
+    // should not be exposed to SDK users.
+    #[cfg(feature = "unstable")]
     pub fn staging() -> Self {
-        let wallet_env = WalletEnv::staging();
-        let dev_gateway_url = None;
-        Self {
-            gateway_url: wallet_env.deploy_env.gateway_url(dev_gateway_url),
-            user_agent: Cow::Borrowed(*SDK_USER_AGENT),
-            wallet_env,
-        }
+        Self::testnet3()
     }
 
     /// Get a [`WalletEnvConfig`] for dev/testing.
+    //
+    // This is unstable because "Deploy environment" is an internal concept and
+    // should not be exposed to SDK users.
+    #[cfg(feature = "unstable")]
     pub fn dev(
         use_sgx: bool,
-        dev_gateway_url: Option<impl Into<Cow<'static, str>>>,
+        gateway_url: Option<impl Into<Cow<'static, str>>>,
     ) -> Self {
-        let wallet_env = WalletEnv::dev(use_sgx);
-        let dev_gateway_url = dev_gateway_url.map(Into::into);
-        Self {
-            gateway_url: wallet_env.deploy_env.gateway_url(dev_gateway_url),
-            user_agent: Cow::Borrowed(*SDK_USER_AGENT),
-            wallet_env,
-        }
+        Self::regtest(use_sgx, gateway_url)
     }
 
     /// The gateway URL.
@@ -199,6 +236,21 @@ impl WalletEnvConfig {
     #[cfg(feature = "unstable")]
     pub fn user_agent(&self) -> &str {
         &self.user_agent
+    }
+
+    /// Returns the path to the seedphrase file for this environment.
+    ///
+    /// - Mainnet (prod): `<lexe_data_dir>/seedphrase.txt`
+    /// - Other environments: `<lexe_data_dir>/seedphrase.{wallet_env}.txt`
+    pub fn seedphrase_path(&self, lexe_data_dir: &Path) -> PathBuf {
+        let wallet_env = &self.wallet_env;
+        let filename: Cow<'static, str> =
+            if wallet_env.deploy_env == DeployEnv::Prod {
+                Cow::Borrowed("seedphrase.txt")
+            } else {
+                Cow::Owned(format!("seedphrase.{wallet_env}.txt"))
+            };
+        lexe_data_dir.join(filename.as_ref())
     }
 }
 

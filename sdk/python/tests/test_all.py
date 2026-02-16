@@ -17,8 +17,8 @@ def create_dev_config() -> lexe.WalletEnvConfig:
     """Create a dev environment config for testing"""
     gateway_url = os.getenv("GATEWAY_URL")
     if gateway_url:
-        return lexe.WalletEnvConfig.dev(gateway_url=gateway_url)
-    return lexe.WalletEnvConfig.dev()
+        return lexe.WalletEnvConfig.regtest(gateway_url=gateway_url)
+    return lexe.WalletEnvConfig.regtest()
 
 
 # --- Unit tests --- #
@@ -78,6 +78,38 @@ def test_wallet_env_config():
     assert config.deploy_env() == lexe.DeployEnv.DEV
     assert config.network() == lexe.LxNetwork.REGTEST
     assert config.use_sgx() == False
+
+
+def test_default_lexe_data_dir():
+    """Test default_lexe_data_dir returns a path"""
+    data_dir = lexe.default_lexe_data_dir()
+    assert data_dir is not None
+    assert len(data_dir) > 0
+    assert data_dir.endswith(".lexe")
+
+
+def test_seedphrase_path():
+    """Test seedphrase_path returns environment-specific paths"""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Mainnet config should return seedphrase.txt
+        mainnet_config = lexe.WalletEnvConfig.mainnet()
+        mainnet_path = mainnet_config.seedphrase_path(temp_dir)
+        assert mainnet_path.endswith("seedphrase.txt")
+        assert "prod" not in mainnet_path
+
+        # Regtest config should return seedphrase.<env>.txt
+        regtest_config = lexe.WalletEnvConfig.regtest()
+        regtest_path = regtest_config.seedphrase_path(temp_dir)
+        assert "seedphrase." in regtest_path
+        assert regtest_path != mainnet_path
+
+
+def test_init_logger():
+    """Test init_logger can be called without error"""
+    # Just verify it doesn't crash - logger is global state
+    lexe.init_logger("warn")
 
 
 # --- Wallet tests --- #
@@ -143,7 +175,7 @@ async def test_wallet_node_info():
         wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
 
         # Sign up and provision
-        await wallet.signup_and_provision(seed, None)
+        await wallet.signup(seed, None)
 
         # Get node info
         info = await wallet.node_info()
@@ -238,7 +270,7 @@ async def test_payment_sync():
         seed = create_test_root_seed()
 
         wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
-        await wallet.signup_and_provision(seed, None)
+        await wallet.signup(seed, None)
 
         # Sync payments
         summary = await wallet.sync_payments()
@@ -256,7 +288,7 @@ async def test_update_payment_note():
         seed = create_test_root_seed()
 
         wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
-        await wallet.signup_and_provision(seed, None)
+        await wallet.signup(seed, None)
 
         # Create an invoice to get a payment index
         create_resp = await wallet.create_invoice(
@@ -289,7 +321,7 @@ async def test_list_payments():
         seed = create_test_root_seed()
 
         wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
-        await wallet.signup_and_provision(seed, None)
+        await wallet.signup(seed, None)
 
         # Create an invoice to have at least one payment
         await wallet.create_invoice(
@@ -322,7 +354,7 @@ async def test_list_payments():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_ensure_provisioned():
+async def test_provision():
     """Test ensuring wallet is provisioned to latest enclave"""
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
@@ -331,15 +363,94 @@ async def test_ensure_provisioned():
         wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
 
         # First signup and provision
-        await wallet.signup_and_provision(seed, None)
+        await wallet.signup(seed, None)
 
-        # Now call ensure_provisioned - should succeed since we just provisioned
-        await wallet.ensure_provisioned(seed)
+        # Now call provision - should succeed since we just provisioned
+        await wallet.provision(seed)
 
-        # Verify wallet still works after ensure_provisioned
+        # Verify wallet still works after provision
         info = await wallet.node_info()
         assert info.version != ""
         assert info.user_pk != ""
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_latest_payment_sync_index():
+    """Test getting the latest payment sync index"""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        config = create_dev_config()
+        seed = create_test_root_seed()
+
+        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        await wallet.signup(seed, None)
+
+        # Before any sync, index should be None
+        index_before = wallet.latest_payment_sync_index()
+        # May or may not be None depending on signup creating payments
+
+        # Create an invoice to generate a payment
+        await wallet.create_invoice(
+            expiration_secs=3600,
+            amount_sats=1000,
+            description="Test"
+        )
+
+        # Sync payments
+        await wallet.sync_payments()
+
+        # After sync, index should be set
+        index_after = wallet.latest_payment_sync_index()
+        assert index_after is not None
+        assert len(index_after) > 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_delete_local_payments():
+    """Test deleting local payment data"""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        config = create_dev_config()
+        seed = create_test_root_seed()
+
+        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        await wallet.signup(seed, None)
+
+        # Create an invoice and sync
+        await wallet.create_invoice(
+            expiration_secs=3600,
+            amount_sats=1000,
+            description="Test"
+        )
+        await wallet.sync_payments()
+
+        # Verify we have payments
+        response = wallet.list_payments(
+            filter=lexe.PaymentFilter.ALL,
+            offset=0,
+            limit=10
+        )
+        assert response.total_count >= 1
+
+        # Delete local payments
+        wallet.delete_local_payments()
+
+        # Verify payments are gone locally
+        response_after = wallet.list_payments(
+            filter=lexe.PaymentFilter.ALL,
+            offset=0,
+            limit=10
+        )
+        assert response_after.total_count == 0
+
+        # Re-sync should restore them
+        await wallet.sync_payments()
+        response_restored = wallet.list_payments(
+            filter=lexe.PaymentFilter.ALL,
+            offset=0,
+            limit=10
+        )
+        assert response_restored.total_count >= 1
 
 
 # --- Error case tests --- #

@@ -70,7 +70,7 @@ def load_prefunded_wallet(
     seed_bytes = bytes.fromhex(wallet_info["seed_hex"])
     seed = lexe.RootSeed(seed_bytes=seed_bytes)
 
-    config = lexe.WalletEnvConfig.dev(gateway_url=gateway_url)
+    config = lexe.WalletEnvConfig.regtest(gateway_url=gateway_url)
 
     # Use a temporary directory for local wallet data
     temp_dir = tempfile.TemporaryDirectory(prefix="lexe_prefunded_")
