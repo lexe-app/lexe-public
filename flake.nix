@@ -53,9 +53,6 @@
         system: lexePubLib.mkPkgsUnfree inputs.nixpkgs system
       );
 
-      # eachSystemPkgs :: (builder :: Nixpkgs -> AttrSet) -> AttrSet
-      eachSystemPkgs = builder: eachSystem (system: builder systemPkgs.${system});
-
       # All lexe public monorepo packages and package helpers, for each host
       # system.
       systemLexePubPkgs = eachSystem (
@@ -131,7 +128,7 @@
           # Android app development toolchains
           app-android = lexePubDevShells.app-android;
         }
-        // lib.optionalAttrs pkgs.hostPlatform.isDarwin {
+        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
           # iOS/macOS app development toolchains
           app-ios-macos = lexePubDevShells.app-ios-macos;
         }

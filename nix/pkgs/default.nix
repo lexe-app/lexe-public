@@ -34,7 +34,7 @@ rec {
   patchFenixRustToolchainIfMacOS =
     fenixToolchainUnpatched:
     let
-      isDarwin = pkgs.targetPlatform.isDarwin;
+      isDarwin = pkgs.stdenv.targetPlatform.isDarwin;
     in
     # non-macOS doesn't need patching
     if !isDarwin then
@@ -48,17 +48,17 @@ rec {
       # TODO(phlip9): upstream these changes
       fenixToolchainUnpatched.overrideAttrs (super: {
         # All darwin targets need libiconv
-        depsTargetTargetPropagated = lib.optional pkgs.targetPlatform.isDarwin pkgs.pkgsTargetTarget.iconv;
+        depsTargetTargetPropagated = lib.optional pkgs.stdenv.targetPlatform.isDarwin pkgs.pkgsTargetTarget.iconv;
 
         buildCommand = ''
-          ${lib.optionalString pkgs.hostPlatform.isDarwin ''
+          ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
             # darwin.cctools provides 'install_name_tool'
             export PATH="$PATH:${pkgs.darwin.cctools}/bin"
           ''}
 
           ${super.buildCommand}
 
-          ${lib.optionalString pkgs.hostPlatform.isDarwin ''
+          ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
             # Patch libcurl and libiconv so they use nixpkgs versions
             install_name_tool \
               -change "/usr/lib/libcurl.4.dylib" "${pkgs.curl.out}/lib/libcurl.4.dylib" \
@@ -367,10 +367,12 @@ rec {
     doCheck = false;
     buildForLexeInfra = true;
 
-    nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [
-      # aesm-client crate build.rs
-      pkgs.protobuf
-    ];
+    nativeBuildInputs =
+      lib.optionals (pkgs.stdenv.hostPlatform.system == "x86_64-linux")
+        [
+          # aesm-client crate build.rs
+          pkgs.protobuf
+        ];
   };
 
   # Tiny enclave that exercises some basic SGX platform features.
@@ -416,7 +418,7 @@ rec {
     builtins.derivation (
       {
         name = name;
-        system = pkgs.hostPlatform.system;
+        system = pkgs.stdenv.hostPlatform.system;
         builder = "${pkgs.bash}/bin/bash";
         outputs = [ "out" ];
         # The args are ignored in `nix develop`, but we need to create an output
