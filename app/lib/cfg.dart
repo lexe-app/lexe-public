@@ -38,6 +38,9 @@ const bool prod = appFlavor == "prod";
 /// `false` in integration tests and run mode.
 final bool test = Platform.environment.containsKey("FLUTTER_TEST");
 
+/// Lexe docs URL.
+const String lexeDocsUrl = "https://docs.lexe.app";
+
 // Environment variables that control the build variant.
 // NOTE: we need default values otherwise the dart LSP constantly complains...
 

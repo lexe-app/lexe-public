@@ -1009,6 +1009,9 @@ final class LxIcons {
   /// Website icon (globe/web)
   static const IconData website = Symbols.language_rounded;
 
+  /// Docs icon (book)
+  static const IconData docs = Symbols.menu_book_rounded;
+
   /// Code symbol (SDK client)
   static const IconData sdk = Symbols.code_rounded;
 

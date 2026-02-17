@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
     show MarkdownBody;
+import 'package:lexeapp/cfg.dart' show lexeDocsUrl;
 import 'package:lexeapp/clipboard.dart';
 import 'package:lexeapp/components.dart'
     show
@@ -626,22 +627,17 @@ class SignupBackupSeedConfirmPage extends StatelessWidget {
       body: ScrollableSinglePageBody(
         body: [
           MarkdownBody(
-            data: '''
+            data:
+                '''
 # Only backup seed phrase?
 
 A seed phrase-only backup allows you to restore your node if you lose your
 phone, but relies on Lexe to provide your encrypted recovery data.
+
+[Learn more]($lexeDocsUrl)
 ''',
-            // TODO(phlip9): add a real link to our future help docs.
-            // [Learn more](learn-more)
-            // styleSheet: LxTheme.markdownStyle.copyWith(
-            //   a: const TextStyle(
-            //     color: LxColors.foreground,
-            //     decoration: TextDecoration.underline,
-            //   ),
-            // ),
-            // styleSheet: LxTheme.buildMarkdownStyle(),
             styleSheet: LxTheme.markdownStyle,
+            onTapLink: (_, href, _) => unawaited(url.open(href!)),
           ),
         ],
         bottom: Padding(

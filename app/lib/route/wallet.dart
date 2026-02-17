@@ -1,6 +1,6 @@
 // The primary wallet page.
 
-import 'dart:async' show StreamSubscription, TimeoutException;
+import 'dart:async' show StreamSubscription, TimeoutException, unawaited;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart'
@@ -29,7 +29,7 @@ import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:lexeapp/app_data.dart' show LxAppData;
-import 'package:lexeapp/cfg.dart' show UserAgent;
+import 'package:lexeapp/cfg.dart' show UserAgent, lexeDocsUrl;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
@@ -625,6 +625,11 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
+  /// Called when "Documentation" is pressed in the menu drawer.
+  void onDocsMenuPressed() {
+    unawaited(url.open(lexeDocsUrl));
+  }
+
   /// Called when "Profile" (edit username) is pressed in the menu drawer.
   Future<void> onProfileMenuPressed() async {
     // Navigate to profile page
@@ -664,6 +669,7 @@ class WalletPageState extends State<WalletPage> {
         onClientsMenuPressed: this.onClientsMenuPressed,
         onDebugMenuPressed: this.onDebugMenuPressed,
         onSecurityMenuPressed: this.onSecurityMenuPressed,
+        onDocsMenuPressed: this.onDocsMenuPressed,
         onProfileMenuPressed: this.onProfileMenuPressed,
       ),
       body: ScrollableSinglePageBody(
@@ -1212,6 +1218,7 @@ class WalletDrawer extends StatelessWidget {
     this.onDebugMenuPressed,
     this.onClientsMenuPressed,
     this.onSecurityMenuPressed,
+    this.onDocsMenuPressed,
     this.onProfileMenuPressed,
     // this.onInvitePressed,
   });
@@ -1229,6 +1236,7 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onDebugMenuPressed;
   final VoidCallback? onClientsMenuPressed;
   final VoidCallback? onSecurityMenuPressed;
+  final VoidCallback? onDocsMenuPressed;
   final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
 
@@ -1272,7 +1280,6 @@ class WalletDrawer extends StatelessWidget {
                   icon: LxIcons.security,
                   onTap: this.onSecurityMenuPressed,
                 ),
-
                 // TODO(phlip9): impl
                 // // * Settings
                 // // * Backup
@@ -1345,6 +1352,11 @@ class WalletDrawer extends StatelessWidget {
                       IconButton(
                         onPressed: () => url.open("https://lexe.app"),
                         icon: const Icon(LxIcons.website, size: Fonts.size600),
+                        color: LxColors.foreground,
+                      ),
+                      IconButton(
+                        onPressed: () => this.onDocsMenuPressed?.call(),
+                        icon: const Icon(LxIcons.docs, size: Fonts.size600),
                         color: LxColors.foreground,
                       ),
                       IconButton(

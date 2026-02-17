@@ -347,6 +347,8 @@ class _LandingPageState extends State<LandingPage>
 Your Lightning node is **always available** to receive payments.
 
 Get paid **anytime, anywhere**. Even when your phone goes offline.
+
+[Learn more](https://docs.lexe.app/how-lexe-works/#lexes-solution-your-node-in-the-cloud)
       '''),
       ),
 
@@ -358,6 +360,8 @@ Get paid **anytime, anywhere**. Even when your phone goes offline.
 We run your node in a **Secure Enclave** so your funds are protected, even if we get hacked.
 
 With LEXE, **only you control your funds**. Let us handle the infrastructure.
+
+[Learn more](https://docs.lexe.app/how-lexe-works/#what-is-a-secure-enclave)
       '''),
       ),
 
@@ -377,6 +381,21 @@ With LEXE, **only you control your funds**. Let us handle the infrastructure.
 The LEXE Lightning node is [open-source](https://github.com/lexe-app/lexe-public) and fully reproducible.
 
 Your wallet always verifies your node's software before sharing any keys.
+
+[Learn more](https://docs.lexe.app/how-lexe-works/#how-you-stay-in-control)
+      '''),
+      ),
+
+      //
+      _LandingPageSpec(
+        child: LandingMarkdownBody('''
+## SIMPLE, TRANSPARENT PRICING.
+
+**Node hosting is free**, forever. No subscriptions, no hidden fees.
+
+**Up to 0.5% fee** to send and receive Lightning payments*
+
+[Learn more](https://docs.lexe.app/fees-and-pricing/)*
       '''),
       ),
     ];
@@ -999,7 +1018,6 @@ class LandingButtons extends StatelessWidget {
           ),
           label: const Text("Restore wallet"),
         ),
-        const SizedBox(height: Space.s400),
       ],
     );
   }
