@@ -39,7 +39,8 @@ impl WalletDb<DiskFs> {
         // Delete the old payments_db dir just in case it exists.
         for old_dir in user_db_config.old_payment_db_dirs() {
             match fsext::remove_dir_all_idempotent(&old_dir) {
-                Ok(()) => info!("Deleted old payments_db dir: {old_dir:?}"),
+                Ok(true) => info!("Deleted old payments_db dir: {old_dir:?}"),
+                Ok(false) => (),
                 Err(e) => warn!(?old_dir, "Couldn't delete old dir: {e:#}"),
             }
         }
@@ -72,7 +73,9 @@ impl WalletDb<DiskFs> {
         if num_payments == 0 {
             for old_dir in user_db_config.old_payment_db_dirs() {
                 match fsext::remove_dir_all_idempotent(&old_dir) {
-                    Ok(()) => info!("Deleted old payments_db dir: {old_dir:?}"),
+                    Ok(true) =>
+                        info!("Deleted old payments_db dir: {old_dir:?}"),
+                    Ok(false) => (),
                     Err(e) => warn!(?old_dir, "Couldn't delete old dir: {e:#}"),
                 }
             }
@@ -82,8 +85,9 @@ impl WalletDb<DiskFs> {
         // backend.
         let old_provision_db_dir = user_db_config.old_provision_db_dir();
         match fsext::remove_dir_all_idempotent(&old_provision_db_dir) {
-            Ok(()) =>
+            Ok(true) =>
                 info!("Deleted old provision_db dir: {old_provision_db_dir:?}"),
+            Ok(false) => (),
             Err(e) =>
                 warn!(?old_provision_db_dir, "Couldn't delete old dir: {e:#}"),
         }

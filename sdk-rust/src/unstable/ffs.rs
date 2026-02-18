@@ -172,10 +172,11 @@ pub mod fsext {
     use std::{fs, io, path::Path};
 
     /// [`std::fs::remove_dir_all`] but does not error on file not found.
-    pub fn remove_dir_all_idempotent(dir: &Path) -> io::Result<()> {
+    /// Returns `true` if the directory existed and was deleted.
+    pub fn remove_dir_all_idempotent(dir: &Path) -> io::Result<bool> {
         match fs::remove_dir_all(dir) {
-            Ok(()) => Ok(()),
-            Err(ref e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            Ok(()) => Ok(true),
+            Err(ref e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
             Err(e) => Err(e),
         }
     }

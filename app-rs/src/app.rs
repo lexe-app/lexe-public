@@ -450,7 +450,8 @@ impl AppDb {
         // Delete the old app_data_db dir in case it exists.
         let old_dir = Self::old_app_data_db_dir(user_db_config);
         match fsext::remove_dir_all_idempotent(&old_dir) {
-            Ok(()) => info!("Deleted old app_data_db dir: {old_dir:?}"),
+            Ok(true) => info!("Deleted old app_data_db dir: {old_dir:?}"),
+            Ok(false) => (),
             Err(e) => warn!(?old_dir, "Couldn't delete old dir: {e:#}"),
         }
 
@@ -477,7 +478,8 @@ impl AppDb {
         if app_data_db.read() == AppDataRs::default() {
             let old_dir = Self::old_app_data_db_dir(user_db_config);
             match fsext::remove_dir_all_idempotent(&old_dir) {
-                Ok(()) => info!("Deleted old app_data_db dir: {old_dir:?}"),
+                Ok(true) => info!("Deleted old app_data_db dir: {old_dir:?}"),
+                Ok(false) => (),
                 Err(e) => warn!(?old_dir, "Couldn't delete old dir: {e:#}"),
             }
         }
