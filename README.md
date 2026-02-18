@@ -436,4 +436,4 @@ Lexe recognizes the value of open-source. To give back to the open-source
 community, Lexe commits to switching to the MIT license or other permissive
 open-source license once Lexe is in a financially stable position.
 
-© 2022-2024 Lexe Corporation
+© 2022-2026 Lexe Corporation
