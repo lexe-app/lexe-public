@@ -276,9 +276,9 @@ impl WalletEnvConfig {
     }
 }
 
-// ===================== //
-// --- Credentials ----- //
-// ===================== //
+// =================== //
+// --- Credentials --- //
+// =================== //
 
 /// The secret root seed for deriving all user keys and credentials.
 #[derive(Clone, uniffi::Record)]
@@ -314,9 +314,9 @@ impl ClientCredentials {
     }
 }
 
-// ===================== //
-// --- Node Info ------- //
-// ===================== //
+// ================= //
+// --- Node Info --- //
+// ================= //
 
 /// Information about a Lexe node.
 #[derive(Clone, uniffi::Record)]
@@ -372,9 +372,9 @@ impl From<SdkNodeInfoRs> for NodeInfo {
     }
 }
 
-// ===================== //
-// --- LexeWallet ------ //
-// ===================== //
+// ================== //
+// --- LexeWallet --- //
+// ================== //
 
 /// The main wallet handle for interacting with Lexe.
 #[derive(uniffi::Object)]
@@ -443,16 +443,24 @@ impl LexeWallet {
         }))
     }
 
-    /// Sign up a new user and provision their node.
-    /// `partner_user_pk` is an optional hex-encoded user public key.
+    /// Registers this user with Lexe and provisions their node.
+    ///
+    /// Call this after creating the wallet for the first time. It is
+    /// idempotent, so calling it again for an already-signed-up user is safe.
+    ///
+    /// **Important**: After signup, ensure the user's root seed is persisted!
+    /// Without their seed, users lose access to their funds permanently.
+    ///
+    /// - `partner_pk`: Optional hex-encoded [`UserPk`] of your company account.
+    ///   Set this to earn a share of fees from wallets you sign up.
     pub async fn signup(
         &self,
         root_seed: RootSeed,
-        partner_user_pk: Option<String>,
+        partner_pk: Option<String>,
     ) -> FfiResult<()> {
         let mut rng = SysRng::new();
         let root_seed_rs = root_seed.to_rs()?;
-        let partner = partner_user_pk
+        let partner = partner_pk
             .as_deref()
             .map(|s| {
                 s.parse::<UserPk>().map_err(|e| {
@@ -465,7 +473,11 @@ impl LexeWallet {
         Ok(())
     }
 
-    /// Ensure the wallet is provisioned to the latest enclave.
+    /// Ensures the wallet is provisioned to all recent trusted releases.
+    ///
+    /// Call this every time the wallet is loaded to ensure the user is running
+    /// the most up-to-date enclave software. Fetches current enclaves from the
+    /// gateway and provisions any that need updating.
     pub async fn provision(&self, root_seed: RootSeed) -> FfiResult<()> {
         let root_seed_rs = root_seed.to_rs()?;
         let credentials = CredentialsRef::from(&root_seed_rs);
@@ -725,9 +737,9 @@ pub fn try_load_wallet(
     }))
 }
 
-// ===================== //
-// --- Payments -------- //
-// ===================== //
+// ================ //
+// --- Payments --- //
+// ================ //
 
 /// Confirmation priority for on-chain sends.
 #[derive(Clone, uniffi::Enum)]
@@ -833,6 +845,9 @@ impl From<PaymentStatusRs> for PaymentStatus {
 }
 
 /// Filter for listing payments.
+// TODO(max): Consider adding NotJunk variants (PendingNotJunk,
+// FinalizedNotJunk) to match sdk-rust PaymentsDb methods: num_pending_not_junk,
+// num_finalized_not_junk, get_pending_not_junk_payment_by_scroll_idx, etc.
 #[derive(Clone, uniffi::Enum)]
 pub enum PaymentFilter {
     /// Include all payments.
@@ -1006,6 +1021,8 @@ impl From<SdkPaymentRs> for Payment {
 }
 
 /// Summary of a payment sync operation.
+//
+// Skipped: Not exposing `any_changes()` helper from sdk-rust PaymentSyncSummary
 #[derive(Clone, uniffi::Record)]
 pub struct PaymentSyncSummary {
     /// Number of new payments added to the local DB.
