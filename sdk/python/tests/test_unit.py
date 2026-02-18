@@ -3,6 +3,7 @@
 These tests don't require a gateway or network connection.
 """
 
+import os
 import tempfile
 
 import lexe
@@ -80,15 +81,43 @@ def test_seedphrase_path():
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mainnet config should return seedphrase.txt
         mainnet_config = lexe.WalletEnvConfig.mainnet()
-        mainnet_path = mainnet_config.seedphrase_path(temp_dir)
+        mainnet_path = lexe.seedphrase_path(mainnet_config, temp_dir)
         assert mainnet_path.endswith("seedphrase.txt")
         assert "prod" not in mainnet_path
 
         # Regtest config should return seedphrase.<env>.txt
         regtest_config = lexe.WalletEnvConfig.regtest()
-        regtest_path = regtest_config.seedphrase_path(temp_dir)
+        regtest_path = lexe.seedphrase_path(regtest_config, temp_dir)
         assert "seedphrase." in regtest_path
         assert regtest_path != mainnet_path
+
+
+def test_seed_file_roundtrip():
+    """Test read_seed_from_path and write_seed_to_path."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        path = os.path.join(temp_dir, "seedphrase.txt")
+
+        # Create a test seed
+        seed1 = create_test_root_seed()
+
+        # Write seed to file
+        lexe.write_seed_to_path(seed1, path)
+
+        # Read it back
+        seed2 = lexe.read_seed_from_path(path)
+        assert seed2 is not None
+        assert seed2.seed_bytes == seed1.seed_bytes
+
+        # Writing again should fail (file exists)
+        try:
+            lexe.write_seed_to_path(seed1, path)
+            assert False, "Expected error for existing file"
+        except lexe.FfiError as e:
+            assert "already exists" in str(e)
+
+        # Reading non-existent file should return None
+        missing = os.path.join(temp_dir, "missing.txt")
+        assert lexe.read_seed_from_path(missing) is None
 
 
 def test_init_logger():

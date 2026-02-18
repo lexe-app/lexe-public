@@ -6,7 +6,10 @@ use std::{
 };
 
 use anyhow::Context;
-use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
+use common::{
+    api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
+    root_seed::RootSeed,
+};
 use node_client::credentials::CredentialsRef;
 
 use crate::unstable::provision;
@@ -104,8 +107,8 @@ pub struct WalletUserDbConfig {
 // --- impl WalletEnv --- //
 
 impl WalletEnv {
-    /// Production environment: prod, mainnet, SGX.
-    pub fn prod() -> Self {
+    /// Bitcoin mainnet environment (prod, SGX).
+    pub fn mainnet() -> Self {
         Self {
             deploy_env: DeployEnv::Prod,
             network: LxNetwork::Mainnet,
@@ -113,8 +116,8 @@ impl WalletEnv {
         }
     }
 
-    /// Staging environment: staging, testnet3, SGX.
-    pub fn staging() -> Self {
+    /// Bitcoin testnet3 environment (staging, SGX).
+    pub fn testnet3() -> Self {
         Self {
             deploy_env: DeployEnv::Staging,
             network: LxNetwork::Testnet3,
@@ -122,13 +125,48 @@ impl WalletEnv {
         }
     }
 
-    /// Dev environment: dev, regtest, with configurable SGX.
-    pub fn dev(use_sgx: bool) -> Self {
+    /// Regtest environment (dev, configurable SGX).
+    pub fn regtest(use_sgx: bool) -> Self {
         Self {
             deploy_env: DeployEnv::Dev,
             network: LxNetwork::Regtest,
             use_sgx,
         }
+    }
+
+    // --- Seedphrase file I/O --- //
+
+    /// Returns the path to the seedphrase file for this environment.
+    ///
+    /// - Mainnet (prod): `<data_dir>/seedphrase.txt`
+    /// - Other environments: `<data_dir>/seedphrase.<wallet_env>.txt`
+    pub fn seedphrase_path(&self, data_dir: &Path) -> PathBuf {
+        let filename = if self.deploy_env == DeployEnv::Prod {
+            Cow::Borrowed("seedphrase.txt")
+        } else {
+            Cow::Owned(format!("seedphrase.{self}.txt"))
+        };
+        data_dir.join(filename.as_ref())
+    }
+
+    /// Reads a [`RootSeed`] from `~/.lexe/seedphrase[.env].txt`.
+    ///
+    /// Returns `Ok(None)` if the file doesn't exist.
+    pub fn read_seed(&self) -> anyhow::Result<Option<RootSeed>> {
+        let lexe_data_dir = common::default_lexe_data_dir()
+            .context("Could not get default lexe data dir")?;
+        let path = self.seedphrase_path(&lexe_data_dir);
+        RootSeed::read_from_path(&path)
+    }
+
+    /// Writes a [`RootSeed`]'s mnemonic to `~/.lexe/seedphrase[.env].txt`.
+    ///
+    /// Creates parent directories if needed. Fails if the file already exists.
+    pub fn write_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
+        let lexe_data_dir = common::default_lexe_data_dir()
+            .context("Could not get default lexe data dir")?;
+        let path = self.seedphrase_path(&lexe_data_dir);
+        root_seed.write_to_path(&path)
     }
 }
 
@@ -146,7 +184,7 @@ impl fmt::Display for WalletEnv {
 impl WalletEnvConfig {
     /// Standard wallet environment configuration for Bitcoin mainnet.
     pub fn mainnet() -> Self {
-        let wallet_env = WalletEnv::prod();
+        let wallet_env = WalletEnv::mainnet();
         Self {
             gateway_url: wallet_env.deploy_env.gateway_url(None),
             user_agent: Cow::Borrowed(*SDK_USER_AGENT),
@@ -156,7 +194,7 @@ impl WalletEnvConfig {
 
     /// Standard wallet environment configuration for Bitcoin testnet3.
     pub fn testnet3() -> Self {
-        let wallet_env = WalletEnv::staging();
+        let wallet_env = WalletEnv::testnet3();
         Self {
             gateway_url: wallet_env.deploy_env.gateway_url(None),
             user_agent: Cow::Borrowed(*SDK_USER_AGENT),
@@ -173,7 +211,7 @@ impl WalletEnvConfig {
         use_sgx: bool,
         gateway_url: Option<impl Into<Cow<'static, str>>>,
     ) -> Self {
-        let wallet_env = WalletEnv::dev(use_sgx);
+        let wallet_env = WalletEnv::regtest(use_sgx);
         let gateway_url = gateway_url.map(Into::into);
         Self {
             gateway_url: wallet_env.deploy_env.gateway_url(gateway_url),
@@ -239,18 +277,22 @@ impl WalletEnvConfig {
     }
 
     /// Returns the path to the seedphrase file for this environment.
+    pub fn seedphrase_path(&self, data_dir: &Path) -> PathBuf {
+        self.wallet_env.seedphrase_path(data_dir)
+    }
+
+    /// Reads a [`RootSeed`] from `~/.lexe/seedphrase[.env].txt`.
     ///
-    /// - Mainnet (prod): `<lexe_data_dir>/seedphrase.txt`
-    /// - Other environments: `<lexe_data_dir>/seedphrase.{wallet_env}.txt`
-    pub fn seedphrase_path(&self, lexe_data_dir: &Path) -> PathBuf {
-        let wallet_env = &self.wallet_env;
-        let filename: Cow<'static, str> =
-            if wallet_env.deploy_env == DeployEnv::Prod {
-                Cow::Borrowed("seedphrase.txt")
-            } else {
-                Cow::Owned(format!("seedphrase.{wallet_env}.txt"))
-            };
-        lexe_data_dir.join(filename.as_ref())
+    /// Returns `Ok(None)` if the file doesn't exist.
+    pub fn read_seed(&self) -> anyhow::Result<Option<RootSeed>> {
+        self.wallet_env.read_seed()
+    }
+
+    /// Writes a [`RootSeed`]'s mnemonic to `~/.lexe/seedphrase[.env].txt`.
+    ///
+    /// Creates parent directories if needed. Fails if the file already exists.
+    pub fn write_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
+        self.wallet_env.write_seed(root_seed)
     }
 }
 

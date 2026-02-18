@@ -9,6 +9,9 @@ use std::{
 use common::rng::{RngExt, ThreadFastRng};
 
 /// Abstraction over a flat file system (no subdirs), suitable for mocking.
+///
+/// **Invariant**: The `Ffs` must always be ready for `read` / `write` /
+/// `delete` calls, including after `delete_all`.
 pub trait Ffs {
     /// Reads the entire contents of `filename`.
     ///

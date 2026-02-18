@@ -9,6 +9,9 @@
 // We don't export our traits currently so auto trait stability is not relevant.
 #![allow(async_fn_in_trait)]
 
+use std::path::PathBuf;
+
+use anyhow::anyhow;
 // Some re-exports to prevent having to re-declare dependencies
 pub use byte_array::ByteArray;
 pub use ref_cast::RefCast;
@@ -54,6 +57,14 @@ pub mod time;
 /// Feature-gated test utilities that can be shared across crate boundaries.
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
+
+/// Returns the default Lexe data directory (`~/.lexe`).
+pub fn default_lexe_data_dir() -> anyhow::Result<PathBuf> {
+    #[allow(deprecated)] // home_dir is fine for our use case
+    let home = std::env::home_dir()
+        .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+    Ok(home.join(".lexe"))
+}
 
 /// `panic!(..)`s in debug mode, `tracing::error!(..)`s in release mode
 #[macro_export]

@@ -1,6 +1,6 @@
-use std::{fmt, fs, io::Write, num::NonZeroU32, path::Path, str::FromStr};
+use std::{fmt, io::Write, num::NonZeroU32, path::Path, str::FromStr};
 
-use anyhow::{Context, anyhow, bail, ensure};
+use anyhow::{Context, bail, ensure};
 use bitcoin::{
     Network,
     bip32::{self, ChildNumber},
@@ -365,14 +365,11 @@ impl RootSeed {
     /// Reads a [`RootSeed`] from a seedphrase file containing a BIP39 mnemonic.
     ///
     /// Returns `Ok(None)` if the file doesn't exist.
-    pub fn read_from_seedphrase_file(
-        path: impl AsRef<Path>,
-    ) -> anyhow::Result<Option<Self>> {
-        let path = path.as_ref();
-        match fs::read_to_string(path) {
+    pub fn read_from_path(path: &Path) -> anyhow::Result<Option<Self>> {
+        match std::fs::read_to_string(path) {
             Ok(contents) => {
                 let mnemonic = bip39::Mnemonic::from_str(contents.trim())
-                    .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
+                    .map_err(|e| anyhow::anyhow!("Invalid mnemonic: {e}"))?;
                 let root_seed = Self::try_from(mnemonic)
                     .context("Failed to derive root seed from mnemonic")?;
                 Ok(Some(root_seed))
@@ -382,34 +379,38 @@ impl RootSeed {
         }
     }
 
-    /// Writes this [`RootSeed`]'s mnemonic to a seedphrase file.
+    /// Writes this [`RootSeed`]'s BIP39 mnemonic to a seedphrase file.
     ///
     /// Creates parent directories if needed. Returns an error if the file
-    /// already exists.
-    pub fn write_to_seedphrase_file(
-        &self,
-        path: impl AsRef<Path>,
-    ) -> anyhow::Result<()> {
-        let path = path.as_ref();
+    /// already exists. On Unix, the file is created with mode 0600 (owner
+    /// read/write only).
+    pub fn write_to_path(&self, path: &Path) -> anyhow::Result<()> {
+        #[cfg(unix)]
+        use std::os::unix::fs::OpenOptionsExt;
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
+            std::fs::create_dir_all(parent)
                 .context("Failed to create data directory")?;
         }
 
         // Open with create_new to fail if file exists
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path)
-            .with_context(|| {
-                format!("Seedphrase file already exists: {}", path.display())
-            })?;
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
+
+        // Set restrictive permissions on Unix (owner read/write only)
+        #[cfg(unix)]
+        opts.mode(0o600);
+
+        let mut file = opts.open(path).with_context(|| {
+            format!("Seedphrase file already exists: {}", path.display())
+        })?;
 
         let mnemonic = self.to_mnemonic();
         writeln!(file, "{mnemonic}")
             .context("Failed to write seedphrase file")?;
+
+        tracing::info!("Persisted seedphrase to {}", path.display());
 
         Ok(())
     }
@@ -900,37 +901,6 @@ mod test {
         })
     }
 
-    #[cfg(not(target_env = "sgx"))]
-    #[test]
-    fn seedphrase_file_roundtrip() {
-        let mut rng = FastRng::from_u64(20250216);
-        let root_seed1 = RootSeed::from_rng(&mut rng);
-
-        let tempdir = tempfile::tempdir().unwrap();
-        let path = tempdir.path().join("seedphrase.txt");
-
-        // Write seedphrase to file
-        root_seed1.write_to_seedphrase_file(&path).unwrap();
-
-        // Read it back
-        let root_seed2 =
-            RootSeed::read_from_seedphrase_file(&path).unwrap().unwrap();
-
-        assert_eq!(root_seed1, root_seed2);
-
-        // Writing again should fail (file exists)
-        let err = root_seed1.write_to_seedphrase_file(&path).unwrap_err();
-        assert!(err.to_string().contains("already exists"));
-
-        // Reading non-existent file should return None
-        let missing = tempdir.path().join("missing.txt");
-        assert!(
-            RootSeed::read_from_seedphrase_file(&missing)
-                .unwrap()
-                .is_none()
-        );
-    }
-
     /// A basic compatibility test to check that a few "known good" pairings of
     /// [`RootSeed`] <-> [`Mnemonic`] <-> [`String`] still correspond. This
     /// ensures that the [`bip39`] crate cannot introduce compatibility-breaking
@@ -1138,5 +1108,29 @@ mod test {
 
             prop_assert_eq!(our_seed.expose_secret(), &their_seed);
         });
+    }
+
+    #[test]
+    fn seedphrase_file_roundtrip() {
+        let mut rng = FastRng::from_u64(20250216);
+        let root_seed1 = RootSeed::from_rng(&mut rng);
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let path = tempdir.path().join("seedphrase.txt");
+
+        // Write seedphrase to file
+        root_seed1.write_to_path(&path).unwrap();
+
+        // Read it back
+        let root_seed2 = RootSeed::read_from_path(&path).unwrap().unwrap();
+        assert_eq!(root_seed1, root_seed2);
+
+        // Writing again should fail (file exists)
+        let err = root_seed1.write_to_path(&path).unwrap_err();
+        assert!(err.to_string().contains("already exists"));
+
+        // Reading non-existent file should return None
+        let missing = tempdir.path().join("missing.txt");
+        assert!(RootSeed::read_from_path(&missing).unwrap().is_none());
     }
 }

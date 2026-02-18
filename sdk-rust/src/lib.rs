@@ -13,6 +13,9 @@ pub mod payments_db;
 /// `LexeWallet`: the top-level handle to a Lexe wallet.
 pub mod wallet;
 
+/// Returns the default Lexe data directory (`~/.lexe`).
+pub use common::default_lexe_data_dir;
+
 /// Reexported types needed by SDK consumers.
 /// All types exported here are considered part of the stable public API.
 pub mod types {
@@ -23,6 +26,7 @@ pub mod types {
             BasicPaymentV2, PaymentCreatedIndex, PaymentUpdatedIndex,
         },
     };
+    pub use lexe_api_core::types::invoice::LxInvoice;
     pub use node_client::credentials::{
         ClientCredentials, Credentials, CredentialsRef,
     };

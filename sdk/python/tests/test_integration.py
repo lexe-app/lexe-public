@@ -1,7 +1,7 @@
 """Integration tests for the Lexe Python SDK.
 
 These tests require a running gateway and network connection.
-Run with: pytest -m integration
+Run with: `just sdk-py-test-integration`
 """
 
 import tempfile
@@ -152,13 +152,21 @@ async def test_list_payments():
         assert response.total_count >= 1
         assert len(response.payments) >= 1
 
-        # Test with Pending filter
+        # Test with Pending filter (we just created an invoice, so >= 1)
         pending_response = wallet.list_payments(
             filter=lexe.PaymentFilter.PENDING,
             offset=0,
             limit=10
         )
-        assert pending_response.total_count >= 0
+        assert pending_response.total_count >= 1
+
+        # Test with Finalized filter
+        finalized_response = wallet.list_payments(
+            filter=lexe.PaymentFilter.FINALIZED,
+            offset=0,
+            limit=10
+        )
+        assert finalized_response.total_count >= 0
 
 
 @pytest.mark.integration

@@ -1,4 +1,4 @@
-use std::{env, marker::PhantomData, path::PathBuf};
+use std::{marker::PhantomData, path::PathBuf};
 
 use anyhow::{Context, anyhow, ensure};
 use common::{
@@ -44,21 +44,6 @@ use crate::{
     unstable::{ffs::DiskFs, provision, wallet_db::WalletDb},
 };
 
-/// Returns the default Lexe data directory (`~/.lexe`).
-///
-/// - Unix: `$HOME/.lexe`
-/// - Windows: `%USERPROFILE%\.lexe`
-pub fn default_lexe_data_dir() -> anyhow::Result<PathBuf> {
-    // Try USERPROFILE first (Windows), then HOME (Unix)
-    let home = env::var("USERPROFILE")
-        .or_else(|_| env::var("HOME"))
-        .context(
-            "Could not determine home directory. \
-             Set HOME (Unix) or USERPROFILE (Windows) environment variable.",
-        )?;
-    Ok(PathBuf::from(home).join(".lexe"))
-}
-
 /// Type state indicating the wallet has persistence enabled.
 pub struct WithDb;
 /// Type state indicating the wallet has no persistence.
@@ -103,7 +88,7 @@ impl LexeWallet<WithDb> {
         lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Self> {
         let lexe_data_dir =
-            lexe_data_dir.map_or_else(default_lexe_data_dir, Ok)?;
+            lexe_data_dir.map_or_else(crate::default_lexe_data_dir, Ok)?;
         let env_db_config =
             WalletEnvDbConfig::new(env_config.wallet_env, lexe_data_dir);
         let user_db_config =
@@ -138,7 +123,7 @@ impl LexeWallet<WithDb> {
         lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Option<Self>> {
         let lexe_data_dir =
-            lexe_data_dir.map_or_else(default_lexe_data_dir, Ok)?;
+            lexe_data_dir.map_or_else(crate::default_lexe_data_dir, Ok)?;
         let env_db_config =
             WalletEnvDbConfig::new(env_config.wallet_env, lexe_data_dir);
         let user_db_config =
@@ -170,7 +155,7 @@ impl LexeWallet<WithDb> {
         lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Self> {
         let lexe_data_dir =
-            lexe_data_dir.map_or_else(default_lexe_data_dir, Ok)?;
+            lexe_data_dir.map_or_else(crate::default_lexe_data_dir, Ok)?;
         let env_db_config =
             WalletEnvDbConfig::new(env_config.wallet_env, lexe_data_dir);
         let user_db_config =

@@ -86,9 +86,9 @@ chrono.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_urlencoded.workspace = true
+tempfile.workspace = true
 yasna.workspace = true
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX
 proptest = { workspace = true, features = ["std"] }
-tempfile.workspace = true

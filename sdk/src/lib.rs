@@ -1,7 +1,15 @@
-//! Lexe SDK
+//! Lexe SDK foreign language bindings.
+//!
+//! This crate is the [UniFFI] base for generating Lexe SDK bindings in
+//! languages like Python, Javascript, Swift, and Kotlin.
+//!
+//! For Rust projects, use [`sdk_rust`] directly.
+//!
+//! [UniFFI]: https://mozilla.github.io/uniffi-rs/
 
 use std::{fmt, path::PathBuf, sync::Arc, time::Duration};
 
+use anyhow::Context;
 use common::{
     api::user::UserPk,
     env::DeployEnv as DeployEnvRs,
@@ -42,7 +50,7 @@ use sdk_rust::{
     },
     wallet::LexeWallet as LexeWalletRs,
 };
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 
 uniffi::setup_scaffolding!("lexe");
 
@@ -51,13 +59,86 @@ uniffi::setup_scaffolding!("lexe");
 // ================== //
 
 /// Returns the default Lexe data directory (`~/.lexe`).
-///
-/// - Unix: `$HOME/.lexe`
-/// - Windows: `%USERPROFILE%\.lexe`
 #[uniffi::export]
 pub fn default_lexe_data_dir() -> FfiResult<String> {
-    sdk_rust::wallet::default_lexe_data_dir()
+    sdk_rust::default_lexe_data_dir()
         .map(|p| p.to_string_lossy().into_owned())
+        .map_err(Into::into)
+}
+
+/// Returns the path to the seedphrase file for the given environment.
+///
+/// - Mainnet: `<lexe_data_dir>/seedphrase.txt`
+/// - Other environments: `<lexe_data_dir>/seedphrase.<env>.txt`
+#[uniffi::export]
+pub fn seedphrase_path(
+    env_config: Arc<WalletEnvConfig>,
+    lexe_data_dir: String,
+) -> String {
+    env_config
+        .to_rs()
+        .seedphrase_path(lexe_data_dir.as_ref())
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
+///
+/// Returns `None` if the file doesn't exist.
+#[uniffi::export]
+pub fn read_seed(
+    env_config: Arc<WalletEnvConfig>,
+) -> FfiResult<Option<RootSeed>> {
+    env_config
+        .to_rs()
+        .read_seed()
+        .map(|opt| {
+            opt.map(|seed| RootSeed {
+                seed_bytes: seed.expose_secret().to_vec(),
+            })
+        })
+        .map_err(Into::into)
+}
+
+/// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
+///
+/// Returns `None` if the file doesn't exist.
+#[uniffi::export]
+pub fn read_seed_from_path(path: String) -> FfiResult<Option<RootSeed>> {
+    RootSeedRs::read_from_path(path.as_ref())
+        .map(|opt| {
+            opt.map(|seed| RootSeed {
+                seed_bytes: seed.expose_secret().to_vec(),
+            })
+        })
+        .map_err(Into::into)
+}
+
+/// Writes a root seed's mnemonic to `~/.lexe/seedphrase[.env].txt`.
+///
+/// Creates parent directories if needed. Returns an error if the file
+/// already exists.
+#[uniffi::export]
+pub fn write_seed(
+    root_seed: RootSeed,
+    env_config: Arc<WalletEnvConfig>,
+) -> FfiResult<()> {
+    let root_seed_rs = root_seed.to_rs()?;
+    env_config
+        .to_rs()
+        .write_seed(&root_seed_rs)
+        .map_err(Into::into)
+}
+
+/// Writes a root seed's mnemonic to a seedphrase file.
+///
+/// Creates parent directories if needed. Returns an error if the file
+/// already exists.
+#[uniffi::export]
+pub fn write_seed_to_path(root_seed: RootSeed, path: String) -> FfiResult<()> {
+    let root_seed_rs = root_seed.to_rs()?;
+    root_seed_rs
+        .write_to_path(path.as_ref())
         .map_err(Into::into)
 }
 
@@ -250,20 +331,10 @@ impl WalletEnvConfig {
                 Some(DeployEnvRs::Prod.gateway_url(None).into_owned()),
         }
     }
-
-    /// Returns the path to the seedphrase file for this environment.
-    ///
-    /// - Mainnet: `<lexe_data_dir>/seedphrase.txt`
-    /// - Other environments: `<lexe_data_dir>/seedphrase.<env>.txt`
-    pub fn seedphrase_path(&self, lexe_data_dir: String) -> String {
-        self.to_rs()
-            .seedphrase_path(&PathBuf::from(lexe_data_dir))
-            .to_string_lossy()
-            .into_owned()
-    }
 }
 
 impl WalletEnvConfig {
+    // TODO(max): Could all of these to_rs be `From` impls?
     fn to_rs(&self) -> WalletEnvConfigRs {
         match self.deploy_env {
             DeployEnv::Prod => WalletEnvConfigRs::mainnet(),
@@ -579,28 +650,6 @@ impl LexeWallet {
         })
     }
 
-    /// Delete all local payment data for this wallet.
-    ///
-    /// This clears the local payment cache. Remote data on the node is not
-    /// affected. Call `sync_payments` to re-populate from the node.
-    pub fn delete_local_payments(&self) -> FfiResult<()> {
-        self.inner.payments_db().delete().map_err(|e| {
-            anyhow::anyhow!("Failed to delete local payments: {e}")
-        })?;
-        Ok(())
-    }
-
-    /// Get the latest payment sync index (watermark).
-    ///
-    /// Returns the `updated_at` index of the most recently synced payment,
-    /// or `None` if no payments have been synced yet.
-    pub fn latest_payment_sync_index(&self) -> Option<String> {
-        self.inner
-            .payments_db()
-            .latest_updated_index()
-            .map(|idx| idx.to_string())
-    }
-
     /// List payments from local storage based on filters.
     /// `offset` and `limit` are for pagination over local storage.
     pub fn list_payments(
@@ -648,10 +697,34 @@ impl LexeWallet {
         }
     }
 
+    /// Get the latest payment sync index (watermark).
+    ///
+    /// Returns the `updated_at` index of the most recently synced payment,
+    /// or `None` if no payments have been synced yet.
+    pub fn latest_payment_sync_index(&self) -> Option<String> {
+        self.inner
+            .payments_db()
+            .latest_updated_index()
+            .map(|idx| idx.to_string())
+    }
+
+    /// Delete all local payment data for this wallet.
+    ///
+    /// This clears the local payment cache. Remote data on the node is not
+    /// affected. Call `sync_payments` to re-populate from the node.
+    pub fn delete_local_payments(&self) -> FfiResult<()> {
+        self.inner
+            .payments_db()
+            .delete()
+            .context("Failed to delete local payments")?;
+        Ok(())
+    }
+
     /// Wait for a payment to reach a terminal state (completed or failed).
     /// Uses exponential backoff polling under the hood.
     /// Recommended timeout is 120 seconds.
     /// Maximum timeout is 10_800 seconds (3 hours).
+    // TODO(max): We should either delete this or move into sdk-rust
     pub async fn wait_for_payment_completion(
         &self,
         payment_index: String,

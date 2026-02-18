@@ -24,6 +24,11 @@ required-features = ["bindgen"]
 [dependencies]
 # --- LEXE --- #
 
+# NOTE: To ensure `sdk-rust` exposes all types and sub-crates needed for SDK
+# implementors, this crate should *only* depend on `sdk-rust`.
+# TODO(max): Clean up these dependencies; upstream the
+# `wait_for_payment_completion` logic, add re-exports and crate exports if
+# needed.
 common = { path = "../common" }
 lexe-api-core = { path = "../lexe-api-core" }
 lexe-std = { path = "../lexe-std" }

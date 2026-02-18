@@ -105,7 +105,4 @@ def create_test_root_seed() -> lexe.RootSeed:
 
 def create_dev_config() -> lexe.WalletEnvConfig:
     """Create a dev environment config for testing."""
-    gateway_url = os.getenv("GATEWAY_URL")
-    if gateway_url:
-        return lexe.WalletEnvConfig.regtest(gateway_url=gateway_url)
-    return lexe.WalletEnvConfig.regtest()
+    return lexe.WalletEnvConfig.regtest(gateway_url=os.getenv("GATEWAY_URL"))
