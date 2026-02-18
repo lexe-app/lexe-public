@@ -95,3 +95,17 @@ def async_timeout(seconds: float):
             )
         return wrapper
     return decorator
+
+
+def create_test_root_seed() -> lexe.RootSeed:
+    """Create a test root seed (insecure, for testing only)."""
+    seed_bytes = b"test_seed_for_python_sdk_1234567"
+    return lexe.RootSeed(seed_bytes=seed_bytes)
+
+
+def create_dev_config() -> lexe.WalletEnvConfig:
+    """Create a dev environment config for testing."""
+    gateway_url = os.getenv("GATEWAY_URL")
+    if gateway_url:
+        return lexe.WalletEnvConfig.regtest(gateway_url=gateway_url)
+    return lexe.WalletEnvConfig.regtest()
