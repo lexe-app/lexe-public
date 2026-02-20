@@ -24,7 +24,7 @@ const APP_JSON: &str = "app.json";
 pub(crate) struct AppDataRs {
     /// AppDb schema version.
     pub schema: SchemaVersion,
-    /// User's human address.
+    /// User's human Bitcoin address.
     // compat: alias added in app-v0.9.3
     #[serde(alias = "payment_address")]
     pub human_address: Option<HumanAddressRs>,

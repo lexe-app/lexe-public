@@ -714,7 +714,7 @@ class MockAppHandleErr extends MockAppHandle {
   Future<HumanAddress> getHumanAddress() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => throw const FfiError(
-      "[106=Command] Failed to get human address",
+      "[106=Command] Failed to get Human Bitcoin Address",
     ).toFfi(),
   );
 
@@ -723,7 +723,7 @@ class MockAppHandleErr extends MockAppHandle {
       Future.delayed(
         const Duration(milliseconds: 1500),
         () => throw const FfiError(
-          "[106=Command] Failed to update human address",
+          "[106=Command] Failed to update Human Bitcoin Address",
         ).toFfi(),
       );
 }

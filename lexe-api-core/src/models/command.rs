@@ -528,11 +528,11 @@ pub struct ResyncRequest {
 
 // --- Username --- //
 
-/// Creates or updates a human address.
+/// Creates or updates a human Bitcoin address.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct UpdateHumanAddress {
-    /// Human address to be used on BIP-353 and LNURL.
+    /// Username for BIP-353 and LNURL.
     pub username: Username,
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: LxOffer,
@@ -542,10 +542,10 @@ pub struct UpdateHumanAddress {
 /// TODO(a-mpch): Remove once all clients have migrated to `UpdateHumanAddress`.
 pub type UpdatePaymentAddress = UpdateHumanAddress;
 
-/// Claims a generated human address.
+/// Claims a generated human Bitcoin address.
 ///
 /// This endpoint is used during node initialization to claim an auto-generated
-/// human address. The address will have `is_primary: false` and
+/// human Bitcoin address. The address will have `is_primary: false` and
 /// `is_generated: true`.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -566,9 +566,9 @@ pub type ClaimGeneratedPaymentAddress = ClaimGeneratedHumanAddress;
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetGeneratedUsernameResponse {
-    /// The generated username that can be used for claiming a human address.
+    /// The generated username that can be used for claiming an HBA.
     pub username: Username,
-    /// Whether this user already has a claimed generated human address.
+    /// Whether this user already has a claimed generated HBA.
     /// If true, the caller should skip calling
     /// `claim_generated_human_address`.
     pub already_claimed: bool,
@@ -577,14 +577,15 @@ pub struct GetGeneratedUsernameResponse {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct HumanAddress {
-    /// Current human address to be used on BIP-353 and LNURL.
+    /// Current username for BIP-353 and LNURL.
     pub username: Option<Username>,
-    /// Current offer to be used to fetch invoices on BIP-353.
+    /// Current offer for fetching invoices on BIP-353.
     pub offer: Option<LxOffer>,
-    /// Last time the human address was updated.
+    /// Last time the human Bitcoin address was updated.
     pub updated_at: Option<TimestampMs>,
-    /// Whether the human address can be updated. Always `true` for generated
-    /// addresses; for claimed addresses, depends on time-based freeze rules.
+    /// Whether the human Bitcoin address can be updated. Always `true` for
+    /// generated addresses; for claimed addresses, depends on time-based
+    /// freeze rules.
     pub updatable: bool,
 }
 

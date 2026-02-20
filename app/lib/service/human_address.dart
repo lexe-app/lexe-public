@@ -21,7 +21,7 @@ class HumanAddressService {
   bool isDisposed = false;
   DateTime? _lastFetchedAt;
 
-  /// The most recent human address. `null` if we haven't stored any yet.
+  /// The most recent HBA. `null` if we haven't stored any yet.
   ValueListenable<HumanAddress?> get humanAddress => this._appData.humanAddress;
 
   /// Notifies after each completed fetch, successful or otherwise.

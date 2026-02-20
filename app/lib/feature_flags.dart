@@ -78,7 +78,7 @@ final class FeatureFlags {
   /// Bitcoin address.
   final bool allowEditHumanAddress;
 
-  /// On the Wallet > Wallet Drawer, show the human address with copy/share.
+  /// On the Wallet > Wallet Drawer, show the HBA with copy/share.
   final bool showHumanAddress;
 
   /// On the Wallet page, show funding state banners below WalletActions.

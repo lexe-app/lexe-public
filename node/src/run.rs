@@ -1003,13 +1003,13 @@ impl UserNode {
         // Ensure channels are using the most up-to-date config.
         channel_manager.check_channel_configs(&config);
 
-        // Wait for the human address claim task to complete before finishing
-        // init. A failure here should abort node startup since it indicates an
-        // issue that requires investigation.
+        // Wait for the HBA claim task to complete before finishing init.
+        // A failure here should abort node startup since it indicates an issue
+        // that requires investigation.
         claim_human_address_task
             .await
-            .context("claim human address task panicked")?
-            .context("Failed to claim human address")?;
+            .context("claim HBA task panicked")?
+            .context("Failed to claim human Bitcoin address")?;
 
         // Spawn legacy wallet sweep task if migration marker exists.
         // This sweeps funds from the old non-BIP39-compatible derivation path

@@ -71,7 +71,7 @@ abstract final class LxShare {
     return;
   }
 
-  /// Share a human address as a plain text message.
+  /// Share a human Bitcoin address as a plain text message.
   /// Supported on all platforms.
   static Future<void> shareHumanAddress(
     BuildContext context,
@@ -178,10 +178,10 @@ abstract final class LxShare {
 
     switch (result) {
       case Ok(:final ok):
-        info("LxShare: share human address: ok: $ok");
+        info("LxShare: share HBA: ok: $ok");
         return ok.status;
       case Err(:final err):
-        warn("LxShare: share human address: err: $err");
+        warn("LxShare: share HBA: err: $err");
         return ShareResultStatus.unavailable;
     }
   }

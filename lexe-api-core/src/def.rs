@@ -447,12 +447,12 @@ pub trait AppNodeRunApi {
         req: SetupGDrive,
     ) -> Result<Empty, NodeApiError>;
 
-    /// Get current user's human address.
+    /// Get current user's human Bitcoin address.
     ///
     /// GET /app/human_address [`Empty`] -> [`HumanAddress`]
     async fn get_human_address(&self) -> Result<HumanAddress, NodeApiError>;
 
-    /// Update current user's human address.
+    /// Update current user's human Bitcoin address.
     ///
     /// PUT /app/human_address [`UsernameStruct`] -> [`HumanAddress`]
     async fn update_human_address(
@@ -967,7 +967,8 @@ pub trait NodeBackendApi {
     /// PUT /node/v1/human_address [`UpdateHumanAddress`]
     ///                         -> [`HumanAddress`]
     ///
-    /// Updates the human address (Username and Offer) of the given node.
+    /// Updates the human Bitcoin address (username and offer) of the given
+    /// node.
     async fn update_human_address(
         &self,
         req: UpdateHumanAddress,
@@ -988,8 +989,7 @@ pub trait NodeBackendApi {
 
     /// GET /node/v1/human_address [`Empty`] -> [`HumanAddress`]
     ///
-    /// Fetches the node's primary human address (Username and Offer) of the
-    /// given node.
+    /// Fetches the node's primary human Bitcoin address (username and offer).
     async fn get_human_address(
         &self,
         auth: BearerAuthToken,
@@ -1008,7 +1008,7 @@ pub trait NodeBackendApi {
     /// POST /node/v1/claim_generated_human_address
     ///   [`ClaimGeneratedHumanAddress`] -> [`Empty`]
     ///
-    /// Claims a generated human address given by the node.
+    /// Claims a generated human Bitcoin address for the given node.
     async fn claim_generated_human_address(
         &self,
         req: ClaimGeneratedHumanAddress,

@@ -123,8 +123,8 @@ sealed class FiatRates with _$FiatRates {
   }) = _FiatRates;
 }
 
-/// Whether the user has a human address associated with their username and if
-/// it is updatable.
+/// Whether the user has a human Bitcoin address associated with their username
+/// and if it is updatable.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed

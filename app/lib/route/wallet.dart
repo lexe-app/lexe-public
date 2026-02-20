@@ -141,7 +141,7 @@ class WalletPageState extends State<WalletPage> {
   );
   late final LxListener provisionOnRefresh;
 
-  /// Fetch Human Address.
+  /// Fetch human Bitcoin address.
   late final HumanAddressService humanAddressService = HumanAddressService(
     app: this.widget.app,
     appData: this.widget.appData,
@@ -244,7 +244,7 @@ class WalletPageState extends State<WalletPage> {
     this.provisionService.isProvisioned.addListener(() {
       if (this.provisionService.isProvisioned.value) {
         this.refreshService.triggerRefreshUnthrottled();
-        // Tries to fetch and update the cached Human Address from the node.
+        // Tries to fetch and update the cached HBA from the node.
         this.humanAddressService.fetch();
       }
     });

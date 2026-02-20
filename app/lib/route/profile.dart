@@ -33,7 +33,7 @@ class ProfilePage extends StatelessWidget {
   );
 }
 
-/// Page to edit/set the user's human address (username@lexe.app).
+/// Page to edit/set the user's human Bitcoin address (username@lexe.app).
 class EditHumanAddressPage extends StatefulWidget {
   const EditHumanAddressPage({super.key, required this.humanAddressService});
 
@@ -95,7 +95,7 @@ class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
     if (!this.isUpdatable) {
       this.errorMessage.value = const ErrorMessage(
         title: "Error",
-        message: "Human address is not updatable. Please try later.",
+        message: "Human Bitcoin Address is not updatable. Please try later.",
       );
       return;
     }
@@ -205,7 +205,7 @@ class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
   }
 }
 
-/// Success page shown after human address is updated.
+/// Success page shown after human Bitcoin address is updated.
 class HumanAddressSuccessPage extends StatelessWidget {
   const HumanAddressSuccessPage({super.key, required this.username});
 

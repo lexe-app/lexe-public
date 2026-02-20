@@ -21,7 +21,7 @@ const APP_JSON: &str = "app.json";
 pub(crate) struct AppDb {
     /// AppDb schema version.
     pub schema: SchemaVersion,
-    /// User's preferred Offer. Based on the user's human address.
+    /// User's preferred Offer. Based on the user's human Bitcoin address.
     pub offer: Option<LxOffer>,
     /// User's username to receive BIP353 and lnurl payments.
     pub username: Option<Username>,
