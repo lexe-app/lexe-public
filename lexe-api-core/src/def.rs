@@ -79,24 +79,22 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, ClaimGeneratedHumanAddress,
-            ClaimGeneratedPaymentAddress, CloseChannelRequest,
+            BackupInfo, ClaimGeneratedHumanBitcoinAddress, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, EnclavesToProvisionRequest,
             GetAddressResponse, GetGeneratedUsernameResponse, GetNewPayments,
-            GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanAddress,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanBitcoinAddress,
             ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentAddress,
-            PaymentCreatedIndexStruct, PaymentCreatedIndexes,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOfferRequest, PreflightPayOfferResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            ResyncRequest, SetupGDrive, UpdateHumanAddress,
-            UpdatePaymentAddress, UpdatePaymentNote, VecLxPaymentId,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+            PreflightPayOfferResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, ResyncRequest, SetupGDrive,
+            UpdateHumanBitcoinAddress, UpdatePaymentNote, VecLxPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -449,34 +447,37 @@ pub trait AppNodeRunApi {
 
     /// Get current user's human Bitcoin address.
     ///
-    /// GET /app/human_address [`Empty`] -> [`HumanAddress`]
-    async fn get_human_address(&self) -> Result<HumanAddress, NodeApiError>;
+    /// GET /app/human_bitcoin_address [`Empty`] -> [`HumanBitcoinAddress`]
+    async fn get_human_bitcoin_address(
+        &self,
+    ) -> Result<HumanBitcoinAddress, NodeApiError>;
 
     /// Update current user's human Bitcoin address.
     ///
-    /// PUT /app/human_address [`UsernameStruct`] -> [`HumanAddress`]
-    async fn update_human_address(
+    /// PUT /app/human_bitcoin_address [`UsernameStruct`] ->
+    /// [`HumanBitcoinAddress`]
+    async fn update_human_bitcoin_address(
         &self,
         req: UsernameStruct,
-    ) -> Result<HumanAddress, NodeApiError>;
+    ) -> Result<HumanBitcoinAddress, NodeApiError>;
 
-    /// GET /app/payment_address [`Empty`] -> [`PaymentAddress`]
+    /// GET /app/payment_address [`Empty`] -> [`HumanBitcoinAddress`]
     #[deprecated(note = "since app-v0.9.3 and sdk-sidecar-v0.4.2: \
-                         Use get_human_address instead")]
+                         Use get_human_bitcoin_address instead")]
     async fn get_payment_address(
         &self,
-    ) -> Result<PaymentAddress, NodeApiError> {
-        self.get_human_address().await
+    ) -> Result<HumanBitcoinAddress, NodeApiError> {
+        self.get_human_bitcoin_address().await
     }
 
-    /// PUT /app/payment_address [`UsernameStruct`] -> [`PaymentAddress`]
+    /// PUT /app/payment_address [`UsernameStruct`] -> [`HumanBitcoinAddress`]
     #[deprecated(note = "since app-v0.9.3 and sdk-sidecar-v0.4.2: \
-                         Use update_human_address instead")]
+                         Use update_human_bitcoin_address instead")]
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
-    ) -> Result<PaymentAddress, NodeApiError> {
-        self.update_human_address(req).await
+    ) -> Result<HumanBitcoinAddress, NodeApiError> {
+        self.update_human_bitcoin_address(req).await
     }
 
     /// List NWC clients for the current user.
@@ -964,67 +965,67 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentMetadata, BackendApiError>;
 
-    /// PUT /node/v1/human_address [`UpdateHumanAddress`]
-    ///                         -> [`HumanAddress`]
+    /// PUT /node/v1/human_bitcoin_address [`UpdateHumanBitcoinAddress`]
+    ///                         -> [`HumanBitcoinAddress`]
     ///
     /// Updates the human Bitcoin address (username and offer) of the given
     /// node.
-    async fn update_human_address(
+    async fn update_human_bitcoin_address(
         &self,
-        req: UpdateHumanAddress,
+        req: UpdateHumanBitcoinAddress,
         auth: BearerAuthToken,
-    ) -> Result<HumanAddress, BackendApiError>;
+    ) -> Result<HumanBitcoinAddress, BackendApiError>;
 
-    /// PUT /node/v1/payment_address [`UpdatePaymentAddress`]
-    ///                           -> [`PaymentAddress`]
+    /// PUT /node/v1/payment_address [`UpdateHumanBitcoinAddress`]
+    ///                           -> [`HumanBitcoinAddress`]
     #[deprecated(note = "since node-v0.9.3: \
-                         Use update_human_address instead")]
+                         Use update_human_bitcoin_address instead")]
     async fn update_payment_address(
         &self,
-        req: UpdatePaymentAddress,
+        req: UpdateHumanBitcoinAddress,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError> {
-        self.update_human_address(req, auth).await
+    ) -> Result<HumanBitcoinAddress, BackendApiError> {
+        self.update_human_bitcoin_address(req, auth).await
     }
 
-    /// GET /node/v1/human_address [`Empty`] -> [`HumanAddress`]
+    /// GET /node/v1/human_bitcoin_address [`Empty`] -> [`HumanBitcoinAddress`]
     ///
     /// Fetches the node's primary human Bitcoin address (username and offer).
-    async fn get_human_address(
+    async fn get_human_bitcoin_address(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<HumanAddress, BackendApiError>;
+    ) -> Result<HumanBitcoinAddress, BackendApiError>;
 
-    /// GET /node/v1/payment_address [`Empty`] -> [`PaymentAddress`]
+    /// GET /node/v1/payment_address [`Empty`] -> [`HumanBitcoinAddress`]
     #[deprecated(note = "since node-v0.9.3: \
-                         Use get_human_address instead")]
+                         Use get_human_bitcoin_address instead")]
     async fn get_payment_address(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError> {
-        self.get_human_address(auth).await
+    ) -> Result<HumanBitcoinAddress, BackendApiError> {
+        self.get_human_bitcoin_address(auth).await
     }
 
-    /// POST /node/v1/claim_generated_human_address
-    ///   [`ClaimGeneratedHumanAddress`] -> [`Empty`]
+    /// POST /node/v1/claim_generated_human_bitcoin_address
+    ///   [`ClaimGeneratedHumanBitcoinAddress`] -> [`Empty`]
     ///
     /// Claims a generated human Bitcoin address for the given node.
-    async fn claim_generated_human_address(
+    async fn claim_generated_human_bitcoin_address(
         &self,
-        req: ClaimGeneratedHumanAddress,
+        req: ClaimGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
     /// POST /node/v1/claim_generated_payment_address
-    ///   [`ClaimGeneratedPaymentAddress`] -> [`Empty`]
+    ///   [`ClaimGeneratedHumanBitcoinAddress`] -> [`Empty`]
     #[deprecated(note = "since node-v0.9.3: \
-                         Use claim_generated_human_address instead")]
+                         Use claim_generated_human_bitcoin_address instead")]
     async fn claim_generated_payment_address(
         &self,
-        req: ClaimGeneratedPaymentAddress,
+        req: ClaimGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        self.claim_generated_human_address(req, auth).await
+        self.claim_generated_human_bitcoin_address(req, auth).await
     }
 
     /// GET /node/v1/generated_username [`Empty`]

@@ -691,7 +691,7 @@ String toString() {
 
 
 /// @nodoc
-mixin _$HumanAddress {
+mixin _$HumanBitcoinAddress {
 
  Username? get username; Offer? get offer; int? get updatedAt; bool get updatable;
 
@@ -699,7 +699,7 @@ mixin _$HumanAddress {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HumanAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HumanBitcoinAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
 }
 
 
@@ -708,7 +708,7 @@ int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
 
 @override
 String toString() {
-  return 'HumanAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
+  return 'HumanBitcoinAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
 }
 
 
@@ -721,8 +721,8 @@ String toString() {
 /// @nodoc
 
 
-class _HumanAddress implements HumanAddress {
-  const _HumanAddress({this.username, this.offer, this.updatedAt, required this.updatable});
+class _HumanBitcoinAddress implements HumanBitcoinAddress {
+  const _HumanBitcoinAddress({this.username, this.offer, this.updatedAt, required this.updatable});
   
 
 @override final  Username? username;
@@ -735,7 +735,7 @@ class _HumanAddress implements HumanAddress {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HumanAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HumanBitcoinAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
 }
 
 
@@ -744,7 +744,7 @@ int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
 
 @override
 String toString() {
-  return 'HumanAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
+  return 'HumanBitcoinAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
 }
 
 

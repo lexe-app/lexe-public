@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1899792123;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -197591559;
 
 // Section: executor
 
@@ -260,18 +260,18 @@ let api_scroll_idx = <usize>::sse_decode(&mut deserializer);deserializer.end();
                      let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::get_finalized_short_payment_by_scroll_index(&api_that, api_scroll_idx))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__app__app_handle_get_human_address_impl(
+fn wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_human_address", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_human_bitcoin_address", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::get_human_address(&api_that).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::get_human_bitcoin_address(&api_that).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -745,19 +745,19 @@ let api_req = <crate::ffi::api::UpdateClientRequest>::sse_decode(&mut deserializ
                     })().await)
                 } })
 }
-fn wire__crate__ffi__app__app_handle_update_human_address_impl(
+fn wire__crate__ffi__app__app_handle_update_human_bitcoin_address_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_update_human_address", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_update_human_bitcoin_address", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
 let api_username = <crate::ffi::types::Username>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::update_human_address(&api_that, api_username).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::update_human_bitcoin_address(&api_that, api_username).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -1397,10 +1397,11 @@ impl SseDecode for crate::ffi::app_data::AppData {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut var_humanAddress =
-            <Option<crate::ffi::api::HumanAddress>>::sse_decode(deserializer);
+        let mut var_humanBitcoinAddress = <Option<
+            crate::ffi::api::HumanBitcoinAddress,
+        >>::sse_decode(deserializer);
         return crate::ffi::app_data::AppData {
-            human_address: var_humanAddress,
+            human_bitcoin_address: var_humanBitcoinAddress,
         };
     }
 }
@@ -1794,7 +1795,7 @@ impl SseDecode for crate::ffi::types::GDriveStatus {
     }
 }
 
-impl SseDecode for crate::ffi::api::HumanAddress {
+impl SseDecode for crate::ffi::api::HumanBitcoinAddress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -1805,7 +1806,7 @@ impl SseDecode for crate::ffi::api::HumanAddress {
             <Option<crate::ffi::types::Offer>>::sse_decode(deserializer);
         let mut var_updatedAt = <Option<i64>>::sse_decode(deserializer);
         let mut var_updatable = <bool>::sse_decode(deserializer);
-        return crate::ffi::api::HumanAddress {
+        return crate::ffi::api::HumanBitcoinAddress {
             username: var_username,
             offer: var_offer,
             updated_at: var_updatedAt,
@@ -2264,13 +2265,13 @@ impl SseDecode for Option<crate::ffi::types::GDriveSignupCredentials> {
     }
 }
 
-impl SseDecode for Option<crate::ffi::api::HumanAddress> {
+impl SseDecode for Option<crate::ffi::api::HumanBitcoinAddress> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::ffi::api::HumanAddress>::sse_decode(
+            return Some(<crate::ffi::api::HumanBitcoinAddress>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -3096,7 +3097,7 @@ fn pde_ffi_dispatcher_primary_impl(
 10 => wire__crate__ffi__app__app_handle_delete_payment_db_impl(port, ptr, rust_vec_len, data_len),
 11 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
 12 => wire__crate__ffi__app__app_handle_get_address_impl(port, ptr, rust_vec_len, data_len),
-15 => wire__crate__ffi__app__app_handle_get_human_address_impl(port, ptr, rust_vec_len, data_len),
+15 => wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
 25 => wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(port, ptr, rust_vec_len, data_len),
 26 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
 27 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
@@ -3118,7 +3119,7 @@ fn pde_ffi_dispatcher_primary_impl(
 44 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
 45 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
 46 => wire__crate__ffi__app__app_handle_update_client_impl(port, ptr, rust_vec_len, data_len),
-47 => wire__crate__ffi__app__app_handle_update_human_address_impl(port, ptr, rust_vec_len, data_len),
+47 => wire__crate__ffi__app__app_handle_update_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
 48 => wire__crate__ffi__app__app_handle_update_payment_note_impl(port, ptr, rust_vec_len, data_len),
 51 => wire__crate__ffi__types__config_validate_impl(port, ptr, rust_vec_len, data_len),
 56 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
@@ -3193,7 +3194,7 @@ fn pde_ffi_dispatcher_sync_impl(
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::app_data::AppData {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.human_address.into_into_dart().into_dart()].into_dart()
+        [self.human_bitcoin_address.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -3721,7 +3722,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::GDriveStatus>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::api::HumanAddress {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::HumanBitcoinAddress {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.username.into_into_dart().into_dart(),
@@ -3733,13 +3734,13 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::HumanAddress {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::HumanAddress
+    for crate::ffi::api::HumanBitcoinAddress
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::HumanAddress>
-    for crate::ffi::api::HumanAddress
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::HumanBitcoinAddress>
+    for crate::ffi::api::HumanBitcoinAddress
 {
-    fn into_into_dart(self) -> crate::ffi::api::HumanAddress {
+    fn into_into_dart(self) -> crate::ffi::api::HumanBitcoinAddress {
         self
     }
 }
@@ -4907,8 +4908,8 @@ impl SseEncode for crate::ffi::app_data::AppData {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <Option<crate::ffi::api::HumanAddress>>::sse_encode(
-            self.human_address,
+        <Option<crate::ffi::api::HumanBitcoinAddress>>::sse_encode(
+            self.human_bitcoin_address,
             serializer,
         );
     }
@@ -5256,7 +5257,7 @@ impl SseEncode for crate::ffi::types::GDriveStatus {
     }
 }
 
-impl SseEncode for crate::ffi::api::HumanAddress {
+impl SseEncode for crate::ffi::api::HumanBitcoinAddress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -5647,7 +5648,7 @@ impl SseEncode for Option<crate::ffi::types::GDriveSignupCredentials> {
     }
 }
 
-impl SseEncode for Option<crate::ffi::api::HumanAddress> {
+impl SseEncode for Option<crate::ffi::api::HumanBitcoinAddress> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -5655,7 +5656,9 @@ impl SseEncode for Option<crate::ffi::api::HumanAddress> {
     ) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::ffi::api::HumanAddress>::sse_encode(value, serializer);
+            <crate::ffi::api::HumanBitcoinAddress>::sse_encode(
+                value, serializer,
+            );
         }
     }
 }

@@ -17,48 +17,66 @@ import 'package:lexeapp/components.dart'
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/service/human_address.dart' show HumanAddressService;
+import 'package:lexeapp/service/human_bitcoin_address.dart'
+    show HumanBitcoinAddressService;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// The entry point for the profile flow.
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.humanAddressService});
+  const ProfilePage({super.key, required this.humanBitcoinAddressService});
 
-  final HumanAddressService humanAddressService;
+  final HumanBitcoinAddressService humanBitcoinAddressService;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<String?>(
-    builder: (_) =>
-        EditHumanAddressPage(humanAddressService: this.humanAddressService),
+    builder: (_) => EditHumanBitcoinAddressPage(
+      humanBitcoinAddressService: this.humanBitcoinAddressService,
+    ),
   );
 }
 
 /// Page to edit/set the user's human Bitcoin address (username@lexe.app).
-class EditHumanAddressPage extends StatefulWidget {
-  const EditHumanAddressPage({super.key, required this.humanAddressService});
+class EditHumanBitcoinAddressPage extends StatefulWidget {
+  const EditHumanBitcoinAddressPage({
+    super.key,
+    required this.humanBitcoinAddressService,
+  });
 
-  final HumanAddressService humanAddressService;
+  final HumanBitcoinAddressService humanBitcoinAddressService;
 
   @override
-  State<EditHumanAddressPage> createState() => _EditHumanAddressPageState();
+  State<EditHumanBitcoinAddressPage> createState() =>
+      _EditHumanBitcoinAddressPageState();
 }
 
-class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
+class _EditHumanBitcoinAddressPageState
+    extends State<EditHumanBitcoinAddressPage> {
   final GlobalKey<FormFieldState<String>> usernameKey = GlobalKey();
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
   ValueListenable<bool> get isLoading =>
-      this.widget.humanAddressService.isUpdating;
+      this.widget.humanBitcoinAddressService.isUpdating;
 
   bool get isUpdatable =>
-      this.widget.humanAddressService.humanAddress.value?.updatable == true;
+      this
+          .widget
+          .humanBitcoinAddressService
+          .humanBitcoinAddress
+          .value
+          ?.updatable ==
+      true;
 
-  String? get initialUsername =>
-      this.widget.humanAddressService.humanAddress.value?.username?.field0;
+  String? get initialUsername => this
+      .widget
+      .humanBitcoinAddressService
+      .humanBitcoinAddress
+      .value
+      ?.username
+      ?.field0;
 
   @override
   void initState() {
-    this.widget.humanAddressService.fetch();
+    this.widget.humanBitcoinAddressService.fetch();
     super.initState();
   }
 
@@ -90,7 +108,7 @@ class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
   }
 
   Future<void> onSubmit() async {
-    if (this.widget.humanAddressService.isDisposed) return;
+    if (this.widget.humanBitcoinAddressService.isDisposed) return;
     if (this.isLoading.value) return;
     if (!this.isUpdatable) {
       this.errorMessage.value = const ErrorMessage(
@@ -116,8 +134,8 @@ class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
     // Clear error message
     this.errorMessage.value = null;
 
-    info("EditHumanAddressPage: updating username to ${username.field0}");
-    final res = await this.widget.humanAddressService.update(
+    info("EditHumanBitcoinAddressPage: updating to ${username.field0}");
+    final res = await this.widget.humanBitcoinAddressService.update(
       username: username,
     );
     if (!this.mounted) return;
@@ -128,8 +146,7 @@ class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
 
     await Navigator.of(this.context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) =>
-            HumanAddressSuccessPage(username: username.field0),
+        builder: (context) => HbaSuccessPage(username: username.field0),
       ),
     );
   }
@@ -206,12 +223,12 @@ class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
 }
 
 /// Success page shown after human Bitcoin address is updated.
-class HumanAddressSuccessPage extends StatelessWidget {
-  const HumanAddressSuccessPage({super.key, required this.username});
+class HbaSuccessPage extends StatelessWidget {
+  const HbaSuccessPage({super.key, required this.username});
 
   final String username;
 
-  String get humanAddress => "₿${this.username}@lexe.app";
+  String get humanBitcoinAddress => "₿${this.username}@lexe.app";
 
   void onDone(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop(this.username);
@@ -251,7 +268,7 @@ class HumanAddressSuccessPage extends StatelessWidget {
                 ),
                 const SizedBox(height: Space.s200),
                 Text(
-                  this.humanAddress,
+                  this.humanBitcoinAddress,
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size500,
                     fontVariations: [Fonts.weightMedium],

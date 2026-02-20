@@ -25,12 +25,10 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            ClaimGeneratedHumanAddress, ClaimGeneratedPaymentAddress,
-            GetGeneratedUsernameResponse, GetNewPayments,
-            GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanAddress,
-            LxPaymentIdStruct, PaymentAddress, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, UpdateHumanAddress, UpdatePaymentAddress,
-            VecLxPaymentId,
+            ClaimGeneratedHumanBitcoinAddress, GetGeneratedUsernameResponse,
+            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            HumanBitcoinAddress, LxPaymentIdStruct, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, UpdateHumanBitcoinAddress, VecLxPaymentId,
         },
         nwc::{
             DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPkStruct,
@@ -708,35 +706,35 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn update_human_address(
+    async fn update_human_bitcoin_address(
         &self,
-        req: UpdateHumanAddress,
+        req: UpdateHumanBitcoinAddress,
         auth: BearerAuthToken,
-    ) -> Result<HumanAddress, BackendApiError> {
+    ) -> Result<HumanBitcoinAddress, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .put(format!("{backend}/node/v1/human_address"), &req)
+            .put(format!("{backend}/node/v1/human_bitcoin_address"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
 
-    async fn get_human_address(
+    async fn get_human_bitcoin_address(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<HumanAddress, BackendApiError> {
+    ) -> Result<HumanBitcoinAddress, BackendApiError> {
         let backend = &self.backend_url;
         let data = Empty {};
         let req = self
             .rest
-            .get(format!("{backend}/node/v1/human_address"), &data)
+            .get(format!("{backend}/node/v1/human_bitcoin_address"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
 
-    async fn claim_generated_human_address(
+    async fn claim_generated_human_bitcoin_address(
         &self,
-        req: ClaimGeneratedHumanAddress,
+        req: ClaimGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
@@ -744,7 +742,9 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .post(
-                format!("{backend}/node/v1/claim_generated_human_address"),
+                format!(
+                    "{backend}/node/v1/claim_generated_human_bitcoin_address"
+                ),
                 &data,
             )
             .bearer_auth(&auth);
@@ -754,27 +754,27 @@ impl NodeBackendApi for NodeBackendClient {
     #[allow(deprecated)]
     async fn update_payment_address(
         &self,
-        req: UpdatePaymentAddress,
+        req: UpdateHumanBitcoinAddress,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError> {
-        self.update_human_address(req, auth).await
+    ) -> Result<HumanBitcoinAddress, BackendApiError> {
+        self.update_human_bitcoin_address(req, auth).await
     }
 
     #[allow(deprecated)]
     async fn get_payment_address(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<PaymentAddress, BackendApiError> {
-        self.get_human_address(auth).await
+    ) -> Result<HumanBitcoinAddress, BackendApiError> {
+        self.get_human_bitcoin_address(auth).await
     }
 
     #[allow(deprecated)]
     async fn claim_generated_payment_address(
         &self,
-        req: ClaimGeneratedPaymentAddress,
+        req: ClaimGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        self.claim_generated_human_address(req, auth).await
+        self.claim_generated_human_bitcoin_address(req, auth).await
     }
 
     async fn get_generated_username(

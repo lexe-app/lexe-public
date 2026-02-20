@@ -189,7 +189,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  HumanAddress dco_decode_box_autoadd_human_address(dynamic raw);
+  HumanBitcoinAddress dco_decode_box_autoadd_human_bitcoin_address(dynamic raw);
 
   @protected
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
@@ -338,7 +338,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveStatus dco_decode_g_drive_status(dynamic raw);
 
   @protected
-  HumanAddress dco_decode_human_address(dynamic raw);
+  HumanBitcoinAddress dco_decode_human_bitcoin_address(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -428,7 +428,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   dco_decode_opt_box_autoadd_g_drive_signup_credentials(dynamic raw);
 
   @protected
-  HumanAddress? dco_decode_opt_box_autoadd_human_address(dynamic raw);
+  HumanBitcoinAddress? dco_decode_opt_box_autoadd_human_bitcoin_address(
+    dynamic raw,
+  );
 
   @protected
   Invoice? dco_decode_opt_box_autoadd_invoice(dynamic raw);
@@ -742,7 +744,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  HumanAddress sse_decode_box_autoadd_human_address(
+  HumanBitcoinAddress sse_decode_box_autoadd_human_bitcoin_address(
     SseDeserializer deserializer,
   );
 
@@ -945,7 +947,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   GDriveStatus sse_decode_g_drive_status(SseDeserializer deserializer);
 
   @protected
-  HumanAddress sse_decode_human_address(SseDeserializer deserializer);
+  HumanBitcoinAddress sse_decode_human_bitcoin_address(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1053,7 +1057,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  HumanAddress? sse_decode_opt_box_autoadd_human_address(
+  HumanBitcoinAddress? sse_decode_opt_box_autoadd_human_bitcoin_address(
     SseDeserializer deserializer,
   );
 
@@ -1422,8 +1426,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_human_address(
-    HumanAddress self,
+  void sse_encode_box_autoadd_human_bitcoin_address(
+    HumanBitcoinAddress self,
     SseSerializer serializer,
   );
 
@@ -1662,7 +1666,10 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_g_drive_status(GDriveStatus self, SseSerializer serializer);
 
   @protected
-  void sse_encode_human_address(HumanAddress self, SseSerializer serializer);
+  void sse_encode_human_bitcoin_address(
+    HumanBitcoinAddress self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -1791,8 +1798,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_opt_box_autoadd_human_address(
-    HumanAddress? self,
+  void sse_encode_opt_box_autoadd_human_bitcoin_address(
+    HumanBitcoinAddress? self,
     SseSerializer serializer,
   );
 

@@ -55,11 +55,11 @@ use lexe_api::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             EnclavesToProvisionRequest, GetAddressResponse, GetNewPayments,
-            GetUpdatedPayments, HumanAddress, ListChannelsResponse,
+            GetUpdatedPayments, HumanBitcoinAddress, ListChannelsResponse,
             LxPaymentIdStruct, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
             PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentAddress, PaymentCreatedIndexes,
+            PayOnchainResponse, PaymentCreatedIndexes,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -834,21 +834,23 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn get_human_address(&self) -> Result<HumanAddress, NodeApiError> {
+    async fn get_human_bitcoin_address(
+        &self,
+    ) -> Result<HumanBitcoinAddress, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/human_address");
+        let url = format!("{run_url}/app/human_bitcoin_address");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
 
-    async fn update_human_address(
+    async fn update_human_bitcoin_address(
         &self,
         req: UsernameStruct,
-    ) -> Result<HumanAddress, NodeApiError> {
+    ) -> Result<HumanBitcoinAddress, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/human_address");
+        let url = format!("{run_url}/app/human_bitcoin_address");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
     }
@@ -856,16 +858,16 @@ impl AppNodeRunApi for NodeClient {
     #[allow(deprecated)]
     async fn get_payment_address(
         &self,
-    ) -> Result<PaymentAddress, NodeApiError> {
-        self.get_human_address().await
+    ) -> Result<HumanBitcoinAddress, NodeApiError> {
+        self.get_human_bitcoin_address().await
     }
 
     #[allow(deprecated)]
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
-    ) -> Result<PaymentAddress, NodeApiError> {
-        self.update_human_address(req).await
+    ) -> Result<HumanBitcoinAddress, NodeApiError> {
+        self.update_human_bitcoin_address(req).await
     }
 
     async fn list_nwc_clients(

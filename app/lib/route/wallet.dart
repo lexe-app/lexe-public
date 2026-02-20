@@ -3,7 +3,8 @@
 import 'dart:async' show StreamSubscription, TimeoutException;
 import 'dart:math' as math;
 
-import 'package:app_rs_dart/ffi/api.dart' show FiatRate, HumanAddress, NodeInfo;
+import 'package:app_rs_dart/ffi/api.dart'
+    show FiatRate, HumanBitcoinAddress, NodeInfo;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/settings.dart'
     show Settings, WalletFundingState;
@@ -70,7 +71,8 @@ import 'package:lexeapp/route/send/state.dart'
 import 'package:lexeapp/service/background_error.dart'
     show BackgroundError, BackgroundErrorKind, BackgroundErrorService;
 import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
-import 'package:lexeapp/service/human_address.dart' show HumanAddressService;
+import 'package:lexeapp/service/human_bitcoin_address.dart'
+    show HumanBitcoinAddressService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
@@ -142,10 +144,11 @@ class WalletPageState extends State<WalletPage> {
   late final LxListener provisionOnRefresh;
 
   /// Fetch human Bitcoin address.
-  late final HumanAddressService humanAddressService = HumanAddressService(
-    app: this.widget.app,
-    appData: this.widget.appData,
-  );
+  late final HumanBitcoinAddressService humanBitcoinAddressService =
+      HumanBitcoinAddressService(
+        app: this.widget.app,
+        appData: this.widget.appData,
+      );
 
   /// Compute [BalanceState] from [FiatRate] and [NodeInfo] signals.
   late final ComputedValueListenable<BalanceState> balanceState;
@@ -165,7 +168,7 @@ class WalletPageState extends State<WalletPage> {
     this.balanceState.dispose();
     this.provisionOnRefresh.dispose();
     this.provisionService.dispose();
-    this.humanAddressService.dispose();
+    this.humanBitcoinAddressService.dispose();
     this.nodeInfoFetchOnRefresh.dispose();
     this.nodeInfoService.dispose();
     this.paymentSyncOnRefresh.dispose();
@@ -245,7 +248,7 @@ class WalletPageState extends State<WalletPage> {
       if (this.provisionService.isProvisioned.value) {
         this.refreshService.triggerRefreshUnthrottled();
         // Tries to fetch and update the cached HBA from the node.
-        this.humanAddressService.fetch();
+        this.humanBitcoinAddressService.fetch();
       }
     });
 
@@ -621,8 +624,9 @@ class WalletPageState extends State<WalletPage> {
     // Navigate to profile page
     await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            ProfilePage(humanAddressService: this.humanAddressService),
+        builder: (context) => ProfilePage(
+          humanBitcoinAddressService: this.humanBitcoinAddressService,
+        ),
       ),
     );
   }
@@ -647,7 +651,7 @@ class WalletPageState extends State<WalletPage> {
       ),
       drawer: WalletDrawer(
         config: this.widget.config,
-        humanAddressService: this.humanAddressService,
+        humanBitcoinAddressService: this.humanBitcoinAddressService,
         featureFlags: this.widget.featureFlags,
         onChannelsMenuPressed: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
@@ -1191,7 +1195,7 @@ class WalletDrawer extends StatelessWidget {
   const WalletDrawer({
     super.key,
     required this.config,
-    required this.humanAddressService,
+    required this.humanBitcoinAddressService,
     required this.featureFlags,
     // this.onSettingsPressed,
     // this.onBackupPressed,
@@ -1207,7 +1211,7 @@ class WalletDrawer extends StatelessWidget {
   });
 
   final Config config;
-  final HumanAddressService humanAddressService;
+  final HumanBitcoinAddressService humanBitcoinAddressService;
   final FeatureFlags featureFlags;
 
   // final VoidCallback? onSettingsPressed;
@@ -1305,14 +1309,15 @@ class WalletDrawer extends StatelessWidget {
                 children: [
                   if (this.showHumanAddress)
                     ValueListenableBuilder(
-                      valueListenable: this.humanAddressService.humanAddress,
-                      builder: (context, humanAddress, child) {
+                      valueListenable:
+                          this.humanBitcoinAddressService.humanBitcoinAddress,
+                      builder: (context, humanBitcoinAddress, child) {
                         return DrawerProfile(
                           allowEdit: this.allowEditHumanAddress,
                           onEditProfilePressed: this.allowEditHumanAddress
                               ? this.onProfileMenuPressed
                               : null,
-                          humanAddress: humanAddress,
+                          humanBitcoinAddress: humanBitcoinAddress,
                         );
                       },
                     ),
@@ -1387,39 +1392,40 @@ class WalletDrawer extends StatelessWidget {
   }
 }
 
-enum DrawerHumanAddressStatus { error, notClaimed, claimed, updatable }
+enum DrawerHbaStatus { error, notClaimed, claimed, updatable }
 
 class DrawerProfile extends StatelessWidget {
   const DrawerProfile({
     super.key,
     this.allowEdit = false,
     this.onEditProfilePressed,
-    this.humanAddress,
+    this.humanBitcoinAddress,
   });
   final bool allowEdit;
   final VoidCallback? onEditProfilePressed;
-  final HumanAddress? humanAddress;
+  final HumanBitcoinAddress? humanBitcoinAddress;
 
-  DrawerHumanAddressStatus get status {
-    if (this.humanAddress == null) {
-      return DrawerHumanAddressStatus.error;
+  DrawerHbaStatus get status {
+    if (this.humanBitcoinAddress == null) {
+      return DrawerHbaStatus.error;
     }
 
-    if (this.humanAddress?.username == null) {
-      return DrawerHumanAddressStatus.notClaimed;
+    if (this.humanBitcoinAddress?.username == null) {
+      return DrawerHbaStatus.notClaimed;
     }
 
-    if (this.humanAddress?.updatable == true) {
-      return DrawerHumanAddressStatus.updatable;
+    if (this.humanBitcoinAddress?.updatable == true) {
+      return DrawerHbaStatus.updatable;
     }
 
-    return DrawerHumanAddressStatus.claimed;
+    return DrawerHbaStatus.claimed;
   }
 
-  /// If humanAddress is null, we haven't checked in the backend yet, or some
-  /// other error reading db happened. So we can't update the username.
+  /// If `humanBitcoinAddress` is null, we haven't checked in the backend yet,
+  /// or some other error reading db happened. So we can't update the username.
   bool get isUpdatable =>
-      this.humanAddress != null && this.humanAddress?.updatable == true;
+      this.humanBitcoinAddress != null &&
+      this.humanBitcoinAddress?.updatable == true;
 
   @override
   Widget build(BuildContext context) {
@@ -1429,7 +1435,7 @@ class DrawerProfile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           switch (this.status) {
-            DrawerHumanAddressStatus.error => const SizedBox(),
+            DrawerHbaStatus.error => const SizedBox(),
             _ => Text(
               "Human Bitcoin address",
               style: Fonts.fontUI.copyWith(
@@ -1440,17 +1446,17 @@ class DrawerProfile extends StatelessWidget {
           },
           const SizedBox(height: Space.s200),
           switch (this.status) {
-            DrawerHumanAddressStatus.error => const SizedBox(),
-            DrawerHumanAddressStatus.notClaimed =>
+            DrawerHbaStatus.error => const SizedBox(),
+            DrawerHbaStatus.notClaimed =>
               this.allowEdit
-                  ? ClaimHumanAddress(onTap: this.onEditProfilePressed)
+                  ? ClaimHba(onTap: this.onEditProfilePressed)
                   : const SizedBox(),
-            DrawerHumanAddressStatus.claimed => ClaimedHumanAddress(
-              humanAddress: this.humanAddress!,
+            DrawerHbaStatus.claimed => ClaimedHba(
+              humanBitcoinAddress: this.humanBitcoinAddress!,
               showEditButton: false,
             ),
-            DrawerHumanAddressStatus.updatable => ClaimedHumanAddress(
-              humanAddress: this.humanAddress!,
+            DrawerHbaStatus.updatable => ClaimedHba(
+              humanBitcoinAddress: this.humanBitcoinAddress!,
               showEditButton: this.allowEdit,
               onTapEdit: this.allowEdit ? this.onEditProfilePressed : null,
             ),
@@ -1461,18 +1467,18 @@ class DrawerProfile extends StatelessWidget {
   }
 }
 
-class ClaimedHumanAddress extends StatelessWidget {
-  const ClaimedHumanAddress({
+class ClaimedHba extends StatelessWidget {
+  const ClaimedHba({
     super.key,
-    required this.humanAddress,
+    required this.humanBitcoinAddress,
     required this.showEditButton,
     this.onTapEdit,
   });
-  final HumanAddress humanAddress;
+  final HumanBitcoinAddress humanBitcoinAddress;
   final bool showEditButton;
   final VoidCallback? onTapEdit;
 
-  String get username => this.humanAddress.username!.field0;
+  String get username => this.humanBitcoinAddress.username!.field0;
   String get emailLikeUsername => "${this.username}@lexe.app";
   String get displayUsername => "₿${this.emailLikeUsername}";
 
@@ -1498,7 +1504,7 @@ class ClaimedHumanAddress extends StatelessWidget {
   double get actionButtonIconSize => Fonts.size300;
 
   Future<void> onTapShare(BuildContext context) async {
-    await LxShare.shareHumanAddress(context, this.displayUsername);
+    await LxShare.shareHumanBitcoinAddress(context, this.displayUsername);
   }
 
   void onTapCopy(BuildContext context) {
@@ -1555,8 +1561,8 @@ class ClaimedHumanAddress extends StatelessWidget {
   }
 }
 
-class ClaimHumanAddress extends StatelessWidget {
-  const ClaimHumanAddress({super.key, required this.onTap});
+class ClaimHba extends StatelessWidget {
+  const ClaimHba({super.key, required this.onTap});
 
   final VoidCallback? onTap;
 

@@ -531,16 +531,12 @@ pub struct ResyncRequest {
 /// Creates or updates a human Bitcoin address.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct UpdateHumanAddress {
+pub struct UpdateHumanBitcoinAddress {
     /// Username for BIP-353 and LNURL.
     pub username: Username,
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: LxOffer,
 }
-
-/// Deprecated since node-v0.9.3.
-/// TODO(a-mpch): Remove once all clients have migrated to `UpdateHumanAddress`.
-pub type UpdatePaymentAddress = UpdateHumanAddress;
 
 /// Claims a generated human Bitcoin address.
 ///
@@ -549,18 +545,13 @@ pub type UpdatePaymentAddress = UpdateHumanAddress;
 /// `is_generated: true`.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ClaimGeneratedHumanAddress {
+pub struct ClaimGeneratedHumanBitcoinAddress {
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: LxOffer,
     /// The username to claim. This must be the username returned by
     /// `get_generated_username`.
     pub username: Username,
 }
-
-/// Deprecated since node-v0.9.3.
-/// TODO(a-mpch): Remove once all clients have migrated to
-/// `ClaimGeneratedHumanAddress`.
-pub type ClaimGeneratedPaymentAddress = ClaimGeneratedHumanAddress;
 
 /// Response for `get_generated_username` endpoint.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -570,13 +561,13 @@ pub struct GetGeneratedUsernameResponse {
     pub username: Username,
     /// Whether this user already has a claimed generated HBA.
     /// If true, the caller should skip calling
-    /// `claim_generated_human_address`.
+    /// `claim_generated_human_bitcoin_address`.
     pub already_claimed: bool,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct HumanAddress {
+pub struct HumanBitcoinAddress {
     /// Current username for BIP-353 and LNURL.
     pub username: Option<Username>,
     /// Current offer for fetching invoices on BIP-353.
@@ -588,10 +579,6 @@ pub struct HumanAddress {
     /// freeze rules.
     pub updatable: bool,
 }
-
-/// Deprecated since node-v0.9.3.
-/// TODO(a-mpch): Remove once all clients have migrated to `HumanAddress`.
-pub type PaymentAddress = HumanAddress;
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
@@ -659,25 +646,15 @@ mod test {
     }
 
     #[test]
-    fn human_address_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<UpdateHumanAddress>();
+    fn human_bitcoin_address_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<UpdateHumanBitcoinAddress>();
     }
 
     #[test]
-    fn payment_address_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<UpdatePaymentAddress>();
-    }
-
-    #[test]
-    fn claim_generated_human_address_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<ClaimGeneratedHumanAddress>(
-        );
-    }
-
-    #[test]
-    fn claim_generated_payment_address_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<ClaimGeneratedPaymentAddress>(
-        );
+    fn claim_generated_human_bitcoin_address_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<
+            ClaimGeneratedHumanBitcoinAddress,
+        >();
     }
 
     #[test]
@@ -687,12 +664,7 @@ mod test {
     }
 
     #[test]
-    fn human_address_response_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<HumanAddress>();
-    }
-
-    #[test]
-    fn payment_address_response_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<PaymentAddress>();
+    fn human_bitcoin_address_response_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<HumanBitcoinAddress>();
     }
 }

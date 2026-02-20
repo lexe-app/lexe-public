@@ -25,7 +25,8 @@ use lexe_api::{
         CreateInvoiceResponse as CreateInvoiceResponseRs,
         CreateOfferRequest as CreateOfferRequestRs,
         CreateOfferResponse as CreateOfferResponseRs,
-        FeeEstimate as FeeEstimateRs, HumanAddress as HumanAddressRs,
+        FeeEstimate as FeeEstimateRs,
+        HumanBitcoinAddress as HumanBitcoinAddressRs,
         ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
         OpenChannelRequest as OpenChannelRequestRs,
         OpenChannelResponse as OpenChannelResponseRs,
@@ -743,17 +744,17 @@ impl TryFrom<UpdateClientRequest> for UpdateClientRequestRs {
 /// and if it is updatable.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct HumanAddress {
+pub struct HumanBitcoinAddress {
     pub username: Option<Username>,
     pub offer: Option<Offer>,
     pub updated_at: Option<i64>,
     pub updatable: bool,
 }
 
-impl TryFrom<HumanAddressRs> for HumanAddress {
+impl TryFrom<HumanBitcoinAddressRs> for HumanBitcoinAddress {
     type Error = anyhow::Error;
 
-    fn try_from(value: HumanAddressRs) -> Result<Self, Self::Error> {
+    fn try_from(value: HumanBitcoinAddressRs) -> Result<Self, Self::Error> {
         let username = value.username.map(Username::try_from).transpose()?;
         let offer = value.offer.map(Offer::try_from).transpose()?;
         let updated_at = value.updated_at.map(|u| u.to_i64());

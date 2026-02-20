@@ -39,10 +39,11 @@ use crate::ffi::{
     api::{
         CloseChannelRequest, CreateClientRequest, CreateClientResponse,
         CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, FiatRates, HumanAddress, ListChannelsResponse,
-        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
+        CreateOfferResponse, FiatRates, HumanBitcoinAddress,
+        ListChannelsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+        PayOnchainResponse, PreflightCloseChannelRequest,
         PreflightCloseChannelResponse, PreflightOpenChannelRequest,
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
@@ -627,20 +628,30 @@ impl AppHandle {
         Ok(Invoice::from(lx_invoice))
     }
 
-    /// Get the [`HumanAddress`] for the user and if it is updatable.
-    pub async fn get_human_address(&self) -> anyhow::Result<HumanAddress> {
-        let resp = self.inner.node_client()?.get_human_address().await?;
-        HumanAddress::try_from(resp)
+    /// Get the [`HumanBitcoinAddress`] for the user and if it is updatable.
+    pub async fn get_human_bitcoin_address(
+        &self,
+    ) -> anyhow::Result<HumanBitcoinAddress> {
+        let resp = self
+            .inner
+            .node_client()?
+            .get_human_bitcoin_address()
+            .await?;
+        HumanBitcoinAddress::try_from(resp)
     }
 
-    pub async fn update_human_address(
+    pub async fn update_human_bitcoin_address(
         &self,
         username: Username,
-    ) -> anyhow::Result<HumanAddress> {
+    ) -> anyhow::Result<HumanBitcoinAddress> {
         let req = UsernameStructRs {
             username: UsernameRs::try_from(username)?,
         };
-        let resp = self.inner.node_client()?.update_human_address(req).await?;
-        HumanAddress::try_from(resp)
+        let resp = self
+            .inner
+            .node_client()?
+            .update_human_bitcoin_address(req)
+            .await?;
+        HumanBitcoinAddress::try_from(resp)
     }
 }

@@ -5,10 +5,10 @@ use flutter_rust_bridge::RustOpaqueNom;
 use lexe_api::types::offer::LxOffer as LxOfferRs;
 
 use crate::{
-    app_data::{AppDataRs, HumanAddressRs},
+    app_data::{AppDataRs, HumanBitcoinAddressRs},
     db::WritebackDb as WritebackDbRs,
     ffi::{
-        api::HumanAddress,
+        api::HumanBitcoinAddress,
         types::{Offer, Username},
     },
 };
@@ -18,7 +18,7 @@ pub struct AppDataDb {
 }
 
 pub struct AppData {
-    pub human_address: Option<HumanAddress>,
+    pub human_bitcoin_address: Option<HumanBitcoinAddress>,
 }
 
 //  --- impl AppDataDb --- //
@@ -65,16 +65,20 @@ impl TryFrom<AppDataRs> for AppData {
     type Error = anyhow::Error;
 
     fn try_from(a: AppDataRs) -> Result<Self, Self::Error> {
-        let human_address =
-            a.human_address.map(HumanAddress::try_from).transpose()?;
+        let human_bitcoin_address = a
+            .human_address
+            .map(HumanBitcoinAddress::try_from)
+            .transpose()?;
 
-        Ok(Self { human_address })
+        Ok(Self {
+            human_bitcoin_address,
+        })
     }
 }
 
-impl TryFrom<HumanAddressRs> for HumanAddress {
+impl TryFrom<HumanBitcoinAddressRs> for HumanBitcoinAddress {
     type Error = anyhow::Error;
-    fn try_from(a: HumanAddressRs) -> Result<Self, Self::Error> {
+    fn try_from(a: HumanBitcoinAddressRs) -> Result<Self, Self::Error> {
         let username = a
             .username
             .map(|u| Username::parse(u.as_str()))
@@ -99,8 +103,10 @@ impl TryFrom<HumanAddressRs> for HumanAddress {
 impl TryFrom<AppData> for AppDataRs {
     type Error = anyhow::Error;
     fn try_from(a: AppData) -> Result<Self, Self::Error> {
-        let human_address =
-            a.human_address.map(HumanAddressRs::try_from).transpose()?;
+        let human_address = a
+            .human_bitcoin_address
+            .map(HumanBitcoinAddressRs::try_from)
+            .transpose()?;
 
         Ok(Self {
             schema: AppDataRs::CURRENT_SCHEMA,
@@ -108,9 +114,10 @@ impl TryFrom<AppData> for AppDataRs {
         })
     }
 }
-impl TryFrom<HumanAddress> for HumanAddressRs {
+
+impl TryFrom<HumanBitcoinAddress> for HumanBitcoinAddressRs {
     type Error = anyhow::Error;
-    fn try_from(a: HumanAddress) -> Result<Self, Self::Error> {
+    fn try_from(a: HumanBitcoinAddress) -> Result<Self, Self::Error> {
         let username = a.username.map(|u| u.into_inner());
         let offer = a.offer.map(|o| o.string);
         let updated_at = a.updated_at;

@@ -17,7 +17,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         FeeEstimate,
         FiatRate,
         FiatRates,
-        HumanAddress,
+        HumanBitcoinAddress,
         ListChannelsResponse,
         NodeInfo,
         OpenChannelRequest,
@@ -563,9 +563,9 @@ class MockAppHandle extends AppHandle {
   });
 
   @override
-  Future<HumanAddress> getHumanAddress() => Future.delayed(
+  Future<HumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => HumanAddress(
+    () => HumanBitcoinAddress(
       username: const Username(field0: "user"),
       offer: defaultOffer,
       updatedAt: DateTime.now().millisecondsSinceEpoch,
@@ -574,16 +574,17 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
-  Future<HumanAddress> updateHumanAddress({required Username username}) =>
-      Future.delayed(
-        const Duration(milliseconds: 1500),
-        () => HumanAddress(
-          username: username,
-          offer: defaultOffer,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-          updatable: true,
-        ),
-      );
+  Future<HumanBitcoinAddress> updateHumanBitcoinAddress({
+    required Username username,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1500),
+    () => HumanBitcoinAddress(
+      username: username,
+      offer: defaultOffer,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+      updatable: true,
+    ),
+  );
 }
 
 /// An [AppHandle] that usually errors first.
@@ -711,7 +712,7 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<HumanAddress> getHumanAddress() => Future.delayed(
+  Future<HumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => throw const FfiError(
       "[106=Command] Failed to get Human Bitcoin Address",
@@ -719,13 +720,14 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<HumanAddress> updateHumanAddress({required Username username}) =>
-      Future.delayed(
-        const Duration(milliseconds: 1500),
-        () => throw const FfiError(
-          "[106=Command] Failed to update Human Bitcoin Address",
-        ).toFfi(),
-      );
+  Future<HumanBitcoinAddress> updateHumanBitcoinAddress({
+    required Username username,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1500),
+    () => throw const FfiError(
+      "[106=Command] Failed to update Human Bitcoin Address",
+    ).toFfi(),
+  );
 }
 
 /// `AppHandle` used for screenshots.
@@ -871,7 +873,8 @@ class MockAppDataDb extends AppDataDb {
   MockAppDataDb() : super(inner: MockAppDataDbRs());
 
   @override
-  AppData read() => const AppData(humanAddress: HumanAddress(updatable: true));
+  AppData read() =>
+      const AppData(humanBitcoinAddress: HumanBitcoinAddress(updatable: true));
 
   @override
   void reset() {}

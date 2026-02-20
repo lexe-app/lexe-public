@@ -73,17 +73,14 @@ abstract final class LxShare {
 
   /// Share a human Bitcoin address as a plain text message.
   /// Supported on all platforms.
-  static Future<void> shareHumanAddress(
+  static Future<void> shareHumanBitcoinAddress(
     BuildContext context,
     String address,
   ) async {
     final box = context.findRenderObject() as RenderBox?;
     final origin = box!.localToGlobal(Offset.zero) & box.size;
 
-    final result = await LxShare._tryShareHumanAddressAsPlaintext(
-      address,
-      origin,
-    );
+    final result = await LxShare._tryShareHbaAsPlaintext(address, origin);
     if (!context.mounted) return;
 
     switch (result) {
@@ -159,7 +156,7 @@ abstract final class LxShare {
     }
   }
 
-  static Future<ShareResultStatus> _tryShareHumanAddressAsPlaintext(
+  static Future<ShareResultStatus> _tryShareHbaAsPlaintext(
     String address,
     Rect origin,
   ) async {

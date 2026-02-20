@@ -84,9 +84,9 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
-  /// Get the [`HumanAddress`] for the user and if it is updatable.
-  Future<HumanAddress> getHumanAddress() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetHumanAddress(that: this);
+  /// Get the [`HumanBitcoinAddress`] for the user and if it is updatable.
+  Future<HumanBitcoinAddress> getHumanBitcoinAddress() =>
+      AppRs.instance.api.crateFfiAppAppHandleGetHumanBitcoinAddress(that: this);
 
   /// flutter_rust_bridge:sync
   int getNumFinalizedNotJunkPayments() => AppRs.instance.api
@@ -270,10 +270,12 @@ class AppHandle {
   Future<void> updateClient({required UpdateClientRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleUpdateClient(that: this, req: req);
 
-  Future<HumanAddress> updateHumanAddress({required Username username}) => AppRs
-      .instance
-      .api
-      .crateFfiAppAppHandleUpdateHumanAddress(that: this, username: username);
+  Future<HumanBitcoinAddress> updateHumanBitcoinAddress({
+    required Username username,
+  }) => AppRs.instance.api.crateFfiAppAppHandleUpdateHumanBitcoinAddress(
+    that: this,
+    username: username,
+  );
 
   Future<void> updatePaymentNote({required UpdatePaymentNote req}) => AppRs
       .instance

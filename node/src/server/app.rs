@@ -26,7 +26,7 @@ use lexe_api::{
         command::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
             CreateOfferResponse, GDriveStatus, GetAddressResponse,
-            GetNewPayments, GetUpdatedPayments, HumanAddress,
+            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
             ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
@@ -36,7 +36,7 @@ use lexe_api::{
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            SetupGDrive, UpdateHumanAddress, UpdatePaymentNote,
+            SetupGDrive, UpdateHumanBitcoinAddress, UpdatePaymentNote,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
@@ -611,28 +611,28 @@ pub(super) async fn setup_gdrive(
     Ok(LxJson(Empty {}))
 }
 
-pub(super) async fn get_human_address(
+pub(super) async fn get_human_bitcoin_address(
     State(state): State<Arc<RouterState>>,
-) -> Result<LxJson<HumanAddress>, NodeApiError> {
+) -> Result<LxJson<HumanBitcoinAddress>, NodeApiError> {
     let token = state
         .persister
         .get_token()
         .await
         .map_err(NodeApiError::command)?;
 
-    let human_address = state
+    let hba = state
         .persister
         .backend_api()
-        .get_human_address(token)
+        .get_human_bitcoin_address(token)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(human_address))
+    Ok(LxJson(hba))
 }
 
-pub(super) async fn update_human_address(
+pub(super) async fn update_human_bitcoin_address(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UsernameStruct>,
-) -> Result<LxJson<HumanAddress>, NodeApiError> {
+) -> Result<LxJson<HumanBitcoinAddress>, NodeApiError> {
     let token = state
         .persister
         .get_token()
@@ -655,17 +655,17 @@ pub(super) async fn update_human_address(
             .await
             .map_err(NodeApiError::command)?;
 
-    let req = UpdateHumanAddress {
+    let req = UpdateHumanBitcoinAddress {
         username: req.username,
         offer: offer.offer,
     };
-    let human_address = state
+    let hba = state
         .persister
         .backend_api()
-        .update_human_address(req, token)
+        .update_human_bitcoin_address(req, token)
         .await
         .map_err(NodeApiError::command)?;
-    Ok(LxJson(human_address))
+    Ok(LxJson(hba))
 }
 
 /// List all NWC clients for the current user.

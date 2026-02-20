@@ -140,12 +140,12 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         // TODO(a-mpch): Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2.
         // Remove once unused.
         .route("/app/payment_address",
-            get(app::get_human_address)
-            .put(app::update_human_address)
+            get(app::get_human_bitcoin_address)
+            .put(app::update_human_bitcoin_address)
         )
-        .route("/app/human_address",
-            get(app::get_human_address)
-            .put(app::update_human_address)
+        .route("/app/human_bitcoin_address",
+            get(app::get_human_bitcoin_address)
+            .put(app::update_human_bitcoin_address)
         )
         .route("/app/nwc_clients",
             get(app::list_nwc_clients)

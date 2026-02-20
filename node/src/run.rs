@@ -33,7 +33,7 @@ use lexe_api::{
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
     models::{
-        command::{ClaimGeneratedHumanAddress, GDriveStatus},
+        command::{ClaimGeneratedHumanBitcoinAddress, GDriveStatus},
         runner::UserLeaseRenewalRequest,
     },
     server::LayerConfig,
@@ -581,11 +581,11 @@ impl UserNode {
         // then one succeeds at claiming while the other fails. This is unlikely
         // in practice (requires two users with colliding petnames to register
         // simultaneously) and not worth the complexity to handle.
-        let claim_human_address_task = {
+        let claim_hba_task = {
             let persister = persister.clone();
             let channel_manager = channel_manager.clone();
 
-            const SPAN_NAME: &str = "(claim-human-address)";
+            const SPAN_NAME: &str = "(claim-human-bitcoin-address)";
             LxTask::spawn_with_span(
                 SPAN_NAME,
                 info_span!(SPAN_NAME),
@@ -616,15 +616,17 @@ impl UserNode {
                         .map_err(|e| anyhow!("Failed to build offer: {e:?}"))?;
                     let lx_offer = LxOffer(offer);
 
-                    let req = ClaimGeneratedHumanAddress {
+                    let req = ClaimGeneratedHumanBitcoinAddress {
                         offer: lx_offer,
                         username,
                     };
                     persister
                         .backend_api()
-                        .claim_generated_human_address(req, token)
+                        .claim_generated_human_bitcoin_address(req, token)
                         .await
-                        .context("claim_generated_human_address failed")?;
+                        .context(
+                            "claim_generated_human_bitcoin_address failed",
+                        )?;
 
                     anyhow::Ok(())
                 },
@@ -1006,7 +1008,7 @@ impl UserNode {
         // Wait for the HBA claim task to complete before finishing init.
         // A failure here should abort node startup since it indicates an issue
         // that requires investigation.
-        claim_human_address_task
+        claim_hba_task
             .await
             .context("claim HBA task panicked")?
             .context("Failed to claim human Bitcoin address")?;

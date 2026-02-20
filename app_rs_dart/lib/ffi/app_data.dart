@@ -20,19 +20,19 @@ import 'types.dart';
 abstract class WritebackDbRsAppDataRs implements RustOpaqueInterface {}
 
 class AppData {
-  final HumanAddress? humanAddress;
+  final HumanBitcoinAddress? humanBitcoinAddress;
 
-  const AppData({this.humanAddress});
+  const AppData({this.humanBitcoinAddress});
 
   @override
-  int get hashCode => humanAddress.hashCode;
+  int get hashCode => humanBitcoinAddress.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is AppData &&
           runtimeType == other.runtimeType &&
-          humanAddress == other.humanAddress;
+          humanBitcoinAddress == other.humanBitcoinAddress;
 }
 
 class AppDataDb {

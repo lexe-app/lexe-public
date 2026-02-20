@@ -10,22 +10,23 @@ class LxAppData {
   factory LxAppData(final AppDataDb db) {
     final appData = db.read();
 
-    final humanAddress = ValueNotifier(appData.humanAddress);
+    final humanBitcoinAddress = ValueNotifier(appData.humanBitcoinAddress);
 
-    return LxAppData._(db, humanAddress);
+    return LxAppData._(db, humanBitcoinAddress);
   }
 
-  LxAppData._(this._db, this._humanAddress);
+  LxAppData._(this._db, this._humanBitcoinAddress);
 
   final AppDataDb _db;
 
-  final ValueNotifier<HumanAddress?> _humanAddress;
-  ValueListenable<HumanAddress?> get humanAddress => this._humanAddress;
+  final ValueNotifier<HumanBitcoinAddress?> _humanBitcoinAddress;
+  ValueListenable<HumanBitcoinAddress?> get humanBitcoinAddress =>
+      this._humanBitcoinAddress;
 
   void reset() {
     this._db.reset();
 
-    this._humanAddress.value = null;
+    this._humanBitcoinAddress.value = null;
   }
 
   FfiResult<void> update(final AppData update) {
@@ -36,7 +37,7 @@ class LxAppData {
     }
 
     // Update ValueNotifier's
-    this._humanAddress.update(update.humanAddress);
+    this._humanBitcoinAddress.update(update.humanBitcoinAddress);
 
     // Can't create an Ok(void), so just return this `result` that conveniently
     // has the right type.

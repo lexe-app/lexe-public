@@ -128,13 +128,13 @@ sealed class FiatRates with _$FiatRates {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
-sealed class HumanAddress with _$HumanAddress {
-  const factory HumanAddress({
+sealed class HumanBitcoinAddress with _$HumanBitcoinAddress {
+  const factory HumanBitcoinAddress({
     Username? username,
     Offer? offer,
     int? updatedAt,
     required bool updatable,
-  }) = _HumanAddress;
+  }) = _HumanBitcoinAddress;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
