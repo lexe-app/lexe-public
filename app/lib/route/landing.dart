@@ -13,6 +13,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
 import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
+import 'package:lexeapp/double_ext.dart';
 import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info;
@@ -26,7 +27,9 @@ import 'package:lexeapp/style.dart'
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:lexeapp/url.dart' as url;
 
-const double maxWidth = 300.0;
+const double landingButtonsWidth = 300.0;
+const double landingPageDefaultMaxWidth = 300.0;
+const double landingPageDefaultHorizontalPadding = Space.s400;
 
 class LandingPage extends StatefulWidget {
   const LandingPage({
@@ -343,58 +346,61 @@ class _LandingPageState extends State<LandingPage>
     );
 
     // Each page in the carousel.
-    final List<Widget> landingPages = [
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          LandingMarkdownBody("# SELF-CUSTODIAL BITCOIN AND LIGHTNING WALLET."),
-          broughtToYouByLexeText,
-        ],
+    final List<_LandingPageSpec> landingPages = [
+      _LandingPageSpec(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LandingMarkdownBody(
+              "# SELF-CUSTODIAL BITCOIN AND LIGHTNING WALLET.",
+            ),
+            broughtToYouByLexeText,
+          ],
+        ),
       ),
 
-      // Keyword pills showcase
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LandingMarkdownBody('''
-## NEXT-GEN LIGHTNING.
-          '''),
-          const SizedBox(height: Space.s300),
-          _LandingKeywordPills(
-            labels: const [
-              "Instant payments",
-              "BOLT12 offers",
-              "\u20bfme@lexe.app",
-              "Self-custodial",
-              "Lightning Address",
-              "Free hosting",
-              "Managed liquidity",
-              "Private",
-              "Open-source",
-              "Receive 24/7",
-            ],
-          ),
-        ],
+      // Keyword pills showcase ticker
+      _LandingPageSpec(
+        // Let the keyword pills ticker go full-bleed to the edges of the screen
+        horizontalPadding: 0.0,
+        maxContentWidth: null,
+        child: const _LandingKeywordPage(
+          labels: [
+            "Instant payments",
+            "BOLT12 offers",
+            "\u20bfme@lexe.app",
+            "Self-custodial",
+            "Lightning Address",
+            "Free hosting",
+            "Managed liquidity",
+            "Private",
+            "Open-source",
+            "24/7 uptime",
+          ],
+        ),
       ),
 
       //
-      LandingMarkdownBody('''
+      _LandingPageSpec(
+        child: LandingMarkdownBody('''
 ## RECEIVE PAYMENTS 24/7.
 
 Your Lightning node is **always available** to receive payments.
 
 Get paid **anytime, anywhere**. Even when your phone goes offline.
       '''),
+      ),
 
       // TODO(phlip9): tap to clarify what a "Secure Enclave" is?
-      LandingMarkdownBody('''
+      _LandingPageSpec(
+        child: LandingMarkdownBody('''
 ## YOUR BITCOIN'S SAFE, EVEN FROM US.
 
 We run your node in a **Secure Enclave** so your funds are protected, even if we get hacked.
 
 With LEXE, **only you control your funds**. Let us handle the infrastructure.
       '''),
+      ),
 
       // TODO(phlip9): add this page after we actually implement paid liquidity.
       //       //
@@ -405,13 +411,15 @@ With LEXE, **only you control your funds**. Let us handle the infrastructure.
       //       '''),
 
       //
-      LandingMarkdownBody('''
+      _LandingPageSpec(
+        child: LandingMarkdownBody('''
 ## DON'T TRUST, VERIFY.
 
 The LEXE Lightning node is [open-source](https://github.com/lexe-app/lexe-public) and fully reproducible.
 
 Your wallet always verifies your node's software before sharing any keys.
       '''),
+      ),
     ];
 
     final numPages = landingPages.length;
@@ -449,8 +457,6 @@ Your wallet always verifies your node's software before sharing any keys.
                     ? 64.0
                     : 32.0;
 
-                const horizPadding = Space.s400;
-
                 return Center(
                   child: Container(
                     constraints: BoxConstraints(
@@ -472,17 +478,22 @@ Your wallet always verifies your node's software before sharing any keys.
                               itemBuilder: (context, idx) {
                                 if (idx < 0 || idx >= numPages) return null;
 
+                                final page = landingPages[idx];
+                                final pageChild = (page.maxContentWidth == null)
+                                    ? page.child
+                                    : ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxWidth: page.maxContentWidth!,
+                                        ),
+                                        child: page.child,
+                                      );
+
                                 return Container(
                                   alignment: Alignment.topCenter,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: horizPadding,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: page.horizontalPadding,
                                   ),
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: maxWidth,
-                                    ),
-                                    child: landingPages[idx],
-                                  ),
+                                  child: pageChild,
                                 );
                               },
                             ),
@@ -492,15 +503,15 @@ Your wallet always verifies your node's software before sharing any keys.
                         // Action buttons (signup, restore) and page indicators.
                         Container(
                           padding: EdgeInsets.fromLTRB(
-                            horizPadding,
+                            landingPageDefaultHorizontalPadding,
                             0,
-                            horizPadding,
+                            landingPageDefaultHorizontalPadding,
                             bottom,
                           ),
                           alignment: Alignment.bottomCenter,
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(
-                              maxWidth: maxWidth,
+                              maxWidth: landingButtonsWidth,
                             ),
                             child: LandingButtons(
                               config: this.widget.config,
@@ -565,21 +576,79 @@ class LandingMarkdownBody extends MarkdownBody {
     : super(data: data, styleSheet: _landingStyleSheet, onTapLink: _onTapLink);
 }
 
-/// Like [Wrap], but pills within each row expand evenly to fill the full
-/// row width. Row assignment is greedy, based on measured text widths.
+/// A single page in the carousel.
+///
+/// The [maxContentWidth] and [horizontalPadding] are configurable to support
+/// the [_LandingKeywordPage], which needs to span the full horizontal width
+/// of the viewport.
+class _LandingPageSpec {
+  const _LandingPageSpec({
+    required this.child,
+    this.maxContentWidth = landingPageDefaultMaxWidth,
+    this.horizontalPadding = landingPageDefaultHorizontalPadding,
+  });
+
+  final Widget child;
+  final double? maxContentWidth;
+  final double horizontalPadding;
+}
+
+/// NEXT-GEN LIGHTNING + keyword pills showcase ticker. Let users quickly
+/// pattern match on what features we offer.
+class _LandingKeywordPage extends StatelessWidget {
+  const _LandingKeywordPage({required this.labels});
+
+  final List<String> labels;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: landingPageDefaultHorizontalPadding,
+          ),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: landingPageDefaultMaxWidth,
+              ),
+              child: LandingMarkdownBody("## NEXT-GEN LIGHTNING."),
+            ),
+          ),
+        ),
+        const SizedBox(height: Space.s300),
+        _LandingKeywordPills(labels: this.labels),
+      ],
+    );
+  }
+}
+
+/// Greedily measure and fill pills into rows, then animate each row like a
+/// ticker.
 class _LandingKeywordPills extends StatelessWidget {
   const _LandingKeywordPills({required this.labels});
 
   final List<String> labels;
 
   static const _spaceBetween = Space.s200;
+  static const _baseSpeedPxPerSecond = 14.0;
+  static const _speedDeltaPerRow = 2.0;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
+        if (!maxWidth.isFinite || maxWidth <= 0.0) {
+          return const SizedBox();
+        }
+
         final textScaler = MediaQuery.textScalerOf(context);
+        final rowHeight = this.measurePillRowHeight(textScaler);
         final rows = this._assignToRows(maxWidth, textScaler);
 
         return Column(
@@ -587,32 +656,19 @@ class _LandingKeywordPills extends StatelessWidget {
           children: [
             for (final (i, row) in rows.indexed) ...[
               if (i > 0) const SizedBox(height: _spaceBetween),
-              _buildRow(row, maxWidth),
+              _LandingKeywordTickerRow(
+                pills: row,
+                viewportWidth: maxWidth,
+                spaceBetween: _spaceBetween,
+                speedPxPerSecond: _baseSpeedPxPerSecond + i * _speedDeltaPerRow,
+                phaseOffsetFraction: (i * 0.27).fract(),
+                scrollLeft: i.isEven,
+                rowHeight: rowHeight,
+              ),
             ],
           ],
         );
       },
-    );
-  }
-
-  /// Build a single row of pills. Each pill gets its natural width plus
-  /// an equal share of the leftover space, so text never wraps.
-  static Widget _buildRow(List<(String, double)> row, double maxWidth) {
-    final totalSpacing = _spaceBetween * (row.length - 1);
-    final naturalTotal = row.fold(0.0, (sum, item) => sum + item.$2);
-    final leftover = max(0.0, maxWidth - totalSpacing - naturalTotal);
-    final extra = leftover / row.length;
-
-    return Row(
-      children: [
-        for (final (j, (label, naturalWidth)) in row.indexed) ...[
-          if (j > 0) const SizedBox(width: _spaceBetween),
-          SizedBox(
-            width: naturalWidth + extra,
-            child: _LandingKeywordPill(label),
-          ),
-        ],
-      ],
     );
   }
 
@@ -666,6 +722,194 @@ class _LandingKeywordPills extends StatelessWidget {
 
     return rows;
   }
+
+  double measurePillRowHeight(TextScaler textScaler) {
+    final tp = TextPainter(
+      textDirection: ui.TextDirection.ltr,
+      textScaler: textScaler,
+      maxLines: 1,
+      text: TextSpan(text: "Hg", style: _LandingKeywordPill._textStyle),
+    );
+    try {
+      tp.layout();
+      return tp.height +
+          _LandingKeywordPill._vPadding * 2 +
+          _LandingKeywordPill._borderWidth * 2;
+    } finally {
+      tp.dispose();
+    }
+  }
+}
+
+/// A single horizontally scrolling ticker row of keyword pills.
+class _LandingKeywordTickerRow extends StatefulWidget {
+  const _LandingKeywordTickerRow({
+    required this.pills,
+    required this.viewportWidth,
+    required this.spaceBetween,
+    required this.speedPxPerSecond,
+    required this.phaseOffsetFraction,
+    required this.rowHeight,
+    required this.scrollLeft,
+  });
+
+  /// The pill labels and their natural widths, as measured by [TextPainter].
+  final List<(String, double)> pills;
+
+  final double viewportWidth;
+  final double spaceBetween;
+  final double speedPxPerSecond;
+  final double phaseOffsetFraction;
+  final double rowHeight;
+  final bool scrollLeft;
+
+  @override
+  State<_LandingKeywordTickerRow> createState() =>
+      _LandingKeywordTickerRowState();
+}
+
+class _LandingKeywordTickerRowState extends State<_LandingKeywordTickerRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController tickerController;
+
+  static const _edgeFadeWidth = 36.0;
+
+  @override
+  void initState() {
+    super.initState();
+    this.tickerController = AnimationController(vsync: this);
+    this.syncTickerAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LandingKeywordTickerRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    this.syncTickerAnimation();
+  }
+
+  @override
+  void dispose() {
+    this.tickerController.dispose();
+    super.dispose();
+  }
+
+  void syncTickerAnimation() {
+    final trackWidth = this.trackWidth();
+    if (trackWidth <= 0.0 || this.widget.speedPxPerSecond <= 0.0) {
+      this.tickerController.stop();
+      this.tickerController.value = 0.0;
+      return;
+    }
+
+    final msPerCycle = max(
+      1,
+      (1000.0 * trackWidth / this.widget.speedPxPerSecond).round(),
+    );
+    this.tickerController.repeat(
+      period: Duration(milliseconds: msPerCycle),
+      min: 0.0,
+      max: 1.0,
+    );
+  }
+
+  double trackWidth() {
+    if (this.widget.pills.isEmpty) return 0.0;
+
+    final totalPillWidth = this.widget.pills.fold(
+      0.0,
+      (sum, pill) => sum + pill.$2,
+    );
+
+    // Keep one trailing spacer so wrapping from end -> start has the same gap.
+    final totalSpacing = this.widget.spaceBetween * this.widget.pills.length;
+
+    return totalPillWidth + totalSpacing;
+  }
+
+  Widget edgeFadeMask({required Widget child}) {
+    return ShaderMask(
+      blendMode: ui.BlendMode.dstIn,
+      shaderCallback: (bounds) {
+        final edgeFraction = (bounds.width <= 0.0)
+            ? 0.0
+            : (_edgeFadeWidth / bounds.width).clamp(0.0, 0.5).toDouble();
+        return LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: const [
+            Color(0x00FFFFFF),
+            Color(0xFFFFFFFF),
+            Color(0xFFFFFFFF),
+            Color(0x00FFFFFF),
+          ],
+          stops: [0.0, edgeFraction, 1.0 - edgeFraction, 1.0],
+        ).createShader(bounds);
+      },
+      child: child,
+    );
+  }
+
+  Widget buildTrack() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (i, (label, naturalWidth)) in this.widget.pills.indexed) ...[
+          if (i > 0) SizedBox(width: this.widget.spaceBetween),
+          SizedBox(width: naturalWidth, child: _LandingKeywordPill(label)),
+        ],
+        SizedBox(width: this.widget.spaceBetween),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trackWidth = this.trackWidth();
+    if (this.widget.pills.isEmpty || trackWidth <= 0.0) {
+      return const SizedBox();
+    }
+
+    final numTrackCopies = (this.widget.viewportWidth / trackWidth).ceil() + 2;
+    final repeatedTrack = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [for (var i = 0; i < numTrackCopies; i++) this.buildTrack()],
+    );
+    final repeatedTrackWidth = numTrackCopies * trackWidth;
+    final cycleDx = trackWidth / repeatedTrackWidth;
+    final phaseDx = this.widget.phaseOffsetFraction * cycleDx;
+    // For rightward motion, keep the whole sweep in negative X so we never
+    // expose empty space at the left edge of the clipped viewport.
+    final beginDx = this.widget.scrollLeft ? -phaseDx : -2 * cycleDx + phaseDx;
+    final endDx = this.widget.scrollLeft
+        ? beginDx - cycleDx
+        : beginDx + cycleDx;
+    final slideAnimation = Tween<Offset>(
+      begin: Offset(beginDx, 0.0),
+      end: Offset(endDx, 0.0),
+    ).animate(this.tickerController);
+
+    return ClipRect(
+      // Fade in the left and right edges to make the edges less jarring when
+      // scrolling to the next/prev page.
+      child: this.edgeFadeMask(
+        child: SizedBox(
+          width: this.widget.viewportWidth,
+          height: this.widget.rowHeight,
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            minWidth: 0.0,
+            maxWidth: double.infinity,
+            minHeight: this.widget.rowHeight,
+            maxHeight: this.widget.rowHeight,
+            child: SlideTransition(
+              position: slideAnimation,
+              child: repeatedTrack,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// A single keyword pill on the "NEXT-GEN LIGHTNING" page
@@ -675,7 +919,8 @@ class _LandingKeywordPill extends StatelessWidget {
   final String label;
 
   static const _borderWidth = 1.0;
-  static const _hPadding = Space.s300;
+  static const _hPadding = Space.s400;
+  static const _vPadding = Space.s200;
 
   /// NOTE: use a complete TextStyle here, without inherited properties, to
   /// ensure that the TextPainter measurements in _assignToRows are accurate
@@ -712,8 +957,9 @@ class _LandingKeywordPill extends StatelessWidget {
     ),
     child: Padding(
       padding: const EdgeInsets.symmetric(
-        vertical: Space.s200,
-        horizontal: _hPadding,
+        vertical: _vPadding,
+        // For some reason the pill text ellipsizes without this small tweak...
+        horizontal: _hPadding - 2.0,
       ),
       child: Text(
         this.label,
@@ -778,7 +1024,7 @@ class LandingButtons extends StatelessWidget {
             backgroundColor: LxColors.foreground,
             foregroundColor: LxColors.background,
             iconColor: LxColors.background,
-            fixedSize: const Size(maxWidth, Space.s800),
+            fixedSize: const Size(landingButtonsWidth, Space.s800),
           ),
           label: const Text("Create wallet"),
           icon: const Icon(LxIcons.nextSecondary),
@@ -790,7 +1036,7 @@ class LandingButtons extends StatelessWidget {
           onTap: this.onRestorePressed,
           style: ButtonStyle(
             fixedSize: WidgetStateProperty.all(
-              const Size(maxWidth, Space.s800),
+              const Size(landingButtonsWidth, Space.s800),
             ),
           ),
           label: const Text("Restore wallet"),
