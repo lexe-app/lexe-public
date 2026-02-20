@@ -19,14 +19,27 @@ pub use common::default_lexe_data_dir;
 /// Reexported types needed by SDK consumers.
 /// All types exported here are considered part of the stable public API.
 pub mod types {
-    pub use common::{api::user::UserPk, rng::SysRng, root_seed::RootSeed};
+    pub use common::{
+        api::user::{NodePk, UserPk},
+        enclave::Measurement,
+        ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+        rng::SysRng,
+        root_seed::RootSeed,
+        time::TimestampMs,
+    };
     pub use lexe_api::{
         models::command::UpdatePaymentNote,
         types::payments::{
             BasicPaymentV2, PaymentCreatedIndex, PaymentUpdatedIndex,
         },
     };
-    pub use lexe_api_core::types::invoice::LxInvoice;
+    pub use lexe_api_core::types::{
+        invoice::LxInvoice,
+        payments::{
+            LxPaymentHash, LxPaymentId, LxPaymentSecret, PaymentDirection,
+            PaymentKind, PaymentRail, PaymentStatus,
+        },
+    };
     pub use node_client::credentials::{
         ClientCredentials, Credentials, CredentialsRef,
     };
