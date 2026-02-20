@@ -160,6 +160,8 @@ impl Ffs for DiskFs {
     fn delete_all(&self) -> io::Result<()> {
         fs::remove_dir_all(self.base_dir.as_path())?;
         fs::create_dir(self.base_dir.as_path())?;
+        // Recreate the .write dir so subsequent writes still work.
+        fs::create_dir(self.write_dir.as_path())?;
         Ok(())
     }
 
