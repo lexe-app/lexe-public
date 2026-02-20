@@ -9,7 +9,7 @@ Download Lexe and get started in minutes.
 LIGHTNING PAYMENTS.
 • Send & receive bitcoin instantly with low fees
 • Pay any way: Lightning Address, BOLT11 invoice, BOLT12 offer, on-chain
-• Your own ₿me@lexe.app human bitcoin address
+• Your own ₿me@lexe.app Human Bitcoin Address
 
 ALWAYS ONLINE.
 • Your Lightning node runs 24/7 in the cloud

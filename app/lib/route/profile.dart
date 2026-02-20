@@ -146,7 +146,7 @@ class _EditHumanAddressPageState extends State<EditHumanAddressPage> {
           const HeadingText(text: "Update your username"),
           const SubheadingText(
             text:
-                "Receive money into your wallet instantly with only your Human ₿itcoin address.",
+                "Receive money into your wallet instantly with only your Human Bitcoin address.",
           ),
           const SizedBox(height: Space.s600),
 
@@ -243,7 +243,7 @@ class HumanAddressSuccessPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Human ₿itcoin address",
+                  "Human Bitcoin address",
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
                     color: LxColors.grey600,

@@ -1431,7 +1431,7 @@ class DrawerProfile extends StatelessWidget {
           switch (this.status) {
             DrawerHumanAddressStatus.error => const SizedBox(),
             _ => Text(
-              "Human ₿itcoin address",
+              "Human Bitcoin address",
               style: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size300,
                 color: LxColors.grey600,
