@@ -458,11 +458,11 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
 
     // "Inbound liquidity limit -> warn about miner fee"
     final textInboundLiquidityWarning = Text.rich(
-      // TODO(phlip9): after beta:
-      //               "Receives above $amount sats will incur a miner fee."
+      // TODO(phlip9): Once miner fees implemented:
+      //               "Receives above X will incur a miner fee."
       TextSpan(
         children: <InlineSpan>[
-          const TextSpan(text: "*After Lexe's beta, receives beyond your "),
+          const TextSpan(text: "*In the future, receives beyond your "),
           if (inboundCapacitySats != null)
             TextSpan(
               text: currency_format.formatSatsAmount(inboundCapacitySats),
