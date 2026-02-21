@@ -316,49 +316,8 @@ class _LandingPageState extends State<LandingPage>
 
   @override
   Widget build(BuildContext context) {
-    // "brought to you by LEXE™"
-    final broughtToYouByLexeText = Row(
-      // mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        // SizedBox(width: 128.0),
-        Text(
-          "brought to you by",
-          style: Fonts.fontUI.copyWith(
-            color: LxColors.clearB700,
-            fontSize: Fonts.size200,
-            fontVariations: [Fonts.weightLight],
-            letterSpacing: -0.1,
-          ),
-        ),
-        const SizedBox(width: 4.0),
-        Text(
-          "LEXE™",
-          style: Fonts.fontHubot.copyWith(
-            color: LxColors.clearB700,
-            fontSize: Fonts.size200,
-            fontVariations: [Fonts.weightMedium],
-            letterSpacing: -0.2,
-            height: 1.0,
-          ),
-        ),
-      ],
-    );
-
     // Each page in the carousel.
     final List<_LandingPageSpec> landingPages = [
-      _LandingPageSpec(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LandingMarkdownBody(
-              "# SELF-CUSTODIAL BITCOIN AND LIGHTNING WALLET.",
-            ),
-            broughtToYouByLexeText,
-          ],
-        ),
-      ),
-
       // Keyword pills showcase ticker
       _LandingPageSpec(
         // Let the keyword pills ticker go full-bleed to the edges of the screen
@@ -612,14 +571,13 @@ class _LandingKeywordPage extends StatelessWidget {
           ),
           child: Align(
             alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: landingPageDefaultMaxWidth,
-              ),
-              child: LandingMarkdownBody("## NEXT-GEN LIGHTNING."),
+            child: SizedBox(
+              width: landingPageDefaultMaxWidth,
+              child: LandingMarkdownBody("## NEXT-GEN BITCOIN WALLET."),
             ),
           ),
         ),
+
         const SizedBox(height: Space.s300),
         _LandingKeywordPills(labels: this.labels),
       ],
