@@ -32,7 +32,7 @@ use anyhow::Context;
 use cfg_if::cfg_if;
 use common::root_seed::RootSeed;
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
-use sdk_rust::config::WalletEnv;
+use lexe::config::WalletEnv;
 use secrecy::ExposeSecret;
 
 /// Persists user secrets like the [`RootSeed`] in each platform's standard

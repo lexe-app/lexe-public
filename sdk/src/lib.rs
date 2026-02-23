@@ -3,7 +3,7 @@
 //! This crate is the [UniFFI] base for generating Lexe SDK bindings in
 //! languages like Python, Javascript, Swift, and Kotlin.
 //!
-//! For Rust projects, use [`sdk_rust`] directly.
+//! For Rust projects, use the [`lexe`] crate directly.
 //!
 //! [UniFFI]: https://mozilla.github.io/uniffi-rs/
 
@@ -19,6 +19,19 @@ use common::{
     },
     rng::SysRng,
     root_seed::RootSeed as RootSeedRs,
+};
+use lexe::{
+    config::WalletEnvConfig as WalletEnvConfigRs,
+    types::{
+        SdkCreateInvoiceRequest as SdkCreateInvoiceRequestRs,
+        SdkCreateInvoiceResponse as SdkCreateInvoiceResponseRs,
+        SdkGetPaymentRequest as SdkGetPaymentRequestRs,
+        SdkNodeInfo as SdkNodeInfoRs,
+        SdkPayInvoiceRequest as SdkPayInvoiceRequestRs,
+        SdkPayInvoiceResponse as SdkPayInvoiceResponseRs,
+        SdkPayment as SdkPaymentRs,
+    },
+    wallet::LexeWallet as LexeWalletRs,
 };
 use lexe_api_core::{
     error::GatewayApiError as GatewayApiErrorRs,
@@ -37,19 +50,6 @@ use lexe_std::backoff;
 use node_client::credentials::{
     ClientCredentials as ClientCredentialsRs, CredentialsRef,
 };
-use sdk_rust::{
-    config::WalletEnvConfig as WalletEnvConfigRs,
-    types::{
-        SdkCreateInvoiceRequest as SdkCreateInvoiceRequestRs,
-        SdkCreateInvoiceResponse as SdkCreateInvoiceResponseRs,
-        SdkGetPaymentRequest as SdkGetPaymentRequestRs,
-        SdkNodeInfo as SdkNodeInfoRs,
-        SdkPayInvoiceRequest as SdkPayInvoiceRequestRs,
-        SdkPayInvoiceResponse as SdkPayInvoiceResponseRs,
-        SdkPayment as SdkPaymentRs,
-    },
-    wallet::LexeWallet as LexeWalletRs,
-};
 use secrecy::{ExposeSecret, Secret};
 
 uniffi::setup_scaffolding!("lexe");
@@ -61,7 +61,7 @@ uniffi::setup_scaffolding!("lexe");
 /// Returns the default Lexe data directory (`~/.lexe`).
 #[uniffi::export]
 pub fn default_lexe_data_dir() -> FfiResult<String> {
-    sdk_rust::default_lexe_data_dir()
+    lexe::default_lexe_data_dir()
         .map(|p| p.to_string_lossy().into_owned())
         .map_err(Into::into)
 }
@@ -148,7 +148,7 @@ pub fn write_seed_to_path(root_seed: RootSeed, path: String) -> FfiResult<()> {
 /// `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"`.
 #[uniffi::export]
 pub fn init_logger(default_level: String) {
-    sdk_rust::init_logger(&default_level);
+    lexe::init_logger(&default_level);
 }
 
 // ===================== //
@@ -450,7 +450,7 @@ impl From<SdkNodeInfoRs> for NodeInfo {
 /// The main wallet handle for interacting with Lexe.
 #[derive(uniffi::Object)]
 pub struct LexeWallet {
-    inner: Arc<LexeWalletRs<sdk_rust::wallet::WithDb>>,
+    inner: Arc<LexeWalletRs<lexe::wallet::WithDb>>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -724,7 +724,7 @@ impl LexeWallet {
     /// Uses exponential backoff polling under the hood.
     /// Recommended timeout is 120 seconds.
     /// Maximum timeout is 10_800 seconds (3 hours).
-    // TODO(max): We should either delete this or move into sdk-rust
+    // TODO(max): We should either delete this or move into `lexe`
     pub async fn wait_for_payment_completion(
         &self,
         payment_index: String,
@@ -919,7 +919,7 @@ impl From<PaymentStatusRs> for PaymentStatus {
 
 /// Filter for listing payments.
 // TODO(max): Consider adding NotJunk variants (PendingNotJunk,
-// FinalizedNotJunk) to match sdk-rust PaymentsDb methods: num_pending_not_junk,
+// FinalizedNotJunk) to match PaymentsDb methods: num_pending_not_junk,
 // num_finalized_not_junk, get_pending_not_junk_payment_by_scroll_idx, etc.
 #[derive(Clone, uniffi::Enum)]
 pub enum PaymentFilter {
@@ -1095,7 +1095,7 @@ impl From<SdkPaymentRs> for Payment {
 
 /// Summary of a payment sync operation.
 //
-// Skipped: Not exposing `any_changes()` helper from sdk-rust PaymentSyncSummary
+// Skipped: Not exposing `any_changes()` helper from PaymentSyncSummary
 #[derive(Clone, uniffi::Record)]
 pub struct PaymentSyncSummary {
     /// Number of new payments added to the local DB.

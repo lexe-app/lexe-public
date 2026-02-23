@@ -16,9 +16,9 @@ use crate::unstable::provision;
 
 /// The user agent string used for SDK requests to Lexe infrastructure.
 ///
-/// Format: `sdk-rust/<sdk_version> node/<latest_node_version>`
+/// Format: `lexe/<sdk_version> node/<latest_node_version>`
 ///
-/// Example: `sdk-rust/0.1.0 node/0.8.11`
+/// Example: `lexe/0.1.0 node/0.8.11`
 pub static SDK_USER_AGENT: LazyLock<&'static str> = LazyLock::new(|| {
     // Get the latest node version.
     let releases = provision::releases_json();
@@ -415,15 +415,15 @@ mod test {
     fn test_sdk_user_agent() {
         let user_agent: &str = &SDK_USER_AGENT;
 
-        // Should match: "sdk-rust/<semver> node/<semver>"
+        // Should match: "lexe/<semver> node/<semver>"
         let (sdk_part, node_part) = user_agent
             .split_once(" node/")
             .expect("Missing ' node/' separator");
 
-        // Validate sdk part: "sdk-rust/<version>"
+        // Validate sdk part: "lexe/<version>"
         let sdk_version_str = sdk_part
-            .strip_prefix("sdk-rust/")
-            .expect("Missing 'sdk-rust/' prefix");
+            .strip_prefix("lexe/")
+            .expect("Missing 'lexe/' prefix");
         let _sdk_version = semver::Version::from_str(sdk_version_str)
             .expect("Invalid SDK semver version");
 

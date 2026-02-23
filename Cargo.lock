@@ -179,6 +179,7 @@ dependencies = [
  "hex 0.0.0",
  "http",
  "keyring",
+ "lexe",
  "lexe-api",
  "lexe-std",
  "lexe-tls",
@@ -188,7 +189,6 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "reqwest",
- "sdk-rust",
  "secrecy",
  "semver",
  "serde",
@@ -2570,6 +2570,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "bip39",
+ "bitcoin",
+ "common",
+ "lexe-api",
+ "lexe-api-core",
+ "lexe-tokio",
+ "logger",
+ "node-client",
+ "payment-uri",
+ "proptest",
+ "sdk-core",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "lexe-api"
 version = "0.0.0"
 dependencies = [
@@ -4219,10 +4243,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "common",
+ "lexe",
  "lexe-api-core",
  "lexe-std",
  "node-client",
- "sdk-rust",
  "secrecy",
  "tokio",
  "uniffi",
@@ -4238,30 +4262,6 @@ dependencies = [
  "lexe-api-core",
  "semver",
  "serde",
-]
-
-[[package]]
-name = "sdk-rust"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "bip39",
- "bitcoin",
- "common",
- "lexe-api",
- "lexe-api-core",
- "lexe-tokio",
- "logger",
- "node-client",
- "payment-uri",
- "proptest",
- "sdk-core",
- "semver",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
 ]
 
 [[package]]

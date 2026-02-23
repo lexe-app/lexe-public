@@ -2,9 +2,9 @@
 
 use anyhow::Context;
 use common::api::fiat_rates::IsoCurrencyCode;
+use lexe::ffs::Ffs;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-use sdk_rust::ffs::Ffs;
 use serde::{Deserialize, Serialize};
 
 use crate::db::{SchemaVersion, Update, WritebackDb};
@@ -129,8 +129,8 @@ impl Update for IsoCurrencyCode {}
 mod test {
     use std::{ops::Deref, rc::Rc, time::Duration};
 
+    use lexe::ffs::{DiskFs, test_utils::InMemoryFfs};
     use proptest::{proptest, strategy::Strategy};
-    use sdk_rust::ffs::{DiskFs, test_utils::InMemoryFfs};
 
     use super::*;
     use crate::db::{DbPersister, WritebackDb};

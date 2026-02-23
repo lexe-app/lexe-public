@@ -22,6 +22,7 @@ use common::{
     time::TimestampMs,
 };
 use flutter_rust_bridge::RustOpaqueNom;
+use lexe::config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig};
 use lexe_api::{
     models::command::{
         BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
@@ -46,7 +47,6 @@ use lexe_api::{
     },
 };
 use payment_uri::OfferWithAmount;
-use sdk_rust::config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig};
 
 use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
 

@@ -1,12 +1,12 @@
 //! App state database.
 
 use anyhow::Context;
+use lexe::ffs::Ffs;
 #[cfg(doc)]
 use lexe_api::models::command::HumanBitcoinAddress;
 use lexe_api::types::{offer::LxOffer, username::Username};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-use sdk_rust::ffs::Ffs;
 use serde::{Deserialize, Serialize};
 
 use crate::db::{SchemaVersion, Update, WritebackDb};
@@ -106,7 +106,7 @@ impl Update for HumanBitcoinAddressRs {
 mod test {
     use std::ops::Deref;
 
-    use sdk_rust::ffs::DiskFs;
+    use lexe::ffs::DiskFs;
 
     use super::*;
 

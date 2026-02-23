@@ -15,6 +15,7 @@ include = [
 [lib]
 name = "lexe"
 crate-type = ["cdylib"]
+doc = false
 
 [[bin]]
 name = "uniffi-bindgen"
@@ -24,16 +25,16 @@ required-features = ["bindgen"]
 [dependencies]
 # --- LEXE --- #
 
-# NOTE: To ensure `sdk-rust` exposes all types and sub-crates needed for SDK
-# implementors, this crate should *only* depend on `sdk-rust`.
+# NOTE: To ensure `lexe` exposes all types and sub-crates needed for SDK
+# implementors, this crate should *only* depend on `lexe`.
 # TODO(max): Clean up these dependencies; upstream the
 # `wait_for_payment_completion` logic, add re-exports and crate exports if
 # needed.
 common = { path = "../common" }
+lexe = { path = "../lexe" }
 lexe-api-core = { path = "../lexe-api-core" }
 lexe-std = { path = "../lexe-std" }
 node-client = { path = "../node-client", default-features = false }
-sdk-rust = { path = "../sdk-rust" }
 
 # --- WORKSPACE --- #
 

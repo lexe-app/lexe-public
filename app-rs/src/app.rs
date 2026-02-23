@@ -17,13 +17,7 @@ use common::{
     rng::Crng,
     root_seed::RootSeed,
 };
-use lexe_api::models::command::UpdatePaymentNote;
-use node_client::{
-    client::{GatewayClient, NodeClient},
-    credentials::CredentialsRef,
-};
-use payment_uri::{bip353, lnurl};
-use sdk_rust::{
+use lexe::{
     config::{
         WalletEnv, WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
         WalletUserDbConfig,
@@ -32,6 +26,12 @@ use sdk_rust::{
     payments_db::{PaymentSyncSummary, PaymentsDb},
     wallet::{LexeWallet, WithDb},
 };
+use lexe_api::models::command::UpdatePaymentNote;
+use node_client::{
+    client::{GatewayClient, NodeClient},
+    credentials::CredentialsRef,
+};
+use payment_uri::{bip353, lnurl};
 use tracing::{info, instrument, warn};
 
 use crate::{
