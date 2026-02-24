@@ -47,14 +47,13 @@ Example::
     # '/home/user/.lexe'
 """
 
-lexe.seedphrase_path.__doc__ = """\
-Returns the path to the seedphrase file for the given environment.
+_set_method_doc(lexe.WalletEnvConfig, "seedphrase_path", """\
+Returns the path to the seedphrase file for this environment.
 
 - Mainnet: ``<lexe_data_dir>/seedphrase.txt``
 - Other environments: ``<lexe_data_dir>/seedphrase.<env>.txt``
 
 Args:
-    env_config: Wallet environment configuration.
     lexe_data_dir: Base data directory path.
 
 Returns:
@@ -63,9 +62,9 @@ Returns:
 Example::
 
     config = WalletEnvConfig.mainnet()
-    path = seedphrase_path(config, "/home/user/.lexe")
+    path = config.seedphrase_path("/home/user/.lexe")
     # '/home/user/.lexe/seedphrase.txt'
-"""
+""")
 
 lexe.read_seed.__doc__ = """\
 Reads a root seed from ``~/.lexe/seedphrase[.env].txt``.

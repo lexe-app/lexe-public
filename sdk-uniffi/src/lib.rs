@@ -66,22 +66,6 @@ pub fn default_lexe_data_dir() -> FfiResult<String> {
         .map_err(Into::into)
 }
 
-/// Returns the path to the seedphrase file for the given environment.
-///
-/// - Mainnet: `<lexe_data_dir>/seedphrase.txt`
-/// - Other environments: `<lexe_data_dir>/seedphrase.<env>.txt`
-#[uniffi::export]
-pub fn seedphrase_path(
-    env_config: Arc<WalletEnvConfig>,
-    lexe_data_dir: String,
-) -> String {
-    env_config
-        .to_rs()
-        .seedphrase_path(lexe_data_dir.as_ref())
-        .to_string_lossy()
-        .into_owned()
-}
-
 /// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
 ///
 /// Returns `None` if the file doesn't exist.
@@ -330,6 +314,17 @@ impl WalletEnvConfig {
             DeployEnv::Prod =>
                 Some(DeployEnvRs::Prod.gateway_url(None).into_owned()),
         }
+    }
+
+    /// Returns the path to the seedphrase file for this environment.
+    ///
+    /// - Mainnet: `<lexe_data_dir>/seedphrase.txt`
+    /// - Other environments: `<lexe_data_dir>/seedphrase.<env>.txt`
+    pub fn seedphrase_path(&self, lexe_data_dir: String) -> String {
+        self.to_rs()
+            .seedphrase_path(lexe_data_dir.as_ref())
+            .to_string_lossy()
+            .into_owned()
     }
 }
 

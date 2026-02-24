@@ -81,13 +81,13 @@ def test_seedphrase_path():
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mainnet config should return seedphrase.txt
         mainnet_config = lexe.WalletEnvConfig.mainnet()
-        mainnet_path = lexe.seedphrase_path(mainnet_config, temp_dir)
+        mainnet_path = mainnet_config.seedphrase_path(temp_dir)
         assert mainnet_path.endswith("seedphrase.txt")
         assert "prod" not in mainnet_path
 
         # Regtest config should return seedphrase.<env>.txt
         regtest_config = lexe.WalletEnvConfig.regtest()
-        regtest_path = lexe.seedphrase_path(regtest_config, temp_dir)
+        regtest_path = regtest_config.seedphrase_path(temp_dir)
         assert "seedphrase." in regtest_path
         assert regtest_path != mainnet_path
 
