@@ -80,23 +80,29 @@ Example::
     config = WalletEnvConfig.mainnet()
     seed = config.read_seed()
     if seed is not None:
-        print(f"Loaded seed ({len(seed.seed_bytes)} bytes)")
+        print(f"Loaded seed ({len(seed.seed_bytes())} bytes)")
 """)
 
-lexe.read_seed_from_path.__doc__ = """\
-Reads a root seed from a seedphrase file at the given path.
-
-The file should contain a BIP39 mnemonic phrase.
+_set_method_doc(lexe.RootSeed, "read_from_path", """\
+Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
 
 Args:
     path: Absolute path to the seedphrase file.
 
 Returns:
-    The root seed, or ``None`` if the file doesn't exist.
+    The root seed loaded from the file.
 
 Raises:
-    FfiError: If the file exists but cannot be read or parsed.
-"""
+    SeedFileError.NotFound: If the file doesn't exist.
+    SeedFileError.ParseError: If the file cannot be parsed.
+
+Example::
+
+    try:
+        seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
+    except SeedFileError.NotFound:
+        seed = RootSeed(os.urandom(32))
+""")
 
 _set_method_doc(lexe.WalletEnvConfig, "write_seed", """\
 Writes a root seed's mnemonic to ``~/.lexe/seedphrase[.env].txt``.
@@ -115,18 +121,23 @@ Example::
     config.write_seed(seed)
 """)
 
-lexe.write_seed_to_path.__doc__ = """\
-Writes a root seed's mnemonic to the given file path.
+_set_method_doc(lexe.RootSeed, "write_to_path", """\
+Writes this root seed's mnemonic to the given file path.
 
 Creates parent directories if needed.
 
 Args:
-    root_seed: The root seed to persist.
     path: Absolute path to write the seedphrase file.
 
 Raises:
-    FfiError: If the file already exists or cannot be written.
-"""
+    SeedFileError.AlreadyExists: If the file already exists.
+    SeedFileError.ParseError: If the seed is invalid or writing fails.
+
+Example::
+
+    seed = RootSeed(os.urandom(32))
+    seed.write_to_path("/home/user/.lexe/seedphrase.txt")
+""")
 
 lexe.init_logger.__doc__ = """\
 Initialize the Lexe logger with the given default log level.
@@ -217,8 +228,19 @@ Example::
 lexe.RootSeed.__doc__ = """\
 The secret root seed for deriving all user keys and credentials.
 
-Attributes:
-    seed_bytes: 32-byte root seed.
+Create with :class:`RootSeed` from raw bytes, or load from a file
+with :meth:`RootSeed.read_from_path`.
+
+Example::
+
+    import os
+
+    # Create from random bytes
+    seed = RootSeed(os.urandom(32))
+    print(f"Seed: {len(seed.seed_bytes())} bytes")
+
+    # Load from file
+    seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
 """
 
 lexe.ClientCredentials.__doc__ = """\
@@ -675,6 +697,27 @@ Attributes:
 # ================= #
 # --- FfiError  --- #
 # ================= #
+
+lexe.SeedFileError.__doc__ = """\
+Error type for seedphrase file operations.
+
+Raised by :meth:`RootSeed.read_from_path` and :meth:`RootSeed.write_to_path`.
+
+Variants:
+
+- **NotFound** -- Seedphrase file not found. Attributes: ``path``.
+- **ParseError** -- Failed to parse the seedphrase. Attributes: ``message``.
+- **AlreadyExists** -- Seedphrase file already exists. Attributes: ``path``.
+
+Example::
+
+    try:
+        seed = RootSeed.read_from_path(path)
+    except SeedFileError.NotFound as e:
+        print(f"No seed at {e.path}")
+    except SeedFileError.ParseError as e:
+        print(f"Bad seed: {e.message}")
+"""
 
 lexe.FfiError.__doc__ = """\
 Error type raised by SDK methods.

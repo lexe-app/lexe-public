@@ -66,32 +66,6 @@ pub fn default_lexe_data_dir() -> FfiResult<String> {
         .map_err(Into::into)
 }
 
-/// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
-///
-/// Returns `None` if the file doesn't exist.
-#[uniffi::export]
-pub fn read_seed_from_path(path: String) -> FfiResult<Option<RootSeed>> {
-    RootSeedRs::read_from_path(path.as_ref())
-        .map(|opt| {
-            opt.map(|seed| RootSeed {
-                seed_bytes: seed.expose_secret().to_vec(),
-            })
-        })
-        .map_err(Into::into)
-}
-
-/// Writes a root seed's mnemonic to a seedphrase file.
-///
-/// Creates parent directories if needed. Returns an error if the file
-/// already exists.
-#[uniffi::export]
-pub fn write_seed_to_path(root_seed: RootSeed, path: String) -> FfiResult<()> {
-    let root_seed_rs = root_seed.to_rs()?;
-    root_seed_rs
-        .write_to_path(path.as_ref())
-        .map_err(Into::into)
-}
-
 /// Initialize the Lexe logger with the given default log level.
 ///
 /// Call this once at startup to enable logging. Valid levels are:
@@ -145,6 +119,22 @@ impl fmt::Display for FfiError {
 }
 
 pub type FfiResult<T> = std::result::Result<T, FfiError>;
+
+/// Error type for seedphrase file operations.
+///
+/// Returned by [`RootSeed::read_from_path`] and [`RootSeed::write_to_path`].
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum SeedFileError {
+    /// The seedphrase file was not found at the given path.
+    #[error("Seedphrase file not found: {path}")]
+    NotFound { path: String },
+    /// The seedphrase file could not be parsed (e.g. invalid mnemonic).
+    #[error("Failed to parse seedphrase: {message}")]
+    ParseError { message: String },
+    /// A seedphrase file already exists at the given path.
+    #[error("Seedphrase file already exists: {path}")]
+    AlreadyExists { path: String },
+}
 
 // ===================== //
 // --- Configuration --- //
@@ -296,12 +286,14 @@ impl WalletEnvConfig {
     /// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
     ///
     /// Returns `None` if the file doesn't exist.
-    pub fn read_seed(&self) -> FfiResult<Option<RootSeed>> {
+    pub fn read_seed(&self) -> FfiResult<Option<Arc<RootSeed>>> {
         self.to_rs()
             .read_seed()
             .map(|opt| {
-                opt.map(|seed| RootSeed {
-                    seed_bytes: seed.expose_secret().to_vec(),
+                opt.map(|seed| {
+                    Arc::new(RootSeed {
+                        seed_bytes: seed.expose_secret().to_vec(),
+                    })
                 })
             })
             .map_err(Into::into)
@@ -311,7 +303,7 @@ impl WalletEnvConfig {
     ///
     /// Creates parent directories if needed. Returns an error if the file
     /// already exists.
-    pub fn write_seed(&self, root_seed: RootSeed) -> FfiResult<()> {
+    pub fn write_seed(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
         let root_seed_rs = root_seed.to_rs()?;
         self.to_rs().write_seed(&root_seed_rs).map_err(Into::into)
     }
@@ -336,10 +328,65 @@ impl WalletEnvConfig {
 // =================== //
 
 /// The secret root seed for deriving all user keys and credentials.
-#[derive(Clone, uniffi::Record)]
+#[derive(uniffi::Object)]
 pub struct RootSeed {
-    /// 32-byte root seed.
-    pub seed_bytes: Vec<u8>,
+    seed_bytes: Vec<u8>,
+}
+
+#[uniffi::export]
+impl RootSeed {
+    /// Create a new root seed from raw bytes.
+    ///
+    /// The seed must be exactly 32 bytes.
+    #[uniffi::constructor]
+    pub fn new(seed_bytes: Vec<u8>) -> Arc<Self> {
+        Arc::new(Self { seed_bytes })
+    }
+
+    /// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
+    ///
+    /// Raises [`SeedFileError::NotFound`] if the file doesn't exist,
+    /// or [`SeedFileError::ParseError`] if the file can't be parsed.
+    #[uniffi::constructor]
+    pub fn read_from_path(path: String) -> Result<Arc<Self>, SeedFileError> {
+        match RootSeedRs::read_from_path(path.as_ref()) {
+            Ok(Some(seed)) => Ok(Arc::new(Self {
+                seed_bytes: seed.expose_secret().to_vec(),
+            })),
+            Ok(None) => Err(SeedFileError::NotFound { path }),
+            Err(e) => Err(SeedFileError::ParseError {
+                message: format!("{e:#}"),
+            }),
+        }
+    }
+
+    /// Get the 32-byte root seed.
+    pub fn seed_bytes(&self) -> Vec<u8> {
+        self.seed_bytes.clone()
+    }
+
+    /// Writes this root seed's mnemonic to a seedphrase file.
+    ///
+    /// Creates parent directories if needed. Raises
+    /// [`SeedFileError::AlreadyExists`] if the file already exists.
+    pub fn write_to_path(&self, path: String) -> Result<(), SeedFileError> {
+        let root_seed_rs = self
+            .to_rs()
+            .map_err(|e| SeedFileError::ParseError { message: e.message })?;
+        root_seed_rs.write_to_path(path.as_ref()).map_err(|e| {
+            // Check if the root cause is an "already exists" IO error.
+            for cause in e.chain() {
+                if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
+                    && io_err.kind() == std::io::ErrorKind::AlreadyExists
+                {
+                    return SeedFileError::AlreadyExists { path: path.clone() };
+                }
+            }
+            SeedFileError::ParseError {
+                message: format!("{e:#}"),
+            }
+        })
+    }
 }
 
 impl RootSeed {
@@ -449,7 +496,7 @@ impl LexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn fresh(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: RootSeed,
+        root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
         let mut rng = SysRng::new();
@@ -478,7 +525,7 @@ impl LexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load_or_fresh(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: RootSeed,
+        root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
         let mut rng = SysRng::new();
@@ -510,7 +557,7 @@ impl LexeWallet {
     ///   Set this to earn a share of fees from wallets you sign up.
     pub async fn signup(
         &self,
-        root_seed: RootSeed,
+        root_seed: Arc<RootSeed>,
         partner_pk: Option<String>,
     ) -> FfiResult<()> {
         let mut rng = SysRng::new();
@@ -533,7 +580,7 @@ impl LexeWallet {
     /// Call this every time the wallet is loaded to ensure the user is running
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
-    pub async fn provision(&self, root_seed: RootSeed) -> FfiResult<()> {
+    pub async fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
         let root_seed_rs = root_seed.to_rs()?;
         let credentials = CredentialsRef::from(&root_seed_rs);
         self.inner.provision(credentials).await?;
@@ -772,7 +819,7 @@ impl LexeWallet {
 #[uniffi::export(default(lexe_data_dir = None))]
 pub fn try_load_wallet(
     env_config: Arc<WalletEnvConfig>,
-    root_seed: RootSeed,
+    root_seed: Arc<RootSeed>,
     lexe_data_dir: Option<String>,
 ) -> FfiResult<Option<Arc<LexeWallet>>> {
     let mut rng = SysRng::new();

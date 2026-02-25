@@ -57,7 +57,7 @@ def test_enums():
 def test_root_seed_creation():
     """Test RootSeed can be created."""
     seed = create_test_root_seed()
-    assert len(seed.seed_bytes) == 32
+    assert len(seed.seed_bytes()) == 32
 
 
 def test_wallet_env_config():
@@ -93,7 +93,7 @@ def test_seedphrase_path():
 
 
 def test_seed_file_roundtrip():
-    """Test read_seed_from_path and write_seed_to_path."""
+    """Test RootSeed.read_from_path and write_to_path."""
     with tempfile.TemporaryDirectory() as temp_dir:
         path = os.path.join(temp_dir, "seedphrase.txt")
 
@@ -101,23 +101,26 @@ def test_seed_file_roundtrip():
         seed1 = create_test_root_seed()
 
         # Write seed to file
-        lexe.write_seed_to_path(seed1, path)
+        seed1.write_to_path(path)
 
         # Read it back
-        seed2 = lexe.read_seed_from_path(path)
-        assert seed2 is not None
-        assert seed2.seed_bytes == seed1.seed_bytes
+        seed2 = lexe.RootSeed.read_from_path(path)
+        assert seed2.seed_bytes() == seed1.seed_bytes()
 
-        # Writing again should fail (file exists)
+        # Writing again should raise AlreadyExists
         try:
-            lexe.write_seed_to_path(seed1, path)
-            assert False, "Expected error for existing file"
-        except lexe.FfiError as e:
-            assert "already exists" in str(e)
+            seed1.write_to_path(path)
+            assert False, "Expected AlreadyExists error"
+        except lexe.SeedFileError.AlreadyExists as e:
+            assert e.path == path
 
-        # Reading non-existent file should return None
+        # Reading non-existent file should raise NotFound
         missing = os.path.join(temp_dir, "missing.txt")
-        assert lexe.read_seed_from_path(missing) is None
+        try:
+            lexe.RootSeed.read_from_path(missing)
+            assert False, "Expected NotFound error"
+        except lexe.SeedFileError.NotFound as e:
+            assert e.path == missing
 
 
 def test_init_logger():
