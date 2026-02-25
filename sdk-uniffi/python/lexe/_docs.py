@@ -164,33 +164,6 @@ Example::
     init_logger("info")
 """
 
-lexe.try_load_wallet.__doc__ = """\
-Try to load an existing wallet from local state.
-
-Returns ``None`` if no local data exists for this user/environment.
-If this returns ``None``, use :meth:`LexeWallet.fresh` to create local state.
-
-It is recommended to always pass the same ``lexe_data_dir``,
-regardless of environment or user. Data is namespaced internally.
-
-Args:
-    env_config: Wallet environment configuration.
-    root_seed: The user's root seed.
-    lexe_data_dir: Base data directory (default: ``~/.lexe``).
-
-Returns:
-    The loaded wallet, or ``None`` if no local data exists.
-
-Raises:
-    FfiError: If local data exists but is corrupted.
-
-Example::
-
-    config = WalletEnvConfig.mainnet()
-    wallet = try_load_wallet(config, seed)
-    if wallet is None:
-        wallet = LexeWallet.fresh(config, seed)
-"""
 
 # ===================== #
 # --- Configuration --- #
@@ -312,8 +285,13 @@ Attributes:
 lexe.LexeWallet.__doc__ = """\
 The main wallet handle for interacting with a Lexe Lightning node.
 
-Create a wallet using the factory constructors, then call
-:meth:`signup` and :meth:`provision` before using payment methods.
+Create a wallet using one of the constructors:
+
+- :meth:`load` -- Load from existing local state.
+- :meth:`fresh` -- Create fresh local state (deletes existing).
+- :meth:`load_or_fresh` -- Load or create if none exists.
+
+Then call :meth:`signup` and :meth:`provision` before using payment methods.
 
 Example::
 
@@ -329,6 +307,32 @@ Example::
 """
 
 # LexeWallet constructors
+
+_set_method_doc(lexe.LexeWallet, "load", """\
+Load an existing wallet from local state.
+
+Raises :class:`LoadWalletError.NotFound` if no local data exists.
+Use :meth:`LexeWallet.fresh` to create local state.
+
+Args:
+    env_config: Wallet environment configuration.
+    root_seed: The user's root seed.
+    lexe_data_dir: Base data directory (default: ``~/.lexe``).
+
+Returns:
+    The loaded LexeWallet instance.
+
+Raises:
+    LoadWalletError.NotFound: If no local data exists.
+    LoadWalletError.LoadFailed: If local data is corrupted.
+
+Example::
+
+    try:
+        wallet = LexeWallet.load(config, seed)
+    except LoadWalletError.NotFound:
+        wallet = LexeWallet.fresh(config, seed)
+""")
 
 _set_method_doc(lexe.LexeWallet, "fresh", """\
 Create a fresh wallet, deleting any existing local state for this user.
@@ -747,6 +751,26 @@ Example::
         print(f"No seed at {e.path}")
     except SeedFileError.ParseError as e:
         print(f"Bad seed: {e.message}")
+"""
+
+lexe.LoadWalletError.__doc__ = """\
+Error type for wallet loading operations.
+
+Raised by :meth:`LexeWallet.load`.
+
+Variants:
+
+- **NotFound** -- No local wallet data found for this user/environment.
+- **LoadFailed** -- Failed to load the wallet. Attributes: ``message``.
+
+Example::
+
+    try:
+        wallet = LexeWallet.load(config, seed)
+    except LoadWalletError.NotFound:
+        wallet = LexeWallet.fresh(config, seed)
+    except LoadWalletError.LoadFailed as e:
+        print(f"Load failed: {e.message}")
 """
 
 lexe.FfiError.__doc__ = """\

@@ -38,7 +38,7 @@ def test_wallet_fresh_and_load():
         assert wallet1 is not None
 
         # Load the same wallet
-        wallet2 = lexe.try_load_wallet(config, seed, temp_dir)
+        wallet2 = lexe.LexeWallet.load(config, seed, temp_dir)
         assert wallet2 is not None
 
 

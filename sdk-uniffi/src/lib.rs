@@ -136,6 +136,19 @@ pub enum SeedFileError {
     AlreadyExists { path: String },
 }
 
+/// Error type for wallet loading operations.
+///
+/// Returned by [`LexeWallet::load`].
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum LoadWalletError {
+    /// No local wallet data exists for this user and environment.
+    #[error("No local wallet data found")]
+    NotFound,
+    /// Failed to load the wallet (e.g. corrupted data, invalid seed).
+    #[error("Failed to load wallet: {message}")]
+    LoadFailed { message: String },
+}
+
 // ===================== //
 // --- Configuration --- //
 // ===================== //
@@ -516,6 +529,46 @@ impl LexeWallet {
         }))
     }
 
+    /// Load an existing wallet from local state.
+    ///
+    /// Raises [`LoadWalletError::NotFound`] if no local data exists for this
+    /// user and environment. Use [`LexeWallet::fresh`] to create local state.
+    ///
+    /// It is recommended to always pass the same `lexe_data_dir`, regardless of
+    /// environment (dev/staging/prod) or user. Data is namespaced internally,
+    /// so users and environments do not interfere with each other.
+    /// Defaults to `~/.lexe` if not specified.
+    #[uniffi::constructor(default(lexe_data_dir = None))]
+    pub fn load(
+        env_config: Arc<WalletEnvConfig>,
+        root_seed: Arc<RootSeed>,
+        lexe_data_dir: Option<String>,
+    ) -> Result<Arc<Self>, LoadWalletError> {
+        let mut rng = SysRng::new();
+        let root_seed_rs = root_seed
+            .to_rs()
+            .map_err(|e| LoadWalletError::LoadFailed { message: e.message })?;
+        let credentials = CredentialsRef::from(&root_seed_rs);
+        let env_config_rs = env_config.to_rs();
+
+        let maybe_inner = LexeWalletRs::load(
+            &mut rng,
+            env_config_rs,
+            credentials,
+            lexe_data_dir.map(PathBuf::from),
+        )
+        .map_err(|e| LoadWalletError::LoadFailed {
+            message: format!("{e:#}"),
+        })?;
+
+        match maybe_inner {
+            Some(inner) => Ok(Arc::new(Self {
+                inner: Arc::new(inner),
+            })),
+            None => Err(LoadWalletError::NotFound),
+        }
+    }
+
     /// Load an existing wallet, or create a fresh one if no local data exists.
     ///
     /// It is recommended to always pass the same `lexe_data_dir`, regardless of
@@ -803,42 +856,6 @@ impl LexeWallet {
             tokio::time::sleep(backoff.next_delay()).await;
         }
     }
-}
-
-/// Try to load an existing wallet; return [`None`] if no local data exists.
-///
-/// If this returns [`None`], call [`LexeWallet::fresh`] to create local state.
-///
-/// It is recommended to always pass the same `lexe_data_dir`, regardless of
-/// environment (dev/staging/prod) or user. Data is namespaced internally, so
-/// users and environments do not interfere with each other.
-/// Defaults to `~/.lexe` if not specified.
-// This is a free function because uniffi constructors cannot return
-// `Option<Arc<Self>>`, and uniffi doesn't support static methods that
-// aren't constructors.
-#[uniffi::export(default(lexe_data_dir = None))]
-pub fn try_load_wallet(
-    env_config: Arc<WalletEnvConfig>,
-    root_seed: Arc<RootSeed>,
-    lexe_data_dir: Option<String>,
-) -> FfiResult<Option<Arc<LexeWallet>>> {
-    let mut rng = SysRng::new();
-    let root_seed_rs = root_seed.to_rs()?;
-    let credentials = CredentialsRef::from(&root_seed_rs);
-    let env_config_rs = env_config.to_rs();
-
-    let maybe_inner = LexeWalletRs::load(
-        &mut rng,
-        env_config_rs,
-        credentials,
-        lexe_data_dir.map(PathBuf::from),
-    )?;
-
-    Ok(maybe_inner.map(|inner| {
-        Arc::new(LexeWallet {
-            inner: Arc::new(inner),
-        })
-    }))
 }
 
 // ================ //

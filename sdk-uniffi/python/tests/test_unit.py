@@ -130,10 +130,13 @@ def test_init_logger():
 
 
 def test_wallet_load_nonexistent():
-    """Test loading nonexistent wallet returns None."""
+    """Test loading nonexistent wallet raises NotFound."""
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
 
-        wallet = lexe.try_load_wallet(config, seed, temp_dir)
-        assert wallet is None
+        try:
+            lexe.LexeWallet.load(config, seed, temp_dir)
+            assert False, "Expected NotFound error"
+        except lexe.LoadWalletError.NotFound:
+            pass
