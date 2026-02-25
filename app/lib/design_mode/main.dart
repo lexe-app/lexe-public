@@ -1114,7 +1114,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         "DocsLanding01",
         (_) => WalletPage(
           config: this.widget.config,
-          app: mockApp,
+          app: mocks.MockAppHandleScreenshots(),
           settings: LxSettings(mockApp.settingsDb()),
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),

@@ -752,12 +752,12 @@ class MockAppHandleScreenshots extends MockAppHandle {
   @override
   Future<FiatRates> fiatRates() => Future.value(
     const FiatRates(
-      timestampMs: 1732136733,
+      timestampMs: 1740441600000,
       rates: [
-        FiatRate(fiat: "USD", rate: 96626.76 /* USD/BTC */),
+        FiatRate(fiat: "USD", rate: 65099.69 /* USD/BTC */),
         FiatRate(
           fiat: "EUR",
-          rate: 96626.76 /* USD/BTC */ * 0.9559 /* EUR/USD */,
+          rate: 65099.69 /* USD/BTC */ * 0.9559 /* EUR/USD */,
         ),
       ],
     ),
