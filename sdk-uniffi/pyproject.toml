@@ -10,7 +10,7 @@ dynamic = ["version"]
 
 [project.urls]
 homepage = "https://lexe.app" # TODO(phlip9): point to SDK docs site
-repository = "https://github.com/lexe-app/lexe-public/tree/master/sdk"
+repository = "https://github.com/lexe-app/lexe-public/tree/master/sdk-uniffi"
 changelog = "https://github.com/lexe-app/lexe-public/releases"
 
 [dependency-groups]
