@@ -122,7 +122,8 @@ pub type FfiResult<T> = std::result::Result<T, FfiError>;
 
 /// Error type for seedphrase file operations.
 ///
-/// Returned by [`RootSeed::read_from_path`] and [`RootSeed::write_to_path`].
+/// Returned by [`RootSeed::read_from_path`], [`RootSeed::write_to_path`],
+/// [`WalletEnvConfig::read_seed`], and [`WalletEnvConfig::write_seed`].
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum SeedFileError {
     /// The seedphrase file was not found at the given path.
@@ -134,6 +135,9 @@ pub enum SeedFileError {
     /// A seedphrase file already exists at the given path.
     #[error("Seedphrase file already exists: {path}")]
     AlreadyExists { path: String },
+    /// An I/O error occurred during the file operation.
+    #[error("I/O error: {message}")]
+    IoError { message: String },
 }
 
 /// Error type for wallet loading operations.
@@ -299,7 +303,7 @@ impl WalletEnvConfig {
     /// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
     ///
     /// Returns `None` if the file doesn't exist.
-    pub fn read_seed(&self) -> FfiResult<Option<Arc<RootSeed>>> {
+    pub fn read_seed(&self) -> Result<Option<Arc<RootSeed>>, SeedFileError> {
         self.to_rs()
             .read_seed()
             .map(|opt| {
@@ -309,16 +313,41 @@ impl WalletEnvConfig {
                     })
                 })
             })
-            .map_err(Into::into)
+            .map_err(|e| SeedFileError::ParseError {
+                message: format!("{e:#}"),
+            })
     }
 
     /// Writes a root seed's mnemonic to `~/.lexe/seedphrase[.env].txt`.
     ///
     /// Creates parent directories if needed. Returns an error if the file
     /// already exists.
-    pub fn write_seed(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
-        let root_seed_rs = root_seed.to_rs()?;
-        self.to_rs().write_seed(&root_seed_rs).map_err(Into::into)
+    pub fn write_seed(
+        &self,
+        root_seed: Arc<RootSeed>,
+    ) -> Result<(), SeedFileError> {
+        let root_seed_rs = root_seed
+            .to_rs()
+            .map_err(|e| SeedFileError::ParseError { message: e.message })?;
+
+        self.to_rs().write_seed(&root_seed_rs).map_err(|e| {
+            // Check if the root cause is an "already exists" IO error.
+            for cause in e.chain() {
+                if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
+                    && io_err.kind() == std::io::ErrorKind::AlreadyExists
+                {
+                    let path = self.seedphrase_path(
+                        common::default_lexe_data_dir()
+                            .map(|d| d.to_string_lossy().into_owned())
+                            .unwrap_or_default(),
+                    );
+                    return SeedFileError::AlreadyExists { path };
+                }
+            }
+            SeedFileError::IoError {
+                message: format!("{e:#}"),
+            }
+        })
     }
 }
 
@@ -352,8 +381,15 @@ impl RootSeed {
     ///
     /// The seed must be exactly 32 bytes.
     #[uniffi::constructor]
-    pub fn new(seed_bytes: Vec<u8>) -> Arc<Self> {
-        Arc::new(Self { seed_bytes })
+    pub fn new(seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
+        let len = seed_bytes.len();
+        if len != 32 {
+            return Err(anyhow::anyhow!(
+                "Invalid seed length: expected 32 bytes, got {len}"
+            )
+            .into());
+        }
+        Ok(Arc::new(Self { seed_bytes }))
     }
 
     /// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
@@ -395,7 +431,7 @@ impl RootSeed {
                     return SeedFileError::AlreadyExists { path: path.clone() };
                 }
             }
-            SeedFileError::ParseError {
+            SeedFileError::IoError {
                 message: format!("{e:#}"),
             }
         })

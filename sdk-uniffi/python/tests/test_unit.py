@@ -6,6 +6,8 @@ These tests don't require a gateway or network connection.
 import os
 import tempfile
 
+import pytest
+
 import lexe
 
 from conftest import create_dev_config, create_test_root_seed
@@ -58,6 +60,13 @@ def test_root_seed_creation():
     """Test RootSeed can be created."""
     seed = create_test_root_seed()
     assert len(seed.seed_bytes) == 32
+
+
+def test_root_seed_invalid_length():
+    """Test RootSeed rejects non-32-byte seeds."""
+    with pytest.raises(lexe.FfiError) as exc_info:
+        lexe.RootSeed(seed_bytes=b"too_short")
+    assert "expected 32 bytes" in exc_info.value.message().lower()
 
 
 def test_wallet_env_config():
@@ -121,6 +130,17 @@ def test_seed_file_roundtrip():
             assert False, "Expected NotFound error"
         except lexe.SeedFileError.NotFound as e:
             assert e.path == missing
+
+
+def test_write_to_path_io_error():
+    """Test write_to_path raises IoError for unwritable paths."""
+    seed = create_test_root_seed()
+
+    # A path under a non-existent root should fail with IoError.
+    bad_path = "/nonexistent_root_dir/sub/seedphrase.txt"
+    with pytest.raises(lexe.SeedFileError.IoError) as exc_info:
+        seed.write_to_path(bad_path)
+    assert len(exc_info.value.message) > 0
 
 
 def test_init_logger():

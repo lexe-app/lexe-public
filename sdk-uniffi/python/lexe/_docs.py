@@ -84,7 +84,7 @@ Returns:
     The root seed, or ``None`` if the file doesn't exist.
 
 Raises:
-    FfiError: If the file exists but cannot be read or parsed.
+    SeedFileError.ParseError: If the file exists but cannot be parsed.
 
 Example::
 
@@ -124,7 +124,9 @@ Args:
     root_seed: The root seed to persist.
 
 Raises:
-    FfiError: If the file already exists or cannot be written.
+    SeedFileError.AlreadyExists: If the file already exists.
+    SeedFileError.ParseError: If the seed is invalid.
+    SeedFileError.IoError: If the file cannot be written.
 
 Example::
 
@@ -142,7 +144,8 @@ Args:
 
 Raises:
     SeedFileError.AlreadyExists: If the file already exists.
-    SeedFileError.ParseError: If the seed is invalid or writing fails.
+    SeedFileError.ParseError: If the seed is invalid.
+    SeedFileError.IoError: If the file cannot be written.
 
 Example::
 
@@ -735,13 +738,15 @@ Attributes:
 lexe.SeedFileError.__doc__ = """\
 Error type for seedphrase file operations.
 
-Raised by :meth:`RootSeed.read_from_path` and :meth:`RootSeed.write_to_path`.
+Raised by :meth:`RootSeed.read_from_path`, :meth:`RootSeed.write_to_path`,
+:meth:`WalletEnvConfig.read_seed`, and :meth:`WalletEnvConfig.write_seed`.
 
 Variants:
 
 - **NotFound** -- Seedphrase file not found. Attributes: ``path``.
 - **ParseError** -- Failed to parse the seedphrase. Attributes: ``message``.
 - **AlreadyExists** -- Seedphrase file already exists. Attributes: ``path``.
+- **IoError** -- I/O error during the file operation. Attributes: ``message``.
 
 Example::
 
