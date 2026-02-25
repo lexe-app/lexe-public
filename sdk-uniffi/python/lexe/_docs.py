@@ -28,6 +28,17 @@ def _set_method_doc(cls: type, name: str, doc: str) -> None:
     else:
         raw.__doc__ = doc
 
+
+def _make_property(cls: type, name: str, doc: str) -> None:
+    """Convert a no-arg method to a read-only ``@property`` with a docstring.
+
+    UniFFI doesn't generate ``@property`` decorators, so we monkey-patch
+    them here for a more Pythonic API (``obj.attr`` instead of
+    ``obj.attr()``).
+    """
+    original = getattr(cls, name)
+    setattr(cls, name, property(original, doc=doc))
+
 # ================== #
 # --- Global API --- #
 # ================== #
@@ -80,7 +91,7 @@ Example::
     config = WalletEnvConfig.mainnet()
     seed = config.read_seed()
     if seed is not None:
-        print(f"Loaded seed ({len(seed.seed_bytes())} bytes)")
+        print(f"Loaded seed ({len(seed.seed_bytes)} bytes)")
 """)
 
 _set_method_doc(lexe.RootSeed, "read_from_path", """\
@@ -221,6 +232,24 @@ Example::
     config = WalletEnvConfig.regtest(use_sgx=True, gateway_url="http://localhost:8080")
 """
 
+_make_property(lexe.WalletEnvConfig, "deploy_env", """\
+The configured deployment environment.
+""")
+
+_make_property(lexe.WalletEnvConfig, "network", """\
+The configured Bitcoin network.
+""")
+
+_make_property(lexe.WalletEnvConfig, "use_sgx", """\
+Whether SGX is enabled for this config.
+""")
+
+_make_property(lexe.WalletEnvConfig, "gateway_url", """\
+The gateway URL for this environment.
+
+Returns ``None`` for dev configs without a gateway URL override.
+""")
+
 # =================== #
 # --- Credentials --- #
 # =================== #
@@ -237,11 +266,15 @@ Example::
 
     # Create from random bytes
     seed = RootSeed(os.urandom(32))
-    print(f"Seed: {len(seed.seed_bytes())} bytes")
+    print(f"Seed: {len(seed.seed_bytes)} bytes")
 
     # Load from file
     seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
 """
+
+_make_property(lexe.RootSeed, "seed_bytes", """\
+The 32-byte root seed.
+""")
 
 lexe.ClientCredentials.__doc__ = """\
 Client credentials for authenticating with Lexe.
@@ -376,11 +409,8 @@ Example::
     await wallet.provision(seed)
 """)
 
-_set_method_doc(lexe.LexeWallet, "user_pk", """\
-Get the user's hex-encoded ed25519 public key.
-
-Returns:
-    Hex string of the user's public key derived from their root seed.
+_make_property(lexe.LexeWallet, "user_pk", """\
+The user's hex-encoded ed25519 public key derived from the root seed.
 """)
 
 _set_method_doc(lexe.LexeWallet, "node_info", """\

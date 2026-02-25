@@ -57,15 +57,15 @@ def test_enums():
 def test_root_seed_creation():
     """Test RootSeed can be created."""
     seed = create_test_root_seed()
-    assert len(seed.seed_bytes()) == 32
+    assert len(seed.seed_bytes) == 32
 
 
 def test_wallet_env_config():
     """Test WalletEnvConfig can be created."""
     config = create_dev_config()
-    assert config.deploy_env() == lexe.DeployEnv.DEV
-    assert config.network() == lexe.LxNetwork.REGTEST
-    assert config.use_sgx() == False
+    assert config.deploy_env == lexe.DeployEnv.DEV
+    assert config.network == lexe.LxNetwork.REGTEST
+    assert config.use_sgx == False
 
 
 def test_default_lexe_data_dir():
@@ -105,7 +105,7 @@ def test_seed_file_roundtrip():
 
         # Read it back
         seed2 = lexe.RootSeed.read_from_path(path)
-        assert seed2.seed_bytes() == seed1.seed_bytes()
+        assert seed2.seed_bytes == seed1.seed_bytes
 
         # Writing again should raise AlreadyExists
         try:
