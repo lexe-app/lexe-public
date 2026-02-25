@@ -223,8 +223,8 @@ pub struct PaymentMetadata {
     )]
     pub payer_name: Option<String>,
 
-    /// (Offers only) A payer-provided note for this payment.
-    /// LDK truncates this to PAYER_NOTE_LIMIT bytes (512 B as of 2025-04-22).
+    /// A payer-provided note for this payment. Set for BOLT12 offers
+    /// (LDK truncates to PAYER_NOTE_LIMIT) and LNURL-pay (LUD-12 comment).
     #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,

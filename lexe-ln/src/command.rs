@@ -878,6 +878,7 @@ where
         secret.into(),
         preimage.into(),
         kind,
+        req.payer_note,
     )
     .context("Failed to create payment")?;
     let pwm = iipwm.into_enum();
