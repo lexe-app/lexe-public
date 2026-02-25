@@ -2455,10 +2455,12 @@ impl SseDecode for crate::ffi::api::PayInvoiceRequest {
         let mut var_fallbackAmountSats =
             <Option<u64>>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
+        let mut var_payerNote = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::PayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
             note: var_note,
+            payer_note: var_payerNote,
         };
     }
 }
@@ -4056,6 +4058,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayInvoiceRequest {
             self.invoice.into_into_dart().into_dart(),
             self.fallback_amount_sats.into_into_dart().into_dart(),
             self.note.into_into_dart().into_dart(),
+            self.payer_note.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5830,6 +5833,7 @@ impl SseEncode for crate::ffi::api::PayInvoiceRequest {
         <String>::sse_encode(self.invoice, serializer);
         <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
+        <Option<String>>::sse_encode(self.payer_note, serializer);
     }
 }
 

@@ -181,6 +181,7 @@ sealed class PayInvoiceRequest with _$PayInvoiceRequest {
     required String invoice,
     int? fallbackAmountSats,
     String? note,
+    String? payerNote,
   }) = _PayInvoiceRequest;
 }
 

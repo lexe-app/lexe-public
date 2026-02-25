@@ -399,6 +399,7 @@ class SendState_Preflighted implements SendState {
           ? preflighted.amountSats
           : null,
       note: note,
+      payerNote: preflighted.payerNote,
     );
 
     final res = await this.paymentService.payInvoice(req: req);

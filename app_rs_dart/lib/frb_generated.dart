@@ -4187,12 +4187,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   PayInvoiceRequest dco_decode_pay_invoice_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return PayInvoiceRequest(
       invoice: dco_decode_String(arr[0]),
       fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
       note: dco_decode_opt_String(arr[2]),
+      payerNote: dco_decode_opt_String(arr[3]),
     );
   }
 
@@ -5909,10 +5910,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       deserializer,
     );
     var var_note = sse_decode_opt_String(deserializer);
+    var var_payerNote = sse_decode_opt_String(deserializer);
     return PayInvoiceRequest(
       invoice: var_invoice,
       fallbackAmountSats: var_fallbackAmountSats,
       note: var_note,
+      payerNote: var_payerNote,
     );
   }
 
@@ -7587,6 +7590,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.invoice, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
     sse_encode_opt_String(self.note, serializer);
+    sse_encode_opt_String(self.payerNote, serializer);
   }
 
   @protected

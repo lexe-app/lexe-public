@@ -437,6 +437,7 @@ pub struct PayInvoiceRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
     pub note: Option<String>,
+    pub payer_note: Option<String>,
 }
 
 impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
@@ -460,7 +461,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
             invoice,
             fallback_amount,
             note: value.note,
-            payer_note: None,
+            payer_note: value.payer_note,
         })
     }
 }
