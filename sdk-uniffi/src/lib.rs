@@ -666,11 +666,14 @@ impl AsyncLexeWallet {
     /// `expiration_secs` is the invoice expiry, in seconds.
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `payer_note` is an optional note from the payer stored with this
+    /// inbound payment.
     pub async fn create_invoice(
         &self,
         expiration_secs: u32,
         amount_sats: Option<u64>,
         description: Option<String>,
+        payer_note: Option<String>,
     ) -> FfiResult<CreateInvoiceResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
@@ -681,6 +684,7 @@ impl AsyncLexeWallet {
             expiration_secs,
             amount,
             description,
+            payer_note,
         };
         let resp = self.inner.create_invoice(req).await?;
         Ok(resp.into())
@@ -689,11 +693,14 @@ impl AsyncLexeWallet {
     /// Pay a BOLT11 invoice.
     /// `fallback_amount_sats` is required if the invoice is amountless.
     /// `note` is a private note that the receiver does not see.
+    /// `payer_note` is an optional note sent to the receiver, visible to
+    /// them (unlike `note`, which is private).
     pub async fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
+        payer_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice: LxInvoiceRs = invoice
             .parse()
@@ -707,6 +714,7 @@ impl AsyncLexeWallet {
             invoice,
             fallback_amount,
             note,
+            payer_note,
         };
         let resp = self.inner.pay_invoice(req).await?;
         Ok(resp.into())
@@ -982,6 +990,7 @@ impl BlockingLexeWallet {
             expiration_secs,
             amount,
             description,
+            payer_note: None,
         };
         let resp = self.inner.create_invoice(req)?;
         Ok(resp.into())
@@ -1008,6 +1017,7 @@ impl BlockingLexeWallet {
             invoice,
             fallback_amount,
             note,
+            payer_note: None,
         };
         let resp = self.inner.pay_invoice(req)?;
         Ok(resp.into())

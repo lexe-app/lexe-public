@@ -132,7 +132,7 @@ def test_list_payments():
         wallet.create_invoice(
             expiration_secs=3600,
             amount_sats=1000,
-            description="Test"
+            description="Test",
         )
 
         # Sync payments from node to local storage
@@ -173,7 +173,7 @@ def test_update_payment_note():
         create_resp = wallet.create_invoice(
             expiration_secs=3600,
             amount_sats=1000,
-            description="Test"
+            description="Test",
         )
 
         # Sync payments from node to local storage before updating notes.
@@ -205,7 +205,7 @@ def test_clear_payments():
         wallet.create_invoice(
             expiration_secs=3600,
             amount_sats=1000,
-            description="Test"
+            description="Test",
         )
         wallet.sync_payments()
 
@@ -270,7 +270,7 @@ def test_create_and_pay_invoice(prefunded_wallets):
     create_resp = wallet2.create_invoice(
         expiration_secs=test_invoice_expiration_secs,
         amount_sats=test_invoice_amount_sats,
-        description="Test payment from Python SDK"
+        description="Test payment from Python SDK",
     )
 
     assert create_resp.invoice != ""
@@ -283,7 +283,7 @@ def test_create_and_pay_invoice(prefunded_wallets):
     pay_resp = wallet1.pay_invoice(
         invoice=create_resp.invoice,
         fallback_amount_sats=None,
-        note="Paying test invoice from Python SDK"
+        note="Paying test invoice from Python SDK",
     )
     assert pay_resp.index != ""
     assert pay_resp.created_at_ms > 0
@@ -317,7 +317,7 @@ def test_pay_invalid_invoice_error(prefunded_wallets):
         wallet.pay_invoice(
             invoice="lnbc1invalid",
             fallback_amount_sats=None,
-            note=None
+            note=None,
         )
 
     # Verify error message is specific about the invalid invoice.

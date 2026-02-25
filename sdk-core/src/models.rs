@@ -144,6 +144,10 @@ pub struct SdkCreateInvoiceRequest {
     // string (""), as lightning _requires_ a description (or description
     // hash) to be set.
     pub description: Option<String>,
+
+    /// An optional note from the payer, stored with this inbound payment.
+    #[serde(default)]
+    pub payer_note: Option<String>,
 }
 
 /// The response to a BOLT 11 invoice request.
@@ -199,7 +203,7 @@ impl From<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
             description: sdk.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
-            payer_note: None,
+            payer_note: sdk.payer_note,
         }
     }
 }
@@ -215,6 +219,9 @@ pub struct SdkPayInvoiceRequest {
     /// An optional personal note for this payment.
     /// The receiver will not see this note.
     pub note: Option<String>,
+    /// An optional note sent to the receiver, stored with this outbound
+    /// payment. Unlike `note`, this is visible to the recipient.
+    pub payer_note: Option<String>,
 }
 
 impl From<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
@@ -223,7 +230,7 @@ impl From<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
             invoice: sdk.invoice,
             fallback_amount: sdk.fallback_amount,
             note: sdk.note,
-            payer_note: None,
+            payer_note: sdk.payer_note,
         }
     }
 }

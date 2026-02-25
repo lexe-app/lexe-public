@@ -719,6 +719,7 @@ Args:
     expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    payer_note: Optional note from the payer, stored with this payment.
 
 Returns:
     A :class:`CreateInvoiceResponse` with the invoice string and metadata.
@@ -740,6 +741,7 @@ Args:
     invoice: BOLT11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
     note: Optional private note (not visible to the receiver).
+    payer_note: Optional note sent to the receiver, visible to them.
 
 Returns:
     A :class:`PayInvoiceResponse` with the payment index and timestamp.
