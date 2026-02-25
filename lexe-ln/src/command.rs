@@ -1042,6 +1042,7 @@ where
         fallback_amount: req.fallback_amount,
         // User note not relevant for pre-flight.
         note: None,
+        payer_note: None,
     };
     let preflight = preflight_pay_invoice_inner(
         req,
@@ -1410,9 +1411,15 @@ where
     let kind = PaymentKind::Invoice;
     let amount = lx_route.amount();
     let fees = lx_route.fees();
-    let oipwm =
-        OutboundInvoicePaymentV2::new(invoice, kind, amount, fees, req.note)
-            .context("Failed to create payment")?;
+    let oipwm = OutboundInvoicePaymentV2::new(
+        invoice,
+        kind,
+        amount,
+        fees,
+        req.note,
+        req.payer_note,
+    )
+    .context("Failed to create payment")?;
 
     Ok(PreflightedPayInvoice {
         oipwm,

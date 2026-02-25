@@ -148,6 +148,7 @@ impl OutboundInvoicePaymentV2 {
         amount: Amount,
         routing_fee: Amount,
         note: Option<String>,
+        payer_note: Option<String>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
@@ -176,7 +177,7 @@ impl OutboundInvoicePaymentV2 {
             offer: None,
             note,
             payer_name: None,
-            payer_note: None,
+            payer_note,
             priority: None,
             quantity: None,
             replacement_txid: None,

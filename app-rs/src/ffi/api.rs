@@ -460,6 +460,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
             invoice,
             fallback_amount,
             note: value.note,
+            payer_note: None,
         })
     }
 }

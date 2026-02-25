@@ -308,6 +308,9 @@ pub struct PayInvoiceRequest {
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
     pub note: Option<String>,
+    /// An optional note visible to the recipient. For LNURL-pay, this is the
+    /// LUD-12 `comment` sent during invoice negotiation.
+    pub payer_note: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

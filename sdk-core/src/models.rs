@@ -222,6 +222,7 @@ impl From<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
             invoice: sdk.invoice,
             fallback_amount: sdk.fallback_amount,
             note: sdk.note,
+            payer_note: None,
         }
     }
 }
