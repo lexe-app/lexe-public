@@ -66,11 +66,8 @@ Example::
     # '/home/user/.lexe/seedphrase.txt'
 """)
 
-lexe.read_seed.__doc__ = """\
+_set_method_doc(lexe.WalletEnvConfig, "read_seed", """\
 Reads a root seed from ``~/.lexe/seedphrase[.env].txt``.
-
-Args:
-    env_config: Wallet environment configuration.
 
 Returns:
     The root seed, or ``None`` if the file doesn't exist.
@@ -81,10 +78,10 @@ Raises:
 Example::
 
     config = WalletEnvConfig.mainnet()
-    seed = read_seed(config)
+    seed = config.read_seed()
     if seed is not None:
         print(f"Loaded seed ({len(seed.seed_bytes)} bytes)")
-"""
+""")
 
 lexe.read_seed_from_path.__doc__ = """\
 Reads a root seed from a seedphrase file at the given path.
@@ -101,18 +98,22 @@ Raises:
     FfiError: If the file exists but cannot be read or parsed.
 """
 
-lexe.write_seed.__doc__ = """\
+_set_method_doc(lexe.WalletEnvConfig, "write_seed", """\
 Writes a root seed's mnemonic to ``~/.lexe/seedphrase[.env].txt``.
 
 Creates parent directories if needed.
 
 Args:
     root_seed: The root seed to persist.
-    env_config: Wallet environment configuration.
 
 Raises:
     FfiError: If the file already exists or cannot be written.
-"""
+
+Example::
+
+    config = WalletEnvConfig.mainnet()
+    config.write_seed(seed)
+""")
 
 lexe.write_seed_to_path.__doc__ = """\
 Writes a root seed's mnemonic to the given file path.
@@ -262,7 +263,7 @@ Create a wallet using the factory constructors, then call
 Example::
 
     config = WalletEnvConfig.mainnet()
-    seed = read_seed(config)
+    seed = config.read_seed()
 
     wallet = LexeWallet.load_or_fresh(config, seed)
     await wallet.signup(seed)
@@ -332,7 +333,7 @@ Raises:
 Example::
 
     await wallet.signup(seed)
-    write_seed(seed, config)  # Persist seed after signup!
+    config.write_seed(seed)  # Persist seed after signup!
 """)
 
 _set_method_doc(lexe.LexeWallet, "provision", """\

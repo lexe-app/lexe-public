@@ -66,24 +66,6 @@ pub fn default_lexe_data_dir() -> FfiResult<String> {
         .map_err(Into::into)
 }
 
-/// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
-///
-/// Returns `None` if the file doesn't exist.
-#[uniffi::export]
-pub fn read_seed(
-    env_config: Arc<WalletEnvConfig>,
-) -> FfiResult<Option<RootSeed>> {
-    env_config
-        .to_rs()
-        .read_seed()
-        .map(|opt| {
-            opt.map(|seed| RootSeed {
-                seed_bytes: seed.expose_secret().to_vec(),
-            })
-        })
-        .map_err(Into::into)
-}
-
 /// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
 ///
 /// Returns `None` if the file doesn't exist.
@@ -95,22 +77,6 @@ pub fn read_seed_from_path(path: String) -> FfiResult<Option<RootSeed>> {
                 seed_bytes: seed.expose_secret().to_vec(),
             })
         })
-        .map_err(Into::into)
-}
-
-/// Writes a root seed's mnemonic to `~/.lexe/seedphrase[.env].txt`.
-///
-/// Creates parent directories if needed. Returns an error if the file
-/// already exists.
-#[uniffi::export]
-pub fn write_seed(
-    root_seed: RootSeed,
-    env_config: Arc<WalletEnvConfig>,
-) -> FfiResult<()> {
-    let root_seed_rs = root_seed.to_rs()?;
-    env_config
-        .to_rs()
-        .write_seed(&root_seed_rs)
         .map_err(Into::into)
 }
 
@@ -325,6 +291,29 @@ impl WalletEnvConfig {
             .seedphrase_path(lexe_data_dir.as_ref())
             .to_string_lossy()
             .into_owned()
+    }
+
+    /// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
+    ///
+    /// Returns `None` if the file doesn't exist.
+    pub fn read_seed(&self) -> FfiResult<Option<RootSeed>> {
+        self.to_rs()
+            .read_seed()
+            .map(|opt| {
+                opt.map(|seed| RootSeed {
+                    seed_bytes: seed.expose_secret().to_vec(),
+                })
+            })
+            .map_err(Into::into)
+    }
+
+    /// Writes a root seed's mnemonic to `~/.lexe/seedphrase[.env].txt`.
+    ///
+    /// Creates parent directories if needed. Returns an error if the file
+    /// already exists.
+    pub fn write_seed(&self, root_seed: RootSeed) -> FfiResult<()> {
+        let root_seed_rs = root_seed.to_rs()?;
+        self.to_rs().write_seed(&root_seed_rs).map_err(Into::into)
     }
 }
 
