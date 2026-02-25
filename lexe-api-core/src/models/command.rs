@@ -285,8 +285,8 @@ pub struct CreateInvoiceRequest {
     /// NOTE: If both `description` and `description_hash` are set, node will
     /// return an error.
     pub description_hash: Option<[u8; 32]>,
-    /// An optional note from the payer, visible to the recipient.
-    /// For inbound LNURL, this is the LUD-12 `comment`.
+    /// An optional note from the payer, stored with this inbound payment.
+    /// For LNURL-pay, set from the LUD-12 `comment`.
     pub payer_note: Option<String>,
 }
 
@@ -311,8 +311,9 @@ pub struct PayInvoiceRequest {
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
     pub note: Option<String>,
-    /// An optional note visible to the recipient. For LNURL-pay, this is the
-    /// LUD-12 `comment` sent during invoice negotiation.
+    /// An optional payer note to persist with this outbound payment. For
+    /// LNURL-pay, this is the LUD-12 `comment` sent during invoice
+    /// negotiation.
     pub payer_note: Option<String>,
 }
 
