@@ -199,6 +199,7 @@ impl From<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
             description: sdk.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
+            payer_note: None,
         }
     }
 }

@@ -411,6 +411,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
                 .transpose()?,
             description: value.description,
             description_hash: None,
+            payer_note: None,
         })
     }
 }

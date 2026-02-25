@@ -285,6 +285,9 @@ pub struct CreateInvoiceRequest {
     /// NOTE: If both `description` and `description_hash` are set, node will
     /// return an error.
     pub description_hash: Option<[u8; 32]>,
+    /// An optional note from the payer, visible to the recipient.
+    /// For inbound LNURL, this is the LUD-12 `comment`.
+    pub payer_note: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

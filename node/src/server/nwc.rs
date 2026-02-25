@@ -92,6 +92,7 @@ async fn handle_make_invoice(
         amount: Some(amount),
         description: params.description,
         description_hash,
+        payer_note: None,
     };
 
     let caller = CreateInvoiceCaller::UserNode {

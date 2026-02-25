@@ -35,6 +35,8 @@ pub struct LnurlCallbackRequest {
     /// control this API definition.
     #[serde(rename = "amount")]
     pub amount_msat: u64,
+    /// An optional payer comment, per LUD-12.
+    pub comment: Option<String>,
 }
 
 /// The Path parameter used internally in the lnurl-pay callbacks.
