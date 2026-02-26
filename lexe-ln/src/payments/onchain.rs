@@ -9,7 +9,10 @@ use common::{
 };
 use lexe_api::{
     models::command::PayOnchainRequest,
-    types::payments::{ClientPaymentId, LxPaymentId, PaymentKind, PaymentRail},
+    types::{
+        bounded_note::BoundedNote,
+        payments::{ClientPaymentId, LxPaymentId, PaymentKind, PaymentRail},
+    },
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -115,6 +118,7 @@ impl OnchainSendV2 {
             priority,
             note,
         } = req;
+        let note = note.map(BoundedNote::into_inner);
 
         let txid = LxTxid(tx.compute_txid());
         let os = Self {

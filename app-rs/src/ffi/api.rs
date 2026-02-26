@@ -48,6 +48,7 @@ use lexe_api::{
         UpdatePaymentNote as UpdatePaymentNoteRs,
     },
     types::{
+        bounded_note::BoundedNote,
         invoice::LxInvoice,
         offer::{LxOffer, MaxQuantity},
         payments::{
@@ -268,20 +269,8 @@ impl From<FiatRatesRs> for FiatRates {
     }
 }
 
-/// The maximum allowed payment note size in bytes.
-///
-/// See `common::constants::MAX_PAYMENT_NOTE_BYTES`.
-pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
-// Assert that these two constants are exactly equal at compile time.
-const _: [(); MAX_PAYMENT_NOTE_BYTES] =
-    [(); common::constants::MAX_PAYMENT_NOTE_BYTES];
-
-fn validate_note(note: String) -> anyhow::Result<String> {
-    if note.len() <= MAX_PAYMENT_NOTE_BYTES {
-        Ok(note)
-    } else {
-        Err(anyhow!("The payment note is too long."))
-    }
+fn validate_note(note: String) -> anyhow::Result<BoundedNote> {
+    BoundedNote::new(note).map_err(|e| anyhow!("{e}"))
 }
 
 /// See `lexe_api::command::PayOnchainRequest`.
@@ -461,8 +450,8 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
         Ok(Self {
             invoice,
             fallback_amount,
-            note: value.note,
-            payer_note: value.payer_note,
+            note: value.note.map(validate_note).transpose()?,
+            payer_note: value.payer_note.map(validate_note).transpose()?,
         })
     }
 }
@@ -649,8 +638,8 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
                 .fallback_amount_sats
                 .map(Amount::try_from_sats_u64)
                 .transpose()?,
-            note: value.note,
-            payer_note: value.payer_note,
+            note: value.note.map(validate_note).transpose()?,
+            payer_note: value.payer_note.map(validate_note).transpose()?,
         })
     }
 }

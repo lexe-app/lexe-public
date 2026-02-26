@@ -42,6 +42,7 @@ use common::{
 use lexe_api_core::{
     models::command,
     types::{
+        bounded_note::BoundedNote,
         invoice::LxInvoice,
         payments::{LxPaymentHash, LxPaymentSecret, PaymentCreatedIndex},
     },
@@ -203,7 +204,7 @@ impl From<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
             description: sdk.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
-            payer_note: sdk.payer_note,
+            payer_note: sdk.payer_note.and_then(BoundedNote::truncate),
         }
     }
 }
@@ -229,8 +230,8 @@ impl From<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
         Self {
             invoice: sdk.invoice,
             fallback_amount: sdk.fallback_amount,
-            note: sdk.note,
-            payer_note: sdk.payer_note,
+            note: sdk.note.and_then(BoundedNote::truncate),
+            payer_note: sdk.payer_note.and_then(BoundedNote::truncate),
         }
     }
 }

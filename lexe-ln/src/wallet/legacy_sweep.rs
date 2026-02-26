@@ -22,7 +22,10 @@ use common::{
 };
 use lexe_api::{
     models::command::PayOnchainRequest,
-    types::payments::{ClientPaymentId, PaymentKind},
+    types::{
+        bounded_note::BoundedNote,
+        payments::{ClientPaymentId, PaymentKind},
+    },
 };
 use lexe_tokio::{notify, task::LxTask};
 use tracing::{debug, error, instrument};
@@ -174,7 +177,10 @@ async fn sync_and_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
         // wallet, so no OnchainReceive payment will be produced.
         amount: Amount::ZERO,
         priority,
-        note: Some("Sweep to BIP39-compatible on-chain wallet".to_owned()),
+        note: BoundedNote::new(
+            "Sweep to BIP39-compatible on-chain wallet".to_owned(),
+        )
+        .ok(),
     };
     let oswm = OnchainSendV2::new(tx, req, PaymentKind::Onchain, fee)
         .context("Failed to create onchain send")?;
