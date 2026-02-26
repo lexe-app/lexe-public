@@ -259,7 +259,7 @@ pub struct UpdatePaymentNote {
     // This API should be changed to pass that instead.
     pub index: PaymentCreatedIndex,
     /// The updated note, or `None` to clear.
-    pub note: Option<String>,
+    pub note: Option<BoundedNote>,
 }
 
 // --- BOLT11 Invoice Payments --- //

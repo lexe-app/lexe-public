@@ -427,7 +427,7 @@ impl<F: Ffs> PaymentsDb<F> {
             .get_mut_payment_by_created_index(&req.index)
             .context("Updating non-existent payment")?;
 
-        payment.note = req.note;
+        payment.note = req.note.map(|n| n.into_inner());
 
         Self::write_payment(&self.ffs, payment)
             .context("Failed to write payment to local db")?;

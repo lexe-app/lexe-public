@@ -751,8 +751,7 @@ impl AsyncLexeWallet {
         let note = note
             .map(BoundedNoteRs::new)
             .transpose()
-            .map_err(|e| anyhow::anyhow!("Invalid note: {e}"))?
-            .map(BoundedNoteRs::into_inner);
+            .map_err(|e| anyhow::anyhow!("Invalid note: {e}"))?;
         let req = UpdatePaymentNoteRs { index, note };
         self.inner.update_payment_note(req).await?;
         Ok(())
@@ -1013,6 +1012,7 @@ impl BlockingLexeWallet {
     /// Pay a BOLT11 invoice.
     /// `fallback_amount_sats` is required if the invoice is amountless.
     /// `note` is a private note that the receiver does not see.
+    // TODO(a-mpch): Review to support `payer_note` on usage.
     pub fn pay_invoice(
         &self,
         invoice: String,
@@ -1055,6 +1055,10 @@ impl BlockingLexeWallet {
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let note = note
+            .map(BoundedNoteRs::new)
+            .transpose()
+            .map_err(|e| anyhow::anyhow!("Invalid note: {e}"))?;
         let req = UpdatePaymentNoteRs { index, note };
         self.inner.update_payment_note(req)?;
         Ok(())

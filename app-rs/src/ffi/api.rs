@@ -681,7 +681,7 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
         Ok(Self {
             index: PaymentCreatedIndexRs::try_from(value.index)?,
-            note: value.note,
+            note: value.note.map(validate_note).transpose()?,
         })
     }
 }
