@@ -36,6 +36,7 @@ use lexe_api_core::{
     error::GatewayApiError as GatewayApiErrorRs,
     models::command::UpdatePaymentNote as UpdatePaymentNoteRs,
     types::{
+        bounded_note::BoundedNote as BoundedNoteRs,
         invoice::LxInvoice as LxInvoiceRs,
         payments::{
             PaymentCreatedIndex as PaymentCreatedIndexRs,
@@ -668,6 +669,8 @@ impl AsyncLexeWallet {
     /// `description` is shown to the payer, if provided.
     /// `payer_note` is an optional note from the payer stored with this
     /// inbound payment.
+    /// If provided, it must be non-empty and at most 200 chars / 512 UTF-8
+    /// bytes.
     pub async fn create_invoice(
         &self,
         expiration_secs: u32,
@@ -693,8 +696,12 @@ impl AsyncLexeWallet {
     /// Pay a BOLT11 invoice.
     /// `fallback_amount_sats` is required if the invoice is amountless.
     /// `note` is a private note that the receiver does not see.
+    /// If provided, `note` must be non-empty and at most 200 chars / 512
+    /// UTF-8 bytes.
     /// `payer_note` is an optional note sent to the receiver, visible to
     /// them (unlike `note`, which is private).
+    /// If provided, `payer_note` must be non-empty and at most 200 chars /
+    /// 512 UTF-8 bytes.
     pub async fn pay_invoice(
         &self,
         invoice: String,
@@ -733,12 +740,19 @@ impl AsyncLexeWallet {
 
     /// Update a payment's note.
     /// Call `sync_payments` first so the payment exists locally.
+    /// If `note` is `Some`, it must be non-empty and at most 200 chars /
+    /// 512 UTF-8 bytes.
     pub async fn update_payment_note(
         &self,
         index: String,
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let note = note
+            .map(BoundedNoteRs::new)
+            .transpose()
+            .map_err(|e| anyhow::anyhow!("Invalid note: {e}"))?
+            .map(BoundedNoteRs::into_inner);
         let req = UpdatePaymentNoteRs { index, note };
         self.inner.update_payment_note(req).await?;
         Ok(())
@@ -1033,6 +1047,8 @@ impl BlockingLexeWallet {
 
     /// Update a payment's note.
     /// Call `sync_payments` first so the payment exists locally.
+    /// If `note` is `Some`, it must be non-empty and at most 200 chars /
+    /// 512 UTF-8 bytes.
     pub fn update_payment_note(
         &self,
         index: String,

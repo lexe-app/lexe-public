@@ -142,11 +142,12 @@ mod node {
         }: NodeClientExtractor,
         LxJson(req): LxJson<SdkCreateInvoiceRequest>,
     ) -> Result<LxJson<SdkCreateInvoiceResponse>, SdkApiError> {
+        let req = req.try_into().map_err(SdkApiError::command)?;
         let CreateInvoiceResponse {
             invoice,
             created_index: maybe_index,
         } = node_client
-            .create_invoice(req.into())
+            .create_invoice(req)
             .await
             .map_err(SdkApiError::command)?;
 
@@ -169,8 +170,9 @@ mod node {
         LxJson(req): LxJson<SdkPayInvoiceRequest>,
     ) -> Result<LxJson<SdkPayInvoiceResponse>, SdkApiError> {
         let id = req.invoice.payment_id();
+        let req = req.try_into().map_err(SdkApiError::command)?;
         let created_at = node_client
-            .pay_invoice(req.into())
+            .pay_invoice(req)
             .await
             .map_err(SdkApiError::command)?
             .created_at;

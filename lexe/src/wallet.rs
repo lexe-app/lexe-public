@@ -15,8 +15,7 @@ use common::{
 use lexe_api::{
     def::{AppBackendApi, AppNodeRunApi},
     models::command::{
-        EnclavesToProvisionRequest, LxPaymentIdStruct, PayInvoiceRequest,
-        UpdatePaymentNote,
+        EnclavesToProvisionRequest, LxPaymentIdStruct, UpdatePaymentNote,
     },
     types::payments::{PaymentCreatedIndex, PaymentStatus},
 };
@@ -671,9 +670,10 @@ impl<D> LexeWallet<D> {
         &self,
         req: SdkCreateInvoiceRequest,
     ) -> anyhow::Result<SdkCreateInvoiceResponse> {
+        let req = req.try_into()?;
         let resp = self
             .node_client
-            .create_invoice(req.into())
+            .create_invoice(req)
             .await
             .context("Failed to create invoice")?;
 
@@ -688,9 +688,10 @@ impl<D> LexeWallet<D> {
         req: SdkPayInvoiceRequest,
     ) -> anyhow::Result<SdkPayInvoiceResponse> {
         let id = req.invoice.payment_id();
+        let req = req.try_into()?;
         let resp = self
             .node_client
-            .pay_invoice(PayInvoiceRequest::from(req))
+            .pay_invoice(req)
             .await
             .context("Failed to pay invoice")?;
 

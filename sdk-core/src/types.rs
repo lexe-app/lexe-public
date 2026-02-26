@@ -104,7 +104,6 @@ pub struct SdkPayment {
     pub payer_name: Option<String>,
 
     /// (Offer payments only) A payer-provided note for this payment.
-    /// LDK truncates this to 512 bytes.
     pub payer_note: Option<String>,
 
     /// (Onchain send only) The confirmation priority used for this payment.

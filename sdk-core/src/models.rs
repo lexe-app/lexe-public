@@ -33,6 +33,7 @@
 //! [`Amount`]: common::ln::amount::Amount
 //! [`TimestampMs`]: common::time::TimestampMs
 
+use anyhow::Context;
 use common::{
     api::user::{NodePk, UserPk},
     enclave,
@@ -147,6 +148,8 @@ pub struct SdkCreateInvoiceRequest {
     pub description: Option<String>,
 
     /// An optional note from the payer, stored with this inbound payment.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
     #[serde(default)]
     pub payer_note: Option<String>,
 }
@@ -196,16 +199,25 @@ impl SdkCreateInvoiceResponse {
     }
 }
 
-impl From<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
-    fn from(sdk: SdkCreateInvoiceRequest) -> Self {
-        Self {
+impl TryFrom<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(sdk: SdkCreateInvoiceRequest) -> anyhow::Result<Self> {
+        Ok(Self {
             expiry_secs: sdk.expiration_secs,
             amount: sdk.amount,
             description: sdk.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
-            payer_note: sdk.payer_note.and_then(BoundedNote::truncate),
-        }
+            payer_note: sdk
+                .payer_note
+                .map(BoundedNote::new)
+                .transpose()
+                .context(
+                    "Invalid payer_note (must be non-empty and <=200 chars / \
+                     <=512 UTF-8 bytes)",
+                )?,
+        })
     }
 }
 
@@ -219,20 +231,36 @@ pub struct SdkPayInvoiceRequest {
     pub fallback_amount: Option<Amount>,
     /// An optional personal note for this payment.
     /// The receiver will not see this note.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
     pub note: Option<String>,
     /// An optional note sent to the receiver, stored with this outbound
     /// payment. Unlike `note`, this is visible to the recipient.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
     pub payer_note: Option<String>,
 }
 
-impl From<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
-    fn from(sdk: SdkPayInvoiceRequest) -> Self {
-        Self {
+impl TryFrom<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(sdk: SdkPayInvoiceRequest) -> anyhow::Result<Self> {
+        Ok(Self {
             invoice: sdk.invoice,
             fallback_amount: sdk.fallback_amount,
-            note: sdk.note.and_then(BoundedNote::truncate),
-            payer_note: sdk.payer_note.and_then(BoundedNote::truncate),
-        }
+            note: sdk.note.map(BoundedNote::new).transpose().context(
+                "Invalid note (must be non-empty and <=200 chars / \
+                     <=512 UTF-8 bytes)",
+            )?,
+            payer_note: sdk
+                .payer_note
+                .map(BoundedNote::new)
+                .transpose()
+                .context(
+                    "Invalid payer_note (must be non-empty and <=200 chars / \
+                     <=512 UTF-8 bytes)",
+                )?,
+        })
     }
 }
 
