@@ -22,6 +22,10 @@ import 'package:lexeapp/route/change_backup_password.dart'
 import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/url.dart' as url;
+
+const accountDeletionRequestUrl =
+    "https://www.lexe.app/account-deletion-request";
 
 /// Basic security page that leads to displa SeedPhrase, connect GDrive or
 /// test GDrive connection.
@@ -110,6 +114,10 @@ class _SecurityPageState extends State<SecurityPage> {
     );
   }
 
+  void onAccountDeletionRequestTap() {
+    unawaited(url.open(accountDeletionRequestUrl));
+  }
+
   @override
   Widget build(BuildContext context) {
     const cardPad = Space.s300;
@@ -136,6 +144,7 @@ class _SecurityPageState extends State<SecurityPage> {
             ),
           ),
 
+          // View seed phrase
           InfoCard(
             description: const Text.rich(
               TextSpan(
@@ -159,6 +168,9 @@ class _SecurityPageState extends State<SecurityPage> {
               ),
             ],
           ),
+
+          // Google Drive status / change password
+          const SizedBox(height: Space.s100),
           ValueListenableBuilder(
             valueListenable: this.backupInfo,
             builder: (_, backupInfo, _) {
@@ -171,6 +183,22 @@ class _SecurityPageState extends State<SecurityPage> {
                 onChangeBackupPasswordTap: onChangeBackupPasswordTap,
               );
             },
+          ),
+
+          // Account deletion
+          const SizedBox(height: Space.s100),
+          InfoCard(
+            header: const Text("Account deletion"),
+            description: const Text(
+              "Fill out a form to request permanent deletion of your Lexe node "
+              "and all associated data. ",
+            ),
+            children: [
+              InfoRowButton(
+                label: Text("Request account deletion"),
+                onTap: this.onAccountDeletionRequestTap,
+              ),
+            ],
           ),
         ],
       ),
