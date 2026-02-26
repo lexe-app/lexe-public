@@ -22,6 +22,8 @@ pub mod fmt;
 pub mod iter;
 /// Path extensions.
 pub mod path;
+/// String utilities.
+pub mod string;
 
 /// A trait which allows us to apply functions (including tuple enum variants)
 /// to non-[`Iterator`]/[`Result`]/[`Option`] values for cleaner iterator-like
