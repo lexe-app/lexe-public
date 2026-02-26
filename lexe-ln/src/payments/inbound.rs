@@ -3,6 +3,7 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 use anyhow::{Context, anyhow, ensure};
 use common::{ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
+    bounded_note::BoundedNote,
     invoice::LxInvoice,
     offer::LxOffer,
     payments::{
@@ -177,7 +178,7 @@ pub struct OfferClaimCtx {
     pub offer_id: LxOfferId,
     pub offer: Option<Arc<LxOffer>>,
     pub quantity: Option<NonZeroU64>,
-    pub payer_note: Option<String>,
+    pub payer_note: Option<BoundedNote>,
     // TODO(phlip9): use newtype
     pub payer_name: Option<String>,
 }
@@ -221,8 +222,13 @@ impl LnClaimCtx {
                 let offer_id = LxOfferId::from(context.offer_id);
                 let quantity =
                     context.invoice_request.quantity.and_then(NonZeroU64::new);
-                let payer_note =
-                    context.invoice_request.payer_note_truncated.map(|s| s.0);
+                // LDK truncates to PAYER_NOTE_LIMIT (512 B); we also enforce
+                // our 200-char limit.
+                let payer_note = context
+                    .invoice_request
+                    .payer_note_truncated
+                    .map(|s| s.0)
+                    .and_then(BoundedNote::truncate);
                 // TODO(phlip9): use newtype
                 let payer_name = context
                     .invoice_request
@@ -374,9 +380,11 @@ impl InboundInvoicePaymentV2 {
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
         kind: PaymentKind,
-        payer_note: Option<String>,
+        payer_note: Option<BoundedNote>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
+
+        let payer_note = payer_note.map(BoundedNote::into_inner);
 
         let invoice_amount =
             invoice.0.amount_milli_satoshis().map(Amount::from_msat);
@@ -734,7 +742,7 @@ impl InboundOfferReusablePaymentV2 {
             offer: ctx.offer,
             note: None,
             payer_name: ctx.payer_name,
-            payer_note: ctx.payer_note,
+            payer_note: ctx.payer_note.map(BoundedNote::into_inner),
             priority: None,
             quantity: ctx.quantity,
             replacement_txid: None,

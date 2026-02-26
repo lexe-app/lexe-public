@@ -44,7 +44,6 @@ use lexe_api::{
     rest::API_REQUEST_TIMEOUT,
     types::{
         Empty,
-        bounded_note::BoundedNote,
         invoice::LxInvoice,
         offer::{LxOffer, MaxQuantity},
         payments::{LxPaymentId, PaymentDirection, PaymentKind},
@@ -879,7 +878,7 @@ where
         secret.into(),
         preimage.into(),
         kind,
-        req.payer_note.map(BoundedNote::into_inner),
+        req.payer_note,
     )
     .context("Failed to create payment")?;
     let pwm = iipwm.into_enum();
@@ -1418,8 +1417,8 @@ where
         kind,
         amount,
         fees,
-        req.note.map(BoundedNote::into_inner),
-        req.payer_note.map(BoundedNote::into_inner),
+        req.note,
+        req.payer_note,
     )
     .context("Failed to create payment")?;
 
@@ -1544,8 +1543,6 @@ where
 
     // TODO(max): Include `payer_name` in `PayOfferRequest`
     let payer_name = None;
-    let payer_note = req.payer_note.map(BoundedNote::into_inner);
-
     let oopwm = OutboundOfferPaymentV2::new(
         req.cid,
         offer,
@@ -1553,9 +1550,9 @@ where
         amount,
         quantity,
         routing_fee,
-        req.note.map(BoundedNote::into_inner),
+        req.note,
         payer_name,
-        payer_note,
+        req.payer_note,
     )
     .context("Failed to create payment")?;
 
