@@ -2,6 +2,8 @@
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
+/// `BoundedNote`, length-bounded string type for untrusted input.
+pub mod bounded_note;
 /// `LxInvoice`, a wrapper around LDK's BOLT11 invoice type.
 pub mod invoice;
 /// Lnurl types
