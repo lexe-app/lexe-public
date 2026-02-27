@@ -22,7 +22,8 @@ use crate::{
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
 //               reduce key derivation time by ~60-70% : )
 
-/// The user's root seed from which we derive all child secrets.
+/// The user's 32-byte root seed, from which all keys and credentials are
+/// derived (user keypair, node keypair, TLS certificates, etc.).
 pub struct RootSeed(Secret<[u8; Self::LENGTH]>);
 
 impl RootSeed {

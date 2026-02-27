@@ -171,7 +171,9 @@ const fn encode_alphanum_byte(x: u8) -> u8 {
     base + gap_9A + gap_Za
 }
 
-/// A compatibility wrapper so we can use `ring`'s PRG with `rand` traits.
+/// A cryptographically secure random number generator.
+//
+// Compatibility wrapper so we can use `ring`'s PRG with `rand` traits.
 #[derive(Clone, Debug)]
 pub struct SysRng(ring::rand::SystemRandom);
 

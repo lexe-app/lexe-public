@@ -7,19 +7,23 @@ use std::{
 use bitcoin::{Txid, hashes::Hash as _};
 use serde::{Deserialize, Serialize};
 
-/// Almost exactly [`bitcoin::Txid`], but fixes the inconsistency between the
-/// string-serialized and unserialized orderings caused by bitcoin sha256d hash
-/// types being displayed in reverse hex order (thanks Satoshi!). Also provides
-/// an `Arbitrary` impl. When neither of these are required, it is perfectly
-/// fine (and equivalent) to use [`bitcoin::Txid`] directly.
-///
-/// To ensure that we don't accidentally display a non-reversed hash to a Lexe
-/// user, we still display using [`Txid`]'s provided reverse hex impl, but we
-/// override the [`Ord`] implementation to be consistent with the user-facing
-/// lexicographic ordering.
-///
-/// See [`bitcoin::hashes::Hash::DISPLAY_BACKWARD`] or the `hash_newtype!`
-/// definition of [`Txid`] for more info.
+/// A Bitcoin transaction ID. Serialized as a 64-character hex string in
+/// conventional (reversed) byte order, e.g.
+/// `"a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"`.
+//
+// Almost exactly [`bitcoin::Txid`], but fixes the inconsistency between the
+// string-serialized and unserialized orderings caused by bitcoin sha256d hash
+// types being displayed in reverse hex order (thanks Satoshi!). Also provides
+// an `Arbitrary` impl. When neither of these are required, it is perfectly
+// fine (and equivalent) to use [`bitcoin::Txid`] directly.
+//
+// To ensure that we don't accidentally display a non-reversed hash to a Lexe
+// user, we still display using [`Txid`]'s provided reverse hex impl, but we
+// override the [`Ord`] implementation to be consistent with the user-facing
+// lexicographic ordering.
+//
+// See [`bitcoin::hashes::Hash::DISPLAY_BACKWARD`] or the `hash_newtype!`
+// definition of [`Txid`] for more info.
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct LxTxid(pub Txid);
 

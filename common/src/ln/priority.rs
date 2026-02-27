@@ -32,9 +32,11 @@ impl ToNumBlocks for ConfirmationTarget {
     }
 }
 
-/// The transaction confirmation priority levels used in Lexe APIs.
-/// Basically a simplified version of LDK's [`ConfirmationTarget`] type.
-/// Lexe code should prefer to use this type when possible.
+/// Transaction confirmation priority for on-chain payments: `"high"` (~1
+/// block), `"normal"` (~3 blocks), or `"background"` (~72 blocks).
+//
+// Basically a simplified version of LDK's [`ConfirmationTarget`] type.
+// Lexe code should prefer to use this type when possible.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]

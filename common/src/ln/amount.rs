@@ -105,14 +105,19 @@ pub enum Error {
     TooLarge,
 }
 
-/// A Bitcoin amount, internally represented as a satoshi [`Decimal`], which
-/// provides the following properties:
+/// A non-negative Bitcoin amount in satoshis. Serialized as a string-encoded
+/// decimal to avoid floating-point precision loss (e.g. `"1234.567"`).
 ///
-/// - The contained value is non-negative.
-/// - The contained value is no greater than [`Amount::MAX`].
-/// - Converting to sats, bits, or BTC and back via divisions and
-///   multiplications by 1000 doesn't lose any precision beyond msat.
-/// - The contained value is always rounded to the nearest msat.
+/// Sub-satoshi precision down to the millisatoshi is supported.
+//
+// Internally represented as a satoshi [`Decimal`], which provides the
+// following properties:
+//
+// - The contained value is non-negative.
+// - The contained value is no greater than [`Amount::MAX`].
+// - Converting to sats, bits, or BTC and back via divisions and multiplications
+//   by 1000 doesn't lose any precision beyond msat.
+// - The contained value is always rounded to the nearest msat.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub struct Amount(Decimal);
 

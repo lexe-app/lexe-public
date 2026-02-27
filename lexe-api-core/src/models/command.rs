@@ -250,14 +250,14 @@ pub struct PaymentCreatedIndexes {
     pub indexes: Vec<PaymentCreatedIndex>,
 }
 
-/// Update the note on a payment.
+/// A request to update the personal note on a payment. Pass `None` to clear.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UpdatePaymentNote {
     /// The index of the payment whose note should be updated.
     // TODO(max): The server side only needs the `LxPaymentId`.
     // This API should be changed to pass that instead.
     pub index: PaymentCreatedIndex,
-    /// The updated note.
+    /// The updated note, or `None` to clear.
     pub note: Option<String>,
 }
 

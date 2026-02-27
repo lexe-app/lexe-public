@@ -43,11 +43,11 @@ use crate::types::{invoice::LxInvoice, offer::LxOffer};
 
 // --- Top-level payment types --- //
 
-/// A basic payment type which contains all of the user-facing payment details
-/// for any kind of payment. These details are exposed in the Lexe app.
-///
-/// It is essentially the `Payment` type flattened out such that each field is
-/// the result of the corresponding `Payment` getter.
+/// User-facing payment details for any kind of payment, as displayed in the
+/// Lexe app and returned by Lexe APIs.
+//
+// Essentially the `Payment` type flattened out such that each field is the
+// result of the corresponding `Payment` getter.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BasicPaymentV2 {
@@ -441,8 +441,8 @@ pub struct VecDbPaymentMetadata {
     pub metadatas: Vec<DbPaymentMetadata>,
 }
 
-/// The technical 'rail' used to fulfill a payment:
-/// onchain, invoice, offer, spontaneous, etc.
+/// The protocol used to fulfill a payment: `"onchain"`, `"invoice"`,
+/// `"offer"`, `"spontaneous"`, etc.
 #[derive(Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum PaymentRail {
@@ -461,23 +461,27 @@ pub enum PaymentRail {
     ),
 }
 
-/// A granular application-level 'type' of a payment.
+/// A fine-grained category for a payment. Useful for filtering payment history
+/// and analytics (e.g. regular Lightning payments vs. waived channel fees).
 ///
-/// In Lexe's DB, payment information is encrypted, but this type is exposed.
-/// This is because without this type, the DB cannot identify which payments are
-/// relevant to a application level queries like
-///
-/// - "Show me my last N liquidity fee payments from this index"
-/// - "Show me my history of channel opens and closes"
-/// - "Show me the last N times I paid a channel fee."
-///
-/// These payment kinds are also useful for accounting and analytics, allowing
-/// users to breakdown their payments history using fine-grained categories.
-///
-/// When implementing new kind of payment flows, err on the side of adding a new
-/// [`PaymentKind`] for it, instead of incorporating it into an existing kind.
-/// We can always add another OR in a WHERE clause, but cannot easily separate
-/// out data once it has already been unified.
+/// Each [`PaymentKind`] maps to exactly one parent [`PaymentRail`] via
+/// [`PaymentKind::rail()`].
+//
+// In Lexe's DB, payment information is encrypted, but this type is exposed.
+// This is because without this type, the DB cannot identify which payments are
+// relevant to application level queries like
+//
+// - "Show me my last N liquidity fee payments from this index"
+// - "Show me my history of channel opens and closes"
+// - "Show me the last N times I paid a channel fee."
+//
+// These payment kinds are also useful for accounting and analytics, allowing
+// users to breakdown their payments history using fine-grained categories.
+//
+// When implementing new kind of payment flows, err on the side of adding a new
+// [`PaymentKind`] for it, instead of incorporating it into an existing kind.
+// We can always add another OR in a WHERE clause, but cannot easily separate
+// out data once it has already been unified.
 #[rustfmt::skip]
 #[derive(Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -558,7 +562,7 @@ pub enum PaymentKind {
     ),
 }
 
-/// Specifies whether a payment is inbound or outbound.
+/// The direction of a payment: `"inbound"`, `"outbound"`, or `"info"`.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(VariantArray))]
@@ -571,11 +575,13 @@ pub enum PaymentDirection {
     Info,
 }
 
-/// A general payment status that abstracts over all payment types.
+/// The status of a payment: `"pending"`, `"completed"`, or `"failed"`.
 ///
-/// - Useful for filtering all payments by status in a high-level list view.
-/// - Not suitable for getting detailed information about a specific payment; in
-///   this case, use the payment-specific status enum or `status_str()` instead.
+/// Useful for filtering payments in a list view. For a human-readable status
+/// message specific to each payment type, use `SdkPayment::status_msg`.
+//
+// Not suitable for getting detailed information about a specific payment; in
+// this case, use the payment-specific status enum or `status_str()` instead.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -588,29 +594,18 @@ pub enum PaymentStatus {
 
 // --- Lexe newtypes --- //
 
-/// A payment identifier which:
+/// A unique, ordered payment identifier: `(created_at, payment_id)`.
 ///
-/// 1) retains uniqueness per payment
-/// 2) is ordered first by `created_at` timestamp and then by [`LxPaymentId`].
-///
-/// It is essentially a [`(TimestampMs, LxPaymentId)`], suitable for use as a
-/// key in a `BTreeMap<PaymentCreatedIndex, BasicPaymentV1>` or similar.
-///
-/// It can also be degenerated (serialized) into a string and the
-/// string-serialized ordering will be equivalent to the unserialized ordering.
-///
-/// ### Examples
-///
-/// ```ignore
-/// 0002683862736062841-os_95cc800f4f3b5669c71c85f7096be45a172ca86aef460e0e584affff3ea80bee
-/// 0009557253037960566-ln_3ddcfd0e0b1eba77292c23a7de140c1e71327ac97486cc414b6826c434c560cc
-/// 4237937319278351047-or_3f6d2153bde1a0878717f46a1cbc63c48f7b4231224d78a50eb9e94b5d29f674
-/// 6206503357534413026-ln_063a5be0218332a84f9a4f7f4160a7dcf8e9362b9f5043ad47360c7440037fa8
-/// 6450440432938623603-or_0db1f1ebed6f99574c7a048e6bbf68c7db69c6da328f0b6d699d4dc1cd477017
-/// 7774176661032219027-or_215ef16c8192c8d674b519a34b7b65454e1e18d48bf060bdc333df433ada0137
-/// 8468903867373394879-ln_b8cbf827292c2b498e74763290012ed92a0f946d67e733e94a5fedf7f82710d5
-/// 8776421933930532767-os_ead3c01be0315dfd4e4c405aaca0f39076cff722a0f680c89c348e3bda9575f3
-/// ```
+/// Suitable as a key in `BTreeMap<PaymentCreatedIndex, SdkPayment>` or for
+/// cursor-based pagination. Serialized as `"<created_at>-<id>"`, e.g.
+/// `"0002683862736062841-ln_3ddc..."`.
+//
+// Essentially a [`(TimestampMs, LxPaymentId)`] which:
+// 1) retains uniqueness per payment
+// 2) is ordered first by `created_at` timestamp and then by [`LxPaymentId`].
+//
+// String-serialized ordering is equivalent to the unserialized ordering,
+// since created_at is zero-padded to 19 digits.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -619,26 +614,14 @@ pub struct PaymentCreatedIndex {
     pub id: LxPaymentId,
 }
 
-/// A payment identifier, conceptually a [`(TimestampMs, LxPaymentId)`], which:
+/// A unique, ordered payment identifier: `(updated_at, payment_id)`.
 ///
-/// 1) retains uniqueness per payment
-/// 2) is ordered first by `updated_at` timestamp and then by [`LxPaymentId`].
-///
-/// It can also be degenerated (serialized) into a string and the
-/// string-serialized ordering will be equivalent to the unserialized ordering.
-///
-/// ### Examples
-///
-/// ```ignore
-/// u0002683862736062841-os_95cc800f4f3b5669c71c85f7096be45a172ca86aef460e0e584affff3ea80bee
-/// u0009557253037960566-ln_3ddcfd0e0b1eba77292c23a7de140c1e71327ac97486cc414b6826c434c560cc
-/// u4237937319278351047-or_3f6d2153bde1a0878717f46a1cbc63c48f7b4231224d78a50eb9e94b5d29f674
-/// u6206503357534413026-ln_063a5be0218332a84f9a4f7f4160a7dcf8e9362b9f5043ad47360c7440037fa8
-/// u6450440432938623603-or_0db1f1ebed6f99574c7a048e6bbf68c7db69c6da328f0b6d699d4dc1cd477017
-/// u7774176661032219027-or_215ef16c8192c8d674b519a34b7b65454e1e18d48bf060bdc333df433ada0137
-/// u8468903867373394879-ln_b8cbf827292c2b498e74763290012ed92a0f946d67e733e94a5fedf7f82710d5
-/// u8776421933930532767-os_ead3c01be0315dfd4e4c405aaca0f39076cff722a0f680c89c348e3bda9575f3
-/// ```
+/// Like [`PaymentCreatedIndex`], but ordered by `updated_at` instead of
+/// `created_at`. Serialized as `"u<updated_at>-<id>"`.
+//
+// String-serialized ordering is equivalent to the unserialized ordering.
+// The 'u' prefix prevents confusing a PaymentUpdatedIndex with a
+// PaymentCreatedIndex.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -647,24 +630,27 @@ pub struct PaymentUpdatedIndex {
     pub id: LxPaymentId,
 }
 
-/// A globally-unique identifier for any type of payment, including both
-/// on-chain and Lightning payments.
+/// A globally unique identifier for any payment (Lightning or on-chain).
+/// Serialized as `"<prefix>_<hex>"`, e.g. `"ln_3ddc..."` or `"os_0a19..."`.
 ///
-/// - Lightning inbound+outbound invoice+spontaneous payments use their
-///   [`LxPaymentHash`] as their id. TODO(phlip9): inbound spontaneous payments
-///   should use `LnClaimId` as their id.
-/// - Lightning _reusable_ inbound offer payments use the [`LnClaimId`] as their
-///   id.
-/// - Lightning _single-use_ inbound offer payments use the [`OfferId`] as their
-///   id. TODO(phlip9): impl
-/// - Lightning outbound offer payments use a [`ClientPaymentId`] as their id.
-/// - On-chain sends use a [`ClientPaymentId`] as their id.
-/// - On-chain receives use their [`LxTxid`] as their id.
-///
-/// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
-/// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
-///
-/// [`PaymentId`]: lightning::ln::channelmanager::PaymentId
+/// Prefixes: `ln` (Lightning), `or` (on-chain receive), `os` (on-chain send),
+/// `fr` (offer receive), `fs` (offer send).
+//
+// - Lightning inbound+outbound invoice+spontaneous payments use their
+//   [`LxPaymentHash`] as their id. TODO(phlip9): inbound spontaneous payments
+//   should use `LnClaimId` as their id.
+// - Lightning _reusable_ inbound offer payments use the [`LnClaimId`] as their
+//   id.
+// - Lightning _single-use_ inbound offer payments use the [`OfferId`] as their
+//   id. TODO(phlip9): impl
+// - Lightning outbound offer payments use a [`ClientPaymentId`] as their id.
+// - On-chain sends use a [`ClientPaymentId`] as their id.
+// - On-chain receives use their [`LxTxid`] as their id.
+//
+// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
+// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
+//
+// [`PaymentId`]: lightning::ln::channelmanager::PaymentId
 // TODO(phlip9): bolt12 refunds
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
@@ -693,7 +679,10 @@ pub enum LxPaymentId {
 #[repr(transparent)]
 pub struct ClientPaymentId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
-/// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
+/// The payment hash of a Lightning payment. Serialized as a 64-character hex
+/// string.
+//
+// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(RefCast, Serialize, Deserialize)]
@@ -706,7 +695,10 @@ pub struct LxPaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[repr(transparent)]
 pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-/// Newtype for [`PaymentSecret`] which impls [`Serialize`] / [`Deserialize`].
+/// The payment secret of a Lightning invoice, used to authenticate the payer.
+/// Serialized as a 64-character hex string.
+//
+// Newtype for [`PaymentSecret`] which impls [`Serialize`] / [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(RefCast, Serialize, Deserialize)]

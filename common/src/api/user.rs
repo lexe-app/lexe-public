@@ -39,7 +39,10 @@ pub struct MaybeUser {
     pub maybe_user: Option<User>,
 }
 
-/// A Lexe user's primary identifier - their `ed25519::PublicKey`.
+/// A Lexe user's primary identifier, derived from the root seed.
+/// Serialized as a 64-character hex string.
+//
+// Internally an `ed25519::PublicKey`.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
@@ -69,21 +72,24 @@ pub struct UserPkSet {
     pub user_pks: HashSet<UserPk>,
 }
 
-/// A simple wrapper around [`secp256k1::PublicKey`] which allows for
-/// `Arbitrary` and other custom impls.
-///
-/// # Notes
-///
-/// - We do not represent the inner value as `[u8; 33]` (the output of
-///   [`secp256k1::PublicKey::serialize`]) because not all `[u8; 33]`s are valid
-///   pubkeys.
-/// - We use [`PublicKey`]'s [`Serialize`] / [`Deserialize`] impls because it
-///   calls into `secp256k1` which does complicated validation to ensure that
-///   [`PublicKey`] is always valid.
-/// - We use [`PublicKey`]'s [`FromStr`] / [`fmt::Display`] impls for similar
-///   reasons. Nevertheless, we still run proptests to check for correctness.
-///
-/// [`PublicKey`]: secp256k1::PublicKey
+/// A Lightning node's secp256k1 public key (the `node_id`). Serialized as a
+/// 66-character hex string.
+//
+// A simple wrapper around [`secp256k1::PublicKey`] which allows for
+// `Arbitrary` and other custom impls.
+//
+// # Notes
+//
+// - We do not represent the inner value as `[u8; 33]` (the output of
+//   [`secp256k1::PublicKey::serialize`]) because not all `[u8; 33]`s are valid
+//   pubkeys.
+// - We use [`PublicKey`]'s [`Serialize`] / [`Deserialize`] impls because it
+//   calls into `secp256k1` which does complicated validation to ensure that
+//   [`PublicKey`] is always valid.
+// - We use [`PublicKey`]'s [`FromStr`] / [`fmt::Display`] impls for similar
+//   reasons. Nevertheless, we still run proptests to check for correctness.
+//
+// [`PublicKey`]: secp256k1::PublicKey
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]

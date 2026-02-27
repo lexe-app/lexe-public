@@ -26,7 +26,9 @@ use proptest::{prelude::any, strategy::Strategy};
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-/// Credentials required to connect to a user node via mTLS.
+/// Credentials used to authenticate with a Lexe user node.
+//
+// Required to connect to a user node via mTLS.
 pub enum Credentials {
     /// Using a [`RootSeed`]. Ex: app.
     RootSeed(RootSeed),
@@ -34,7 +36,7 @@ pub enum Credentials {
     ClientCredentials(ClientCredentials),
 }
 
-/// Borrowed credentials required to connect to a user node via mTLS.
+/// Borrowed version of [`Credentials`].
 #[derive(Copy, Clone)]
 pub enum CredentialsRef<'a> {
     /// Using a [`RootSeed`]. Ex: app.
@@ -43,10 +45,9 @@ pub enum CredentialsRef<'a> {
     ClientCredentials(&'a ClientCredentials),
 }
 
-/// All secrets required for a non-RootSeed client to authenticate and
-/// communicate with a user's node.
-///
-/// This is exposed to users as a base64-encoded JSON blob.
+/// All secrets required for an SDK client to authenticate with a user's node.
+/// Encoded as a base64 JSON blob for easy transport (e.g. via env var or
+/// config file).
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
     any(test, feature = "test-utils"),

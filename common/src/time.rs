@@ -19,13 +19,14 @@ impl Display for DisplayMs {
     }
 }
 
-/// The number of milliseconds since the [`UNIX_EPOCH`].
-///
-/// - Internally represented by a non-negative [`i64`] to ease interoperability
-///   with some platforms we use which don't support unsigned ints well
-///   (Postgres and Dart/Flutter).
-/// - Can represent any time from January 1st, 1970 00:00:00.000 UTC to roughly
-///   292 million years in the future.
+/// A timestamp in milliseconds since the UNIX epoch (January 1, 1970).
+/// Serialized as a non-negative integer.
+//
+// - Internally represented by a non-negative [`i64`] to ease interoperability
+//   with some platforms we use which don't support unsigned ints well (Postgres
+//   and Dart/Flutter).
+// - Can represent any time from January 1st, 1970 00:00:00.000 UTC to roughly
+//   292 million years in the future.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize)]
 pub struct TimestampMs(i64);

@@ -283,10 +283,12 @@ pub enum Error {
     DeserializationError,
 }
 
-/// An enclave measurement.
-///
-/// Get the current enclave measurement with [`measurement`].
-/// Get the current signer measurement with [`signer`].
+/// An SGX enclave measurement (MRENCLAVE): a SHA-256 hash of the enclave
+/// binary, used to verify node integrity. Serialized as a 64-character hex
+/// string.
+//
+// Get the current enclave measurement with [`measurement`].
+// Get the current signer measurement with [`signer`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(RefCast, Serialize, Deserialize)]

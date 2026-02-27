@@ -16,8 +16,11 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::types::payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret};
 
-/// Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /
-/// Deserialize using the LDK's [`FromStr`] / [`Display`] impls.
+/// A BOLT 11 Lightning invoice. Serialized as a bech32-encoded string
+/// (e.g. `"lnbc1..."`).
+//
+// Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /
+// Deserialize using LDK's [`FromStr`] / [`Display`] impls.
 #[derive(Clone, Debug, Eq, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct LxInvoice(pub Bolt11Invoice);
 
