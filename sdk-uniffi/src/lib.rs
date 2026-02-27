@@ -23,7 +23,7 @@ use common::{
 use lexe::{
     blocking_wallet::BlockingLexeWallet as BlockingLexeWalletRs,
     config::WalletEnvConfig as WalletEnvConfigRs,
-    types::{
+    types::command::{
         SdkCreateInvoiceRequest as SdkCreateInvoiceRequestRs,
         SdkCreateInvoiceResponse as SdkCreateInvoiceResponseRs,
         SdkGetPaymentRequest as SdkGetPaymentRequestRs,

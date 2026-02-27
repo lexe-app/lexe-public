@@ -25,38 +25,55 @@ pub use common::default_lexe_data_dir;
 /// Reexported types needed by SDK consumers.
 /// All types exported here are considered part of the stable public API.
 pub mod types {
-    pub use common::{
-        api::user::{NodePk, UserPk},
-        enclave::Measurement,
-        ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
-        rng::SysRng,
-        root_seed::RootSeed,
-        time::TimestampMs,
-    };
-    pub use lexe_api::{
-        models::command::UpdatePaymentNote,
-        types::payments::{
+    /// Authentication, identity, and node verification.
+    pub mod auth {
+        pub use common::{
+            api::user::{NodePk, UserPk},
+            enclave::Measurement,
+            root_seed::RootSeed,
+        };
+        pub use node_client::credentials::{
+            ClientCredentials, Credentials, CredentialsRef,
+        };
+    }
+
+    /// On-chain and Bitcoin primitives.
+    pub mod bitcoin {
+        pub use common::ln::{
+            amount::Amount, hashes::LxTxid, priority::ConfirmationPriority,
+        };
+        pub use lexe_api_core::types::invoice::LxInvoice;
+    }
+
+    /// Request, response, and command types for SDK operations.
+    pub mod command {
+        pub use lexe_api::models::command::UpdatePaymentNote;
+        pub use sdk_core::{
+            models::{
+                SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
+                SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
+                SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+            },
+            types::SdkPayment,
+        };
+    }
+
+    /// Payment data and metadata.
+    pub mod payment {
+        pub use lexe_api::types::payments::{
             BasicPaymentV2, PaymentCreatedIndex, PaymentUpdatedIndex,
-        },
-    };
-    pub use lexe_api_core::types::{
-        invoice::LxInvoice,
-        payments::{
+        };
+        pub use lexe_api_core::types::payments::{
             LxPaymentHash, LxPaymentId, LxPaymentSecret, PaymentDirection,
             PaymentKind, PaymentRail, PaymentStatus,
-        },
-    };
-    pub use node_client::credentials::{
-        ClientCredentials, Credentials, CredentialsRef,
-    };
-    pub use sdk_core::{
-        models::{
-            SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-            SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
-            SdkPayInvoiceRequest, SdkPayInvoiceResponse,
-        },
-        types::SdkPayment,
-    };
+        };
+    }
+
+    /// General-purpose utilities.
+    pub mod util {
+        // TODO(ai): SysRng shouldn't be exposed in the public SDK API.
+        pub use common::{rng::SysRng, time::TimestampMs};
+    }
 }
 
 // Reexport possibly-useful dependencies
