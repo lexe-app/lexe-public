@@ -22,7 +22,7 @@ set -o pipefail
 
 export NO_COLOR=1
 
-CARGO_NDK_VERSION="3.5.7"
+CARGO_NDK_VERSION="4.1.2"
 
 # Important envs passed to us from `app_rs_dart/android/build.gradle`:
 #
