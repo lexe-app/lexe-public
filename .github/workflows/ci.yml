@@ -105,6 +105,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
       - run: cargo test --locked
+        # TODO(max): Add `-- --ensure-time` once it stabilizes (currently nightly-only).
+        # Test timeouts: warn at 1 min, critical (fail) at 10 min
+        # env:
+        #   RUST_TEST_TIME_UNIT: 60000,600000
+        #   RUST_TEST_TIME_INTEGRATION: 60000,600000
+        #   RUST_TEST_TIME_DOCTEST: 60000,600000
 
   test-sdk-python:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
