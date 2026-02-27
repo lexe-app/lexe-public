@@ -60,6 +60,9 @@ arc-swap = "1.7"
 argh = "0.1"
 # BER and DER parsers / encoders
 asn1-rs = { version = "0.7", default-features = false }
+# Wrap futures so they can be polled outside of a tokio runtime.
+# NOTE: keep in sync with the version used by uniffi_core.
+async-compat = "0.2"
 # async fn's in trait methods
 async-trait = "0.1"
 # Web framework from tokio-rs community based on tokio, hyper, and tower.
@@ -195,7 +198,8 @@ tower-service = "0.3"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["smallvec"] }
-# Generate bindings to our SDK in other languages
+# Generate bindings to our SDK in other languages.
+# NOTE: when upgrading, keep async-compat version in sync with uniffi_core.
 uniffi = { version = "0.30", default-features = false }
 # Mozilla's set of trusted webpki root certificates hard-coded into a const
 webpki-roots = "1"

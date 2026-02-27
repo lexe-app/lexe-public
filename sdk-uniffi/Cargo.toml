@@ -31,7 +31,7 @@ required-features = ["bindgen"]
 # `wait_for_payment_completion` logic, add re-exports and crate exports if
 # needed.
 common = { path = "../common" }
-lexe = { path = "../lexe" }
+lexe = { path = "../lexe", features = ["blocking"] }
 lexe-api-core = { path = "../lexe-api-core" }
 lexe-std = { path = "../lexe-std" }
 node-client = { path = "../node-client", default-features = false }

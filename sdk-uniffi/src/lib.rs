@@ -21,6 +21,7 @@ use common::{
     root_seed::RootSeed as RootSeedRs,
 };
 use lexe::{
+    blocking_wallet::BlockingLexeWallet as BlockingLexeWalletRs,
     config::WalletEnvConfig as WalletEnvConfigRs,
     types::{
         SdkCreateInvoiceRequest as SdkCreateInvoiceRequestRs,
@@ -142,7 +143,7 @@ pub enum SeedFileError {
 
 /// Error type for wallet loading operations.
 ///
-/// Returned by [`LexeWallet::load`].
+/// Returned by [`AsyncLexeWallet::load`] and [`BlockingLexeWallet::load`].
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum LoadWalletError {
     /// No local wallet data exists for this user and environment.
@@ -501,18 +502,21 @@ impl From<SdkNodeInfoRs> for NodeInfo {
     }
 }
 
-// ================== //
-// --- LexeWallet --- //
-// ================== //
+// ======================= //
+// --- AsyncLexeWallet --- //
+// ======================= //
 
-/// The main wallet handle for interacting with Lexe.
+/// Top-level async handle to a Lexe wallet.
+///
+/// Exposes simple async APIs for managing a Lexe wallet.
+/// For synchronous usage, use [`BlockingLexeWallet`].
 #[derive(uniffi::Object)]
-pub struct LexeWallet {
+pub struct AsyncLexeWallet {
     inner: LexeWalletRs<lexe::wallet::WithDb>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
-impl LexeWallet {
+impl AsyncLexeWallet {
     /// Create a fresh wallet, deleting any existing local state for this user.
     /// Data for other users and environments is not affected.
     ///
@@ -543,7 +547,8 @@ impl LexeWallet {
     /// Load an existing wallet from local state.
     ///
     /// Raises [`LoadWalletError::NotFound`] if no local data exists for this
-    /// user and environment. Use [`LexeWallet::fresh`] to create local state.
+    /// user and environment. Use [`AsyncLexeWallet::fresh`] to create local
+    /// state.
     ///
     /// It is recommended to always pass the same `lexe_data_dir`, regardless of
     /// environment (dev/staging/prod) or user. Data is namespaced internally,
@@ -857,6 +862,365 @@ impl LexeWallet {
             }
 
             tokio::time::sleep(backoff.next_delay()).await;
+        }
+    }
+}
+
+// ========================== //
+// --- BlockingLexeWallet --- //
+// ========================== //
+
+/// Top-level synchronous handle to a Lexe wallet.
+///
+/// Exposes simple blocking APIs for managing a Lexe wallet.
+/// For async usage, use [`AsyncLexeWallet`].
+#[derive(uniffi::Object)]
+pub struct BlockingLexeWallet {
+    inner: BlockingLexeWalletRs,
+}
+
+#[uniffi::export]
+impl BlockingLexeWallet {
+    /// Create a fresh wallet, deleting any existing local state for this user.
+    /// Data for other users and environments is not affected.
+    ///
+    /// It is recommended to always pass the same `lexe_data_dir`, regardless of
+    /// environment (dev/staging/prod) or user. Data is namespaced internally,
+    /// so users and environments do not interfere with each other.
+    /// Defaults to `~/.lexe` if not specified.
+    #[uniffi::constructor(default(lexe_data_dir = None))]
+    pub fn fresh(
+        env_config: Arc<WalletEnvConfig>,
+        root_seed: Arc<RootSeed>,
+        lexe_data_dir: Option<String>,
+    ) -> FfiResult<Arc<Self>> {
+        let mut rng = SysRng::new();
+        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let env_config_rs = env_config.to_rs();
+
+        let inner = BlockingLexeWalletRs::fresh(
+            &mut rng,
+            env_config_rs,
+            credentials,
+            lexe_data_dir.map(PathBuf::from),
+        )?;
+
+        Ok(Arc::new(Self { inner }))
+    }
+
+    /// Load an existing wallet from local state.
+    ///
+    /// Raises [`LoadWalletError::NotFound`] if no local data exists for this
+    /// user and environment. Use [`BlockingLexeWallet::fresh`] to create local
+    /// state.
+    ///
+    /// It is recommended to always pass the same `lexe_data_dir`, regardless of
+    /// environment (dev/staging/prod) or user. Data is namespaced internally,
+    /// so users and environments do not interfere with each other.
+    /// Defaults to `~/.lexe` if not specified.
+    #[uniffi::constructor(default(lexe_data_dir = None))]
+    pub fn load(
+        env_config: Arc<WalletEnvConfig>,
+        root_seed: Arc<RootSeed>,
+        lexe_data_dir: Option<String>,
+    ) -> Result<Arc<Self>, LoadWalletError> {
+        let mut rng = SysRng::new();
+        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let env_config_rs = env_config.to_rs();
+
+        let maybe_inner = BlockingLexeWalletRs::load(
+            &mut rng,
+            env_config_rs,
+            credentials,
+            lexe_data_dir.map(PathBuf::from),
+        )
+        .map_err(|e| LoadWalletError::LoadFailed {
+            message: format!("{e:#}"),
+        })?;
+
+        match maybe_inner {
+            Some(inner) => Ok(Arc::new(Self { inner })),
+            None => Err(LoadWalletError::NotFound),
+        }
+    }
+
+    /// Load an existing wallet, or create a fresh one if no local data exists.
+    ///
+    /// It is recommended to always pass the same `lexe_data_dir`, regardless of
+    /// environment (dev/staging/prod) or user. Data is namespaced internally,
+    /// so users and environments do not interfere with each other.
+    /// Defaults to `~/.lexe` if not specified.
+    #[uniffi::constructor(default(lexe_data_dir = None))]
+    pub fn load_or_fresh(
+        env_config: Arc<WalletEnvConfig>,
+        root_seed: Arc<RootSeed>,
+        lexe_data_dir: Option<String>,
+    ) -> FfiResult<Arc<Self>> {
+        let mut rng = SysRng::new();
+        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let env_config_rs = env_config.to_rs();
+
+        let inner = BlockingLexeWalletRs::load_or_fresh(
+            &mut rng,
+            env_config_rs,
+            credentials,
+            lexe_data_dir.map(PathBuf::from),
+        )?;
+
+        Ok(Arc::new(Self { inner }))
+    }
+
+    /// Registers this user with Lexe and provisions their node.
+    ///
+    /// Call this after creating the wallet for the first time. It is
+    /// idempotent, so calling it again for an already-signed-up user is safe.
+    ///
+    /// **Important**: After signup, ensure the user's root seed is persisted!
+    /// Without their seed, users lose access to their funds permanently.
+    ///
+    /// - `partner_pk`: Optional hex-encoded [`UserPk`] of your company account.
+    ///   Set this to earn a share of fees from wallets you sign up.
+    pub fn signup(
+        &self,
+        root_seed: Arc<RootSeed>,
+        partner_pk: Option<String>,
+    ) -> FfiResult<()> {
+        let mut rng = SysRng::new();
+        let partner = partner_pk
+            .as_deref()
+            .map(|s| {
+                s.parse::<UserPk>().map_err(|e| {
+                    anyhow::anyhow!("Invalid partner user_pk: {e}")
+                })
+            })
+            .transpose()?;
+
+        self.inner.signup(&mut rng, root_seed.as_rs(), partner)?;
+        Ok(())
+    }
+
+    /// Ensures the wallet is provisioned to all recent trusted releases.
+    ///
+    /// Call this every time the wallet is loaded to ensure the user is running
+    /// the most up-to-date enclave software. Fetches current enclaves from the
+    /// gateway and provisions any that need updating.
+    pub fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
+        let credentials = CredentialsRef::from(root_seed.as_rs());
+        self.inner.provision(credentials)?;
+        Ok(())
+    }
+
+    /// Get the user's hex-encoded public key derived from the root seed.
+    pub fn user_pk(&self) -> String {
+        self.inner.user_config().user_pk.to_string()
+    }
+
+    /// Get information about the node.
+    pub fn node_info(&self) -> FfiResult<NodeInfo> {
+        let info = self.inner.node_info()?;
+        Ok(info.into())
+    }
+
+    /// Create a BOLT11 invoice.
+    /// `expiration_secs` is the invoice expiry, in seconds.
+    /// `amount_sats` is optional; if `None`, the invoice is amountless.
+    /// `description` is shown to the payer, if provided.
+    pub fn create_invoice(
+        &self,
+        expiration_secs: u32,
+        amount_sats: Option<u64>,
+        description: Option<String>,
+    ) -> FfiResult<CreateInvoiceResponse> {
+        let amount = amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .map_err(|e| anyhow::anyhow!("Invalid amount: {e}"))?;
+
+        let req = SdkCreateInvoiceRequestRs {
+            expiration_secs,
+            amount,
+            description,
+        };
+        let resp = self.inner.create_invoice(req)?;
+        Ok(resp.into())
+    }
+
+    /// Pay a BOLT11 invoice.
+    /// `fallback_amount_sats` is required if the invoice is amountless.
+    /// `note` is a private note that the receiver does not see.
+    pub fn pay_invoice(
+        &self,
+        invoice: String,
+        fallback_amount_sats: Option<u64>,
+        note: Option<String>,
+    ) -> FfiResult<PayInvoiceResponse> {
+        let invoice: LxInvoiceRs = invoice
+            .parse()
+            .map_err(|e| anyhow::anyhow!("Invalid invoice: {e}"))?;
+        let fallback_amount = fallback_amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .map_err(|e| anyhow::anyhow!("Invalid fallback amount: {e}"))?;
+
+        let req = SdkPayInvoiceRequestRs {
+            invoice,
+            fallback_amount,
+            note,
+        };
+        let resp = self.inner.pay_invoice(req)?;
+        Ok(resp.into())
+    }
+
+    /// Get a payment by its `payment_index` string.
+    pub fn get_payment(
+        &self,
+        payment_index: String,
+    ) -> FfiResult<Option<Payment>> {
+        let index = parse_payment_index(&payment_index)?;
+        let req = SdkGetPaymentRequestRs { index };
+        let resp = self.inner.get_payment(req)?;
+        Ok(resp.payment.map(Into::into))
+    }
+
+    /// Update a payment's note.
+    /// Call `sync_payments` first so the payment exists locally.
+    pub fn update_payment_note(
+        &self,
+        payment_index: String,
+        note: Option<String>,
+    ) -> FfiResult<()> {
+        let index = parse_payment_index(&payment_index)?;
+        let req = UpdatePaymentNoteRs { index, note };
+        self.inner.update_payment_note(req)?;
+        Ok(())
+    }
+
+    /// Sync payments from the node to local storage.
+    pub fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
+        let summary = self.inner.sync_payments()?;
+        Ok(PaymentSyncSummary {
+            num_new: summary.num_new as u64,
+            num_updated: summary.num_updated as u64,
+        })
+    }
+
+    /// List payments from local storage based on filters.
+    /// `offset` and `limit` are for pagination over local storage.
+    pub fn list_payments(
+        &self,
+        filter: PaymentFilter,
+        offset: u32,
+        limit: u32,
+    ) -> ListPaymentsResponse {
+        let db = self.inner.payments_db();
+        let offset = offset as usize;
+        let limit = limit as usize;
+
+        let (total_count, payments): (usize, Vec<Payment>) = match filter {
+            PaymentFilter::All => (
+                db.num_payments(),
+                (offset..)
+                    .take(limit)
+                    .filter_map(|idx| db.get_payment_by_scroll_idx(idx))
+                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
+                    .collect(),
+            ),
+            PaymentFilter::Pending => (
+                db.num_pending(),
+                (offset..)
+                    .take(limit)
+                    .filter_map(|idx| db.get_pending_payment_by_scroll_idx(idx))
+                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
+                    .collect(),
+            ),
+            PaymentFilter::Finalized => (
+                db.num_finalized(),
+                (offset..)
+                    .take(limit)
+                    .filter_map(|idx| {
+                        db.get_finalized_payment_by_scroll_idx(idx)
+                    })
+                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
+                    .collect(),
+            ),
+        };
+
+        ListPaymentsResponse {
+            payments,
+            total_count: total_count as u64,
+        }
+    }
+
+    /// Get the latest payment sync index (watermark).
+    ///
+    /// Returns the `updated_at` index of the most recently synced payment,
+    /// or `None` if no payments have been synced yet.
+    pub fn latest_payment_sync_index(&self) -> Option<String> {
+        self.inner
+            .payments_db()
+            .latest_updated_index()
+            .map(|idx| idx.to_string())
+    }
+
+    /// Delete all local payment data for this wallet.
+    ///
+    /// This clears the local payment cache. Remote data on the node is not
+    /// affected. Call `sync_payments` to re-populate from the node.
+    pub fn delete_local_payments(&self) -> FfiResult<()> {
+        self.inner
+            .payments_db()
+            .delete()
+            .context("Failed to delete local payments")?;
+        Ok(())
+    }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    /// Uses exponential backoff polling under the hood.
+    /// Recommended timeout is 120 seconds.
+    /// Maximum timeout is 10_800 seconds (3 hours).
+    pub fn wait_for_payment_completion(
+        &self,
+        payment_index: String,
+        timeout_secs: u32,
+    ) -> FfiResult<Payment> {
+        const MAX_TIMEOUT_SECS: u32 = 3 * 60 * 60;
+        if timeout_secs > MAX_TIMEOUT_SECS {
+            return Err(anyhow::anyhow!(
+                "timeout_secs exceeds max of {MAX_TIMEOUT_SECS}s (3 hours): {timeout_secs}s"
+            )
+            .into());
+        }
+
+        let timeout = Duration::from_secs(timeout_secs.into());
+        let start = std::time::Instant::now();
+        let index = parse_payment_index(&payment_index)?;
+        let mut backoff = backoff::iter_with_initial_wait_ms(1_000);
+
+        loop {
+            self.inner.sync_payments()?;
+
+            if let Some(payment) = self
+                .inner
+                .payments_db()
+                .get_payment_by_created_index(&index)
+            {
+                let payment = SdkPaymentRs::from(payment);
+                match payment.status {
+                    PaymentStatusRs::Completed | PaymentStatusRs::Failed => {
+                        return Ok(Payment::from(payment));
+                    }
+                    PaymentStatusRs::Pending => {}
+                }
+            }
+
+            if start.elapsed() >= timeout {
+                return Err(anyhow::anyhow!(
+                    "Payment did not complete within {timeout_secs}s timeout"
+                )
+                .into());
+            }
+
+            std::thread::sleep(backoff.next_delay());
         }
     }
 }

@@ -9,6 +9,8 @@ license.workspace = true
 version = "0.0.0"
 
 [features]
+# Enables a synchronous `BlockingLexeWallet` wrapper.
+blocking = ["dep:async-compat", "dep:futures"]
 # Enables test utilities like `InMemoryFfs`.
 test-utils = ["dep:tempfile"]
 # Enables unstable APIs.
@@ -40,6 +42,8 @@ tracing.workspace = true
 
 # --- OPTIONAL --- #
 
+async-compat = { workspace = true, optional = true }
+futures = { workspace = true, optional = true, features = ["executor"] }
 tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]

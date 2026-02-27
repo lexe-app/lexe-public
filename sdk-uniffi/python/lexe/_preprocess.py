@@ -35,8 +35,12 @@ Returns ``None`` for dev configs without a gateway URL override.
 
 _make_property(lexe.RootSeed, "seed_bytes", "The 32-byte root seed.")
 
-# --- LexeWallet properties --- #
+# --- Wallet properties --- #
 
-_make_property(lexe.LexeWallet, "user_pk", """\
+_make_property(lexe.BlockingLexeWallet, "user_pk", """\
+The user's hex-encoded ed25519 public key derived from the root seed.
+""")
+
+_make_property(lexe.AsyncLexeWallet, "user_pk", """\
 The user's hex-encoded ed25519 public key derived from the root seed.
 """)

@@ -2574,9 +2574,11 @@ name = "lexe"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-compat",
  "bip39",
  "bitcoin",
  "common",
+ "futures",
  "lexe-api",
  "lexe-api-core",
  "lexe-tokio",

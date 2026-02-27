@@ -14,6 +14,10 @@ import inspect
 
 from . import lexe
 
+# Aliases for local reasoning: the public-facing names after re-export.
+from .lexe import BlockingLexeWallet as LexeWallet
+from .lexe import AsyncLexeWallet
+
 
 def _set_method_doc(cls: type, name: str, doc: str) -> None:
     """Set __doc__ on a class method, handling classmethods.
@@ -248,12 +252,14 @@ Attributes:
     num_usable_channels: Number of usable Lightning channels.
 """
 
-# ================== #
-# --- LexeWallet --- #
-# ================== #
+# ========================= #
+# --- LexeWallet (sync) --- #
+# ========================= #
 
-lexe.LexeWallet.__doc__ = """\
-The main wallet handle for interacting with a Lexe Lightning node.
+LexeWallet.__doc__ = """\
+Synchronous wallet handle for interacting with a Lexe Lightning node.
+
+For async usage, use :class:`AsyncLexeWallet`.
 
 Create a wallet using one of the constructors:
 
@@ -269,16 +275,14 @@ Example::
     seed = config.read_seed()  # Raises SeedFileError.NotFound if missing
 
     wallet = LexeWallet.load_or_fresh(config, seed)
-    await wallet.signup(seed)
-    await wallet.provision(seed)
+    wallet.signup(seed)
+    wallet.provision(seed)
 
-    info = await wallet.node_info()
+    info = wallet.node_info()
     print(f"Balance: {info.balance_sats} sats")
 """
 
-# LexeWallet constructors
-
-_set_method_doc(lexe.LexeWallet, "load", """\
+_set_method_doc(LexeWallet, "load", """\
 Load an existing wallet from local state.
 
 Raises :class:`LoadWalletError.NotFound` if no local data exists.
@@ -304,7 +308,7 @@ Example::
         wallet = LexeWallet.fresh(config, seed)
 """)
 
-_set_method_doc(lexe.LexeWallet, "fresh", """\
+_set_method_doc(LexeWallet, "fresh", """\
 Create a fresh wallet, deleting any existing local state for this user.
 
 Data for other users and environments is not affected.
@@ -321,7 +325,7 @@ Raises:
     FfiError: If wallet creation fails.
 """)
 
-_set_method_doc(lexe.LexeWallet, "load_or_fresh", """\
+_set_method_doc(LexeWallet, "load_or_fresh", """\
 Load an existing wallet, or create a fresh one if none exists.
 
 This is the recommended constructor for most use cases.
@@ -338,9 +342,306 @@ Raises:
     FfiError: If wallet creation fails.
 """)
 
-# LexeWallet methods
+_set_method_doc(LexeWallet, "signup", """\
+Register this user with Lexe and provision their node.
 
-_set_method_doc(lexe.LexeWallet, "signup", """\
+Call after creating the wallet for the first time. Idempotent:
+calling again for an already-signed-up user is safe.
+
+.. important::
+
+    After signup, persist the user's root seed!
+    Without it, users lose access to their funds permanently.
+
+Args:
+    root_seed: The user's root seed.
+    partner_pk: Optional hex-encoded user public key of your
+        company account. Set to earn a share of fees.
+
+Raises:
+    FfiError: If signup or provisioning fails.
+
+Example::
+
+    wallet.signup(seed)
+    config.write_seed(seed)  # Persist seed after signup!
+""")
+
+_set_method_doc(LexeWallet, "provision", """\
+Ensure the wallet is provisioned to all recent trusted releases.
+
+Call every time the wallet is loaded to keep the user running
+the most up-to-date enclave software.
+
+Args:
+    root_seed: The user's root seed.
+
+Raises:
+    FfiError: If provisioning fails.
+
+Example::
+
+    wallet = LexeWallet.load_or_fresh(config, seed)
+    wallet.provision(seed)
+""")
+
+_set_method_doc(LexeWallet, "node_info", """\
+Get information about the node (balance, channels, version).
+
+Returns:
+    A :class:`NodeInfo` with the node's current state.
+
+Raises:
+    FfiError: If the node is unreachable.
+
+Example::
+
+    info = wallet.node_info()
+    print(f"Balance: {info.balance_sats} sats")
+    print(f"Channels: {info.num_usable_channels}/{info.num_channels}")
+""")
+
+_set_method_doc(LexeWallet, "create_invoice", """\
+Create a BOLT11 Lightning invoice.
+
+Args:
+    expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour).
+    amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
+    description: Optional description shown to the payer.
+
+Returns:
+    A :class:`CreateInvoiceResponse` with the invoice string and metadata.
+
+Raises:
+    FfiError: If the node is offline or the request fails.
+
+Example::
+
+    resp = wallet.create_invoice(3600, 1000, "Coffee")
+    print(resp.invoice)      # BOLT11 invoice string
+    print(resp.amount_sats)  # 1000
+""")
+
+_set_method_doc(LexeWallet, "pay_invoice", """\
+Pay a BOLT11 Lightning invoice.
+
+Args:
+    invoice: BOLT11 invoice string to pay.
+    fallback_amount_sats: Required if the invoice has no amount encoded.
+    note: Optional private note (not visible to the receiver).
+
+Returns:
+    A :class:`PayInvoiceResponse` with the payment index and timestamp.
+
+Raises:
+    FfiError: If the invoice is invalid or payment initiation fails.
+
+Example::
+
+    resp = wallet.pay_invoice(bolt11_string)
+    payment = wallet.wait_for_payment_completion(
+        resp.payment_index, timeout_secs=120,
+    )
+    print(f"Payment {payment.status}")
+""")
+
+_set_method_doc(LexeWallet, "get_payment", """\
+Get a specific payment by its index.
+
+Args:
+    payment_index: Full payment index string
+        (format: ``<created_at_ms>-<payment_id>``).
+
+Returns:
+    The :class:`Payment`, or ``None`` if not found locally.
+
+Raises:
+    FfiError: If the index is malformed or the request fails.
+""")
+
+_set_method_doc(LexeWallet, "update_payment_note", """\
+Update a payment's personal note.
+
+Call :meth:`sync_payments` first so the payment exists locally.
+
+Args:
+    payment_index: Full payment index string.
+    note: New note text, or ``None`` to clear.
+
+Raises:
+    FfiError: If the payment doesn't exist locally.
+""")
+
+_set_method_doc(LexeWallet, "sync_payments", """\
+Sync payments from the remote node to local storage.
+
+Call periodically to keep local payment data up to date.
+
+Returns:
+    A :class:`PaymentSyncSummary` with counts of new and updated payments.
+
+Raises:
+    FfiError: If the node is unreachable.
+
+Example::
+
+    summary = wallet.sync_payments()
+    print(f"New: {summary.num_new}, Updated: {summary.num_updated}")
+""")
+
+_set_method_doc(LexeWallet, "list_payments", """\
+List payments from local storage.
+
+Reads from the local database only (no network calls).
+Call :meth:`sync_payments` first to ensure data is fresh.
+
+Args:
+    filter: Which payments to include
+        (:attr:`PaymentFilter.ALL`, :attr:`PaymentFilter.PENDING`,
+        or :attr:`PaymentFilter.FINALIZED`).
+    offset: Pagination offset (0-based).
+    limit: Maximum number of payments to return.
+
+Returns:
+    A :class:`ListPaymentsResponse` with payments and total count.
+
+Example::
+
+    wallet.sync_payments()
+    resp = wallet.list_payments(PaymentFilter.ALL, offset=0, limit=20)
+    for p in resp.payments:
+        print(f"{p.payment_index}: {p.amount_sats} sats ({p.status})")
+""")
+
+_set_method_doc(LexeWallet, "latest_payment_sync_index", """\
+Get the latest payment sync watermark.
+
+Returns:
+    The ``updated_at`` index of the most recently synced payment,
+    or ``None`` if no payments have been synced yet.
+""")
+
+_set_method_doc(LexeWallet, "delete_local_payments", """\
+Delete all local payment data for this wallet.
+
+Clears the local payment cache only. Remote data on the node is
+not affected. Call :meth:`sync_payments` to re-populate.
+
+Raises:
+    FfiError: If the local database cannot be cleared.
+""")
+
+_set_method_doc(LexeWallet, "wait_for_payment_completion", """\
+Wait for a payment to reach a terminal state (completed or failed).
+
+Polls the node with exponential backoff until the payment finalizes
+or the timeout is reached.
+
+Args:
+    payment_index: Full payment index string.
+    timeout_secs: Maximum wait time in seconds (recommended: ``120``,
+        max: ``10800`` i.e. 3 hours).
+
+Returns:
+    The finalized :class:`Payment`.
+
+Raises:
+    FfiError: If the timeout is exceeded or the node is unreachable.
+
+Example::
+
+    resp = wallet.pay_invoice(invoice_str)
+    payment = wallet.wait_for_payment_completion(
+        resp.payment_index, timeout_secs=120,
+    )
+    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
+""")
+
+# ======================= #
+# --- AsyncLexeWallet --- #
+# ======================= #
+
+AsyncLexeWallet.__doc__ = """\
+Async wallet handle for interacting with a Lexe Lightning node.
+
+For synchronous usage, use :class:`LexeWallet`.
+
+Example::
+
+    from lexe import AsyncLexeWallet, WalletEnvConfig
+
+    config = WalletEnvConfig.mainnet()
+    seed = config.read_seed()
+
+    wallet = AsyncLexeWallet.load_or_fresh(config, seed)
+    await wallet.signup(seed)
+    await wallet.provision(seed)
+
+    info = await wallet.node_info()
+    print(f"Balance: {info.balance_sats} sats")
+"""
+
+_set_method_doc(AsyncLexeWallet, "load", """\
+Load an existing wallet from local state.
+
+Raises :class:`LoadWalletError.NotFound` if no local data exists.
+Use :meth:`AsyncLexeWallet.fresh` to create local state.
+
+Args:
+    env_config: Wallet environment configuration.
+    root_seed: The user's root seed.
+    lexe_data_dir: Base data directory (default: ``~/.lexe``).
+
+Returns:
+    The loaded AsyncLexeWallet instance.
+
+Raises:
+    LoadWalletError.NotFound: If no local data exists.
+    LoadWalletError.LoadFailed: If local data is corrupted.
+
+Example::
+
+    try:
+        wallet = AsyncLexeWallet.load(config, seed)
+    except LoadWalletError.NotFound:
+        wallet = AsyncLexeWallet.fresh(config, seed)
+""")
+
+_set_method_doc(AsyncLexeWallet, "fresh", """\
+Create a fresh wallet, deleting any existing local state for this user.
+
+Data for other users and environments is not affected.
+
+Args:
+    env_config: Wallet environment configuration.
+    root_seed: The user's root seed.
+    lexe_data_dir: Base data directory (default: ``~/.lexe``).
+
+Returns:
+    A new AsyncLexeWallet instance.
+
+Raises:
+    FfiError: If wallet creation fails.
+""")
+
+_set_method_doc(AsyncLexeWallet, "load_or_fresh", """\
+Load an existing wallet, or create a fresh one if none exists.
+
+This is the recommended constructor for most use cases.
+
+Args:
+    env_config: Wallet environment configuration.
+    root_seed: The user's root seed.
+    lexe_data_dir: Base data directory (default: ``~/.lexe``).
+
+Returns:
+    An AsyncLexeWallet instance (loaded or newly created).
+
+Raises:
+    FfiError: If wallet creation fails.
+""")
+
+_set_method_doc(AsyncLexeWallet, "signup", """\
 Register this user with Lexe and provision their node.
 
 Call after creating the wallet for the first time. Idempotent:
@@ -365,7 +666,7 @@ Example::
     config.write_seed(seed)  # Persist seed after signup!
 """)
 
-_set_method_doc(lexe.LexeWallet, "provision", """\
+_set_method_doc(AsyncLexeWallet, "provision", """\
 Ensure the wallet is provisioned to all recent trusted releases.
 
 Call every time the wallet is loaded to keep the user running
@@ -379,11 +680,11 @@ Raises:
 
 Example::
 
-    wallet = LexeWallet.load_or_fresh(config, seed)
+    wallet = AsyncLexeWallet.load_or_fresh(config, seed)
     await wallet.provision(seed)
 """)
 
-_set_method_doc(lexe.LexeWallet, "node_info", """\
+_set_method_doc(AsyncLexeWallet, "node_info", """\
 Get information about the node (balance, channels, version).
 
 Returns:
@@ -399,7 +700,7 @@ Example::
     print(f"Channels: {info.num_usable_channels}/{info.num_channels}")
 """)
 
-_set_method_doc(lexe.LexeWallet, "create_invoice", """\
+_set_method_doc(AsyncLexeWallet, "create_invoice", """\
 Create a BOLT11 Lightning invoice.
 
 Args:
@@ -420,7 +721,7 @@ Example::
     print(resp.amount_sats)  # 1000
 """)
 
-_set_method_doc(lexe.LexeWallet, "pay_invoice", """\
+_set_method_doc(AsyncLexeWallet, "pay_invoice", """\
 Pay a BOLT11 Lightning invoice.
 
 Args:
@@ -443,7 +744,7 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
-_set_method_doc(lexe.LexeWallet, "get_payment", """\
+_set_method_doc(AsyncLexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
 Args:
@@ -457,7 +758,7 @@ Raises:
     FfiError: If the index is malformed or the request fails.
 """)
 
-_set_method_doc(lexe.LexeWallet, "update_payment_note", """\
+_set_method_doc(AsyncLexeWallet, "update_payment_note", """\
 Update a payment's personal note.
 
 Call :meth:`sync_payments` first so the payment exists locally.
@@ -470,7 +771,7 @@ Raises:
     FfiError: If the payment doesn't exist locally.
 """)
 
-_set_method_doc(lexe.LexeWallet, "sync_payments", """\
+_set_method_doc(AsyncLexeWallet, "sync_payments", """\
 Sync payments from the remote node to local storage.
 
 Call periodically to keep local payment data up to date.
@@ -487,7 +788,7 @@ Example::
     print(f"New: {summary.num_new}, Updated: {summary.num_updated}")
 """)
 
-_set_method_doc(lexe.LexeWallet, "list_payments", """\
+_set_method_doc(AsyncLexeWallet, "list_payments", """\
 List payments from local storage.
 
 Reads from the local database only (no network calls).
@@ -511,7 +812,7 @@ Example::
         print(f"{p.payment_index}: {p.amount_sats} sats ({p.status})")
 """)
 
-_set_method_doc(lexe.LexeWallet, "latest_payment_sync_index", """\
+_set_method_doc(AsyncLexeWallet, "latest_payment_sync_index", """\
 Get the latest payment sync watermark.
 
 Returns:
@@ -519,7 +820,7 @@ Returns:
     or ``None`` if no payments have been synced yet.
 """)
 
-_set_method_doc(lexe.LexeWallet, "delete_local_payments", """\
+_set_method_doc(AsyncLexeWallet, "delete_local_payments", """\
 Delete all local payment data for this wallet.
 
 Clears the local payment cache only. Remote data on the node is
@@ -529,7 +830,7 @@ Raises:
     FfiError: If the local database cannot be cleared.
 """)
 
-_set_method_doc(lexe.LexeWallet, "wait_for_payment_completion", """\
+_set_method_doc(AsyncLexeWallet, "wait_for_payment_completion", """\
 Wait for a payment to reach a terminal state (completed or failed).
 
 Polls the node with exponential backoff until the payment finalizes
@@ -724,7 +1025,7 @@ Example::
 lexe.LoadWalletError.__doc__ = """\
 Error type for wallet loading operations.
 
-Raised by :meth:`LexeWallet.load`.
+Raised by :meth:`LexeWallet.load` and :meth:`AsyncLexeWallet.load`.
 
 Variants:
 
@@ -749,7 +1050,7 @@ Catch this to handle Lexe SDK errors.
 Example::
 
     try:
-        info = await wallet.node_info()
+        info = wallet.node_info()
     except FfiError as e:
         print(f"SDK error: {e.message()}")
 """

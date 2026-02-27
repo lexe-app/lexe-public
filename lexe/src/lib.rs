@@ -13,6 +13,12 @@ pub mod payments_db;
 /// `LexeWallet`: the top-level handle to a Lexe wallet.
 pub mod wallet;
 
+/// `BlockingLexeWallet`: synchronous wrapper around `LexeWallet`.
+///
+/// Enabled by the `blocking` feature flag.
+#[cfg(feature = "blocking")]
+pub mod blocking_wallet;
+
 /// Returns the default Lexe data directory (`~/.lexe`).
 pub use common::default_lexe_data_dir;
 

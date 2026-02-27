@@ -1,11 +1,9 @@
 """Pytest configuration for Lexe SDK tests."""
 
 import atexit
-import asyncio
 import json
 import os
 import tempfile
-from functools import wraps
 from typing import Optional
 
 import pytest
@@ -82,19 +80,6 @@ def load_prefunded_wallet(
         raise RuntimeError("Failed to load pre-funded wallet")
 
     return wallet
-
-
-def async_timeout(seconds: float):
-    """Decorator to add timeout to async test functions."""
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            return await asyncio.wait_for(
-                func(*args, **kwargs),
-                timeout=seconds,
-            )
-        return wrapper
-    return decorator
 
 
 def create_test_root_seed() -> lexe.RootSeed:

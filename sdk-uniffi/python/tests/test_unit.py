@@ -13,6 +13,20 @@ import lexe
 from conftest import create_dev_config, create_test_root_seed
 
 
+def test_sync_async_wallet_types():
+    """Test that LexeWallet (sync) and AsyncLexeWallet are both available."""
+    # LexeWallet is the sync default (re-exported BlockingLexeWallet)
+    assert hasattr(lexe, "LexeWallet")
+    assert lexe.LexeWallet.__name__ == "LexeWallet"
+
+    # AsyncLexeWallet is also available
+    assert hasattr(lexe, "AsyncLexeWallet")
+    assert lexe.AsyncLexeWallet.__name__ == "AsyncLexeWallet"
+
+    # They should be different types
+    assert lexe.LexeWallet is not lexe.AsyncLexeWallet
+
+
 def test_enums():
     """Test enum types are properly exposed."""
     # DeployEnv
