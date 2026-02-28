@@ -37,7 +37,10 @@ include = [
     #
     # NOTE: `maturin` will automatically install `rustup` into a tempdir for
     # users with no Rust toolchain installed.
-    { path = "rust-toolchain.toml", format = ["sdist"] }
+    { path = "rust-toolchain.toml", format = ["sdist"] },
+
+    # Ensure our releases.json file gets included for SDK provision
+    { path = "releases.json", format = ["sdist"] },
 ]
 
 [tool.pytest.ini_options]
