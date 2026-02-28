@@ -439,9 +439,7 @@ Raises:
 Example::
 
     resp = wallet.pay_invoice(bolt11_string)
-    payment = wallet.wait_for_payment_completion(
-        resp.payment_index, timeout_secs=120,
-    )
+    payment = wallet.wait_for_payment(resp.payment_index)
     print(f"Payment {payment.status}")
 """)
 
@@ -533,16 +531,17 @@ Raises:
     FfiError: If the local database cannot be cleared.
 """)
 
-_set_method_doc(LexeWallet, "wait_for_payment_completion", """\
+_set_method_doc(LexeWallet, "wait_for_payment", """\
 Wait for a payment to reach a terminal state (completed or failed).
 
 Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached.
+or the timeout is reached. Defaults to 10 minutes if not specified.
+Maximum timeout is 86,400 seconds (24 hours).
 
 Args:
     payment_index: Full payment index string.
-    timeout_secs: Maximum wait time in seconds (recommended: ``120``,
-        max: ``10800`` i.e. 3 hours).
+    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
+        Max: ``86400`` (24 hours).
 
 Returns:
     The finalized :class:`Payment`.
@@ -553,9 +552,7 @@ Raises:
 Example::
 
     resp = wallet.pay_invoice(invoice_str)
-    payment = wallet.wait_for_payment_completion(
-        resp.payment_index, timeout_secs=120,
-    )
+    payment = wallet.wait_for_payment(resp.payment_index)
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
 
@@ -740,9 +737,7 @@ Raises:
 Example::
 
     resp = await wallet.pay_invoice(bolt11_string)
-    payment = await wallet.wait_for_payment_completion(
-        resp.payment_index, timeout_secs=120,
-    )
+    payment = await wallet.wait_for_payment(resp.payment_index)
     print(f"Payment {payment.status}")
 """)
 
@@ -834,16 +829,17 @@ Raises:
     FfiError: If the local database cannot be cleared.
 """)
 
-_set_method_doc(AsyncLexeWallet, "wait_for_payment_completion", """\
+_set_method_doc(AsyncLexeWallet, "wait_for_payment", """\
 Wait for a payment to reach a terminal state (completed or failed).
 
 Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached.
+or the timeout is reached. Defaults to 10 minutes if not specified.
+Maximum timeout is 86,400 seconds (24 hours).
 
 Args:
     payment_index: Full payment index string.
-    timeout_secs: Maximum wait time in seconds (recommended: ``120``,
-        max: ``10800`` i.e. 3 hours).
+    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
+        Max: ``86400`` (24 hours).
 
 Returns:
     The finalized :class:`Payment`.
@@ -854,9 +850,7 @@ Raises:
 Example::
 
     resp = await wallet.pay_invoice(invoice_str)
-    payment = await wallet.wait_for_payment_completion(
-        resp.payment_index, timeout_secs=120,
-    )
+    payment = await wallet.wait_for_payment(resp.payment_index)
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
 

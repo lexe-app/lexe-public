@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, path::PathBuf};
+use std::{marker::PhantomData, path::PathBuf, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use common::{
@@ -18,8 +18,9 @@ use lexe_api::{
         EnclavesToProvisionRequest, LxPaymentIdStruct, PayInvoiceRequest,
         UpdatePaymentNote,
     },
-    types::payments::PaymentCreatedIndex,
+    types::payments::{PaymentCreatedIndex, PaymentStatus},
 };
+use lexe_std::backoff::Backoff;
 use node_client::{
     client::{GatewayClient, NodeClient},
     credentials::CredentialsRef,
@@ -28,10 +29,13 @@ use payment_uri::{
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
 };
-use sdk_core::models::{
-    SdkCreateInvoiceRequest, SdkCreateInvoiceResponse, SdkGetPaymentRequest,
-    SdkGetPaymentResponse, SdkNodeInfo, SdkPayInvoiceRequest,
-    SdkPayInvoiceResponse,
+use sdk_core::{
+    models::{
+        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
+        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
+        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+    },
+    types::SdkPayment,
 };
 use tracing::info;
 
@@ -248,6 +252,55 @@ impl LexeWallet<WithDb> {
                 common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
             )
             .await
+    }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    pub async fn wait_for_payment(
+        &self,
+        index: PaymentCreatedIndex,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<SdkPayment> {
+        const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+        const MAX_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
+
+        let timeout = timeout.unwrap_or(DEFAULT_TIMEOUT);
+        let max_secs = MAX_TIMEOUT.as_secs();
+        let timeout_secs = timeout.as_secs();
+        ensure!(
+            timeout <= MAX_TIMEOUT,
+            "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
+        );
+
+        let initial_wait_ms = 1_000;
+        let max_wait_ms = 5 * 60 * 1_000;
+        let start = tokio::time::Instant::now();
+        let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
+
+        loop {
+            self.sync_payments().await?;
+
+            if let Some(payment) =
+                self.payments_db().get_payment_by_created_index(&index)
+            {
+                let payment = SdkPayment::from(payment);
+                match payment.status {
+                    PaymentStatus::Completed | PaymentStatus::Failed =>
+                        return Ok(payment),
+                    PaymentStatus::Pending => () // Continue polling
+                }
+            }
+
+            ensure!(
+                start.elapsed() < timeout,
+                "Payment did not complete within {timeout_secs}s timeout",
+            );
+
+            tokio::time::sleep(backoff.next().unwrap()).await;
+        }
     }
 }
 

@@ -6,15 +6,21 @@
 //! so it runs on the shared tokio runtime used by UniFFI, then blocks the
 //! current thread until the future completes.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use common::{api::user::UserPk, rng::Crng, root_seed::RootSeed};
-use lexe_api::models::command::UpdatePaymentNote;
+use lexe_api::{
+    models::command::UpdatePaymentNote,
+    types::payments::PaymentCreatedIndex,
+};
 use node_client::credentials::CredentialsRef;
-use sdk_core::models::{
-    SdkCreateInvoiceRequest, SdkCreateInvoiceResponse, SdkGetPaymentRequest,
-    SdkGetPaymentResponse, SdkNodeInfo, SdkPayInvoiceRequest,
-    SdkPayInvoiceResponse,
+use sdk_core::{
+    models::{
+        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
+        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
+        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+    },
+    types::SdkPayment,
 };
 
 use crate::{
@@ -124,6 +130,19 @@ impl BlockingLexeWallet {
     /// Errors if another sync is already in progress.
     pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         block_on(self.inner.sync_payments())
+    }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    pub fn wait_for_payment(
+        &self,
+        index: PaymentCreatedIndex,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<SdkPayment> {
+        block_on(self.inner.wait_for_payment(index, timeout))
     }
 
     /// Get a reference to the user's wallet configuration.

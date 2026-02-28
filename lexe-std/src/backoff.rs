@@ -46,6 +46,16 @@ pub struct Backoff {
 }
 
 impl Backoff {
+    /// Create a new backoff with the given initial and max wait durations.
+    pub fn new(initial_wait_ms: u64, max_wait_ms: u64) -> Self {
+        debug_assert!(initial_wait_ms <= max_wait_ms);
+        Self {
+            initial_wait_ms,
+            max_wait_ms,
+            attempt: 0,
+        }
+    }
+
     /// Reset the backoff to the initial wait delay.
     pub fn reset(&mut self) {
         self.attempt = 0;

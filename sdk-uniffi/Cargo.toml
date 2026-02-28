@@ -27,9 +27,8 @@ required-features = ["bindgen"]
 
 # NOTE: To ensure `lexe` exposes all types and sub-crates needed for SDK
 # implementors, this crate should *only* depend on `lexe`.
-# TODO(max): Clean up these dependencies; upstream the
-# `wait_for_payment_completion` logic, add re-exports and crate exports if
-# needed.
+# TODO(max): Clean up these dependencies; add re-exports and crate exports
+# if needed.
 common = { path = "../common" }
 lexe = { path = "../lexe", features = ["blocking"] }
 lexe-api-core = { path = "../lexe-api-core" }

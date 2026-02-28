@@ -335,7 +335,7 @@ def test_create_and_pay_invoice(prefunded_wallets):
     assert pay_resp.created_at_ms > 0
 
     # Wait for payment to complete using SDK polling method
-    payer_payment = wallet1.wait_for_payment_completion(
+    payer_payment = wallet1.wait_for_payment(
         payment_index=pay_resp.payment_index,
         timeout_secs=poll_timeout_secs,
     )

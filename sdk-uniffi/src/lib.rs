@@ -47,7 +47,6 @@ use lexe_api_core::{
         },
     },
 };
-use lexe_std::backoff;
 use node_client::credentials::{
     ClientCredentials as ClientCredentialsRs, CredentialsRef,
 };
@@ -823,56 +822,23 @@ impl AsyncLexeWallet {
     }
 
     /// Wait for a payment to reach a terminal state (completed or failed).
-    /// Uses exponential backoff polling under the hood.
-    /// Recommended timeout is 120 seconds.
-    /// Maximum timeout is 10_800 seconds (3 hours).
-    // TODO(max): We should either delete this or move into `lexe`
-    pub async fn wait_for_payment_completion(
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    #[uniffi::method(default(timeout_secs = None))]
+    pub async fn wait_for_payment(
         &self,
         payment_index: String,
-        timeout_secs: u32,
+        timeout_secs: Option<u32>,
     ) -> FfiResult<Payment> {
-        const MAX_TIMEOUT_SECS: u32 = 3 * 60 * 60;
-        if timeout_secs > MAX_TIMEOUT_SECS {
-            return Err(anyhow::anyhow!(
-                "timeout_secs exceeds max of {MAX_TIMEOUT_SECS}s (3 hours): {timeout_secs}s"
-            )
-            .into());
-        }
-
-        let timeout = Duration::from_secs(timeout_secs.into());
-        let start = tokio::time::Instant::now();
         let index = parse_payment_index(&payment_index)?;
-        let mut backoff = backoff::iter_with_initial_wait_ms(1_000);
-
-        loop {
-            self.inner.sync_payments().await?;
-
-            if let Some(payment) = self
-                .inner
-                .payments_db()
-                .get_payment_by_created_index(&index)
-            {
-                let payment = SdkPaymentRs::from(payment);
-                match payment.status {
-                    PaymentStatusRs::Completed | PaymentStatusRs::Failed => {
-                        return Ok(Payment::from(payment));
-                    }
-                    PaymentStatusRs::Pending => {
-                        // Continue polling
-                    }
-                }
-            }
-
-            if start.elapsed() >= timeout {
-                return Err(anyhow::anyhow!(
-                    "Payment did not complete within {timeout_secs}s timeout"
-                )
-                .into());
-            }
-
-            tokio::time::sleep(backoff.next_delay()).await;
-        }
+        let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
+        let payment = self
+            .inner
+            .wait_for_payment(index, timeout)
+            .await?;
+        Ok(Payment::from(payment))
     }
 }
 
@@ -1195,53 +1161,20 @@ impl BlockingLexeWallet {
     }
 
     /// Wait for a payment to reach a terminal state (completed or failed).
-    /// Uses exponential backoff polling under the hood.
-    /// Recommended timeout is 120 seconds.
-    /// Maximum timeout is 10_800 seconds (3 hours).
-    pub fn wait_for_payment_completion(
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    #[uniffi::method(default(timeout_secs = None))]
+    pub fn wait_for_payment(
         &self,
         payment_index: String,
-        timeout_secs: u32,
+        timeout_secs: Option<u32>,
     ) -> FfiResult<Payment> {
-        const MAX_TIMEOUT_SECS: u32 = 3 * 60 * 60;
-        if timeout_secs > MAX_TIMEOUT_SECS {
-            return Err(anyhow::anyhow!(
-                "timeout_secs exceeds max of {MAX_TIMEOUT_SECS}s (3 hours): {timeout_secs}s"
-            )
-            .into());
-        }
-
-        let timeout = Duration::from_secs(timeout_secs.into());
-        let start = std::time::Instant::now();
         let index = parse_payment_index(&payment_index)?;
-        let mut backoff = backoff::iter_with_initial_wait_ms(1_000);
-
-        loop {
-            self.inner.sync_payments()?;
-
-            if let Some(payment) = self
-                .inner
-                .payments_db()
-                .get_payment_by_created_index(&index)
-            {
-                let payment = SdkPaymentRs::from(payment);
-                match payment.status {
-                    PaymentStatusRs::Completed | PaymentStatusRs::Failed => {
-                        return Ok(Payment::from(payment));
-                    }
-                    PaymentStatusRs::Pending => {}
-                }
-            }
-
-            if start.elapsed() >= timeout {
-                return Err(anyhow::anyhow!(
-                    "Payment did not complete within {timeout_secs}s timeout"
-                )
-                .into());
-            }
-
-            std::thread::sleep(backoff.next_delay());
-        }
+        let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
+        let payment = self.inner.wait_for_payment(index, timeout)?;
+        Ok(Payment::from(payment))
     }
 }
 
