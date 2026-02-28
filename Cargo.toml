@@ -328,7 +328,12 @@ nostr = { git = "https://github.com/lexe-app/nostr", branch = "lexe-v0.44.0-2025
 # * dev: add basic tooling for testing on SGX
 # * nix: add ring-pregenerate-asm
 # * ring: pregenerate asm
-ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.14-2025_11_21" }
+# * nixpkgs: 25.05 -> 25.11
+# * build: always use pregenerated asm now that we're checking it in
+# * build: check in Cargo.lock for pregenerate-asm reproducibility
+# * build: fix windows nasm reproducibility issue
+# * ring: pregenerate asm
+ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.14-2026_02_28" }
 # ring = { path = "../../ring" }
 
 # * license: Add dual license information

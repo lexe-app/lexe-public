@@ -3980,7 +3980,7 @@ dependencies = [
 [[package]]
 name = "ring"
 version = "0.17.14"
-source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.14-2025_11_21#635168c625c71576269cc067e8d372b9682a6472"
+source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.14-2026_02_28#431f9512aa0477eab06c5f1528f530339fed1c0f"
 dependencies = [
  "cc",
  "cfg-if 1.0.4",
