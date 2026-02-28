@@ -66,7 +66,7 @@ def test_root_seed_invalid_length():
     """Test RootSeed rejects non-32-byte seeds."""
     with pytest.raises(lexe.FfiError) as exc_info:
         lexe.RootSeed(seed_bytes=b"too_short")
-    assert "expected 32 bytes" in exc_info.value.message().lower()
+    assert "32 bytes" in exc_info.value.message().lower()
 
 
 def test_wallet_env_config():

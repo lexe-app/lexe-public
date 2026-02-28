@@ -8,8 +8,11 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+# TODO(phlip9): before publish, update homepage, add
+# documentation = "https://python.lexe.tech",
+# license = "MIT", etc.
 [project.urls]
-homepage = "https://lexe.app" # TODO(phlip9): point to SDK docs site
+homepage = "https://lexe.app"
 repository = "https://github.com/lexe-app/lexe-public/tree/master/sdk-uniffi"
 changelog = "https://github.com/lexe-app/lexe-public/releases"
 

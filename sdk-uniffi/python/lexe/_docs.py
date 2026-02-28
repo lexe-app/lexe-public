@@ -7,7 +7,7 @@ The Rust ``///`` doc comments in ``lib.rs`` are kept clean and
 language-agnostic so they can be reused across Swift, Kotlin, and JS.
 This file adds the Python-specific layer on top.
 
-Imported by ``__init__.py`` on package load.
+Imported by ``__init__.py`` on package load (after ``_preprocess.py``).
 """
 
 import inspect
@@ -27,17 +27,6 @@ def _set_method_doc(cls: type, name: str, doc: str) -> None:
         raw.__func__.__doc__ = doc
     else:
         raw.__doc__ = doc
-
-
-def _make_property(cls: type, name: str, doc: str) -> None:
-    """Convert a no-arg method to a read-only ``@property`` with a docstring.
-
-    UniFFI doesn't generate ``@property`` decorators, so we monkey-patch
-    them here for a more Pythonic API (``obj.attr`` instead of
-    ``obj.attr()``).
-    """
-    original = getattr(cls, name)
-    setattr(cls, name, property(original, doc=doc))
 
 # ================== #
 # --- Global API --- #
@@ -81,17 +70,19 @@ _set_method_doc(lexe.WalletEnvConfig, "read_seed", """\
 Reads a root seed from ``~/.lexe/seedphrase[.env].txt``.
 
 Returns:
-    The root seed, or ``None`` if the file doesn't exist.
+    The root seed loaded from the file.
 
 Raises:
+    SeedFileError.NotFound: If the seedphrase file doesn't exist.
     SeedFileError.ParseError: If the file exists but cannot be parsed.
 
 Example::
 
     config = WalletEnvConfig.mainnet()
-    seed = config.read_seed()
-    if seed is not None:
-        print(f"Loaded seed ({len(seed.seed_bytes)} bytes)")
+    try:
+        seed = config.read_seed()
+    except SeedFileError.NotFound:
+        seed = RootSeed(os.urandom(32))
 """)
 
 _set_method_doc(lexe.RootSeed, "read_from_path", """\
@@ -125,7 +116,6 @@ Args:
 
 Raises:
     SeedFileError.AlreadyExists: If the file already exists.
-    SeedFileError.ParseError: If the seed is invalid.
     SeedFileError.IoError: If the file cannot be written.
 
 Example::
@@ -144,7 +134,6 @@ Args:
 
 Raises:
     SeedFileError.AlreadyExists: If the file already exists.
-    SeedFileError.ParseError: If the seed is invalid.
     SeedFileError.IoError: If the file cannot be written.
 
 Example::
@@ -208,24 +197,6 @@ Example::
     config = WalletEnvConfig.regtest(use_sgx=True, gateway_url="http://localhost:8080")
 """
 
-_make_property(lexe.WalletEnvConfig, "deploy_env", """\
-The configured deployment environment.
-""")
-
-_make_property(lexe.WalletEnvConfig, "network", """\
-The configured Bitcoin network.
-""")
-
-_make_property(lexe.WalletEnvConfig, "use_sgx", """\
-Whether SGX is enabled for this config.
-""")
-
-_make_property(lexe.WalletEnvConfig, "gateway_url", """\
-The gateway URL for this environment.
-
-Returns ``None`` for dev configs without a gateway URL override.
-""")
-
 # =================== #
 # --- Credentials --- #
 # =================== #
@@ -247,10 +218,6 @@ Example::
     # Load from file
     seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
 """
-
-_make_property(lexe.RootSeed, "seed_bytes", """\
-The 32-byte root seed.
-""")
 
 lexe.ClientCredentials.__doc__ = """\
 Client credentials for authenticating with Lexe.
@@ -299,7 +266,7 @@ Then call :meth:`signup` and :meth:`provision` before using payment methods.
 Example::
 
     config = WalletEnvConfig.mainnet()
-    seed = config.read_seed()
+    seed = config.read_seed()  # Raises SeedFileError.NotFound if missing
 
     wallet = LexeWallet.load_or_fresh(config, seed)
     await wallet.signup(seed)
@@ -414,10 +381,6 @@ Example::
 
     wallet = LexeWallet.load_or_fresh(config, seed)
     await wallet.provision(seed)
-""")
-
-_make_property(lexe.LexeWallet, "user_pk", """\
-The user's hex-encoded ed25519 public key derived from the root seed.
 """)
 
 _set_method_doc(lexe.LexeWallet, "node_info", """\

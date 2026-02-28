@@ -50,7 +50,7 @@ use lexe_std::backoff;
 use node_client::credentials::{
     ClientCredentials as ClientCredentialsRs, CredentialsRef,
 };
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, Zeroize};
 
 uniffi::setup_scaffolding!("lexe");
 
@@ -302,20 +302,20 @@ impl WalletEnvConfig {
 
     /// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
     ///
-    /// Returns `None` if the file doesn't exist.
-    pub fn read_seed(&self) -> Result<Option<Arc<RootSeed>>, SeedFileError> {
-        self.to_rs()
-            .read_seed()
-            .map(|opt| {
-                opt.map(|seed| {
-                    Arc::new(RootSeed {
-                        seed_bytes: seed.expose_secret().to_vec(),
-                    })
-                })
-            })
-            .map_err(|e| SeedFileError::ParseError {
+    /// Raises [`SeedFileError::NotFound`] if the file doesn't exist.
+    pub fn read_seed(&self) -> Result<Arc<RootSeed>, SeedFileError> {
+        let rs = self.to_rs();
+        match rs.read_seed() {
+            Ok(Some(inner)) => Ok(Arc::new(RootSeed { inner })),
+            Ok(None) => {
+                let data_dir = default_lexe_data_dir().unwrap_or_default();
+                let path = self.seedphrase_path(data_dir);
+                Err(SeedFileError::NotFound { path })
+            }
+            Err(e) => Err(SeedFileError::ParseError {
                 message: format!("{e:#}"),
-            })
+            }),
+        }
     }
 
     /// Writes a root seed's mnemonic to `~/.lexe/seedphrase[.env].txt`.
@@ -326,21 +326,14 @@ impl WalletEnvConfig {
         &self,
         root_seed: Arc<RootSeed>,
     ) -> Result<(), SeedFileError> {
-        let root_seed_rs = root_seed
-            .to_rs()
-            .map_err(|e| SeedFileError::ParseError { message: e.message })?;
-
-        self.to_rs().write_seed(&root_seed_rs).map_err(|e| {
+        self.to_rs().write_seed(root_seed.as_rs()).map_err(|e| {
             // Check if the root cause is an "already exists" IO error.
             for cause in e.chain() {
                 if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
                     && io_err.kind() == std::io::ErrorKind::AlreadyExists
                 {
-                    let path = self.seedphrase_path(
-                        common::default_lexe_data_dir()
-                            .map(|d| d.to_string_lossy().into_owned())
-                            .unwrap_or_default(),
-                    );
+                    let data_dir = default_lexe_data_dir().unwrap_or_default();
+                    let path = self.seedphrase_path(data_dir);
                     return SeedFileError::AlreadyExists { path };
                 }
             }
@@ -372,7 +365,7 @@ impl WalletEnvConfig {
 /// The secret root seed for deriving all user keys and credentials.
 #[derive(uniffi::Object)]
 pub struct RootSeed {
-    seed_bytes: Vec<u8>,
+    inner: RootSeedRs,
 }
 
 #[uniffi::export]
@@ -381,15 +374,10 @@ impl RootSeed {
     ///
     /// The seed must be exactly 32 bytes.
     #[uniffi::constructor]
-    pub fn new(seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
-        let len = seed_bytes.len();
-        if len != 32 {
-            return Err(anyhow::anyhow!(
-                "Invalid seed length: expected 32 bytes, got {len}"
-            )
-            .into());
-        }
-        Ok(Arc::new(Self { seed_bytes }))
+    pub fn new(mut seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
+        let inner = RootSeedRs::try_from(seed_bytes.as_slice())?;
+        seed_bytes.zeroize();
+        Ok(Arc::new(Self { inner }))
     }
 
     /// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
@@ -399,9 +387,7 @@ impl RootSeed {
     #[uniffi::constructor]
     pub fn read_from_path(path: String) -> Result<Arc<Self>, SeedFileError> {
         match RootSeedRs::read_from_path(path.as_ref()) {
-            Ok(Some(seed)) => Ok(Arc::new(Self {
-                seed_bytes: seed.expose_secret().to_vec(),
-            })),
+            Ok(Some(inner)) => Ok(Arc::new(Self { inner })),
             Ok(None) => Err(SeedFileError::NotFound { path }),
             Err(e) => Err(SeedFileError::ParseError {
                 message: format!("{e:#}"),
@@ -411,7 +397,7 @@ impl RootSeed {
 
     /// Get the 32-byte root seed.
     pub fn seed_bytes(&self) -> Vec<u8> {
-        self.seed_bytes.clone()
+        self.inner.expose_secret().to_vec()
     }
 
     /// Writes this root seed's mnemonic to a seedphrase file.
@@ -419,10 +405,7 @@ impl RootSeed {
     /// Creates parent directories if needed. Raises
     /// [`SeedFileError::AlreadyExists`] if the file already exists.
     pub fn write_to_path(&self, path: String) -> Result<(), SeedFileError> {
-        let root_seed_rs = self
-            .to_rs()
-            .map_err(|e| SeedFileError::ParseError { message: e.message })?;
-        root_seed_rs.write_to_path(path.as_ref()).map_err(|e| {
+        self.as_rs().write_to_path(path.as_ref()).map_err(|e| {
             // Check if the root cause is an "already exists" IO error.
             for cause in e.chain() {
                 if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
@@ -439,13 +422,8 @@ impl RootSeed {
 }
 
 impl RootSeed {
-    fn to_rs(&self) -> FfiResult<RootSeedRs> {
-        let seed_bytes: [u8; 32] = self
-            .seed_bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("Invalid seed length"))?;
-        Ok(RootSeedRs::new(Secret::new(seed_bytes)))
+    fn as_rs(&self) -> &RootSeedRs {
+        &self.inner
     }
 }
 
@@ -530,7 +508,7 @@ impl From<SdkNodeInfoRs> for NodeInfo {
 /// The main wallet handle for interacting with Lexe.
 #[derive(uniffi::Object)]
 pub struct LexeWallet {
-    inner: Arc<LexeWalletRs<lexe::wallet::WithDb>>,
+    inner: LexeWalletRs<lexe::wallet::WithDb>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -549,8 +527,7 @@ impl LexeWallet {
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
         let mut rng = SysRng::new();
-        let root_seed_rs = root_seed.to_rs()?;
-        let credentials = CredentialsRef::from(&root_seed_rs);
+        let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let inner = LexeWalletRs::fresh(
@@ -560,9 +537,7 @@ impl LexeWallet {
             lexe_data_dir.map(PathBuf::from),
         )?;
 
-        Ok(Arc::new(Self {
-            inner: Arc::new(inner),
-        }))
+        Ok(Arc::new(Self { inner }))
     }
 
     /// Load an existing wallet from local state.
@@ -581,10 +556,7 @@ impl LexeWallet {
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
         let mut rng = SysRng::new();
-        let root_seed_rs = root_seed
-            .to_rs()
-            .map_err(|e| LoadWalletError::LoadFailed { message: e.message })?;
-        let credentials = CredentialsRef::from(&root_seed_rs);
+        let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let maybe_inner = LexeWalletRs::load(
@@ -598,9 +570,7 @@ impl LexeWallet {
         })?;
 
         match maybe_inner {
-            Some(inner) => Ok(Arc::new(Self {
-                inner: Arc::new(inner),
-            })),
+            Some(inner) => Ok(Arc::new(Self { inner })),
             None => Err(LoadWalletError::NotFound),
         }
     }
@@ -618,8 +588,7 @@ impl LexeWallet {
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
         let mut rng = SysRng::new();
-        let root_seed_rs = root_seed.to_rs()?;
-        let credentials = CredentialsRef::from(&root_seed_rs);
+        let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let inner = LexeWalletRs::load_or_fresh(
@@ -629,9 +598,7 @@ impl LexeWallet {
             lexe_data_dir.map(PathBuf::from),
         )?;
 
-        Ok(Arc::new(Self {
-            inner: Arc::new(inner),
-        }))
+        Ok(Arc::new(Self { inner }))
     }
 
     /// Registers this user with Lexe and provisions their node.
@@ -650,7 +617,6 @@ impl LexeWallet {
         partner_pk: Option<String>,
     ) -> FfiResult<()> {
         let mut rng = SysRng::new();
-        let root_seed_rs = root_seed.to_rs()?;
         let partner = partner_pk
             .as_deref()
             .map(|s| {
@@ -660,7 +626,9 @@ impl LexeWallet {
             })
             .transpose()?;
 
-        self.inner.signup(&mut rng, &root_seed_rs, partner).await?;
+        self.inner
+            .signup(&mut rng, root_seed.as_rs(), partner)
+            .await?;
         Ok(())
     }
 
@@ -670,8 +638,7 @@ impl LexeWallet {
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
     pub async fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
-        let root_seed_rs = root_seed.to_rs()?;
-        let credentials = CredentialsRef::from(&root_seed_rs);
+        let credentials = CredentialsRef::from(root_seed.as_rs());
         self.inner.provision(credentials).await?;
         Ok(())
     }
