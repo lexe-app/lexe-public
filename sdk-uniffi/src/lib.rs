@@ -550,6 +550,11 @@ impl AsyncLexeWallet {
     /// user and environment. Use [`AsyncLexeWallet::fresh`] to create local
     /// state.
     ///
+    /// If this returns [`LoadWalletError::NotFound`] and you are
+    /// authenticating with [`RootSeed`]s, call [`signup`](Self::signup) after
+    /// creating the wallet if you're not sure whether the user has been
+    /// signed up with Lexe.
+    ///
     /// It is recommended to always pass the same `lexe_data_dir`, regardless of
     /// environment (dev/staging/prod) or user. Data is namespaced internally,
     /// so users and environments do not interfere with each other.
@@ -581,6 +586,8 @@ impl AsyncLexeWallet {
     }
 
     /// Load an existing wallet, or create a fresh one if no local data exists.
+    /// If you are authenticating with client credentials, this is generally
+    /// what you want to use.
     ///
     /// It is recommended to always pass the same `lexe_data_dir`, regardless of
     /// environment (dev/staging/prod) or user. Data is namespaced internally,
@@ -734,6 +741,9 @@ impl AsyncLexeWallet {
     }
 
     /// Sync payments from the node to local storage.
+    ///
+    /// Only one sync can run at a time.
+    /// Errors if another sync is already in progress.
     pub async fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
         let summary = self.inner.sync_payments().await?;
         Ok(PaymentSyncSummary {
@@ -914,6 +924,11 @@ impl BlockingLexeWallet {
     /// user and environment. Use [`BlockingLexeWallet::fresh`] to create local
     /// state.
     ///
+    /// If this returns [`LoadWalletError::NotFound`] and you are
+    /// authenticating with [`RootSeed`]s, call [`signup`](Self::signup) after
+    /// creating the wallet if you're not sure whether the user has been
+    /// signed up with Lexe.
+    ///
     /// It is recommended to always pass the same `lexe_data_dir`, regardless of
     /// environment (dev/staging/prod) or user. Data is namespaced internally,
     /// so users and environments do not interfere with each other.
@@ -945,6 +960,8 @@ impl BlockingLexeWallet {
     }
 
     /// Load an existing wallet, or create a fresh one if no local data exists.
+    /// If you are authenticating with client credentials, this is generally
+    /// what you want to use.
     ///
     /// It is recommended to always pass the same `lexe_data_dir`, regardless of
     /// environment (dev/staging/prod) or user. Data is namespaced internally,
@@ -1096,6 +1113,9 @@ impl BlockingLexeWallet {
     }
 
     /// Sync payments from the node to local storage.
+    ///
+    /// Only one sync can run at a time.
+    /// Errors if another sync is already in progress.
     pub fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
         let summary = self.inner.sync_payments()?;
         Ok(PaymentSyncSummary {
@@ -1476,34 +1496,55 @@ pub struct Payment {
 
 impl From<SdkPaymentRs> for Payment {
     fn from(payment: SdkPaymentRs) -> Self {
-        let index = PaymentCreatedIndexRs {
-            created_at: payment.created_at,
-            id: payment.id,
-        };
+        // Destructure to get a compile error when a new field is added,
+        // reminding us to include it in the conversion below.
+        let SdkPaymentRs {
+            index,
+            id,
+            rail,
+            kind,
+            direction,
+            txid,
+            amount,
+            fees,
+            status,
+            status_msg,
+            address,
+            invoice,
+            tx: _,
+            note,
+            payer_name,
+            payer_note,
+            priority,
+            expires_at,
+            finalized_at,
+            created_at,
+            updated_at,
+        } = payment;
+
         Self {
             payment_index: index.to_string(),
-            payment_id: payment.id.to_string(),
-            created_at_ms: payment.created_at.to_millis(),
-            updated_at_ms: payment.updated_at.to_millis(),
-            rail: payment.rail.into(),
-            kind: payment.kind.into(),
-            direction: payment.direction.into(),
-            status: payment.status.into(),
-            status_msg: payment.status_msg,
-            amount_sats: payment.amount.map(|a| a.sats_u64()),
-            fees_sats: payment.fees.sats_u64(),
-            note: payment.note,
-            invoice: payment.invoice.as_ref().map(Invoice::from),
-            txid: payment.txid.map(|t| t.to_string()),
-            address: payment
-                .address
+            payment_id: id.to_string(),
+            created_at_ms: created_at.to_millis(),
+            updated_at_ms: updated_at.to_millis(),
+            rail: rail.into(),
+            kind: kind.into(),
+            direction: direction.into(),
+            status: status.into(),
+            status_msg,
+            amount_sats: amount.map(|a| a.sats_u64()),
+            fees_sats: fees.sats_u64(),
+            note,
+            invoice: invoice.as_ref().map(Invoice::from),
+            txid: txid.map(|t| t.to_string()),
+            address: address
                 .as_ref()
                 .map(|a| a.assume_checked_ref().to_string()),
-            expires_at_ms: payment.expires_at.map(|t| t.to_millis()),
-            finalized_at_ms: payment.finalized_at.map(|t| t.to_millis()),
-            payer_name: payment.payer_name,
-            payer_note: payment.payer_note,
-            priority: payment.priority.map(Into::into),
+            expires_at_ms: expires_at.map(|t| t.to_millis()),
+            finalized_at_ms: finalized_at.map(|t| t.to_millis()),
+            payer_name,
+            payer_note,
+            priority: priority.map(Into::into),
         }
     }
 }

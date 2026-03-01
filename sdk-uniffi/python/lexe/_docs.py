@@ -275,7 +275,7 @@ Example::
     seed = config.read_seed()  # Raises SeedFileError.NotFound if missing
 
     wallet = LexeWallet.load_or_fresh(config, seed)
-    wallet.signup(seed)
+    wallet.signup(seed, partner_pk=None)
     wallet.provision(seed)
 
     info = wallet.node_info()
@@ -327,8 +327,8 @@ Raises:
 
 _set_method_doc(LexeWallet, "load_or_fresh", """\
 Load an existing wallet, or create a fresh one if none exists.
-
-This is the recommended constructor for most use cases.
+If you are authenticating with client credentials, this is generally
+what you want to use.
 
 Args:
     env_config: Wallet environment configuration.
@@ -363,12 +363,12 @@ Raises:
 
 Example::
 
-    wallet.signup(seed)
+    wallet.signup(seed, partner_pk=None)
     config.write_seed(seed)  # Persist seed after signup!
 """)
 
 _set_method_doc(LexeWallet, "provision", """\
-Ensure the wallet is provisioned to all recent trusted releases.
+Ensures the wallet is provisioned to all recent trusted releases.
 
 Call every time the wallet is loaded to keep the user running
 the most up-to-date enclave software.
@@ -476,12 +476,14 @@ _set_method_doc(LexeWallet, "sync_payments", """\
 Sync payments from the remote node to local storage.
 
 Call periodically to keep local payment data up to date.
+Only one sync can run at a time; raises an error if another
+sync is already in progress.
 
 Returns:
     A :class:`PaymentSyncSummary` with counts of new and updated payments.
 
 Raises:
-    FfiError: If the node is unreachable.
+    FfiError: If the node is unreachable or a sync is already running.
 
 Example::
 
@@ -574,7 +576,7 @@ Example::
     seed = config.read_seed()
 
     wallet = AsyncLexeWallet.load_or_fresh(config, seed)
-    await wallet.signup(seed)
+    await wallet.signup(seed, partner_pk=None)
     await wallet.provision(seed)
 
     info = await wallet.node_info()
@@ -626,8 +628,8 @@ Raises:
 
 _set_method_doc(AsyncLexeWallet, "load_or_fresh", """\
 Load an existing wallet, or create a fresh one if none exists.
-
-This is the recommended constructor for most use cases.
+If you are authenticating with client credentials, this is generally
+what you want to use.
 
 Args:
     env_config: Wallet environment configuration.
@@ -662,12 +664,12 @@ Raises:
 
 Example::
 
-    await wallet.signup(seed)
+    await wallet.signup(seed, partner_pk=None)
     config.write_seed(seed)  # Persist seed after signup!
 """)
 
 _set_method_doc(AsyncLexeWallet, "provision", """\
-Ensure the wallet is provisioned to all recent trusted releases.
+Ensures the wallet is provisioned to all recent trusted releases.
 
 Call every time the wallet is loaded to keep the user running
 the most up-to-date enclave software.
@@ -775,12 +777,14 @@ _set_method_doc(AsyncLexeWallet, "sync_payments", """\
 Sync payments from the remote node to local storage.
 
 Call periodically to keep local payment data up to date.
+Only one sync can run at a time; raises an error if another
+sync is already in progress.
 
 Returns:
     A :class:`PaymentSyncSummary` with counts of new and updated payments.
 
 Raises:
-    FfiError: If the node is unreachable.
+    FfiError: If the node is unreachable or a sync is already running.
 
 Example::
 

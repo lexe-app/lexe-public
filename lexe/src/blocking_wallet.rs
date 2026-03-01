@@ -67,6 +67,10 @@ impl BlockingLexeWallet {
     /// `lexe_data_dir`. Returns [`None`] if no local data exists, in which
     /// case you should use [`fresh`](Self::fresh) to create the wallet.
     ///
+    /// If you are authenticating with [`RootSeed`]s and this returns [`None`],
+    /// you should call [`signup`](Self::signup) after creating the wallet if
+    /// you're not sure whether the user has been signed up with Lexe.
+    ///
     /// It is recommended to always pass the same `lexe_data_dir`,
     /// regardless of which environment we're in (dev/staging/prod) and which
     /// user this wallet is for. Users and environments will not interfere
@@ -83,7 +87,9 @@ impl BlockingLexeWallet {
     }
 
     /// Load an existing [`BlockingLexeWallet`] with persistence from
-    /// `lexe_data_dir`, or create a fresh one if no local data exists.
+    /// `lexe_data_dir`, or create a fresh one if no local data exists. If you
+    /// are authenticating with client credentials, this is generally what you
+    /// want to use.
     ///
     /// It is recommended to always pass the same `lexe_data_dir`,
     /// regardless of which environment we're in (dev/staging/prod) and which
@@ -126,13 +132,19 @@ impl BlockingLexeWallet {
     }
 
     /// Registers this user with the Lexe backend, then provisions the node.
+    /// This function must be called after the user's [`BlockingLexeWallet`]
+    /// has been created for the first time, otherwise subsequent requests
+    /// will fail.
     ///
     /// It is only necessary to call this function once, ever, per user, but
-    /// it is also okay to call it again; this function is idempotent.
+    /// it is also okay to call this function even if the user has already
+    /// been signed up; in other words, this function is idempotent.
     ///
     /// After a successful signup, make sure the user's root seed has been
     /// persisted somewhere! Without access to their root seed, your user
-    /// will lose their funds forever.
+    /// will lose their funds forever. If adding Lexe to a broader wallet,
+    /// a good strategy is to derive Lexe's [`RootSeed`] from your own
+    /// root seed.
     ///
     /// - `partner_pk`: Set to your company's [`UserPk`] to earn a share of this
     ///   wallet's fees.
@@ -146,10 +158,11 @@ impl BlockingLexeWallet {
     }
 
     /// Ensures the wallet is provisioned to all recent trusted releases.
-    ///
     /// This should be called every time the wallet is loaded, to ensure the
-    /// user is running the most up-to-date enclave software. Fetches current
-    /// enclaves from the gateway and provisions any that need updating.
+    /// user is running the most up-to-date enclave software.
+    ///
+    /// This fetches the current enclaves from the gateway, computes which
+    /// releases need to be provisioned, and provisions them.
     pub fn provision(
         &self,
         credentials: CredentialsRef<'_>,
@@ -157,12 +170,12 @@ impl BlockingLexeWallet {
         block_on(self.inner.provision(credentials))
     }
 
-    /// Get information about this Lexe node.
+    /// Get information about this Lexe node, including balance and channels.
     pub fn node_info(&self) -> anyhow::Result<SdkNodeInfo> {
         block_on(self.inner.node_info())
     }
 
-    /// Create a BOLT 11 invoice.
+    /// Create a BOLT 11 invoice to receive a Lightning payment.
     pub fn create_invoice(
         &self,
         req: SdkCreateInvoiceRequest,
@@ -170,7 +183,7 @@ impl BlockingLexeWallet {
         block_on(self.inner.create_invoice(req))
     }
 
-    /// Pay a BOLT 11 invoice.
+    /// Pay a BOLT 11 invoice over Lightning.
     pub fn pay_invoice(
         &self,
         req: SdkPayInvoiceRequest,
@@ -178,7 +191,7 @@ impl BlockingLexeWallet {
         block_on(self.inner.pay_invoice(req))
     }
 
-    /// Get information about a payment by its index.
+    /// Get information about a payment by its created index.
     pub fn get_payment(
         &self,
         req: SdkGetPaymentRequest,
@@ -186,7 +199,9 @@ impl BlockingLexeWallet {
         block_on(self.inner.get_payment(req))
     }
 
-    /// Update the note on an existing payment.
+    /// Update the personal note on an existing payment.
+    /// The note is stored on the user node and is not visible to the
+    /// counterparty.
     pub fn update_payment_note(
         &self,
         req: UpdatePaymentNote,

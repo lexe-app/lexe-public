@@ -574,7 +574,7 @@ impl<D> LexeWallet<D> {
 
     // --- Command API --- //
 
-    /// Get information about this Lexe node.
+    /// Get information about this Lexe node, including balance and channels.
     pub async fn node_info(&self) -> anyhow::Result<SdkNodeInfo> {
         self.node_client
             .node_info()
@@ -583,7 +583,7 @@ impl<D> LexeWallet<D> {
             .context("Failed to get node info")
     }
 
-    /// Create a BOLT 11 invoice.
+    /// Create a BOLT 11 invoice to receive a Lightning payment.
     pub async fn create_invoice(
         &self,
         req: SdkCreateInvoiceRequest,
@@ -599,7 +599,7 @@ impl<D> LexeWallet<D> {
         Ok(SdkCreateInvoiceResponse::new(index, resp.invoice))
     }
 
-    /// Pay a BOLT 11 invoice.
+    /// Pay a BOLT 11 invoice over Lightning.
     pub async fn pay_invoice(
         &self,
         req: SdkPayInvoiceRequest,
@@ -622,7 +622,7 @@ impl<D> LexeWallet<D> {
         })
     }
 
-    /// Get information about a payment by its index.
+    /// Get information about a payment by its created index.
     pub async fn get_payment(
         &self,
         req: SdkGetPaymentRequest,
@@ -639,7 +639,9 @@ impl<D> LexeWallet<D> {
         Ok(SdkGetPaymentResponse { payment })
     }
 
-    /// Update the note on an existing payment.
+    /// Update the personal note on an existing payment.
+    /// The note is stored on the user node and is not visible to the
+    /// counterparty.
     pub async fn update_payment_note(
         &self,
         req: UpdatePaymentNote,
