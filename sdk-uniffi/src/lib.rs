@@ -715,12 +715,12 @@ impl AsyncLexeWallet {
         Ok(resp.into())
     }
 
-    /// Get a payment by its `payment_index` string.
+    /// Get a payment by its `index` string.
     pub async fn get_payment(
         &self,
-        payment_index: String,
+        index: String,
     ) -> FfiResult<Option<Payment>> {
-        let index = parse_payment_index(&payment_index)?;
+        let index = parse_index(&index)?;
         let req = SdkGetPaymentRequestRs { index };
         let resp = self.inner.get_payment(req).await?;
         Ok(resp.payment.map(Into::into))
@@ -730,10 +730,10 @@ impl AsyncLexeWallet {
     /// Call `sync_payments` first so the payment exists locally.
     pub async fn update_payment_note(
         &self,
-        payment_index: String,
+        index: String,
         note: Option<String>,
     ) -> FfiResult<()> {
-        let index = parse_payment_index(&payment_index)?;
+        let index = parse_index(&index)?;
         let req = UpdatePaymentNoteRs { index, note };
         self.inner.update_payment_note(req).await?;
         Ok(())
@@ -829,15 +829,12 @@ impl AsyncLexeWallet {
     #[uniffi::method(default(timeout_secs = None))]
     pub async fn wait_for_payment(
         &self,
-        payment_index: String,
+        index: String,
         timeout_secs: Option<u32>,
     ) -> FfiResult<Payment> {
-        let index = parse_payment_index(&payment_index)?;
+        let index = parse_index(&index)?;
         let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
-        let payment = self
-            .inner
-            .wait_for_payment(index, timeout)
-            .await?;
+        let payment = self.inner.wait_for_payment(index, timeout).await?;
         Ok(Payment::from(payment))
     }
 }
@@ -1054,12 +1051,9 @@ impl BlockingLexeWallet {
         Ok(resp.into())
     }
 
-    /// Get a payment by its `payment_index` string.
-    pub fn get_payment(
-        &self,
-        payment_index: String,
-    ) -> FfiResult<Option<Payment>> {
-        let index = parse_payment_index(&payment_index)?;
+    /// Get a payment by its `index` string.
+    pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
+        let index = parse_index(&index)?;
         let req = SdkGetPaymentRequestRs { index };
         let resp = self.inner.get_payment(req)?;
         Ok(resp.payment.map(Into::into))
@@ -1069,10 +1063,10 @@ impl BlockingLexeWallet {
     /// Call `sync_payments` first so the payment exists locally.
     pub fn update_payment_note(
         &self,
-        payment_index: String,
+        index: String,
         note: Option<String>,
     ) -> FfiResult<()> {
-        let index = parse_payment_index(&payment_index)?;
+        let index = parse_index(&index)?;
         let req = UpdatePaymentNoteRs { index, note };
         self.inner.update_payment_note(req)?;
         Ok(())
@@ -1168,10 +1162,10 @@ impl BlockingLexeWallet {
     #[uniffi::method(default(timeout_secs = None))]
     pub fn wait_for_payment(
         &self,
-        payment_index: String,
+        index: String,
         timeout_secs: Option<u32>,
     ) -> FfiResult<Payment> {
-        let index = parse_payment_index(&payment_index)?;
+        let index = parse_index(&index)?;
         let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
         let payment = self.inner.wait_for_payment(index, timeout)?;
         Ok(Payment::from(payment))
@@ -1334,13 +1328,11 @@ impl From<PaymentKindRs> for PaymentKind {
     }
 }
 
-/// Parse a payment_index string into a PaymentCreatedIndexRs.
-fn parse_payment_index(
-    payment_index: &str,
-) -> FfiResult<PaymentCreatedIndexRs> {
-    payment_index
+/// Parse an index string into a `PaymentCreatedIndexRs`.
+fn parse_index(index: &str) -> FfiResult<PaymentCreatedIndexRs> {
+    index
         .parse()
-        .map_err(|e| anyhow::anyhow!("Invalid payment_index: {e}").into())
+        .map_err(|e| anyhow::anyhow!("Invalid index: {e}").into())
 }
 
 /// A BOLT11 Lightning invoice.
@@ -1382,11 +1374,9 @@ impl From<&Arc<LxInvoiceRs>> for Invoice {
 /// Information about a payment.
 #[derive(Clone, uniffi::Record)]
 pub struct Payment {
-    /// Full payment index (format: `<created_at_ms>-<payment_id>`).
-    /// Used for database lookups and uniquely identifies a payment.
-    pub payment_index: String,
-    /// Payment identifier without the timestamp.
-    pub payment_id: String,
+    /// Unique payment identifier, ordered by `created_at_ms`.
+    /// Format: `<created_at_ms>-<payment_id>`.
+    pub index: String,
     /// Timestamp when payment was created (milliseconds since the UNIX
     /// epoch).
     pub created_at_ms: u64,
@@ -1433,7 +1423,6 @@ impl From<SdkPaymentRs> for Payment {
         // reminding us to include it in the conversion below.
         let SdkPaymentRs {
             index,
-            id,
             rail,
             kind,
             direction,
@@ -1456,8 +1445,7 @@ impl From<SdkPaymentRs> for Payment {
         } = payment;
 
         Self {
-            payment_index: index.to_string(),
-            payment_id: id.to_string(),
+            index: index.to_string(),
             created_at_ms: created_at.to_millis(),
             updated_at_ms: updated_at.to_millis(),
             rail: rail.into(),
@@ -1509,8 +1497,8 @@ pub struct ListPaymentsResponse {
 /// Response from creating an invoice.
 #[derive(Clone, uniffi::Record)]
 pub struct CreateInvoiceResponse {
-    /// Payment created index for this invoice.
-    pub payment_index: String,
+    /// Unique payment identifier for this invoice.
+    pub index: String,
     /// String-encoded BOLT11 invoice.
     pub invoice: String,
     /// Description encoded in the invoice, if provided.
@@ -1530,7 +1518,7 @@ pub struct CreateInvoiceResponse {
 impl From<SdkCreateInvoiceResponseRs> for CreateInvoiceResponse {
     fn from(resp: SdkCreateInvoiceResponseRs) -> Self {
         Self {
-            payment_index: resp.index.to_string(),
+            index: resp.index.to_string(),
             invoice: resp.invoice.to_string(),
             description: resp.description,
             amount_sats: resp.amount.map(|a| a.sats_u64()),
@@ -1545,8 +1533,8 @@ impl From<SdkCreateInvoiceResponseRs> for CreateInvoiceResponse {
 /// Response from paying an invoice.
 #[derive(Clone, uniffi::Record)]
 pub struct PayInvoiceResponse {
-    /// Payment created index for this payment.
-    pub payment_index: String,
+    /// Unique payment identifier for this payment.
+    pub index: String,
     /// When we tried to pay this invoice (milliseconds since the UNIX
     /// epoch).
     pub created_at_ms: u64,
@@ -1555,7 +1543,7 @@ pub struct PayInvoiceResponse {
 impl From<SdkPayInvoiceResponseRs> for PayInvoiceResponse {
     fn from(resp: SdkPayInvoiceResponseRs) -> Self {
         Self {
-            payment_index: resp.index.to_string(),
+            index: resp.index.to_string(),
             created_at_ms: resp.created_at.to_millis(),
         }
     }

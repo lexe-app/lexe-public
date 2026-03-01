@@ -187,12 +187,12 @@ def test_update_payment_note():
 
         # Update the payment note
         wallet.update_payment_note(
-            payment_index=create_resp.payment_index,
+            index=create_resp.index,
             note="Updated note for test payment"
         )
 
         # Verify the note was updated
-        payment = wallet.get_payment(create_resp.payment_index)
+        payment = wallet.get_payment(create_resp.index)
         assert payment is not None
         assert payment.note == "Updated note for test payment"
 
@@ -321,7 +321,7 @@ def test_create_and_pay_invoice(prefunded_wallets):
 
     assert create_resp.invoice != ""
     assert create_resp.amount_sats == test_invoice_amount_sats
-    assert create_resp.payment_index != ""
+    assert create_resp.index != ""
     assert create_resp.created_at_ms > 0
     assert create_resp.expires_at_ms >= create_resp.created_at_ms
 
@@ -331,12 +331,12 @@ def test_create_and_pay_invoice(prefunded_wallets):
         fallback_amount_sats=None,
         note="Paying test invoice from Python SDK"
     )
-    assert pay_resp.payment_index != ""
+    assert pay_resp.index != ""
     assert pay_resp.created_at_ms > 0
 
     # Wait for payment to complete using SDK polling method
     payer_payment = wallet1.wait_for_payment(
-        payment_index=pay_resp.payment_index,
+        index=pay_resp.index,
         timeout_secs=poll_timeout_secs,
     )
 
@@ -389,7 +389,7 @@ def test_get_payment_invalid_format(prefunded_wallets):
 
     # Verify error message is specific about the payment index.
     error_msg = exc_info.value.message().lower()
-    assert "invalid payment_index" in error_msg
+    assert "invalid index" in error_msg
 
 
 @pytest.mark.integration

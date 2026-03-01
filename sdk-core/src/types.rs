@@ -20,8 +20,8 @@ use common::{
 use lexe_api_core::types::{
     invoice::LxInvoice,
     payments::{
-        BasicPaymentV2, LxPaymentId, PaymentCreatedIndex, PaymentDirection,
-        PaymentKind, PaymentRail, PaymentStatus,
+        BasicPaymentV2, PaymentCreatedIndex, PaymentDirection, PaymentKind,
+        PaymentRail, PaymentStatus,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -29,15 +29,11 @@ use serde::{Deserialize, Serialize};
 /// Information about a payment.
 #[derive(Serialize, Deserialize)]
 pub struct SdkPayment {
-    /// Unique identifier for this payment, ordered by created_at.
+    /// Unique payment identifier, ordered by `created_at`.
     ///
     /// This implements [`Ord`] and is generally the thing you want to key your
     /// payments by, e.g. `BTreeMap<PaymentCreatedIndex, SdkPayment>`.
     pub index: PaymentCreatedIndex,
-
-    /// Unordered payment identifier.
-    /// You should prefer to use [`index`](Self::index) instead of this.
-    pub id: LxPaymentId,
 
     /// The technical 'rail' used to fulfill a payment:
     /// 'onchain', 'invoice', 'offer', 'spontaneous', 'waived_fee', etc.
@@ -168,7 +164,6 @@ impl From<BasicPaymentV2> for SdkPayment {
 
         Self {
             index,
-            id,
             rail: kind.rail(),
             kind,
             direction,

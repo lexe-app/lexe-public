@@ -439,7 +439,7 @@ Raises:
 Example::
 
     resp = wallet.pay_invoice(bolt11_string)
-    payment = wallet.wait_for_payment(resp.payment_index)
+    payment = wallet.wait_for_payment(resp.index)
     print(f"Payment {payment.status}")
 """)
 
@@ -447,7 +447,7 @@ _set_method_doc(LexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
 Args:
-    payment_index: Full payment index string
+    index: Payment index string
         (format: ``<created_at_ms>-<payment_id>``).
 
 Returns:
@@ -463,7 +463,7 @@ Update a payment's personal note.
 Call :meth:`sync_payments` first so the payment exists locally.
 
 Args:
-    payment_index: Full payment index string.
+    index: Payment index string.
     note: New note text, or ``None`` to clear.
 
 Raises:
@@ -510,7 +510,7 @@ Example::
     wallet.sync_payments()
     resp = wallet.list_payments(PaymentFilter.ALL, offset=0, limit=20)
     for p in resp.payments:
-        print(f"{p.payment_index}: {p.amount_sats} sats ({p.status})")
+        print(f"{p.index}: {p.amount_sats} sats ({p.status})")
 """)
 
 _set_method_doc(LexeWallet, "latest_payment_sync_index", """\
@@ -539,7 +539,7 @@ or the timeout is reached. Defaults to 10 minutes if not specified.
 Maximum timeout is 86,400 seconds (24 hours).
 
 Args:
-    payment_index: Full payment index string.
+    index: Payment index string.
     timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
         Max: ``86400`` (24 hours).
 
@@ -552,7 +552,7 @@ Raises:
 Example::
 
     resp = wallet.pay_invoice(invoice_str)
-    payment = wallet.wait_for_payment(resp.payment_index)
+    payment = wallet.wait_for_payment(resp.index)
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
 
@@ -737,7 +737,7 @@ Raises:
 Example::
 
     resp = await wallet.pay_invoice(bolt11_string)
-    payment = await wallet.wait_for_payment(resp.payment_index)
+    payment = await wallet.wait_for_payment(resp.index)
     print(f"Payment {payment.status}")
 """)
 
@@ -745,7 +745,7 @@ _set_method_doc(AsyncLexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
 Args:
-    payment_index: Full payment index string
+    index: Payment index string
         (format: ``<created_at_ms>-<payment_id>``).
 
 Returns:
@@ -761,7 +761,7 @@ Update a payment's personal note.
 Call :meth:`sync_payments` first so the payment exists locally.
 
 Args:
-    payment_index: Full payment index string.
+    index: Payment index string.
     note: New note text, or ``None`` to clear.
 
 Raises:
@@ -808,7 +808,7 @@ Example::
     await wallet.sync_payments()
     resp = wallet.list_payments(PaymentFilter.ALL, offset=0, limit=20)
     for p in resp.payments:
-        print(f"{p.payment_index}: {p.amount_sats} sats ({p.status})")
+        print(f"{p.index}: {p.amount_sats} sats ({p.status})")
 """)
 
 _set_method_doc(AsyncLexeWallet, "latest_payment_sync_index", """\
@@ -837,7 +837,7 @@ or the timeout is reached. Defaults to 10 minutes if not specified.
 Maximum timeout is 86,400 seconds (24 hours).
 
 Args:
-    payment_index: Full payment index string.
+    index: Payment index string.
     timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
         Max: ``86400`` (24 hours).
 
@@ -850,7 +850,7 @@ Raises:
 Example::
 
     resp = await wallet.pay_invoice(invoice_str)
-    payment = await wallet.wait_for_payment(resp.payment_index)
+    payment = await wallet.wait_for_payment(resp.index)
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
 
@@ -929,8 +929,7 @@ lexe.Payment.__doc__ = """\
 Information about a payment.
 
 Attributes:
-    payment_index: Full payment index (``<created_at_ms>-<payment_id>``).
-    payment_id: Payment identifier without the timestamp.
+    index: Unique payment identifier (``<created_at_ms>-<payment_id>``).
     created_at_ms: When payment was created (ms since UNIX epoch).
     updated_at_ms: When payment was last updated (ms since UNIX epoch).
     rail: Technical rail used to fulfill this payment.
@@ -975,7 +974,7 @@ lexe.CreateInvoiceResponse.__doc__ = """\
 Response from creating a Lightning invoice.
 
 Attributes:
-    payment_index: Payment created index for this invoice.
+    index: Unique payment identifier for this invoice.
     invoice: BOLT11 invoice string.
     description: Description encoded in the invoice, if provided.
     amount_sats: Amount in satoshis, if specified.
@@ -989,7 +988,7 @@ lexe.PayInvoiceResponse.__doc__ = """\
 Response from paying a Lightning invoice.
 
 Attributes:
-    payment_index: Payment created index for this payment.
+    index: Unique payment identifier for this payment.
     created_at_ms: When payment was initiated (ms since UNIX epoch).
 """
 

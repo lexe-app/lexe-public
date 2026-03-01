@@ -296,7 +296,7 @@ impl WebhookSender {
 
     /// Send a webhook for a finalized payment with exponential backoff retry.
     async fn send_webhook(&self, user_pk: UserPk, payment: SdkPayment) {
-        let payment_id = payment.id;
+        let payment_id = payment.index.id;
         let payload = WebhookPayload { user_pk, payment };
         let mut backoff = backoff::get_backoff_iter();
 

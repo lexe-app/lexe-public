@@ -10,8 +10,7 @@ use std::{path::PathBuf, time::Duration};
 
 use common::{api::user::UserPk, rng::Crng, root_seed::RootSeed};
 use lexe_api::{
-    models::command::UpdatePaymentNote,
-    types::payments::PaymentCreatedIndex,
+    models::command::UpdatePaymentNote, types::payments::PaymentCreatedIndex,
 };
 use node_client::credentials::CredentialsRef;
 use sdk_core::{

@@ -290,7 +290,7 @@ impl LexeWallet<WithDb> {
                 match payment.status {
                     PaymentStatus::Completed | PaymentStatus::Failed =>
                         return Ok(payment),
-                    PaymentStatus::Pending => () // Continue polling
+                    PaymentStatus::Pending => (), // Continue polling
                 }
             }
 

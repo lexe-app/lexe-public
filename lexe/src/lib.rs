@@ -61,11 +61,9 @@ pub mod types {
     /// Payment data and metadata.
     pub mod payment {
         pub use lexe_api::types::payments::{
-            BasicPaymentV2, PaymentCreatedIndex, PaymentUpdatedIndex,
-        };
-        pub use lexe_api::types::payments::{
-            LxPaymentHash, LxPaymentId, LxPaymentSecret, PaymentDirection,
-            PaymentKind, PaymentRail, PaymentStatus,
+            BasicPaymentV2, LxPaymentHash, LxPaymentId, LxPaymentSecret,
+            PaymentCreatedIndex, PaymentDirection, PaymentKind, PaymentRail,
+            PaymentStatus, PaymentUpdatedIndex,
         };
     }
 
