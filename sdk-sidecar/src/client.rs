@@ -73,8 +73,10 @@ impl UserSidecarApi for SidecarClient {
         self.rest.send(http_req).await
     }
 
-    /// NOTE: See server handler for why we deserialize as [`SdkPayment`]
-    /// rather than [`SdkGetPaymentResponse`], and why we check for HTTP 404.
+    /// NOTE: The v2 server returns [`SdkPayment`] directly (see server handler
+    /// for rationale), using HTTP 404 for not-found. The Rust client wraps this
+    /// back into [`SdkGetPaymentResponse`] so that the `Option` is enforced by
+    /// the type system, guaranteeing callers handle the not-found case.
     async fn get_payment(
         &self,
         req: &SdkGetPaymentRequest,
