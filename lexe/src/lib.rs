@@ -46,13 +46,13 @@ pub mod types {
 
     /// Request, response, and command types for SDK operations.
     pub mod command {
-        pub use lexe_api::models::command::UpdatePaymentNote;
         pub use sdk_core::{
             models::{
                 ListPaymentsResponse, PaymentSyncSummary,
                 SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
                 SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
                 SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+                SdkUpdatePaymentNoteRequest,
             },
             types::SdkPayment,
         };

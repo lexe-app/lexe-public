@@ -10,15 +10,14 @@
 use std::{path::PathBuf, time::Duration};
 
 use common::{api::user::UserPk, root_seed::RootSeed};
-use lexe_api::{
-    models::command::UpdatePaymentNote, types::payments::PaymentCreatedIndex,
-};
+use lexe_api::types::payments::PaymentCreatedIndex;
 use node_client::credentials::CredentialsRef;
 use sdk_core::{
     models::{
         ListPaymentsResponse, SdkCreateInvoiceRequest,
         SdkCreateInvoiceResponse, SdkGetPaymentRequest, SdkGetPaymentResponse,
         SdkNodeInfo, SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+        SdkUpdatePaymentNoteRequest,
     },
     types::{Order, PaymentFilter, SdkPayment},
 };
@@ -235,7 +234,7 @@ impl BlockingLexeWallet {
     /// counterparty.
     pub fn update_payment_note(
         &self,
-        req: UpdatePaymentNote,
+        req: SdkUpdatePaymentNoteRequest,
     ) -> anyhow::Result<()> {
         block_on(self.inner.update_payment_note(req))
     }

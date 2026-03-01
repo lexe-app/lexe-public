@@ -515,7 +515,17 @@ impl AppHandle {
         req: UpdatePaymentNote,
     ) -> anyhow::Result<()> {
         let req = UpdatePaymentNoteRs::try_from(req)?;
-        self.inner.update_payment_note(req).await
+
+        self.inner
+            .node_client()?
+            .update_payment_note(req)
+            .await
+            .map(|Empty {}| ())
+            .map_err(anyhow::Error::new)
+            .context("Failed to update payment note on user node")?;
+
+        let _ = self.inner.sync_payments().await?;
+        Ok(())
     }
 
     #[instrument(skip_all, name = "(create-client)")]

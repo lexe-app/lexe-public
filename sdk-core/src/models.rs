@@ -274,6 +274,32 @@ pub struct SdkPayInvoiceResponse {
     pub created_at: TimestampMs,
 }
 
+/// A request to update the personal note on an existing payment.
+/// Pass `None` to clear the note.
+#[derive(Serialize, Deserialize)]
+pub struct SdkUpdatePaymentNoteRequest {
+    /// Identifier for the payment to be updated.
+    pub index: PaymentCreatedIndex,
+    /// The updated note, or `None` to clear.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub note: Option<String>,
+}
+
+impl TryFrom<SdkUpdatePaymentNoteRequest> for command::UpdatePaymentNote {
+    type Error = anyhow::Error;
+
+    fn try_from(sdk: SdkUpdatePaymentNoteRequest) -> anyhow::Result<Self> {
+        Ok(Self {
+            index: sdk.index,
+            note: sdk.note.map(BoundedNote::new).transpose().context(
+                "Invalid note (must be non-empty and <=200 chars / \
+                 <=512 UTF-8 bytes)",
+            )?,
+        })
+    }
+}
+
 /// A request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
 pub struct SdkGetPaymentRequest {

@@ -27,7 +27,6 @@ use lexe::{
     types::command::PaymentSyncSummary,
     wallet::{LexeWallet, WithDb},
 };
-use lexe_api::models::command::UpdatePaymentNote;
 use node_client::{
     client::{GatewayClient, NodeClient},
     credentials::CredentialsRef,
@@ -390,13 +389,6 @@ impl App {
 
     pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
         self.wallet.payments_db()
-    }
-
-    pub async fn update_payment_note(
-        &self,
-        req: UpdatePaymentNote,
-    ) -> anyhow::Result<()> {
-        self.wallet.update_payment_note(req).await
     }
 }
 

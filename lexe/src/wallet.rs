@@ -33,6 +33,7 @@ use sdk_core::{
         ListPaymentsResponse, SdkCreateInvoiceRequest,
         SdkCreateInvoiceResponse, SdkGetPaymentRequest, SdkGetPaymentResponse,
         SdkNodeInfo, SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+        SdkUpdatePaymentNoteRequest,
     },
     types::{Order, PaymentFilter, SdkPayment},
 };
@@ -728,8 +729,10 @@ impl<D> LexeWallet<D> {
     /// counterparty.
     pub async fn update_payment_note(
         &self,
-        req: UpdatePaymentNote,
+        req: SdkUpdatePaymentNoteRequest,
     ) -> anyhow::Result<()> {
+        let req: UpdatePaymentNote = req.try_into()?;
+
         // Update remote store first
         self.node_client
             .update_payment_note(req.clone())

@@ -29,14 +29,13 @@ use lexe::{
         SdkPayInvoiceRequest as SdkPayInvoiceRequestRs,
         SdkPayInvoiceResponse as SdkPayInvoiceResponseRs,
         SdkPayment as SdkPaymentRs,
+        SdkUpdatePaymentNoteRequest as SdkUpdatePaymentNoteRequestRs,
     },
     wallet::LexeWallet as LexeWalletRs,
 };
 use lexe_api_core::{
     error::GatewayApiError as GatewayApiErrorRs,
-    models::command::UpdatePaymentNote as UpdatePaymentNoteRs,
     types::{
-        bounded_note::BoundedNote as BoundedNoteRs,
         invoice::LxInvoice as LxInvoiceRs,
         payments::{
             PaymentCreatedIndex as PaymentCreatedIndexRs,
@@ -748,11 +747,7 @@ impl AsyncLexeWallet {
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let note = note
-            .map(BoundedNoteRs::new)
-            .transpose()
-            .map_err(|e| anyhow::anyhow!("Invalid note: {e}"))?;
-        let req = UpdatePaymentNoteRs { index, note };
+        let req = SdkUpdatePaymentNoteRequestRs { index, note };
         self.inner.update_payment_note(req).await?;
         Ok(())
     }
@@ -1055,11 +1050,7 @@ impl BlockingLexeWallet {
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let note = note
-            .map(BoundedNoteRs::new)
-            .transpose()
-            .map_err(|e| anyhow::anyhow!("Invalid note: {e}"))?;
-        let req = UpdatePaymentNoteRs { index, note };
+        let req = SdkUpdatePaymentNoteRequestRs { index, note };
         self.inner.update_payment_note(req)?;
         Ok(())
     }
