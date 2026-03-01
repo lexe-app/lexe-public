@@ -1,6 +1,6 @@
 [package]
 name = "sdk-uniffi"
-version = "0.1.0"
+version = "0.0.0-pre"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
