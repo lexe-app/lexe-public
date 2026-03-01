@@ -22,7 +22,6 @@ unstable = []
 
 common = { path = "../common" }
 lexe-api = { path = "../lexe-api" }
-lexe-api-core = { path = "../lexe-api-core" }
 lexe-std = { path = "../lexe-std" }
 lexe-tokio = { path = "../lexe-tokio" }
 logger = { path = "../logger" }

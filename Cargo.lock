@@ -2580,7 +2580,7 @@ dependencies = [
  "common",
  "futures",
  "lexe-api",
- "lexe-api-core",
+ "lexe-std",
  "lexe-tokio",
  "logger",
  "node-client",

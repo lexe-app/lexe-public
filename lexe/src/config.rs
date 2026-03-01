@@ -27,7 +27,7 @@ pub static SDK_USER_AGENT: LazyLock<&'static str> = LazyLock::new(|| {
     let (latest_node_version, _release) =
         node_releases.last_key_value().expect("No node releases");
 
-    let sdk_with_version = lexe_api_core::user_agent_to_lexe!();
+    let sdk_with_version = lexe_api::user_agent_to_lexe!();
     let user_agent = format!("{sdk_with_version} node/{latest_node_version}");
 
     Box::leak(user_agent.into_boxed_str())

@@ -42,7 +42,7 @@ pub mod types {
         pub use common::ln::{
             amount::Amount, hashes::LxTxid, priority::ConfirmationPriority,
         };
-        pub use lexe_api_core::types::invoice::LxInvoice;
+        pub use lexe_api::types::invoice::LxInvoice;
     }
 
     /// Request, response, and command types for SDK operations.
@@ -63,7 +63,7 @@ pub mod types {
         pub use lexe_api::types::payments::{
             BasicPaymentV2, PaymentCreatedIndex, PaymentUpdatedIndex,
         };
-        pub use lexe_api_core::types::payments::{
+        pub use lexe_api::types::payments::{
             LxPaymentHash, LxPaymentId, LxPaymentSecret, PaymentDirection,
             PaymentKind, PaymentRail, PaymentStatus,
         };
