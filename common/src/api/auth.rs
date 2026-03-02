@@ -107,9 +107,9 @@ pub struct UserSignupRequestWireV1 {
 pub struct BearerAuthRequest {
     /// The timestamp of this auth request, in seconds since UTC Unix time,
     /// interpreted relative to the server clock. Used to prevent replaying old
-    /// auth requests after the ~1 min expiration.
+    /// auth requests after expiration.
     ///
-    /// The server will reject timestamps w/ > 1 minute clock skew from the
+    /// The server will reject timestamps w/ > 30 minute clock skew from the
     /// server clock.
     pub request_timestamp_secs: u64,
 
