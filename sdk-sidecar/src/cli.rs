@@ -1,6 +1,6 @@
 //! SDK sidecar CLI
 
-use std::{net::SocketAddr, path::PathBuf, str::FromStr};
+use std::{env, net::SocketAddr, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
 use lexe_common::{
@@ -8,7 +8,7 @@ use lexe_common::{
     root_seed::RootSeed,
 };
 use lexe_node_client::credentials::ClientCredentials;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// Lexe sidecar SDK CLI args
 #[derive(Default, argh::FromArgs)]
@@ -54,13 +54,13 @@ pub struct SidecarArgs {
     pub client_credentials_path: Option<PathBuf>,
 
     /// lexe user root seed.
-    /// (env=`ROOT_SEED`)
+    /// (env=`LEXE_ROOT_SEED`)
     // TODO(phlip9): take a pass at CLI error messages after we unhide
     #[argh(option, hidden_help)] // hide option for now
     pub root_seed: Option<RootSeed>,
 
     /// path to Lexe user root seed.
-    /// (env=`ROOT_SEED_PATH`)
+    /// (env=`LEXE_ROOT_SEED_PATH`)
     // TODO(phlip9): take a pass at CLI error messages after we unhide
     #[argh(option, hidden_help)] // hide option for now
     pub root_seed_path: Option<PathBuf>,
@@ -106,13 +106,58 @@ impl SidecarArgs {
             .or_env_mut("LEXE_CLIENT_CREDENTIALS")?;
         self.client_credentials_path
             .or_env_mut("LEXE_CLIENT_CREDENTIALS_PATH")?;
-        self.root_seed.or_env_mut("ROOT_SEED")?;
-        self.root_seed_path.or_env_mut("ROOT_SEED_PATH")?;
+        // TODO(a-mpch): Remove legacy ROOT_SEED* env fallback.
+        Self::or_env_mut_with_deprecated(
+            &mut self.root_seed,
+            "LEXE_ROOT_SEED",
+            "ROOT_SEED",
+        )?;
+        Self::or_env_mut_with_deprecated(
+            &mut self.root_seed_path,
+            "LEXE_ROOT_SEED_PATH",
+            "ROOT_SEED_PATH",
+        )?;
+
         self.listen_addr.or_env_mut("LISTEN_ADDR")?;
         self.deploy_env.or_env_mut("DEPLOY_ENVIRONMENT")?;
         self.network.or_env_mut("NETWORK")?;
         self.webhook_url.or_env_mut("LEXE_WEBHOOK_URL")?;
         self.data_dir.or_env_mut("LEXE_DATA_DIR")?;
+        Ok(())
+    }
+
+    fn or_env_mut_with_deprecated<T>(
+        option: &mut Option<T>,
+        primary_env: &'static str,
+        deprecated_env: &'static str,
+    ) -> anyhow::Result<()>
+    where
+        T: FromStr,
+        T::Err: Into<anyhow::Error>,
+    {
+        option.or_env_mut(primary_env)?;
+
+        let has_primary = env::var_os(primary_env).is_some();
+        let has_deprecated = env::var_os(deprecated_env).is_some();
+
+        if has_primary && has_deprecated {
+            warn!(
+                "Both `${primary_env}` and deprecated `${deprecated_env}` are \
+                 set; using `${primary_env}`"
+            );
+            return Ok(());
+        }
+
+        if option.is_none() {
+            option.or_env_mut(deprecated_env)?;
+            if has_deprecated {
+                warn!(
+                    "`${deprecated_env}` is deprecated; use `${primary_env}` \
+                     instead"
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -159,8 +204,8 @@ impl SidecarArgs {
     pub(crate) fn load_root_seed(&mut self) -> anyhow::Result<()> {
         match (self.root_seed.as_ref(), self.root_seed_path.take()) {
             (Some(_), Some(_)) => Err(anyhow!(
-                "Only one of `--root-seed`/`$ROOT_SEED` or \
-                 `--root-seed-path`/`$ROOT_SEED_PATH` must be specified"
+                "Only one of `--root-seed`/`$LEXE_ROOT_SEED` or \
+                 `--root-seed-path`/`$LEXE_ROOT_SEED_PATH` must be specified"
             )),
             (None, None) => {
                 debug!("No root seed found");
