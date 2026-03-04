@@ -198,8 +198,8 @@ def test_update_payment_note():
 
 
 @pytest.mark.integration
-def test_delete_local_payments():
-    """Test deleting local payment data."""
+def test_clear_payments():
+    """Test clearing local payment data."""
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
@@ -223,8 +223,8 @@ def test_delete_local_payments():
         )
         assert response.total_count >= 1
 
-        # Delete local payments
-        wallet.delete_local_payments()
+        # Clear local payments
+        wallet.clear_payments()
 
         # Verify payments are gone locally
         response_after = wallet.list_payments(

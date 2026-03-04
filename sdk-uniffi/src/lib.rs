@@ -9,7 +9,6 @@
 
 use std::{fmt, path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::Context;
 use common::{
     api::user::UserPk,
     env::DeployEnv as DeployEnvRs,
@@ -798,15 +797,12 @@ impl AsyncLexeWallet {
         }
     }
 
-    /// Delete all local payment data for this wallet.
+    /// Clear all local payment data for this wallet.
     ///
-    /// This clears the local payment cache. Remote data on the node is not
-    /// affected. Call `sync_payments` to re-populate from the node.
-    pub fn delete_local_payments(&self) -> FfiResult<()> {
-        self.inner
-            .payments_db()
-            .clear()
-            .context("Failed to delete local payments")?;
+    /// Clears the local payment cache only. Remote data on the node is not
+    /// affected. Call `sync_payments` to re-populate.
+    pub fn clear_payments(&self) -> FfiResult<()> {
+        self.inner.clear_payments()?;
         Ok(())
     }
 
@@ -1120,15 +1116,12 @@ impl BlockingLexeWallet {
         }
     }
 
-    /// Delete all local payment data for this wallet.
+    /// Clear all local payment data for this wallet.
     ///
-    /// This clears the local payment cache. Remote data on the node is not
-    /// affected. Call `sync_payments` to re-populate from the node.
-    pub fn delete_local_payments(&self) -> FfiResult<()> {
-        self.inner
-            .payments_db()
-            .clear()
-            .context("Failed to delete local payments")?;
+    /// Clears the local payment cache only. Remote data on the node is not
+    /// affected. Call `sync_payments` to re-populate.
+    pub fn clear_payments(&self) -> FfiResult<()> {
+        self.inner.clear_payments()?;
         Ok(())
     }
 

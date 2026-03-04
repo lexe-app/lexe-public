@@ -513,8 +513,8 @@ Example::
         print(f"{p.index}: {p.amount_sats} sats ({p.status})")
 """)
 
-_set_method_doc(LexeWallet, "delete_local_payments", """\
-Delete all local payment data for this wallet.
+_set_method_doc(LexeWallet, "clear_payments", """\
+Clear all local payment data for this wallet.
 
 Clears the local payment cache only. Remote data on the node is
 not affected. Call :meth:`sync_payments` to re-populate.
@@ -803,8 +803,8 @@ Example::
         print(f"{p.index}: {p.amount_sats} sats ({p.status})")
 """)
 
-_set_method_doc(AsyncLexeWallet, "delete_local_payments", """\
-Delete all local payment data for this wallet.
+_set_method_doc(AsyncLexeWallet, "clear_payments", """\
+Clear all local payment data for this wallet.
 
 Clears the local payment cache only. Remote data on the node is
 not affected. Call :meth:`sync_payments` to re-populate.

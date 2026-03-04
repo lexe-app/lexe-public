@@ -254,6 +254,16 @@ impl LexeWallet<WithDb> {
             .await
     }
 
+    /// Clear all local payment data for this wallet.
+    ///
+    /// Clears the local payment cache only. Remote data on the node is not
+    /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
+    pub fn clear_payments(&self) -> anyhow::Result<()> {
+        self.payments_db()
+            .clear()
+            .context("Failed to clear local payments")
+    }
+
     /// Wait for a payment to reach a terminal state (completed or failed).
     ///
     /// Polls the node with exponential backoff until the payment finalizes or
