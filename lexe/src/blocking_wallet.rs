@@ -8,7 +8,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use common::{api::user::UserPk, rng::Crng, root_seed::RootSeed};
+use common::{api::user::UserPk, root_seed::RootSeed};
 use lexe_api::{
     models::command::UpdatePaymentNote, types::payments::PaymentCreatedIndex,
 };
@@ -58,13 +58,11 @@ impl BlockingLexeWallet {
     /// with each other as all data is namespaced internally.
     /// Defaults to `~/.lexe` if not specified.
     pub fn fresh(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Self> {
-        let inner =
-            LexeWallet::fresh(rng, env_config, credentials, lexe_data_dir)?;
+        let inner = LexeWallet::fresh(env_config, credentials, lexe_data_dir)?;
         Ok(Self { inner })
     }
 
@@ -82,12 +80,11 @@ impl BlockingLexeWallet {
     /// with each other as all data is namespaced internally.
     /// Defaults to `~/.lexe` if not specified.
     pub fn load(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Option<Self>> {
-        LexeWallet::load(rng, env_config, credentials, lexe_data_dir)
+        LexeWallet::load(env_config, credentials, lexe_data_dir)
             .map(|opt| opt.map(|inner| Self { inner }))
     }
 
@@ -102,17 +99,12 @@ impl BlockingLexeWallet {
     /// with each other as all data is namespaced internally.
     /// Defaults to `~/.lexe` if not specified.
     pub fn load_or_fresh(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: Option<PathBuf>,
     ) -> anyhow::Result<Self> {
-        let inner = LexeWallet::load_or_fresh(
-            rng,
-            env_config,
-            credentials,
-            lexe_data_dir,
-        )?;
+        let inner =
+            LexeWallet::load_or_fresh(env_config, credentials, lexe_data_dir)?;
         Ok(Self { inner })
     }
 
@@ -194,11 +186,10 @@ impl BlockingLexeWallet {
     ///   wallet's fees.
     pub fn signup(
         &self,
-        rng: &mut impl Crng,
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
     ) -> anyhow::Result<()> {
-        block_on(self.inner.signup(rng, root_seed, partner_pk))
+        block_on(self.inner.signup(root_seed, partner_pk))
     }
 
     /// Ensures the wallet is provisioned to all recent trusted releases.

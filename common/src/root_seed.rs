@@ -16,7 +16,7 @@ use crate::{
     ed25519,
     ln::network::LxNetwork,
     password,
-    rng::{Crng, RngExt},
+    rng::{Crng, RngExt, SysRng},
 };
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
@@ -50,6 +50,11 @@ impl RootSeed {
         let mut seed = [0u8; 32];
         seed[0..8].copy_from_slice(&v.to_le_bytes());
         Self::new(Secret::new(seed))
+    }
+
+    /// Generate a new random [`RootSeed`] using the system CSPRNG.
+    pub fn generate() -> Self {
+        Self::from_rng(&mut SysRng::new())
     }
 
     pub fn from_rng<R: Crng>(rng: &mut R) -> Self {

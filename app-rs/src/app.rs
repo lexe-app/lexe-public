@@ -98,7 +98,6 @@ impl App {
         // Create fresh wallet
         let credentials = CredentialsRef::from(root_seed);
         let wallet = LexeWallet::fresh(
-            rng,
             env_config.clone(),
             credentials,
             Some(env_db_config.lexe_data_dir().clone()),
@@ -113,7 +112,6 @@ impl App {
         let allow_gvfs_access: bool = true;
         wallet
             .signup_custom(
-                rng,
                 root_seed,
                 partner,
                 signup_code,
@@ -184,7 +182,6 @@ impl App {
         // Load the wallet.
         let credentials = CredentialsRef::from(&root_seed);
         let maybe_wallet = LexeWallet::load(
-            rng,
             env_config.clone(),
             credentials,
             Some(env_db_config.lexe_data_dir().clone()),
@@ -197,7 +194,6 @@ impl App {
             // we don't want to send the user back to the signup / restore
             // flows, so just create a fresh wallet instance.
             None => LexeWallet::fresh(
-                rng,
                 env_config.clone(),
                 credentials,
                 Some(env_db_config.lexe_data_dir().clone()),
@@ -241,7 +237,6 @@ impl App {
         // Init a fresh LexeWallet
         let credentials = CredentialsRef::from(root_seed);
         let wallet = LexeWallet::fresh(
-            rng,
             env_config.clone(),
             credentials,
             Some(env_db_config.lexe_data_dir().clone()),

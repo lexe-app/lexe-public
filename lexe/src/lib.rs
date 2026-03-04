@@ -76,8 +76,7 @@ pub mod types {
 
     /// General-purpose utilities.
     pub mod util {
-        // TODO(ai): SysRng shouldn't be exposed in the public SDK API.
-        pub use common::{rng::SysRng, time::TimestampMs};
+        pub use common::time::TimestampMs;
     }
 }
 

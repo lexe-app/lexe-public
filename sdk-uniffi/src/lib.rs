@@ -16,7 +16,6 @@ use common::{
         amount::Amount as AmountRs, network::LxNetwork as LxNetworkRs,
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
-    rng::SysRng,
     root_seed::RootSeed as RootSeedRs,
 };
 use lexe::{
@@ -369,6 +368,14 @@ pub struct RootSeed {
 
 #[uniffi::export]
 impl RootSeed {
+    /// Generate a new random root seed.
+    #[uniffi::constructor]
+    pub fn generate() -> Arc<Self> {
+        Arc::new(Self {
+            inner: RootSeedRs::generate(),
+        })
+    }
+
     /// Create a new root seed from raw bytes.
     ///
     /// The seed must be exactly 32 bytes.
@@ -528,12 +535,10 @@ impl AsyncLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let mut rng = SysRng::new();
         let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let inner = LexeWalletRs::fresh(
-            &mut rng,
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -563,12 +568,10 @@ impl AsyncLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
-        let mut rng = SysRng::new();
         let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let maybe_inner = LexeWalletRs::load(
-            &mut rng,
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -597,12 +600,10 @@ impl AsyncLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let mut rng = SysRng::new();
         let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let inner = LexeWalletRs::load_or_fresh(
-            &mut rng,
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -626,7 +627,6 @@ impl AsyncLexeWallet {
         root_seed: Arc<RootSeed>,
         partner_pk: Option<String>,
     ) -> FfiResult<()> {
-        let mut rng = SysRng::new();
         let partner = partner_pk
             .as_deref()
             .map(|s| {
@@ -636,9 +636,7 @@ impl AsyncLexeWallet {
             })
             .transpose()?;
 
-        self.inner
-            .signup(&mut rng, root_seed.as_rs(), partner)
-            .await?;
+        self.inner.signup(root_seed.as_rs(), partner).await?;
         Ok(())
     }
 
@@ -838,12 +836,10 @@ impl BlockingLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let mut rng = SysRng::new();
         let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let inner = BlockingLexeWalletRs::fresh(
-            &mut rng,
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -873,12 +869,10 @@ impl BlockingLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
-        let mut rng = SysRng::new();
         let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let maybe_inner = BlockingLexeWalletRs::load(
-            &mut rng,
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -907,12 +901,10 @@ impl BlockingLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let mut rng = SysRng::new();
         let credentials = CredentialsRef::from(root_seed.as_rs());
         let env_config_rs = env_config.to_rs();
 
         let inner = BlockingLexeWalletRs::load_or_fresh(
-            &mut rng,
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -936,7 +928,6 @@ impl BlockingLexeWallet {
         root_seed: Arc<RootSeed>,
         partner_pk: Option<String>,
     ) -> FfiResult<()> {
-        let mut rng = SysRng::new();
         let partner = partner_pk
             .as_deref()
             .map(|s| {
@@ -946,7 +937,7 @@ impl BlockingLexeWallet {
             })
             .transpose()?;
 
-        self.inner.signup(&mut rng, root_seed.as_rs(), partner)?;
+        self.inner.signup(root_seed.as_rs(), partner)?;
         Ok(())
     }
 

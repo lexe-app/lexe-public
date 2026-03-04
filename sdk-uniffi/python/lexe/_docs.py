@@ -208,18 +208,19 @@ Example::
 lexe.RootSeed.__doc__ = """\
 The secret root seed for deriving all user keys and credentials.
 
-Create with :class:`RootSeed` from raw bytes, or load from a file
-with :meth:`RootSeed.read_from_path`.
+Create with :meth:`RootSeed.generate`, from raw bytes with
+:class:`RootSeed`, or load from a file with :meth:`RootSeed.read_from_path`.
 
 Example::
 
+    # Generate a new random seed
+    seed = RootSeed.generate()
+
+    # Or create from raw bytes
     import os
-
-    # Create from random bytes
     seed = RootSeed(os.urandom(32))
-    print(f"Seed: {len(seed.seed_bytes)} bytes")
 
-    # Load from file
+    # Or load from file
     seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
 """
 

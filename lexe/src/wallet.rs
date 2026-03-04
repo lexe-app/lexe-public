@@ -9,7 +9,7 @@ use common::{
         },
         user::{NodePkProof, UserPk},
     },
-    rng::Crng,
+    rng::SysRng,
     root_seed::RootSeed,
 };
 use lexe_api::{
@@ -91,7 +91,6 @@ impl LexeWallet<WithDb> {
     /// interfere with each other as all data is namespaced internally.
     /// Defaults to `~/.lexe` if not specified.
     pub fn fresh(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: Option<PathBuf>,
@@ -106,7 +105,7 @@ impl LexeWallet<WithDb> {
         let db = WalletDb::fresh(user_db_config)
             .context("Failed to create fresh wallet db")?;
 
-        Self::with_db(rng, env_config, credentials, db)
+        Self::with_db(env_config, credentials, db)
     }
 
     /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`.
@@ -126,7 +125,6 @@ impl LexeWallet<WithDb> {
     /// [`fresh`]: LexeWallet::fresh
     /// [`signup`]: LexeWallet::signup
     pub fn load(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: Option<PathBuf>,
@@ -145,7 +143,7 @@ impl LexeWallet<WithDb> {
             None => return Ok(None),
         };
 
-        Self::with_db(rng, env_config, credentials, db).map(Some)
+        Self::with_db(env_config, credentials, db).map(Some)
     }
 
     /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`,
@@ -158,7 +156,6 @@ impl LexeWallet<WithDb> {
     /// interfere with each other as all data is namespaced internally.
     /// Defaults to `~/.lexe` if not specified.
     pub fn load_or_fresh(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         lexe_data_dir: Option<PathBuf>,
@@ -173,12 +170,11 @@ impl LexeWallet<WithDb> {
         let db = WalletDb::load_or_fresh(user_db_config)
             .context("Failed to load or create wallet db")?;
 
-        Self::with_db(rng, env_config, credentials, db)
+        Self::with_db(env_config, credentials, db)
     }
 
     // Internal constructor for a wallet with `WalletDb` enabled.
     fn with_db(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
         db: WalletDb<DiskFs>,
@@ -200,8 +196,9 @@ impl LexeWallet<WithDb> {
         )
         .context("Failed to build GatewayClient")?;
 
+        let mut rng = SysRng::new();
         let node_client = NodeClient::new(
-            rng,
+            &mut rng,
             env_config.wallet_env.use_sgx,
             env_config.wallet_env.deploy_env,
             gateway_client.clone(),
@@ -351,7 +348,6 @@ impl LexeWallet<WithoutDb> {
     /// [`fresh`]: LexeWallet::fresh
     /// [`load`]: LexeWallet::load
     pub fn without_db(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
     ) -> anyhow::Result<Self> {
@@ -372,8 +368,9 @@ impl LexeWallet<WithoutDb> {
         )
         .context("Failed to build GatewayClient")?;
 
+        let mut rng = SysRng::new();
         let node_client = NodeClient::new(
-            rng,
+            &mut rng,
             env_config.wallet_env.use_sgx,
             env_config.wallet_env.deploy_env,
             gateway_client.clone(),
@@ -420,12 +417,11 @@ impl<D> LexeWallet<D> {
     /// [`without_db()`]: LexeWallet::without_db
     pub async fn signup(
         &self,
-        rng: &mut impl Crng,
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
     ) -> anyhow::Result<()> {
         self.signup_inner(
-            rng, root_seed, partner_pk, None,  // signup_code
+            root_seed, partner_pk, None,  // signup_code
             false, // allow_gvfs_access
             None,  // backup_password
             None,  // google_auth_code
@@ -438,7 +434,6 @@ impl<D> LexeWallet<D> {
     #[cfg(feature = "unstable")]
     pub async fn signup_custom(
         &self,
-        rng: &mut impl Crng,
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
         signup_code: Option<String>,
@@ -447,7 +442,6 @@ impl<D> LexeWallet<D> {
         google_auth_code: Option<String>,
     ) -> anyhow::Result<()> {
         self.signup_inner(
-            rng,
             root_seed,
             partner_pk,
             signup_code,
@@ -462,7 +456,6 @@ impl<D> LexeWallet<D> {
     #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     async fn signup_inner(
         &self,
-        rng: &mut impl Crng,
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
         signup_code: Option<String>,
@@ -470,10 +463,12 @@ impl<D> LexeWallet<D> {
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
     ) -> anyhow::Result<()> {
+        let mut rng = SysRng::new();
+
         // Derive keys and build signup request
         let user_key_pair = root_seed.derive_user_key_pair();
-        let node_key_pair = root_seed.derive_node_key_pair(rng);
-        let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
+        let node_key_pair = root_seed.derive_node_key_pair(&mut rng);
+        let node_pk_proof = NodePkProof::sign(&mut rng, &node_key_pair);
 
         let signup_req = UserSignupRequestWire::V2(UserSignupRequestWireV2 {
             v1: UserSignupRequestWireV1 {
@@ -496,7 +491,7 @@ impl<D> LexeWallet<D> {
         // Encrypt seed if backup password provided.
         // NOTE: This is very slow; 600K HMAC iterations!
         let encrypted_seed = backup_password
-            .map(|password| root_seed.password_encrypt(rng, password))
+            .map(|password| root_seed.password_encrypt(&mut rng, password))
             .transpose()
             .context("Could not encrypt root seed under password")?;
 
