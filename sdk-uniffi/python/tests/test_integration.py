@@ -1,7 +1,7 @@
 """Integration tests for the Lexe Python SDK.
 
 These tests require a running gateway and network connection.
-Run with: `just sdk-py-test-integration`
+Run with: `just sdk-python-test-integration`
 """
 
 import tempfile
