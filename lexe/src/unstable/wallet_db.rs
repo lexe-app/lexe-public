@@ -4,11 +4,11 @@ use anyhow::{Context, anyhow};
 use node_client::client::NodeClient;
 use tracing::{info, warn};
 
-use super::ffs::{DiskFs, fsext};
-use crate::{
-    config::WalletUserDbConfig,
+use super::{
+    ffs::{DiskFs, fsext},
     payments_db::{self, PaymentSyncSummary, PaymentsDb},
 };
+use crate::config::WalletUserDbConfig;
 
 /// Persistent wallet database which can be used with [`LexeWallet`].
 ///

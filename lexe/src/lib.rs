@@ -8,8 +8,6 @@
 
 /// Configuration options for a `LexeWallet`.
 pub mod config;
-/// Local payments database synced from the user node.
-pub mod payments_db;
 /// `LexeWallet`: the top-level handle to a Lexe wallet.
 pub mod wallet;
 
@@ -97,6 +95,8 @@ pub fn init_logger(default_level: &str) {
 mod unstable {
     /// `Ffs`: A flat file system abstraction.
     pub mod ffs;
+    /// Local payments database synced from the user node.
+    pub mod payments_db;
     /// Provision-related utilities.
     pub mod provision;
     /// Wallet database.

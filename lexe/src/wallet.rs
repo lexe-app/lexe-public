@@ -44,8 +44,12 @@ use crate::{
         WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
         WalletUserDbConfig,
     },
-    payments_db::{DEFAULT_LIST_LIMIT, PaymentsDb},
-    unstable::{ffs::DiskFs, provision, wallet_db::WalletDb},
+    unstable::{
+        ffs::DiskFs,
+        payments_db::{DEFAULT_LIST_LIMIT, PaymentsDb},
+        provision,
+        wallet_db::WalletDb,
+    },
 };
 
 /// Type state indicating the wallet has persistence enabled.
@@ -227,7 +231,7 @@ impl LexeWallet<WithDb> {
         self.db.as_ref().expect("WithDb always has db")
     }
 
-    /// Get a reference to the [`PaymentsDb`].
+    /// Get a reference to the payments database.
     /// This is the primary data source for constructing a payments list UI.
     pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
         self.db
@@ -243,7 +247,7 @@ impl LexeWallet<WithDb> {
     /// Errors if another sync is already in progress.
     pub async fn sync_payments(
         &self,
-    ) -> anyhow::Result<crate::payments_db::PaymentSyncSummary> {
+    ) -> anyhow::Result<crate::unstable::payments_db::PaymentSyncSummary> {
         self.db
             .as_ref()
             .expect("WithDb always has db")

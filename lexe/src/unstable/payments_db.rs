@@ -40,7 +40,7 @@
 /// to load all the payments on startup and could instead lazy load them.
 ///
 /// [`BasicPaymentV2`]: lexe_api::types::payments::BasicPaymentV2
-/// [`PaymentsDb`]: crate::payments_db::PaymentsDb
+/// [`PaymentsDb`]: crate::unstable::payments_db::PaymentsDb
 /// [`PaymentUpdatedIndex`]: lexe_api::types::payments::PaymentUpdatedIndex
 mod docs {}
 

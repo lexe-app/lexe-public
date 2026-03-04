@@ -24,8 +24,10 @@ use sdk_core::{
 
 use crate::{
     config::WalletEnvConfig,
-    payments_db::{PaymentSyncSummary, PaymentsDb},
-    unstable::ffs::DiskFs,
+    unstable::{
+        ffs::DiskFs,
+        payments_db::{PaymentSyncSummary, PaymentsDb},
+    },
     wallet::{LexeWallet, WithDb},
 };
 
@@ -116,7 +118,7 @@ impl BlockingLexeWallet {
         Ok(Self { inner })
     }
 
-    /// Get a reference to the [`PaymentsDb`].
+    /// Get a reference to the payments database.
     /// This is the primary data source for constructing a payments list UI.
     pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
         self.inner.payments_db()
