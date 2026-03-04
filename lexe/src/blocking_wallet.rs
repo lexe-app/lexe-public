@@ -24,10 +24,8 @@ use sdk_core::{
 
 use crate::{
     config::WalletEnvConfig,
-    unstable::{
-        ffs::DiskFs,
-        payments_db::{PaymentSyncSummary, PaymentsDb},
-    },
+    types::command::PaymentSyncSummary,
+    unstable::{ffs::DiskFs, payments_db::PaymentsDb},
     wallet::{LexeWallet, WithDb},
 };
 

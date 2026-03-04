@@ -71,9 +71,6 @@ use tracing::warn;
 
 use crate::unstable::ffs::Ffs;
 
-/// Default number of payments per page.
-pub(crate) const DEFAULT_LIST_LIMIT: usize = 100;
-
 /// The app's local [`BasicPaymentV2`] database, synced from the user node.
 pub struct PaymentsDb<F> {
     ffs: F,

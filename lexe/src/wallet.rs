@@ -44,11 +44,9 @@ use crate::{
         WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
         WalletUserDbConfig,
     },
+    types::command::PaymentSyncSummary,
     unstable::{
-        ffs::DiskFs,
-        payments_db::{DEFAULT_LIST_LIMIT, PaymentsDb},
-        provision,
-        wallet_db::WalletDb,
+        ffs::DiskFs, payments_db::PaymentsDb, provision, wallet_db::WalletDb,
     },
 };
 
@@ -56,6 +54,9 @@ use crate::{
 pub struct WithDb;
 /// Type state indicating the wallet has no persistence.
 pub struct WithoutDb;
+
+/// Default number of payments per page.
+const DEFAULT_LIST_LIMIT: usize = 100;
 
 /// Top-level handle to a Lexe wallet.
 ///
@@ -245,9 +246,7 @@ impl LexeWallet<WithDb> {
     ///
     /// Only one sync can run at a time.
     /// Errors if another sync is already in progress.
-    pub async fn sync_payments(
-        &self,
-    ) -> anyhow::Result<crate::unstable::payments_db::PaymentSyncSummary> {
+    pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         self.db
             .as_ref()
             .expect("WithDb always has db")
