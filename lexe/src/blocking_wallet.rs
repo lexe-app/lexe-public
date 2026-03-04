@@ -124,9 +124,6 @@ impl BlockingLexeWallet {
 
     /// Sync payments from the user node to the local database.
     /// This fetches updated payments from the node and persists them locally.
-    ///
-    /// Only one sync can run at a time.
-    /// Errors if another sync is already in progress.
     pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         block_on(self.inner.sync_payments())
     }

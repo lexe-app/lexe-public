@@ -243,9 +243,6 @@ impl LexeWallet<WithDb> {
 
     /// Sync payments from the user node to the local database.
     /// This fetches updated payments from the node and persists them locally.
-    ///
-    /// Only one sync can run at a time.
-    /// Errors if another sync is already in progress.
     pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         self.db
             .as_ref()

@@ -739,9 +739,6 @@ impl AsyncLexeWallet {
     }
 
     /// Sync payments from the node to local storage.
-    ///
-    /// Only one sync can run at a time.
-    /// Errors if another sync is already in progress.
     pub async fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
         let summary = self.inner.sync_payments().await?;
         Ok(PaymentSyncSummary {
@@ -1047,9 +1044,6 @@ impl BlockingLexeWallet {
     }
 
     /// Sync payments from the node to local storage.
-    ///
-    /// Only one sync can run at a time.
-    /// Errors if another sync is already in progress.
     pub fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
         let summary = self.inner.sync_payments()?;
         Ok(PaymentSyncSummary {

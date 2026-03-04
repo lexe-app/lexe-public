@@ -1,6 +1,6 @@
 //! Lexe wallet database.
 
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use node_client::client::NodeClient;
 use tracing::{info, warn};
 
@@ -133,23 +133,16 @@ impl WalletDb<DiskFs> {
         &self.payments_db
     }
 
-    /// Sync payments from the user node.
+    /// Sync payments from the node to the local payments database.
     ///
-    /// Only one sync can run at a time.
-    /// Errors if another sync is already in progress.
+    /// If another sync is already in progress, waits for it to complete
+    /// before starting a new one.
     pub async fn sync_payments(
         &self,
         node_client: &NodeClient,
         batch_size: u16,
     ) -> anyhow::Result<PaymentSyncSummary> {
-        // TODO(max): Should we switch to lock().await?
-        let _lock = self.payment_sync_lock.try_lock().map_err(|_| {
-            anyhow!(
-                "Another task is syncing payments. \
-                 Only one task should sync payments at a time."
-            )
-        })?;
-
+        let _lock = self.payment_sync_lock.lock().await;
         payments_db::sync_payments(&self.payments_db, node_client, batch_size)
             .await
     }

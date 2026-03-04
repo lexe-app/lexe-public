@@ -474,14 +474,12 @@ _set_method_doc(LexeWallet, "sync_payments", """\
 Sync payments from the remote node to local storage.
 
 Call periodically to keep local payment data up to date.
-Only one sync can run at a time; raises an error if another
-sync is already in progress.
 
 Returns:
     A :class:`PaymentSyncSummary` with counts of new and updated payments.
 
 Raises:
-    FfiError: If the node is unreachable or a sync is already running.
+    FfiError: If the node is unreachable.
 
 Example::
 
@@ -781,14 +779,12 @@ _set_method_doc(AsyncLexeWallet, "sync_payments", """\
 Sync payments from the remote node to local storage.
 
 Call periodically to keep local payment data up to date.
-Only one sync can run at a time; raises an error if another
-sync is already in progress.
 
 Returns:
     A :class:`PaymentSyncSummary` with counts of new and updated payments.
 
 Raises:
-    FfiError: If the node is unreachable or a sync is already running.
+    FfiError: If the node is unreachable.
 
 Example::
 
