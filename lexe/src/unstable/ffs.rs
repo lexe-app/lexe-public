@@ -44,7 +44,8 @@ pub trait Ffs {
     /// Write `data` to `filename`, overwriting any existing file.
     fn write(&self, filename: &str, data: &[u8]) -> io::Result<()>;
 
-    /// Delete all files and directories in the `Ffs`.
+    /// Delete all files and directories in the `Ffs` without deleting the `Ffs`
+    /// itself or any artifacts required for its continued use.
     fn delete_all(&self) -> io::Result<()>;
 
     /// Delete file.

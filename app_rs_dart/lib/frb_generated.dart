@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 687671934;
+  int get rustContentHash => -1476612725;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -104,6 +104,8 @@ abstract class AppRsApi extends BaseApi {
 
   Future<BackupInfo> crateFfiAppAppHandleBackupInfo({required AppHandle that});
 
+  Future<void> crateFfiAppAppHandleClearPaymentDb({required AppHandle that});
+
   Future<void> crateFfiAppAppHandleCloseChannel({
     required AppHandle that,
     required CloseChannelRequest req,
@@ -123,8 +125,6 @@ abstract class AppRsApi extends BaseApi {
     required AppHandle that,
     required CreateOfferRequest req,
   });
-
-  Future<void> crateFfiAppAppHandleDeletePaymentDb({required AppHandle that});
 
   Future<FiatRates> crateFfiAppAppHandleFiatRates({required AppHandle that});
 
@@ -618,6 +618,37 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<void> crateFfiAppAppHandleClearPaymentDb({required AppHandle that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleClearPaymentDbConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleClearPaymentDbConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_clear_payment_db",
+        argNames: ["that"],
+      );
+
+  @override
   Future<void> crateFfiAppAppHandleCloseChannel({
     required AppHandle that,
     required CloseChannelRequest req,
@@ -631,7 +662,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -666,7 +697,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -701,7 +732,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -736,7 +767,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -755,37 +786,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(
         debugName: "app_handle_create_offer",
         argNames: ["that", "req"],
-      );
-
-  @override
-  Future<void> crateFfiAppAppHandleDeletePaymentDb({required AppHandle that}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 10,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiAppAppHandleDeletePaymentDbConstMeta,
-        argValues: [that],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiAppAppHandleDeletePaymentDbConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_delete_payment_db",
-        argNames: ["that"],
       );
 
   @override

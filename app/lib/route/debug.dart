@@ -47,7 +47,7 @@ class _DebugPageState extends State<DebugPage> {
     info("Deleting local PaymentDb");
 
     (await Result.tryFfiAsync(
-      this.widget.app.deletePaymentDb,
+      this.widget.app.clearPaymentDb,
     )).inspectErr((err) => error(err.message));
   }
 

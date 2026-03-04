@@ -805,7 +805,7 @@ impl AsyncLexeWallet {
     pub fn delete_local_payments(&self) -> FfiResult<()> {
         self.inner
             .payments_db()
-            .delete()
+            .clear()
             .context("Failed to delete local payments")?;
         Ok(())
     }
@@ -1127,7 +1127,7 @@ impl BlockingLexeWallet {
     pub fn delete_local_payments(&self) -> FfiResult<()> {
         self.inner
             .payments_db()
-            .delete()
+            .clear()
             .context("Failed to delete local payments")?;
         Ok(())
     }

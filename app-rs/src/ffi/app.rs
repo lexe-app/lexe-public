@@ -398,12 +398,12 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    /// Delete both the local payment state and the on-disk payment db.
-    pub fn delete_payment_db(&self) -> anyhow::Result<()> {
+    /// Clear both the local payment state and the on-disk payment db.
+    pub fn clear_payment_db(&self) -> anyhow::Result<()> {
         self.inner
             .payments_db()
-            .delete()
-            .context("Failed to delete PaymentDb")
+            .clear()
+            .context("Failed to clear PaymentDb")
     }
 
     /// Sync the local payment DB to the remote node.

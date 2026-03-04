@@ -219,7 +219,7 @@ impl<F: Ffs> PaymentsDb<F> {
     // --- Public API  --- //
 
     /// Clear the in-memory state and delete the on-disk payment db.
-    pub fn delete(&self) -> io::Result<()> {
+    pub fn clear(&self) -> io::Result<()> {
         *self.state.write().unwrap() = PaymentsDbState::empty();
         self.ffs.delete_all()
     }

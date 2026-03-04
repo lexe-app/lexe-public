@@ -38,6 +38,10 @@ class AppHandle {
   Future<BackupInfo> backupInfo() =>
       AppRs.instance.api.crateFfiAppAppHandleBackupInfo(that: this);
 
+  /// Clear both the local payment state and the on-disk payment db.
+  Future<void> clearPaymentDb() =>
+      AppRs.instance.api.crateFfiAppAppHandleClearPaymentDb(that: this);
+
   Future<void> closeChannel({required CloseChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleCloseChannel(that: this, req: req);
 
@@ -55,10 +59,6 @@ class AppHandle {
 
   Future<CreateOfferResponse> createOffer({required CreateOfferRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleCreateOffer(that: this, req: req);
-
-  /// Delete both the local payment state and the on-disk payment db.
-  Future<void> deletePaymentDb() =>
-      AppRs.instance.api.crateFfiAppAppHandleDeletePaymentDb(that: this);
 
   Future<FiatRates> fiatRates() =>
       AppRs.instance.api.crateFfiAppAppHandleFiatRates(that: this);
