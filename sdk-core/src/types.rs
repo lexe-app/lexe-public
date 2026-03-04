@@ -162,16 +162,6 @@ pub enum PaymentFilter {
     Finalized,
 }
 
-/// Response from listing payments.
-#[derive(Serialize, Deserialize)]
-pub struct ListPaymentsResponse {
-    /// Payments in the requested page.
-    pub payments: Vec<SdkPayment>,
-    /// Cursor for fetching the next page. `None` when there are no more
-    /// results. Pass this as the `after` argument to get the next page.
-    pub next_index: Option<PaymentCreatedIndex>,
-}
-
 impl From<BasicPaymentV2> for SdkPayment {
     fn from(p: BasicPaymentV2) -> Self {
         let BasicPaymentV2 {

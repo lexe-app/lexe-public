@@ -66,7 +66,10 @@ use lexe_api::{
     },
 };
 use node_client::client::NodeClient;
-use sdk_core::types::{Order, PaymentFilter};
+use sdk_core::{
+    models::PaymentSyncSummary,
+    types::{Order, PaymentFilter},
+};
 use tracing::warn;
 
 use crate::unstable::ffs::Ffs;
@@ -101,23 +104,6 @@ struct PaymentsDbState {
     ///     .max()
     /// ```
     latest_updated_index: Option<PaymentUpdatedIndex>,
-}
-
-/// Summary of changes from a payment sync operation.
-#[derive(Debug)]
-pub struct PaymentSyncSummary {
-    /// Number of new payments added to the local DB.
-    pub num_new: usize,
-    /// Number of existing payments that were updated.
-    pub num_updated: usize,
-}
-
-impl PaymentSyncSummary {
-    /// Did any payments in the DB change in this sync?
-    #[cfg(feature = "unstable")]
-    pub fn any_changes(&self) -> bool {
-        self.num_new > 0 || self.num_updated > 0
-    }
 }
 
 /// Sync the app's local payment state from the user node.

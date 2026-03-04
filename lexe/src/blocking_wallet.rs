@@ -16,11 +16,11 @@ use lexe_api::{
 use node_client::credentials::CredentialsRef;
 use sdk_core::{
     models::{
-        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
-        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
+        ListPaymentsResponse, SdkCreateInvoiceRequest,
+        SdkCreateInvoiceResponse, SdkGetPaymentRequest, SdkGetPaymentResponse,
+        SdkNodeInfo, SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
-    types::{ListPaymentsResponse, Order, PaymentFilter, SdkPayment},
+    types::{Order, PaymentFilter, SdkPayment},
 };
 
 use crate::{

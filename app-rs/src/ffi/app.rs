@@ -414,7 +414,7 @@ impl AppHandle {
         self.inner
             .sync_payments()
             .await
-            .map(|summary| summary.any_changes())
+            .map(|summary| summary.num_new > 0 || summary.num_updated > 0)
     }
 
     /// flutter_rust_bridge:sync

@@ -23,7 +23,8 @@ use lexe::{
         WalletUserDbConfig,
     },
     ffs::{DiskFs, fsext},
-    payments_db::{PaymentSyncSummary, PaymentsDb},
+    payments_db::PaymentsDb,
+    types::command::PaymentSyncSummary,
     wallet::{LexeWallet, WithDb},
 };
 use lexe_api::models::command::UpdatePaymentNote;

@@ -249,3 +249,22 @@ pub struct SdkGetPaymentResponse {
     /// Information about this payment, if it exists.
     pub payment: Option<SdkPayment>,
 }
+
+/// Response from listing payments.
+#[derive(Serialize, Deserialize)]
+pub struct ListPaymentsResponse {
+    /// Payments in the requested page.
+    pub payments: Vec<SdkPayment>,
+    /// Cursor for fetching the next page. `None` when there are no more
+    /// results. Pass this as the `after` argument to get the next page.
+    pub next_index: Option<PaymentCreatedIndex>,
+}
+
+/// Summary of changes from a payment sync operation.
+#[derive(Debug)]
+pub struct PaymentSyncSummary {
+    /// Number of new payments added to the local database.
+    pub num_new: usize,
+    /// Number of existing payments that were updated.
+    pub num_updated: usize,
+}

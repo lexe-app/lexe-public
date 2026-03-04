@@ -49,18 +49,13 @@ pub mod types {
         pub use lexe_api::models::command::UpdatePaymentNote;
         pub use sdk_core::{
             models::{
+                ListPaymentsResponse, PaymentSyncSummary,
                 SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
                 SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
                 SdkPayInvoiceRequest, SdkPayInvoiceResponse,
             },
-            types::{ListPaymentsResponse, SdkPayment},
+            types::SdkPayment,
         };
-
-        // TODO(max): PaymentSyncSummary should live in sdk-core. To
-        // address the any_changes issue, we could probably just
-        // delete the method, and inline its logic anywhere where
-        // it's currently called (only one place).
-        pub use crate::unstable::payments_db::PaymentSyncSummary;
     }
 
     /// Payment data and metadata.
