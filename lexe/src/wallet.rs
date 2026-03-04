@@ -59,8 +59,6 @@ pub struct WithoutDb;
 const DEFAULT_LIST_LIMIT: usize = 100;
 
 /// Top-level handle to a Lexe wallet.
-///
-/// Exposes simple and ~stable APIs for easy management of a Lexe wallet.
 pub struct LexeWallet<Db> {
     user_config: WalletUserConfig,
 
@@ -397,13 +395,13 @@ impl LexeWallet<WithoutDb> {
 }
 
 impl<D> LexeWallet<D> {
-    /// Registers this user with the Lexe backend, then provisions the node.
-    /// This function must be called after the user's [`LexeWallet`] has been
+    /// Registers this user with Lexe, then provisions the node.
+    /// This method must be called after the user's [`LexeWallet`] has been
     /// created for the first time, otherwise subsequent requests will fail.
     ///
-    /// It is only necessary to call this function once, ever, per user, but it
-    /// is also okay to call this function even if the user has already been
-    /// signed up; in other words, this function is idempotent.
+    /// It is only necessary to call this method once, ever, per user, but it
+    /// is also okay to call this method even if the user has already been
+    /// signed up; in other words, this method is idempotent.
     ///
     /// After a successful signup, make sure the user's root seed has been
     /// persisted somewhere! Without access to their root seed, your user will
@@ -412,9 +410,6 @@ impl<D> LexeWallet<D> {
     ///
     /// - `partner_pk`: Set to your company's [`UserPk`] to earn a share of this
     ///   wallet's fees.
-    ///
-    /// [`fresh()`]: LexeWallet::fresh
-    /// [`without_db()`]: LexeWallet::without_db
     pub async fn signup(
         &self,
         root_seed: &RootSeed,
@@ -636,25 +631,25 @@ impl<D> LexeWallet<D> {
         &self.user_config
     }
 
-    /// Get a reference to the inner [`GatewayClient`].
+    /// Get a reference to the [`GatewayClient`].
     #[cfg(feature = "unstable")]
     pub fn gateway_client(&self) -> &GatewayClient {
         &self.gateway_client
     }
 
-    /// Get a reference to the inner [`NodeClient`].
+    /// Get a reference to the [`NodeClient`].
     #[cfg(feature = "unstable")]
     pub fn node_client(&self) -> &NodeClient {
         &self.node_client
     }
 
-    /// Get a reference to the inner [`Bip353Client`].
+    /// Get a reference to the [`Bip353Client`].
     #[cfg(feature = "unstable")]
     pub fn bip353_client(&self) -> &Bip353Client {
         &self.bip353_client
     }
 
-    /// Get a reference to the inner [`LnurlClient`].
+    /// Get a reference to the [`LnurlClient`].
     #[cfg(feature = "unstable")]
     pub fn lnurl_client(&self) -> &LnurlClient {
         &self.lnurl_client

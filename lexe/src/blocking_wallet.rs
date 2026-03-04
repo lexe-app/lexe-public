@@ -1,10 +1,11 @@
 //! Synchronous (blocking) wrapper around
 //! [`LexeWallet`](crate::wallet::LexeWallet).
 //!
-//! Enabled by the `blocking` feature flag. All async methods are executed
-//! using `block_on`, which wraps the future with [`async_compat::Compat`]
-//! so it runs on the shared tokio runtime used by UniFFI, then blocks the
-//! current thread until the future completes.
+//! Enabled by the `blocking` feature flag.
+//
+// All async methods are executed using `block_on`, which wraps the future
+// with `async_compat::Compat` so it runs on the shared tokio runtime used
+// by UniFFI, then blocks the current thread until the future completes.
 
 use std::{path::PathBuf, time::Duration};
 
@@ -29,20 +30,15 @@ use crate::{
     wallet::{LexeWallet, WithDb},
 };
 
-/// Block the current thread on an async future.
-///
-/// Wraps the future with [`async_compat::Compat`] so it can use the shared
-/// tokio runtime (the same one UniFFI uses for `async_runtime = "tokio"`),
-/// then blocks with [`futures::executor::block_on`].
+/// Wraps the future with `async_compat::Compat` so it runs on the shared
+/// tokio runtime, then blocks with `futures::executor::block_on`.
 fn block_on<F: std::future::Future>(f: F) -> F::Output {
     let f = async_compat::Compat::new(f);
     futures::executor::block_on(f)
 }
 
-/// Synchronous wallet handle wrapping a [`LexeWallet`].
-///
-/// Every async method on `LexeWallet` has a blocking counterpart here that
-/// calls `block_on` internally.
+/// Synchronous wallet handle. Provides the same API as [`LexeWallet`] but
+/// with blocking methods instead of async.
 pub struct BlockingLexeWallet {
     inner: LexeWallet<WithDb>,
 }
@@ -167,14 +163,14 @@ impl BlockingLexeWallet {
         self.inner.user_config()
     }
 
-    /// Registers this user with the Lexe backend, then provisions the node.
-    /// This function must be called after the user's [`BlockingLexeWallet`]
+    /// Registers this user with Lexe, then provisions the node.
+    /// This method must be called after the user's [`BlockingLexeWallet`]
     /// has been created for the first time, otherwise subsequent requests
     /// will fail.
     ///
-    /// It is only necessary to call this function once, ever, per user, but
-    /// it is also okay to call this function even if the user has already
-    /// been signed up; in other words, this function is idempotent.
+    /// It is only necessary to call this method once, ever, per user, but
+    /// it is also okay to call this method even if the user has already
+    /// been signed up; in other words, this method is idempotent.
     ///
     /// After a successful signup, make sure the user's root seed has been
     /// persisted somewhere! Without access to their root seed, your user

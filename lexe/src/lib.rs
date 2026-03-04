@@ -20,8 +20,7 @@ pub mod blocking_wallet;
 /// Returns the default Lexe data directory (`~/.lexe`).
 pub use common::default_lexe_data_dir;
 
-/// Reexported types needed by SDK consumers.
-/// All types exported here are considered part of the stable public API.
+/// Types used by the Lexe SDK.
 pub mod types {
     pub use sdk_core::types::Order;
 
@@ -87,7 +86,7 @@ pub use tracing;
 
 /// Initialize the Lexe logger with the given default log level.
 ///
-/// Example: `lexe_sdk::init_logger("info")`
+/// Example: `lexe::init_logger("info")`
 pub fn init_logger(default_level: &str) {
     logger::init_with_default(default_level);
 }
@@ -98,7 +97,7 @@ pub fn init_logger(default_level: &str) {
 /// not to external users of the crate, unless they enable the `unstable`
 /// feature, in which case they can access it via the re-export below.
 mod unstable {
-    /// `Ffs`: A flat file system abstraction.
+    /// A flat file system abstraction.
     pub mod ffs;
     /// Local payments database synced from the user node.
     pub mod payments_db;

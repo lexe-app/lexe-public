@@ -209,7 +209,8 @@ lexe.RootSeed.__doc__ = """\
 The secret root seed for deriving all user keys and credentials.
 
 Create with :meth:`RootSeed.generate`, from raw bytes with
-:class:`RootSeed`, or load from a file with :meth:`RootSeed.read_from_path`.
+:class:`RootSeed`, or load from a file with :meth:`RootSeed.read_from_path`
+or :meth:`WalletEnvConfig.read_seed`.
 
 Example::
 
@@ -220,7 +221,11 @@ Example::
     import os
     seed = RootSeed(os.urandom(32))
 
-    # Or load from file
+    # Or load from the default seedphrase path for this environment
+    config = WalletEnvConfig.mainnet()
+    seed = config.read_seed()
+
+    # Or load from a specific file path
     seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
 """
 

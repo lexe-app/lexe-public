@@ -41,10 +41,9 @@ pub static SDK_USER_AGENT: LazyLock<&'static str> = LazyLock::new(|| {
 // - WalletEnvDbConfig (`env_db_config`)
 // - WalletUserDbConfig (`user_db_config`)
 
-/// A wallet environment, e.g. "prod-mainnet-true".
+/// A wallet environment, e.g. "prod-mainnet-sgx".
 ///
-/// We use this to disambiguate persisted state and secrets so we don't
-/// accidentally clobber state when testing across e.g. testnet vs regtest.
+/// Disambiguates persisted state and secrets across environments.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct WalletEnv {
     /// Prod, staging, or dev.
@@ -78,9 +77,11 @@ pub struct WalletUserConfig {
 /// Database directory configuration for a specific wallet environment.
 #[derive(Clone)]
 pub struct WalletEnvDbConfig {
-    // NOTE(unstable): Fields should stay pub(crate) until API is more mature
+    // NOTE(unstable): Fields should stay pub(crate) until API is more mature.
     /// The base data directory for all Lexe-related data.
     /// Holds data for different app environments and users.
+    ///
+    /// `<lexe_data_dir>`
     pub(crate) lexe_data_dir: PathBuf,
     /// Database directory for a specific wallet environment.
     /// Holds data for all users within that environment.
@@ -92,7 +93,7 @@ pub struct WalletEnvDbConfig {
 /// Database directory configuration for a specific user and wallet environment.
 #[derive(Clone)]
 pub struct WalletUserDbConfig {
-    // NOTE(unstable): Fields should stay pub(crate) until API is more mature
+    // NOTE(unstable): Fields should stay pub(crate) until API is more mature.
     /// Environment-level database configuration.
     pub(crate) env_db_config: WalletEnvDbConfig,
     /// The user public key.
