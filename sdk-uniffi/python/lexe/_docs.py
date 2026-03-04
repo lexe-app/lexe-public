@@ -513,14 +513,6 @@ Example::
         print(f"{p.index}: {p.amount_sats} sats ({p.status})")
 """)
 
-_set_method_doc(LexeWallet, "latest_payment_sync_index", """\
-Get the latest payment sync watermark.
-
-Returns:
-    The ``updated_at`` index of the most recently synced payment,
-    or ``None`` if no payments have been synced yet.
-""")
-
 _set_method_doc(LexeWallet, "delete_local_payments", """\
 Delete all local payment data for this wallet.
 
@@ -809,14 +801,6 @@ Example::
     resp = wallet.list_payments(PaymentFilter.ALL, offset=0, limit=20)
     for p in resp.payments:
         print(f"{p.index}: {p.amount_sats} sats ({p.status})")
-""")
-
-_set_method_doc(AsyncLexeWallet, "latest_payment_sync_index", """\
-Get the latest payment sync watermark.
-
-Returns:
-    The ``updated_at`` index of the most recently synced payment,
-    or ``None`` if no payments have been synced yet.
 """)
 
 _set_method_doc(AsyncLexeWallet, "delete_local_payments", """\

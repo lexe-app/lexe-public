@@ -198,36 +198,6 @@ def test_update_payment_note():
 
 
 @pytest.mark.integration
-def test_latest_payment_sync_index():
-    """Test getting the latest payment sync index."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        config = create_dev_config()
-        seed = create_test_root_seed()
-
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
-        wallet.signup(seed, None)
-
-        # Before any sync, index should be None
-        index_before = wallet.latest_payment_sync_index()
-        # May or may not be None depending on signup creating payments
-
-        # Create an invoice to generate a payment
-        wallet.create_invoice(
-            expiration_secs=3600,
-            amount_sats=1000,
-            description="Test"
-        )
-
-        # Sync payments
-        wallet.sync_payments()
-
-        # After sync, index should be set
-        index_after = wallet.latest_payment_sync_index()
-        assert index_after is not None
-        assert len(index_after) > 0
-
-
-@pytest.mark.integration
 def test_delete_local_payments():
     """Test deleting local payment data."""
     with tempfile.TemporaryDirectory() as temp_dir:

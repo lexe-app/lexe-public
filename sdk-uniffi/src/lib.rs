@@ -798,17 +798,6 @@ impl AsyncLexeWallet {
         }
     }
 
-    /// Get the latest payment sync index (watermark).
-    ///
-    /// Returns the `updated_at` index of the most recently synced payment,
-    /// or `None` if no payments have been synced yet.
-    pub fn latest_payment_sync_index(&self) -> Option<String> {
-        self.inner
-            .payments_db()
-            .latest_updated_index()
-            .map(|idx| idx.to_string())
-    }
-
     /// Delete all local payment data for this wallet.
     ///
     /// This clears the local payment cache. Remote data on the node is not
@@ -1129,17 +1118,6 @@ impl BlockingLexeWallet {
             payments,
             total_count: total_count as u64,
         }
-    }
-
-    /// Get the latest payment sync index (watermark).
-    ///
-    /// Returns the `updated_at` index of the most recently synced payment,
-    /// or `None` if no payments have been synced yet.
-    pub fn latest_payment_sync_index(&self) -> Option<String> {
-        self.inner
-            .payments_db()
-            .latest_updated_index()
-            .map(|idx| idx.to_string())
     }
 
     /// Delete all local payment data for this wallet.
