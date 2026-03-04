@@ -131,6 +131,47 @@ pub struct SdkPayment {
     pub updated_at: TimestampMs,
 }
 
+/// Sort order for listing results.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub enum Order {
+    /// Ascending order (oldest first).
+    #[serde(rename = "asc")]
+    Asc,
+    /// Descending order (newest first).
+    #[serde(rename = "desc")]
+    Desc,
+}
+
+/// Filter for listing payments.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PaymentFilter {
+    /// Include all payments.
+    #[serde(rename = "all")]
+    All,
+    /// Include only pending payments.
+    #[serde(rename = "pending")]
+    Pending,
+    /// Include only completed payments.
+    #[serde(rename = "completed")]
+    Completed,
+    /// Include only failed payments.
+    #[serde(rename = "failed")]
+    Failed,
+    /// Include only finalized payments (completed or failed).
+    #[serde(rename = "finalized")]
+    Finalized,
+}
+
+/// Response from listing payments.
+#[derive(Serialize, Deserialize)]
+pub struct ListPaymentsResponse {
+    /// Payments in the requested page.
+    pub payments: Vec<SdkPayment>,
+    /// Cursor for fetching the next page. `None` when there are no more
+    /// results. Pass this as the `after` argument to get the next page.
+    pub next_index: Option<PaymentCreatedIndex>,
+}
+
 impl From<BasicPaymentV2> for SdkPayment {
     fn from(p: BasicPaymentV2) -> Self {
         let BasicPaymentV2 {

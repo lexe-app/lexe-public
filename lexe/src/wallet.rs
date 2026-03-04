@@ -35,7 +35,7 @@ use sdk_core::{
         SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
-    types::SdkPayment,
+    types::{ListPaymentsResponse, Order, PaymentFilter, SdkPayment},
 };
 use tracing::info;
 
@@ -44,7 +44,7 @@ use crate::{
         WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
         WalletUserDbConfig,
     },
-    payments_db::PaymentsDb,
+    payments_db::{DEFAULT_LIST_LIMIT, PaymentsDb},
     unstable::{ffs::DiskFs, provision, wallet_db::WalletDb},
 };
 
@@ -252,6 +252,36 @@ impl LexeWallet<WithDb> {
                 common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
             )
             .await
+    }
+
+    /// List payments from local storage with cursor-based pagination.
+    ///
+    /// Defaults to descending order (newest first) with a limit of 100.
+    ///
+    /// To continue paginating, set `after` to the `next_index` from the
+    /// previous response. `after` is an *exclusive* index.
+    ///
+    /// If needed, use [`sync_payments`] to fetch the latest data from the
+    /// node before calling this method.
+    ///
+    /// [`sync_payments`]: Self::sync_payments
+    pub fn list_payments(
+        &self,
+        filter: &PaymentFilter,
+        order: Option<Order>,
+        limit: Option<usize>,
+        after: Option<&PaymentCreatedIndex>,
+    ) -> ListPaymentsResponse {
+        let order = order.unwrap_or(Order::Desc);
+        let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT);
+        let (basics, next_index) = self
+            .payments_db()
+            .list_payments(filter, order, limit, after);
+        let payments = basics.into_iter().map(SdkPayment::from).collect();
+        ListPaymentsResponse {
+            payments,
+            next_index,
+        }
     }
 
     /// Clear all local payment data for this wallet.

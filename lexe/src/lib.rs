@@ -25,6 +25,8 @@ pub use common::default_lexe_data_dir;
 /// Reexported types needed by SDK consumers.
 /// All types exported here are considered part of the stable public API.
 pub mod types {
+    pub use sdk_core::types::Order;
+
     /// Authentication, identity, and node verification.
     pub mod auth {
         pub use common::{
@@ -54,7 +56,7 @@ pub mod types {
                 SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
                 SdkPayInvoiceRequest, SdkPayInvoiceResponse,
             },
-            types::SdkPayment,
+            types::{ListPaymentsResponse, SdkPayment},
         };
     }
 
@@ -65,6 +67,7 @@ pub mod types {
             PaymentCreatedIndex, PaymentDirection, PaymentKind, PaymentRail,
             PaymentStatus, PaymentUpdatedIndex,
         };
+        pub use sdk_core::types::PaymentFilter;
     }
 
     /// General-purpose utilities.

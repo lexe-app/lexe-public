@@ -19,7 +19,7 @@ use sdk_core::{
         SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
         SdkPayInvoiceRequest, SdkPayInvoiceResponse,
     },
-    types::SdkPayment,
+    types::{ListPaymentsResponse, Order, PaymentFilter, SdkPayment},
 };
 
 use crate::{
@@ -129,6 +129,27 @@ impl BlockingLexeWallet {
     /// Errors if another sync is already in progress.
     pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         block_on(self.inner.sync_payments())
+    }
+
+    /// List payments from local storage with cursor-based pagination.
+    ///
+    /// Defaults to descending order (newest first) with a limit of 100.
+    ///
+    /// To continue paginating, set `after` to the `next_index` from the
+    /// previous response. `after` is an *exclusive* index.
+    ///
+    /// If needed, use [`sync_payments`] to fetch the latest data from the
+    /// node before calling this method.
+    ///
+    /// [`sync_payments`]: Self::sync_payments
+    pub fn list_payments(
+        &self,
+        filter: &PaymentFilter,
+        order: Option<Order>,
+        limit: Option<usize>,
+        after: Option<&PaymentCreatedIndex>,
+    ) -> ListPaymentsResponse {
+        self.inner.list_payments(filter, order, limit, after)
     }
 
     /// Clear all local payment data for this wallet.

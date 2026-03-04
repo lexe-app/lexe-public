@@ -138,31 +138,25 @@ def test_list_payments():
         # Sync payments from node to local storage
         wallet.sync_payments()
 
-        # List all payments
-        response = wallet.list_payments(
-            filter=lexe.PaymentFilter.ALL,
-            offset=0,
-            limit=10
-        )
-
-        assert response.total_count >= 1
+        # List all payments (defaults: desc order, limit 100)
+        response = wallet.list_payments(filter=lexe.PaymentFilter.ALL)
         assert len(response.payments) >= 1
 
-        # Test with Pending filter (we just created an invoice, so >= 1)
-        pending_response = wallet.list_payments(
-            filter=lexe.PaymentFilter.PENDING,
-            offset=0,
-            limit=10
-        )
-        assert pending_response.total_count >= 1
+        # Test all filter variants
+        pending = wallet.list_payments(filter=lexe.PaymentFilter.PENDING)
+        assert len(pending.payments) >= 1
 
-        # Test with Finalized filter
-        finalized_response = wallet.list_payments(
-            filter=lexe.PaymentFilter.FINALIZED,
-            offset=0,
-            limit=10
+        wallet.list_payments(filter=lexe.PaymentFilter.COMPLETED)
+        wallet.list_payments(filter=lexe.PaymentFilter.FAILED)
+        wallet.list_payments(filter=lexe.PaymentFilter.FINALIZED)
+
+        # Test with explicit order and limit
+        asc_response = wallet.list_payments(
+            filter=lexe.PaymentFilter.ALL,
+            order=lexe.Order.ASC,
+            limit=5
         )
-        assert finalized_response.total_count >= 0
+        assert len(asc_response.payments) >= 1
 
 
 @pytest.mark.integration
@@ -216,32 +210,22 @@ def test_clear_payments():
         wallet.sync_payments()
 
         # Verify we have payments
-        response = wallet.list_payments(
-            filter=lexe.PaymentFilter.ALL,
-            offset=0,
-            limit=10
-        )
-        assert response.total_count >= 1
+        response = wallet.list_payments(filter=lexe.PaymentFilter.ALL)
+        assert len(response.payments) >= 1
 
         # Clear local payments
         wallet.clear_payments()
 
         # Verify payments are gone locally
-        response_after = wallet.list_payments(
-            filter=lexe.PaymentFilter.ALL,
-            offset=0,
-            limit=10
-        )
-        assert response_after.total_count == 0
+        response_after = wallet.list_payments(filter=lexe.PaymentFilter.ALL)
+        assert len(response_after.payments) == 0
 
         # Re-sync should restore them
         wallet.sync_payments()
         response_restored = wallet.list_payments(
-            filter=lexe.PaymentFilter.ALL,
-            offset=0,
-            limit=10
+            filter=lexe.PaymentFilter.ALL
         )
-        assert response_restored.total_count >= 1
+        assert len(response_restored.payments) >= 1
 
 
 # --- Tests requiring pre-funded wallets (from Rust smoketest) --- #

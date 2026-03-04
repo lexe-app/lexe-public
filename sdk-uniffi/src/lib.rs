@@ -750,51 +750,38 @@ impl AsyncLexeWallet {
         })
     }
 
-    /// List payments from local storage based on filters.
-    /// `offset` and `limit` are for pagination over local storage.
+    /// List payments from local storage with cursor-based pagination.
+    ///
+    /// Defaults to descending order (newest first) with a limit of 100.
+    ///
+    /// To continue paginating, set `after` to the `next_index` from the
+    /// previous response. `after` is an *exclusive* index.
+    ///
+    /// If needed, use `sync_payments` to fetch the latest data from the
+    /// node before calling this method.
+    #[uniffi::method(default(order = None, limit = None, after = None))]
     pub fn list_payments(
         &self,
         filter: PaymentFilter,
-        offset: u32,
-        limit: u32,
-    ) -> ListPaymentsResponse {
-        let db = self.inner.payments_db();
-        let offset = offset as usize;
-        let limit = limit as usize;
+        order: Option<Order>,
+        limit: Option<u32>,
+        after: Option<String>,
+    ) -> FfiResult<ListPaymentsResponse> {
+        let filter_rs = filter.to_rs();
+        let order_rs = order.map(|o| o.to_rs());
+        let limit_rs = limit.map(|l| l as usize);
+        let after_rs = after.map(|s| parse_index(&s)).transpose()?;
+        let resp = self.inner.list_payments(
+            &filter_rs,
+            order_rs,
+            limit_rs,
+            after_rs.as_ref(),
+        );
 
-        let (total_count, payments): (usize, Vec<Payment>) = match filter {
-            PaymentFilter::All => (
-                db.num_payments(),
-                (offset..)
-                    .take(limit)
-                    .filter_map(|idx| db.get_payment_by_scroll_idx(idx))
-                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
-                    .collect(),
-            ),
-            PaymentFilter::Pending => (
-                db.num_pending(),
-                (offset..)
-                    .take(limit)
-                    .filter_map(|idx| db.get_pending_payment_by_scroll_idx(idx))
-                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
-                    .collect(),
-            ),
-            PaymentFilter::Finalized => (
-                db.num_finalized(),
-                (offset..)
-                    .take(limit)
-                    .filter_map(|idx| {
-                        db.get_finalized_payment_by_scroll_idx(idx)
-                    })
-                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
-                    .collect(),
-            ),
-        };
-
-        ListPaymentsResponse {
-            payments,
-            total_count: total_count as u64,
-        }
+        Ok(ListPaymentsResponse {
+            payments: resp.payments.into_iter().map(Payment::from).collect(),
+            next_index: resp.next_index.map(|idx| idx.to_string()),
+        })
     }
 
     /// Clear all local payment data for this wallet.
@@ -1069,51 +1056,38 @@ impl BlockingLexeWallet {
         })
     }
 
-    /// List payments from local storage based on filters.
-    /// `offset` and `limit` are for pagination over local storage.
+    /// List payments from local storage with cursor-based pagination.
+    ///
+    /// Defaults to descending order (newest first) with a limit of 100.
+    ///
+    /// To continue paginating, set `after` to the `next_index` from the
+    /// previous response. `after` is an *exclusive* index.
+    ///
+    /// If needed, use `sync_payments` to fetch the latest data from the
+    /// node before calling this method.
+    #[uniffi::method(default(order = None, limit = None, after = None))]
     pub fn list_payments(
         &self,
         filter: PaymentFilter,
-        offset: u32,
-        limit: u32,
-    ) -> ListPaymentsResponse {
-        let db = self.inner.payments_db();
-        let offset = offset as usize;
-        let limit = limit as usize;
+        order: Option<Order>,
+        limit: Option<u32>,
+        after: Option<String>,
+    ) -> FfiResult<ListPaymentsResponse> {
+        let filter_rs = filter.to_rs();
+        let order_rs = order.map(|o| o.to_rs());
+        let limit_rs = limit.map(|l| l as usize);
+        let after_rs = after.map(|s| parse_index(&s)).transpose()?;
+        let resp = self.inner.list_payments(
+            &filter_rs,
+            order_rs,
+            limit_rs,
+            after_rs.as_ref(),
+        );
 
-        let (total_count, payments): (usize, Vec<Payment>) = match filter {
-            PaymentFilter::All => (
-                db.num_payments(),
-                (offset..)
-                    .take(limit)
-                    .filter_map(|idx| db.get_payment_by_scroll_idx(idx))
-                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
-                    .collect(),
-            ),
-            PaymentFilter::Pending => (
-                db.num_pending(),
-                (offset..)
-                    .take(limit)
-                    .filter_map(|idx| db.get_pending_payment_by_scroll_idx(idx))
-                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
-                    .collect(),
-            ),
-            PaymentFilter::Finalized => (
-                db.num_finalized(),
-                (offset..)
-                    .take(limit)
-                    .filter_map(|idx| {
-                        db.get_finalized_payment_by_scroll_idx(idx)
-                    })
-                    .map(|p| Payment::from(SdkPaymentRs::from(p)))
-                    .collect(),
-            ),
-        };
-
-        ListPaymentsResponse {
-            payments,
-            total_count: total_count as u64,
-        }
+        Ok(ListPaymentsResponse {
+            payments: resp.payments.into_iter().map(Payment::from).collect(),
+            next_index: resp.next_index.map(|idx| idx.to_string()),
+        })
     }
 
     /// Clear all local payment data for this wallet.
@@ -1251,17 +1225,48 @@ impl From<PaymentStatusRs> for PaymentStatus {
 }
 
 /// Filter for listing payments.
-// TODO(max): Consider adding NotJunk variants (PendingNotJunk,
-// FinalizedNotJunk) to match PaymentsDb methods: num_pending_not_junk,
-// num_finalized_not_junk, get_pending_not_junk_payment_by_scroll_idx, etc.
 #[derive(Clone, uniffi::Enum)]
 pub enum PaymentFilter {
     /// Include all payments.
     All,
     /// Include only pending payments.
     Pending,
+    /// Include only completed payments.
+    Completed,
+    /// Include only failed payments.
+    Failed,
     /// Include only finalized payments (completed or failed).
     Finalized,
+}
+
+impl PaymentFilter {
+    fn to_rs(&self) -> lexe::types::payment::PaymentFilter {
+        match self {
+            Self::All => lexe::types::payment::PaymentFilter::All,
+            Self::Pending => lexe::types::payment::PaymentFilter::Pending,
+            Self::Completed => lexe::types::payment::PaymentFilter::Completed,
+            Self::Failed => lexe::types::payment::PaymentFilter::Failed,
+            Self::Finalized => lexe::types::payment::PaymentFilter::Finalized,
+        }
+    }
+}
+
+/// Sort order for listing results.
+#[derive(Clone, uniffi::Enum)]
+pub enum Order {
+    /// Ascending order (oldest first).
+    Asc,
+    /// Descending order (newest first).
+    Desc,
+}
+
+impl Order {
+    fn to_rs(&self) -> lexe::types::Order {
+        match self {
+            Self::Asc => lexe::types::Order::Asc,
+            Self::Desc => lexe::types::Order::Desc,
+        }
+    }
 }
 
 /// Application-level kind for a payment.
@@ -1453,10 +1458,11 @@ pub struct PaymentSyncSummary {
 /// Response from listing payments.
 #[derive(Clone, uniffi::Record)]
 pub struct ListPaymentsResponse {
-    /// Payments in the requested window.
+    /// Payments in the requested page.
     pub payments: Vec<Payment>,
-    /// Total number of payments in local storage for this filter.
-    pub total_count: u64,
+    /// Cursor for fetching the next page. `None` when there are no more
+    /// results. Pass this as the `after` argument to get the next page.
+    pub next_index: Option<String>,
 }
 
 // ================ //

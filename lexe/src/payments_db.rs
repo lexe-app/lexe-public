@@ -48,6 +48,7 @@ use std::{
     cmp,
     collections::{BTreeMap, BTreeSet},
     io,
+    ops::Bound,
     str::FromStr,
     sync::RwLock,
 };
@@ -60,14 +61,18 @@ use lexe_api::{
     error::NodeApiError,
     models::command::{GetUpdatedPayments, UpdatePaymentNote},
     types::payments::{
-        BasicPaymentV2, PaymentCreatedIndex, PaymentUpdatedIndex,
-        VecBasicPaymentV2,
+        BasicPaymentV2, PaymentCreatedIndex, PaymentStatus,
+        PaymentUpdatedIndex, VecBasicPaymentV2,
     },
 };
 use node_client::client::NodeClient;
+use sdk_core::types::{Order, PaymentFilter};
 use tracing::warn;
 
 use crate::unstable::ffs::Ffs;
+
+/// Default number of payments per page.
+pub(crate) const DEFAULT_LIST_LIMIT: usize = 100;
 
 /// The app's local [`BasicPaymentV2`] database, synced from the user node.
 pub struct PaymentsDb<F> {
@@ -324,6 +329,23 @@ impl<F: Ffs> PaymentsDb<F> {
             .unwrap()
             .get_finalized_not_junk_payment_by_scroll_idx(scroll_idx)
             .cloned()
+    }
+
+    /// List payments from local storage with cursor-based pagination.
+    ///
+    /// Returns `(payments, next_index)` where `next_index` is the cursor
+    /// for fetching the next page (`None` when there are no more results).
+    pub fn list_payments(
+        &self,
+        filter: &PaymentFilter,
+        order: Order,
+        limit: usize,
+        after: Option<&PaymentCreatedIndex>,
+    ) -> (Vec<BasicPaymentV2>, Option<PaymentCreatedIndex>) {
+        self.state
+            .read()
+            .unwrap()
+            .list_payments(filter, order, limit, after)
     }
 
     // --- Private helpers --- //
@@ -619,6 +641,81 @@ impl PaymentsDbState {
             .values()
             .filter(|p| p.is_finalized_not_junk())
             .nth_back(scroll_idx)
+    }
+
+    /// List payments with cursor-based pagination.
+    ///
+    /// Returns `(payments, next_index)`.
+    fn list_payments(
+        &self,
+        filter: &PaymentFilter,
+        order: Order,
+        limit: usize,
+        after: Option<&PaymentCreatedIndex>,
+    ) -> (Vec<BasicPaymentV2>, Option<PaymentCreatedIndex>) {
+        if limit == 0 {
+            return (Vec::new(), None);
+        }
+
+        let matches_filter = |p: &&BasicPaymentV2| match filter {
+            PaymentFilter::All => true,
+            PaymentFilter::Pending => p.status == PaymentStatus::Pending,
+            PaymentFilter::Completed => p.status == PaymentStatus::Completed,
+            PaymentFilter::Failed => p.status == PaymentStatus::Failed,
+            PaymentFilter::Finalized => p.status != PaymentStatus::Pending,
+        };
+
+        // Fetch `limit + 1` to detect whether there's a next page.
+        let take = limit.saturating_add(1);
+
+        let mut payments: Vec<BasicPaymentV2> = match (order, after) {
+            (Order::Asc, Some(c)) => self
+                .payments
+                .range((Bound::Excluded(c), Bound::Unbounded))
+                .map(|(_, p)| p)
+                .filter(matches_filter)
+                .take(take)
+                .cloned()
+                .collect(),
+            (Order::Asc, None) => self
+                .payments
+                .values()
+                .filter(matches_filter)
+                .take(take)
+                .cloned()
+                .collect(),
+            (Order::Desc, Some(c)) => self
+                .payments
+                .range(..c)
+                .rev()
+                .map(|(_, p)| p)
+                .filter(matches_filter)
+                .take(take)
+                .cloned()
+                .collect(),
+            (Order::Desc, None) => self
+                .payments
+                .values()
+                .rev()
+                .filter(matches_filter)
+                .take(take)
+                .cloned()
+                .collect(),
+        };
+
+        // If we got more than `limit`, there's a next page.
+        let has_more = payments.len() > limit;
+        if has_more {
+            payments.truncate(limit);
+        }
+        let next_index = has_more.then(|| {
+            payments
+                .last()
+                .expect("has_more implies non-empty")
+                .created_index()
+        });
+
+        (payments, next_index)
     }
 
     #[cfg(test)]

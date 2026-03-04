@@ -490,27 +490,44 @@ Example::
 """)
 
 _set_method_doc(LexeWallet, "list_payments", """\
-List payments from local storage.
+List payments from local storage with cursor-based pagination.
 
 Reads from the local database only (no network calls).
-Call :meth:`sync_payments` first to ensure data is fresh.
+Use :meth:`sync_payments` to fetch the latest data from the node
+if needed.
 
 Args:
-    filter: Which payments to include
-        (:attr:`PaymentFilter.ALL`, :attr:`PaymentFilter.PENDING`,
-        or :attr:`PaymentFilter.FINALIZED`).
-    offset: Pagination offset (0-based).
-    limit: Maximum number of payments to return.
+    filter: Which payments to include:
+        :attr:`PaymentFilter.ALL`,
+        :attr:`PaymentFilter.PENDING`,
+        :attr:`PaymentFilter.COMPLETED`,
+        :attr:`PaymentFilter.FAILED`, or
+        :attr:`PaymentFilter.FINALIZED` (completed or failed).
+    order: Sort order (:attr:`Order.DESC` or :attr:`Order.ASC`).
+        Defaults to ``DESC`` (newest first).
+    limit: Maximum number of payments to return. Defaults to ``100``.
+    after: Pagination cursor. Pass ``next_index`` from a previous
+        response to get the next page. Defaults to ``None`` (first page).
 
 Returns:
-    A :class:`ListPaymentsResponse` with payments and total count.
+    A :class:`ListPaymentsResponse` with payments and a ``next_index``
+    cursor for fetching the next page (``None`` if no more results).
+
+Raises:
+    FfiError: If ``after`` is not a valid payment index string.
 
 Example::
 
     wallet.sync_payments()
-    resp = wallet.list_payments(PaymentFilter.ALL, offset=0, limit=20)
+
+    # First page
+    resp = wallet.list_payments(PaymentFilter.ALL)
     for p in resp.payments:
         print(f"{p.index}: {p.amount_sats} sats ({p.status})")
+
+    # Next page
+    if resp.next_index is not None:
+        resp = wallet.list_payments(PaymentFilter.ALL, after=resp.next_index)
 """)
 
 _set_method_doc(LexeWallet, "clear_payments", """\
@@ -780,27 +797,44 @@ Example::
 """)
 
 _set_method_doc(AsyncLexeWallet, "list_payments", """\
-List payments from local storage.
+List payments from local storage with cursor-based pagination.
 
 Reads from the local database only (no network calls).
-Call :meth:`sync_payments` first to ensure data is fresh.
+Use :meth:`sync_payments` to fetch the latest data from the node
+if needed.
 
 Args:
-    filter: Which payments to include
-        (:attr:`PaymentFilter.ALL`, :attr:`PaymentFilter.PENDING`,
-        or :attr:`PaymentFilter.FINALIZED`).
-    offset: Pagination offset (0-based).
-    limit: Maximum number of payments to return.
+    filter: Which payments to include:
+        :attr:`PaymentFilter.ALL`,
+        :attr:`PaymentFilter.PENDING`,
+        :attr:`PaymentFilter.COMPLETED`,
+        :attr:`PaymentFilter.FAILED`, or
+        :attr:`PaymentFilter.FINALIZED` (completed or failed).
+    order: Sort order (:attr:`Order.DESC` or :attr:`Order.ASC`).
+        Defaults to ``DESC`` (newest first).
+    limit: Maximum number of payments to return. Defaults to ``100``.
+    after: Pagination cursor. Pass ``next_index`` from a previous
+        response to get the next page. Defaults to ``None`` (first page).
 
 Returns:
-    A :class:`ListPaymentsResponse` with payments and total count.
+    A :class:`ListPaymentsResponse` with payments and a ``next_index``
+    cursor for fetching the next page (``None`` if no more results).
+
+Raises:
+    FfiError: If ``after`` is not a valid payment index string.
 
 Example::
 
     await wallet.sync_payments()
-    resp = wallet.list_payments(PaymentFilter.ALL, offset=0, limit=20)
+
+    # First page
+    resp = wallet.list_payments(PaymentFilter.ALL)
     for p in resp.payments:
         print(f"{p.index}: {p.amount_sats} sats ({p.status})")
+
+    # Next page
+    if resp.next_index is not None:
+        resp = wallet.list_payments(PaymentFilter.ALL, after=resp.next_index)
 """)
 
 _set_method_doc(AsyncLexeWallet, "clear_payments", """\
@@ -878,11 +912,20 @@ Status of a payment.
 """
 
 lexe.PaymentFilter.__doc__ = """\
-Filter for listing payments from local storage.
+Filter for listing payments.
 
 - **ALL** -- Include all payments.
 - **PENDING** -- Only pending payments.
+- **COMPLETED** -- Only completed payments.
+- **FAILED** -- Only failed payments.
 - **FINALIZED** -- Only finalized payments (completed or failed).
+"""
+
+lexe.Order.__doc__ = """\
+Sort order for listing results.
+
+- **ASC** -- Ascending order (oldest first).
+- **DESC** -- Descending order (newest first).
 """
 
 lexe.PaymentKind.__doc__ = """\
@@ -946,8 +989,9 @@ lexe.ListPaymentsResponse.__doc__ = """\
 Response from listing payments.
 
 Attributes:
-    payments: Payments in the requested window.
-    total_count: Total number of payments for this filter.
+    payments: Payments in the requested page.
+    next_index: Cursor for fetching the next page, or ``None``
+        if there are no more results.
 """
 
 # ================ #
