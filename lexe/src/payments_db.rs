@@ -112,7 +112,7 @@ pub struct PaymentSyncSummary {
 
 impl PaymentSyncSummary {
     /// Did any payments in the DB change in this sync?
-    /// (i.e., do we need to update part of the UI?)
+    #[cfg(feature = "unstable")]
     pub fn any_changes(&self) -> bool {
         self.num_new > 0 || self.num_updated > 0
     }

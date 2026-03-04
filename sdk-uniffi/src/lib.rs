@@ -1471,8 +1471,6 @@ impl From<SdkPaymentRs> for Payment {
 }
 
 /// Summary of a payment sync operation.
-//
-// Skipped: Not exposing `any_changes()` helper from PaymentSyncSummary
 #[derive(Clone, uniffi::Record)]
 pub struct PaymentSyncSummary {
     /// Number of new payments added to the local DB.
