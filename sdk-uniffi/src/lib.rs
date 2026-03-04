@@ -7,7 +7,7 @@
 //!
 //! [UniFFI]: https://mozilla.github.io/uniffi-rs/
 
-use std::{fmt, path::PathBuf, sync::Arc, time::Duration};
+use std::{fmt, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
 use common::{
     api::user::UserPk,
@@ -719,7 +719,7 @@ impl AsyncLexeWallet {
         &self,
         index: String,
     ) -> FfiResult<Option<Payment>> {
-        let index = parse_index(&index)?;
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequestRs { index };
         let resp = self.inner.get_payment(req).await?;
         Ok(resp.payment.map(Into::into))
@@ -732,7 +732,7 @@ impl AsyncLexeWallet {
         index: String,
         note: Option<String>,
     ) -> FfiResult<()> {
-        let index = parse_index(&index)?;
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = UpdatePaymentNoteRs { index, note };
         self.inner.update_payment_note(req).await?;
         Ok(())
@@ -770,7 +770,9 @@ impl AsyncLexeWallet {
         let filter_rs = filter.to_rs();
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
-        let after_rs = after.map(|s| parse_index(&s)).transpose()?;
+        let after_rs = after
+            .map(|s| PaymentCreatedIndexRs::from_str(&s))
+            .transpose()?;
         let resp = self.inner.list_payments(
             &filter_rs,
             order_rs,
@@ -804,7 +806,7 @@ impl AsyncLexeWallet {
         index: String,
         timeout_secs: Option<u32>,
     ) -> FfiResult<Payment> {
-        let index = parse_index(&index)?;
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
         let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
         let payment = self.inner.wait_for_payment(index, timeout).await?;
         Ok(Payment::from(payment))
@@ -1025,7 +1027,7 @@ impl BlockingLexeWallet {
 
     /// Get a payment by its `index` string.
     pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
-        let index = parse_index(&index)?;
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequestRs { index };
         let resp = self.inner.get_payment(req)?;
         Ok(resp.payment.map(Into::into))
@@ -1038,7 +1040,7 @@ impl BlockingLexeWallet {
         index: String,
         note: Option<String>,
     ) -> FfiResult<()> {
-        let index = parse_index(&index)?;
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = UpdatePaymentNoteRs { index, note };
         self.inner.update_payment_note(req)?;
         Ok(())
@@ -1076,7 +1078,9 @@ impl BlockingLexeWallet {
         let filter_rs = filter.to_rs();
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
-        let after_rs = after.map(|s| parse_index(&s)).transpose()?;
+        let after_rs = after
+            .map(|s| PaymentCreatedIndexRs::from_str(&s))
+            .transpose()?;
         let resp = self.inner.list_payments(
             &filter_rs,
             order_rs,
@@ -1110,7 +1114,7 @@ impl BlockingLexeWallet {
         index: String,
         timeout_secs: Option<u32>,
     ) -> FfiResult<Payment> {
-        let index = parse_index(&index)?;
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
         let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
         let payment = self.inner.wait_for_payment(index, timeout)?;
         Ok(Payment::from(payment))
@@ -1302,13 +1306,6 @@ impl From<PaymentKindRs> for PaymentKind {
             },
         }
     }
-}
-
-/// Parse an index string into a `PaymentCreatedIndexRs`.
-fn parse_index(index: &str) -> FfiResult<PaymentCreatedIndexRs> {
-    index
-        .parse()
-        .map_err(|e| anyhow::anyhow!("Invalid index: {e}").into())
 }
 
 /// A BOLT11 Lightning invoice.

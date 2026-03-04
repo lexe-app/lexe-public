@@ -341,9 +341,9 @@ def test_get_payment_invalid_format(prefunded_wallets):
     with pytest.raises(lexe.FfiError) as exc_info:
         wallet.get_payment(invalid_payment_index)
 
-    # Verify error message is specific about the payment index.
+    # Verify error message mentions the expected format.
     error_msg = exc_info.value.message().lower()
-    assert "invalid index" in error_msg
+    assert "<created_at>-<id>" in error_msg
 
 
 @pytest.mark.integration
