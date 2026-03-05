@@ -55,9 +55,8 @@ impl BoundedNote {
     /// Use this for untrusted external input (e.g. inbound LNURL comments,
     /// BOLT12 payer notes) where rejecting would cause payment failures.
     pub fn truncate(mut s: String) -> Option<Self> {
-        use lexe_std::string;
-        string::truncate_chars(&mut s, MAX_NOTE_CHARS);
-        string::truncate_bytes(&mut s, MAX_NOTE_BYTES);
+        lexe_std::string::truncate_bytes(&mut s, MAX_NOTE_BYTES);
+        lexe_std::string::truncate_chars(&mut s, MAX_NOTE_CHARS);
         if s.is_empty() { None } else { Some(Self(s)) }
     }
 
@@ -179,6 +178,7 @@ mod arbitrary_impl {
                         BoundedNote::new(String::from_iter(chars)).unwrap()
                     }
                 ),
+                // "weird" strings (any valid UTF-8)
                 arbitrary::any_string()
                     .prop_filter_map("empty", BoundedNote::truncate),
             ]

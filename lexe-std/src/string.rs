@@ -4,29 +4,86 @@
 /// is valid UTF-8 by finding the nearest character boundary.
 ///
 /// If `s.len() <= max_bytes`, this is a no-op.
+///
+/// Assumption: data in input distribution is almost always shorter than
+/// `max_bytes`.
+#[inline(always)]
 pub fn truncate_bytes(s: &mut String, max_bytes: usize) {
     if s.len() <= max_bytes {
         return;
     }
-
-    // Move back to the nearest UTF-8 boundary (at most 3 iterations for
-    // 4-byte chars).
-    // TODO(a-mpch): use nightly `str::floor_char_boundary` when stable.
-    let mut end = max_bytes;
-    while !s.is_char_boundary(end) {
-        end -= 1;
-    }
-
-    s.truncate(end);
+    truncate_bytes_cold(s, max_bytes)
 }
 
 /// Truncates a [`String`] to at most `max_chars` characters.
 ///
 /// If the string has fewer than `max_chars` characters, this is a no-op.
+///
+/// Assumption: data in input distribution is almost always shorter than
+/// `max_chars`.
+#[inline(always)]
 pub fn truncate_chars(s: &mut String, max_chars: usize) {
-    // Find the byte index where the max_chars-th character starts.
-    if let Some((byte_idx, _)) = s.char_indices().nth(max_chars) {
-        s.truncate(byte_idx);
+    if s.len() <= max_chars {
+        return;
+    }
+    truncate_chars_cold(s, max_chars)
+}
+
+#[inline(never)]
+#[cold]
+fn truncate_bytes_cold(s: &mut String, max_bytes: usize) {
+    // UTF-8 code points are 1-4 bytes long, so we can limit our search to this
+    // range: [max_bytes - 3, max_bytes]
+    for idx in (max_bytes.saturating_sub(3)..=max_bytes).rev() {
+        if s.is_char_boundary(idx) {
+            s.truncate(idx);
+            break;
+        }
+    }
+}
+
+#[inline(never)]
+#[cold]
+fn truncate_chars_cold(s: &mut String, max_chars: usize) {
+    const HIGH_BITS: u64 = 0x8080_8080_8080_8080;
+
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let (chunks, _) = bytes.as_chunks::<8>();
+
+    let mut idx = 0usize;
+    let mut chars_seen = 0usize;
+
+    for chunk in chunks {
+        let word = u64::from_ne_bytes(*chunk);
+
+        // Continuation bytes are `10xxxxxx`: bit7=1 and bit6=0.
+        let continuation_mask = (word & HIGH_BITS) & !((word << 1) & HIGH_BITS);
+        let continuation_count = continuation_mask.count_ones() as usize;
+        let chunk_chars = 8usize - continuation_count;
+
+        // Accept the whole 8-byte chunk only if it keeps us within MAX_CHARS;
+        // otherwise fall back to byte-wise refinement from the current `idx`.
+        chars_seen += chunk_chars;
+        if chars_seen > max_chars {
+            chars_seen -= chunk_chars;
+            break;
+        }
+
+        idx += 8;
+    }
+
+    while idx < len {
+        if (bytes[idx] & 0b1100_0000) != 0b1000_0000 {
+            chars_seen += 1;
+            if chars_seen > max_chars {
+                // `idx` is a non-continuation byte, so it is a UTF-8 scalar
+                // boundary and therefore a valid truncate index.
+                s.truncate(idx);
+                return;
+            }
+        }
+        idx += 1;
     }
 }
 
@@ -89,6 +146,8 @@ mod tests {
         assert_eq!(tc("hello", 0), "");
     }
 
+    // Both truncate_bytes and truncate_chars are idempotent.
+    // ∀ f ∈ {tb, tc}, s, n.  f(s, n) = f(f(s, n), n)
     #[test]
     fn test_truncate_idempotent() {
         proptest!(|(s: String, n in 0usize..=512)| {
@@ -102,6 +161,9 @@ mod tests {
         });
     }
 
+    // For the same length, truncating by chars will be longer than truncating
+    // by bytes.
+    // ∀ s, n.  s.len() >= tc(s, n).len() >= tb(s, n).len()
     #[test]
     fn test_truncate_length_ordering() {
         proptest!(|(s: String, n in 0usize..=512)| {
@@ -114,6 +176,10 @@ mod tests {
         });
     }
 
+    // Truncating to the original length / num chars after appending any ASCII
+    // byte / char gives the original string.
+    // ∀ s, b.  s == tb(s || b, s.len())
+    // ∀ s, c.  s == tc(s || c, s.chars().count())
     #[test]
     fn test_truncate_prefix_recovery() {
         proptest!(|(s: String, ascii in 0u8..=0x7f, c: char)| {
