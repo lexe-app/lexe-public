@@ -666,10 +666,10 @@ impl AsyncLexeWallet {
     /// `expiration_secs` is the invoice expiry, in seconds.
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
-    /// `payer_note` is an optional note from the payer stored with this
-    /// inbound payment.
-    /// If provided, it must be non-empty and at most 200 chars / 512 UTF-8
-    /// bytes.
+    /// `payer_note` is an optional note received from the payer out-of-band
+    /// via LNURL-pay and is stored with this inbound payment. If provided, it
+    /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
+    #[uniffi::method(default(payer_note = None))]
     pub async fn create_invoice(
         &self,
         expiration_secs: u32,
@@ -697,10 +697,11 @@ impl AsyncLexeWallet {
     /// `note` is a private note that the receiver does not see.
     /// If provided, `note` must be non-empty and at most 200 chars / 512
     /// UTF-8 bytes.
-    /// `payer_note` is an optional note sent to the receiver, visible to
-    /// them (unlike `note`, which is private).
-    /// If provided, `payer_note` must be non-empty and at most 200 chars /
-    /// 512 UTF-8 bytes.
+    /// `payer_note` is an optional note that was sent to the receiver
+    /// out-of-band via LNURL-pay and is visible to them. If provided,
+    /// `payer_note` must be non-empty and at most 200 chars / 512 UTF-8
+    /// bytes.
+    #[uniffi::method(default(payer_note = None))]
     pub async fn pay_invoice(
         &self,
         invoice: String,
@@ -983,11 +984,16 @@ impl BlockingLexeWallet {
     /// `expiration_secs` is the invoice expiry, in seconds.
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `payer_note` is an optional note received from the payer out-of-band
+    /// via LNURL-pay and is stored with this inbound payment. If provided, it
+    /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
+    #[uniffi::method(default(payer_note = None))]
     pub fn create_invoice(
         &self,
         expiration_secs: u32,
         amount_sats: Option<u64>,
         description: Option<String>,
+        payer_note: Option<String>,
     ) -> FfiResult<CreateInvoiceResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
@@ -998,7 +1004,7 @@ impl BlockingLexeWallet {
             expiration_secs,
             amount,
             description,
-            payer_note: None,
+            payer_note,
         };
         let resp = self.inner.create_invoice(req)?;
         Ok(resp.into())
@@ -1007,12 +1013,19 @@ impl BlockingLexeWallet {
     /// Pay a BOLT11 invoice.
     /// `fallback_amount_sats` is required if the invoice is amountless.
     /// `note` is a private note that the receiver does not see.
-    // TODO(a-mpch): Review to support `payer_note` on usage.
+    /// If provided, `note` must be non-empty and at most 200 chars / 512
+    /// UTF-8 bytes.
+    /// `payer_note` is an optional note that was sent to the receiver
+    /// out-of-band via LNURL-pay and is visible to them. If provided,
+    /// `payer_note` must be non-empty and at most 200 chars / 512 UTF-8
+    /// bytes.
+    #[uniffi::method(default(payer_note = None))]
     pub fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
+        payer_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice: LxInvoiceRs = invoice
             .parse()
@@ -1026,7 +1039,7 @@ impl BlockingLexeWallet {
             invoice,
             fallback_amount,
             note,
-            payer_note: None,
+            payer_note,
         };
         let resp = self.inner.pay_invoice(req)?;
         Ok(resp.into())

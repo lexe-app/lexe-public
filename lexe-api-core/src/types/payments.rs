@@ -200,8 +200,8 @@ pub struct BasicPaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payer_name: Option<String>,
 
-    /// A payer-provided note for this payment. Set for BOLT12 offers
-    /// (LDK truncates to 512 B) and LNURL-pay (LUD-12 comment).
+    /// (Offer payments, LNURL-pay invoices) A payer-provided note for this
+    /// payment.
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_option_simple_string()")

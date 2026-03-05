@@ -414,6 +414,9 @@ Args:
     expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    payer_note: Optional note received from the payer out-of-band via
+        LNURL-pay that is stored with this payment. If provided, it must be
+        non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`CreateInvoiceResponse` with the invoice string and metadata.
@@ -435,6 +438,10 @@ Args:
     invoice: BOLT11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
     note: Optional private note (not visible to the receiver).
+        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
+    payer_note: Optional note that was sent to the receiver via LNURL-pay
+        and is visible to them. If provided, it must be non-empty and <= 200
+        chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`PayInvoiceResponse` with the payment index and timestamp.
@@ -471,6 +478,7 @@ Call :meth:`sync_payments` first so the payment exists locally.
 Args:
     index: Payment index string.
     note: New note text, or ``None`` to clear.
+        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Raises:
     FfiError: If the payment doesn't exist locally.
@@ -719,8 +727,9 @@ Args:
     expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
-    payer_note: Optional note from the payer, stored with this payment.
-        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
+    payer_note: Optional note received from the payer out-of-band via
+        LNURL-pay that is stored with this payment. If provided, it must be
+        non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`CreateInvoiceResponse` with the invoice string and metadata.
@@ -743,8 +752,9 @@ Args:
     fallback_amount_sats: Required if the invoice has no amount encoded.
     note: Optional private note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
-    payer_note: Optional note sent to the receiver, visible to them.
-        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
+    payer_note: Optional note that was sent to the receiver via LNURL-pay
+        and is visible to them. If provided, it must be non-empty and <= 200
+        chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`PayInvoiceResponse` with the payment index and timestamp.

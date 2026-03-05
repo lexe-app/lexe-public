@@ -147,9 +147,9 @@ pub struct SdkCreateInvoiceRequest {
     // hash) to be set.
     pub description: Option<String>,
 
-    /// An optional note from the payer, stored with this inbound payment.
-    /// If provided, it must be non-empty and no longer than 200 chars /
-    /// 512 UTF-8 bytes.
+    /// An optional note received from the payer out-of-band via LNURL-pay
+    /// that is stored with this inbound payment. If provided, it must be
+    /// non-empty and no longer than 200 chars / 512 UTF-8 bytes.
     #[serde(default)]
     pub payer_note: Option<String>,
 }
@@ -234,10 +234,10 @@ pub struct SdkPayInvoiceRequest {
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
     pub note: Option<String>,
-    /// An optional note sent to the receiver, stored with this outbound
-    /// payment. Unlike `note`, this is visible to the recipient.
-    /// If provided, it must be non-empty and no longer than 200 chars /
-    /// 512 UTF-8 bytes.
+    /// An optional note that was sent to the receiver out-of-band via
+    /// LNURL-pay that is stored with this outbound payment. Unlike `note`,
+    /// this is visible to the recipient. If provided, it must be non-empty and
+    /// no longer than 200 chars / 512 UTF-8 bytes.
     pub payer_note: Option<String>,
 }
 

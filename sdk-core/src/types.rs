@@ -103,7 +103,8 @@ pub struct SdkPayment {
     /// (Offer payments only) The payer's self-reported human-readable name.
     pub payer_name: Option<String>,
 
-    /// (Offer payments only) A payer-provided note for this payment.
+    /// (Offer payments, LNURL-pay invoices) A payer-provided note for this
+    /// payment.
     pub payer_note: Option<String>,
 
     /// (Onchain send only) The confirmation priority used for this payment.
