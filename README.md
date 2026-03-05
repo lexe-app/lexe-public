@@ -3,7 +3,7 @@
 Lexe is a managed, non-custodial Lightning node and wallet based on Intel SGX.
 
 - [LDK](https://github.com/lightningdevkit/rust-lightning)-based Lightning node written in Rust
-- Flutter/Dart iOS and Android apps
+- Flutter/Dart [iOS](https://www.lexe.app/ios) and [Android](https://www.lexe.app/android) apps
 - [BDK](https://github.com/bitcoindevkit/bdk) wallet for on-chain payments
 - [Fortanix EDP](https://edp.fortanix.com/) for integration with SGX
 
@@ -13,15 +13,20 @@ More information is available on our website: [lexe.app](https://lexe.app)
 
 ## Lexe SDKs
 
-Looking for Lexe's SDKs? This repo only contains source code. The docs are here:
+Looking for Lexe's SDKs? This repo only contains source code. You can find the
+SDK docs here:
 
+- Rust SDK: <https://github.com/lexe-app/lexe-sdk/tree/master/rust>
+- Python SDK: <https://github.com/lexe-app/lexe-sdk/tree/master/python>
 - Sidecar SDK: <https://github.com/lexe-app/lexe-sidecar-sdk>
 
 ## Guide to this repository
 
 - [`node`](./node): Lightning node (usually referred to as the "user node").
-- [`sdk-sidecar`](./sdk-sidecar): The `lexe-sidecar` SDK binary and library.
-- [`app`](./app): Flutter/Dart apps.
+- [`lexe`](./lexe): The Lexe Rust SDK.
+- [`sdk-uniffi`](./sdk-uniffi): The Lexe Python SDK [UniFFI](https://github.com/mozilla/uniffi-rs) language bindings.
+- [`sdk-sidecar`](./sdk-sidecar): The [`lexe-sidecar` SDK](https://github.com/lexe-app/lexe-sidecar-sdk) binary and library.
+- [`app`](./app): The Lexe Flutter app on the [iOS App Store](https://www.lexe.app/ios) and [Android Play Store](https://www.lexe.app/android).
 - [`app-rs`](./app-rs): Rust logic used in the Lexe mobile app along with an FFI interface for the Flutter apps.
 - [`lexe-ln`](./lexe-ln): Shared Bitcoin and Lightning logic.
 - [`lexe-api`](./lexe-api): API types, definitions, clients, TLS.
