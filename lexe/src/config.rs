@@ -2,7 +2,6 @@ use std::{
     borrow::Cow,
     fmt,
     path::{Path, PathBuf},
-    sync::LazyLock,
 };
 
 use anyhow::Context;
@@ -12,26 +11,7 @@ use common::{
 };
 use node_client::credentials::CredentialsRef;
 
-use crate::unstable::provision;
-
-/// The user agent string used for SDK requests to Lexe infrastructure.
-///
-/// Format: `lexe/<sdk_version> node/<latest_node_version>`
-///
-/// Example: `lexe/0.1.0 node/0.8.11`
-pub static SDK_USER_AGENT: LazyLock<&'static str> = LazyLock::new(|| {
-    // Get the latest node version.
-    let releases = provision::releases_json();
-    let node_releases =
-        releases.0.get("node").expect("No 'node' in releases.json");
-    let (latest_node_version, _release) =
-        node_releases.last_key_value().expect("No node releases");
-
-    let sdk_with_version = lexe_api::user_agent_to_lexe!();
-    let user_agent = format!("{sdk_with_version} node/{latest_node_version}");
-
-    Box::leak(user_agent.into_boxed_str())
-});
+use crate::unstable::SDK_USER_AGENT;
 
 // --- Structs --- //
 //
