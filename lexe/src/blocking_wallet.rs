@@ -12,19 +12,18 @@ use std::{path::PathBuf, time::Duration};
 use common::{api::user::UserPk, root_seed::RootSeed};
 use lexe_api::types::payments::PaymentCreatedIndex;
 use node_client::credentials::CredentialsRef;
-use sdk_core::{
-    models::{
-        ListPaymentsResponse, SdkCreateInvoiceRequest,
-        SdkCreateInvoiceResponse, SdkGetPaymentRequest, SdkGetPaymentResponse,
-        SdkNodeInfo, SdkPayInvoiceRequest, SdkPayInvoiceResponse,
-        SdkUpdatePaymentNoteRequest,
-    },
-    types::{Order, PaymentFilter, SdkPayment},
-};
 
 use crate::{
     config::WalletEnvConfig,
-    types::command::PaymentSyncSummary,
+    types::{
+        command::{
+            CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
+            GetPaymentResponse, ListPaymentsResponse, NodeInfo,
+            PayInvoiceRequest, PayInvoiceResponse, PaymentSyncSummary,
+            SdkUpdatePaymentNoteRequest,
+        },
+        payment::{Order, Payment, PaymentFilter},
+    },
     unstable::{ffs::DiskFs, payments_db::PaymentsDb},
     wallet::{LexeWallet, WithDb},
 };
@@ -153,7 +152,7 @@ impl BlockingLexeWallet {
         &self,
         index: PaymentCreatedIndex,
         timeout: Option<Duration>,
-    ) -> anyhow::Result<SdkPayment> {
+    ) -> anyhow::Result<Payment> {
         block_on(self.inner.wait_for_payment(index, timeout))
     }
 
@@ -201,31 +200,31 @@ impl BlockingLexeWallet {
     }
 
     /// Get information about this Lexe node, including balance and channels.
-    pub fn node_info(&self) -> anyhow::Result<SdkNodeInfo> {
+    pub fn node_info(&self) -> anyhow::Result<NodeInfo> {
         block_on(self.inner.node_info())
     }
 
     /// Create a BOLT 11 invoice to receive a Lightning payment.
     pub fn create_invoice(
         &self,
-        req: SdkCreateInvoiceRequest,
-    ) -> anyhow::Result<SdkCreateInvoiceResponse> {
+        req: CreateInvoiceRequest,
+    ) -> anyhow::Result<CreateInvoiceResponse> {
         block_on(self.inner.create_invoice(req))
     }
 
     /// Pay a BOLT 11 invoice over Lightning.
     pub fn pay_invoice(
         &self,
-        req: SdkPayInvoiceRequest,
-    ) -> anyhow::Result<SdkPayInvoiceResponse> {
+        req: PayInvoiceRequest,
+    ) -> anyhow::Result<PayInvoiceResponse> {
         block_on(self.inner.pay_invoice(req))
     }
 
     /// Get information about a payment by its created index.
     pub fn get_payment(
         &self,
-        req: SdkGetPaymentRequest,
-    ) -> anyhow::Result<SdkGetPaymentResponse> {
+        req: GetPaymentRequest,
+    ) -> anyhow::Result<GetPaymentResponse> {
         block_on(self.inner.get_payment(req))
     }
 

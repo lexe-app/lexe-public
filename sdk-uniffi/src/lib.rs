@@ -21,15 +21,16 @@ use common::{
 use lexe::{
     blocking_wallet::BlockingLexeWallet as BlockingLexeWalletRs,
     config::WalletEnvConfig as WalletEnvConfigRs,
-    types::command::{
-        SdkCreateInvoiceRequest as SdkCreateInvoiceRequestRs,
-        SdkCreateInvoiceResponse as SdkCreateInvoiceResponseRs,
-        SdkGetPaymentRequest as SdkGetPaymentRequestRs,
-        SdkNodeInfo as SdkNodeInfoRs,
-        SdkPayInvoiceRequest as SdkPayInvoiceRequestRs,
-        SdkPayInvoiceResponse as SdkPayInvoiceResponseRs,
-        SdkPayment as SdkPaymentRs,
-        SdkUpdatePaymentNoteRequest as SdkUpdatePaymentNoteRequestRs,
+    types::{
+        command::{
+            CreateInvoiceRequest as CreateInvoiceRequestRs,
+            CreateInvoiceResponse as CreateInvoiceResponseRs,
+            GetPaymentRequest as GetPaymentRequestRs, NodeInfo as NodeInfoRs,
+            PayInvoiceRequest as PayInvoiceRequestRs,
+            PayInvoiceResponse as PayInvoiceResponseRs,
+            SdkUpdatePaymentNoteRequest as SdkUpdatePaymentNoteRequestRs,
+        },
+        payment::Payment as PaymentRs,
     },
     wallet::LexeWallet as LexeWalletRs,
 };
@@ -482,8 +483,8 @@ pub struct NodeInfo {
     pub num_usable_channels: u64,
 }
 
-impl From<SdkNodeInfoRs> for NodeInfo {
-    fn from(info: SdkNodeInfoRs) -> Self {
+impl From<NodeInfoRs> for NodeInfo {
+    fn from(info: NodeInfoRs) -> Self {
         Self {
             version: info.version.to_string(),
             measurement: info.measurement.to_string(),
@@ -682,7 +683,7 @@ impl AsyncLexeWallet {
             .transpose()
             .map_err(|e| anyhow::anyhow!("Invalid amount: {e}"))?;
 
-        let req = SdkCreateInvoiceRequestRs {
+        let req = CreateInvoiceRequestRs {
             expiration_secs,
             amount,
             description,
@@ -717,7 +718,7 @@ impl AsyncLexeWallet {
             .transpose()
             .map_err(|e| anyhow::anyhow!("Invalid fallback amount: {e}"))?;
 
-        let req = SdkPayInvoiceRequestRs {
+        let req = PayInvoiceRequestRs {
             invoice,
             fallback_amount,
             note,
@@ -733,7 +734,7 @@ impl AsyncLexeWallet {
         index: String,
     ) -> FfiResult<Option<Payment>> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkGetPaymentRequestRs { index };
+        let req = GetPaymentRequestRs { index };
         let resp = self.inner.get_payment(req).await?;
         Ok(resp.payment.map(Into::into))
     }
@@ -1000,7 +1001,7 @@ impl BlockingLexeWallet {
             .transpose()
             .map_err(|e| anyhow::anyhow!("Invalid amount: {e}"))?;
 
-        let req = SdkCreateInvoiceRequestRs {
+        let req = CreateInvoiceRequestRs {
             expiration_secs,
             amount,
             description,
@@ -1035,7 +1036,7 @@ impl BlockingLexeWallet {
             .transpose()
             .map_err(|e| anyhow::anyhow!("Invalid fallback amount: {e}"))?;
 
-        let req = SdkPayInvoiceRequestRs {
+        let req = PayInvoiceRequestRs {
             invoice,
             fallback_amount,
             note,
@@ -1048,7 +1049,7 @@ impl BlockingLexeWallet {
     /// Get a payment by its `index` string.
     pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkGetPaymentRequestRs { index };
+        let req = GetPaymentRequestRs { index };
         let resp = self.inner.get_payment(req)?;
         Ok(resp.payment.map(Into::into))
     }
@@ -1284,10 +1285,10 @@ pub enum Order {
 }
 
 impl Order {
-    fn to_rs(&self) -> lexe::types::Order {
+    fn to_rs(&self) -> lexe::types::payment::Order {
         match self {
-            Self::Asc => lexe::types::Order::Asc,
-            Self::Desc => lexe::types::Order::Desc,
+            Self::Asc => lexe::types::payment::Order::Asc,
+            Self::Desc => lexe::types::payment::Order::Desc,
         }
     }
 }
@@ -1409,11 +1410,11 @@ pub struct Payment {
     pub priority: Option<ConfirmationPriority>,
 }
 
-impl From<SdkPaymentRs> for Payment {
-    fn from(payment: SdkPaymentRs) -> Self {
+impl From<PaymentRs> for Payment {
+    fn from(payment: PaymentRs) -> Self {
         // Destructure to get a compile error when a new field is added,
         // reminding us to include it in the conversion below.
-        let SdkPaymentRs {
+        let PaymentRs {
             index,
             rail,
             kind,
@@ -1506,8 +1507,8 @@ pub struct CreateInvoiceResponse {
     pub payment_secret: String,
 }
 
-impl From<SdkCreateInvoiceResponseRs> for CreateInvoiceResponse {
-    fn from(resp: SdkCreateInvoiceResponseRs) -> Self {
+impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
+    fn from(resp: CreateInvoiceResponseRs) -> Self {
         Self {
             index: resp.index.to_string(),
             invoice: resp.invoice.to_string(),
@@ -1531,8 +1532,8 @@ pub struct PayInvoiceResponse {
     pub created_at_ms: u64,
 }
 
-impl From<SdkPayInvoiceResponseRs> for PayInvoiceResponse {
-    fn from(resp: SdkPayInvoiceResponseRs) -> Self {
+impl From<PayInvoiceResponseRs> for PayInvoiceResponse {
+    fn from(resp: PayInvoiceResponseRs) -> Self {
         Self {
             index: resp.index.to_string(),
             created_at_ms: resp.created_at.to_millis(),

@@ -7,14 +7,13 @@
 #![allow(async_fn_in_trait)]
 #![deny(missing_docs)]
 
+use lexe::types::command::{
+    CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
+    GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+};
 use lexe_api::error::SdkApiError;
 #[cfg(doc)]
 use lexe_api::types::Empty;
-use sdk_core::models::{
-    SdkCreateInvoiceRequest, SdkCreateInvoiceResponse, SdkGetPaymentRequest,
-    SdkGetPaymentResponse, SdkNodeInfo, SdkPayInvoiceRequest,
-    SdkPayInvoiceResponse,
-};
 
 use crate::api::HealthCheckResponse;
 
@@ -26,23 +25,23 @@ pub trait UserSidecarApi {
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError>;
 
     /// Get basic information about the Lexe node.
-    async fn node_info(&self) -> Result<SdkNodeInfo, SdkApiError>;
+    async fn node_info(&self) -> Result<NodeInfo, SdkApiError>;
 
     /// Create a BOLT11 invoice.
     async fn create_invoice(
         &self,
-        req: &SdkCreateInvoiceRequest,
-    ) -> Result<SdkCreateInvoiceResponse, SdkApiError>;
+        req: &CreateInvoiceRequest,
+    ) -> Result<CreateInvoiceResponse, SdkApiError>;
 
     /// Pay a BOLT11 invoice.
     async fn pay_invoice(
         &self,
-        req: &SdkPayInvoiceRequest,
-    ) -> Result<SdkPayInvoiceResponse, SdkApiError>;
+        req: &PayInvoiceRequest,
+    ) -> Result<PayInvoiceResponse, SdkApiError>;
 
     /// Get information about a payment by its index.
     async fn get_payment(
         &self,
-        req: &SdkGetPaymentRequest,
-    ) -> Result<SdkGetPaymentResponse, SdkApiError>;
+        req: &GetPaymentRequest,
+    ) -> Result<GetPaymentResponse, SdkApiError>;
 }

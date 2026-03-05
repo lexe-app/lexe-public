@@ -13,6 +13,7 @@ use std::{
 };
 
 use common::{api::user::UserPk, env::DeployEnv, rng::SysRng};
+use lexe::types::payment::Payment;
 use lexe_api::{
     def::AppNodeRunApi,
     models::command::GetUpdatedPayments,
@@ -28,7 +29,6 @@ use node_client::{
     credentials::{ClientCredentials, Credentials},
 };
 use reqwest::Url;
-use sdk_core::types::SdkPayment;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Semaphore, mpsc};
 use tracing::{info, info_span, warn};
@@ -241,7 +241,7 @@ impl WebhookSender {
             .flatten()
             .collect::<Vec<(UserPk, Result<VecBasicPaymentV2, _>)>>();
 
-        let mut finalized: Vec<(UserPk, SdkPayment)> = Vec::new();
+        let mut finalized: Vec<(UserPk, Payment)> = Vec::new();
 
         for (user_pk, result) in results {
             let payments = match result {
@@ -278,7 +278,7 @@ impl WebhookSender {
 
                 // Remove from pending and queue webhook
                 state.inner.pending.remove(&payment.id);
-                finalized.push((user_pk, SdkPayment::from(payment)));
+                finalized.push((user_pk, Payment::from(payment)));
             }
         }
 
@@ -295,7 +295,7 @@ impl WebhookSender {
     }
 
     /// Send a webhook for a finalized payment with exponential backoff retry.
-    async fn send_webhook(&self, user_pk: UserPk, payment: SdkPayment) {
+    async fn send_webhook(&self, user_pk: UserPk, payment: Payment) {
         let payment_id = payment.index.id;
         let payload = WebhookPayload { user_pk, payment };
         let mut backoff = backoff::get_backoff_iter();
@@ -478,7 +478,7 @@ pub struct WebhookPayload {
     pub user_pk: UserPk,
     /// The full payment information.
     #[serde(flatten)]
-    pub payment: SdkPayment,
+    pub payment: Payment,
 }
 
 /// Per-user tracking state (in-memory).

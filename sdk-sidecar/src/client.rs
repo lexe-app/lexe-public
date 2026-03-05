@@ -1,15 +1,14 @@
+use lexe::types::{
+    command::{
+        CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
+        GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+    },
+    payment::Payment,
+};
 use lexe_api::{
     error::{SdkApiError, SdkErrorKind},
     rest::RestClient,
     types::Empty,
-};
-use sdk_core::{
-    models::{
-        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
-        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
-    },
-    types::SdkPayment,
 };
 
 use crate::{api::HealthCheckResponse, def::UserSidecarApi};
@@ -47,7 +46,7 @@ impl UserSidecarApi for SidecarClient {
         self.rest.send(http_req).await
     }
 
-    async fn node_info(&self) -> Result<SdkNodeInfo, SdkApiError> {
+    async fn node_info(&self) -> Result<NodeInfo, SdkApiError> {
         let url = format!("{base}/v2/node/node_info", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});
         self.rest.send(http_req).await
@@ -55,8 +54,8 @@ impl UserSidecarApi for SidecarClient {
 
     async fn create_invoice(
         &self,
-        req: &SdkCreateInvoiceRequest,
-    ) -> Result<SdkCreateInvoiceResponse, SdkApiError> {
+        req: &CreateInvoiceRequest,
+    ) -> Result<CreateInvoiceResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/create_invoice");
         let http_req = self.rest.post(url, req);
@@ -65,35 +64,35 @@ impl UserSidecarApi for SidecarClient {
 
     async fn pay_invoice(
         &self,
-        req: &SdkPayInvoiceRequest,
-    ) -> Result<SdkPayInvoiceResponse, SdkApiError> {
+        req: &PayInvoiceRequest,
+    ) -> Result<PayInvoiceResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/pay_invoice");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 
-    /// NOTE: The v2 server returns [`SdkPayment`] directly (see server handler
+    /// NOTE: The v2 server returns [`Payment`] directly (see server handler
     /// for rationale), using HTTP 404 for not-found. The Rust client wraps this
-    /// back into [`SdkGetPaymentResponse`] so that the `Option` is enforced by
+    /// back into [`GetPaymentResponse`] so that the `Option` is enforced by
     /// the type system, guaranteeing callers handle the not-found case.
     async fn get_payment(
         &self,
-        req: &SdkGetPaymentRequest,
-    ) -> Result<SdkGetPaymentResponse, SdkApiError> {
+        req: &GetPaymentRequest,
+    ) -> Result<GetPaymentResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/payment");
         let http_req = self.rest.get(url, req);
 
         self.rest
-            .send::<SdkPayment, SdkApiError>(http_req)
+            .send::<Payment, SdkApiError>(http_req)
             .await
-            .map(|payment| SdkGetPaymentResponse {
+            .map(|payment| GetPaymentResponse {
                 payment: Some(payment),
             })
             .or_else(|error| match error.kind {
                 SdkErrorKind::NotFound =>
-                    Ok(SdkGetPaymentResponse { payment: None }),
+                    Ok(GetPaymentResponse { payment: None }),
                 _ => Err(error),
             })
     }

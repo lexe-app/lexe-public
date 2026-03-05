@@ -1,37 +1,4 @@
-//! # Lexe SDK API request and response types
-//!
-//! ## Guidelines
-//!
-//! - **Simple**: Straightforward consumption by newbie developers via a JSON
-//!   REST API (Lexe Sidecar SDK) or via language bindings (Lexe SDK).
-//!
-//!   - *Minimal nesting* means users don't have to define multiple structs per
-//!     request / response.
-//!   - *Fewer fields* means fewer long-term compatibility commitments.
-//!
-//! - **User-facing docs**: The doc strings here will be used to generate Lexe's
-//!   API references and thus should be written for SDK users, not Lexe
-//!   developers. Internally facing docs can use regular comments.
-//!
-//! - **Document serialization and units**: When newtypes are used, be sure to
-//!   document how users should interpret the serialized form, as they do not
-//!   have access to the newtype information. For example:
-//!
-//!   - [`UserPk`]s and [`NodePk`]s are serialized as hex; mention it.
-//!   - [`Amount`]s are serialized as sats; mention it.
-//!   - [`TimestampMs`] is serialized as *milliseconds* since the UNIX epoch
-//!     instead of seconds, which many users expect; mention it.
-//!   - [`semver::Version`]s don't use a `v-` prefix; give an example: `0.6.9`.
-//!
-//! - **Serialize `null`**: Don't use `#[serde(skip_serializing_if =
-//!   "Option::is_none")]` as serializing `null` fields in the responses makes
-//!   it clear to SDK users that information could returned there in future
-//!   responses.
-//!
-//! [`UserPk`]: common::api::user::UserPk
-//! [`NodePk`]: common::api::user::NodePk
-//! [`Amount`]: common::ln::amount::Amount
-//! [`TimestampMs`]: common::time::TimestampMs
+//! Lexe SDK API request and response types.
 
 use anyhow::Context;
 use common::{
@@ -40,7 +7,7 @@ use common::{
     ln::amount::Amount,
     time::TimestampMs,
 };
-use lexe_api_core::{
+use lexe_api::{
     models::command,
     types::{
         bounded_note::BoundedNote,
@@ -50,12 +17,12 @@ use lexe_api_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::types::SdkPayment;
+use crate::types::payment::Payment;
 
 /// Information about a Lexe node.
-// Simple version of `lexe_api::command::NodeInfo`.
+// Simple version of `lexe_api::models::command::NodeInfo`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SdkNodeInfo {
+pub struct NodeInfo {
     /// The node's current semver version, e.g. `0.6.9`.
     pub version: semver::Version,
     /// The hex-encoded SGX 'measurement' of the current node.
@@ -101,8 +68,8 @@ pub struct SdkNodeInfo {
     pub num_usable_channels: usize,
 }
 
-impl From<lexe_api_core::models::command::NodeInfo> for SdkNodeInfo {
-    fn from(info: lexe_api_core::models::command::NodeInfo) -> Self {
+impl From<command::NodeInfo> for NodeInfo {
+    fn from(info: command::NodeInfo) -> Self {
         let lightning_balance = info.lightning_balance.total();
         let onchain_balance = Amount::try_from(info.onchain_balance.total())
             .expect("We're unreasonably rich!");
@@ -132,7 +99,7 @@ impl From<lexe_api_core::models::command::NodeInfo> for SdkNodeInfo {
 
 /// A request to create a BOLT 11 invoice.
 #[derive(Default, Serialize, Deserialize)]
-pub struct SdkCreateInvoiceRequest {
+pub struct CreateInvoiceRequest {
     /// The expiration, in seconds, to encode into the invoice.
     pub expiration_secs: u32,
 
@@ -156,7 +123,7 @@ pub struct SdkCreateInvoiceRequest {
 
 /// The response to a BOLT 11 invoice request.
 #[derive(Serialize, Deserialize)]
-pub struct SdkCreateInvoiceResponse {
+pub struct CreateInvoiceResponse {
     /// Identifier for this inbound invoice payment.
     pub index: PaymentCreatedIndex,
     /// The string-encoded BOLT 11 invoice.
@@ -176,8 +143,8 @@ pub struct SdkCreateInvoiceResponse {
     pub payment_secret: LxPaymentSecret,
 }
 
-impl SdkCreateInvoiceResponse {
-    /// Quickly create a `SdkCreateInvoiceResponse`
+impl CreateInvoiceResponse {
+    /// Build a [`CreateInvoiceResponse`] from an index and invoice.
     pub fn new(index: PaymentCreatedIndex, invoice: LxInvoice) -> Self {
         let description = invoice.description_str().map(|s| s.to_owned());
         let amount_sats = invoice.amount();
@@ -199,17 +166,17 @@ impl SdkCreateInvoiceResponse {
     }
 }
 
-impl TryFrom<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
+impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
     type Error = anyhow::Error;
 
-    fn try_from(sdk: SdkCreateInvoiceRequest) -> anyhow::Result<Self> {
+    fn try_from(req: CreateInvoiceRequest) -> anyhow::Result<Self> {
         Ok(Self {
-            expiry_secs: sdk.expiration_secs,
-            amount: sdk.amount,
-            description: sdk.description,
+            expiry_secs: req.expiration_secs,
+            amount: req.amount,
+            description: req.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
-            payer_note: sdk
+            payer_note: req
                 .payer_note
                 .map(BoundedNote::new)
                 .transpose()
@@ -223,7 +190,7 @@ impl TryFrom<SdkCreateInvoiceRequest> for command::CreateInvoiceRequest {
 
 /// A request to pay a BOLT 11 invoice.
 #[derive(Serialize, Deserialize)]
-pub struct SdkPayInvoiceRequest {
+pub struct PayInvoiceRequest {
     /// The invoice we want to pay.
     pub invoice: LxInvoice,
     /// Specifies the amount we will pay if the invoice to be paid is
@@ -241,18 +208,18 @@ pub struct SdkPayInvoiceRequest {
     pub payer_note: Option<String>,
 }
 
-impl TryFrom<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
+impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
     type Error = anyhow::Error;
 
-    fn try_from(sdk: SdkPayInvoiceRequest) -> anyhow::Result<Self> {
+    fn try_from(req: PayInvoiceRequest) -> anyhow::Result<Self> {
         Ok(Self {
-            invoice: sdk.invoice,
-            fallback_amount: sdk.fallback_amount,
-            note: sdk.note.map(BoundedNote::new).transpose().context(
+            invoice: req.invoice,
+            fallback_amount: req.fallback_amount,
+            note: req.note.map(BoundedNote::new).transpose().context(
                 "Invalid note (must be non-empty and <=200 chars / \
                      <=512 UTF-8 bytes)",
             )?,
-            payer_note: sdk
+            payer_note: req
                 .payer_note
                 .map(BoundedNote::new)
                 .transpose()
@@ -266,7 +233,7 @@ impl TryFrom<SdkPayInvoiceRequest> for command::PayInvoiceRequest {
 
 /// The response to a request to pay a BOLT 11 invoice.
 #[derive(Serialize, Deserialize)]
-pub struct SdkPayInvoiceResponse {
+pub struct PayInvoiceResponse {
     /// Identifier for this outbound invoice payment.
     pub index: PaymentCreatedIndex,
     /// When we tried to pay this invoice, in milliseconds since the UNIX
@@ -302,23 +269,23 @@ impl TryFrom<SdkUpdatePaymentNoteRequest> for command::UpdatePaymentNote {
 
 /// A request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
-pub struct SdkGetPaymentRequest {
+pub struct GetPaymentRequest {
     /// Identifier for this payment.
     pub index: PaymentCreatedIndex,
 }
 
 /// A response to a request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
-pub struct SdkGetPaymentResponse {
+pub struct GetPaymentResponse {
     /// Information about this payment, if it exists.
-    pub payment: Option<SdkPayment>,
+    pub payment: Option<Payment>,
 }
 
 /// Response from listing payments.
 #[derive(Serialize, Deserialize)]
 pub struct ListPaymentsResponse {
     /// Payments in the requested page.
-    pub payments: Vec<SdkPayment>,
+    pub payments: Vec<Payment>,
     /// Cursor for fetching the next page. `None` when there are no more
     /// results. Pass this as the `after` argument to get the next page.
     pub next_index: Option<PaymentCreatedIndex>,

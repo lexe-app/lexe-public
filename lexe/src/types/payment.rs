@@ -1,14 +1,4 @@
-//! This module contains common data structures and types used by API request
-//! and response types.
-//!
-//! NOTE: The guidelines in [`sdk_core::models`] should also be followed here:
-//!
-//! - Simple: minimal nesting, fewer fields
-//! - User-facing docs
-//! - Document serialization and units
-//! - Serialize `null`
-//!
-//! [`sdk_core::models`]: crate::models
+//! Lexe SDK payment types.
 
 use std::sync::Arc;
 
@@ -17,22 +7,27 @@ use common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_api_core::types::{
-    invoice::LxInvoice,
-    payments::{
-        BasicPaymentV2, PaymentCreatedIndex, PaymentDirection, PaymentKind,
-        PaymentRail, PaymentStatus,
-    },
-};
+use lexe_api::types::{invoice::LxInvoice, payments::BasicPaymentV2};
 use serde::{Deserialize, Serialize};
+
+/// Re-exports that are part of the SDK's public API.
+/// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
+mod reexports {
+    pub use lexe_api::types::payments::{
+        LxPaymentHash, LxPaymentId, LxPaymentSecret, PaymentCreatedIndex,
+        PaymentDirection, PaymentKind, PaymentRail, PaymentStatus,
+        PaymentUpdatedIndex,
+    };
+}
+pub use reexports::*;
 
 /// Information about a payment.
 #[derive(Serialize, Deserialize)]
-pub struct SdkPayment {
+pub struct Payment {
     /// Unique payment identifier, ordered by `created_at`.
     ///
     /// This implements [`Ord`] and is generally the thing you want to key your
-    /// payments by, e.g. `BTreeMap<PaymentCreatedIndex, SdkPayment>`.
+    /// payments by, e.g. `BTreeMap<PaymentCreatedIndex, Payment>`.
     pub index: PaymentCreatedIndex,
 
     /// The technical 'rail' used to fulfill a payment:
@@ -162,7 +157,7 @@ pub enum PaymentFilter {
     Finalized,
 }
 
-impl From<BasicPaymentV2> for SdkPayment {
+impl From<BasicPaymentV2> for Payment {
     fn from(p: BasicPaymentV2) -> Self {
         let BasicPaymentV2 {
             id,

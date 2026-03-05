@@ -28,7 +28,6 @@ lexe-tokio = { path = "../lexe-tokio" }
 logger = { path = "../logger" }
 node-client = { path = "../node-client" }
 payment-uri = { path = "../payment-uri" }
-sdk-core = { path = "../sdk-core" }
 
 # --- WORKSPACE --- #
 

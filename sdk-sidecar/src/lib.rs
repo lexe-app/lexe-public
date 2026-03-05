@@ -177,20 +177,8 @@ mod extract;
 /// Webhook types and functionality for payment notifications.
 mod webhook;
 
-/// Reexport Lexe crates, as various interfaces may need these types.
-pub mod lexe {
-    pub use common;
-    pub use lexe_api as api;
-    // Don't conflict with crate name `tokio`
-    pub use lexe_tokio;
-    pub use logger;
-    pub use node_client;
-    pub use sdk_core;
-}
-
-// Reexport possibly-useful dependencies
-pub use anyhow;
-pub use dotenvy;
-pub use serde;
-pub use serde_json;
-pub use tracing;
+// Reexport the Lexe SDK crate.
+pub use lexe;
+// Reexport types from internal crates that appear in the sidecar's public
+// API.
+pub use lexe_tokio::notify_once::NotifyOnce;

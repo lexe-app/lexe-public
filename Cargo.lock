@@ -2580,7 +2580,6 @@ dependencies = [
  "node-client",
  "payment-uri",
  "proptest",
- "sdk-core",
  "semver",
  "serde",
  "serde_json",
@@ -4226,18 +4225,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdk-core"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "bitcoin",
- "common",
- "lexe-api-core",
- "semver",
- "serde",
-]
-
-[[package]]
 name = "sdk-sidecar"
 version = "0.4.1"
 dependencies = [
@@ -4248,6 +4235,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "http",
+ "lexe",
  "lexe-api",
  "lexe-std",
  "lexe-tls-core",
@@ -4256,7 +4244,6 @@ dependencies = [
  "node-client",
  "quick_cache",
  "reqwest",
- "sdk-core",
  "serde",
  "serde_json",
  "tokio",

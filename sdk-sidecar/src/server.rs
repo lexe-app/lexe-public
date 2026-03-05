@@ -9,23 +9,25 @@ use axum::{
     routing::{get, post},
 };
 use common::{ed25519, env::DeployEnv};
+use lexe::types::{
+    command::{
+        CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
+        GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+    },
+    payment::Payment,
+};
 use lexe_api::{
     def::AppNodeRunApi,
     error::{SdkApiError, SdkErrorKind},
-    models::command::{CreateInvoiceResponse, LxPaymentIdStruct},
+    models::command::{
+        CreateInvoiceResponse as InternalCreateInvoiceResponse,
+        LxPaymentIdStruct,
+    },
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
 };
 use node_client::{client::NodeClient, credentials::Credentials};
 use quick_cache::unsync;
-use sdk_core::{
-    models::{
-        SdkCreateInvoiceRequest, SdkCreateInvoiceResponse,
-        SdkGetPaymentRequest, SdkGetPaymentResponse, SdkNodeInfo,
-        SdkPayInvoiceRequest, SdkPayInvoiceResponse,
-    },
-    types::SdkPayment,
-};
 use tokio::sync::mpsc;
 use tracing::{instrument, warn};
 
@@ -125,12 +127,12 @@ mod node {
     pub(crate) async fn node_info(
         State(_): State<Arc<RouterState>>,
         NodeClientExtractor { node_client, .. }: NodeClientExtractor,
-    ) -> Result<LxJson<SdkNodeInfo>, SdkApiError> {
+    ) -> Result<LxJson<NodeInfo>, SdkApiError> {
         let info = node_client
             .node_info()
             .await
             .map_err(SdkApiError::command)?;
-        Ok(LxJson(SdkNodeInfo::from(info)))
+        Ok(LxJson(NodeInfo::from(info)))
     }
 
     #[instrument(skip_all, name = "(create-invoice)")]
@@ -140,10 +142,10 @@ mod node {
             node_client,
             credentials,
         }: NodeClientExtractor,
-        LxJson(req): LxJson<SdkCreateInvoiceRequest>,
-    ) -> Result<LxJson<SdkCreateInvoiceResponse>, SdkApiError> {
+        LxJson(req): LxJson<CreateInvoiceRequest>,
+    ) -> Result<LxJson<CreateInvoiceResponse>, SdkApiError> {
         let req = req.try_into().map_err(SdkApiError::command)?;
-        let CreateInvoiceResponse {
+        let InternalCreateInvoiceResponse {
             invoice,
             created_index: maybe_index,
         } = node_client
@@ -157,7 +159,7 @@ mod node {
 
         try_track_payment(&state, &node_client, credentials, index);
 
-        Ok(LxJson(SdkCreateInvoiceResponse::new(index, invoice)))
+        Ok(LxJson(CreateInvoiceResponse::new(index, invoice)))
     }
 
     #[instrument(skip_all, name = "(pay-invoice)")]
@@ -167,8 +169,8 @@ mod node {
             node_client,
             credentials,
         }: NodeClientExtractor,
-        LxJson(req): LxJson<SdkPayInvoiceRequest>,
-    ) -> Result<LxJson<SdkPayInvoiceResponse>, SdkApiError> {
+        LxJson(req): LxJson<PayInvoiceRequest>,
+    ) -> Result<LxJson<PayInvoiceResponse>, SdkApiError> {
         let id = req.invoice.payment_id();
         let req = req.try_into().map_err(SdkApiError::command)?;
         let created_at = node_client
@@ -180,7 +182,7 @@ mod node {
         let index = PaymentCreatedIndex { id, created_at };
         try_track_payment(&state, &node_client, credentials, index);
 
-        Ok(LxJson(SdkPayInvoiceResponse { index, created_at }))
+        Ok(LxJson(PayInvoiceResponse { index, created_at }))
     }
 
     /// Legacy: Returns `{ "payment": null }` if not found.
@@ -188,35 +190,35 @@ mod node {
     pub(crate) async fn get_payment_v1(
         state: State<Arc<RouterState>>,
         node_client: NodeClientExtractor,
-        req: LxQuery<SdkGetPaymentRequest>,
-    ) -> Result<LxJson<SdkGetPaymentResponse>, SdkApiError> {
+        req: LxQuery<GetPaymentRequest>,
+    ) -> Result<LxJson<GetPaymentResponse>, SdkApiError> {
         // Wraps the v2 logic to return `{ "payment": null }` if not found.
         match get_payment(state, node_client, req).await {
-            Ok(LxJson(payment)) => Ok(LxJson(SdkGetPaymentResponse {
+            Ok(LxJson(payment)) => Ok(LxJson(GetPaymentResponse {
                 payment: Some(payment),
             })),
             Err(e) if e.kind == SdkErrorKind::NotFound =>
-                Ok(LxJson(SdkGetPaymentResponse { payment: None })),
+                Ok(LxJson(GetPaymentResponse { payment: None })),
             Err(e) => Err(e),
         }
     }
 
     /// NOTE: For the v2 endpoint and above, we return the response as a
-    /// [`SdkPayment`] rather than a [`SdkGetPaymentResponse`], because the
+    /// [`Payment`] rather than a [`GetPaymentResponse`], because the
     /// `{ "payment": { ... } }` nesting trips up dumb AIs when vibe-coding on
     /// the Sidecar SDK, as discovered by Mat Balez et al. If the payment is
     /// missing, we use HTTP 404 to indicate this.
     ///
     /// If we need to add more fields to the response which don't fit in
-    /// [`SdkPayment`], we can always reintroduce the response type but with
-    /// `#[serde(flatten)]` on the [`SdkPayment`] field (since missing payments
+    /// [`Payment`], we can always reintroduce the response type but with
+    /// `#[serde(flatten)]` on the [`Payment`] field (since missing payments
     /// are now indicated by HTTP 404), or do another version bump.
     #[instrument(skip_all, name = "(get-payment)")]
     pub(crate) async fn get_payment(
         State(_): State<Arc<RouterState>>,
         NodeClientExtractor { node_client, .. }: NodeClientExtractor,
-        LxQuery(req): LxQuery<SdkGetPaymentRequest>,
-    ) -> Result<LxJson<SdkPayment>, SdkApiError> {
+        LxQuery(req): LxQuery<GetPaymentRequest>,
+    ) -> Result<LxJson<Payment>, SdkApiError> {
         let id = req.index.id;
 
         let maybe_basic_payment = node_client
@@ -230,7 +232,7 @@ mod node {
             None => return Err(SdkApiError::not_found("Payment not found")),
         };
 
-        Ok(LxJson(SdkPayment::from(basic_payment)))
+        Ok(LxJson(Payment::from(basic_payment)))
     }
 
     /// Try to track a payment for webhook notifications.

@@ -1,7 +1,7 @@
 //! Sidecar-specific SDK models.
 //!
 //! API types which we may reasonably expect our other SDKs to use should go in
-//! [`sdk_core::types`].
+//! [`lexe::types`].
 
 use std::borrow::Cow;
 

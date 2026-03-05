@@ -14,9 +14,7 @@ use common::{
 };
 use lexe_api::{
     def::{AppBackendApi, AppNodeRunApi},
-    models::command::{
-        EnclavesToProvisionRequest, LxPaymentIdStruct, UpdatePaymentNote,
-    },
+    models::command,
     types::payments::{PaymentCreatedIndex, PaymentStatus},
 };
 use lexe_std::backoff::Backoff;
@@ -28,15 +26,6 @@ use payment_uri::{
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
 };
-use sdk_core::{
-    models::{
-        ListPaymentsResponse, SdkCreateInvoiceRequest,
-        SdkCreateInvoiceResponse, SdkGetPaymentRequest, SdkGetPaymentResponse,
-        SdkNodeInfo, SdkPayInvoiceRequest, SdkPayInvoiceResponse,
-        SdkUpdatePaymentNoteRequest,
-    },
-    types::{Order, PaymentFilter, SdkPayment},
-};
 use tracing::info;
 
 use crate::{
@@ -44,7 +33,15 @@ use crate::{
         WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
         WalletUserDbConfig,
     },
-    types::command::PaymentSyncSummary,
+    types::{
+        command::{
+            CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
+            GetPaymentResponse, ListPaymentsResponse, NodeInfo,
+            PayInvoiceRequest, PayInvoiceResponse, PaymentSyncSummary,
+            SdkUpdatePaymentNoteRequest,
+        },
+        payment::{Order, Payment, PaymentFilter},
+    },
     unstable::{
         ffs::DiskFs, payments_db::PaymentsDb, provision, wallet_db::WalletDb,
     },
@@ -272,7 +269,7 @@ impl LexeWallet<WithDb> {
         let (basics, next_index) = self
             .payments_db()
             .list_payments(filter, order, limit, after);
-        let payments = basics.into_iter().map(SdkPayment::from).collect();
+        let payments = basics.into_iter().map(Payment::from).collect();
         ListPaymentsResponse {
             payments,
             next_index,
@@ -298,7 +295,7 @@ impl LexeWallet<WithDb> {
         &self,
         index: PaymentCreatedIndex,
         timeout: Option<Duration>,
-    ) -> anyhow::Result<SdkPayment> {
+    ) -> anyhow::Result<Payment> {
         const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
         const MAX_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -321,7 +318,7 @@ impl LexeWallet<WithDb> {
             if let Some(payment) =
                 self.payments_db().get_payment_by_created_index(&index)
             {
-                let payment = SdkPayment::from(payment);
+                let payment = Payment::from(payment);
                 match payment.status {
                     PaymentStatus::Completed | PaymentStatus::Failed =>
                         return Ok(payment),
@@ -568,7 +565,7 @@ impl<D> LexeWallet<D> {
             .context("Could not get bearer token")?;
 
         // Build request with our trusted measurements.
-        let req = EnclavesToProvisionRequest {
+        let req = command::EnclavesToProvisionRequest {
             trusted_measurements: provision::LATEST_TRUSTED_MEASUREMENTS
                 .clone(),
         };
@@ -658,19 +655,19 @@ impl<D> LexeWallet<D> {
     // --- Command API --- //
 
     /// Get information about this Lexe node, including balance and channels.
-    pub async fn node_info(&self) -> anyhow::Result<SdkNodeInfo> {
+    pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
         self.node_client
             .node_info()
             .await
-            .map(SdkNodeInfo::from)
+            .map(NodeInfo::from)
             .context("Failed to get node info")
     }
 
     /// Create a BOLT 11 invoice to receive a Lightning payment.
     pub async fn create_invoice(
         &self,
-        req: SdkCreateInvoiceRequest,
-    ) -> anyhow::Result<SdkCreateInvoiceResponse> {
+        req: CreateInvoiceRequest,
+    ) -> anyhow::Result<CreateInvoiceResponse> {
         let req = req.try_into()?;
         let resp = self
             .node_client
@@ -680,16 +677,16 @@ impl<D> LexeWallet<D> {
 
         let index = resp.created_index.context("Node is out of date")?;
 
-        Ok(SdkCreateInvoiceResponse::new(index, resp.invoice))
+        Ok(CreateInvoiceResponse::new(index, resp.invoice))
     }
 
     /// Pay a BOLT 11 invoice over Lightning.
     pub async fn pay_invoice(
         &self,
-        req: SdkPayInvoiceRequest,
-    ) -> anyhow::Result<SdkPayInvoiceResponse> {
+        req: PayInvoiceRequest,
+    ) -> anyhow::Result<PayInvoiceResponse> {
         let id = req.invoice.payment_id();
-        let req = req.try_into()?;
+        let req: command::PayInvoiceRequest = req.try_into()?;
         let resp = self
             .node_client
             .pay_invoice(req)
@@ -701,7 +698,7 @@ impl<D> LexeWallet<D> {
             id,
         };
 
-        Ok(SdkPayInvoiceResponse {
+        Ok(PayInvoiceResponse {
             index,
             created_at: resp.created_at,
         })
@@ -710,18 +707,18 @@ impl<D> LexeWallet<D> {
     /// Get information about a payment by its created index.
     pub async fn get_payment(
         &self,
-        req: SdkGetPaymentRequest,
-    ) -> anyhow::Result<SdkGetPaymentResponse> {
+        req: GetPaymentRequest,
+    ) -> anyhow::Result<GetPaymentResponse> {
         let id = req.index.id;
         let payment = self
             .node_client
-            .get_payment_by_id(LxPaymentIdStruct { id })
+            .get_payment_by_id(command::LxPaymentIdStruct { id })
             .await
             .context("Failed to get payment")?
             .maybe_payment
             .map(Into::into);
 
-        Ok(SdkGetPaymentResponse { payment })
+        Ok(GetPaymentResponse { payment })
     }
 
     /// Update the personal note on an existing payment.
@@ -731,7 +728,7 @@ impl<D> LexeWallet<D> {
         &self,
         req: SdkUpdatePaymentNoteRequest,
     ) -> anyhow::Result<()> {
-        let req: UpdatePaymentNote = req.try_into()?;
+        let req: command::UpdatePaymentNote = req.try_into()?;
 
         // Update remote store first
         self.node_client

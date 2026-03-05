@@ -578,7 +578,7 @@ pub enum PaymentDirection {
 /// The status of a payment: `"pending"`, `"completed"`, or `"failed"`.
 ///
 /// Useful for filtering payments in a list view. For a human-readable status
-/// message specific to each payment type, use `SdkPayment::status_msg`.
+/// message specific to each payment type, use `Payment::status_msg`.
 //
 // Not suitable for getting detailed information about a specific payment; in
 // this case, use the payment-specific status enum or `status_str()` instead.
@@ -596,7 +596,7 @@ pub enum PaymentStatus {
 
 /// A unique, ordered payment identifier: `(created_at, payment_id)`.
 ///
-/// Suitable as a key in `BTreeMap<PaymentCreatedIndex, SdkPayment>` or for
+/// Suitable as a key in `BTreeMap<PaymentCreatedIndex, Payment>` or for
 /// cursor-based pagination. Serialized as `"<created_at>-<id>"`, e.g.
 /// `"0002683862736062841-ln_3ddc..."`.
 //

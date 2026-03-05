@@ -59,20 +59,22 @@ use lexe_api::types::payments::VecDbPaymentV2;
 use lexe_api::{
     def::AppNodeRunApi,
     error::NodeApiError,
-    models::command::{GetUpdatedPayments, UpdatePaymentNote},
+    models::command,
     types::payments::{
         BasicPaymentV2, PaymentCreatedIndex, PaymentStatus,
         PaymentUpdatedIndex, VecBasicPaymentV2,
     },
 };
 use node_client::client::NodeClient;
-use sdk_core::{
-    models::PaymentSyncSummary,
-    types::{Order, PaymentFilter},
-};
 use tracing::warn;
 
-use crate::unstable::ffs::Ffs;
+use crate::{
+    types::{
+        command::PaymentSyncSummary,
+        payment::{Order, PaymentFilter},
+    },
+    unstable::ffs::Ffs,
+};
 
 /// The app's local [`BasicPaymentV2`] database, synced from the user node.
 pub struct PaymentsDb<F> {
@@ -130,7 +132,7 @@ pub(crate) async fn sync_payments<F: Ffs>(
     loop {
         // In every loop iteration, we fetch one batch of updated payments.
 
-        let req = GetUpdatedPayments {
+        let req = command::GetUpdatedPayments {
             // Remember, this start index is _exclusive_.
             // The payment w/ this index will _NOT_ be included in the response.
             start_index,
@@ -169,18 +171,18 @@ pub(crate) async fn sync_payments<F: Ffs>(
 /// This lets us mock out the method in the tests below,
 /// without also mocking out the entire `AppNodeRunApi` trait.
 trait AppNodeRunSyncApi {
-    /// GET /node/v1/payments/updated [`GetUpdatedPayments`]
+    /// GET /node/v1/payments/updated [`command::GetUpdatedPayments`]
     ///                            -> [`VecDbPaymentV2`]
     async fn get_updated_payments(
         &self,
-        req: GetUpdatedPayments,
+        req: command::GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError>;
 }
 
 impl AppNodeRunSyncApi for NodeClient {
     async fn get_updated_payments(
         &self,
-        req: GetUpdatedPayments,
+        req: command::GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError> {
         AppNodeRunApi::get_updated_payments(self, req).await
     }
@@ -419,7 +421,7 @@ impl<F: Ffs> PaymentsDb<F> {
     /// is not a public API.
     pub(crate) fn update_payment_note(
         &self,
-        req: UpdatePaymentNote,
+        req: command::UpdatePaymentNote,
     ) -> anyhow::Result<()> {
         let mut state = self.state.write().unwrap();
 
@@ -804,11 +806,11 @@ mod test_utils {
     }
 
     impl AppNodeRunSyncApi for MockNode {
-        /// GET /node/v1/payments/updated [`GetUpdatedPayments`]
+        /// GET /node/v1/payments/updated [`command::GetUpdatedPayments`]
         ///                            -> [`VecDbPaymentV2`]
         async fn get_updated_payments(
             &self,
-            req: GetUpdatedPayments,
+            req: command::GetUpdatedPayments,
         ) -> Result<VecBasicPaymentV2, NodeApiError> {
             let limit = req.limit.unwrap_or(u16::MAX);
 
