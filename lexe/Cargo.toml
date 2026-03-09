@@ -7,6 +7,7 @@ license.workspace = true
 # semantic versioning; i.e. API-breaking changes should bump the minor version
 # if before 1.0.0, otherwise bump the major version.
 version = "0.0.0"
+publish = true
 
 [features]
 # Enables a synchronous `BlockingLexeWallet` wrapper.

@@ -4,6 +4,8 @@ version = "0.0.0-pre"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
+# Not actually published to crates.io, but set to true so cargo-deny lints it.
+publish = true
 
 include = [
     "pyproject.toml",

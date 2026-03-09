@@ -4,6 +4,7 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+publish = false
 
 # Default config for testing in SGX
 [package.metadata.fortanix-sgx]

@@ -4,6 +4,7 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+publish = false
 
 # Config for testing in SGX
 # Need more threads for tokio. See: common/Cargo.toml.

@@ -4,6 +4,7 @@ authors.workspace = true
 edition.workspace = true
 license = "Apache-2.0"
 version.workspace = true
+publish = false
 
 [dependencies]
 
