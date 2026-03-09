@@ -38,7 +38,7 @@ authors = [
     "Philip Hayes <philip@lexe.app>"
 ]
 edition = "2024"
-license = "PolyForm Noncommercial License 1.0.0"
+license = "PolyForm-Noncommercial-1.0.0"
 # This is just a default version which can be inherited by workspace members
 # that don't actually need semver versioning. Crates that require versioning
 # will specify their version in their Cargo.toml as usual.
