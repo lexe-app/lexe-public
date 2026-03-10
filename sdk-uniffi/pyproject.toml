@@ -1,12 +1,18 @@
 [project]
 name = "lexe-sdk"
 requires-python = ">=3.10"
+description = "Control Lexe self-custody Bitcoin wallets with the Lexe Python SDK"
+readme = "README-PYTHON.md"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+
+# NOTE(phlip9): we grep out the `requires-python` above, so don't change the
+# layout without also updating the PYTHON_VERSION grep in
+# <.github/workflows/release-sdk-python.yml>
 
 # TODO(phlip9): if we can finally get the `lexe` package name, use that.
 # PyPI support issue: <https://github.com/pypi/support/issues/9529>.
