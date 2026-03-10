@@ -1,18 +1,25 @@
 [project]
 name = "lexe-sdk"
 requires-python = ">=3.10"
+# ^^^^^^^^^^^^^^^^^^^^^^^^
+# NOTE(phlip9): we grep out the `requires-python` above, so don't change the
+# layout without also updating the PYTHON_VERSION grep in
+# <.github/workflows/release-sdk-python.yml>
 description = "Control Lexe self-custody Bitcoin wallets with the Lexe Python SDK"
 readme = "README-PYTHON.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [ { name = "Lexe Corporation", email = "no-reply@lexe.app" } ]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+keywords = [
+    "lexe", "bitcoin", "lightning", "wallet", "payments", "crypto", "btc",
+    "ln", "non-custodial", "self-custody"
+]
 dynamic = ["version"]
-
-# NOTE(phlip9): we grep out the `requires-python` above, so don't change the
-# layout without also updating the PYTHON_VERSION grep in
-# <.github/workflows/release-sdk-python.yml>
 
 # TODO(phlip9): if we can finally get the `lexe` package name, use that.
 # PyPI support issue: <https://github.com/pypi/support/issues/9529>.
@@ -26,13 +33,12 @@ dynamic = ["version"]
 #    `lexe-sdk` "deprecated" so that all consumers can move to directly
 #    depending on `lexe`.
 
-# TODO(phlip9): before publish, update homepage, add
-# documentation = "https://python.lexe.tech",
-# license = "MIT", etc.
 [project.urls]
 homepage = "https://lexe.app"
-repository = "https://github.com/lexe-app/lexe-public/tree/master/sdk-uniffi"
-changelog = "https://github.com/lexe-app/lexe-public/releases"
+documentation = "https://python.lexe.app"
+source = "https://github.com/lexe-app/lexe-public/tree/master/sdk-uniffi"
+repository = "https://github.com/lexe-app/lexe-sdk"
+changelog = "https://github.com/lexe-app/lexe-sdk/releases"
 
 [dependency-groups]
 dev = [
