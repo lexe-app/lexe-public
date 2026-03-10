@@ -28,7 +28,7 @@ members = [
     "sgx-test",
     "sgx-toml",
     "sgxs-sign",
-    "sha256",
+    "lexe-sha256",
 ]
 
 [workspace.package]

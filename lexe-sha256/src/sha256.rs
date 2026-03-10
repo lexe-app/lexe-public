@@ -1,5 +1,3 @@
-//! A convenience crate for hasing things with SHA-256.
-
 use std::io;
 
 use byte_array::ByteArray;
@@ -84,7 +82,7 @@ impl io::Write for Context {
 
 #[cfg(test)]
 mod test {
-    use crate as sha256;
+    use crate::sha256;
 
     // sanity check
     #[test]

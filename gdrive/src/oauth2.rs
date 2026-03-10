@@ -14,6 +14,7 @@ use common::{
     constants,
     rng::{Crng, RngExt},
 };
+use lexe_sha256::sha256;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use reqwest::StatusCode;

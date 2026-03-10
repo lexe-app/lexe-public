@@ -33,6 +33,7 @@ use common::{
     Secret, enclave,
     rng::{Crng, SysRng},
 };
+use lexe_sha256::sha256;
 use rsa::{
     pkcs1v15::Pkcs1v15Sign,
     pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey},

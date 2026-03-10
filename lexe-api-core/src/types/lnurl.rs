@@ -6,6 +6,7 @@ use anyhow::Context;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64};
 use common::{ByteArray, ln::amount::Amount};
 use http::StatusCode;
+use lexe_sha256::sha256;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{invoice::LxInvoice, username::Username};

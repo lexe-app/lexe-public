@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::Context;
 use byte_array::ByteArray;
+use lexe_sha256::sha256;
 use lexe_std::Apply;
 use lightning::{
     chain::transaction::OutPoint,

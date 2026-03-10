@@ -2,6 +2,7 @@ use std::{collections::HashSet, fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 use byte_array::ByteArray;
+use lexe_sha256::sha256;
 use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{

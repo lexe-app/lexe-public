@@ -11,6 +11,7 @@ ${PODS_TARGET_SRCROOT}/../../hex/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-api-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-api/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-ln/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-sha256/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-std/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tls-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tls/Cargo.toml
@@ -30,4 +31,3 @@ ${PODS_TARGET_SRCROOT}/../../sdk-uniffi/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgx-test/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgx-toml/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgxs-sign/Cargo.toml
-${PODS_TARGET_SRCROOT}/../../sha256/Cargo.toml

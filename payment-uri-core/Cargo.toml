@@ -13,7 +13,6 @@ publish = true
 
 common.path = "../common"
 lexe-api-core.path = "../lexe-api-core"
-sha256.path = "../sha256"
 
 # --- WORKSPACE --- #
 

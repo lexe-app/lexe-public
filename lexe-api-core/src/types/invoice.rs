@@ -409,6 +409,7 @@ mod test {
         root_seed::RootSeed,
         test_utils::{arbitrary, roundtrip, snapshot},
     };
+    use lexe_sha256::sha256;
     use lightning::{
         ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,
         routing::router::RouteHint,

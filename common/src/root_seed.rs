@@ -560,6 +560,7 @@ mod test_impls {
 #[cfg(test)]
 mod test {
     use bitcoin::NetworkKind;
+    use lexe_sha256::sha256;
     use proptest::{
         arbitrary::any, collection::vec, prop_assert_eq, proptest,
         strategy::Strategy, test_runner::Config,

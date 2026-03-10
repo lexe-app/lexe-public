@@ -1157,6 +1157,7 @@ dependencies = [
  "hex 0.0.0",
  "http",
  "http-body-util",
+ "lexe-sha256",
  "lexe-std",
  "lightning",
  "lightning-invoice",
@@ -1176,7 +1177,6 @@ dependencies = [
  "serde_urlencoded",
  "serde_with",
  "sgx-isa",
- "sha256",
  "strum",
  "tempfile",
  "thiserror 2.0.17",
@@ -1970,6 +1970,7 @@ dependencies = [
  "common",
  "futures",
  "lexe-api-core",
+ "lexe-sha256",
  "lexe-std",
  "logger",
  "proptest",
@@ -1978,7 +1979,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "sha256",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -2638,6 +2638,7 @@ dependencies = [
  "hex 0.0.0",
  "http",
  "http-body-util",
+ "lexe-sha256",
  "lexe-std",
  "lightning",
  "lightning-invoice",
@@ -2651,7 +2652,6 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "serde_with",
- "sha256",
  "strum",
  "thiserror 2.0.17",
  "tracing",
@@ -2709,6 +2709,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe-sha256"
+version = "0.0.0"
+dependencies = [
+ "byte-array",
+ "hex 0.0.0",
+ "lexe-std",
+ "ref-cast",
+ "ring",
+]
+
+[[package]]
 name = "lexe-std"
 version = "0.0.0"
 dependencies = [
@@ -2732,6 +2743,7 @@ dependencies = [
  "common",
  "dcap-ql",
  "hex 0.0.0",
+ "lexe-sha256",
  "lexe-tls-core",
  "num-bigint",
  "proptest",
@@ -2743,7 +2755,6 @@ dependencies = [
  "secrecy",
  "serde",
  "sgx-isa",
- "sha256",
  "thiserror 2.0.17",
  "time",
  "tokio",
@@ -3450,7 +3461,6 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "serde_json",
- "sha256",
 ]
 
 [[package]]
@@ -4558,9 +4568,9 @@ dependencies = [
  "byte-array",
  "common",
  "hex 0.0.0",
+ "lexe-sha256",
  "rsa",
  "sgxs",
- "sha256",
 ]
 
 [[package]]
@@ -4583,18 +4593,6 @@ dependencies = [
  "cfg-if 1.0.4",
  "cpufeatures",
  "digest",
-]
-
-[[package]]
-name = "sha256"
-version = "0.0.0"
-dependencies = [
- "byte-array",
- "hex 0.0.0",
- "lexe-std",
- "ref-cast",
- "ring",
- "secp256k1",
 ]
 
 [[package]]
