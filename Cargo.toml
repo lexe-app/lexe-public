@@ -7,11 +7,12 @@ members = [
     "byte-array",
     "common",
     "gdrive",
-    "hex",
     "lexe",
     "lexe-api",
     "lexe-api-core",
+    "lexe-hex",
     "lexe-ln",
+    "lexe-sha256",
     "lexe-std",
     "lexe-tls",
     "lexe-tls-core",
@@ -28,7 +29,6 @@ members = [
     "sgx-test",
     "sgx-toml",
     "sgxs-sign",
-    "lexe-sha256",
 ]
 
 [workspace.package]

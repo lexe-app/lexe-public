@@ -108,6 +108,7 @@ use anyhow::{Context, anyhow, ensure};
 use common::{
     api::user::NodePk, ln::addr::LxSocketAddress, rng::ThreadFastRng,
 };
+use lexe_hex::hex;
 use lexe_std::{Apply, backoff};
 use lexe_tokio::{
     notify,

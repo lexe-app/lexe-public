@@ -30,7 +30,6 @@ test-utils = [
 
 byte-array.path = "../byte-array"
 common.path = "../common"
-hex = { path = "../hex", features = ["bytes"] }
 lexe-std.path = "../lexe-std"
 lexe-sha256.path = "../lexe-sha256"
 
@@ -66,6 +65,7 @@ reqwest = { optional = true, workspace = true }
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
+lexe-hex.path = "../lexe-hex"
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_urlencoded.workspace = true

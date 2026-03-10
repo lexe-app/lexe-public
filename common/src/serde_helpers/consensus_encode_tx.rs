@@ -91,6 +91,7 @@ mod test {
     use std::sync::Arc;
 
     use bitcoin::consensus::Encodable;
+    use lexe_hex::hex;
     use proptest::{prop_assert_eq, proptest};
     use serde::{Deserialize, Serialize};
 

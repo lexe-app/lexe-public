@@ -14,10 +14,12 @@ publish = true
 # --- LEXE --- #
 
 byte-array.path = "../byte-array"
-hex.path = "../hex"
 lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 
 # --- WORKSPACE --- #
 
 ref-cast.workspace = true
 ring.workspace = true
+
+[dev-dependencies]
+lexe-hex.path = "../lexe-hex"

@@ -82,6 +82,8 @@ impl io::Write for Context {
 
 #[cfg(test)]
 mod test {
+    use lexe_hex::hex;
+
     use crate::sha256;
 
     // sanity check

@@ -630,6 +630,7 @@ mod test {
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
+    use lexe_hex::hex;
     use lightning::{
         blinded_path::message::{
             MessageContext, MessageForwardNode, OffersContext,

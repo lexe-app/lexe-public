@@ -46,6 +46,7 @@ use lexe_api::{
         username::Username as UsernameRs,
     },
 };
+use lexe_hex::hex;
 use payment_uri::OfferWithAmount;
 
 use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;

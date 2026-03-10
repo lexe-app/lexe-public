@@ -12,7 +12,7 @@ publish = true
 [dependencies]
 # --- LEXE --- #
 
-hex.path = "../hex"
+lexe-hex.path = "../lexe-hex"
 
 # --- WORKSPACE --- #
 

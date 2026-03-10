@@ -397,6 +397,7 @@ impl Scope {
 #[cfg(test)]
 mod test {
     use base64::Engine;
+    use lexe_hex::hex;
 
     use super::*;
     use crate::test_utils::roundtrip::{

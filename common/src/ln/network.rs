@@ -127,6 +127,8 @@ impl Serialize for LxNetwork {
 
 #[cfg(test)]
 mod test {
+    use lexe_hex::hex;
+
     use super::*;
     use crate::test_utils::roundtrip;
 

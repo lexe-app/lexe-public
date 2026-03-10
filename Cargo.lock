@@ -170,11 +170,11 @@ dependencies = [
  "fast_qr",
  "flutter_rust_bridge",
  "gdrive",
- "hex 0.0.0",
  "http",
  "keyring",
  "lexe",
  "lexe-api",
+ "lexe-hex",
  "lexe-std",
  "lexe-tls",
  "lexe-tokio",
@@ -872,7 +872,7 @@ checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 name = "byte-array"
 version = "0.0.0"
 dependencies = [
- "hex 0.0.0",
+ "lexe-hex",
  "ref-cast",
 ]
 
@@ -1154,9 +1154,9 @@ dependencies = [
  "cfg-if 1.0.4",
  "chrono",
  "dotenvy",
- "hex 0.0.0",
  "http",
  "http-body-util",
+ "lexe-hex",
  "lexe-sha256",
  "lexe-std",
  "lightning",
@@ -1757,7 +1757,7 @@ dependencies = [
  "enum_dispatch",
  "fern",
  "glob",
- "hex 0.4.3",
+ "hex",
  "include_dir",
  "indicatif",
  "indicatif-log-bridge",
@@ -1790,7 +1790,7 @@ version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5f0420326b13675321b194928bb7830043b68cf8b810e1c651285c747abb080"
 dependencies = [
- "hex 0.4.3",
+ "hex",
  "md-5",
  "proc-macro2",
  "quote",
@@ -2121,14 +2121,6 @@ name = "hermit-abi"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
-
-[[package]]
-name = "hex"
-version = "0.0.0"
-dependencies = [
- "bytes",
- "proptest",
-]
 
 [[package]]
 name = "hex"
@@ -2635,9 +2627,9 @@ dependencies = [
  "bytes",
  "common",
  "futures",
- "hex 0.0.0",
  "http",
  "http-body-util",
+ "lexe-hex",
  "lexe-sha256",
  "lexe-std",
  "lightning",
@@ -2655,6 +2647,13 @@ dependencies = [
  "strum",
  "thiserror 2.0.17",
  "tracing",
+]
+
+[[package]]
+name = "lexe-hex"
+version = "0.0.0"
+dependencies = [
+ "proptest",
 ]
 
 [[package]]
@@ -2676,8 +2675,8 @@ dependencies = [
  "either",
  "esplora-client",
  "futures",
- "hex 0.0.0",
  "lexe-api",
+ "lexe-hex",
  "lexe-std",
  "lexe-tls",
  "lexe-tls-core",
@@ -2713,7 +2712,7 @@ name = "lexe-sha256"
 version = "0.0.0"
 dependencies = [
  "byte-array",
- "hex 0.0.0",
+ "lexe-hex",
  "lexe-std",
  "ref-cast",
  "ring",
@@ -2742,7 +2741,7 @@ dependencies = [
  "cmac",
  "common",
  "dcap-ql",
- "hex 0.0.0",
+ "lexe-hex",
  "lexe-sha256",
  "lexe-tls-core",
  "num-bigint",
@@ -3073,8 +3072,8 @@ dependencies = [
  "common",
  "futures",
  "gdrive",
- "hex 0.0.0",
  "lexe-api",
+ "lexe-hex",
  "lexe-ln",
  "lexe-std",
  "lexe-tls",
@@ -3138,7 +3137,7 @@ dependencies = [
  "chacha20",
  "chacha20poly1305",
  "getrandom 0.2.16",
- "hex 0.4.3",
+ "hex",
  "instant",
  "scrypt",
  "secp256k1",
@@ -4450,7 +4449,7 @@ checksum = "f5c9fdb6b00a489875b22efd4b78fe2b363b72265cc5f6eb2e2b9ee270e6140c"
 dependencies = [
  "base64 0.21.7",
  "chrono",
- "hex 0.4.3",
+ "hex",
  "serde",
  "serde_json",
  "serde_with_macros",
@@ -4520,7 +4519,7 @@ name = "sgx-test"
 version = "0.1.0"
 dependencies = [
  "common",
- "hex 0.0.0",
+ "lexe-hex",
  "lexe-tls",
 ]
 
@@ -4567,7 +4566,7 @@ dependencies = [
  "anyhow",
  "byte-array",
  "common",
- "hex 0.0.0",
+ "lexe-hex",
  "lexe-sha256",
  "rsa",
  "sgxs",
@@ -5977,7 +5976,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "futures-util",
- "hex 0.4.3",
+ "hex",
  "nix 0.26.4",
  "once_cell",
  "ordered-stream",

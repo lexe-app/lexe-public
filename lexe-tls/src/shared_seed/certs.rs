@@ -305,6 +305,7 @@ impl RevocableClientCert {
 #[cfg(test)]
 mod test {
     use common::rng::FastRng;
+    use lexe_hex::hex;
     use rustls::pki_types::CertificateDer;
 
     use super::*;

@@ -403,6 +403,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use lexe_hex::hex;
     use proptest::{
         arbitrary::any, collection::vec, prop_assert, prop_assert_eq, proptest,
     };

@@ -12,7 +12,6 @@ use common::{
     rng::SysRng,
 };
 use flutter_rust_bridge::RustOpaqueNom;
-use hex::FromHex;
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
     models::command::{
@@ -32,6 +31,7 @@ use lexe_api::{
         },
     },
 };
+use lexe_hex::hex::FromHex;
 use lexe_std::Apply;
 use tracing::instrument;
 

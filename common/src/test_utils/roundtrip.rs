@@ -3,6 +3,7 @@ use std::{
     str::FromStr,
 };
 
+use lexe_hex::hex;
 use proptest::{
     arbitrary::{Arbitrary, any},
     prop_assert_eq, proptest,

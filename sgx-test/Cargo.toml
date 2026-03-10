@@ -10,7 +10,7 @@ publish = false
 # --- LEXE --- #
 
 common.path = "../common"
-hex.path = "../hex"
+lexe-hex.path = "../lexe-hex"
 lexe-tls.path = "../lexe-tls"
 
 [package.metadata.fortanix-sgx]

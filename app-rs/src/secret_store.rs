@@ -33,6 +33,7 @@ use cfg_if::cfg_if;
 use common::root_seed::RootSeed;
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
 use lexe::config::WalletEnv;
+use lexe_hex::hex;
 use secrecy::ExposeSecret;
 
 /// Persists user secrets like the [`RootSeed`] in each platform's standard

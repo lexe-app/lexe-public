@@ -98,6 +98,7 @@ pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
 /// Example:
 ///
 /// ```
+/// use lexe_hex::hex;
 /// let bytes = [69u8; 32];
 /// println!("Bytes as hex: {}", hex::display(&bytes));
 /// ```
@@ -114,7 +115,7 @@ pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
 ///
 /// ```
 /// # use std::borrow::Cow;
-/// use hex::FromHex;
+/// use lexe_hex::hex::FromHex;
 /// let s = String::from("e7f51d925349a26f742e6eef3670f489aaf14fbbb5b5c3f209892f2f1baae1c9");
 ///
 /// <Vec<u8>>::from_hex(&s).unwrap();
@@ -128,13 +129,6 @@ pub trait FromHex: Sized {
 impl FromHex for Vec<u8> {
     fn from_hex(s: &str) -> Result<Self, DecodeError> {
         decode(s)
-    }
-}
-
-#[cfg(feature = "bytes")]
-impl FromHex for bytes::Bytes {
-    fn from_hex(s: &str) -> Result<Self, DecodeError> {
-        decode(s).map(Self::from)
     }
 }
 

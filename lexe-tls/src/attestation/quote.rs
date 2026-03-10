@@ -57,6 +57,7 @@ mod sgx {
     use bytemuck::{Pod, Zeroable};
     use cmac::{Cmac, Mac, digest::generic_array::GenericArray};
     use common::rng::{Crng, RngExt};
+    use lexe_hex::hex;
     use lexe_sha256::sha256;
     use sgx_isa::{Report, Targetinfo};
 

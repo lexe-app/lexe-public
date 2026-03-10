@@ -26,11 +26,11 @@ test-utils = ["common/test-utils", "lexe-api/test-utils"]
 # --- LEXE --- #
 
 common.path = "../common"
-hex.path = "../hex"
 lexe-api.path = "../lexe-api"
+lexe-hex.path = "../lexe-hex"
 lexe-std.path = "../lexe-std"
-lexe-tls.path = "../lexe-tls"
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
+lexe-tls.path = "../lexe-tls"
 lexe-tokio.path = "../lexe-tokio"
 
 # --- WORKSPACE --- #
@@ -39,9 +39,9 @@ anyhow.workspace = true
 arc-swap.workspace = true
 async-trait.workspace = true
 base64.workspace = true
-bdk_wallet.workspace = true
 bdk_chain.workspace = true
 bdk_esplora.workspace = true
+bdk_wallet.workspace = true
 bech32.workspace = true
 bitcoin.workspace = true
 bytes.workspace = true
@@ -49,9 +49,9 @@ cfg-if.workspace = true
 either.workspace = true
 esplora-client.workspace = true
 futures.workspace = true
-lightning.workspace = true
 lightning-invoice.workspace = true
 lightning-transaction-sync.workspace = true
+lightning.workspace = true
 miniscript.workspace = true
 quick_cache.workspace = true
 rand.workspace = true
@@ -61,8 +61,8 @@ rust_decimal_macros.workspace = true
 secrecy.workspace = true
 semver.workspace = true
 serde.workspace = true
-serde_with = { workspace = true, features = ["alloc", "hex"] }
 serde_json.workspace = true
+serde_with = { workspace = true, features = ["alloc", "hex"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
@@ -72,7 +72,6 @@ tokio = { workspace = true, features = [
     "sync",
     "time"
 ] }
-tracing.workspace = true
 tracing-core.workspace = true
 tracing-subscriber = { workspace = true, features = [
     # Enable colored log outputs
@@ -82,6 +81,7 @@ tracing-subscriber = { workspace = true, features = [
     "std",
     "tracing-log",
 ] }
+tracing.workspace = true
 webpki-roots.workspace = true
 
 [dev-dependencies]
@@ -91,6 +91,8 @@ lexe-api = { path = "../lexe-api", features = ["test-utils"] }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 strum.workspace = true
+# Utilities for testing futures
+tokio-test.workspace = true
 # Enable test-util feature in tests
 tokio = { workspace = true, features = [
     "io-util",
@@ -100,5 +102,3 @@ tokio = { workspace = true, features = [
     "test-util",
     "time"
 ] }
-# Utilities for testing futures
-tokio-test.workspace = true

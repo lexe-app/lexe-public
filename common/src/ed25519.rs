@@ -40,7 +40,7 @@ use std::{fmt, str::FromStr};
 use asn1_rs::{Oid, oid};
 use byte_array::ByteArray;
 use bytes::{BufMut, Bytes, BytesMut};
-use hex::FromHex;
+use lexe_hex::hex::{self, FromHex};
 use lexe_sha256::sha256;
 use lexe_std::const_utils;
 use ref_cast::RefCast;

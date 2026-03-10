@@ -1,20 +1,15 @@
 [package]
-name = "hex"
+name = "lexe-hex"
+license = "MIT"
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
 version.workspace = true
 publish = true
 
 # Default config for testing in SGX
 [package.metadata.fortanix-sgx]
 
-[features]
-default = []
-bytes = ["dep:bytes"]
-
 [dependencies]
-bytes = { optional = true, workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }

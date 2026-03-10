@@ -152,6 +152,7 @@ fn derive_aes_key(password: &str, salt: &[u8; 32]) -> AesMasterKey {
 mod test {
     use std::path::Path;
 
+    use lexe_hex::hex;
     use proptest::{
         arbitrary::any, proptest, strategy::Strategy, test_runner::Config,
     };

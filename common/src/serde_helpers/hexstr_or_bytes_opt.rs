@@ -16,7 +16,7 @@
 
 use std::{fmt, marker::PhantomData};
 
-use hex::FromHex;
+use lexe_hex::hex::{self, FromHex};
 use serde::{Deserialize, Deserializer, Serializer, de, ser};
 
 pub fn serialize<S, T>(

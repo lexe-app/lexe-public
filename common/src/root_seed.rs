@@ -6,6 +6,7 @@ use bitcoin::{
     bip32::{self, ChildNumber},
     secp256k1,
 };
+use lexe_hex::hex;
 use lexe_std::array;
 use secrecy::{ExposeSecret, Secret, SecretVec, Zeroize};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};

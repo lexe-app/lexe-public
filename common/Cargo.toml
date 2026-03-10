@@ -32,9 +32,9 @@ test-utils = [
 # --- LEXE --- #
 
 byte-array.path = "../byte-array"
-hex = { path = "../hex", features = ["bytes"] }
-lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
+lexe-hex.path = "../lexe-hex"
 lexe-sha256.path = "../lexe-sha256"
+lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 
 # --- WORKSPACE --- #
 

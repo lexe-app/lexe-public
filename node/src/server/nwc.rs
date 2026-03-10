@@ -8,6 +8,7 @@ use lexe_api::models::{
         NwcMethod, NwcRequestPayload,
     },
 };
+use lexe_hex::hex;
 use lexe_ln::command::CreateInvoiceCaller;
 
 use crate::server::RouterState;

@@ -12,7 +12,7 @@ publish = false
 
 byte-array.path = "../byte-array"
 common.path = "../common"
-hex.path = "../hex"
+lexe-hex.path = "../lexe-hex"
 lexe-sha256.path = "../lexe-sha256"
 
 # --- WORKSPACE --- #

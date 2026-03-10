@@ -8,6 +8,7 @@ use lexe_api::models::nwc::{
     DbNwcClient, DbNwcClientFields, NostrEventId, NostrPk, NostrSignedEvent,
     NostrSk, NwcClientInfo,
 };
+use lexe_hex::hex;
 use nostr::nips::nip44;
 use serde::{Deserialize, Serialize};
 

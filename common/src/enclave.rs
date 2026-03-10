@@ -7,6 +7,7 @@ use std::{borrow::Cow, fmt, io, mem, str::FromStr, sync::LazyLock};
 use byte_array::ByteArray;
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
+use lexe_hex::hex;
 use lexe_sha256::sha256;
 use lexe_std::array::{self, ArrayExt};
 #[cfg(any(test, feature = "test-utils"))]

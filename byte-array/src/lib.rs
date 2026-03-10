@@ -4,7 +4,12 @@ use std::{
     hash::Hash,
 };
 
-use hex::{FromHex, HexDisplay};
+// Re-export so we can cleanly use `lexe_hex` in the
+// `impl_fromstr_fromhex!` macro without dependent crates needing a random
+// `lexe_hex` dep.
+#[doc(hidden)]
+pub use lexe_hex;
+use lexe_hex::hex::{self, FromHex, HexDisplay};
 pub use ref_cast::RefCast;
 
 /// A trait for types represented in memory as a byte array. Should NOT be
@@ -92,13 +97,15 @@ macro_rules! impl_byte_array {
 macro_rules! impl_fromstr_fromhex {
     ($type:ty, $n:expr) => {
         impl std::str::FromStr for $type {
-            type Err = hex::DecodeError;
+            type Err = $crate::lexe_hex::hex::DecodeError;
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 Self::try_from_hexstr(s)
             }
         }
-        impl hex::FromHex for $type {
-            fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
+        impl $crate::lexe_hex::hex::FromHex for $type {
+            fn from_hex(
+                s: &str,
+            ) -> Result<Self, $crate::lexe_hex::hex::DecodeError> {
                 <[u8; $n]>::from_hex(s).map(Self::from_array)
             }
         }
