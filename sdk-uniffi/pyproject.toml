@@ -1,5 +1,5 @@
 [project]
-name = "lexe"
+name = "lexe-sdk"
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
@@ -7,6 +7,18 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+
+# TODO(phlip9): if we can finally get the `lexe` package name, use that.
+# PyPI support issue: <https://github.com/pypi/support/issues/9529>.
+#
+# We can cleanly transition to the `lexe` package name like this:
+# 1. rename and publish all future updates to the new `lexe` package
+# 2. publish a final `lexe-sdk` "shim" package that simply depends on `lexe`
+#    (wildcard). since we're using `import lexe` even now, old consumers can
+#    seamlessly get package updates even if they don't change their
+#    pyproject.toml dependency. Ideally we can figure out how to mark
+#    `lexe-sdk` "deprecated" so that all consumers can move to directly
+#    depending on `lexe`.
 
 # TODO(phlip9): before publish, update homepage, add
 # documentation = "https://python.lexe.tech",
