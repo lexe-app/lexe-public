@@ -3,8 +3,8 @@
 use std::{str::FromStr, sync::LazyLock};
 
 use asn1_rs::FromDer;
-use byte_array::ByteArray;
 use common::ed25519;
+use lexe_byte_array::ByteArray;
 use lexe_sha256::sha256;
 use rcgen::{DistinguishedName, DnType, string::Ia5String};
 use x509_parser::{

@@ -12,11 +12,11 @@ publish = false
 [dependencies]
 # --- LEXE --- #
 
-byte-array.path = "../byte-array"
 common.path = "../common"
 lexe-api-core.path = "../lexe-api-core"
-lexe-std.path = "../lexe-std"
+lexe-byte-array.path = "../lexe-byte-array"
 lexe-sha256.path = "../lexe-sha256"
+lexe-std.path = "../lexe-std"
 
 # --- WORKSPACE --- #
 
@@ -24,13 +24,13 @@ anyhow.workspace = true
 base64.workspace = true
 bytes.workspace = true
 futures.workspace = true
-thiserror.workspace = true
 reqwest = { workspace = true, features = ["json", "multipart"] }
 serde.workspace = true
 serde_json.workspace = true
 serde_urlencoded.workspace = true
-tracing.workspace = true
+thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
 
 # --- CRATE-SPECIFIC --- #
 

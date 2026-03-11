@@ -2,12 +2,12 @@ use std::time::Instant;
 
 use anyhow::Context;
 use bitcoin::base64::{self, Engine};
-use byte_array::ByteArray;
 use common::{aes::AesMasterKey, env::DeployEnv, rng::Crng, time::TimestampMs};
 use lexe_api::models::nwc::{
     DbNwcClient, DbNwcClientFields, NostrEventId, NostrPk, NostrSignedEvent,
     NostrSk, NwcClientInfo,
 };
+use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
 use nostr::nips::nip44;
 use serde::{Deserialize, Serialize};

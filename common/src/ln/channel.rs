@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Context;
-use byte_array::ByteArray;
+use lexe_byte_array::ByteArray;
 use lexe_sha256::sha256;
 use lexe_std::Apply;
 use lightning::{
@@ -32,9 +32,9 @@ use crate::{
 #[repr(transparent)]
 pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
-byte_array::impl_byte_array!(LxChannelId, 32);
-byte_array::impl_fromstr_fromhex!(LxChannelId, 32);
-byte_array::impl_debug_display_as_hex!(LxChannelId);
+lexe_byte_array::impl_byte_array!(LxChannelId, 32);
+lexe_byte_array::impl_fromstr_fromhex!(LxChannelId, 32);
+lexe_byte_array::impl_debug_display_as_hex!(LxChannelId);
 
 impl From<ChannelId> for LxChannelId {
     fn from(cid: ChannelId) -> Self {
@@ -76,9 +76,9 @@ impl LxUserChannelId {
     }
 }
 
-byte_array::impl_byte_array!(LxUserChannelId, 16);
-byte_array::impl_fromstr_fromhex!(LxUserChannelId, 16);
-byte_array::impl_debug_display_as_hex!(LxUserChannelId);
+lexe_byte_array::impl_byte_array!(LxUserChannelId, 16);
+lexe_byte_array::impl_fromstr_fromhex!(LxUserChannelId, 16);
+lexe_byte_array::impl_debug_display_as_hex!(LxUserChannelId);
 
 impl From<u128> for LxUserChannelId {
     fn from(value: u128) -> Self {

@@ -869,14 +869,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 
 [[package]]
-name = "byte-array"
-version = "0.0.0"
-dependencies = [
- "lexe-hex",
- "ref-cast",
-]
-
-[[package]]
 name = "bytemuck"
 version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1149,13 +1141,13 @@ dependencies = [
  "bcs",
  "bip39",
  "bitcoin",
- "byte-array",
  "bytes",
  "cfg-if 1.0.4",
  "chrono",
  "dotenvy",
  "http",
  "http-body-util",
+ "lexe-byte-array",
  "lexe-hex",
  "lexe-sha256",
  "lexe-std",
@@ -1965,11 +1957,11 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
- "byte-array",
  "bytes",
  "common",
  "futures",
  "lexe-api-core",
+ "lexe-byte-array",
  "lexe-sha256",
  "lexe-std",
  "logger",
@@ -2588,7 +2580,6 @@ dependencies = [
  "axum",
  "axum-server",
  "bcs",
- "byte-array",
  "bytes",
  "common",
  "http",
@@ -2623,12 +2614,12 @@ dependencies = [
  "base64 0.21.7",
  "bcs",
  "bitcoin",
- "byte-array",
  "bytes",
  "common",
  "futures",
  "http",
  "http-body-util",
+ "lexe-byte-array",
  "lexe-hex",
  "lexe-sha256",
  "lexe-std",
@@ -2647,6 +2638,14 @@ dependencies = [
  "strum",
  "thiserror 2.0.17",
  "tracing",
+]
+
+[[package]]
+name = "lexe-byte-array"
+version = "0.0.0"
+dependencies = [
+ "lexe-hex",
+ "ref-cast",
 ]
 
 [[package]]
@@ -2711,7 +2710,7 @@ dependencies = [
 name = "lexe-sha256"
 version = "0.0.0"
 dependencies = [
- "byte-array",
+ "lexe-byte-array",
  "lexe-hex",
  "lexe-std",
  "ref-cast",
@@ -2736,11 +2735,11 @@ dependencies = [
  "anyhow",
  "asn1-rs",
  "base64 0.21.7",
- "byte-array",
  "bytemuck",
  "cmac",
  "common",
  "dcap-ql",
+ "lexe-byte-array",
  "lexe-hex",
  "lexe-sha256",
  "lexe-tls-core",
@@ -3067,12 +3066,12 @@ dependencies = [
  "async-trait",
  "axum",
  "bitcoin",
- "byte-array",
  "bytes",
  "common",
  "futures",
  "gdrive",
  "lexe-api",
+ "lexe-byte-array",
  "lexe-hex",
  "lexe-ln",
  "lexe-std",
@@ -3482,8 +3481,8 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 name = "petname"
 version = "0.0.0"
 dependencies = [
- "byte-array",
  "common",
+ "lexe-byte-array",
 ]
 
 [[package]]
@@ -4564,8 +4563,8 @@ name = "sgxs-sign"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "byte-array",
  "common",
+ "lexe-byte-array",
  "lexe-hex",
  "lexe-sha256",
  "rsa",

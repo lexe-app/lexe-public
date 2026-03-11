@@ -8,7 +8,6 @@ use std::{
 
 use anyhow::{Context, bail, ensure, format_err};
 use asn1_rs::FromDer;
-use byte_array::ByteArray;
 use common::{
     ed25519,
     enclave::{self, Measurement},
@@ -17,6 +16,7 @@ use common::{
 use dcap_ql::quote::{
     CertificationDataType, Quote, Quote3SignatureEcdsaP256, RawQe3CertData,
 };
+use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use rustls::{

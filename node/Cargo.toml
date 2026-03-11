@@ -48,10 +48,10 @@ threads = 2
 
 # --- LEXE --- #
 
-byte-array.path = "../byte-array"
 common.path = "../common"
 gdrive.path = "../gdrive"
 lexe-api.path = "../lexe-api"
+lexe-byte-array.path = "../lexe-byte-array"
 lexe-hex.path = "../lexe-hex"
 lexe-ln.path = "../lexe-ln"
 lexe-std.path = "../lexe-std"

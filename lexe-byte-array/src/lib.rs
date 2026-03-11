@@ -57,7 +57,7 @@ pub trait ByteArray<const N: usize>:
 /// Impls [`ByteArray`] for a transparent newtype over `[u8; N]`
 ///
 /// ```ignore
-/// byte_array::impl_byte_array!(Measurement, 32);
+/// lexe_byte_array::impl_byte_array!(Measurement, 32);
 /// ```
 #[macro_export]
 macro_rules! impl_byte_array {
@@ -91,7 +91,7 @@ macro_rules! impl_byte_array {
 /// Impls `FromStr` and `FromHex` for a [`ByteArray`] parsed from a hex string.
 ///
 /// ```ignore
-/// byte_array::impl_fromstr_fromhex!(Measurement);
+/// lexe_byte_array::impl_fromstr_fromhex!(Measurement);
 /// ```
 #[macro_export]
 macro_rules! impl_fromstr_fromhex {
@@ -115,7 +115,7 @@ macro_rules! impl_fromstr_fromhex {
 /// Impls Debug + Display for a [`ByteArray`] type formatted as a hex string.
 ///
 /// ```ignore
-/// byte_array::impl_debug_display_hex!(Measurement);
+/// lexe_byte_array::impl_debug_display_hex!(Measurement);
 /// ```
 #[macro_export]
 macro_rules! impl_debug_display_as_hex {
@@ -141,7 +141,7 @@ macro_rules! impl_debug_display_as_hex {
 /// Can technically be used for non [`ByteArray`] types as well.
 ///
 /// ```ignore
-/// byte_array::impl_debug_display_redacted!(PaymentSecret);
+/// lexe_byte_array::impl_debug_display_redacted!(PaymentSecret);
 /// ```
 #[macro_export]
 macro_rules! impl_debug_display_redacted {

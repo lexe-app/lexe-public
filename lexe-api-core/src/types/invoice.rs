@@ -212,12 +212,12 @@ pub mod arbitrary_impl {
         hashes::{Hash, sha256},
         secp256k1::{self, Message},
     };
-    use byte_array::ByteArray;
     use common::{
         rng::{Crng, FastRng},
         root_seed::RootSeed,
         test_utils::arbitrary,
     };
+    use lexe_byte_array::ByteArray;
     use lightning::{
         routing::router::RouteHint, types::payment::PaymentSecret,
     };
@@ -403,12 +403,12 @@ pub mod arbitrary_impl {
 mod test {
     use std::time::Duration;
 
-    use byte_array::ByteArray;
     use common::{
         rng::FastRng,
         root_seed::RootSeed,
         test_utils::{arbitrary, roundtrip, snapshot},
     };
+    use lexe_byte_array::ByteArray;
     use lexe_sha256::sha256;
     use lightning::{
         ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,

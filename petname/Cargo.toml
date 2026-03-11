@@ -1,8 +1,8 @@
 [package]
 name = "petname"
+license = "Apache-2.0"
 authors.workspace = true
 edition.workspace = true
-license = "Apache-2.0"
 version.workspace = true
 publish = false
 
@@ -13,5 +13,5 @@ publish = false
 # --- WORKSPACE --- #
 
 [dev-dependencies]
-byte-array = { path = "../byte-array" }
 common = { path = "../common" }
+lexe-byte-array = { path = "../lexe-byte-array" }

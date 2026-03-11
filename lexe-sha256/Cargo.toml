@@ -13,7 +13,7 @@ publish = true
 
 # --- LEXE --- #
 
-byte-array.path = "../byte-array"
+lexe-byte-array.path = "../lexe-byte-array"
 lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 
 # --- WORKSPACE --- #

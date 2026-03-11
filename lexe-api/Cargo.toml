@@ -24,7 +24,6 @@ test-utils = [
 
 # --- LEXE --- #
 
-byte-array.path = "../byte-array"
 common.path = "../common"
 lexe-api-core = { path = "../lexe-api-core", features = ["axum", "reqwest"] }
 lexe-std.path = "../lexe-std"
@@ -38,8 +37,8 @@ axum = { workspace = true, features = ["json", "query"] }
 axum-server.workspace = true
 bcs.workspace = true
 bytes.workspace = true
-http.workspace = true
 http-body-util.workspace = true
+http.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
 lightning.workspace = true
 rand_core.workspace = true

@@ -1,7 +1,7 @@
 use std::{collections::HashSet, fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
-use byte_array::ByteArray;
+use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use lexe_std::array;
@@ -219,9 +219,9 @@ impl UserPk {
     }
 }
 
-byte_array::impl_byte_array!(UserPk, 32);
-byte_array::impl_fromstr_fromhex!(UserPk, 32);
-byte_array::impl_debug_display_as_hex!(UserPk);
+lexe_byte_array::impl_byte_array!(UserPk, 32);
+lexe_byte_array::impl_fromstr_fromhex!(UserPk, 32);
+lexe_byte_array::impl_debug_display_as_hex!(UserPk);
 
 // --- impl ShortUserPk --- //
 
@@ -236,9 +236,9 @@ impl ShortUserPk {
     }
 }
 
-byte_array::impl_byte_array!(ShortUserPk, 4);
-byte_array::impl_fromstr_fromhex!(ShortUserPk, 4);
-byte_array::impl_debug_display_as_hex!(ShortUserPk);
+lexe_byte_array::impl_byte_array!(ShortUserPk, 4);
+lexe_byte_array::impl_fromstr_fromhex!(ShortUserPk, 4);
+lexe_byte_array::impl_debug_display_as_hex!(ShortUserPk);
 
 impl From<&UserPk> for ShortUserPk {
     fn from(long: &UserPk) -> Self {

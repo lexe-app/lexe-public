@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 use anyhow::anyhow;
 // Some re-exports to prevent having to re-declare dependencies
-pub use byte_array::ByteArray;
+pub use lexe_byte_array::ByteArray;
 pub use ref_cast::RefCast;
 pub use secrecy::{ExposeSecret, Secret};
 

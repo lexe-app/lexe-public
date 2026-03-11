@@ -28,11 +28,11 @@ pub fn userpk_to_petname(user_pk: &[u8; 32]) -> String {
 
 #[cfg(test)]
 mod test {
-    use byte_array::ByteArray;
     use common::{
         api::user::UserPk,
         rng::{RngExt, SysRng},
     };
+    use lexe_byte_array::ByteArray;
 
     use super::*;
 

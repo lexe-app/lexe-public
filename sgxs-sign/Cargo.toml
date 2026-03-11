@@ -10,8 +10,8 @@ publish = false
 
 # --- LEXE --- #
 
-byte-array.path = "../byte-array"
 common.path = "../common"
+lexe-byte-array.path = "../lexe-byte-array"
 lexe-hex.path = "../lexe-hex"
 lexe-sha256.path = "../lexe-sha256"
 

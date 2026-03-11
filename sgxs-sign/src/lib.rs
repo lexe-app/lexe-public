@@ -28,11 +28,11 @@
 use std::fmt;
 
 use anyhow::{ensure, format_err};
-use byte_array::ByteArray;
 use common::{
     Secret, enclave,
     rng::{Crng, SysRng},
 };
+use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use rsa::{

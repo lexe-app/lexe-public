@@ -4,9 +4,9 @@
 
 use std::{borrow::Cow, fmt, io, mem, str::FromStr, sync::LazyLock};
 
-use byte_array::ByteArray;
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
+use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use lexe_std::array::{self, ArrayExt};
@@ -461,9 +461,9 @@ impl Measurement {
     }
 }
 
-byte_array::impl_byte_array!(Measurement, 32);
-byte_array::impl_fromstr_fromhex!(Measurement, 32);
-byte_array::impl_debug_display_as_hex!(Measurement);
+lexe_byte_array::impl_byte_array!(Measurement, 32);
+lexe_byte_array::impl_fromstr_fromhex!(Measurement, 32);
+lexe_byte_array::impl_debug_display_as_hex!(Measurement);
 
 // --- impl MrShort --- //
 
@@ -478,9 +478,9 @@ impl MrShort {
     }
 }
 
-byte_array::impl_byte_array!(MrShort, 4);
-byte_array::impl_fromstr_fromhex!(MrShort, 4);
-byte_array::impl_debug_display_as_hex!(MrShort);
+lexe_byte_array::impl_byte_array!(MrShort, 4);
+lexe_byte_array::impl_fromstr_fromhex!(MrShort, 4);
+lexe_byte_array::impl_debug_display_as_hex!(MrShort);
 
 impl From<&Measurement> for MrShort {
     fn from(long: &Measurement) -> Self {
@@ -504,9 +504,9 @@ impl MachineId {
     }
 }
 
-byte_array::impl_byte_array!(MachineId, 16);
-byte_array::impl_fromstr_fromhex!(MachineId, 16);
-byte_array::impl_debug_display_as_hex!(MachineId);
+lexe_byte_array::impl_byte_array!(MachineId, 16);
+lexe_byte_array::impl_fromstr_fromhex!(MachineId, 16);
+lexe_byte_array::impl_debug_display_as_hex!(MachineId);
 
 // --- impl MinCpusvn --- //
 

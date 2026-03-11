@@ -7,13 +7,13 @@ use std::{
 };
 
 use base64::Engine;
-use byte_array::ByteArray;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
     constants,
     rng::{Crng, RngExt},
 };
+use lexe_byte_array::ByteArray;
 use lexe_sha256::sha256;
 #[cfg(test)]
 use proptest_derive::Arbitrary;

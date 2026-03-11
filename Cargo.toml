@@ -4,12 +4,12 @@ resolver = "2"
 members = [
     "app-rs",
     "app-rs-codegen",
-    "byte-array",
     "common",
     "gdrive",
     "lexe",
     "lexe-api",
     "lexe-api-core",
+    "lexe-byte-array",
     "lexe-hex",
     "lexe-ln",
     "lexe-sha256",

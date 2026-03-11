@@ -1,4 +1,3 @@
-use byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
 use common::{
@@ -6,6 +5,7 @@ use common::{
     serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
 };
+use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 #[repr(transparent)]
 pub struct NostrEventId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
-byte_array::impl_byte_array!(NostrEventId, 32);
-byte_array::impl_debug_display_as_hex!(NostrEventId);
+lexe_byte_array::impl_byte_array!(NostrEventId, 32);
+lexe_byte_array::impl_debug_display_as_hex!(NostrEventId);
 
 /// A 32-byte Nostr public key.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
@@ -27,8 +27,8 @@ byte_array::impl_debug_display_as_hex!(NostrEventId);
 #[repr(transparent)]
 pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
-byte_array::impl_byte_array!(NostrPk, 32);
-byte_array::impl_debug_display_as_hex!(NostrPk);
+lexe_byte_array::impl_byte_array!(NostrPk, 32);
+lexe_byte_array::impl_debug_display_as_hex!(NostrPk);
 
 /// A 32-byte Nostr secret key.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
@@ -37,8 +37,8 @@ byte_array::impl_debug_display_as_hex!(NostrPk);
 #[repr(transparent)]
 pub struct NostrSk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-byte_array::impl_byte_array!(NostrSk, 32);
-byte_array::impl_debug_display_redacted!(NostrSk);
+lexe_byte_array::impl_byte_array!(NostrSk, 32);
+lexe_byte_array::impl_debug_display_redacted!(NostrSk);
 
 /// Upgradeable API struct for a NostrPk.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

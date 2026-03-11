@@ -1,6 +1,6 @@
 use std::io;
 
-use byte_array::ByteArray;
+use lexe_byte_array::ByteArray;
 use ref_cast::RefCast;
 
 pub const HASH_LEN: usize = 32;
@@ -43,9 +43,9 @@ impl Hash {
     }
 }
 
-byte_array::impl_byte_array!(Hash, 32);
-byte_array::impl_fromstr_fromhex!(Hash, 32);
-byte_array::impl_debug_display_as_hex!(Hash);
+lexe_byte_array::impl_byte_array!(Hash, 32);
+lexe_byte_array::impl_fromstr_fromhex!(Hash, 32);
+lexe_byte_array::impl_debug_display_as_hex!(Hash);
 
 // -- impl Context -- //
 

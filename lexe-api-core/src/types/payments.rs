@@ -14,7 +14,6 @@ use bitcoin::{
     address::NetworkUnchecked,
     hashes::{Hash, sha256},
 };
-use byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use common::test_utils::arbitrary;
 use common::{
@@ -24,6 +23,7 @@ use common::{
     serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
 };
+use lexe_byte_array::ByteArray;
 use lexe_std::const_assert_mem_size;
 use lightning::{
     offers::offer::OfferId,
@@ -1084,27 +1084,27 @@ impl LxPaymentPreimage {
 
 // --- Boilerplate: ByteArray / FromStr / Display / Debug --- //
 
-byte_array::impl_byte_array!(ClientPaymentId, 32);
-byte_array::impl_byte_array!(LxPaymentHash, 32);
-byte_array::impl_byte_array!(LxPaymentPreimage, 32);
-byte_array::impl_byte_array!(LxPaymentSecret, 32);
-byte_array::impl_byte_array!(LxOfferId, 32);
-byte_array::impl_byte_array!(LnClaimId, 32);
+lexe_byte_array::impl_byte_array!(ClientPaymentId, 32);
+lexe_byte_array::impl_byte_array!(LxPaymentHash, 32);
+lexe_byte_array::impl_byte_array!(LxPaymentPreimage, 32);
+lexe_byte_array::impl_byte_array!(LxPaymentSecret, 32);
+lexe_byte_array::impl_byte_array!(LxOfferId, 32);
+lexe_byte_array::impl_byte_array!(LnClaimId, 32);
 
-byte_array::impl_fromstr_fromhex!(ClientPaymentId, 32);
-byte_array::impl_fromstr_fromhex!(LxPaymentHash, 32);
-byte_array::impl_fromstr_fromhex!(LxPaymentPreimage, 32);
-byte_array::impl_fromstr_fromhex!(LxPaymentSecret, 32);
-byte_array::impl_fromstr_fromhex!(LxOfferId, 32);
-byte_array::impl_fromstr_fromhex!(LnClaimId, 32);
+lexe_byte_array::impl_fromstr_fromhex!(ClientPaymentId, 32);
+lexe_byte_array::impl_fromstr_fromhex!(LxPaymentHash, 32);
+lexe_byte_array::impl_fromstr_fromhex!(LxPaymentPreimage, 32);
+lexe_byte_array::impl_fromstr_fromhex!(LxPaymentSecret, 32);
+lexe_byte_array::impl_fromstr_fromhex!(LxOfferId, 32);
+lexe_byte_array::impl_fromstr_fromhex!(LnClaimId, 32);
 
-byte_array::impl_debug_display_as_hex!(ClientPaymentId);
-byte_array::impl_debug_display_as_hex!(LxPaymentHash);
-byte_array::impl_debug_display_as_hex!(LxOfferId);
-byte_array::impl_debug_display_as_hex!(LnClaimId);
+lexe_byte_array::impl_debug_display_as_hex!(ClientPaymentId);
+lexe_byte_array::impl_debug_display_as_hex!(LxPaymentHash);
+lexe_byte_array::impl_debug_display_as_hex!(LxOfferId);
+lexe_byte_array::impl_debug_display_as_hex!(LnClaimId);
 // Redacted to prevent accidentally leaking secrets in logs
-byte_array::impl_debug_display_redacted!(LxPaymentPreimage);
-byte_array::impl_debug_display_redacted!(LxPaymentSecret);
+lexe_byte_array::impl_debug_display_redacted!(LxPaymentPreimage);
+lexe_byte_array::impl_debug_display_redacted!(LxPaymentSecret);
 
 // --- Newtype From impls --- //
 

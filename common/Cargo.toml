@@ -31,7 +31,7 @@ test-utils = [
 
 # --- LEXE --- #
 
-byte-array.path = "../byte-array"
+lexe-byte-array.path = "../lexe-byte-array"
 lexe-hex.path = "../lexe-hex"
 lexe-sha256.path = "../lexe-sha256"
 lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
