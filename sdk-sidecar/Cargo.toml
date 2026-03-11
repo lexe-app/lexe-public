@@ -1,9 +1,9 @@
 [package]
 name = "sdk-sidecar"
+version = "0.4.1"
+license = "MIT"
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
-version = "0.4.1"
 # Not actually published to crates.io, but set to true so cargo-deny lints it.
 publish = true
 

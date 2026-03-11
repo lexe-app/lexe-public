@@ -1,9 +1,9 @@
 [package]
 name = "sgx-test"
 version = "0.1.0"
+license = "PolyForm-Noncommercial-1.0.0"
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
 publish = false
 
 [dependencies]

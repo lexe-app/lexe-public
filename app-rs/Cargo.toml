@@ -1,8 +1,8 @@
 [package]
 name = "app-rs"
+license = "PolyForm-Noncommercial-1.0.0"
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
 version.workspace = true
 publish = false
 
