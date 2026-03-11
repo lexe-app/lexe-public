@@ -1,9 +1,9 @@
 [package]
-name = "payment-uri-core"
+name = "lexe-payment-uri-core"
 description = "Core types for parsing Bitcoin addresses and payment URIs."
+license = "MIT"
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
 version.workspace = true
 publish = true
 

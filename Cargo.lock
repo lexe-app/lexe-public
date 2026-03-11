@@ -2736,6 +2736,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe-payment-uri-core"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "bech32",
+ "bitcoin",
+ "common",
+ "lexe-api-core",
+ "percent-encoding",
+ "proptest",
+ "proptest-derive",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "serde_json",
+]
+
+[[package]]
 name = "lexe-sha256"
 version = "0.0.0"
 dependencies = [
@@ -3433,32 +3450,15 @@ dependencies = [
  "dnssec-prover",
  "lexe-api-core",
  "lexe-logger",
+ "lexe-payment-uri-core",
  "lexe-std",
  "lexe-tls-core",
- "payment-uri-core",
  "percent-encoding",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "payment-uri-core"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "bech32",
- "bitcoin",
- "common",
- "lexe-api-core",
- "percent-encoding",
- "proptest",
- "proptest-derive",
- "rust_decimal",
- "rust_decimal_macros",
- "serde_json",
 ]
 
 [[package]]

@@ -347,10 +347,10 @@ mod test {
         info!("Lightning Address: {ln_address}");
 
         let payment_uri =
-            payment_uri_core::PaymentUri::parse(ln_address).unwrap();
+            lexe_payment_uri_core::PaymentUri::parse(ln_address).unwrap();
 
         let email_like = match payment_uri {
-            payment_uri_core::PaymentUri::EmailLikeAddress(email_like) =>
+            lexe_payment_uri_core::PaymentUri::EmailLikeAddress(email_like) =>
                 email_like,
             other => panic!("Expected EmailLikeAddress, got: {other:?}"),
         };

@@ -47,8 +47,8 @@ use dnssec_prover::{
     query::{ProofBuilder, QueryBuf},
     rr::{Name, RR, TXT_TYPE},
 };
+pub use lexe_payment_uri_core::*;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
-pub use payment_uri_core::*;
 use tracing::debug;
 
 /// DNS-over-HTTPS (DOH) endpoint for Google's public DNS resolver.

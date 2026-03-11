@@ -1,6 +1,6 @@
 //! Payment URI resolution.
 //!
-//! For core types and parsing, see [`payment_uri_core`].
+//! For core types and parsing, see [`lexe_payment_uri_core`].
 
 /// BIP353 resolution.
 pub mod bip353;
@@ -9,7 +9,7 @@ pub mod lnurl;
 
 use anyhow::{Context, anyhow, ensure};
 use common::ln::network::LxNetwork;
-pub use payment_uri_core::*;
+pub use lexe_payment_uri_core::*;
 
 /// Resolve a `PaymentUri` into a single, "best" [`PaymentMethod`].
 //
@@ -66,7 +66,7 @@ async fn resolve_payment_methods(
         PaymentUri::LightningUri(lnuri) => lnuri.flatten(),
 
         PaymentUri::Invoice(invoice) =>
-            payment_uri_core::helpers::flatten_invoice(invoice),
+            lexe_payment_uri_core::helpers::flatten_invoice(invoice),
 
         PaymentUri::Offer(offer) => vec![PaymentMethod::Offer(
             OfferWithAmount::no_bip321_amount(offer),

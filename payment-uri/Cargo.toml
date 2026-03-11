@@ -12,16 +12,16 @@ publish = true
 
 common.path = "../common"
 lexe-api-core.path = "../lexe-api-core"
+lexe-payment-uri-core.path = "../lexe-payment-uri-core"
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
-payment-uri-core.path = "../payment-uri-core"
 
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
 base64.workspace = true
 bitcoin.workspace = true
-percent-encoding.workspace = true
 dnssec-prover = { workspace = true, features = ["std", "tokio", "validation"] }
+percent-encoding.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
