@@ -356,7 +356,7 @@ mod test {
     /// DNS-over-HTTPS. This should work even when using a VPN.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_philip_prod_doh -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_bip353_philip_prod_doh -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]
@@ -370,7 +370,7 @@ mod test {
     /// will fail. Turn off your VPN before testing.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_philip_prod_direct -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_bip353_philip_prod_direct -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]
@@ -382,7 +382,7 @@ mod test {
     /// DNS-over-HTTPS. This should work even when using a VPN.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_staging_doh -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_bip353_lexetestuser_staging_doh -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]
@@ -401,7 +401,7 @@ mod test {
     /// will fail. Turn off your VPN before testing.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_lexetestuser_staging_direct -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_bip353_lexetestuser_staging_direct -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]
@@ -417,7 +417,7 @@ mod test {
     /// This should work even when using a VPN.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_bluematt_doh -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_bip353_bluematt_doh -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]
@@ -431,7 +431,7 @@ mod test {
     /// will fail. Turn off your VPN before testing.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_bip353_bluematt_direct -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_bip353_bluematt_direct -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]

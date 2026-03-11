@@ -156,7 +156,7 @@ mod test {
     /// [`lnurl::LNURL_HTTP_TIMEOUT`].
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_resolve_best_bluematt -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_resolve_best_bluematt -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]

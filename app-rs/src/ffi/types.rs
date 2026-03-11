@@ -47,7 +47,7 @@ use lexe_api::{
     },
 };
 use lexe_hex::hex;
-use payment_uri::OfferWithAmount;
+use lexe_payment_uri::OfferWithAmount;
 
 use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
 
@@ -565,15 +565,16 @@ pub enum PaymentMethod {
     LnurlPayRequest(LnurlPayRequest),
 }
 
-impl From<payment_uri::PaymentMethod> for PaymentMethod {
-    fn from(value: payment_uri::PaymentMethod) -> Self {
+impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
+    fn from(value: lexe_payment_uri::PaymentMethod) -> Self {
         match value {
-            payment_uri::PaymentMethod::Onchain(x) =>
+            lexe_payment_uri::PaymentMethod::Onchain(x) =>
                 Self::Onchain(Onchain::from(x)),
-            payment_uri::PaymentMethod::Invoice(x) =>
+            lexe_payment_uri::PaymentMethod::Invoice(x) =>
                 Self::Invoice(Invoice::from(x)),
-            payment_uri::PaymentMethod::Offer(x) => Self::Offer(Offer::from(x)),
-            payment_uri::PaymentMethod::LnurlPayRequest(x) =>
+            lexe_payment_uri::PaymentMethod::Offer(x) =>
+                Self::Offer(Offer::from(x)),
+            lexe_payment_uri::PaymentMethod::LnurlPayRequest(x) =>
                 Self::LnurlPayRequest(LnurlPayRequest::from(x)),
         }
     }
@@ -589,8 +590,8 @@ pub struct Onchain {
     pub message: Option<String>,
 }
 
-impl From<payment_uri::Onchain> for Onchain {
-    fn from(value: payment_uri::Onchain) -> Self {
+impl From<lexe_payment_uri::Onchain> for Onchain {
+    fn from(value: lexe_payment_uri::Onchain) -> Self {
         Self {
             address: value.address.assume_checked().to_string(),
             amount_sats: value.amount.map(|amt| amt.sats_u64()),

@@ -208,7 +208,7 @@ class AppHandle {
   /// Resolve a (possible) [`PaymentUri`] string that we just
   /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
   ///
-  /// [`PaymentUri`]: payment_uri::PaymentUri
+  /// [`PaymentUri`]: lexe_payment_uri::PaymentUri
   Future<PaymentMethod> resolveBest({
     required Network network,
     required String uriStr,

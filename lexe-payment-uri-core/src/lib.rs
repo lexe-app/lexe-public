@@ -1,10 +1,7 @@
 //! Core types and logic required to permissively parse Bitcoin / lightning
 //! payment addresses and URIs. For actually *resolving* a [`PaymentUri`] into a
 //! [`PaymentMethod`], which frequently requires accessing a network, see the
-//! [`payment-uri`] crate.
-//!
-//! [`PaymentUri`]: payment_uri::PaymentUri
-//! [`PaymentMethod`]: payment_method::PaymentMethod
+//! [`lexe-payment-uri`] crate.
 //!
 //! # Permissive parsing
 //!
@@ -24,6 +21,9 @@
 //! - `~/lexe/github/phoenix/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt` (and files nearby)
 //! - `~/lexe/github/bitcoin-waila/waila/src/lib.rs`
 //! ```
+//!
+//! [`PaymentUri`]: payment_uri::PaymentUri
+//! [`PaymentMethod`]: payment_method::PaymentMethod
 
 // `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
 // hopefully it gets fixed soon...

@@ -255,7 +255,8 @@ mod test {
         });
     }
 
-    // cargo test -p payment-uri -- payment_uri_sample --ignored --nocapture
+    // cargo test -p lexe-payment-uri-core -- payment_uri_sample --ignored
+    // --nocapture
     #[ignore]
     #[test]
     fn payment_uri_sample() {

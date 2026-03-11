@@ -31,7 +31,7 @@ use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::CredentialsRef,
 };
-use payment_uri::{bip353, lnurl};
+use lexe_payment_uri::{bip353, lnurl};
 use tracing::{info, instrument, warn};
 
 use crate::{

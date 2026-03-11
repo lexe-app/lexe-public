@@ -336,7 +336,7 @@ mod test {
     /// Live test that resolves D++'s Lightning Address me@dplus.plus.
     ///
     /// ```bash
-    /// $ RUST_LOG=debug just cargo-test -p payment-uri test_lightning_address_dplus -- --ignored --nocapture
+    /// $ RUST_LOG=debug just cargo-test -p lexe-payment-uri test_lightning_address_dplus -- --ignored --nocapture
     /// ```
     #[tokio::test]
     #[ignore]

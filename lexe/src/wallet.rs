@@ -21,11 +21,11 @@ use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::CredentialsRef,
 };
-use lexe_std::backoff::Backoff;
-use payment_uri::{
+use lexe_payment_uri::{
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
 };
+use lexe_std::backoff::Backoff;
 use tracing::info;
 
 use crate::{

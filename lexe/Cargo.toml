@@ -25,9 +25,9 @@ common = { path = "../common" }
 lexe-api = { path = "../lexe-api" }
 lexe-logger = { path = "../lexe-logger" }
 lexe-node-client = { path = "../lexe-node-client" }
+lexe-payment-uri = { path = "../lexe-payment-uri" }
 lexe-std = { path = "../lexe-std" }
 lexe-tokio = { path = "../lexe-tokio" }
-payment-uri = { path = "../payment-uri" }
 
 # --- WORKSPACE --- #
 

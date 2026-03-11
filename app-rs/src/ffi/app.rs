@@ -595,17 +595,17 @@ impl AppHandle {
     /// Resolve a (possible) [`PaymentUri`] string that we just
     /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
     ///
-    /// [`PaymentUri`]: payment_uri::PaymentUri
+    /// [`PaymentUri`]: lexe_payment_uri::PaymentUri
     #[instrument(skip_all, name = "(resolve-best)")]
     pub async fn resolve_best(
         &self,
         network: Network,
         uri_str: String,
     ) -> anyhow::Result<PaymentMethod> {
-        let payment_uri = payment_uri::PaymentUri::parse(&uri_str)
+        let payment_uri = lexe_payment_uri::PaymentUri::parse(&uri_str)
             .context("Unrecognized payment code")?;
 
-        payment_uri::resolve_best(
+        lexe_payment_uri::resolve_best(
             self.inner.bip353_client(),
             self.inner.lnurl_client(),
             network.into(),

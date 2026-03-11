@@ -176,10 +176,10 @@ dependencies = [
  "lexe-api",
  "lexe-hex",
  "lexe-node-client",
+ "lexe-payment-uri",
  "lexe-std",
  "lexe-tls",
  "lexe-tokio",
- "payment-uri",
  "proptest",
  "proptest-derive",
  "reqwest",
@@ -2560,9 +2560,9 @@ dependencies = [
  "lexe-api",
  "lexe-logger",
  "lexe-node-client",
+ "lexe-payment-uri",
  "lexe-std",
  "lexe-tokio",
- "payment-uri",
  "proptest",
  "semver",
  "serde",
@@ -2733,6 +2733,28 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "lexe-payment-uri"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "base64 0.21.7",
+ "bitcoin",
+ "common",
+ "dnssec-prover",
+ "lexe-api-core",
+ "lexe-logger",
+ "lexe-payment-uri-core",
+ "lexe-std",
+ "lexe-tls-core",
+ "percent-encoding",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -3438,28 +3460,6 @@ name = "pathdiff"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
-
-[[package]]
-name = "payment-uri"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "base64 0.21.7",
- "bitcoin",
- "common",
- "dnssec-prover",
- "lexe-api-core",
- "lexe-logger",
- "lexe-payment-uri-core",
- "lexe-std",
- "lexe-tls-core",
- "percent-encoding",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
 
 [[package]]
 name = "pbkdf2"

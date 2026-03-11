@@ -1,8 +1,8 @@
 [package]
-name = "payment-uri"
+name = "lexe-payment-uri"
+license = "MIT"
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
 version.workspace = true
 publish = true
 
