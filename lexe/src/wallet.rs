@@ -17,11 +17,11 @@ use lexe_api::{
     models::command,
     types::payments::{PaymentCreatedIndex, PaymentStatus},
 };
-use lexe_std::backoff::Backoff;
-use node_client::{
+use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::CredentialsRef,
 };
+use lexe_std::backoff::Backoff;
 use payment_uri::{
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,

@@ -22,12 +22,12 @@ use lexe_api::{
         VecBasicPaymentV2,
     },
 };
-use lexe_std::{Apply, backoff};
-use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use node_client::{
+use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::{ClientCredentials, Credentials},
 };
+use lexe_std::{Apply, backoff};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Semaphore, mpsc};

@@ -27,7 +27,7 @@ use lexe::{
     types::command::PaymentSyncSummary,
     wallet::{LexeWallet, WithDb},
 };
-use node_client::{
+use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::CredentialsRef,
 };

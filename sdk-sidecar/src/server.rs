@@ -26,7 +26,7 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
 };
-use node_client::{client::NodeClient, credentials::Credentials};
+use lexe_node_client::{client::NodeClient, credentials::Credentials};
 use quick_cache::unsync;
 use tokio::sync::mpsc;
 use tracing::{instrument, warn};

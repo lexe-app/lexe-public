@@ -351,7 +351,7 @@ mod test {
     /// Generate serialized `ClientCredentials` sample json data:
     ///
     /// ```bash
-    /// $ cargo test -p node-client --lib -- take_client_credentials_snapshot --ignored --nocapture
+    /// $ cargo test -p lexe-node-client --lib -- take_client_credentials_snapshot --ignored --nocapture
     /// ```
     #[test]
     #[ignore]

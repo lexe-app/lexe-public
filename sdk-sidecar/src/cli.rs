@@ -7,7 +7,7 @@ use common::{
     env::DeployEnv, ln::network::LxNetwork, or_env::OrEnvExt as _,
     root_seed::RootSeed,
 };
-use node_client::credentials::ClientCredentials;
+use lexe_node_client::credentials::ClientCredentials;
 use tracing::{debug, info};
 
 /// Lexe sidecar SDK CLI args

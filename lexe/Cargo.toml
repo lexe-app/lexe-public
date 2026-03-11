@@ -24,9 +24,9 @@ unstable = []
 common = { path = "../common" }
 lexe-api = { path = "../lexe-api" }
 lexe-logger = { path = "../lexe-logger" }
+lexe-node-client = { path = "../lexe-node-client" }
 lexe-std = { path = "../lexe-std" }
 lexe-tokio = { path = "../lexe-tokio" }
-node-client = { path = "../node-client" }
 payment-uri = { path = "../payment-uri" }
 
 # --- WORKSPACE --- #

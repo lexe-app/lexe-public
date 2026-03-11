@@ -19,10 +19,10 @@ common = { path = "../common" }
 lexe = { path = "../lexe" }
 lexe-api = { path = "../lexe-api" }
 lexe-logger = { path = "../lexe-logger" }
+lexe-node-client.path = "../lexe-node-client"
 lexe-std.path = "../lexe-std"
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
 lexe-tokio = { path = "../lexe-tokio" }
-node-client.path = "../node-client"
 
 # --- WORKSPACE --- #
 

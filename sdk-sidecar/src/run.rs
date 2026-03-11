@@ -11,13 +11,13 @@ use std::{
 use anyhow::{Context, anyhow};
 use common::{env::DeployEnv, ln::network::LxNetwork, rng::SysRng};
 use lexe_api::server::LayerConfig;
+use lexe_node_client::{
+    client::{GatewayClient, NodeClient},
+    credentials::Credentials,
+};
 use lexe_tokio::{
     notify_once::NotifyOnce,
     task::{self, LxTask},
-};
-use node_client::{
-    client::{GatewayClient, NodeClient},
-    credentials::Credentials,
 };
 use tracing::{info, info_span, instrument};
 

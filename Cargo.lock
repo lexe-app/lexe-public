@@ -175,10 +175,10 @@ dependencies = [
  "lexe",
  "lexe-api",
  "lexe-hex",
+ "lexe-node-client",
  "lexe-std",
  "lexe-tls",
  "lexe-tokio",
- "node-client",
  "payment-uri",
  "proptest",
  "proptest-derive",
@@ -2559,9 +2559,9 @@ dependencies = [
  "futures",
  "lexe-api",
  "lexe-logger",
+ "lexe-node-client",
  "lexe-std",
  "lexe-tokio",
- "node-client",
  "payment-uri",
  "proptest",
  "semver",
@@ -2714,6 +2714,25 @@ dependencies = [
  "lexe-api",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "lexe-node-client"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "async-trait",
+ "base64 0.21.7",
+ "common",
+ "http",
+ "lexe-api",
+ "lexe-tls",
+ "proptest",
+ "proptest-derive",
+ "reqwest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3092,25 +3111,6 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
-]
-
-[[package]]
-name = "node-client"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "arc-swap",
- "async-trait",
- "base64 0.21.7",
- "common",
- "http",
- "lexe-api",
- "lexe-tls",
- "proptest",
- "proptest-derive",
- "reqwest",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -4246,10 +4246,10 @@ dependencies = [
  "lexe",
  "lexe-api",
  "lexe-logger",
+ "lexe-node-client",
  "lexe-std",
  "lexe-tls-core",
  "lexe-tokio",
- "node-client",
  "quick_cache",
  "reqwest",
  "serde",
@@ -4266,8 +4266,8 @@ dependencies = [
  "common",
  "lexe",
  "lexe-api-core",
+ "lexe-node-client",
  "lexe-std",
- "node-client",
  "secrecy",
  "thiserror 2.0.17",
  "tokio",

@@ -65,7 +65,7 @@ use lexe_api::{
         PaymentUpdatedIndex, VecBasicPaymentV2,
     },
 };
-use node_client::client::NodeClient;
+use lexe_node_client::client::NodeClient;
 use tracing::warn;
 
 use crate::{

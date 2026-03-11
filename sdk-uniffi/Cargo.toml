@@ -34,8 +34,8 @@ required-features = ["bindgen"]
 common = { path = "../common" }
 lexe = { path = "../lexe", features = ["blocking"] }
 lexe-api-core = { path = "../lexe-api-core" }
+lexe-node-client = { path = "../lexe-node-client", default-features = false }
 lexe-std = { path = "../lexe-std" }
-node-client = { path = "../node-client", default-features = false }
 
 # --- WORKSPACE --- #
 

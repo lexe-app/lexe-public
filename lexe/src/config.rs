@@ -9,7 +9,7 @@ use common::{
     api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
     root_seed::RootSeed,
 };
-use node_client::credentials::CredentialsRef;
+use lexe_node_client::credentials::CredentialsRef;
 
 use crate::unstable::SDK_USER_AGENT;
 

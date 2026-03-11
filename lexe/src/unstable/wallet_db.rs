@@ -1,7 +1,7 @@
 //! Lexe wallet database.
 
 use anyhow::Context;
-use node_client::client::NodeClient;
+use lexe_node_client::client::NodeClient;
 use tracing::{info, warn};
 
 use super::{

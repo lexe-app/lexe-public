@@ -26,7 +26,7 @@ lexe-hex.path = "../lexe-hex"
 lexe-std.path = "../lexe-std"
 lexe-tls.path = "../lexe-tls"
 lexe-tokio.path = "../lexe-tokio"
-node-client.path = "../node-client"
+lexe-node-client.path = "../lexe-node-client"
 payment-uri.path = "../payment-uri"
 
 # --- WORKSPACE --- #

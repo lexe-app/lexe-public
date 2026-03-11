@@ -36,7 +36,7 @@ pub mod auth {
         enclave::Measurement,
         root_seed::RootSeed,
     };
-    pub use node_client::credentials::{
+    pub use lexe_node_client::credentials::{
         ClientCredentials, Credentials, CredentialsRef,
     };
 }

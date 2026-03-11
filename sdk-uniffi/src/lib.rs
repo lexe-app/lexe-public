@@ -46,7 +46,7 @@ use lexe_api_core::{
         },
     },
 };
-use node_client::credentials::{
+use lexe_node_client::credentials::{
     ClientCredentials as ClientCredentialsRs, CredentialsRef,
 };
 use secrecy::{ExposeSecret, Zeroize};

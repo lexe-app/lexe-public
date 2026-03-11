@@ -14,8 +14,8 @@ use common::{
     root_seed::RootSeed,
 };
 use lexe_api::def::AppNodeProvisionApi;
+use lexe_node_client::client::NodeClient;
 use lexe_tokio::task::LxTask;
-use node_client::client::NodeClient;
 use serde::Deserialize;
 use tracing::{info, info_span, warn};
 

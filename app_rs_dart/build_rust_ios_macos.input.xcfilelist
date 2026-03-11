@@ -12,13 +12,13 @@ ${PODS_TARGET_SRCROOT}/../../lexe-byte-array/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-hex/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-ln/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-logger/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-node-client/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-sha256/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-std/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tls-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tls/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tokio/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe/Cargo.toml
-${PODS_TARGET_SRCROOT}/../../node-client/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../node/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../payment-uri-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../payment-uri/Cargo.toml
