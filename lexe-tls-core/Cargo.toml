@@ -1,9 +1,9 @@
 [package]
 name = "lexe-tls-core"
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = true
 
 # Default config for testing in SGX
@@ -21,10 +21,8 @@ webpki-roots = ["dep:webpki-roots"]
 
 # --- WORKSPACE --- #
 
-rustls.workspace = true
-rustls-webpki.workspace = true
-
-# --- CRATE-SPECIFIC --- #
+rustls = { workspace = true }
+rustls-webpki = { workspace = true }
 
 # --- OPTIONAL --- #
 

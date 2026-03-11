@@ -2,31 +2,31 @@
 name = "lexe-payment-uri-core"
 description = "Core types for parsing Bitcoin addresses and payment URIs."
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = true
 
 [dependencies]
 
 # --- LEXE --- #
 
-lexe-api-core.path = "../lexe-api-core"
-lexe-common.path = "../lexe-common"
+lexe-api-core = { path = "../lexe-api-core" }
+lexe-common = { path = "../lexe-common" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-bech32.workspace = true
-bitcoin.workspace = true
-percent-encoding.workspace = true
-rust_decimal.workspace = true
-rust_decimal_macros.workspace = true
-serde_json.workspace = true
+anyhow = { workspace = true }
+bech32 = { workspace = true }
+bitcoin = { workspace = true }
+percent-encoding = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 lexe-api-core = { path = "../lexe-api-core", features = ["test-utils"] }
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
-proptest-derive.workspace = true
+proptest-derive = { workspace = true }

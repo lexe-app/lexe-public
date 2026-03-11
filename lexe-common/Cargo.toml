@@ -1,9 +1,9 @@
 [package]
 name = "lexe-common"
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+version = { workspace = true }
 publish = true
 
 # Config for testing in SGX
@@ -31,44 +31,44 @@ test-utils = [
 
 # --- LEXE --- #
 
-lexe-byte-array.path = "../lexe-byte-array"
-lexe-hex.path = "../lexe-hex"
-lexe-sha256.path = "../lexe-sha256"
+lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-hex = { path = "../lexe-hex" }
+lexe-sha256 = { path = "../lexe-sha256" }
 lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-asn1-rs.workspace = true
-async-trait.workspace = true
-base64.workspace = true
-bcs.workspace = true
-bip39.workspace = true
+anyhow = { workspace = true }
+asn1-rs = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+bcs = { workspace = true }
+bip39 = { workspace = true }
 bitcoin = { workspace = true, features = ["serde"] }
-bytes.workspace = true
-cfg-if.workspace = true
-dotenvy.workspace = true
-http-body-util.workspace = true
-http.workspace = true
-lightning-invoice.workspace = true
-lightning.workspace = true
-rand.workspace = true
-rand_core.workspace = true
-rcgen.workspace = true
-ref-cast.workspace = true
-ring.workspace = true
-rust_decimal.workspace = true
-rust_decimal_macros.workspace = true
-secrecy.workspace = true
+bytes = { workspace = true }
+cfg-if = { workspace = true }
+dotenvy = { workspace = true }
+http = { workspace = true }
+http-body-util = { workspace = true }
+lightning = { workspace = true }
+lightning-invoice = { workspace = true }
+rand = { workspace = true }
+rand_core = { workspace = true }
+rcgen = { workspace = true }
+ref-cast = { workspace = true }
+ring = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+secrecy = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
-serde.workspace = true
-serde_json.workspace = true
-serde_with.workspace = true
-sgx-isa.workspace = true
-strum.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
-x509-parser.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+sgx-isa = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+x509-parser = { workspace = true }
 
 # --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
@@ -83,12 +83,12 @@ serde_urlencoded = { optional = true, workspace = true }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]
-chrono.workspace = true
+chrono = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }
-proptest-derive.workspace = true
-serde_urlencoded.workspace = true
-tempfile.workspace = true
-yasna.workspace = true
+proptest-derive = { workspace = true }
+serde_urlencoded = { workspace = true }
+tempfile = { workspace = true }
+yasna = { workspace = true }
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX

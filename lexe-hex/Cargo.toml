@@ -1,9 +1,9 @@
 [package]
 name = "lexe-hex"
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = true
 
 # Default config for testing in SGX

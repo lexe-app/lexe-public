@@ -1,22 +1,22 @@
 [package]
 name = "sgxs-sign"
 license = "PolyForm-Noncommercial-1.0.0"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = false
 
 [dependencies]
 
 # --- LEXE --- #
 
-lexe-byte-array.path = "../lexe-byte-array"
-lexe-common.path = "../lexe-common"
-lexe-hex.path = "../lexe-hex"
-lexe-sha256.path = "../lexe-sha256"
+lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-common = { path = "../lexe-common" }
+lexe-hex = { path = "../lexe-hex" }
+lexe-sha256 = { path = "../lexe-sha256" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-rsa.workspace = true
-sgxs.workspace = true
+anyhow = { workspace = true }
+rsa = { workspace = true }
+sgxs = { workspace = true }

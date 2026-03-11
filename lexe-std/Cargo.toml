@@ -1,9 +1,9 @@
 [package]
 name = "lexe-std"
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = true
 
 # Default config for testing in SGX
@@ -26,7 +26,7 @@ ref-cast = { optional = true, workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }
-proptest-derive.workspace = true
+proptest-derive = { workspace = true }
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include std impls when testing outside of SGX

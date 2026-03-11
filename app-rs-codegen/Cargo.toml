@@ -1,16 +1,16 @@
 [package]
 name = "app-rs-codegen"
 license = "PolyForm-Noncommercial-1.0.0"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = false
 
 [dependencies]
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-argh.workspace = true
-flutter_rust_bridge_codegen.workspace = true
+anyhow = { workspace = true }
+argh = { workspace = true }
+flutter_rust_bridge_codegen = { workspace = true }
 # For finding all *.toml files in the workspace
-ignore.workspace = true
+ignore = { workspace = true }

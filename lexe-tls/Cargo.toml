@@ -1,9 +1,9 @@
 [package]
 name = "lexe-tls"
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+version = { workspace = true }
 publish = true
 
 # Config for testing in SGX
@@ -26,32 +26,32 @@ test-utils = [
 
 # --- LEXE --- #
 
-lexe-common.path = "../lexe-common"
-lexe-byte-array.path = "../lexe-byte-array"
-lexe-hex.path = "../lexe-hex"
-lexe-sha256.path = "../lexe-sha256"
-lexe-tls-core.path = "../lexe-tls-core"
+lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-common = { path = "../lexe-common" }
+lexe-hex = { path = "../lexe-hex" }
+lexe-sha256 = { path = "../lexe-sha256" }
+lexe-tls-core = { path = "../lexe-tls-core" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-asn1-rs.workspace = true
-base64.workspace = true
-dcap-ql.workspace = true
-num-bigint.workspace = true
-rcgen.workspace = true
-ring.workspace = true
-rustls-webpki.workspace = true
-rustls.workspace = true
-secrecy.workspace = true
-serde.workspace = true
-sgx-isa.workspace = true
-thiserror.workspace = true
-time.workspace = true
+anyhow = { workspace = true }
+asn1-rs = { workspace = true }
+base64 = { workspace = true }
+dcap-ql = { workspace = true }
+num-bigint = { workspace = true }
+rcgen = { workspace = true }
+ring = { workspace = true }
+rustls = { workspace = true }
+rustls-webpki = { workspace = true }
+secrecy = { workspace = true }
+serde = { workspace = true }
+sgx-isa = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
-webpki-roots.workspace = true
-x509-parser.workspace = true
-yasna.workspace = true
+webpki-roots = { workspace = true }
+x509-parser = { workspace = true }
+yasna = { workspace = true }
 
 # --- OPTIONAL --- #
 # These must have `optional = true` to prevent infecting production binaries.
@@ -61,14 +61,15 @@ proptest-derive = { optional = true, workspace = true }
 tokio-rustls = { optional = true, workspace = true }
 
 [target.'cfg(target_env = "sgx")'.dependencies]
-aes.workspace = true
-aesm-client.workspace = true
-bytemuck.workspace = true
-cmac.workspace = true
+aes = { workspace = true }
+aesm-client = { workspace = true }
+bytemuck = { workspace = true }
+cmac = { workspace = true }
 
 [dev-dependencies]
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
+
 proptest = { workspace = true, features = ["alloc"] }
-proptest-derive.workspace = true
+proptest-derive = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }
-tokio-rustls.workspace = true
+tokio-rustls = { workspace = true }

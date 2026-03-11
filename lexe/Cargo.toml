@@ -5,8 +5,8 @@ name = "lexe"
 # if before 1.0.0, otherwise bump the major version.
 version = "0.0.0"
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
 publish = true
 
 [features]
@@ -31,14 +31,14 @@ lexe-tokio = { path = "../lexe-tokio" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-bip39.workspace = true
-bitcoin.workspace = true
+anyhow = { workspace = true }
+bip39 = { workspace = true }
+bitcoin = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"] }
-tracing.workspace = true
+tracing = { workspace = true }
 
 # --- OPTIONAL --- #
 
@@ -49,6 +49,7 @@ tempfile = { workspace = true, optional = true }
 [dev-dependencies]
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
+
 proptest = { workspace = true, features = ["std"] }
-tempfile.workspace = true
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }

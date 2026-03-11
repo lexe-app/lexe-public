@@ -1,9 +1,9 @@
 [package]
 name = "app-rs"
 license = "PolyForm-Noncommercial-1.0.0"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = false
 
 [features]
@@ -18,44 +18,43 @@ flutter = [
 [dependencies]
 # --- LEXE --- #
 
-gdrive.path = "../gdrive"
+gdrive = { path = "../gdrive" }
 lexe = { path = "../lexe", features = ["unstable"] }
-lexe-api.path = "../lexe-api"
-lexe-common.path = "../lexe-common"
-lexe-hex.path = "../lexe-hex"
-lexe-node-client.path = "../lexe-node-client"
-lexe-payment-uri.path = "../lexe-payment-uri"
-lexe-std.path = "../lexe-std"
-lexe-tls.path = "../lexe-tls"
-lexe-tokio.path = "../lexe-tokio"
+lexe-api = { path = "../lexe-api" }
+lexe-common = { path = "../lexe-common" }
+lexe-hex = { path = "../lexe-hex" }
+lexe-node-client = { path = "../lexe-node-client" }
+lexe-payment-uri = { path = "../lexe-payment-uri" }
+lexe-std = { path = "../lexe-std" }
+lexe-tls = { path = "../lexe-tls" }
+lexe-tokio = { path = "../lexe-tokio" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-arc-swap.workspace = true
-async-trait.workspace = true
-base64.workspace = true
-bip39.workspace = true
-bitcoin.workspace = true
-cfg-if.workspace = true
-http.workspace = true
+anyhow = { workspace = true }
+arc-swap = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+bip39 = { workspace = true }
+bitcoin = { workspace = true }
+cfg-if = { workspace = true }
+http = { workspace = true }
 keyring = { workspace = true, default-features = false, features = [
     "platform-macos",
     "platform-ios",
     "linux-secret-service-rt-tokio-crypto-rust",
 ] }
 reqwest = { workspace = true, features = ["json"] }
-secrecy.workspace = true
+secrecy = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
-serde.workspace = true
-serde_json.workspace = true
-tokio.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = [
     "registry",
     "std",
 ] }
-tracing.workspace = true
-
 # --- OPTIONAL --- #
 
 flutter_rust_bridge = { workspace = true, optional = true, features = [
@@ -80,8 +79,8 @@ lexe = { path = "../lexe", features = ["test-utils", "unstable"] }
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 
-async-trait.workspace = true
+async-trait = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }
-proptest-derive.workspace = true
-tempfile.workspace = true
+proptest-derive = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }

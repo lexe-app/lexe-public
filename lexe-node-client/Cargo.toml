@@ -1,9 +1,9 @@
 [package]
 name = "lexe-node-client"
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = true
 
 [features]
@@ -11,22 +11,23 @@ default = []
 test-utils = ["proptest-derive"]
 
 [dependencies]
+
 # --- LEXE --- #
 
-lexe-api.path = "../lexe-api"
-lexe-common.path = "../lexe-common"
-lexe-tls.path = "../lexe-tls"
+lexe-api = { path = "../lexe-api" }
+lexe-common = { path = "../lexe-common" }
+lexe-tls = { path = "../lexe-tls" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-arc-swap.workspace = true
-async-trait.workspace = true
-base64.workspace = true
-http.workspace = true
-reqwest.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+anyhow = { workspace = true }
+arc-swap = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+http = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 # --- OPTIONAL --- #
 
@@ -35,5 +36,6 @@ proptest-derive = { workspace = true, optional = true }
 [dev-dependencies]
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 lexe-tls = { path = "../lexe-tls", features = ["test-utils"] }
-proptest-derive.workspace = true
-proptest.workspace = true
+
+proptest = { workspace = true }
+proptest-derive = { workspace = true }

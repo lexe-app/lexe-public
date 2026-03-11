@@ -2,8 +2,8 @@
 name = "node"
 version = "0.9.2"
 license = "PolyForm-Noncommercial-1.0.0"
-authors.workspace = true
-edition.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
 publish = false
 
 [features]
@@ -47,35 +47,35 @@ threads = 2
 
 # --- LEXE --- #
 
-gdrive.path = "../gdrive"
-lexe-api.path = "../lexe-api"
-lexe-byte-array.path = "../lexe-byte-array"
-lexe-common.path = "../lexe-common"
-lexe-hex.path = "../lexe-hex"
-lexe-ln.path = "../lexe-ln"
-lexe-std.path = "../lexe-std"
-lexe-tls.path = "../lexe-tls"
-lexe-tokio.path = "../lexe-tokio"
+gdrive = { path = "../gdrive" }
+lexe-api = { path = "../lexe-api" }
+lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-common = { path = "../lexe-common" }
+lexe-hex = { path = "../lexe-hex" }
+lexe-ln = { path = "../lexe-ln" }
+lexe-std = { path = "../lexe-std" }
+lexe-tls = { path = "../lexe-tls" }
+lexe-tokio = { path = "../lexe-tokio" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-arc-swap.workspace = true
-async-trait.workspace = true
-axum.workspace = true
-bitcoin.workspace = true
-bytes.workspace = true
-futures.workspace = true
-lightning-transaction-sync.workspace = true
-lightning.workspace = true
-lru.workspace = true
-nostr.workspace = true
-ref-cast.workspace = true
-secrecy.workspace = true
+anyhow = { workspace = true }
+arc-swap = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+bitcoin = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+lightning = { workspace = true }
+lightning-transaction-sync = { workspace = true }
+lru = { workspace = true }
+nostr = { workspace = true }
+ref-cast = { workspace = true }
+secrecy = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
-serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = [
     "io-util",
     "macros",
@@ -85,14 +85,14 @@ tokio = { workspace = true, features = [
     "time"
 ] }
 tower = { workspace = true, features = ["util"] } 
-tracing.workspace = true
+tracing = { workspace = true }
 
 [dev-dependencies]
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 lexe-ln = { path = "../lexe-ln", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
-proptest-derive.workspace = true
+proptest-derive = { workspace = true }
 # Tokio features used when testing
 tokio = { workspace = true, features = [
     "io-util",

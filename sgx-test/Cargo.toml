@@ -2,16 +2,17 @@
 name = "sgx-test"
 version = "0.1.0"
 license = "PolyForm-Noncommercial-1.0.0"
-authors.workspace = true
-edition.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
 publish = false
 
 [dependencies]
+
 # --- LEXE --- #
 
-lexe-common.path = "../lexe-common"
-lexe-hex.path = "../lexe-hex"
-lexe-tls.path = "../lexe-tls"
+lexe-common = { path = "../lexe-common" }
+lexe-hex = { path = "../lexe-hex" }
+lexe-tls = { path = "../lexe-tls" }
 
 [package.metadata.fortanix-sgx]
 # When true, return panics w/ backtraces to the host via the shared "debug

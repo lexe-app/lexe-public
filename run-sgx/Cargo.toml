@@ -1,30 +1,31 @@
 [package]
 name = "run-sgx"
 license = "PolyForm-Noncommercial-1.0.0"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = false
 
 [dependencies]
+
 # --- LEXE --- #
 
-sgx-toml.path = "../sgx-toml"
+sgx-toml = { path = "../sgx-toml" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-argh.workspace = true
-object.workspace = true
-rustc-demangle.workspace = true
-serde.workspace = true
+anyhow = { workspace = true }
+argh = { workspace = true }
+object = { workspace = true }
+rustc-demangle = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true, features = ["net"] }
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
-lexe-common.path = "../lexe-common"
-sgxs-sign.path = "../sgxs-sign"
+lexe-common = { path = "../lexe-common" }
+sgxs-sign = { path = "../sgxs-sign" }
 
 aesm-client = { workspace = true, features = ["sgxs"] }
-enclave-runner.workspace = true
-sgx-isa.workspace = true
-sgxs-loaders.workspace = true
+enclave-runner = { workspace = true }
+sgx-isa = { workspace = true }
+sgxs-loaders = { workspace = true }

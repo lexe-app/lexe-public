@@ -1,9 +1,9 @@
 [package]
 name = "gdrive"
 license = "PolyForm-Noncommercial-1.0.0"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = false
 
 # Default config for testing in SGX
@@ -12,25 +12,25 @@ publish = false
 [dependencies]
 # --- LEXE --- #
 
-lexe-api-core.path = "../lexe-api-core"
-lexe-byte-array.path = "../lexe-byte-array"
-lexe-common.path = "../lexe-common"
-lexe-sha256.path = "../lexe-sha256"
-lexe-std.path = "../lexe-std"
+lexe-api-core = { path = "../lexe-api-core" }
+lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-common = { path = "../lexe-common" }
+lexe-sha256 = { path = "../lexe-sha256" }
+lexe-std = { path = "../lexe-std" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-base64.workspace = true
-bytes.workspace = true
-futures.workspace = true
+anyhow = { workspace = true }
+base64 = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
 reqwest = { workspace = true, features = ["json", "multipart"] }
-serde.workspace = true
-serde_json.workspace = true
-serde_urlencoded.workspace = true
-thiserror.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
-tracing.workspace = true
+tracing = { workspace = true }
 
 # --- CRATE-SPECIFIC --- #
 
@@ -38,8 +38,8 @@ tracing.workspace = true
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 lexe-logger = { path = "../lexe-logger", features = ["test-utils"] }
 
-proptest.workspace = true
-proptest-derive.workspace = true
+proptest = { workspace = true }
+proptest-derive = { workspace = true }
 tokio = { workspace = true, features = [
     "macros",
     "sync",

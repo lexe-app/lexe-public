@@ -1,31 +1,31 @@
 [package]
 name = "lexe-payment-uri"
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
 publish = true
 
 [dependencies]
 
 # --- LEXE --- #
 
-lexe-common.path = "../lexe-common"
-lexe-api-core.path = "../lexe-api-core"
-lexe-payment-uri-core.path = "../lexe-payment-uri-core"
+lexe-api-core = { path = "../lexe-api-core" }
+lexe-common = { path = "../lexe-common" }
+lexe-payment-uri-core = { path = "../lexe-payment-uri-core" }
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-base64.workspace = true
-bitcoin.workspace = true
+anyhow = { workspace = true }
+base64 = { workspace = true }
+bitcoin = { workspace = true }
 dnssec-prover = { workspace = true, features = ["std", "tokio", "validation"] }
-percent-encoding.workspace = true
-reqwest.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tracing.workspace = true
+percent-encoding = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 
@@ -33,7 +33,7 @@ tracing.workspace = true
 
 lexe-api-core = { path = "../lexe-api-core", features = ["test-utils"] }
 lexe-logger = { path = "../lexe-logger", features = ["test-utils"] }
-lexe-std.path = "../lexe-std"
+lexe-std = { path = "../lexe-std" }
 
 # --- WORKSPACE --- #
 

@@ -2,8 +2,8 @@
 name = "sdk-uniffi"
 version = "0.0.0-pre"
 license = "MIT"
-authors.workspace = true
-edition.workspace = true
+authors = { workspace = true }
+edition = { workspace = true }
 # Not actually published to crates.io, but set to true so cargo-deny lints it.
 publish = true
 
@@ -25,6 +25,7 @@ path = "src/bin/uniffi_bindgen.rs"
 required-features = ["bindgen"]
 
 [dependencies]
+
 # --- LEXE --- #
 
 # NOTE: To ensure `lexe` exposes all types and sub-crates needed for SDK
@@ -39,10 +40,10 @@ lexe-std = { path = "../lexe-std" }
 
 # --- WORKSPACE --- #
 
-anyhow.workspace = true
-secrecy.workspace = true
-thiserror.workspace = true
-tokio.workspace = true
+anyhow = { workspace = true }
+secrecy = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
 uniffi = { workspace = true, features = ["tokio"] }
 
 # --- OPTIONAL --- #
