@@ -105,7 +105,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use common::{
+use lexe_common::{
     api::user::NodePk, ln::addr::LxSocketAddress, rng::ThreadFastRng,
 };
 use lexe_hex::hex;
@@ -1158,8 +1158,8 @@ mod test {
         sync::{Arc, Mutex},
     };
 
-    use common::rng::ThreadFastRng;
     use io::BufRead;
+    use lexe_common::rng::ThreadFastRng;
     use lexe_tokio::task::LxTask;
     use rand::{Rng, RngCore, seq::SliceRandom};
     use tokio::{
@@ -1712,7 +1712,7 @@ mod ldk_test {
         constants::ChainHash,
         secp256k1::{self, ecdh, ecdsa, schnorr},
     };
-    use common::rng::{Crng, FastRng, RngExt, ThreadFastRng};
+    use lexe_common::rng::{Crng, FastRng, RngExt, ThreadFastRng};
     use lexe_tokio::task::LxTask;
     use lightning::{
         events::*,

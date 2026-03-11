@@ -2,10 +2,10 @@ use std::collections::BTreeSet;
 
 use bitcoin::address::NetworkUnchecked;
 #[cfg(doc)]
-use common::root_seed::RootSeed;
+use lexe_common::root_seed::RootSeed;
 #[cfg(any(test, feature = "test-utils"))]
-use common::test_utils::arbitrary;
-use common::{
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
     api::user::{NodePk, UserPk},
     enclave::Measurement,
     ln::{
@@ -610,7 +610,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip::{
+    use lexe_common::test_utils::roundtrip::{
         self, query_string_roundtrip_proptest,
     };
 

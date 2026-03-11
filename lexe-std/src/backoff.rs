@@ -8,7 +8,7 @@ const EXP_BASE: u64 = 2;
 /// `tokio::time::sleep` to observe time-based exponential backoff.
 ///
 /// ```ignore
-/// # use common::backoff;
+/// # use lexe_common::backoff;
 /// # #[tokio::test(start_paused = true)]
 /// # async fn backoff_example() {
 /// let mut backoff_durations = backoff::get_backoff_iter();

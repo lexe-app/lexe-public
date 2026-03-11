@@ -41,17 +41,6 @@ use std::{
 use anyhow::{Context, anyhow, ensure};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
-use common::{
-    aes::AesMasterKey,
-    api::{
-        auth::BearerAuthToken,
-        user::{Scid, Scids},
-    },
-    constants,
-    ln::channel::LxOutPoint,
-    rng::{Crng, SysRng},
-    time::TimestampMs,
-};
 use gdrive::{GoogleVfs, GvfsRoot, oauth2::GDriveCredentials};
 use lexe_api::{
     auth::BearerAuthenticator,
@@ -75,6 +64,17 @@ use lexe_api::{
         self, SINGLETON_DIRECTORY, Vfs, VfsDirectory, VfsDirectoryList,
         VfsFile, VfsFileId,
     },
+};
+use lexe_common::{
+    aes::AesMasterKey,
+    api::{
+        auth::BearerAuthToken,
+        user::{Scid, Scids},
+    },
+    constants,
+    ln::channel::LxOutPoint,
+    rng::{Crng, SysRng},
+    time::TimestampMs,
 };
 use lexe_ln::{
     alias::{
@@ -255,7 +255,7 @@ pub(crate) async fn read_gvfs_root(
 /// Checks whether a password-encrypted [`RootSeed`] exists in Google Drive.
 /// Does not check if the backup is well-formed, matches the current seed, etc.
 ///
-/// [`RootSeed`]: common::root_seed::RootSeed
+/// [`RootSeed`]: lexe_common::root_seed::RootSeed
 #[inline]
 pub(crate) async fn password_encrypted_root_seed_exists(
     google_vfs: &GoogleVfs,
@@ -269,7 +269,7 @@ pub(crate) async fn password_encrypted_root_seed_exists(
 
 /// Persists the given password-encrypted [`RootSeed`] to GDrive.
 ///
-/// [`RootSeed`]: common::root_seed::RootSeed
+/// [`RootSeed`]: lexe_common::root_seed::RootSeed
 pub(crate) async fn upsert_password_encrypted_root_seed(
     google_vfs: &GoogleVfs,
     encrypted_seed: Vec<u8>,

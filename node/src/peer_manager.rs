@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use common::{
+use lexe_common::{
     api::user::NodePk,
     ln::addr::LxSocketAddress,
     rng::{Crng, RngExt},

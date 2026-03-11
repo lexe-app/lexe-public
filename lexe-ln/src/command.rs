@@ -5,27 +5,6 @@ use std::{
 
 use anyhow::{Context, anyhow, bail, ensure};
 use bitcoin::hashes::{Hash as _, sha256};
-use common::{
-    api::{
-        revocable_clients::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            RevocableClient, RevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
-        },
-        user::{NodePk, Scid, UserPk},
-    },
-    cli::{LspFees, LspInfo},
-    constants, debug_panic_release_log, ed25519,
-    enclave::Measurement,
-    ln::{
-        amount::Amount,
-        channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
-        network::LxNetwork,
-        route::LxRoute,
-    },
-    rng::SysRng,
-    time::TimestampMs,
-};
 use either::Either;
 use futures::Future;
 use lexe_api::{
@@ -49,6 +28,27 @@ use lexe_api::{
         payments::{LxPaymentId, PaymentDirection, PaymentKind},
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
+};
+use lexe_common::{
+    api::{
+        revocable_clients::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            RevocableClient, RevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
+        },
+        user::{NodePk, Scid, UserPk},
+    },
+    cli::{LspFees, LspInfo},
+    constants, debug_panic_release_log, ed25519,
+    enclave::Measurement,
+    ln::{
+        amount::Amount,
+        channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
+        network::LxNetwork,
+        route::LxRoute,
+    },
+    rng::SysRng,
+    time::TimestampMs,
 };
 use lexe_std::{Apply, const_assert};
 use lexe_tls::{
@@ -1564,7 +1564,7 @@ where
 
 /// Payments preflight validation helpers.
 mod validate {
-    use common::ln::balance::LightningBalance;
+    use lexe_common::ln::balance::LightningBalance;
 
     use super::*;
 
@@ -1928,7 +1928,7 @@ mod test {
         script::{self, ScriptBuf},
         secp256k1,
     };
-    use common::rng::{Crng, FastRng};
+    use lexe_common::rng::{Crng, FastRng};
     use proptest::proptest;
 
     use super::*;

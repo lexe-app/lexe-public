@@ -1,4 +1,4 @@
-use common::ln::channel::{LxChannelId, LxUserChannelId};
+use lexe_common::ln::channel::{LxChannelId, LxUserChannelId};
 use lightning::events::ClosureReason;
 
 /// Channel lifecycle events emitted from the node event handler.

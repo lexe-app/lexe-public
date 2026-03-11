@@ -1,11 +1,11 @@
+use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
-use common::test_utils::arbitrary;
-use common::{
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
     RefCast,
     serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
 };
-use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -215,7 +215,7 @@ pub mod nip47 {
     use std::fmt;
 
     #[cfg(any(test, feature = "test-utils"))]
-    use common::test_utils::arbitrary;
+    use lexe_common::test_utils::arbitrary;
     #[cfg(any(test, feature = "test-utils"))]
     use proptest_derive::Arbitrary;
     use serde::{Deserialize, Serialize};
@@ -369,7 +369,7 @@ pub mod nip47 {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
 
     use super::*;
 

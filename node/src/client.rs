@@ -3,20 +3,6 @@ use std::collections::HashSet;
 use anyhow::Context;
 use async_trait::async_trait;
 use bytes::Bytes;
-use common::{
-    api::{
-        auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
-        user::{
-            GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk, UserPkSet,
-            UserPkStruct,
-        },
-        version::MeasurementStruct,
-    },
-    ed25519,
-    enclave::Measurement,
-    env::DeployEnv,
-    rng::Crng,
-};
 use lexe_api::{
     def::{
         BearerAuthBackendApi, MegaRunnerApi, NodeBackendApi, NodeLspApi,
@@ -51,6 +37,20 @@ use lexe_api::{
         MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,
         VfsFileId,
     },
+};
+use lexe_common::{
+    api::{
+        auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
+        user::{
+            GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk, UserPkSet,
+            UserPkStruct,
+        },
+        version::MeasurementStruct,
+    },
+    ed25519,
+    enclave::Measurement,
+    env::DeployEnv,
+    rng::Crng,
 };
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;

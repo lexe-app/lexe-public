@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use common::cli::LspInfo;
+use lexe_common::cli::LspInfo;
 use lexe_ln::p2p;
 use lexe_tokio::{
     notify_once::NotifyOnce,

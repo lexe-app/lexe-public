@@ -40,7 +40,12 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use common::{
+use lexe_api::{
+    def::NodeLspApi,
+    types::payments::{LnClaimId, LxPaymentHash, LxPaymentId},
+    vfs::VfsFile,
+};
+use lexe_common::{
     api::{
         test_event::TestEvent,
         user::{NodePk, UserPk},
@@ -49,11 +54,6 @@ use common::{
     debug_panic_release_log,
     ln::{amount::Amount, channel::LxChannelId},
     rng::{RngExt, ThreadFastRng},
-};
-use lexe_api::{
-    def::NodeLspApi,
-    types::payments::{LnClaimId, LxPaymentHash, LxPaymentId},
-    vfs::VfsFile,
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
@@ -637,7 +637,7 @@ async fn do_handle_event(
 mod anonymize {
     use std::collections::HashSet;
 
-    use common::time::DisplayMs;
+    use lexe_common::time::DisplayMs;
     use lightning::{
         events::PathFailure,
         ln::channelmanager::PaymentId,

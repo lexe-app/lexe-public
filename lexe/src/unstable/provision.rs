@@ -6,14 +6,14 @@ use std::{
 };
 
 use anyhow::Context;
-use common::{
+use lexe_api::def::AppNodeProvisionApi;
+use lexe_common::{
     ExposeSecret, Secret,
     api::{provision::NodeProvisionRequest, version::NodeEnclave},
     constants, enclave,
     releases::Release,
     root_seed::RootSeed,
 };
-use lexe_api::def::AppNodeProvisionApi;
 use lexe_node_client::client::NodeClient;
 use lexe_tokio::task::LxTask;
 use serde::Deserialize;

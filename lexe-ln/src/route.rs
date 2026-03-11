@@ -8,7 +8,9 @@ use std::{
 use anyhow::{anyhow, ensure};
 use bitcoin::secp256k1;
 use cfg_if::cfg_if;
-use common::{
+use either::Either;
+use lexe_api::types::invoice::LxInvoice;
+use lexe_common::{
     api::user::{NodePk, Scid},
     cli::LspInfo,
     debug_panic_release_log,
@@ -16,8 +18,6 @@ use common::{
     rng::SysRngDerefHack,
     time::DisplayMs,
 };
-use either::Either;
-use lexe_api::types::invoice::LxInvoice;
 use lexe_std::const_assert;
 use lightning::{
     blinded_path::payment::{

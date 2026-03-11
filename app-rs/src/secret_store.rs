@@ -17,7 +17,7 @@
 //!   <https://github.com/animo/secure-env/blob/main/src/android.rs> or
 //!   <https://gitlab.com/veilid/keyring-manager/-/blob/master/src/android.rs>
 //!
-//! [`RootSeed`]: common::root_seed::RootSeed
+//! [`RootSeed`]: lexe_common::root_seed::RootSeed
 
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
@@ -30,9 +30,9 @@ use std::{
 
 use anyhow::Context;
 use cfg_if::cfg_if;
-use common::root_seed::RootSeed;
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
 use lexe::config::WalletEnv;
+use lexe_common::root_seed::RootSeed;
 use lexe_hex::hex;
 use secrecy::ExposeSecret;
 
@@ -270,7 +270,7 @@ impl CredentialApi for ThreadKeyringCredential {
 
 #[cfg(test)]
 mod test {
-    use common::rng::SysRng;
+    use lexe_common::rng::SysRng;
 
     use super::*;
 
@@ -319,7 +319,7 @@ mod test {
 
     #[cfg(not(target_os = "android"))]
     fn test_keyring_secret_store_inner() {
-        use common::rng::RngExt;
+        use lexe_common::rng::RngExt;
 
         let mut rng = SysRng::new();
         let dummy_id = rng.gen_u64();

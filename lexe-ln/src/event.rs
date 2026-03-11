@@ -2,15 +2,15 @@ use std::{fmt, future::Future, str::FromStr, sync::Mutex, time::Duration};
 
 use anyhow::{Context, anyhow};
 use bitcoin::{absolute, consensus::Encodable, secp256k1};
+use lexe_api::vfs::{self, Vfs, VfsFile, VfsFileId};
 #[cfg(test)]
-use common::test_utils::arbitrary;
-use common::{
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
     api::test_event::TestEvent,
     ln::channel::{LxChannelId, LxUserChannelId},
     rng::{Crng, RngExt, SysRng},
     time::{DisplayMs, TimestampMs},
 };
-use lexe_api::vfs::{self, Vfs, VfsFile, VfsFileId};
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
@@ -901,7 +901,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
     use proptest::{prop_assert, proptest};
 
     use super::*;

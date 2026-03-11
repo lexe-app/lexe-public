@@ -3,12 +3,6 @@ use std::sync::Arc;
 use std::{collections::HashSet, num::NonZeroU64};
 
 use anyhow::Context;
-#[cfg(test)]
-use common::ln::priority::ConfirmationPriority;
-use common::{
-    ln::{amount::Amount, hashes::LxTxid},
-    time::TimestampMs,
-};
 use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
@@ -16,6 +10,12 @@ use lexe_api::types::{
         BasicPaymentV1, LxOfferId, LxPaymentId, PaymentCreatedIndex,
         PaymentDirection, PaymentKind, PaymentRail, PaymentStatus,
     },
+};
+#[cfg(test)]
+use lexe_common::ln::priority::ConfirmationPriority;
+use lexe_common::{
+    ln::{amount::Amount, hashes::LxTxid},
+    time::TimestampMs,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -826,7 +826,7 @@ impl PaymentV1 {
 mod test {
     use std::{fs, path::Path};
 
-    use common::{
+    use lexe_common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };

@@ -31,7 +31,7 @@ SDK docs here:
 - [`lexe-ln`](./lexe-ln): Shared Bitcoin and Lightning logic.
 - [`lexe-api`](./lexe-api): API types, definitions, clients, TLS.
   Includes SGX remote attestation and attestation quote verification.
-- [`common`](./common): A general shared library used by most Lexe crates.
+- [`lexe-common`](./common): A general shared library used by most Lexe crates.
   - SGX: SGX types, enclave report, measurement, sealing
   - Crypto: ed25519, secp256k1, AES-256-GCM, root seed, password encryption, RNGs
   - Various utilities
@@ -429,7 +429,7 @@ $ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- run --help
   `--runner-url`, or LSP url. Note that mocking functionality is provided on a
   best-effort basis and is not tested (or used) regularly by Lexe devs.
 
-See `RunArgs`/`ProvisionArgs` contained in `common::cli::node` for full options.
+See `RunArgs`/`ProvisionArgs` contained in `lexe_common::cli::node` for full options.
 
 ## License
 

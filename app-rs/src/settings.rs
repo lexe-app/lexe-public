@@ -1,8 +1,8 @@
 //! App settings db, serialization, and persistence.
 
 use anyhow::Context;
-use common::api::fiat_rates::IsoCurrencyCode;
 use lexe::ffs::Ffs;
+use lexe_common::api::fiat_rates::IsoCurrencyCode;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

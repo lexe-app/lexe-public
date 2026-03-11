@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use common::{ed25519, rng::Crng, root_seed::RootSeed};
+use lexe_common::{ed25519, rng::Crng, root_seed::RootSeed};
 use rcgen::string::Ia5String;
 
 use crate as tls;
@@ -304,7 +304,7 @@ impl RevocableClientCert {
 
 #[cfg(test)]
 mod test {
-    use common::rng::FastRng;
+    use lexe_common::rng::FastRng;
     use lexe_hex::hex;
     use rustls::pki_types::CertificateDer;
 

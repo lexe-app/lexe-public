@@ -1,7 +1,6 @@
 use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
-use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
@@ -10,6 +9,7 @@ use lexe_api::types::{
         LxPaymentSecret, PaymentKind,
     },
 };
+use lexe_common::{ByteArray, ln::amount::Amount, time::TimestampMs};
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
     events::Event::{PaymentFailed, PaymentSent},
@@ -450,12 +450,12 @@ impl TryFrom<PaymentWithMetadata<OutboundSpontaneousPaymentV2>>
 
 #[cfg(test)]
 pub(crate) mod arb {
-    use common::{
-        self,
-        test_utils::{arbitrary, arbitrary::any_option_string},
-    };
     use lexe_api::types::{
         invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
+    };
+    use lexe_common::{
+        self,
+        test_utils::{arbitrary, arbitrary::any_option_string},
     };
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},

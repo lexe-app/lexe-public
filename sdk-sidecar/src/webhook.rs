@@ -12,7 +12,6 @@ use std::{
     time::Duration,
 };
 
-use common::{api::user::UserPk, env::DeployEnv, rng::SysRng};
 use lexe::types::payment::Payment;
 use lexe_api::{
     def::AppNodeRunApi,
@@ -22,6 +21,7 @@ use lexe_api::{
         VecBasicPaymentV2,
     },
 };
+use lexe_common::{api::user::UserPk, env::DeployEnv, rng::SysRng};
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::{ClientCredentials, Credentials},

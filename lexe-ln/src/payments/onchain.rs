@@ -2,17 +2,17 @@ use std::{collections::HashSet, sync::Arc};
 
 use anyhow::{Context, bail, ensure};
 use bitcoin::Transaction;
-use common::{
-    ln::{amount::Amount, hashes::LxTxid},
-    serde_helpers::consensus_encode_tx,
-    time::TimestampMs,
-};
 use lexe_api::{
     models::command::PayOnchainRequest,
     types::{
         bounded_note::BoundedNote,
         payments::{ClientPaymentId, LxPaymentId, PaymentKind, PaymentRail},
     },
+};
+use lexe_common::{
+    ln::{amount::Amount, hashes::LxTxid},
+    serde_helpers::consensus_encode_tx,
+    time::TimestampMs,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -456,8 +456,8 @@ impl OnchainReceiveV2 {
 
 #[cfg(test)]
 mod arbitrary_impl {
-    use common::test_utils::arbitrary;
     use lexe_api::models::command::PayOnchainRequest;
+    use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any},
         option,
@@ -582,7 +582,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip::json_unit_enum_backwards_compat;
+    use lexe_common::test_utils::roundtrip::json_unit_enum_backwards_compat;
 
     use super::*;
 

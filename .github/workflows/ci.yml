@@ -75,11 +75,11 @@ jobs:
       # SGX
       - run: |
           unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
-          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
+          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p lexe-common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
       # SGX + tests
       - run: |
           unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
-          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
+          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p lexe-common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:

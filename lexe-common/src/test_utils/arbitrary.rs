@@ -55,7 +55,7 @@ use crate::{
 /// Generated strings have anywhere from 0 to 256 characters.
 ///
 /// ```
-/// use common::test_utils::arbitrary;
+/// use lexe_common::test_utils::arbitrary;
 /// use proptest_derive::Arbitrary;
 ///
 /// #[derive(Debug, Arbitrary)]
@@ -74,7 +74,7 @@ pub fn any_string() -> impl Strategy<Value = String> {
 /// The option has a 50% probability of being [`Some`].
 ///
 /// ```
-/// use common::test_utils::arbitrary;
+/// use lexe_common::test_utils::arbitrary;
 /// use proptest_derive::Arbitrary;
 ///
 /// #[derive(Debug, Arbitrary)]
@@ -114,10 +114,9 @@ pub fn any_vec_simple_string() -> impl Strategy<Value = Vec<String>> {
 /// Generated sets have anywhere from 0 to 8 elements.
 ///
 /// ```
-/// use common::test_utils::arbitrary;
 /// use proptest_derive::Arbitrary;
 /// use std::collections::HashSet;
-/// use common::api::user::UserPk;
+/// use lexe_common::{api::user::UserPk, test_utils::arbitrary};
 ///
 /// #[derive(Debug, Arbitrary)]
 /// struct Foo {

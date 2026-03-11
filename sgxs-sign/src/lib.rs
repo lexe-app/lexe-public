@@ -28,11 +28,11 @@
 use std::fmt;
 
 use anyhow::{ensure, format_err};
-use common::{
+use lexe_byte_array::ByteArray;
+use lexe_common::{
     Secret, enclave,
     rng::{Crng, SysRng},
 };
-use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use rsa::{
@@ -345,7 +345,7 @@ impl fmt::Debug for StringError {
 
 #[cfg(test)]
 mod test {
-    use common::ExposeSecret;
+    use lexe_common::ExposeSecret;
 
     use super::*;
 

@@ -9,7 +9,7 @@ publish = false
 [dependencies]
 # --- LEXE --- #
 
-common.path = "../common"
+lexe-common.path = "../lexe-common"
 lexe-hex.path = "../lexe-hex"
 lexe-tls.path = "../lexe-tls"
 

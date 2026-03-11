@@ -4,14 +4,14 @@ use std::{
     time::Duration,
 };
 
-use common::{
-    api::user::UserPk, cli::node::MegaArgs, constants, time::TimestampMs,
-};
 use futures::{StreamExt, stream::FuturesUnordered};
 use lexe_api::{
     error::{MegaApiError, MegaErrorKind},
     models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
     types::{LeaseId, ports::RunPorts},
+};
+use lexe_common::{
+    api::user::UserPk, cli::node::MegaArgs, constants, time::TimestampMs,
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lru::LruCache;
@@ -658,10 +658,10 @@ mod helpers {
     use std::sync::Arc;
 
     use anyhow::Context;
-    use common::{api::MegaId, rng::SysRng};
     use lexe_api::{
         def::MegaRunnerApi, models::runner::UserFinishedRequest, types::LeaseId,
     };
+    use lexe_common::{api::MegaId, rng::SysRng};
     use tracing::{error, info, warn};
 
     use super::*;
@@ -831,7 +831,7 @@ mod helpers {
         // all logs with the index for easier integration test debugging.
         #[cfg(feature = "test-utils")]
         for user_idx in 0..10 {
-            let seed = common::root_seed::RootSeed::from_u64(user_idx);
+            let seed = lexe_common::root_seed::RootSeed::from_u64(user_idx);
             let derived_user_pk = seed.derive_user_pk();
             if user_pk == &derived_user_pk {
                 span.record("user_idx", user_idx);

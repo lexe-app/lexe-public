@@ -2,22 +2,6 @@ use std::{ops::Deref, slice, sync::Arc};
 
 use anyhow::{Context, ensure};
 use axum::extract::State;
-use common::{
-    api::{
-        models::{
-            BroadcastedTx, BroadcastedTxInfo, SignMsgRequest, SignMsgResponse,
-            VerifyMsgRequest, VerifyMsgResponse,
-        },
-        revocable_clients::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
-        },
-    },
-    constants::{self},
-    ln::{amount::Amount, channel::LxUserChannelId},
-    rng::SysRng,
-};
 use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
     def::NodeBackendApi,
@@ -54,6 +38,22 @@ use lexe_api::{
         username::UsernameStruct,
     },
     vfs::{self, Vfs, VfsDirectory},
+};
+use lexe_common::{
+    api::{
+        models::{
+            BroadcastedTx, BroadcastedTxInfo, SignMsgRequest, SignMsgResponse,
+            VerifyMsgRequest, VerifyMsgResponse,
+        },
+        revocable_clients::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetRevocableClients, RevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
+        },
+    },
+    constants::{self},
+    ln::{amount::Amount, channel::LxUserChannelId},
+    rng::SysRng,
 };
 use lexe_ln::p2p;
 use lexe_tokio::task::MaybeLxTask;

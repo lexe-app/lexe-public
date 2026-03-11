@@ -7,7 +7,7 @@ version.workspace = true
 publish = false
 
 # Config for testing in SGX
-# Need more threads for tokio. See: common/Cargo.toml.
+# Need more threads for tokio. See: lexe-common/Cargo.toml.
 # Need more stack and heap for LN router tests...
 # TODO(phlip9): why is router allocating 150MiB heap and 4MiB stack for
 # routing on a simple 1 node graph?
@@ -19,14 +19,17 @@ threads = 4
 [features]
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
-test-utils = ["common/test-utils", "lexe-api/test-utils"]
+test-utils = [
+    "lexe-api/test-utils",
+    "lexe-common/test-utils",
+]
 
 [dependencies]
 
 # --- LEXE --- #
 
-common.path = "../common"
 lexe-api.path = "../lexe-api"
+lexe-common.path = "../lexe-common"
 lexe-hex.path = "../lexe-hex"
 lexe-std.path = "../lexe-std"
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
@@ -85,8 +88,8 @@ tracing.workspace = true
 webpki-roots.workspace = true
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true

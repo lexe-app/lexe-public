@@ -1,13 +1,13 @@
 use std::{collections::HashSet, sync::Arc};
 
 use anyhow::Context;
+use lexe_api::types::payments::{ClientPaymentId, LxPaymentId, PaymentKind};
 #[cfg(test)]
-use common::test_utils::arbitrary;
-use common::{
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_api::types::payments::{ClientPaymentId, LxPaymentId, PaymentKind};
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]

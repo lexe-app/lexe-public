@@ -1,6 +1,6 @@
 //! Form field validators.
 
-use common::password;
+use lexe_common::password;
 use secrecy::Zeroize;
 
 /// Validate whether `password` has an appropriate length.

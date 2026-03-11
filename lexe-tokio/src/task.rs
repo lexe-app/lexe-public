@@ -209,7 +209,7 @@ impl<T> LxTask<T> {
     /// ```
     /// # #[tokio::test]
     /// # async fn test_spawn() {
-    /// use common::task::LxTask;
+    /// use lexe_common::task::LxTask;
     /// use tracing::{info, instrument};
     ///
     /// // Typical library code.
@@ -306,7 +306,7 @@ impl<T> LxTask<T> {
     /// ```
     /// # #[tokio::test]
     /// # async fn test_spawn_with_span() {
-    /// use common::task::LxTask;
+    /// use lexe_common::task::LxTask;
     /// use tracing::{info, instrument};
     ///
     /// // Typical library code.

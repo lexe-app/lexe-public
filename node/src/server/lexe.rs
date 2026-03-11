@@ -2,11 +2,6 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use axum::extract::State;
-use common::{
-    api::{models::Status, test_event::TestEventOp, user::UserPkStruct},
-    rng::SysRng,
-    time::TimestampMs,
-};
 use lexe_api::{
     error::NodeApiError,
     models::{
@@ -18,6 +13,11 @@ use lexe_api::{
     },
     server::{LxJson, extract::LxQuery},
     types::Empty,
+};
+use lexe_common::{
+    api::{models::Status, test_event::TestEventOp, user::UserPkStruct},
+    rng::SysRng,
+    time::TimestampMs,
 };
 use lexe_ln::test_event;
 use tracing::warn;

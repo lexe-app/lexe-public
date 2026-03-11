@@ -4,7 +4,8 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use base64::Engine;
-use common::{
+use lexe_api::auth::BearerAuthenticator;
+use lexe_common::{
     api::{
         auth::{BearerAuthToken, Scope},
         revocable_clients::CreateRevocableClientResponse,
@@ -15,7 +16,6 @@ use common::{
     rng::Crng,
     root_seed::RootSeed,
 };
-use lexe_api::auth::BearerAuthenticator;
 use lexe_tls::{
     rustls, shared_seed,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
@@ -238,7 +238,7 @@ impl ClientCredentials {
 mod test {
     use std::fs;
 
-    use common::{
+    use lexe_common::{
         byte_str::ByteStr,
         rng::FastRng,
         test_utils::{arbitrary, snapshot},

@@ -202,7 +202,7 @@ pub mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
 
     use super::*;
 

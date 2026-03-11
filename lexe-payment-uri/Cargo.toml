@@ -10,7 +10,7 @@ publish = true
 
 # --- LEXE --- #
 
-common.path = "../common"
+lexe-common.path = "../lexe-common"
 lexe-api-core.path = "../lexe-api-core"
 lexe-payment-uri-core.path = "../lexe-payment-uri-core"
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }

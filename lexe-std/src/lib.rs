@@ -32,7 +32,7 @@ pub mod string;
 /// For example, instead of this:
 ///
 /// ```ignore
-/// # use common::ln::amount::Amount;
+/// # use lexe_common::ln::amount::Amount;
 /// let value_sat_u64 = 100_000u64; // Pretend this is from LDK
 /// let value_sat_u32 = u32::try_from(value_sat_u64)
 ///     .expect("Amount shouldn't have overflowed");
@@ -42,8 +42,8 @@ pub mod string;
 /// We can remove the useless `value_sat_u32` intermediate variable:
 ///
 /// ```ignore
-/// # use common::ln::amount::Amount;
-/// # use common::Apply;
+/// # use lexe_common::ln::amount::Amount;
+/// # use lexe_common::Apply;
 /// let value_sat_u64 = 100_000u64; // Pretend this is from LDK
 /// let maybe_value = u32::try_from(value_sat_u64)
 ///     .expect("Amount shouldn't have overflowed")
@@ -55,7 +55,7 @@ pub mod string;
 /// confusing:
 ///
 /// ```ignore
-/// # use common::ln::amount::Amount;
+/// # use lexe_common::ln::amount::Amount;
 /// let value_sat_u64 = 100_000u64; // Pretend this is from LDK
 /// let maybe_value = u32::try_from(value_sat_u64)
 ///     .map(Amount::from_sats_u32)

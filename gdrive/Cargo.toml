@@ -12,9 +12,9 @@ publish = false
 [dependencies]
 # --- LEXE --- #
 
-common.path = "../common"
 lexe-api-core.path = "../lexe-api-core"
 lexe-byte-array.path = "../lexe-byte-array"
+lexe-common.path = "../lexe-common"
 lexe-sha256.path = "../lexe-sha256"
 lexe-std.path = "../lexe-std"
 
@@ -35,7 +35,7 @@ tracing.workspace = true
 # --- CRATE-SPECIFIC --- #
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 lexe-logger = { path = "../lexe-logger", features = ["test-utils"] }
 
 proptest.workspace = true

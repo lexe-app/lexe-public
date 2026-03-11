@@ -1,16 +1,4 @@
 use anyhow::Context;
-use common::{
-    api::{
-        revocable_clients::{
-            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-            GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
-        },
-        user::UserPk,
-    },
-    env::DeployEnv,
-    ln::amount::Amount,
-    rng::SysRng,
-};
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
@@ -30,6 +18,18 @@ use lexe_api::{
             Username as UsernameRs, UsernameStruct as UsernameStructRs,
         },
     },
+};
+use lexe_common::{
+    api::{
+        revocable_clients::{
+            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+            GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
+        },
+        user::UserPk,
+    },
+    env::DeployEnv,
+    ln::amount::Amount,
+    rng::SysRng,
 };
 use lexe_hex::hex::FromHex;
 use lexe_std::Apply;

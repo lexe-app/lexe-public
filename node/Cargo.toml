@@ -11,7 +11,7 @@ publish = false
 # Explicitly specify that no features should be enabled by default.
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
-test-utils = ["common/test-utils", "lexe-ln/test-utils"]
+test-utils = ["lexe-common/test-utils", "lexe-ln/test-utils"]
 
 [package.metadata.fortanix-sgx]
 # When true, return panics w/ backtraces to the host via the shared "debug
@@ -48,10 +48,10 @@ threads = 2
 
 # --- LEXE --- #
 
-common.path = "../common"
 gdrive.path = "../gdrive"
 lexe-api.path = "../lexe-api"
 lexe-byte-array.path = "../lexe-byte-array"
+lexe-common.path = "../lexe-common"
 lexe-hex.path = "../lexe-hex"
 lexe-ln.path = "../lexe-ln"
 lexe-std.path = "../lexe-std"
@@ -89,7 +89,7 @@ tower = { workspace = true, features = ["util"] }
 tracing.workspace = true
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 lexe-ln = { path = "../lexe-ln", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }

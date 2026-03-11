@@ -31,9 +31,9 @@ required-features = ["bindgen"]
 # implementors, this crate should *only* depend on `lexe`.
 # TODO(max): Clean up these dependencies; add re-exports and crate exports
 # if needed.
-common = { path = "../common" }
 lexe = { path = "../lexe", features = ["blocking"] }
 lexe-api-core = { path = "../lexe-api-core" }
+lexe-common = { path = "../lexe-common" }
 lexe-node-client = { path = "../lexe-node-client", default-features = false }
 lexe-std = { path = "../lexe-std" }
 

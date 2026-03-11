@@ -16,16 +16,16 @@ use std::{sync::Arc, time::Instant};
 
 use anyhow::Context;
 use bitcoin::bip32::Xpriv;
-use common::{
-    ln::{amount::Amount, network::LxNetwork, priority::ConfirmationPriority},
-    rng::SysRng,
-};
 use lexe_api::{
     models::command::PayOnchainRequest,
     types::{
         bounded_note::BoundedNote,
         payments::{ClientPaymentId, PaymentKind},
     },
+};
+use lexe_common::{
+    ln::{amount::Amount, network::LxNetwork, priority::ConfirmationPriority},
+    rng::SysRng,
 };
 use lexe_tokio::{notify, task::LxTask};
 use tracing::{debug, error, instrument};

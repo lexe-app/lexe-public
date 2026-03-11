@@ -1,26 +1,6 @@
 use std::{borrow::Cow, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
-pub(crate) use common::root_seed::RootSeed as RootSeedRs;
-use common::{
-    ExposeSecret,
-    api::{
-        auth::Scope as ScopeRs,
-        revocable_clients::RevocableClient as RevocableClientRs,
-    },
-    env::DeployEnv as DeployEnvRs,
-    ln::{
-        amount::Amount as AmountRs,
-        channel::{
-            LxChannelDetails as LxChannelDetailsRs,
-            LxUserChannelId as LxUserChannelIdRs,
-        },
-        network::LxNetwork as NetworkRs,
-        priority::ConfirmationPriority as ConfirmationPriorityRs,
-    },
-    rng::SysRng,
-    time::TimestampMs,
-};
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig};
 use lexe_api::{
@@ -46,12 +26,32 @@ use lexe_api::{
         username::Username as UsernameRs,
     },
 };
+pub(crate) use lexe_common::root_seed::RootSeed as RootSeedRs;
+use lexe_common::{
+    ExposeSecret,
+    api::{
+        auth::Scope as ScopeRs,
+        revocable_clients::RevocableClient as RevocableClientRs,
+    },
+    env::DeployEnv as DeployEnvRs,
+    ln::{
+        amount::Amount as AmountRs,
+        channel::{
+            LxChannelDetails as LxChannelDetailsRs,
+            LxUserChannelId as LxUserChannelIdRs,
+        },
+        network::LxNetwork as NetworkRs,
+        priority::ConfirmationPriority as ConfirmationPriorityRs,
+    },
+    rng::SysRng,
+    time::TimestampMs,
+};
 use lexe_hex::hex;
 use lexe_payment_uri::OfferWithAmount;
 
 use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
 
-/// See [`common::env::DeployEnv`]
+/// See [`lexe_common::env::DeployEnv`]
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -99,7 +99,7 @@ impl From<DeployEnv> for DeployEnvRs {
     }
 }
 
-/// See [`common::ln::network::LxNetwork`]
+/// See [`lexe_common::ln::network::LxNetwork`]
 #[derive(Copy, Clone, Debug)]
 pub enum Network {
     Mainnet,

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use common::constants;
 use lexe_api::vfs::{VfsFile, VfsFileId};
+use lexe_common::constants;
 use lexe_std::Apply;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tokio::sync::mpsc;

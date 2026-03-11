@@ -4,7 +4,7 @@
 use std::{borrow::Cow, fmt, str::FromStr, time::Duration};
 
 use anyhow::Context;
-use common::{ed25519, enclave, rng::Crng};
+use lexe_common::{ed25519, enclave, rng::Crng};
 use lexe_hex::hex;
 use rcgen::string::Ia5String;
 use yasna::models::ObjectIdentifier;
@@ -199,7 +199,7 @@ impl fmt::Debug for SgxAttestationExtension<'_> {
 
 #[cfg(test)]
 mod test {
-    use common::rng::FastRng;
+    use lexe_common::rng::FastRng;
 
     use super::*;
 

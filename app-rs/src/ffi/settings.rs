@@ -3,8 +3,8 @@
 use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
-use common::api::fiat_rates::IsoCurrencyCode;
 use flutter_rust_bridge::RustOpaqueNom;
+use lexe_common::api::fiat_rates::IsoCurrencyCode;
 
 use crate::{
     db::WritebackDb as WritebackDbRs,

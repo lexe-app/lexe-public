@@ -21,7 +21,7 @@ serde.workspace = true
 tokio = { workspace = true, features = ["net"] }
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
-common.path = "../common"
+lexe-common.path = "../lexe-common"
 sgxs-sign.path = "../sgxs-sign"
 
 aesm-client = { workspace = true, features = ["sgxs"] }

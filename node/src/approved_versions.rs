@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
 use anyhow::ensure;
-use common::{
+use lexe_common::{
     api::user::UserPk,
     constants::{self, YANKED_NODE_MEASUREMENTS, YANKED_NODE_VERSIONS},
     enclave::Measurement,
@@ -147,7 +147,7 @@ impl ApprovedVersions {
 
 #[cfg(test)]
 mod arbitrary_impl {
-    use common::test_utils::arbitrary;
+    use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any},
         collection,
@@ -175,7 +175,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
 
     use super::*;
 

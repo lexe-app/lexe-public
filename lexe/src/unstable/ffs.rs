@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use common::rng::{RngExt, ThreadFastRng};
+use lexe_common::rng::{RngExt, ThreadFastRng};
 
 /// Abstraction over a flat file system (no subdirs), suitable for mocking.
 ///
@@ -193,7 +193,7 @@ pub mod fsext {
 pub mod test_utils {
     use std::{cell::RefCell, collections::BTreeMap, io};
 
-    use common::rng::{FastRng, shuffle};
+    use lexe_common::rng::{FastRng, shuffle};
 
     use super::Ffs;
 

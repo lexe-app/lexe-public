@@ -1,9 +1,9 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
-#[cfg(test)]
-use common::test_utils::arbitrary;
 use lexe_api_core::types::{invoice::LxInvoice, offer::LxOffer};
+#[cfg(test)]
+use lexe_common::test_utils::arbitrary;
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]
@@ -227,7 +227,7 @@ impl fmt::Display for PaymentUri {
 
 #[cfg(test)]
 mod test {
-    use common::{rng::FastRng, test_utils::arbitrary};
+    use lexe_common::{rng::FastRng, test_utils::arbitrary};
     use proptest::{arbitrary::any, prop_assert_eq, prop_assume, proptest};
 
     use super::*;

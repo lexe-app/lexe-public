@@ -4,13 +4,13 @@
 
 use std::{env, str::FromStr, task::Poll, time::Duration};
 
-use common::{
-    rng::{FastRng, Rng, RngExt, SysRng},
-    time::TimestampMs,
-};
 use futures::StreamExt;
 use lexe_api::models::runner::{
     MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
+};
+use lexe_common::{
+    rng::{FastRng, Rng, RngExt, SysRng},
+    time::TimestampMs,
 };
 use tokio::sync::oneshot;
 
@@ -229,7 +229,7 @@ impl UserRunnerFuzzer {
 }
 
 mod helpers {
-    use common::{
+    use lexe_common::{
         api::user::UserPk,
         cli::{LspInfo, node::MegaArgs},
         env::DeployEnv,

@@ -8,13 +8,13 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
-use common::{Secret, aes::AesMasterKey, debug_panic_release_log};
 use gdrive::GoogleVfs;
 use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeBackendApi,
     vfs::{VfsFile, VfsFileId},
 };
+use lexe_common::{Secret, aes::AesMasterKey, debug_panic_release_log};
 use lexe_ln::persister;
 use tracing::{error, warn};
 

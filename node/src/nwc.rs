@@ -2,12 +2,14 @@ use std::time::Instant;
 
 use anyhow::Context;
 use bitcoin::base64::{self, Engine};
-use common::{aes::AesMasterKey, env::DeployEnv, rng::Crng, time::TimestampMs};
 use lexe_api::models::nwc::{
     DbNwcClient, DbNwcClientFields, NostrEventId, NostrPk, NostrSignedEvent,
     NostrSk, NwcClientInfo,
 };
 use lexe_byte_array::ByteArray;
+use lexe_common::{
+    aes::AesMasterKey, env::DeployEnv, rng::Crng, time::TimestampMs,
+};
 use lexe_hex::hex;
 use nostr::nips::nip44;
 use serde::{Deserialize, Serialize};
@@ -325,7 +327,7 @@ impl NwcClient {
 
 #[cfg(test)]
 mod test {
-    use common::{aes::AesMasterKey, rng::FastRng, time::TimestampMs};
+    use lexe_common::{aes::AesMasterKey, rng::FastRng, time::TimestampMs};
 
     use super::*;
 

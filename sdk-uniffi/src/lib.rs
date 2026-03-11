@@ -9,15 +9,6 @@
 
 use std::{fmt, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
-use common::{
-    api::user::UserPk,
-    env::DeployEnv as DeployEnvRs,
-    ln::{
-        amount::Amount as AmountRs, network::LxNetwork as LxNetworkRs,
-        priority::ConfirmationPriority as ConfirmationPriorityRs,
-    },
-    root_seed::RootSeed as RootSeedRs,
-};
 use lexe::{
     blocking_wallet::BlockingLexeWallet as BlockingLexeWalletRs,
     config::WalletEnvConfig as WalletEnvConfigRs,
@@ -45,6 +36,15 @@ use lexe_api_core::{
             PaymentStatus as PaymentStatusRs,
         },
     },
+};
+use lexe_common::{
+    api::user::UserPk,
+    env::DeployEnv as DeployEnvRs,
+    ln::{
+        amount::Amount as AmountRs, network::LxNetwork as LxNetworkRs,
+        priority::ConfirmationPriority as ConfirmationPriorityRs,
+    },
+    root_seed::RootSeed as RootSeedRs,
 };
 use lexe_node_client::credentials::{
     ClientCredentials as ClientCredentialsRs, CredentialsRef,

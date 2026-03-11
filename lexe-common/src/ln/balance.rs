@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::ln::amount::Amount;
 
-/// Basically `bdk::Balance`, so that `common` doesn't need to depend on `bdk`.
+/// Basically `bdk::Balance`, so that `lexe-common` doesn't need to depend on
+/// `bdk`.
 ///
 /// Partitions a wallet balance into different categories.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

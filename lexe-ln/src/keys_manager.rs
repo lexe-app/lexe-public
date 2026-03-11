@@ -6,7 +6,7 @@ use bitcoin::{
         PublicKey, Secp256k1, Signing, ecdh, ecdsa, scalar::Scalar, schnorr,
     },
 };
-use common::{
+use lexe_common::{
     api::user::NodePk,
     rng::{Crng, RngExt},
     root_seed::RootSeed,
@@ -277,7 +277,7 @@ impl SignerProvider for LexeKeysManager {
 
 #[cfg(test)]
 mod test {
-    use common::rng::FastRng;
+    use lexe_common::rng::FastRng;
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
@@ -315,7 +315,7 @@ mod test {
             mut rng in any::<FastRng>(),
             msg in ".*",
         )| {
-            let network = common::ln::network::LxNetwork::Regtest;
+            let network = lexe_common::ln::network::LxNetwork::Regtest;
 
             // Create users 1 and 2
             let master_xprv1 = root_seed1.derive_bip32_master_xprv(network);

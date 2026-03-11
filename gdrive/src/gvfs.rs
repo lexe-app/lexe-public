@@ -9,11 +9,11 @@ use std::{collections::BTreeMap, fmt, str::FromStr};
 
 use anyhow::{Context, anyhow, ensure};
 use bytes::Bytes;
-use common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 use lexe_api_core::{
     vfs,
     vfs::{VfsDirectory, VfsFile, VfsFileId},
 };
+use lexe_common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 use lexe_std::Apply;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
@@ -549,7 +549,7 @@ impl FromStr for GvfsRootName {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
 
     use super::*;
 

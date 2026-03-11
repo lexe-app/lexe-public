@@ -22,7 +22,7 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use async_trait::async_trait;
-use common::serde_helpers::hexstr_or_bytes;
+use lexe_common::serde_helpers::hexstr_or_bytes;
 use lightning::util::ser::{MaybeReadable, ReadableArgs, Writeable};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tracing::{debug, warn};
@@ -550,7 +550,7 @@ impl Display for VfsFileId {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod prop {
-    use common::test_utils::arbitrary;
+    use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
@@ -584,7 +584,7 @@ mod prop {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
 
     use super::*;
 

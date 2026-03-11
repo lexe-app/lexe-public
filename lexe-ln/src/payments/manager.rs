@@ -7,11 +7,6 @@ use std::{
 
 use anyhow::{Context, anyhow, bail, ensure};
 use bdk_wallet::KeychainKind;
-use common::{
-    api::test_event::TestEvent,
-    ln::{amount::Amount, hashes::LxTxid},
-    time::TimestampMs,
-};
 use either::Either;
 use lexe_api::{
     models::command::UpdatePaymentNote,
@@ -23,6 +18,11 @@ use lexe_api::{
             PaymentCreatedIndex, PaymentKind, PaymentStatus,
         },
     },
+};
+use lexe_common::{
+    api::test_event::TestEvent,
+    ln::{amount::Amount, hashes::LxTxid},
+    time::TimestampMs,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(doc)]
@@ -1727,7 +1727,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::ByteArray;
+    use lexe_common::ByteArray;
     use proptest::{
         arbitrary::{any, any_with},
         prop_assert_eq, proptest,

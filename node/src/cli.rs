@@ -1,7 +1,7 @@
 use std::env;
 
 use anyhow::{Context, bail};
-use common::{
+use lexe_common::{
     cli::{EnclaveArgs, node::MegaArgs},
     enclave,
     rng::SysRng,

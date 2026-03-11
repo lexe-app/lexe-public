@@ -3,7 +3,7 @@
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
-use common::{
+use lexe_common::{
     env::DeployEnv, ln::network::LxNetwork, or_env::OrEnvExt as _,
     root_seed::RootSeed,
 };

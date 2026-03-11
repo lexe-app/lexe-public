@@ -13,5 +13,5 @@ publish = false
 # --- WORKSPACE --- #
 
 [dev-dependencies]
-common = { path = "../common" }
 lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-common = { path = "../lexe-common" }

@@ -4,7 +4,6 @@ use std::{
 };
 
 use bytes::Bytes;
-use common::{ed25519, time::DisplayMs};
 use http::{
     Method,
     header::{CONTENT_TYPE, HeaderValue},
@@ -12,6 +11,7 @@ use http::{
 use lexe_api_core::error::{
     ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
 };
+use lexe_common::{ed25519, time::DisplayMs};
 use lexe_std::backoff;
 use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;

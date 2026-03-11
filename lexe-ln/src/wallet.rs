@@ -32,7 +32,7 @@
 //! [`Wallet`]: bdk_wallet::Wallet
 //! [`OnchainWallet`]: crate::wallet::OnchainWallet
 //! [`OnchainWallet::trigger_persist`]: crate::wallet::OnchainWallet::trigger_persist
-//! [`RootSeed`]: common::root_seed::RootSeed
+//! [`RootSeed`]: lexe_common::root_seed::RootSeed
 
 use std::{
     collections::{HashMap, HashSet},
@@ -58,16 +58,6 @@ use bdk_wallet::{
     template::Bip84,
 };
 use bitcoin::{Psbt, Transaction};
-#[cfg(test)]
-use common::ln::channel::LxOutPoint;
-use common::{
-    constants::IMPORTANT_PERSIST_RETRIES,
-    ln::{
-        amount::Amount, balance::OnchainBalance, hashes::LxTxid,
-        network::LxNetwork, priority::ConfirmationPriority,
-    },
-    time::TimestampMs,
-};
 use lexe_api::{
     models::command::{
         FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
@@ -75,6 +65,16 @@ use lexe_api::{
     },
     types::payments::PaymentKind,
     vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_V2_FILENAME},
+};
+#[cfg(test)]
+use lexe_common::ln::channel::LxOutPoint;
+use lexe_common::{
+    constants::IMPORTANT_PERSIST_RETRIES,
+    ln::{
+        amount::Amount, balance::OnchainBalance, hashes::LxTxid,
+        network::LxNetwork, priority::ConfirmationPriority,
+    },
+    time::TimestampMs,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use rand::RngCore;
@@ -172,7 +172,7 @@ impl OnchainWallet {
     ///
     /// [BIP 84]: https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
-    /// [`RootSeed::derive_bip32_master_xprv`]: common::root_seed::RootSeed::derive_bip32_master_xprv
+    /// [`RootSeed::derive_bip32_master_xprv`]: lexe_common::root_seed::RootSeed::derive_bip32_master_xprv
     #[instrument(skip_all, name = "(wallet-init)")]
     pub async fn init(
         master_xprv: bitcoin::bip32::Xpriv,
@@ -681,8 +681,9 @@ impl OnchainWallet {
     pub fn get_balance(&self) -> OnchainBalance {
         let balance = self.inner.read().unwrap().balance();
 
-        // Convert bdk_wallet::Balance to common::ln::balance::Balance.
-        // Not using a From impl bc we don't want `common` to depend on BDK.
+        // Convert bdk_wallet::Balance to lexe_common::ln::balance::Balance.
+        // Not using a From impl bc we don't want `lexe-common` to depend on
+        // BDK.
         let bdk_wallet::Balance {
             immature,
             trusted_pending,
@@ -879,7 +880,7 @@ impl OnchainWallet {
     fn unconfirmed_transaction_evicted_at(
         &self,
         evicted_at: TimestampMs,
-        txid: common::ln::hashes::LxTxid,
+        txid: lexe_common::ln::hashes::LxTxid,
     ) {
         let evicted_at_secs = evicted_at.to_duration().as_secs();
         self.inner
@@ -1440,7 +1441,7 @@ mod arbitrary_impl {
     };
     use bdk_wallet::{ChangeSet, KeychainKind, template::DescriptorTemplate};
     use bitcoin::hashes::Hash as _;
-    use common::{root_seed::RootSeed, test_utils::arbitrary};
+    use lexe_common::{root_seed::RootSeed, test_utils::arbitrary};
     use proptest::{
         arbitrary::any,
         option,
@@ -1618,14 +1619,14 @@ mod test {
         KeychainKind::{External, Internal},
     };
     use bitcoin::{TxOut, Txid, hashes::Hash as _};
-    use common::{
+    use lexe_api::types::payments::ClientPaymentId;
+    use lexe_common::{
         ln::hashes::LxTxid,
         rng::FastRng,
         root_seed::RootSeed,
         sat,
         test_utils::{arbitrary, roundtrip},
     };
-    use lexe_api::types::payments::ClientPaymentId;
     use proptest::test_runner::Config;
     use tracing::trace;
 

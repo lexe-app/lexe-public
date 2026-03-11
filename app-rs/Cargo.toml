@@ -18,16 +18,16 @@ flutter = [
 [dependencies]
 # --- LEXE --- #
 
-common.path = "../common"
 gdrive.path = "../gdrive"
 lexe = { path = "../lexe", features = ["unstable"] }
 lexe-api.path = "../lexe-api"
+lexe-common.path = "../lexe-common"
 lexe-hex.path = "../lexe-hex"
+lexe-node-client.path = "../lexe-node-client"
+lexe-payment-uri.path = "../lexe-payment-uri"
 lexe-std.path = "../lexe-std"
 lexe-tls.path = "../lexe-tls"
 lexe-tokio.path = "../lexe-tokio"
-lexe-node-client.path = "../lexe-node-client"
-lexe-payment-uri.path = "../lexe-payment-uri"
 
 # --- WORKSPACE --- #
 
@@ -76,9 +76,9 @@ fast_qr = { workspace = true, optional = true }
 # jni = "0.21"
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
 lexe = { path = "../lexe", features = ["test-utils", "unstable"] }
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 
 async-trait.workspace = true
 proptest = { workspace = true, features = ["alloc"] }

@@ -25,7 +25,7 @@ pub mod types;
 pub mod wallet;
 
 /// Returns the default Lexe data directory (`~/.lexe`).
-pub use common::default_lexe_data_dir;
+pub use lexe_common::default_lexe_data_dir;
 
 /// `BlockingLexeWallet`: synchronous wrapper around `LexeWallet`.
 ///

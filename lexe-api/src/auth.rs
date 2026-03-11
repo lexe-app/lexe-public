@@ -1,13 +1,13 @@
 use std::time::{Duration, SystemTime};
 
-use common::{
+use lexe_api_core::error::{BackendApiError, BackendErrorKind};
+use lexe_common::{
     api::auth::{
         BearerAuthRequest, BearerAuthRequestWire, BearerAuthToken, Scope,
         TokenWithExpiration,
     },
     ed25519,
 };
-use lexe_api_core::error::{BackendApiError, BackendErrorKind};
 
 use crate::def::BearerAuthBackendApi;
 
@@ -29,7 +29,7 @@ struct EphemeralBearerAuthenticator {
     /// The [`ed25519::KeyPair`] for the [`UserPk`], used to authenticate with
     /// the lexe backend.
     ///
-    /// [`UserPk`]: common::api::user::UserPk
+    /// [`UserPk`]: lexe_common::api::user::UserPk
     user_key_pair: ed25519::KeyPair,
 
     /// A `tokio` mutex to ensure that only one task can auth at a time, if

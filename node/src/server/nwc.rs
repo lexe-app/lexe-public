@@ -1,6 +1,5 @@
 use anyhow::Context;
 use bitcoin::hashes::Hash;
-use common::ln::{amount::Amount, network::LxNetwork};
 use lexe_api::models::{
     command::CreateInvoiceRequest,
     nwc::nip47::{
@@ -8,6 +7,7 @@ use lexe_api::models::{
         NwcMethod, NwcRequestPayload,
     },
 };
+use lexe_common::ln::{amount::Amount, network::LxNetwork};
 use lexe_hex::hex;
 use lexe_ln::command::CreateInvoiceCaller;
 

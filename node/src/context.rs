@@ -4,14 +4,14 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use common::{
-    cli::OAuthConfig, enclave, env::DeployEnv, ln::network::LxNetwork,
-    rng::Crng,
-};
 use lexe_api::{
     def::NodeLspApi,
     error::MegaApiError,
     types::{LeaseId, ports::RunPorts},
+};
+use lexe_common::{
+    cli::OAuthConfig, enclave, env::DeployEnv, ln::network::LxNetwork,
+    rng::Crng,
 };
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
@@ -232,7 +232,9 @@ impl MegaContext {
     pub fn dummy() -> Self {
         use std::sync::Mutex;
 
-        use common::{env::DeployEnv, ln::network::LxNetwork, rng::SysRng};
+        use lexe_common::{
+            env::DeployEnv, ln::network::LxNetwork, rng::SysRng,
+        };
         use lexe_ln::{esplora::LexeEsplora, logger::LexeTracingLogger};
         use lightning::routing::{
             gossip::NetworkGraph, scoring::ProbabilisticScorer,

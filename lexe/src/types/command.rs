@@ -1,12 +1,6 @@
 //! Lexe SDK API request and response types.
 
 use anyhow::Context;
-use common::{
-    api::user::{NodePk, UserPk},
-    enclave,
-    ln::amount::Amount,
-    time::TimestampMs,
-};
 use lexe_api::{
     models::command,
     types::{
@@ -14,6 +8,12 @@ use lexe_api::{
         invoice::LxInvoice,
         payments::{LxPaymentHash, LxPaymentSecret, PaymentCreatedIndex},
     },
+};
+use lexe_common::{
+    api::user::{NodePk, UserPk},
+    enclave,
+    ln::amount::Amount,
+    time::TimestampMs,
 };
 use serde::{Deserialize, Serialize};
 

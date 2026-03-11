@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::Context;
-use common::{
+use lexe_common::{
     api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
     root_seed::RootSeed,
 };
@@ -134,7 +134,7 @@ impl WalletEnv {
     ///
     /// Returns `Ok(None)` if the file doesn't exist.
     pub fn read_seed(&self) -> anyhow::Result<Option<RootSeed>> {
-        let lexe_data_dir = common::default_lexe_data_dir()
+        let lexe_data_dir = lexe_common::default_lexe_data_dir()
             .context("Could not get default lexe data dir")?;
         let path = self.seedphrase_path(&lexe_data_dir);
         RootSeed::read_from_path(&path)
@@ -144,7 +144,7 @@ impl WalletEnv {
     ///
     /// Creates parent directories if needed. Fails if the file already exists.
     pub fn write_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
-        let lexe_data_dir = common::default_lexe_data_dir()
+        let lexe_data_dir = lexe_common::default_lexe_data_dir()
             .context("Could not get default lexe data dir")?;
         let path = self.seedphrase_path(&lexe_data_dir);
         root_seed.write_to_path(&path)

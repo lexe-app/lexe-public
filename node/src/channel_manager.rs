@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use bitcoin::BlockHash;
-use common::{constants, ln::network::LxNetwork};
+use lexe_common::{constants, ln::network::LxNetwork};
 use lexe_ln::{
     alias::{BroadcasterType, FeeEstimatorType, MessageRouterType, RouterType},
     keys_manager::LexeKeysManager,

@@ -11,8 +11,8 @@ publish = true
 
 # --- LEXE --- #
 
-common.path = "../common"
 lexe-api-core.path = "../lexe-api-core"
+lexe-common.path = "../lexe-common"
 
 # --- WORKSPACE --- #
 
@@ -25,8 +25,8 @@ rust_decimal_macros.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
 lexe-api-core = { path = "../lexe-api-core", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true

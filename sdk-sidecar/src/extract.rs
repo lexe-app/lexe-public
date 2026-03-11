@@ -2,9 +2,9 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use axum::extract::FromRequestParts;
-use common::{ed25519, rng::SysRng};
 use http::header::AUTHORIZATION;
 use lexe_api::error::SdkApiError;
+use lexe_common::{ed25519, rng::SysRng};
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::{ClientCredentials, Credentials, CredentialsRef},

@@ -12,7 +12,8 @@ use axum::{
     Router,
     routing::{get, post, put},
 };
-use common::{
+use lexe_api::models::command::GDriveStatus;
+use lexe_common::{
     api::{
         revocable_clients::RevocableClients,
         user::{NodePk, Scid, UserPk},
@@ -22,7 +23,6 @@ use common::{
     env::DeployEnv,
     ln::network::LxNetwork,
 };
-use lexe_api::models::command::GDriveStatus;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEvent,

@@ -1,4 +1,4 @@
-//! Bitcoin / Lightning Lexe newtypes which have to be in `common` for some
+//! Bitcoin / Lightning Lexe newtypes which have to be in `lexe-common` for some
 //! reason, likely because they are referenced in an API definition.
 
 /// `LxSocketAddress`

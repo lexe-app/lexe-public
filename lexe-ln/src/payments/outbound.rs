@@ -1,7 +1,6 @@
 use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::ensure;
-use common::{ByteArray, ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     bounded_note::BoundedNote,
     invoice::LxInvoice,
@@ -11,6 +10,7 @@ use lexe_api::types::{
         LxPaymentPreimage, LxPaymentSecret, PaymentKind, PaymentRail,
     },
 };
+use lexe_common::{ByteArray, ln::amount::Amount, time::TimestampMs};
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
     events::Event::{PaymentFailed, PaymentSent},
@@ -804,10 +804,10 @@ impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
 
 #[cfg(test)]
 pub(crate) mod arbitrary_impl {
-    use common::test_utils::arbitrary;
     use lexe_api::types::{
         invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
     };
+    use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
         strategy::{BoxedStrategy, Strategy},
@@ -1139,7 +1139,7 @@ pub(crate) mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip::json_unit_enum_backwards_compat;
+    use lexe_common::test_utils::roundtrip::json_unit_enum_backwards_compat;
 
     use super::*;
 

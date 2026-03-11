@@ -8,7 +8,6 @@ use axum::{
     extract::{FromRequestParts, State},
     routing::{get, post},
 };
-use common::{ed25519, env::DeployEnv};
 use lexe::types::{
     command::{
         CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
@@ -26,6 +25,7 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
 };
+use lexe_common::{ed25519, env::DeployEnv};
 use lexe_node_client::{client::NodeClient, credentials::Credentials};
 use quick_cache::unsync;
 use tokio::sync::mpsc;

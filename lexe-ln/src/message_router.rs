@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use bitcoin::secp256k1;
-use common::{cli::LspInfo, ln::addr::LxSocketAddress, rng::SysRngDerefHack};
+use lexe_common::{
+    cli::LspInfo, ln::addr::LxSocketAddress, rng::SysRngDerefHack,
+};
 #[cfg(doc)]
 use lightning::ln::msgs::OnionMessage;
 use lightning::{
@@ -266,7 +268,7 @@ mod tests {
     use std::str::FromStr;
 
     use bitcoin::secp256k1::PublicKey;
-    use common::{
+    use lexe_common::{
         api::user::NodePk,
         cli::LspInfo,
         ln::addr::LxSocketAddress,

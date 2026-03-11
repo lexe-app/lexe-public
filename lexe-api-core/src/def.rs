@@ -24,8 +24,8 @@
 //! The methods below should resemble the data actually sent across the wire.
 //!
 //! [`Empty`]: crate::types::Empty
-//! [`UserPk`]: common::api::user::UserPk
-//! [`UserPkStruct`]: common::api::user::UserPkStruct
+//! [`UserPk`]: lexe_common::api::user::UserPk
+//! [`UserPkStruct`]: lexe_common::api::user::UserPkStruct
 
 #![deny(missing_docs)]
 // We don't export our traits currently so auto trait stability is not relevant.
@@ -36,14 +36,14 @@ use std::collections::HashSet;
 use async_trait::async_trait;
 use bytes::Bytes;
 #[cfg(doc)]
-use common::{
+use lexe_common::{
     api::MegaIdStruct,
     api::models::BroadcastedTxInfo,
     api::user::NodePkStruct,
     api::user::{UserPkSet, UserPkStruct},
     api::version::MeasurementStruct,
 };
-use common::{
+use lexe_common::{
     api::{
         MegaId,
         auth::{

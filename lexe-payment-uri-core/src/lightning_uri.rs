@@ -149,7 +149,7 @@ impl fmt::Display for LightningUri {
 
 #[cfg(test)]
 mod test {
-    use common::{ln::network::LxNetwork, time::TimestampMs};
+    use lexe_common::{ln::network::LxNetwork, time::TimestampMs};
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;

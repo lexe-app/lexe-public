@@ -21,8 +21,8 @@ unstable = []
 
 # --- LEXE --- #
 
-common = { path = "../common" }
 lexe-api = { path = "../lexe-api" }
+lexe-common = { path = "../lexe-common" }
 lexe-logger = { path = "../lexe-logger" }
 lexe-node-client = { path = "../lexe-node-client" }
 lexe-payment-uri = { path = "../lexe-payment-uri" }
@@ -47,8 +47,8 @@ futures = { workspace = true, optional = true, features = ["executor"] }
 tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 proptest = { workspace = true, features = ["std"] }
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }

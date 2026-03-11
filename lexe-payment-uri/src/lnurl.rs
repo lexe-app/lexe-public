@@ -77,7 +77,6 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
-use common::{constants, env::DeployEnv, ln::amount::Amount};
 use lexe_api_core::types::{
     invoice::LxInvoice,
     lnurl::{
@@ -85,6 +84,7 @@ use lexe_api_core::types::{
         LnurlPayRequestMetadata, LnurlPayRequestWire,
     },
 };
+use lexe_common::{constants, env::DeployEnv, ln::amount::Amount};
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 use serde::Deserialize;
 use tracing::debug;
@@ -324,7 +324,7 @@ impl LnurlClient {
 mod test {
     use std::time::Duration;
 
-    use common::{
+    use lexe_common::{
         env::DeployEnv,
         ln::amount::Amount,
         rng::{Rng, ThreadFastRng},

@@ -3,21 +3,6 @@
 use std::str::FromStr;
 
 use anyhow::{Context, anyhow};
-use common::{
-    api::{
-        auth::Scope as ScopeRs,
-        fiat_rates::FiatRates as FiatRatesRs,
-        revocable_clients::{
-            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-            UpdateClientRequest as UpdateClientRequestRs,
-        },
-    },
-    ed25519,
-    ln::{
-        amount::Amount,
-        channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
-    },
-};
 use lexe_api::{
     models::command::{
         CloseChannelRequest as CloseChannelRequestRs,
@@ -55,6 +40,21 @@ use lexe_api::{
             ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
         },
+    },
+};
+use lexe_common::{
+    api::{
+        auth::Scope as ScopeRs,
+        fiat_rates::FiatRates as FiatRatesRs,
+        revocable_clients::{
+            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+            UpdateClientRequest as UpdateClientRequestRs,
+        },
+    },
+    ed25519,
+    ln::{
+        amount::Amount,
+        channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
     },
 };
 
@@ -668,7 +668,7 @@ impl PayOfferResponse {
     }
 }
 
-/// See `common::api::user::UpdatePaymentNote`.
+/// See `lexe_common::api::user::UpdatePaymentNote`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UpdatePaymentNote {
@@ -686,7 +686,7 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     }
 }
 
-/// See `common::api::revocable_clients::CreateRevocableClientRequest`.
+/// See `lexe_common::api::revocable_clients::CreateRevocableClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 #[derive(Clone)]
@@ -711,7 +711,7 @@ pub struct CreateClientResponse {
     pub credentials: String,
 }
 
-/// See `common::api::revocable_clients::UpdateClientRequest`.
+/// See `lexe_common::api::revocable_clients::UpdateClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UpdateClientRequest {

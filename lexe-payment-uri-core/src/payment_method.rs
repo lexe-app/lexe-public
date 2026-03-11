@@ -1,10 +1,10 @@
 use bitcoin::address::{NetworkUnchecked, NetworkValidation};
-use common::ln::{amount::Amount, network::LxNetwork};
-#[cfg(test)]
-use common::{ln::amount, test_utils::arbitrary};
 use lexe_api_core::types::{
     invoice::LxInvoice, lnurl::LnurlPayRequest, offer::LxOffer,
 };
+use lexe_common::ln::{amount::Amount, network::LxNetwork};
+#[cfg(test)]
+use lexe_common::{ln::amount, test_utils::arbitrary};
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]

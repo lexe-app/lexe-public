@@ -1,4 +1,5 @@
-//! `common` contains types and functionality shared between most Lexe crates.
+//! `lexe-common` contains types and functionality shared between most Lexe
+//! crates.
 
 // Ignore this issue with `proptest_derive::Arbitrary`.
 #![allow(clippy::arc_with_non_send_sync)]

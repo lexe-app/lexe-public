@@ -8,7 +8,7 @@ pub mod bip353;
 pub mod lnurl;
 
 use anyhow::{Context, anyhow, ensure};
-use common::ln::network::LxNetwork;
+use lexe_common::ln::network::LxNetwork;
 pub use lexe_payment_uri_core::*;
 
 /// Resolve a `PaymentUri` into a single, "best" [`PaymentMethod`].
@@ -140,7 +140,7 @@ async fn resolve_payment_methods(
 mod test {
     use std::time::Duration;
 
-    use common::{env::DeployEnv, ln::network::LxNetwork};
+    use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
     use lexe_std::Apply;
     use tracing::info;
 

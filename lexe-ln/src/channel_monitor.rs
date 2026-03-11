@@ -7,8 +7,8 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use common::ln::channel::LxOutPoint;
 use futures::{StreamExt, stream::FuturesUnordered};
+use lexe_common::ln::channel::LxOutPoint;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::transaction::OutPoint;
 use tokio::sync::mpsc;

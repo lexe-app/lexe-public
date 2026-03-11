@@ -1,9 +1,6 @@
 use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
-#[cfg(test)]
-use common::test_utils::arbitrary;
-use common::{ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     invoice::LxInvoice,
     payments::{
@@ -11,6 +8,9 @@ use lexe_api::types::{
         LxPaymentSecret, PaymentKind,
     },
 };
+#[cfg(test)]
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{ln::amount::Amount, time::TimestampMs};
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
     events::{
@@ -640,7 +640,7 @@ mod arb {
 #[cfg(test)]
 mod test {
     use arbitrary::gen_values;
-    use common::{rng::FastRng, test_utils::snapshot};
+    use lexe_common::{rng::FastRng, test_utils::snapshot};
     use proptest::arbitrary::any;
 
     use super::*;

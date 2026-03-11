@@ -85,7 +85,7 @@ sealed class Config with _$Config {
 
 enum ConfirmationPriority { high, normal, background }
 
-/// See [`common::env::DeployEnv`]
+/// See [`lexe_common::env::DeployEnv`]
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 enum DeployEnv {
@@ -294,7 +294,7 @@ class LxChannelDetails {
           inboundCapacitySats == other.inboundCapacitySats;
 }
 
-/// See [`common::ln::network::LxNetwork`]
+/// See [`lexe_common::ln::network::LxNetwork`]
 enum Network {
   mainnet,
   testnet3,

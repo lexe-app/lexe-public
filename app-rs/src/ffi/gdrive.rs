@@ -1,10 +1,5 @@
 use anyhow::Context;
 use base64::Engine;
-pub(crate) use common::root_seed::RootSeed as RootSeedRs;
-use common::{
-    api::user::{NodePk, UserPk},
-    rng::SysRng,
-};
 use flutter_rust_bridge::RustOpaqueNom;
 pub(crate) use gdrive::restore::{
     GDriveRestoreCandidate as GDriveRestoreCandidateRs,
@@ -14,6 +9,11 @@ use gdrive::{GoogleVfs, gvfs::GvfsRootName};
 use lexe_api::vfs::{
     CHANNEL_MANAGER_FILENAME, CHANNEL_MONITORS_DIR, SINGLETON_DIRECTORY,
     VfsDirectory, VfsFile, VfsFileId,
+};
+pub(crate) use lexe_common::root_seed::RootSeed as RootSeedRs;
+use lexe_common::{
+    api::user::{NodePk, UserPk},
+    rng::SysRng,
 };
 use serde::Serialize;
 use tracing::{error, instrument};

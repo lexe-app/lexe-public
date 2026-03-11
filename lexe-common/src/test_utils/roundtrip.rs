@@ -77,7 +77,7 @@ where
 /// number of iterations on proptests that would otherwise take too long.
 ///
 /// ```
-/// # use common::test_utils::{arbitrary, roundtrip};
+/// # use lexe_common::test_utils::{arbitrary, roundtrip};
 /// # use proptest::test_runner::Config;
 /// let config = Config::with_cases(1);
 /// roundtrip::json_value_custom(arbitrary::any_raw_tx(), config);
@@ -116,8 +116,8 @@ where
 /// proptests that would otherwise take too long.
 ///
 /// ```
-/// # use common::api::user::UserPk;
-/// # use common::test_utils::roundtrip;
+/// # use lexe_common::api::user::UserPk;
+/// # use lexe_common::test_utils::roundtrip;
 /// # use proptest::arbitrary::{any, Arbitrary};
 /// # use proptest::test_runner::Config;
 ///
@@ -195,7 +195,7 @@ where
 /// number of iterations on proptests that would otherwise take too long.
 ///
 /// ```
-/// # use common::test_utils::{arbitrary, roundtrip};
+/// # use lexe_common::test_utils::{arbitrary, roundtrip};
 /// # use proptest::test_runner::Config;
 /// let config = Config::with_cases(1);
 /// roundtrip::fromstr_display_custom(arbitrary::any_outpoint(), config);

@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt};
 
 use anyhow::{Context, ensure};
-use common::{
+use lexe_common::{
     api::user::UserPk,
     ed25519,
     enclave::{self, MachineId, Measurement, Sealed},
@@ -38,7 +38,7 @@ pub struct SealedSeedId {
 /// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`LxNetwork`])
 ///   into a [`SealedSeed`], use [`seal_from_root_seed`].
 ///
-/// See [`common::enclave::seal`] for more implementation details.
+/// See [`lexe_common::enclave::seal`] for more implementation details.
 ///
 /// [`unseal_and_validate`]: Self::unseal_and_validate
 /// [`seal_from_root_seed`]: Self::seal_from_root_seed
@@ -224,7 +224,7 @@ mod test_impls {
 
 #[cfg(test)]
 mod test {
-    use common::{rng::FastRng, test_utils::roundtrip};
+    use lexe_common::{rng::FastRng, test_utils::roundtrip};
     use proptest::{arbitrary::any, proptest};
 
     use super::*;

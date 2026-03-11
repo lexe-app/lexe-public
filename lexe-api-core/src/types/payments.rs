@@ -14,16 +14,16 @@ use bitcoin::{
     address::NetworkUnchecked,
     hashes::{Hash, sha256},
 };
+use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
-use common::test_utils::arbitrary;
-use common::{
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
     debug_panic_release_log,
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     rng::{RngCore, RngExt},
     serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
 };
-use lexe_byte_array::ByteArray;
 use lexe_std::const_assert_mem_size;
 use lightning::{
     offers::offer::OfferId,
@@ -1605,7 +1605,7 @@ impl Display for LxPaymentId {
 mod test {
     use std::fs;
 
-    use common::{
+    use lexe_common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip, snapshot},
     };

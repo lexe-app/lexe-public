@@ -1,6 +1,8 @@
 use anyhow::Context;
-use common::{cli::node::MegaArgs, constants, rng::Crng, time::TimestampMs};
 use lexe_api::{def::MegaRunnerApi, types::ports::MegaPorts};
+use lexe_common::{
+    cli::node::MegaArgs, constants, rng::Crng, time::TimestampMs,
+};
 use lexe_tls::attestation::NodeMode;
 use lexe_tokio::{notify_once::NotifyOnce, task};
 use tokio::sync::mpsc;
@@ -122,8 +124,8 @@ mod mega_server {
         Router,
         routing::{get, post},
     };
-    use common::{api::MegaId, net};
     use lexe_api::{server::LayerConfig, types::ports::Port};
+    use lexe_common::{api::MegaId, net};
     use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
     use tokio::sync::mpsc;
     use tracing::info_span;
@@ -189,10 +191,6 @@ mod mega_server {
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use common::{
-        api::{MegaIdStruct, models::Status},
-        time::TimestampMs,
-    };
     use lexe_api::{
         error::{MegaApiError, MegaErrorKind},
         models::runner::{
@@ -201,6 +199,10 @@ mod handlers {
         },
         server::{LxJson, extract::LxQuery},
         types::Empty,
+    };
+    use lexe_common::{
+        api::{MegaIdStruct, models::Status},
+        time::TimestampMs,
     };
     use tokio::sync::oneshot;
 

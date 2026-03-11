@@ -1,4 +1,4 @@
-use common::{ed25519, enclave, rng::SysRng};
+use lexe_common::{ed25519, enclave, rng::SysRng};
 use lexe_hex::hex;
 use lexe_tls::attestation::{
     self,

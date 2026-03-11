@@ -1,4 +1,4 @@
-use common::{
+use lexe_common::{
     api::{MegaId, user::UserPk},
     enclave::Measurement,
 };

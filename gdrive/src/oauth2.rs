@@ -7,13 +7,13 @@ use std::{
 };
 
 use base64::Engine;
+use lexe_byte_array::ByteArray;
 #[cfg(test)]
-use common::test_utils::arbitrary;
-use common::{
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
     constants,
     rng::{Crng, RngExt},
 };
-use lexe_byte_array::ByteArray;
 use lexe_sha256::sha256;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -598,7 +598,7 @@ fn verify_response_scope(scope: String) -> Result<(), Error> {
 
 #[cfg(test)]
 mod test {
-    use common::{rng::FastRng, test_utils::roundtrip};
+    use lexe_common::{rng::FastRng, test_utils::roundtrip};
 
     use super::*;
 

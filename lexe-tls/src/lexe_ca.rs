@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, LazyLock};
 
-use common::{constants, ed25519, env::DeployEnv};
+use lexe_common::{constants, ed25519, env::DeployEnv};
 use rustls::{
     RootCertStore,
     client::WebPkiServerVerifier,
@@ -156,8 +156,9 @@ mod test {
     #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_dummy_lexe_ca_cert_eq() {
         let cert1 = gen_dummy_lexe_ca_cert().cert_der.0;
-        let cert2 = std::fs::read("../common/data/lexe-dummy-root-ca-cert.der")
-            .unwrap();
+        let cert2 =
+            std::fs::read("../lexe-common/data/lexe-dummy-root-ca-cert.der")
+                .unwrap();
         assert_eq!(
             cert1, cert2,
             "The generated dummy Lexe CA cert doesn't match the checked in \
@@ -176,7 +177,7 @@ mod test {
     fn dump_dummy_lexe_ca_cert() {
         let cert = gen_dummy_lexe_ca_cert().cert_der;
         std::fs::write(
-            "../common/data/lexe-dummy-root-ca-cert.new.der",
+            "../lexe-common/data/lexe-dummy-root-ca-cert.new.der",
             &cert.0,
         )
         .unwrap();

@@ -255,7 +255,7 @@ mod test {
     // ```bash
     // $ nix shell .#secretctl
     // $ PASSWORD=".." IN_PATH=".." \
-    //     cargo test -p common --lib -- test_decrypt_root_seed --nocapture --ignored
+    //     cargo test -p lexe-common --lib -- test_decrypt_root_seed --nocapture --ignored
     // ```
     #[test]
     #[ignore]

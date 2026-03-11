@@ -1,5 +1,5 @@
 use base64::Engine as _;
-use common::ed25519;
+use lexe_common::ed25519;
 use rustls::pki_types::pem::PemObject;
 use secrecy::Zeroize;
 

@@ -79,11 +79,11 @@ impl Bip353Client {
             let mut certs = RootCertStore::empty();
             for cert_der in [
                 // Google roots
-                common::constants::GTS_ROOT_R1_CA_CERT_DER,
-                common::constants::GTS_ROOT_R2_CA_CERT_DER,
-                common::constants::GTS_ROOT_R3_CA_CERT_DER,
-                common::constants::GTS_ROOT_R4_CA_CERT_DER,
-                common::constants::GS_ROOT_R4_CA_CERT_DER,
+                lexe_common::constants::GTS_ROOT_R1_CA_CERT_DER,
+                lexe_common::constants::GTS_ROOT_R2_CA_CERT_DER,
+                lexe_common::constants::GTS_ROOT_R3_CA_CERT_DER,
+                lexe_common::constants::GTS_ROOT_R4_CA_CERT_DER,
+                lexe_common::constants::GS_ROOT_R4_CA_CERT_DER,
             ] {
                 let cert = CertificateDer::from_slice(cert_der);
                 certs
@@ -347,7 +347,7 @@ mod direct_dns {
 mod test {
     use std::time::Duration;
 
-    use common::ln::network::LxNetwork;
+    use lexe_common::ln::network::LxNetwork;
     use tracing::info;
 
     use super::*;

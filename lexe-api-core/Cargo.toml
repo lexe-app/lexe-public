@@ -19,9 +19,9 @@ axum = ["dep:axum", "dep:http-body-util"]
 reqwest = ["dep:reqwest"]
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
-  "common/test-utils",
   "dep:proptest",
   "dep:proptest-derive",
+  "lexe-common/test-utils",
 ]
 
 [dependencies]
@@ -29,9 +29,9 @@ test-utils = [
 # --- LEXE --- #
 
 lexe-byte-array.path = "../lexe-byte-array"
-common.path = "../common"
-lexe-std.path = "../lexe-std"
+lexe-common.path = "../lexe-common"
 lexe-sha256.path = "../lexe-sha256"
+lexe-std.path = "../lexe-std"
 
 # --- WORKSPACE --- #
 
@@ -43,8 +43,8 @@ bitcoin = { workspace = true, features = ["serde"] }
 bytes.workspace = true
 futures.workspace = true
 http.workspace = true
-lightning.workspace = true
 lightning-invoice.workspace = true
+lightning.workspace = true
 ref-cast.workspace = true
 secrecy.workspace = true
 semver = { workspace = true, features = ["serde"] }
@@ -64,7 +64,7 @@ proptest-derive = { optional = true, workspace = true }
 reqwest = { optional = true, workspace = true }
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 lexe-hex.path = "../lexe-hex"
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true

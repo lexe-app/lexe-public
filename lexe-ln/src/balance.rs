@@ -1,7 +1,7 @@
 use std::cmp;
 
 use anyhow::Context;
-use common::{
+use lexe_common::{
     cli::LspFees,
     ln::{amount::Amount, balance::LightningBalance},
 };

@@ -1,7 +1,7 @@
 use std::{ops::Deref, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
-use common::api::test_event::TestEvent;
+use lexe_common::api::test_event::TestEvent;
 use lexe_std::const_assert;
 use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::BroadcasterInterface;

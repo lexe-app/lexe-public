@@ -6,7 +6,6 @@ use std::time::SystemTime;
 
 use anyhow::Context;
 use bytes::Bytes;
-use common::{aes::AesMasterKey, constants::IMPORTANT_PERSIST_RETRIES};
 use gdrive::GoogleVfs;
 use lexe_api::{
     auth::BearerAuthenticator,
@@ -14,6 +13,7 @@ use lexe_api::{
     error::BackendErrorKind,
     vfs::{VfsFile, VfsFileId},
 };
+use lexe_common::{aes::AesMasterKey, constants::IMPORTANT_PERSIST_RETRIES};
 use lexe_ln::persister;
 use lexe_std::backoff;
 use secrecy::Secret;

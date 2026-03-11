@@ -6,12 +6,6 @@
 use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use bitcoin::address::NetworkUnchecked;
-#[cfg(test)]
-use common::test_utils::arbitrary;
-use common::{
-    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
-    time::TimestampMs,
-};
 use lexe_api::types::{
     invoice::LxInvoice,
     offer::LxOffer,
@@ -19,6 +13,12 @@ use lexe_api::types::{
         BasicPaymentV2, LxOfferId, LxPaymentId, PaymentDirection, PaymentKind,
         PaymentRail, PaymentStatus,
     },
+};
+#[cfg(test)]
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
+    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    time::TimestampMs,
 };
 use lexe_std::const_assert_mem_size;
 #[cfg(test)]
@@ -1160,7 +1160,7 @@ mod arbitrary_helpers {
 mod test {
     use std::{cmp, fs, path::Path};
 
-    use common::{
+    use lexe_common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };
@@ -1305,7 +1305,7 @@ mod test {
     /// ```bash
     /// $ cargo test -p lexe-ln --lib -- take_basic_payment_v2_snapshot --ignored --nocapture
     /// ```
-    /// NOTE: this lives here b/c `common` can't depend on `lexe-ln`.
+    /// NOTE: this lives here b/c `lexe-common` can't depend on `lexe-ln`.
     // TODO(max): This test won't be useful until all logic is migrated to
     // PaymentV2, and we've finalized the PaymentV2 + PaymentMetadata
     // serialization format.

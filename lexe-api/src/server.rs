@@ -63,14 +63,14 @@ use axum::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::Bytes;
-use common::{
-    api::auth::{self, Scope},
-    ed25519,
-};
 use http::{HeaderValue, StatusCode, header::CONTENT_TYPE};
 use lexe_api_core::{
     axum_helpers,
     error::{CommonApiError, CommonErrorKind},
+};
+use lexe_common::{
+    api::auth::{self, Scope},
+    ed25519,
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{Serialize, de::DeserializeOwned};

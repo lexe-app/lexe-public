@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
-use common::api::user::NodePk;
 use lexe_api::vfs::Vfs;
+use lexe_common::api::user::NodePk;
 use lightning::{
     chain::chainmonitor::Persist, ln::msgs::RoutingMessageHandler,
 };

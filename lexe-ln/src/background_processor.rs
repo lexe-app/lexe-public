@@ -1,6 +1,6 @@
 use std::{ops::Deref, pin::Pin, sync::Arc, time::Duration};
 
-use common::{
+use lexe_common::{
     rng::{Rng, ThreadFastRng},
     time::DisplayMs,
 };

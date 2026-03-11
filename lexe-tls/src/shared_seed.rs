@@ -59,7 +59,7 @@
 //!     |
 //!     |___ (no server cert; node always presents [`EphemeralServerCert`])
 //!
-//! [`RootSeed`]: common::root_seed::RootSeed
+//! [`RootSeed`]: lexe_common::root_seed::RootSeed
 //! [`EphemeralIssuingCaCert`]: crate::shared_seed::certs::EphemeralIssuingCaCert
 //! [`EphemeralClientCert`]: crate::shared_seed::certs::EphemeralClientCert
 //! [`EphemeralServerCert`]: crate::shared_seed::certs::EphemeralServerCert
@@ -80,7 +80,7 @@ use certs::{
     EphemeralClientCert, EphemeralIssuingCaCert, EphemeralServerCert,
     RevocableIssuingCaCert,
 };
-use common::{
+use lexe_common::{
     api::revocable_clients::RevocableClients, constants, ed25519,
     env::DeployEnv, rng::Crng, root_seed::RootSeed, time::TimestampMs,
 };
@@ -517,7 +517,7 @@ mod test {
     use std::sync::Arc;
 
     use certs::RevocableClientCert;
-    use common::{
+    use lexe_common::{
         api::{auth::Scope, revocable_clients::RevocableClient},
         env::DeployEnv,
         rng::FastRng,

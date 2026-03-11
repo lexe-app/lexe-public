@@ -10,7 +10,7 @@
 //! `Decimal::from_str`, then call the appropriate [`Amount`] constructor.
 //!
 //! ```
-//! # use common::ln::amount::Amount;
+//! # use lexe_common::ln::amount::Amount;
 //! # use rust_decimal::Decimal;
 //! # use std::str::FromStr;
 //!
@@ -31,7 +31,7 @@
 //! use the outputted [`Decimal`]'s [`Display`] impl for equivalent behavior.
 //!
 //! ```
-//! # use common::ln::amount::Amount;
+//! # use lexe_common::ln::amount::Amount;
 //!
 //! let amount = Amount::from_msat(69_420_420);
 //! println!("{amount} msats");

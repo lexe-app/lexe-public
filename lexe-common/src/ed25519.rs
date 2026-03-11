@@ -926,7 +926,7 @@ mod test {
     }
 
     // ```bash
-    // $ cargo test -p common --lib -- pkcs8_der_snapshot_data --nocapture --ignored
+    // $ cargo test -p lexe-common --lib -- pkcs8_der_snapshot_data --nocapture --ignored
     // ```
     #[ignore]
     #[test]

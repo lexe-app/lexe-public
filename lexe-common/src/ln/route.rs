@@ -228,7 +228,7 @@ mod test {
 
     /// Check the [`fmt::Display`] implementation of [`LxRoute`].
     ///
-    /// $ cargo test -p common display_route -- --ignored --nocapture
+    /// $ cargo test -p lexe-common display_route -- --ignored --nocapture
     #[ignore]
     #[test]
     fn display_route() {

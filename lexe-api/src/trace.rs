@@ -8,8 +8,8 @@ use std::{
 };
 
 use anyhow::{Context, bail, ensure};
-use common::{rng::ThreadFastRng, time::DisplayMs};
 use http::{HeaderName, HeaderValue};
+use lexe_common::{rng::ThreadFastRng, time::DisplayMs};
 use rand_core::RngCore;
 use tracing::{Dispatch, span, warn};
 
@@ -65,7 +65,7 @@ impl TraceId {
 
     /// Generate a [`TraceId`] from an existing rng.
     pub fn from_rng(rng: &mut impl RngCore) -> Self {
-        use common::rng::RngExt;
+        use lexe_common::rng::RngExt;
 
         // Generate a 16 byte array with alphanumeric characters
         let buf: [u8; Self::LENGTH] = rng.gen_alphanum_bytes();
@@ -260,7 +260,7 @@ impl fmt::Debug for TraceId {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use common::rng::FastRng;
+    use lexe_common::rng::FastRng;
     use proptest::{
         arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
@@ -295,7 +295,7 @@ mod arbitrary_impl {
 ///     // If using a more complex subscriber, you will have to name the type,
 ///     // e.g. `Layered<Filtered<FmtLayer<Registry, ...>, ..., ...>, ...>`.
 ///     // See public/logger/src/lib.rs for an example of this.
-///     common::define_trace_id_fns!(FmtSubscriber);
+///     lexe_common::define_trace_id_fns!(FmtSubscriber);
 ///     lexe_api::trace::GET_TRACE_ID_FN
 ///         .set(get_trace_id_from_span)
 ///         .map_err(|_| anyhow!("GET_TRACE_ID_FN already set"))?;

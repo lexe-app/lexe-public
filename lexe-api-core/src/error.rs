@@ -7,16 +7,16 @@
 use std::{error::Error, fmt};
 
 use anyhow::anyhow;
+use http::status::StatusCode;
 #[cfg(any(test, feature = "test-utils"))]
-use common::test_utils::arbitrary;
-use common::{
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
     api::{
         MegaId, auth,
         user::{NodePk, UserPk},
     },
     enclave::{self, Measurement},
 };
-use http::status::StatusCode;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -151,7 +151,7 @@ pub trait ToHttpStatus {
 //
 // ```bash
 // $ cargo install cargo-expand
-// $ cd public/common/
+// $ cd public/lexe-common/
 // $ cargo expand api::error
 // ```
 
@@ -1686,7 +1686,7 @@ pub mod invariants {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
     use proptest::{prelude::any, prop_assert_eq, proptest};
 
     use super::*;

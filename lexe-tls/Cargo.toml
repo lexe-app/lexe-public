@@ -7,7 +7,7 @@ version.workspace = true
 publish = true
 
 # Config for testing in SGX
-# Need more threads and more stack for tokio. See: common/Cargo.toml.
+# Need more threads and more stack for tokio. See: lexe-common/Cargo.toml.
 [package.metadata.fortanix-sgx]
 stack-size = 0x20_0000
 threads = 4
@@ -16,7 +16,7 @@ threads = 4
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
-  "common/test-utils",
+  "lexe-common/test-utils",
   "dep:proptest",
   "dep:proptest-derive",
   "dep:tokio-rustls",
@@ -26,7 +26,7 @@ test-utils = [
 
 # --- LEXE --- #
 
-common.path = "../common"
+lexe-common.path = "../lexe-common"
 lexe-byte-array.path = "../lexe-byte-array"
 lexe-hex.path = "../lexe-hex"
 lexe-sha256.path = "../lexe-sha256"
@@ -67,7 +67,7 @@ bytemuck.workspace = true
 cmac.workspace = true
 
 [dev-dependencies]
-common = { path = "../common", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }

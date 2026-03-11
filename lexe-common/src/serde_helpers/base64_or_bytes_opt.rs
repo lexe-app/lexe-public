@@ -4,7 +4,7 @@
 //! ## Example:
 //!
 //! ```rust
-//! use common::serde_helpers::base64_or_bytes_opt;
+//! use lexe_common::serde_helpers::base64_or_bytes_opt;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]

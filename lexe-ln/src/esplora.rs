@@ -8,7 +8,8 @@ use std::{
 use anyhow::{Context, anyhow, ensure};
 use arc_swap::ArcSwap;
 use bitcoin::OutPoint;
-use common::{
+use esplora_client::{AsyncClient, api::OutputStatus};
+use lexe_common::{
     constants,
     ln::{
         hashes::LxTxid,
@@ -16,7 +17,6 @@ use common::{
         priority::{ConfirmationPriority, ToNumBlocks},
     },
 };
-use esplora_client::{AsyncClient, api::OutputStatus};
 use lexe_tls_core::rustls;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
@@ -519,7 +519,7 @@ impl LexeEsplora {
 
 #[cfg(test)]
 mod arb {
-    use common::test_utils::arbitrary;
+    use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},

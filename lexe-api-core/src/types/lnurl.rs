@@ -4,8 +4,8 @@ use std::fmt;
 
 use anyhow::Context;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64};
-use common::{ByteArray, ln::amount::Amount};
 use http::StatusCode;
+use lexe_common::{ByteArray, ln::amount::Amount};
 use lexe_sha256::sha256;
 use serde::{Deserialize, Serialize};
 
@@ -378,7 +378,7 @@ impl LnurlPayRequestMetadata {
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod arbitrary_impl {
-    use common::test_utils::arbitrary::{self, any_string};
+    use lexe_common::test_utils::arbitrary::{self, any_string};
     use proptest::{
         arbitrary::{Arbitrary, any},
         option,
@@ -494,7 +494,7 @@ pub mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
 
     use super::*;
 

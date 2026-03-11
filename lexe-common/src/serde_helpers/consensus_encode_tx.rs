@@ -6,7 +6,7 @@
 //! ## Example:
 //!
 //! ```rust
-//! use common::serde_helpers::consensus_encode_tx;
+//! use lexe_common::serde_helpers::consensus_encode_tx;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]

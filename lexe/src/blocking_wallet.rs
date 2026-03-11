@@ -9,8 +9,8 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use common::{api::user::UserPk, root_seed::RootSeed};
 use lexe_api::types::payments::PaymentCreatedIndex;
+use lexe_common::{api::user::UserPk, root_seed::RootSeed};
 use lexe_node_client::credentials::CredentialsRef;
 
 use crate::{

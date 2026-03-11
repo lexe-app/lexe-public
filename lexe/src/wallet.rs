@@ -1,7 +1,12 @@
 use std::{marker::PhantomData, path::PathBuf, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
-use common::{
+use lexe_api::{
+    def::{AppBackendApi, AppNodeRunApi},
+    models::command,
+    types::payments::{PaymentCreatedIndex, PaymentStatus},
+};
+use lexe_common::{
     api::{
         auth::{
             UserSignupRequestWire, UserSignupRequestWireV1,
@@ -11,11 +16,6 @@ use common::{
     },
     rng::SysRng,
     root_seed::RootSeed,
-};
-use lexe_api::{
-    def::{AppBackendApi, AppNodeRunApi},
-    models::command,
-    types::payments::{PaymentCreatedIndex, PaymentStatus},
 };
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
@@ -241,7 +241,7 @@ impl LexeWallet<WithDb> {
             .expect("WithDb always has db")
             .sync_payments(
                 &self.node_client,
-                common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+                lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
             )
             .await
     }

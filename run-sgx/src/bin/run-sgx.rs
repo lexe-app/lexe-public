@@ -68,8 +68,8 @@ impl Args {
 
         use aesm_client::AesmClient;
         use anyhow::Context;
-        use common::enclave::Measurement;
         use enclave_runner::EnclaveBuilder;
+        use lexe_common::enclave::Measurement;
         use run_sgx::aesm_proxy::AesmProxy;
         use sgxs_loaders::isgx;
 

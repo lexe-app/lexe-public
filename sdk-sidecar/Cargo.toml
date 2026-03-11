@@ -15,9 +15,9 @@ path = "src/main.rs"
 
 # --- LEXE --- #
 
-common = { path = "../common" }
 lexe = { path = "../lexe" }
 lexe-api = { path = "../lexe-api" }
+lexe-common = { path = "../lexe-common" }
 lexe-logger = { path = "../lexe-logger" }
 lexe-node-client.path = "../lexe-node-client"
 lexe-std.path = "../lexe-std"

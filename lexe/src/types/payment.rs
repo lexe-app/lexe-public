@@ -3,11 +3,11 @@
 use std::sync::Arc;
 
 use bitcoin::address::NetworkUnchecked;
-use common::{
+use lexe_api::types::{invoice::LxInvoice, payments::BasicPaymentV2};
+use lexe_common::{
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_api::types::{invoice::LxInvoice, payments::BasicPaymentV2};
 use serde::{Deserialize, Serialize};
 
 /// Re-exports that are part of the SDK's public API.

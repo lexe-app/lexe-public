@@ -31,7 +31,7 @@ pub mod payment;
 
 /// Authentication, identity, and node verification.
 pub mod auth {
-    pub use common::{
+    pub use lexe_common::{
         api::user::{NodePk, UserPk},
         enclave::Measurement,
         root_seed::RootSeed,
@@ -43,13 +43,13 @@ pub mod auth {
 
 /// On-chain and Bitcoin primitives.
 pub mod bitcoin {
-    pub use common::ln::{
+    pub use lexe_api::types::invoice::LxInvoice;
+    pub use lexe_common::ln::{
         amount::Amount, hashes::LxTxid, priority::ConfirmationPriority,
     };
-    pub use lexe_api::types::invoice::LxInvoice;
 }
 
 /// General-purpose utilities.
 pub mod util {
-    pub use common::time::TimestampMs;
+    pub use lexe_common::time::TimestampMs;
 }

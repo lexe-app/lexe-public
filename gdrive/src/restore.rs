@@ -3,11 +3,11 @@
 
 use anyhow::Context;
 use bytes::Bytes;
-use common::{
-    env::DeployEnv, ln::network::LxNetwork, rng::Crng, root_seed::RootSeed,
-};
 use lexe_api_core::vfs::{
     PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY, VfsFile, VfsFileId,
+};
+use lexe_common::{
+    env::DeployEnv, ln::network::LxNetwork, rng::Crng, root_seed::RootSeed,
 };
 use tokio::sync::watch;
 use tracing::{instrument, warn};

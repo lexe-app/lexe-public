@@ -15,34 +15,6 @@ use std::{
 use anyhow::{Context, ensure};
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
-use common::{
-    api::{
-        auth::{
-            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken, Scope,
-            TokenWithExpiration, UserSignupRequestWire,
-            UserSignupRequestWireV1,
-        },
-        fiat_rates::FiatRates,
-        models::{
-            SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
-            VerifyMsgResponse,
-        },
-        provision::NodeProvisionRequest,
-        revocable_clients::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClient, RevocableClients,
-            UpdateClientRequest, UpdateClientResponse,
-        },
-        user::UserPk,
-        version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
-    },
-    byte_str::ByteStr,
-    constants::{self, node_provision_dns},
-    ed25519,
-    enclave::Measurement,
-    env::DeployEnv,
-    rng::Crng,
-};
 use lexe_api::{
     auth::{self, BearerAuthenticator},
     def::{
@@ -79,6 +51,34 @@ use lexe_api::{
         payments::{MaybeBasicPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2},
         username::UsernameStruct,
     },
+};
+use lexe_common::{
+    api::{
+        auth::{
+            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken, Scope,
+            TokenWithExpiration, UserSignupRequestWire,
+            UserSignupRequestWireV1,
+        },
+        fiat_rates::FiatRates,
+        models::{
+            SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
+            VerifyMsgResponse,
+        },
+        provision::NodeProvisionRequest,
+        revocable_clients::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetRevocableClients, RevocableClient, RevocableClients,
+            UpdateClientRequest, UpdateClientResponse,
+        },
+        user::UserPk,
+        version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
+    },
+    byte_str::ByteStr,
+    constants::{self, node_provision_dns},
+    ed25519,
+    enclave::Measurement,
+    env::DeployEnv,
+    rng::Crng,
 };
 use lexe_tls::{attestation, lexe_ca, rustls};
 use reqwest::Url;

@@ -69,7 +69,7 @@ use std::{
 };
 
 use anyhow::{Context, format_err};
-use common::{
+use lexe_common::{
     constants,
     enclave::{Measurement, MrShort},
     env::DeployEnv,
@@ -277,7 +277,7 @@ fn get_or_generate_node_attestation_cert(
 ///   with the gateway, and we use the remote attestation verifier for the inner
 ///   TLS connection which terminates inside the user node SGX enclave.
 ///
-/// [`MrShort`]: common::enclave::MrShort
+/// [`MrShort`]: lexe_common::enclave::MrShort
 #[derive(Debug)]
 struct AppNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier
@@ -355,7 +355,7 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
 
 #[cfg(test)]
 mod test {
-    use common::{enclave, rng::FastRng};
+    use lexe_common::{enclave, rng::FastRng};
 
     use super::*;
     use crate::test_utils;

@@ -8,10 +8,10 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
-#[cfg(test)]
-use common::ln::amount;
-use common::ln::amount::Amount;
 use lexe_api_core::types::{invoice::LxInvoice, offer::LxOffer};
+#[cfg(test)]
+use lexe_common::ln::amount;
+use lexe_common::ln::amount::Amount;
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]
@@ -345,7 +345,7 @@ impl fmt::Display for Bip321Uri {
 #[cfg(test)]
 mod arbitrary_impl {
     use bitcoin::address::NetworkUnchecked;
-    use common::test_utils::arbitrary::any_mainnet_addr_unchecked;
+    use lexe_common::test_utils::arbitrary::any_mainnet_addr_unchecked;
     use proptest::strategy::Strategy;
 
     use crate::helpers::AddressExt;
@@ -388,10 +388,10 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 mod test {
     use std::{borrow::Cow, str::FromStr};
 
-    use common::{
+    use lexe_api_core::types::offer::LxOffer;
+    use lexe_common::{
         ln::amount::Amount, test_utils::arbitrary::any_mainnet_addr_unchecked,
     };
-    use lexe_api_core::types::offer::LxOffer;
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;

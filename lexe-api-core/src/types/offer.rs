@@ -1,7 +1,7 @@
 use std::{fmt, num::NonZeroU64, str::FromStr};
 
 use anyhow::Context;
-use common::{
+use lexe_common::{
     api::user::NodePk,
     ln::{amount::Amount, network::LxNetwork},
     time::TimestampMs,
@@ -371,7 +371,7 @@ mod arb {
     use std::{num::NonZeroU64, time::Duration};
 
     use bitcoin::hashes::{Hash, Hmac};
-    use common::{
+    use lexe_common::{
         rng::{Crng, FastRng, RngExt},
         root_seed::RootSeed,
         test_utils::arbitrary::{self, any_option_string},
@@ -626,7 +626,7 @@ mod arb {
 
 #[cfg(test)]
 mod test {
-    use common::{
+    use lexe_common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };

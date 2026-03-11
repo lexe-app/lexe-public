@@ -11,12 +11,6 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, bail};
-use common::{
-    api::user::{NodePk, NodePkProof, UserPk},
-    constants,
-    rng::Crng,
-    root_seed::RootSeed,
-};
 use lexe::{
     config::{
         WalletEnv, WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
@@ -26,6 +20,12 @@ use lexe::{
     payments_db::PaymentsDb,
     types::command::PaymentSyncSummary,
     wallet::{LexeWallet, WithDb},
+};
+use lexe_common::{
+    api::user::{NodePk, NodePkProof, UserPk},
+    constants,
+    rng::Crng,
+    root_seed::RootSeed,
 };
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
@@ -220,7 +220,7 @@ impl App {
     ///
     /// `google_auth_code`: see [`NodeProvisionRequest::google_auth_code`]
     ///
-    /// [`NodeProvisionRequest::google_auth_code`]: common::api::provision::NodeProvisionRequest::google_auth_code
+    /// [`NodeProvisionRequest::google_auth_code`]: lexe_common::api::provision::NodeProvisionRequest::google_auth_code
     #[instrument(skip_all, name = "(restore)")]
     pub async fn restore(
         rng: &mut impl Crng,

@@ -13,19 +13,19 @@ publish = true
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
-  "common/test-utils",
-  "lexe-api-core/test-utils",
-  "lexe-tls/test-utils",
   "dep:proptest",
   "dep:proptest-derive",
+  "lexe-api-core/test-utils",
+  "lexe-common/test-utils",
+  "lexe-tls/test-utils",
 ]
 
 [dependencies]
 
 # --- LEXE --- #
 
-common.path = "../common"
 lexe-api-core = { path = "../lexe-api-core", features = ["axum", "reqwest"] }
+lexe-common.path = "../lexe-common"
 lexe-std.path = "../lexe-std"
 lexe-tls.path = "../lexe-tls"
 lexe-tokio.path = "../lexe-tokio"
@@ -60,7 +60,7 @@ proptest-derive = { optional = true, workspace = true }
 
 [dev-dependencies]
 axum.workspace = true
-common = { path = "../common", features = ["test-utils"] }
+lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 tokio = { workspace = true, features = [

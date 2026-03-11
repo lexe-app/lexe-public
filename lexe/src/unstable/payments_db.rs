@@ -852,8 +852,8 @@ mod test_utils {
 mod test {
     use std::{collections::HashSet, time::Duration};
 
-    use common::rng::{FastRng, Rng, RngExt};
     use lexe_api::types::payments::PaymentStatus;
+    use lexe_common::rng::{FastRng, Rng, RngExt};
     use proptest::{
         collection::vec, prelude::any, proptest, sample::Index,
         test_runner::Config,

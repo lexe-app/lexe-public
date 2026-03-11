@@ -8,15 +8,15 @@ use std::{
 
 use anyhow::{Context, bail, ensure, format_err};
 use asn1_rs::FromDer;
-use common::{
-    ed25519,
-    enclave::{self, Measurement},
-    env::DeployEnv,
-};
 use dcap_ql::quote::{
     CertificationDataType, Quote, Quote3SignatureEcdsaP256, RawQe3CertData,
 };
 use lexe_byte_array::ByteArray;
+use lexe_common::{
+    ed25519,
+    enclave::{self, Measurement},
+    env::DeployEnv,
+};
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use rustls::{
@@ -851,7 +851,7 @@ mod test {
     #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_verify_dummy_server_cert() {
-        use common::rng::FastRng;
+        use lexe_common::rng::FastRng;
 
         use crate::attestation::cert::AttestationCert;
 
@@ -885,14 +885,14 @@ mod test {
     /// Dump fresh attestation cert (intended for SGX only):
     ///
     /// ```bash
-    /// cargo test -p common --target=x86_64-fortanix-unknown-sgx dump_attest_cert -- --ignored --show-output
+    /// cargo test -p lexe-common --target=x86_64-fortanix-unknown-sgx dump_attest_cert -- --ignored --show-output
     /// ```
     #[test]
     #[cfg(target_env = "sgx")]
     #[ignore]
     fn dump_attest_cert() {
         use base64::Engine;
-        use common::{enclave, rng::FastRng};
+        use lexe_common::{enclave, rng::FastRng};
 
         use crate::attestation::cert::AttestationCert;
 

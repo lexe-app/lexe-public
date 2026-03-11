@@ -144,7 +144,7 @@ impl fmt::Display for NoteTooLong {
 mod arbitrary_impl {
     use std::ops::RangeInclusive;
 
-    use common::test_utils::arbitrary;
+    use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::Arbitrary,
         collection::vec,
@@ -189,7 +189,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::test_utils::roundtrip;
+    use lexe_common::test_utils::roundtrip;
     use proptest::{
         prop_assert_eq, proptest, strategy::Strategy, test_runner::Config,
     };

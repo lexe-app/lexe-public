@@ -1,7 +1,6 @@
 use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::{Context, anyhow, ensure};
-use common::{ln::amount::Amount, time::TimestampMs};
 use lexe_api::types::{
     bounded_note::BoundedNote,
     invoice::LxInvoice,
@@ -11,6 +10,7 @@ use lexe_api::types::{
         LxPaymentSecret, PaymentKind, PaymentRail,
     },
 };
+use lexe_common::{ln::amount::Amount, time::TimestampMs};
 use lightning::events::PaymentPurpose;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
@@ -1024,10 +1024,10 @@ impl InboundSpontaneousPaymentV2 {
 
 #[cfg(test)]
 mod arbitrary_impl {
-    use common::test_utils::arbitrary;
     use lexe_api::types::{
         invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
     };
+    use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
         prelude::Just,
@@ -1346,7 +1346,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use common::{
+    use lexe_common::{
         rng::FastRng,
         test_utils::{arbitrary, roundtrip},
     };

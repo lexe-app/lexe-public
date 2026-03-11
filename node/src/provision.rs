@@ -19,7 +19,14 @@ use std::{net::TcpListener, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use axum::{Router, routing::post};
-use common::{
+use lexe_api::{
+    auth::BearerAuthenticator,
+    def::NodeBackendApi,
+    error::NodeApiError,
+    server::{self, LayerConfig},
+    types::{Empty, ports::ProvisionPorts, sealed_seed::SealedSeed},
+};
+use lexe_common::{
     api::provision::NodeProvisionRequest,
     cli::{OAuthConfig, node::MegaArgs},
     constants, enclave,
@@ -27,13 +34,6 @@ use common::{
     ln::network::LxNetwork,
     net,
     rng::{Crng, SysRng},
-};
-use lexe_api::{
-    auth::BearerAuthenticator,
-    def::NodeBackendApi,
-    error::NodeApiError,
-    server::{self, LayerConfig},
-    types::{Empty, ports::ProvisionPorts, sealed_seed::SealedSeed},
 };
 use lexe_tls::attestation::{self, NodeMode};
 use lexe_tokio::{
@@ -216,9 +216,9 @@ fn app_router(state: AppRouterState) -> Router<()> {
 /// API handlers.
 mod handlers {
     use axum::extract::State;
-    use common::api::user::UserPk;
     use gdrive::gvfs::GvfsRootName;
     use lexe_api::server::LxJson;
+    use lexe_common::api::user::UserPk;
 
     use super::*;
 
@@ -375,8 +375,10 @@ mod handlers {
 }
 
 mod helpers {
-    use common::{aes::AesMasterKey, api::user::UserPk, enclave::Measurement};
     use lexe_api::error::{BackendApiError, BackendErrorKind};
+    use lexe_common::{
+        aes::AesMasterKey, api::user::UserPk, enclave::Measurement,
+    };
     use tracing::warn;
 
     use super::*;
