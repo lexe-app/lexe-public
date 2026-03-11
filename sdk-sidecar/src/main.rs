@@ -3,7 +3,7 @@ use sdk_sidecar::{cli::SidecarArgs, run::Sidecar};
 
 fn main() -> anyhow::Result<()> {
     let _ = dotenvy::dotenv();
-    logger::init();
+    lexe_logger::init();
 
     let mut args = SidecarArgs::from_cli();
     args.or_env_mut()?;

@@ -36,7 +36,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
-logger = { path = "../logger", features = ["test-utils"] }
+lexe-logger = { path = "../lexe-logger", features = ["test-utils"] }
 
 proptest.workspace = true
 proptest-derive.workspace = true

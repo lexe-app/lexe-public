@@ -13,7 +13,6 @@ publish = true
 common.path = "../common"
 lexe-api-core.path = "../lexe-api-core"
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
-logger.path = "../logger"
 payment-uri-core.path = "../payment-uri-core"
 
 # --- WORKSPACE --- #
@@ -33,8 +32,8 @@ tracing.workspace = true
 # --- LEXE --- #
 
 lexe-api-core = { path = "../lexe-api-core", features = ["test-utils"] }
+lexe-logger = { path = "../lexe-logger", features = ["test-utils"] }
 lexe-std.path = "../lexe-std"
-logger = { path = "../logger", features = ["test-utils"] }
 
 # --- WORKSPACE --- #
 

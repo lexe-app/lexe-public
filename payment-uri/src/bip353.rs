@@ -441,7 +441,7 @@ mod test {
     }
 
     async fn do_bip353_resolve_doh(network: LxNetwork, uri: &str) {
-        logger::init_for_testing();
+        lexe_logger::init_for_testing();
 
         let payment_uri = PaymentUri::parse(uri).unwrap();
 

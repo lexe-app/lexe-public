@@ -43,7 +43,7 @@ pub use tracing;
 ///
 /// Example: `lexe::init_logger("info")`
 pub fn init_logger(default_level: &str) {
-    logger::init_with_default(default_level);
+    lexe_logger::init_with_default(default_level);
 }
 
 // --- Unstable APIs --- //

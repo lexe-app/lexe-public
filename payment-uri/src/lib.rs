@@ -168,7 +168,7 @@ mod test {
                 > RESOLVE_BEST_TIMEOUT.as_secs()
         );
 
-        logger::init_for_testing();
+        lexe_logger::init_for_testing();
 
         let payment_uri = PaymentUri::parse("matt@mattcorallo.com").unwrap();
         info!("Resolving best payment method for matt@mattcorallo.com");

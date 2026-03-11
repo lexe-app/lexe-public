@@ -1962,9 +1962,9 @@ dependencies = [
  "futures",
  "lexe-api-core",
  "lexe-byte-array",
+ "lexe-logger",
  "lexe-sha256",
  "lexe-std",
- "logger",
  "proptest",
  "proptest-derive",
  "reqwest",
@@ -2558,9 +2558,9 @@ dependencies = [
  "common",
  "futures",
  "lexe-api",
+ "lexe-logger",
  "lexe-std",
  "lexe-tokio",
- "logger",
  "node-client",
  "payment-uri",
  "proptest",
@@ -2704,6 +2704,16 @@ dependencies = [
  "tracing-core",
  "tracing-subscriber",
  "webpki-roots",
+]
+
+[[package]]
+name = "lexe-logger"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "lexe-api",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2892,16 +2902,6 @@ name = "log"
 version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
-
-[[package]]
-name = "logger"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "lexe-api",
- "tracing",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "lru"
@@ -3432,9 +3432,9 @@ dependencies = [
  "common",
  "dnssec-prover",
  "lexe-api-core",
+ "lexe-logger",
  "lexe-std",
  "lexe-tls-core",
- "logger",
  "payment-uri-core",
  "percent-encoding",
  "reqwest",
@@ -4245,10 +4245,10 @@ dependencies = [
  "http",
  "lexe",
  "lexe-api",
+ "lexe-logger",
  "lexe-std",
  "lexe-tls-core",
  "lexe-tokio",
- "logger",
  "node-client",
  "quick_cache",
  "reqwest",

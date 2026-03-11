@@ -105,7 +105,7 @@ impl TraceId {
         let try_get_trace_id = || {
             // Fetch the `get_trace_id_from_span` fn pointer from the static.
             let get_trace_id_fn = GET_TRACE_ID_FN.get().context(
-                "GET_TRACE_ID_FN not set. Did logger::try_init() \
+                "GET_TRACE_ID_FN not set. Did lexe_logger::try_init() \
                  initialize the TraceId statics?",
             )?;
             let maybe_trace_id = span
@@ -129,7 +129,7 @@ impl TraceId {
         let try_insert_trace_id = || {
             // Fetch the `insert_trace_id_into_span` fn pointer from the static.
             let insert_trace_id_fn = INSERT_TRACE_ID_FN.get().context(
-                "INSERT_TRACE_ID_FN not set. Did logger::try_init() \
+                "INSERT_TRACE_ID_FN not set. Did lexe_logger::try_init() \
                  initialize the TraceId statics?",
             )?;
 
@@ -281,8 +281,8 @@ mod arbitrary_impl {
 
 /// Generates implementations of the functions pointed to by [`GET_TRACE_ID_FN`]
 /// and [`INSERT_TRACE_ID_FN`] given the type of the [`tracing::Subscriber`].
-/// The caller (typically `logger::try_init()`) is responsible for initializing
-/// these statics using the generated implementations.
+/// The caller (typically `lexe_logger::try_init()`) is responsible for
+/// initializing these statics using the generated implementations.
 ///
 /// ```ignore
 /// # use anyhow::{anyhow, Context};
@@ -321,7 +321,7 @@ macro_rules! define_trace_id_fns {
             dispatch: &tracing::Dispatch,
         ) -> anyhow::Result<Option<TraceId>> {
             let subscriber = dispatch.downcast_ref::<$subscriber>().context(
-                "Downcast failed. Did logger::try_init() define the trace_id \
+                "Downcast failed. Did lexe_logger::try_init() define the trace_id \
                  fns with the correct subscriber type?",
             )?;
             let span_ref = subscriber
@@ -343,7 +343,7 @@ macro_rules! define_trace_id_fns {
             trace_id: TraceId,
         ) -> anyhow::Result<Option<TraceId>> {
             let subscriber = dispatch.downcast_ref::<$subscriber>().context(
-                "Downcast failed. Did logger::try_init() define the trace_id \
+                "Downcast failed. Did lexe_logger::try_init() define the trace_id \
                  fns with the correct subscriber type?",
             )?;
             let span_ref = subscriber.span(id).context("No span ref for id")?;

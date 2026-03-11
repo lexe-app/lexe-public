@@ -620,7 +620,7 @@ mod test {
     #[ignore]
     #[tokio::test]
     async fn test_gvfs() {
-        logger::init_for_testing();
+        lexe_logger::init_for_testing();
 
         let client = ReqwestClient::new();
         let credentials = GDriveCredentials::from_env().unwrap();
@@ -706,7 +706,7 @@ mod test {
     #[ignore]
     #[tokio::test]
     async fn test_init_deleted_root() {
-        logger::init_for_testing();
+        lexe_logger::init_for_testing();
 
         let client = ReqwestClient::new();
         let credentials = GDriveCredentials::from_env().unwrap();
@@ -768,7 +768,7 @@ mod test {
     #[ignore]
     #[tokio::test]
     async fn test_init_bogus_root() {
-        logger::init_for_testing();
+        lexe_logger::init_for_testing();
 
         let client = ReqwestClient::new();
         let credentials = GDriveCredentials::from_env().unwrap();

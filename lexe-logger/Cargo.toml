@@ -1,8 +1,8 @@
 [package]
-name = "logger"
+name = "lexe-logger"
+license = "MIT"
 authors.workspace = true
 edition.workspace = true
-license.workspace = true
 version.workspace = true
 publish = true
 
@@ -20,7 +20,6 @@ lexe-api.path = "../lexe-api"
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
-tracing.workspace = true
 tracing-subscriber = { workspace = true, features = [
     # Enable colored log outputs
     "ansi",
@@ -29,6 +28,7 @@ tracing-subscriber = { workspace = true, features = [
     "std",
     "tracing-log",
 ] }
+tracing.workspace = true
 
 [dev-dependencies]
 # Enable lexe-api test-utils in tests

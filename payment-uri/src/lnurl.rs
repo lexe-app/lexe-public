@@ -341,7 +341,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_lightning_address_dplus() {
-        logger::init_for_testing();
+        lexe_logger::init_for_testing();
 
         let ln_address = "me@dplus.plus";
         info!("Lightning Address: {ln_address}");
