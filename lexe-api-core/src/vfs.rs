@@ -22,7 +22,7 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use async_trait::async_trait;
-use lexe_common::serde_helpers::hexstr_or_bytes;
+use lexe_serde::hexstr_or_bytes;
 use lightning::util::ser::{MaybeReadable, ReadableArgs, Writeable};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tracing::{debug, warn};

@@ -4,9 +4,9 @@ use std::path::Path;
 
 use anyhow::Context;
 use base64::Engine as _;
-use lexe_common::serde_helpers::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
+use lexe_serde::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use rustls::pki_types::{

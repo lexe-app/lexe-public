@@ -16,9 +16,9 @@ use lexe_common::{
         priority::ConfirmationPriority,
         route::LxRoute,
     },
-    serde_helpers::hexstr_or_bytes,
     time::TimestampMs,
 };
+use lexe_serde::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

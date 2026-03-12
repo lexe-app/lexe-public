@@ -1,5 +1,6 @@
 use anyhow::Context;
 use bitcoin::{consensus::Decodable, io::Cursor};
+use lexe_serde::hexstr_or_bytes;
 use serde::{Deserialize, Serialize};
 
 use super::user::NodePk;
@@ -7,7 +8,6 @@ use super::user::NodePk;
 use crate::test_utils::arbitrary;
 use crate::{
     ln::{amount::Amount, hashes::LxTxid, network::LxNetwork},
-    serde_helpers::hexstr_or_bytes,
     time::TimestampMs,
 };
 

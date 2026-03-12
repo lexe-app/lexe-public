@@ -30,6 +30,7 @@ test-utils = [
 
 lexe-byte-array = { path = "../lexe-byte-array" }
 lexe-common = { path = "../lexe-common" }
+lexe-serde = { path = "../lexe-serde" }
 lexe-sha256 = { path = "../lexe-sha256" }
 lexe-std = { path = "../lexe-std" }
 

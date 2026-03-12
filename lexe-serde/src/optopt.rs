@@ -13,7 +13,7 @@
 //! 3. "set" the label (rust: `Some(Some("foo"))`, json: `{"label": "foo"}`)
 //!
 //! ```rust
-//! use lexe_common::serde_helpers::optopt::{self, none};
+//! use lexe_serde::optopt::{self, none};
 //! use serde::{Deserialize, Serialize};
 //! #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 //! struct UpdateRequest {
@@ -24,7 +24,7 @@
 //! }
 //! ```
 
-use serde::{
+use serde_core::{
     de::{Deserialize, Deserializer},
     ser::{Serialize, Serializer},
 };
@@ -73,7 +73,7 @@ where
 mod test {
     use serde::{Deserialize, Serialize};
 
-    use crate::serde_helpers::optopt::{self, none};
+    use crate::optopt::{self, none};
 
     #[test]
     fn test_json() {

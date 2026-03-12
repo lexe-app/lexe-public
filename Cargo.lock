@@ -2574,6 +2574,7 @@ dependencies = [
  "lexe-byte-array",
  "lexe-common",
  "lexe-hex",
+ "lexe-serde",
  "lexe-sha256",
  "lexe-std",
  "lightning",
@@ -2622,6 +2623,7 @@ dependencies = [
  "http-body-util",
  "lexe-byte-array",
  "lexe-hex",
+ "lexe-serde",
  "lexe-sha256",
  "lexe-std",
  "lightning",
@@ -2776,6 +2778,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe-serde"
+version = "0.0.0"
+dependencies = [
+ "base64 0.21.7",
+ "lexe-hex",
+ "serde",
+ "serde_core",
+ "serde_json",
+]
+
+[[package]]
 name = "lexe-sha256"
 version = "0.0.0"
 dependencies = [
@@ -2810,6 +2823,7 @@ dependencies = [
  "lexe-byte-array",
  "lexe-common",
  "lexe-hex",
+ "lexe-serde",
  "lexe-sha256",
  "lexe-tls-core",
  "num-bigint",

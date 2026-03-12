@@ -1,3 +1,5 @@
+//! `serde` helpers
+
 /// serde_with helper for base64-encoded bytes types.
 pub mod base64_or_bytes;
 /// `base64_or_bytes` but for [`Option`] bytes types.

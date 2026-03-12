@@ -1,15 +1,13 @@
 use std::fmt;
 
+use lexe_serde::hexstr_or_bytes_opt;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 use crate::test_utils::arbitrary;
-use crate::{
-    env::DeployEnv, ln::network::LxNetwork, root_seed::RootSeed,
-    serde_helpers::hexstr_or_bytes_opt,
-};
+use crate::{env::DeployEnv, ln::network::LxNetwork, root_seed::RootSeed};
 
 /// The client sends this request to the provisioning node.
 #[derive(Serialize, Deserialize)]

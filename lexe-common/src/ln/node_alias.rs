@@ -1,11 +1,10 @@
 use std::fmt::{self, Write};
 
+use lexe_serde::hexstr_or_bytes;
 use lightning::{routing::gossip::NodeAlias, util::string::PrintableString};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
-
-use crate::serde_helpers::hexstr_or_bytes;
 
 /// Newtype for [`NodeAlias`].
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]

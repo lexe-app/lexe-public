@@ -1,10 +1,10 @@
-//! [`serde`] serialize and deserialize helpers for types that should be
+//! `serde` serialize and deserialize helpers for types that should be
 //! base64-encoded for human-readable formats and raw-bytes for binary codecs.
 //!
 //! ## Example:
 //!
 //! ```rust
-//! use lexe_common::serde_helpers::base64_or_bytes;
+//! use lexe_serde::base64_or_bytes;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -16,7 +16,7 @@
 use std::{borrow::Cow, fmt, marker::PhantomData};
 
 use base64::Engine;
-use serde::{Deserializer, Serializer, de, ser};
+use serde_core::{Deserializer, Serializer, de, ser};
 
 /// A trait to deserialize something from a base64-encoded string slice.
 ///
@@ -24,7 +24,7 @@ use serde::{Deserializer, Serializer, de, ser};
 ///
 /// ```
 /// # use std::borrow::Cow;
-/// use lexe_common::serde_helpers::base64_or_bytes::FromBase64;
+/// use lexe_serde::base64_or_bytes::FromBase64;
 /// let s = String::from("gVX5KuLzr9SI4grp0P1mq1ABHCXXleQA/rPIqofhlxE=");
 ///
 /// let vec = <Vec<u8>>::from_base64(&s).unwrap();
@@ -37,14 +37,6 @@ pub trait FromBase64: Sized {
 impl FromBase64 for Vec<u8> {
     fn from_base64(s: &str) -> Result<Self, base64::DecodeError> {
         base64::engine::general_purpose::STANDARD.decode(s)
-    }
-}
-
-impl FromBase64 for bytes::Bytes {
-    fn from_base64(s: &str) -> Result<Self, base64::DecodeError> {
-        base64::engine::general_purpose::STANDARD
-            .decode(s)
-            .map(Self::from)
     }
 }
 
@@ -99,28 +91,19 @@ where
 mod test {
     use std::borrow::Cow;
 
-    use bytes::Bytes;
-    use proptest_derive::Arbitrary;
     use serde::{Deserialize, Serialize};
 
-    use crate::{
-        serde_helpers::base64_or_bytes,
-        test_utils::{arbitrary, roundtrip},
-    };
+    use crate::base64_or_bytes;
 
     // TODO(phlip9): test w/ binary codec
 
-    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Arbitrary)]
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     struct Foo {
         #[serde(with = "base64_or_bytes")]
         a: Vec<u8>,
 
         #[serde(with = "base64_or_bytes")]
         b: Cow<'static, [u8]>,
-
-        #[serde(with = "base64_or_bytes")]
-        #[proptest(strategy = "arbitrary::any_bytes()")]
-        c: Bytes,
     }
 
     #[test]
@@ -128,7 +111,6 @@ mod test {
         let foo = Foo {
             a: vec![1, 2, 5, 6, 9, 0, 0x42],
             b: Cow::Borrowed(b"asdf"),
-            c: Bytes::from(vec![5, 4, 3, 2, 1, 0, 0x42]),
         };
 
         let actual = serde_json::to_value(&foo).unwrap();
@@ -138,7 +120,6 @@ mod test {
             &serde_json::json!({
                 "a": "AQIFBgkAQg==",
                 "b": "YXNkZg==",
-                "c": "BQQDAgEAQg==",
             })
         );
 
@@ -146,10 +127,5 @@ mod test {
         let foo2: Foo = serde_json::from_str(&s).unwrap();
 
         assert_eq!(foo, foo2);
-    }
-
-    #[test]
-    fn base64_or_bytes_json_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<Foo>();
     }
 }

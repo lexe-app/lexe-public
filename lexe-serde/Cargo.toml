@@ -1,0 +1,27 @@
+[package]
+name = "lexe-serde"
+license = "MIT"
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
+publish = true
+
+# Default config for testing in SGX
+[package.metadata.fortanix-sgx]
+
+[dependencies]
+
+# --- LEXE --- #
+
+lexe-hex = { path = "../lexe-hex" }
+
+# --- WORKSPACE --- #
+
+base64 = { workspace = true }
+serde_core = { workspace = true }
+
+# --- OPTIONAL --- #
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

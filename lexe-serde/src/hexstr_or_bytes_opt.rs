@@ -1,10 +1,10 @@
-//! [`serde`] serialize and deserialize helpers for [`Option`] types that should
+//! `serde` serialize and deserialize helpers for [`Option`] types that should
 //! be hex-encoded for human-readable formats and raw-bytes for binary codecs.
 //!
 //! ## Example:
 //!
 //! ```rust
-//! use lexe_common::serde_helpers::hexstr_or_bytes_opt;
+//! use lexe_serde::hexstr_or_bytes_opt;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -17,7 +17,7 @@
 use std::{fmt, marker::PhantomData};
 
 use lexe_hex::hex::{self, FromHex};
-use serde::{Deserialize, Deserializer, Serializer, de, ser};
+use serde_core::{Deserialize, Deserializer, Serializer, de, ser};
 
 pub fn serialize<S, T>(
     data: &Option<T>,
@@ -79,7 +79,7 @@ mod test {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::serde_helpers::hexstr_or_bytes_opt;
+    use crate::hexstr_or_bytes_opt;
 
     // TODO(phlip9): test w/ binary codec
 

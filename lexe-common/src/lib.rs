@@ -48,8 +48,6 @@ pub mod releases;
 pub mod rng;
 /// `RootSeed`.
 pub mod root_seed;
-/// [`serde`] helpers.
-pub mod serde_helpers;
 /// `TimestampMs` and `DisplayMs`.
 pub mod time;
 

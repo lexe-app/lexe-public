@@ -8,6 +8,7 @@ use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
 use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
+use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::array::{self, ArrayExt};
 #[cfg(any(test, feature = "test-utils"))]
@@ -29,7 +30,6 @@ use crate::{
     enclave,
     env::DeployEnv,
     rng::{Crng, RngExt},
-    serde_helpers::hexstr_or_bytes,
 };
 
 // --- SGX 'Platform APIs' --- //

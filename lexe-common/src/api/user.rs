@@ -3,6 +3,7 @@ use std::{collections::HashSet, fmt, str::FromStr};
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
+use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
@@ -25,7 +26,6 @@ use crate::test_utils::arbitrary;
 use crate::{
     ed25519::{self, Signable},
     rng::Crng,
-    serde_helpers::hexstr_or_bytes,
 };
 
 /// A Lexe user, as represented in the DB.

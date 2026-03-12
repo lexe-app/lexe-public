@@ -9,8 +9,8 @@ use lexe_common::{
     ln::network::LxNetwork,
     rng::Crng,
     root_seed::RootSeed,
-    serde_helpers::hexstr_or_bytes,
 };
+use lexe_serde::hexstr_or_bytes;
 use lexe_std::array;
 #[cfg(test)]
 use proptest_derive::Arbitrary;

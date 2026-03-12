@@ -1,10 +1,10 @@
-//! [`serde`] serialize and deserialize helpers for [`Option`] types that should
+//! `serde` serialize and deserialize helpers for [`Option`] types that should
 //! be base64 for human-readable formats and raw-bytes for binary codecs.
 //!
 //! ## Example:
 //!
 //! ```rust
-//! use lexe_common::serde_helpers::base64_or_bytes_opt;
+//! use lexe_serde::base64_or_bytes_opt;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -16,9 +16,9 @@
 use std::{fmt, marker::PhantomData};
 
 use base64::Engine;
-use serde::{Deserialize, Deserializer, Serializer, de, ser};
+use serde_core::{Deserialize, Deserializer, Serializer, de, ser};
 
-use crate::serde_helpers::base64_or_bytes::FromBase64;
+use crate::base64_or_bytes::FromBase64;
 
 pub fn serialize<S, T>(
     maybe_data: &Option<T>,
@@ -79,18 +79,13 @@ where
 mod test {
     use std::borrow::Cow;
 
-    use bytes::Bytes;
-    use proptest_derive::Arbitrary;
     use serde::{Deserialize, Serialize};
 
-    use crate::{
-        serde_helpers::base64_or_bytes_opt,
-        test_utils::{arbitrary, roundtrip},
-    };
+    use crate::base64_or_bytes_opt;
 
     // TODO(phlip9): test w/ binary codec
 
-    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Arbitrary)]
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     struct Foo {
         #[serde(with = "base64_or_bytes_opt")]
         a1: Option<Vec<u8>>,
@@ -101,13 +96,6 @@ mod test {
         b1: Option<Cow<'static, [u8]>>,
         #[serde(with = "base64_or_bytes_opt")]
         b2: Option<Cow<'static, [u8]>>,
-
-        #[serde(with = "base64_or_bytes_opt")]
-        #[proptest(strategy = "arbitrary::any_option_bytes()")]
-        c1: Option<Bytes>,
-        #[serde(with = "base64_or_bytes_opt")]
-        #[proptest(strategy = "arbitrary::any_option_bytes()")]
-        c2: Option<Bytes>,
     }
 
     #[test]
@@ -117,8 +105,6 @@ mod test {
             a2: None,
             b1: Some(Cow::Borrowed(b"asdf")),
             b2: None,
-            c1: Some(Bytes::from(vec![5, 4, 3, 2, 1, 0, 0x42])),
-            c2: None,
         };
 
         let actual = serde_json::to_value(&foo).unwrap();
@@ -130,8 +116,6 @@ mod test {
                 "a2": null,
                 "b1": "YXNkZg==",
                 "b2": null,
-                "c1": "BQQDAgEAQg==",
-                "c2": null,
             })
         );
 
@@ -139,10 +123,5 @@ mod test {
         let foo2: Foo = serde_json::from_str(&s).unwrap();
 
         assert_eq!(foo, foo2);
-    }
-
-    #[test]
-    fn base64_or_bytes_opt_json_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<Foo>();
     }
 }

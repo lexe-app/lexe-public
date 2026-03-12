@@ -21,9 +21,9 @@ use lexe_common::{
     debug_panic_release_log,
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
     rng::{RngCore, RngExt},
-    serde_helpers::{base64_or_bytes, hexstr_or_bytes},
     time::TimestampMs,
 };
+use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
 use lightning::{
     offers::offer::OfferId,

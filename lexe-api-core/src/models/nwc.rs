@@ -1,11 +1,8 @@
 use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
-use lexe_common::{
-    RefCast,
-    serde_helpers::{base64_or_bytes, hexstr_or_bytes},
-    time::TimestampMs,
-};
+use lexe_common::{RefCast, time::TimestampMs};
+use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

@@ -3,6 +3,10 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
+use lexe_serde::{
+    base64_or_bytes,
+    optopt::{self, none},
+};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -10,10 +14,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     api::{auth::Scope, user::UserPk},
     ed25519,
-    serde_helpers::{
-        base64_or_bytes,
-        optopt::{self, none},
-    },
     time::TimestampMs,
 };
 
