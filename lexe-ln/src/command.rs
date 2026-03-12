@@ -8,6 +8,7 @@ use bitcoin::hashes::{Hash as _, sha256};
 use either::Either;
 use futures::Future;
 use lexe_api::{
+    cli::{LspFees, LspInfo},
     models::command::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
@@ -38,7 +39,6 @@ use lexe_common::{
         },
         user::{NodePk, Scid, UserPk},
     },
-    cli::{LspFees, LspInfo},
     debug_panic_release_log, ed25519,
     enclave::Measurement,
     ln::{

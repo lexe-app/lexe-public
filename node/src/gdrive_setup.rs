@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use gdrive::{GoogleVfs, gvfs::GvfsRootName, oauth2::GDriveCredentials};
-use lexe_api::{auth::BearerAuthenticator, error::NodeApiError};
+use lexe_api::{
+    auth::BearerAuthenticator, cli::OAuthConfig, error::NodeApiError,
+};
 use lexe_common::{
     aes::AesMasterKey,
-    cli::OAuthConfig,
     rng::{Crng, SysRng},
 };
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};

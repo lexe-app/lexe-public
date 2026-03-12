@@ -17,6 +17,8 @@
 //! This issue is due to a limitation in serde. See:
 //! <https://github.com/serde-rs/serde/issues/1183>
 
+/// Enclave CLI args and types.
+pub mod cli;
 /// Traits defining Lexe's various APIs.
 pub mod def;
 /// API error types.

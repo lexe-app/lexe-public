@@ -21,6 +21,7 @@ use anyhow::Context;
 use axum::{Router, routing::post};
 use lexe_api::{
     auth::BearerAuthenticator,
+    cli::{OAuthConfig, node::MegaArgs},
     def::NodeBackendApi,
     error::NodeApiError,
     server::{self, LayerConfig},
@@ -28,7 +29,6 @@ use lexe_api::{
 };
 use lexe_common::{
     api::provision::NodeProvisionRequest,
-    cli::{OAuthConfig, node::MegaArgs},
     constants, enclave,
     env::DeployEnv,
     ln::network::LxNetwork,

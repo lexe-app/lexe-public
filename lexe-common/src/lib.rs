@@ -24,8 +24,6 @@ pub mod aes;
 pub mod api;
 /// [`tokio::Bytes`](bytes::Bytes) but must contain a string.
 pub mod byte_str;
-/// User node CLI.
-pub mod cli;
 /// Application-level constants.
 pub mod constants;
 /// [`dotenvy`] extensions.

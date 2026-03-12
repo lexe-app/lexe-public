@@ -5,14 +5,12 @@ use std::{
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
+    cli::OAuthConfig,
     def::NodeLspApi,
     error::MegaApiError,
     types::{LeaseId, ports::RunPorts},
 };
-use lexe_common::{
-    cli::OAuthConfig, enclave, env::DeployEnv, ln::network::LxNetwork,
-    rng::Crng,
-};
+use lexe_common::{enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng};
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::{self, FeeEstimates, LexeEsplora},

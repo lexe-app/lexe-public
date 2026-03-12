@@ -6,13 +6,12 @@ use std::{
 
 use futures::{StreamExt, stream::FuturesUnordered};
 use lexe_api::{
+    cli::node::MegaArgs,
     error::{MegaApiError, MegaErrorKind},
     models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
     types::{LeaseId, ports::RunPorts},
 };
-use lexe_common::{
-    api::user::UserPk, cli::node::MegaArgs, constants, time::TimestampMs,
-};
+use lexe_common::{api::user::UserPk, constants, time::TimestampMs};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lru::LruCache;
 use tokio::{

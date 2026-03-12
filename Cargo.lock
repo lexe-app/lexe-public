@@ -2582,6 +2582,8 @@ dependencies = [
  "proptest-derive",
  "ref-cast",
  "reqwest",
+ "rust_decimal",
+ "rust_decimal_macros",
  "secrecy",
  "semver",
  "serde",

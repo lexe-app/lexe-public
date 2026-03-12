@@ -429,7 +429,7 @@ $ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- run --help
   `--runner-url`, or LSP url. Note that mocking functionality is provided on a
   best-effort basis and is not tested (or used) regularly by Lexe devs.
 
-See `RunArgs`/`ProvisionArgs` contained in `lexe_common::cli::node` for full options.
+See `RunArgs`/`ProvisionArgs` contained in `lexe_api_core::cli::node` for full options.
 
 ## License
 

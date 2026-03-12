@@ -229,9 +229,9 @@ impl UserRunnerFuzzer {
 }
 
 mod helpers {
+    use lexe_api::cli::{LspInfo, node::MegaArgs};
     use lexe_common::{
         api::user::UserPk,
-        cli::{LspInfo, node::MegaArgs},
         env::DeployEnv,
         ln::network::LxNetwork,
         rng::{FastRng, RngCore, RngExt},

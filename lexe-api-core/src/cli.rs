@@ -2,17 +2,16 @@ use std::{fmt, fmt::Display, path::Path, str::FromStr};
 
 use anyhow::Context;
 #[cfg(test)]
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{
+    api::user::NodePk,
+    ln::{addr::LxSocketAddress, amount::Amount},
+};
+#[cfg(test)]
 use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-
-#[cfg(test)]
-use crate::test_utils::arbitrary;
-use crate::{
-    api::user::NodePk,
-    ln::{addr::LxSocketAddress, amount::Amount},
-};
 
 /// User node CLI args.
 pub mod node;
@@ -142,7 +141,7 @@ impl LspInfo {
     pub fn dummy() -> Self {
         use std::net::Ipv6Addr;
 
-        use crate::{rng::FastRng, root_seed::RootSeed};
+        use lexe_common::{rng::FastRng, root_seed::RootSeed};
 
         let mut rng = FastRng::from_u64(20230216);
         let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
@@ -214,8 +213,9 @@ impl Display for OAuthConfig {
 
 #[cfg(test)]
 mod test {
+    use lexe_common::test_utils::roundtrip;
+
     use super::*;
-    use crate::test_utils::roundtrip;
 
     #[test]
     fn lsp_info_roundtrip() {

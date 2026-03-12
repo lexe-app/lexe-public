@@ -41,6 +41,7 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use lexe_api::{
+    cli::LspInfo,
     def::NodeLspApi,
     types::payments::{LnClaimId, LxPaymentHash, LxPaymentId},
     vfs::VfsFile,
@@ -50,7 +51,6 @@ use lexe_common::{
         test_event::TestEvent,
         user::{NodePk, UserPk},
     },
-    cli::LspInfo,
     debug_panic_release_log,
     ln::{amount::Amount, channel::LxChannelId},
     rng::{RngExt, ThreadFastRng},

@@ -1,10 +1,8 @@
 use std::cmp;
 
 use anyhow::Context;
-use lexe_common::{
-    cli::LspFees,
-    ln::{amount::Amount, balance::LightningBalance},
-};
+use lexe_api::cli::LspFees;
+use lexe_common::ln::{amount::Amount, balance::LightningBalance};
 use lexe_std::Apply;
 use lightning::ln::channel_state::ChannelDetails;
 use rust_decimal::Decimal;

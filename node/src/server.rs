@@ -12,13 +12,15 @@ use axum::{
     Router,
     routing::{get, post, put},
 };
-use lexe_api::models::command::GDriveStatus;
+use lexe_api::{
+    cli::{LspInfo, OAuthConfig},
+    models::command::GDriveStatus,
+};
 use lexe_common::{
     api::{
         revocable_clients::RevocableClients,
         user::{NodePk, Scid, UserPk},
     },
-    cli::{LspInfo, OAuthConfig},
     enclave::Measurement,
     env::DeployEnv,
     ln::network::LxNetwork,

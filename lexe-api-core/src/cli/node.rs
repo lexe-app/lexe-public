@@ -1,15 +1,11 @@
 #[cfg(test)]
+use lexe_common::test_utils::arbitrary;
+use lexe_common::{api::MegaId, env::DeployEnv, ln::network::LxNetwork};
+#[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
-use crate::test_utils::arbitrary;
-use crate::{
-    api::MegaId,
-    cli::{EnclaveArgs, LspInfo, OAuthConfig},
-    env::DeployEnv,
-    ln::network::LxNetwork,
-};
+use crate::cli::{EnclaveArgs, LspInfo, OAuthConfig};
 
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -102,8 +98,9 @@ impl EnclaveArgs for MegaArgs {
 
 #[cfg(test)]
 mod test {
+    use lexe_common::test_utils::roundtrip;
+
     use super::*;
-    use crate::test_utils::roundtrip;
 
     #[test]
     fn node_args_json_string_roundtrip() {

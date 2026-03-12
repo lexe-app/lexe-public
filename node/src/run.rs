@@ -10,6 +10,7 @@ use futures::future::FutureExt;
 use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
     auth::BearerAuthenticator,
+    cli::LspInfo,
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
     models::{
@@ -26,7 +27,6 @@ use lexe_common::{
         revocable_clients::RevocableClients,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
-    cli::LspInfo,
     constants::{self},
     ed25519,
     enclave::{MachineId, Measurement},
