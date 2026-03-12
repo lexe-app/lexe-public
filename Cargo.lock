@@ -2664,6 +2664,7 @@ dependencies = [
  "arc-swap",
  "async-trait",
  "base64 0.21.7",
+ "bcs",
  "bdk_chain",
  "bdk_esplora",
  "bdk_wallet",

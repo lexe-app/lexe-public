@@ -51,6 +51,8 @@ pub mod payments;
 pub mod persister;
 /// Routing-related logic.
 pub mod route;
+/// [`serde`] helpers.
+pub mod serde_helpers;
 /// Chain sync.
 pub mod sync;
 /// `TestEvent` channels and utils.

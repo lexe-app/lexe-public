@@ -90,6 +90,7 @@ webpki-roots = { workspace = true }
 lexe-api = { path = "../lexe-api", features = ["test-utils"] }
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 
+bcs = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive = { workspace = true }
 strum = { workspace = true }

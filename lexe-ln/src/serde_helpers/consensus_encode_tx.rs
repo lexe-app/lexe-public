@@ -1,4 +1,4 @@
-//! [`serde`] helpers to consensus-encode [`bitcoin::Transaction`]s.
+//! `serde` helpers to consensus-encode [`bitcoin::Transaction`]s.
 //!
 //! Serializes transactions as hex strings for human-readable formats, and as
 //! raw consensus-encoded bytes for binary formats.
@@ -6,7 +6,7 @@
 //! ## Example:
 //!
 //! ```rust
-//! use lexe_common::serde_helpers::consensus_encode_tx;
+//! use lexe_ln::serde_helpers::consensus_encode_tx;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -91,11 +91,10 @@ mod test {
     use std::sync::Arc;
 
     use bitcoin::consensus::Encodable;
+    use lexe_common::test_utils::arbitrary;
     use lexe_hex::hex;
     use proptest::{prop_assert_eq, proptest};
     use serde::{Deserialize, Serialize};
-
-    use crate::test_utils::arbitrary;
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     struct TxWrapper {

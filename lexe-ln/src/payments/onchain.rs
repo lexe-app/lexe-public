@@ -11,7 +11,6 @@ use lexe_api::{
 };
 use lexe_common::{
     ln::{amount::Amount, hashes::LxTxid},
-    serde_helpers::consensus_encode_tx,
     time::TimestampMs,
 };
 #[cfg(test)]
@@ -22,6 +21,7 @@ use tracing::warn;
 use crate::{
     esplora::{TxConfQuery, TxConfStatus},
     payments::{PaymentMetadata, PaymentMetadataUpdate, PaymentWithMetadata},
+    serde_helpers::consensus_encode_tx,
 };
 
 /// The number of confirmations a tx needs to before we consider it final.
