@@ -106,7 +106,9 @@ use std::{
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_common::{
-    api::user::NodePk, ln::addr::LxSocketAddress, rng::ThreadFastRng,
+    api::user::NodePk,
+    ln::addr::LxSocketAddress,
+    rng::{RngExt, ThreadFastRng},
 };
 use lexe_hex::hex;
 use lexe_std::{Apply, backoff};
@@ -118,7 +120,6 @@ use lexe_tokio::{
 use lightning::ln::peer_handler::PeerHandleError;
 #[cfg(doc)]
 use lightning::ln::peer_handler::PeerManager;
-use rand::Rng;
 use tokio::{
     io::Interest,
     net::TcpStream,
@@ -187,7 +188,7 @@ where
     }
 
     // Cycle the given addresses in order, starting at a random offset.
-    let start_idx = ThreadFastRng::new().gen_range(0..addrs.len());
+    let start_idx = ThreadFastRng::new().gen_range_usize(0..addrs.len());
     let mut addrs = addrs.iter().cycle().skip(start_idx);
 
     // Retry at least a couple times to mitigate an outbound connect race
@@ -1159,9 +1160,8 @@ mod test {
     };
 
     use io::BufRead;
-    use lexe_common::rng::ThreadFastRng;
+    use lexe_common::rng::{RngCore, RngExt, RngSliceExt, ThreadFastRng};
     use lexe_tokio::task::LxTask;
-    use rand::{Rng, RngCore, seq::SliceRandom};
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
         sync::oneshot,
@@ -1171,7 +1171,7 @@ mod test {
 
     // TODO(phlip9): get probabilities from thread-local `TestCtx`?
 
-    fn maybe(p: f64) -> bool {
+    fn maybe(p: f32) -> bool {
         ThreadFastRng::new().gen_bool(p)
     }
 
@@ -1197,7 +1197,8 @@ mod test {
     pub fn maybe_partial_write(to_write: &[u8]) -> &[u8] {
         if maybe(0.25) {
             let to_write_len = to_write.len();
-            let to_write_len = ThreadFastRng::new().gen_range(1..=to_write_len);
+            let to_write_len =
+                ThreadFastRng::new().gen_range_usize(1..to_write_len + 1);
             &to_write[..to_write_len]
         } else {
             to_write
@@ -1219,7 +1220,8 @@ mod test {
     pub fn maybe_partial_read(read_buf: &mut [u8]) -> &mut [u8] {
         if maybe(0.25) {
             let read_buf_len = read_buf.len();
-            let read_buf_len = ThreadFastRng::new().gen_range(1..=read_buf_len);
+            let read_buf_len =
+                ThreadFastRng::new().gen_range_usize(1..read_buf_len + 1);
             &mut read_buf[..read_buf_len]
         } else {
             read_buf
@@ -1290,16 +1292,16 @@ mod test {
         fn new(seed: u64) -> Self {
             ThreadFastRng::seed(seed);
             let mut rng = ThreadFastRng::new();
-            let msg_len = rng.gen_range(1..(128 << 10));
+            let msg_len = rng.gen_range_usize(1..(128 << 10));
             let to_write_len = if rng.gen_bool(0.5) {
-                rng.gen_range(1..=512)
+                rng.gen_range_usize(1..513)
             } else {
-                rng.gen_range(1..=msg_len)
+                rng.gen_range_usize(1..msg_len + 1)
             };
             let min_read_len = if rng.gen_bool(0.5) {
                 msg_len
             } else {
-                rng.gen_range(1..=msg_len)
+                rng.gen_range_usize(1..msg_len + 1)
             };
             let pause_read_threshold =
                 *[1, 512, 16 << 10, usize::MAX].choose(&mut rng).unwrap();

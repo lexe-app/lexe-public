@@ -1,6 +1,10 @@
 //! Random number generation utilities
 
-use std::{cell::Cell, num::NonZeroU32};
+use std::{
+    cell::Cell,
+    num::NonZeroU32,
+    ops::{Index, Range},
+};
 
 use bitcoin::secp256k1::{All, Secp256k1, SignOnly};
 #[cfg(any(test, feature = "test-utils"))]
@@ -8,10 +12,8 @@ use proptest::{
     arbitrary::{Arbitrary, any},
     strategy::{BoxedStrategy, Strategy},
 };
-pub use rand::Rng;
-use rand::prelude::Distribution;
-use rand_core::le::read_u32_into;
-pub use rand_core::{CryptoRng, RngCore, SeedableRng};
+pub use rand_core::RngCore;
+use rand_core::{CryptoRng, SeedableRng, le::read_u32_into};
 use ring::rand::SecureRandom;
 
 const RAND_ERROR_CODE: NonZeroU32 =
@@ -49,32 +51,88 @@ impl<R: RngCore + CryptoRng> Crng for R {
 
 /// Minimal extension trait on [`rand_core::RngCore`], containing small utility
 /// methods for generating random values.
-pub trait RngExt: RngCore + Rng {
+pub trait RngExt: RngCore {
     fn gen_bytes<const N: usize>(&mut self) -> [u8; N];
-    fn gen_boolean(&mut self) -> bool;
-    fn gen_u8(&mut self) -> u8;
-    fn gen_u16(&mut self) -> u16;
     fn gen_u32(&mut self) -> u32;
     fn gen_u64(&mut self) -> u64;
-    fn gen_u128(&mut self) -> u128;
-    fn gen_f32(&mut self) -> f32;
-    fn gen_f64(&mut self) -> f64;
+
+    #[inline]
+    fn gen_u8(&mut self) -> u8 {
+        u8::from_le_bytes(self.gen_bytes())
+    }
+
+    #[inline]
+    fn gen_u16(&mut self) -> u16 {
+        u16::from_le_bytes(self.gen_bytes())
+    }
+
+    #[inline]
+    fn gen_u128(&mut self) -> u128 {
+        u128::from_le_bytes(self.gen_bytes())
+    }
+
+    /// Generate `true` with probability `p`
+    #[inline]
+    fn gen_bool(&mut self, p: f32) -> bool {
+        self.gen_f32() < p
+    }
+
+    /// Flip a coin. Generate `true` with probability `0.5`
+    #[inline]
+    fn gen_boolean(&mut self) -> bool {
+        self.gen_u32() & 0x1 == 0
+    }
+
+    /// Generates an [`f32`] uniformly distributed in `[0, 1)`.
+    #[inline]
+    fn gen_f32(&mut self) -> f32 {
+        // Take the upper 24 bits of a random u32, convert to f32, then scale to
+        // [0, 1). 24 bits is the maximum integer precision of f32 (23-bit
+        // mantissa + implicit bit).
+        const SCALE: f32 = 1.0 / (1u32 << 24) as f32;
+        (self.gen_u32() >> 8) as f32 * SCALE
+    }
+
+    /// Generates an [`f64`] uniformly distributed in `[0, 1)`.
+    #[inline]
+    fn gen_f64(&mut self) -> f64 {
+        // Take the upper 53 bits of a random u64, convert to f64, then scale to
+        // [0, 1). 53 bits is the maximum integer precision of f64 (52-bit
+        // mantissa + implicit bit).
+        const SCALE: f64 = 1.0 / (1u64 << 53) as f64; // 2^-53
+        (self.gen_u64() >> 11) as f64 * SCALE
+    }
+
+    /// Generates an [`i32`] in `[range.start, range.end)`. Has slight modulo
+    /// bias for large ranges. See `fastmap32`.
+    fn gen_range_i32(&mut self, range: Range<i32>) -> i32 {
+        let span = ((range.end as i64) - (range.start as i64)) as u32;
+        (fastmap32(self.gen_u32(), span) as i32).wrapping_add(range.start)
+    }
+
+    /// Generates a [`u32`] in `[range.start, range.end)`. Has slight modulo
+    /// bias for large ranges. See `fastmap32`.
+    fn gen_range_u32(&mut self, range: Range<u32>) -> u32 {
+        let span = range.end - range.start;
+        fastmap32(self.gen_u32(), span) + range.start
+    }
+
+    /// Generates a [`u32`] in `[range.start, range.end)`. Has slight modulo
+    /// bias for large ranges. See `fastmap64`.
+    fn gen_range_u64(&mut self, range: Range<u64>) -> u64 {
+        let span = range.end - range.start;
+        fastmap64(self.gen_u64(), span) + range.start
+    }
+
+    /// Generates a [`usize`] in `[range.start, range.end)`. Has slight modulo
+    /// bias for large ranges. See `fastmap64`.
+    fn gen_range_usize(&mut self, range: Range<usize>) -> usize {
+        let span = (range.end as u64) - (range.start as u64);
+        (fastmap64(self.gen_u64(), span) + range.start as u64) as usize
+    }
 
     /// Generate `N` (nearly uniformly random) alphanumeric (0-9, A-Z, a-z)
     /// bytes.
-    fn gen_alphanum_bytes<const N: usize>(&mut self) -> [u8; N];
-
-    #[cfg(any(test, feature = "test-utils"))]
-    fn gen_alphanum_vec(&mut self, n: usize) -> Vec<u8>;
-}
-
-impl<R: RngCore + Rng> RngExt for R {
-    fn gen_bytes<const N: usize>(&mut self) -> [u8; N] {
-        let mut out = [0u8; N];
-        self.fill_bytes(&mut out);
-        out
-    }
-
     fn gen_alphanum_bytes<const N: usize>(&mut self) -> [u8; N] {
         let mut out = self.gen_bytes();
         encode_alphanum_bytes(&mut out);
@@ -88,21 +146,13 @@ impl<R: RngCore + Rng> RngExt for R {
         encode_alphanum_slice(&mut out);
         out
     }
+}
 
-    /// Named `gen_boolean` to avoid ambiguity with [`Rng::gen_bool`].
-    fn gen_boolean(&mut self) -> bool {
-        let byte: [u8; 1] = self.gen_bytes();
-        byte[0] & 0x1 == 0
-    }
-
-    #[inline]
-    fn gen_u8(&mut self) -> u8 {
-        u8::from_le_bytes(self.gen_bytes())
-    }
-
-    #[inline]
-    fn gen_u16(&mut self) -> u16 {
-        u16::from_le_bytes(self.gen_bytes())
+impl<R: RngCore> RngExt for R {
+    fn gen_bytes<const N: usize>(&mut self) -> [u8; N] {
+        let mut out = [0u8; N];
+        self.fill_bytes(&mut out);
+        out
     }
 
     #[inline]
@@ -114,22 +164,43 @@ impl<R: RngCore + Rng> RngExt for R {
     fn gen_u64(&mut self) -> u64 {
         self.next_u64()
     }
+}
 
-    #[inline]
-    fn gen_u128(&mut self) -> u128 {
-        u128::from_le_bytes(self.gen_bytes())
+#[allow(clippy::len_without_is_empty)]
+pub trait RngSliceExt: Index<usize> {
+    fn len(&self) -> usize;
+
+    /// Sample an element from `self` uniformly at random. Returns `None` if
+    /// empty.
+    fn choose<R: RngCore>(&self, rng: &mut R) -> Option<&Self::Output> {
+        let len = self.len();
+        if len == 0 {
+            None
+        } else {
+            Some(&self[rng.gen_range_usize(0..len)])
+        }
     }
 
-    /// Generates a [`f32`] uniformly distributed in `[0, 1)`.
-    #[inline]
-    fn gen_f32(&mut self) -> f32 {
-        rand::distributions::Standard.sample(self)
+    /// Shuffle the elements in `self`. Very fast, but has slight modulo bias
+    /// for huge slices, so don't use for crypto. Will panic if the slice is
+    /// longer than `u32::MAX`.
+    fn shuffle<R: RngCore>(&mut self, rng: &mut R);
+}
+
+impl<T> RngSliceExt for [T] {
+    fn len(&self) -> usize {
+        self.len()
     }
 
-    /// Generates a [`f64`] uniformly distributed in `[0, 1)`.
-    #[inline]
-    fn gen_f64(&mut self) -> f64 {
-        rand::distributions::Standard.sample(self)
+    fn shuffle<R: RngCore>(&mut self, rng: &mut R) {
+        assert!(self.len() < (u32::MAX as usize));
+
+        for i in (1..self.len()).rev() {
+            // invariant: elements with index > i have been locked in place.
+            let n = (i as u32) + 1;
+            let j = fastmap32(rng.next_u32(), n) as usize;
+            self.swap(i, j);
+        }
     }
 }
 
@@ -482,7 +553,15 @@ impl RngCore for ThreadFastRng {
 /// ranges.
 ///
 /// See: <https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/>
-#[cfg(any(test, feature = "test-utils"))]
+#[inline(always)]
+const fn fastmap8(x: u8, n: u8) -> u8 {
+    ((x as u16).wrapping_mul(n as u16) >> 8) as u8
+}
+
+/// Map `x` uniformly into the range `[0, n)`. Has slight modulo bias for large
+/// ranges.
+///
+/// See: <https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/>
 #[inline(always)]
 const fn fastmap32(x: u32, n: u32) -> u32 {
     ((x as u64).wrapping_mul(n as u64) >> 32) as u32
@@ -493,25 +572,8 @@ const fn fastmap32(x: u32, n: u32) -> u32 {
 ///
 /// See: <https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/>
 #[inline(always)]
-const fn fastmap8(x: u8, n: u8) -> u8 {
-    ((x as u16).wrapping_mul(n as u16) >> 8) as u8
-}
-
-/// Shuffle a slice. Very fast, but has slight modulo bias so don't use for
-/// crypto.
-#[cfg(any(test, feature = "test-utils"))]
-pub fn shuffle<T, R>(rng: &mut R, xs: &mut [T])
-where
-    R: RngCore,
-{
-    assert!(xs.len() < (u32::MAX as usize));
-
-    for i in (1..xs.len()).rev() {
-        // invariant: elements with index > i have been locked in place.
-        let n = (i as u32) + 1;
-        let j = fastmap32(rng.next_u32(), n) as usize;
-        xs.swap(i, j);
-    }
+const fn fastmap64(x: u64, n: u64) -> u64 {
+    ((x as u128).wrapping_mul(n as u128) >> 64) as u64
 }
 
 #[cfg(test)]
@@ -549,5 +611,14 @@ mod test {
             let alphanum_str = std::str::from_utf8(alphanum.as_slice()).unwrap();
             prop_assert!(alphanum_str.chars().all(|c| c.is_ascii_alphanumeric()));
         });
+    }
+
+    #[test]
+    fn test_gen_f32_and_f64() {
+        let mut rng = FastRng::from_u64(202603111712);
+        for _ in 0..1000 {
+            assert!((0.0..1.0).contains(&rng.gen_f32()));
+            assert!((0.0..1.0).contains(&rng.gen_f64()));
+        }
     }
 }

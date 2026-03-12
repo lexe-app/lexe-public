@@ -193,7 +193,7 @@ pub mod fsext {
 pub mod test_utils {
     use std::{cell::RefCell, collections::BTreeMap, io};
 
-    use lexe_common::rng::{FastRng, shuffle};
+    use lexe_common::rng::{FastRng, RngSliceExt};
 
     use super::Ffs;
 
@@ -266,10 +266,7 @@ pub mod test_utils {
                 .keys()
                 .cloned()
                 .collect::<Vec<_>>();
-            {
-                let rng = &mut self.inner.borrow_mut().rng;
-                shuffle(rng, &mut filenames);
-            }
+            filenames.shuffle(&mut self.inner.borrow_mut().rng);
 
             for filename in &filenames {
                 dir_visitor(filename)?;

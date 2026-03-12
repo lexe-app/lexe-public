@@ -9,7 +9,7 @@ use lexe_api::models::runner::{
     MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
 };
 use lexe_common::{
-    rng::{FastRng, Rng, RngExt, SysRng},
+    rng::{FastRng, RngExt, SysRng},
     time::TimestampMs,
 };
 use tokio::sync::oneshot;
@@ -209,7 +209,7 @@ impl UserRunnerFuzzer {
         // Fully qualified otherwise gen_bool is ambiguous
         if self.rng.gen_boolean() {
             // Generate a random duration to add (up to 1s)
-            let advance_ms = self.rng.gen_range(0..1_000);
+            let advance_ms = self.rng.gen_range_u64(0..1_000);
             let duration = Duration::from_millis(advance_ms);
 
             // Try to add the duration to current time
@@ -234,7 +234,7 @@ mod helpers {
         cli::{LspInfo, node::MegaArgs},
         env::DeployEnv,
         ln::network::LxNetwork,
-        rng::{FastRng, Rng, RngExt},
+        rng::{FastRng, RngCore, RngExt},
         time::TimestampMs,
     };
     use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce};
@@ -297,14 +297,14 @@ mod helpers {
 
     /// Whether to generate a valid runner command.
     /// Otherwise, the caller should generate a bogus command.
-    pub(super) fn generate_valid_command(rng: &mut impl Rng) -> bool {
-        rng.gen_f64() < 0.9
+    pub(super) fn generate_valid_command(rng: &mut impl RngCore) -> bool {
+        rng.gen_bool(0.9)
     }
 
     /// Sample a UserPk from a limited set of 256 possible values.
     /// This reduces the sample space to increase the likelihood of
     /// interesting interactions between commands targeting the same user.
-    pub(super) fn sample_user_pk(rng: &mut impl RngExt) -> UserPk {
+    pub(super) fn sample_user_pk(rng: &mut impl RngCore) -> UserPk {
         let user_idx = rng.gen_u8();
         UserPk::from_u64(u64::from(user_idx))
     }

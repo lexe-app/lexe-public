@@ -52,7 +52,6 @@ http = { workspace = true }
 http-body-util = { workspace = true }
 lightning = { workspace = true }
 lightning-invoice = { workspace = true }
-rand = { workspace = true }
 rand_core = { workspace = true }
 rcgen = { workspace = true }
 ref-cast = { workspace = true }

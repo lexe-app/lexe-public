@@ -74,10 +74,10 @@ use lexe_common::{
         amount::Amount, balance::OnchainBalance, hashes::LxTxid,
         network::LxNetwork, priority::ConfirmationPriority,
     },
+    rng::RngCore,
     time::TimestampMs,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
-use rand::RngCore;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{

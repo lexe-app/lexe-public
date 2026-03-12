@@ -142,8 +142,7 @@ proptest = { version = "1", default-features = false }
 proptest-derive = "0.5"
 # High-performance concurrent cache
 quick_cache = "0.6"
-# Traits and utilities for generating randomness
-rand = { version = "0.8", default-features = false }
+# Traits for generating randomness
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Easily generate x509 certs with ring
 rcgen = { version = "0.14", default-features = false }

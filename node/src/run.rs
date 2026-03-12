@@ -988,7 +988,7 @@ impl UserNode {
 
         // Init background processor. User nodes can't be observed from the
         // outside, so there is no point in having any forwarding delay.
-        let forward_delay_range_ms = 0..=0;
+        let forward_delay_range_ms = 0..1;
         let bg_processor_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),

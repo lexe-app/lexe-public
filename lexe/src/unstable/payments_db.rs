@@ -853,7 +853,7 @@ mod test {
     use std::{collections::HashSet, time::Duration};
 
     use lexe_api::types::payments::PaymentStatus;
-    use lexe_common::rng::{FastRng, Rng, RngExt};
+    use lexe_common::rng::{FastRng, RngExt};
     use proptest::{
         collection::vec, prelude::any, proptest, sample::Index,
         test_runner::Config,
@@ -1083,7 +1083,7 @@ mod test {
                         };
 
                         // Bump the current time so new updated_at is fresh
-                        let bump_u64 = rng2.gen_range(1..=10);
+                        let bump_u64 = u64::from(rng2.gen_range_u32(1..11));
                         let bump_dur = Duration::from_millis(bump_u64);
                         current_time = current_time.saturating_add(bump_dur);
 

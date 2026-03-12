@@ -39,7 +39,6 @@ use proptest::{
     strategy::{Just, Strategy, ValueTree},
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
 };
-use rand::Rng;
 use rust_decimal::Decimal;
 use semver::{BuildMetadata, Prerelease};
 
@@ -739,7 +738,7 @@ impl<T, S: Strategy<Value = T>> Iterator for GenValueIter<T, S> {
         // Call `simplify` a bit to get some more interesting data.
         // NOTE: `complicate` doesn't do what you think it does -- it's more
         // like "undo" for the previous, successful `simplify` call.
-        let simplify_iters = self.rng.gen_range(0..4);
+        let simplify_iters = self.rng.gen_range_u32(0..4);
         for _ in 0..simplify_iters {
             // `simplify` returns `false` if there's no more simplification to
             // do.

@@ -327,7 +327,7 @@ mod test {
     use lexe_common::{
         env::DeployEnv,
         ln::amount::Amount,
-        rng::{Rng, ThreadFastRng},
+        rng::{RngExt, ThreadFastRng},
     };
     use tracing::info;
 
@@ -382,9 +382,10 @@ mod test {
         // Request invoice with random amount within allowed range
         let amount = {
             let mut rng = ThreadFastRng::new();
-            let amount_msat =
-                rng.gen_range(min_sendable.msat()..=max_sendable.msat());
-            Amount::from_msat(amount_msat)
+            let amount_msat = rng.gen_range_u32(
+                min_sendable.msat() as u32..max_sendable.msat() as u32,
+            );
+            Amount::from_msat(amount_msat as u64)
         };
         // Send a comment if the recipient supports it.
         let comment = comment_allowed.map(|_| "Hello from Lexe! 🚀");

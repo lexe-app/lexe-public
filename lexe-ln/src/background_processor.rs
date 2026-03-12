@@ -1,14 +1,18 @@
-use std::{ops::Deref, pin::Pin, sync::Arc, time::Duration};
+use std::{
+    ops::{Deref, Range},
+    pin::Pin,
+    sync::Arc,
+    time::Duration,
+};
 
 use lexe_common::{
-    rng::{Rng, ThreadFastRng},
+    rng::{RngExt, ThreadFastRng},
     time::DisplayMs,
 };
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
 use lightning::ln::msgs::RoutingMessageHandler;
-use rand::distributions::uniform::SampleRange;
 use tokio::time::Instant;
 use tracing::{Instrument, debug, error, info, info_span, trace, warn};
 
@@ -55,7 +59,7 @@ pub fn start<CM, PM, PS, EH, RMH>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     event_handler: EH,
     // The range (in millis) from which to pick a random forwarding delay.
-    forward_delay_range_ms: impl SampleRange<u64> + Clone + Send + Sync + 'static,
+    forward_delay_range_ms: Range<u32>,
     htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     monitor_persister_shutdown: NotifyOnce,
     mut shutdown: NotifyOnce,
@@ -201,8 +205,8 @@ where
                         //     && channel_manager.needs_pending_htlc_processing()
                         {
                             let delay_ms =
-                                rng.gen_range(forward_delay_range_ms.clone());
-                            let delay = Duration::from_millis(delay_ms);
+                                rng.gen_range_u32(forward_delay_range_ms.clone());
+                            let delay = Duration::from_millis(u64::from(delay_ms));
                             let sleep_fut = tokio::time::sleep(delay);
                             forward_delay_timer = Some(Box::pin(sleep_fut));
                             trace!("Started HTLC forward timer: {delay_ms}ms");

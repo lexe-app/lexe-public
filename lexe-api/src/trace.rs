@@ -9,8 +9,10 @@ use std::{
 
 use anyhow::{Context, bail, ensure};
 use http::{HeaderName, HeaderValue};
-use lexe_common::{rng::ThreadFastRng, time::DisplayMs};
-use rand_core::RngCore;
+use lexe_common::{
+    rng::{RngCore, ThreadFastRng},
+    time::DisplayMs,
+};
 use tracing::{Dispatch, span, warn};
 
 #[cfg(doc)]
