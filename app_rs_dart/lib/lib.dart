@@ -12,8 +12,8 @@ import 'frb_generated.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// Rust type: RustOpaqueNom<RootSeedRs>
-abstract class RootSeedRs implements RustOpaqueInterface {}
+// Rust type: RustOpaqueNom<SdkRootSeed>
+abstract class SdkRootSeed implements RustOpaqueInterface {}
 
 class U8Array32 extends NonGrowableListView<int> {
   static const arraySize = 32;

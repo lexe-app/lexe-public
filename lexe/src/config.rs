@@ -5,13 +5,12 @@ use std::{
 };
 
 use anyhow::Context;
-use lexe_common::{
-    api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
-    root_seed::RootSeed,
-};
-use lexe_node_client::credentials::CredentialsRef;
+use lexe_common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 
-use crate::unstable::SDK_USER_AGENT;
+use crate::{
+    types::auth::{CredentialsRef, RootSeed},
+    unstable::SDK_USER_AGENT,
+};
 
 // --- Structs --- //
 //

@@ -17,7 +17,7 @@
 //!   <https://github.com/animo/secure-env/blob/main/src/android.rs> or
 //!   <https://gitlab.com/veilid/keyring-manager/-/blob/master/src/android.rs>
 //!
-//! [`RootSeed`]: lexe_common::root_seed::RootSeed
+//! [`RootSeed`]: lexe::types::auth::RootSeed
 
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
@@ -31,8 +31,7 @@ use std::{
 use anyhow::Context;
 use cfg_if::cfg_if;
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
-use lexe::config::WalletEnv;
-use lexe_common::root_seed::RootSeed;
+use lexe::{config::WalletEnv, types::auth::RootSeed};
 use lexe_hex::hex;
 use secrecy::ExposeSecret;
 
@@ -159,7 +158,8 @@ impl SecretStore {
 
     /// Write the user's root seed to the secret store.
     pub fn write_root_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
-        let root_seed_hex = hex::encode(root_seed.expose_secret().as_slice());
+        let root_seed_hex =
+            hex::encode(root_seed.unstable().expose_secret().as_slice());
         self.root_seed_cred
             .set_password(&root_seed_hex)
             .context("Failed to write root seed into keyring")
@@ -277,11 +277,15 @@ mod test {
     fn test_secret_store(rng: &mut SysRng, secret_store: &SecretStore) {
         assert!(secret_store.read_root_seed().unwrap().is_none());
 
-        let root_seed = RootSeed::from_rng(rng);
+        let _ = rng;
+        let root_seed = RootSeed::generate();
         secret_store.write_root_seed(&root_seed).unwrap();
 
         let root_seed2 = secret_store.read_root_seed().unwrap().unwrap();
-        assert_eq!(root_seed.expose_secret(), root_seed2.expose_secret());
+        assert_eq!(
+            root_seed.unstable().expose_secret(),
+            root_seed2.unstable().expose_secret()
+        );
 
         secret_store.delete_root_seed().unwrap();
         assert!(secret_store.read_root_seed().unwrap().is_none());

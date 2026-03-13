@@ -2,7 +2,10 @@ use std::{borrow::Cow, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe::config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig};
+use lexe::{
+    config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig},
+    types::auth::RootSeed as SdkRootSeed,
+};
 use lexe_api::{
     models::command::{
         BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
@@ -26,7 +29,6 @@ use lexe_api::{
         username::Username as UsernameRs,
     },
 };
-pub(crate) use lexe_common::root_seed::RootSeed as RootSeedRs;
 use lexe_common::{
     ExposeSecret,
     api::{
@@ -211,16 +213,16 @@ impl Config {
 
 /// The user's root seed from which we derive all child secrets.
 pub struct RootSeed {
-    pub(crate) inner: RustOpaqueNom<RootSeedRs>,
+    pub(crate) sdk: RustOpaqueNom<SdkRootSeed>,
 }
 
 impl RootSeed {
     /// Generate a new RootSeed from the secure system RNG.
     ///
     /// flutter_rust_bridge:sync
-    pub fn from_sys_rng() -> Self {
+    pub fn generate() -> Self {
         Self {
-            inner: RustOpaqueNom::new(RootSeedRs::from_rng(&mut SysRng::new())),
+            sdk: RustOpaqueNom::new(SdkRootSeed::generate()),
         }
     }
 
@@ -228,14 +230,14 @@ impl RootSeed {
     ///
     /// flutter_rust_bridge:sync
     pub fn expose_secret_hex(&self) -> String {
-        hex::encode(self.inner.expose_secret().as_slice())
+        hex::encode(self.sdk.unstable().expose_secret().as_slice())
     }
 
     /// Return the 24-word BIP-39 seed phrase for this root seed.
     ///
     /// flutter_rust_bridge:sync
     pub fn seed_phrase(&self) -> Vec<String> {
-        let mnemonic = self.inner.to_mnemonic();
+        let mnemonic = self.sdk.to_mnemonic();
         assert_eq!(mnemonic.word_count(), 24);
         mnemonic.words().map(|w| w.to_owned()).collect::<Vec<_>>()
     }
@@ -249,17 +251,15 @@ impl RootSeed {
         )
         .map_err(|e| anyhow::anyhow!("Failed to parse mnemonic: {e}"))?;
 
-        let root_seed_rs = RootSeedRs::try_from(mnemonic)?;
-        Ok(Self {
-            inner: RustOpaqueNom::new(root_seed_rs),
-        })
+        let root_seed = SdkRootSeed::from_mnemonic(mnemonic)?;
+        Ok(Self::from(root_seed))
     }
 }
 
-impl From<RootSeedRs> for RootSeed {
-    fn from(inner: RootSeedRs) -> Self {
+impl From<SdkRootSeed> for RootSeed {
+    fn from(sdk: SdkRootSeed) -> Self {
         Self {
-            inner: RustOpaqueNom::new(inner),
+            sdk: RustOpaqueNom::new(sdk),
         }
     }
 }

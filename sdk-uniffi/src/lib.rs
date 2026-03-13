@@ -9,21 +9,26 @@
 
 use std::{fmt, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
+use anyhow::anyhow;
 use lexe::{
-    blocking_wallet::BlockingLexeWallet as BlockingLexeWalletRs,
-    config::WalletEnvConfig as WalletEnvConfigRs,
+    blocking_wallet::BlockingLexeWallet as SdkBlockingLexeWallet,
+    config::WalletEnvConfig as SdkWalletEnvConfig,
     types::{
-        command::{
-            CreateInvoiceRequest as CreateInvoiceRequestRs,
-            CreateInvoiceResponse as CreateInvoiceResponseRs,
-            GetPaymentRequest as GetPaymentRequestRs, NodeInfo as NodeInfoRs,
-            PayInvoiceRequest as PayInvoiceRequestRs,
-            PayInvoiceResponse as PayInvoiceResponseRs,
-            SdkUpdatePaymentNoteRequest as SdkUpdatePaymentNoteRequestRs,
+        auth::{
+            ClientCredentials as SdkClientCredentials,
+            CredentialsRef as SdkCredentialsRef, RootSeed as SdkRootSeed,
         },
-        payment::Payment as PaymentRs,
+        command::{
+            CreateInvoiceRequest as SdkCreateInvoiceRequest,
+            CreateInvoiceResponse as SdkCreateInvoiceResponse,
+            GetPaymentRequest as SdkGetPaymentRequest, NodeInfo as SdkNodeInfo,
+            PayInvoiceRequest as SdkPayInvoiceRequest,
+            PayInvoiceResponse as SdkPayInvoiceResponse,
+            SdkUpdatePaymentNoteRequest,
+        },
+        payment::Payment as SdkPayment,
     },
-    wallet::LexeWallet as LexeWalletRs,
+    wallet::LexeWallet as SdkLexeWallet,
 };
 use lexe_api_core::{
     error::GatewayApiError as GatewayApiErrorRs,
@@ -44,12 +49,8 @@ use lexe_common::{
         amount::Amount as AmountRs, network::LxNetwork as LxNetworkRs,
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
-    root_seed::RootSeed as RootSeedRs,
 };
-use lexe_node_client::credentials::{
-    ClientCredentials as ClientCredentialsRs, CredentialsRef,
-};
-use secrecy::{ExposeSecret, Zeroize};
+use secrecy::Zeroize;
 
 uniffi::setup_scaffolding!("lexe");
 
@@ -303,14 +304,11 @@ impl WalletEnvConfig {
     ///
     /// Raises [`SeedFileError::NotFound`] if the file doesn't exist.
     pub fn read_seed(&self) -> Result<Arc<RootSeed>, SeedFileError> {
-        let rs = self.to_rs();
-        match rs.read_seed() {
-            Ok(Some(inner)) => Ok(Arc::new(RootSeed { inner })),
-            Ok(None) => {
-                let data_dir = default_lexe_data_dir().unwrap_or_default();
-                let path = self.seedphrase_path(data_dir);
-                Err(SeedFileError::NotFound { path })
-            }
+        let data_dir = default_lexe_data_dir().unwrap_or_default();
+        let path = self.seedphrase_path(data_dir);
+        match self.to_rs().read_seed() {
+            Ok(Some(sdk)) => Ok(Arc::new(RootSeed { sdk })),
+            Ok(None) => Err(SeedFileError::NotFound { path }),
             Err(e) => Err(SeedFileError::ParseError {
                 message: format!("{e:#}"),
             }),
@@ -325,7 +323,7 @@ impl WalletEnvConfig {
         &self,
         root_seed: Arc<RootSeed>,
     ) -> Result<(), SeedFileError> {
-        self.to_rs().write_seed(root_seed.as_rs()).map_err(|e| {
+        self.to_rs().write_seed(root_seed.as_sdk()).map_err(|e| {
             // Check if the root cause is an "already exists" IO error.
             for cause in e.chain() {
                 if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
@@ -345,11 +343,11 @@ impl WalletEnvConfig {
 
 impl WalletEnvConfig {
     // TODO(max): Could all of these to_rs be `From` impls?
-    fn to_rs(&self) -> WalletEnvConfigRs {
+    fn to_rs(&self) -> SdkWalletEnvConfig {
         match self.deploy_env {
-            DeployEnv::Prod => WalletEnvConfigRs::mainnet(),
-            DeployEnv::Staging => WalletEnvConfigRs::testnet3(),
-            DeployEnv::Dev => WalletEnvConfigRs::regtest(
+            DeployEnv::Prod => SdkWalletEnvConfig::mainnet(),
+            DeployEnv::Staging => SdkWalletEnvConfig::testnet3(),
+            DeployEnv::Dev => SdkWalletEnvConfig::regtest(
                 self.use_sgx,
                 self.gateway_url.clone(),
             ),
@@ -364,7 +362,7 @@ impl WalletEnvConfig {
 /// The secret root seed for deriving all user keys and credentials.
 #[derive(uniffi::Object)]
 pub struct RootSeed {
-    inner: RootSeedRs,
+    sdk: SdkRootSeed,
 }
 
 #[uniffi::export]
@@ -373,7 +371,7 @@ impl RootSeed {
     #[uniffi::constructor]
     pub fn generate() -> Arc<Self> {
         Arc::new(Self {
-            inner: RootSeedRs::generate(),
+            sdk: SdkRootSeed::generate(),
         })
     }
 
@@ -382,9 +380,9 @@ impl RootSeed {
     /// The seed must be exactly 32 bytes.
     #[uniffi::constructor]
     pub fn new(mut seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
-        let inner = RootSeedRs::try_from(seed_bytes.as_slice())?;
+        let sdk = SdkRootSeed::try_from(seed_bytes.as_slice())?;
         seed_bytes.zeroize();
-        Ok(Arc::new(Self { inner }))
+        Ok(Arc::new(Self { sdk }))
     }
 
     /// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
@@ -393,18 +391,61 @@ impl RootSeed {
     /// or [`SeedFileError::ParseError`] if the file can't be parsed.
     #[uniffi::constructor]
     pub fn read_from_path(path: String) -> Result<Arc<Self>, SeedFileError> {
-        match RootSeedRs::read_from_path(path.as_ref()) {
-            Ok(Some(inner)) => Ok(Arc::new(Self { inner })),
-            Ok(None) => Err(SeedFileError::NotFound { path }),
-            Err(e) => Err(SeedFileError::ParseError {
-                message: format!("{e:#}"),
-            }),
-        }
+        let sdk = match SdkRootSeed::read_from_path(path.as_ref()) {
+            Ok(Some(sdk)) => sdk,
+            Ok(None) => return Err(SeedFileError::NotFound { path }),
+            Err(e) =>
+                return Err(SeedFileError::ParseError {
+                    message: format!("{e:#}"),
+                }),
+        };
+
+        Ok(Arc::new(Self { sdk }))
     }
 
-    /// Get the 32-byte root seed.
-    pub fn seed_bytes(&self) -> Vec<u8> {
-        self.inner.expose_secret().to_vec()
+    /// Return the 32-byte root seed.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.sdk.as_bytes().to_vec()
+    }
+
+    /// Return this root seed's mnemonic as a space-separated string.
+    pub fn to_mnemonic(&self) -> String {
+        self.sdk.to_mnemonic().to_string()
+    }
+
+    /// Construct a root seed from a BIP39 mnemonic string.
+    #[uniffi::constructor]
+    pub fn from_mnemonic(mnemonic: String) -> FfiResult<Arc<Self>> {
+        let mnemonic = mnemonic
+            .parse()
+            .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
+        let sdk = SdkRootSeed::from_mnemonic(mnemonic)?;
+        Ok(Arc::new(Self { sdk }))
+    }
+
+    /// Derive the user's public key.
+    pub fn derive_user_pk(&self) -> String {
+        self.sdk.derive_user_pk().to_string()
+    }
+
+    /// Derive the node public key.
+    pub fn derive_node_pk(&self) -> String {
+        self.sdk.derive_node_pk().to_string()
+    }
+
+    /// Encrypt this root seed under the given password.
+    pub fn password_encrypt(&self, password: String) -> FfiResult<Vec<u8>> {
+        self.sdk.password_encrypt(&password).map_err(Into::into)
+    }
+
+    /// Decrypt a password-encrypted root seed.
+    #[uniffi::constructor]
+    pub fn password_decrypt(
+        password: String,
+        encrypted: Vec<u8>,
+    ) -> FfiResult<Arc<Self>> {
+        let sdk = SdkRootSeed::password_decrypt(&password, encrypted)?;
+        Ok(Arc::new(Self { sdk }))
     }
 
     /// Writes this root seed's mnemonic to a seedphrase file.
@@ -412,7 +453,7 @@ impl RootSeed {
     /// Creates parent directories if needed. Raises
     /// [`SeedFileError::AlreadyExists`] if the file already exists.
     pub fn write_to_path(&self, path: String) -> Result<(), SeedFileError> {
-        self.as_rs().write_to_path(path.as_ref()).map_err(|e| {
+        self.as_sdk().write_to_path(path.as_ref()).map_err(|e| {
             // Check if the root cause is an "already exists" IO error.
             for cause in e.chain() {
                 if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
@@ -429,8 +470,8 @@ impl RootSeed {
 }
 
 impl RootSeed {
-    fn as_rs(&self) -> &RootSeedRs {
-        &self.inner
+    fn as_sdk(&self) -> &SdkRootSeed {
+        &self.sdk
     }
 }
 
@@ -444,9 +485,9 @@ pub struct ClientCredentials {
 impl ClientCredentials {
     // TODO(mpch): Remove once credentials auth flow is implemented
     #[allow(dead_code)]
-    fn to_rs(&self) -> FfiResult<ClientCredentialsRs> {
-        ClientCredentialsRs::try_from_base64_blob(&self.credentials_base64)
-            .map_err(|e| anyhow::anyhow!("Invalid credentials: {e}").into())
+    fn to_rs(&self) -> FfiResult<SdkClientCredentials> {
+        SdkClientCredentials::from_string(&self.credentials_base64)
+            .map_err(|e| anyhow!("Invalid credentials: {e}").into())
     }
 }
 
@@ -483,8 +524,8 @@ pub struct NodeInfo {
     pub num_usable_channels: u64,
 }
 
-impl From<NodeInfoRs> for NodeInfo {
-    fn from(info: NodeInfoRs) -> Self {
+impl From<SdkNodeInfo> for NodeInfo {
+    fn from(info: SdkNodeInfo) -> Self {
         Self {
             version: info.version.to_string(),
             measurement: info.measurement.to_string(),
@@ -518,7 +559,7 @@ impl From<NodeInfoRs> for NodeInfo {
 /// For synchronous usage, use [`BlockingLexeWallet`].
 #[derive(uniffi::Object)]
 pub struct AsyncLexeWallet {
-    inner: LexeWalletRs<lexe::wallet::WithDb>,
+    inner: SdkLexeWallet<lexe::wallet::WithDb>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -536,10 +577,10 @@ impl AsyncLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = LexeWalletRs::fresh(
+        let inner = SdkLexeWallet::fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -569,10 +610,10 @@ impl AsyncLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let maybe_inner = LexeWalletRs::load(
+        let maybe_inner = SdkLexeWallet::load(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -601,10 +642,10 @@ impl AsyncLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = LexeWalletRs::load_or_fresh(
+        let inner = SdkLexeWallet::load_or_fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -632,12 +673,12 @@ impl AsyncLexeWallet {
             .as_deref()
             .map(|s| {
                 s.parse::<UserPk>().map_err(|e| {
-                    anyhow::anyhow!("Invalid partner user_pk: {e}")
+                    anyhow!("Invalid partner user_pk: {e}")
                 })
             })
             .transpose()?;
 
-        self.inner.signup(root_seed.as_rs(), partner).await?;
+        self.inner.signup(root_seed.as_sdk(), partner).await?;
         Ok(())
     }
 
@@ -647,7 +688,7 @@ impl AsyncLexeWallet {
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
     pub async fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         self.inner.provision(credentials).await?;
         Ok(())
     }
@@ -681,9 +722,9 @@ impl AsyncLexeWallet {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow::anyhow!("Invalid amount: {e}"))?;
+            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
 
-        let req = CreateInvoiceRequestRs {
+        let req = SdkCreateInvoiceRequest {
             expiration_secs,
             amount,
             description,
@@ -712,13 +753,13 @@ impl AsyncLexeWallet {
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice: LxInvoiceRs = invoice
             .parse()
-            .map_err(|e| anyhow::anyhow!("Invalid invoice: {e}"))?;
+            .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
         let fallback_amount = fallback_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow::anyhow!("Invalid fallback amount: {e}"))?;
+            .map_err(|e| anyhow!("Invalid fallback amount: {e}"))?;
 
-        let req = PayInvoiceRequestRs {
+        let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
             note,
@@ -734,7 +775,7 @@ impl AsyncLexeWallet {
         index: String,
     ) -> FfiResult<Option<Payment>> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = GetPaymentRequestRs { index };
+        let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req).await?;
         Ok(resp.payment.map(Into::into))
     }
@@ -749,7 +790,7 @@ impl AsyncLexeWallet {
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkUpdatePaymentNoteRequestRs { index, note };
+        let req = SdkUpdatePaymentNoteRequest { index, note };
         self.inner.update_payment_note(req).await?;
         Ok(())
     }
@@ -836,7 +877,7 @@ impl AsyncLexeWallet {
 /// For async usage, use [`AsyncLexeWallet`].
 #[derive(uniffi::Object)]
 pub struct BlockingLexeWallet {
-    inner: BlockingLexeWalletRs,
+    inner: SdkBlockingLexeWallet,
 }
 
 #[uniffi::export]
@@ -854,10 +895,10 @@ impl BlockingLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = BlockingLexeWalletRs::fresh(
+        let inner = SdkBlockingLexeWallet::fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -887,10 +928,10 @@ impl BlockingLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let maybe_inner = BlockingLexeWalletRs::load(
+        let maybe_inner = SdkBlockingLexeWallet::load(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -919,10 +960,10 @@ impl BlockingLexeWallet {
         root_seed: Arc<RootSeed>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = BlockingLexeWalletRs::load_or_fresh(
+        let inner = SdkBlockingLexeWallet::load_or_fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -950,12 +991,12 @@ impl BlockingLexeWallet {
             .as_deref()
             .map(|s| {
                 s.parse::<UserPk>().map_err(|e| {
-                    anyhow::anyhow!("Invalid partner user_pk: {e}")
+                    anyhow!("Invalid partner user_pk: {e}")
                 })
             })
             .transpose()?;
 
-        self.inner.signup(root_seed.as_rs(), partner)?;
+        self.inner.signup(root_seed.as_sdk(), partner)?;
         Ok(())
     }
 
@@ -965,7 +1006,7 @@ impl BlockingLexeWallet {
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
     pub fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
-        let credentials = CredentialsRef::from(root_seed.as_rs());
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         self.inner.provision(credentials)?;
         Ok(())
     }
@@ -999,9 +1040,9 @@ impl BlockingLexeWallet {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow::anyhow!("Invalid amount: {e}"))?;
+            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
 
-        let req = CreateInvoiceRequestRs {
+        let req = SdkCreateInvoiceRequest {
             expiration_secs,
             amount,
             description,
@@ -1030,13 +1071,13 @@ impl BlockingLexeWallet {
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice: LxInvoiceRs = invoice
             .parse()
-            .map_err(|e| anyhow::anyhow!("Invalid invoice: {e}"))?;
+            .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
         let fallback_amount = fallback_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow::anyhow!("Invalid fallback amount: {e}"))?;
+            .map_err(|e| anyhow!("Invalid fallback amount: {e}"))?;
 
-        let req = PayInvoiceRequestRs {
+        let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
             note,
@@ -1049,7 +1090,7 @@ impl BlockingLexeWallet {
     /// Get a payment by its `index` string.
     pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = GetPaymentRequestRs { index };
+        let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req)?;
         Ok(resp.payment.map(Into::into))
     }
@@ -1064,7 +1105,7 @@ impl BlockingLexeWallet {
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkUpdatePaymentNoteRequestRs { index, note };
+        let req = SdkUpdatePaymentNoteRequest { index, note };
         self.inner.update_payment_note(req)?;
         Ok(())
     }
@@ -1410,11 +1451,11 @@ pub struct Payment {
     pub priority: Option<ConfirmationPriority>,
 }
 
-impl From<PaymentRs> for Payment {
-    fn from(payment: PaymentRs) -> Self {
+impl From<SdkPayment> for Payment {
+    fn from(payment: SdkPayment) -> Self {
         // Destructure to get a compile error when a new field is added,
         // reminding us to include it in the conversion below.
-        let PaymentRs {
+        let SdkPayment {
             index,
             rail,
             kind,
@@ -1507,8 +1548,8 @@ pub struct CreateInvoiceResponse {
     pub payment_secret: String,
 }
 
-impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
-    fn from(resp: CreateInvoiceResponseRs) -> Self {
+impl From<SdkCreateInvoiceResponse> for CreateInvoiceResponse {
+    fn from(resp: SdkCreateInvoiceResponse) -> Self {
         Self {
             index: resp.index.to_string(),
             invoice: resp.invoice.to_string(),
@@ -1532,8 +1573,8 @@ pub struct PayInvoiceResponse {
     pub created_at_ms: u64,
 }
 
-impl From<PayInvoiceResponseRs> for PayInvoiceResponse {
-    fn from(resp: PayInvoiceResponseRs) -> Self {
+impl From<SdkPayInvoiceResponse> for PayInvoiceResponse {
+    fn from(resp: SdkPayInvoiceResponse) -> Self {
         Self {
             index: resp.index.to_string(),
             created_at_ms: resp.created_at.to_millis(),

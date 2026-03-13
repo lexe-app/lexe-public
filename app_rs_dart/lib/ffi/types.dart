@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `into_inner`
+// These functions are ignored because they are not marked as `pub`: `into_inner`, `try_from_unstable`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
@@ -431,9 +431,9 @@ class RevocableClient {
 
 /// The user's root seed from which we derive all child secrets.
 class RootSeed {
-  final RootSeedRs inner;
+  final SdkRootSeed sdk;
 
-  const RootSeed({required this.inner});
+  const RootSeed({required this.sdk});
 
   /// Hex-encode the root seed secret. Should only be used for debugging.
   ///
@@ -448,8 +448,8 @@ class RootSeed {
   /// Generate a new RootSeed from the secure system RNG.
   ///
   /// flutter_rust_bridge:sync
-  static RootSeed fromSysRng() =>
-      AppRs.instance.api.crateFfiTypesRootSeedFromSysRng();
+  static RootSeed generate() =>
+      AppRs.instance.api.crateFfiTypesRootSeedGenerate();
 
   /// Return the 24-word BIP-39 seed phrase for this root seed.
   ///
@@ -458,14 +458,12 @@ class RootSeed {
       AppRs.instance.api.crateFfiTypesRootSeedSeedPhrase(that: this);
 
   @override
-  int get hashCode => inner.hashCode;
+  int get hashCode => sdk.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is RootSeed &&
-          runtimeType == other.runtimeType &&
-          inner == other.inner;
+      other is RootSeed && runtimeType == other.runtimeType && sdk == other.sdk;
 }
 
 enum Scope { all, nodeConnect }

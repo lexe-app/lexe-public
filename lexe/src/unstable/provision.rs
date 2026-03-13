@@ -8,11 +8,10 @@ use std::{
 use anyhow::Context;
 use lexe_api::def::AppNodeProvisionApi;
 use lexe_common::{
-    ExposeSecret, Secret,
+    ExposeSecret,
     api::{provision::NodeProvisionRequest, version::NodeEnclave},
     constants,
     releases::Release,
-    root_seed::RootSeed,
 };
 use lexe_enclave::enclave;
 use lexe_node_client::client::NodeClient;
@@ -20,7 +19,7 @@ use lexe_tokio::task::LxTask;
 use serde::Deserialize;
 use tracing::{info, info_span, warn};
 
-use crate::config::WalletEnv;
+use crate::{config::WalletEnv, types::auth::RootSeed};
 
 /// The contents of `public/releases.json`.
 pub static RELEASES_JSON: &str = include_str!("../../../releases.json");
@@ -183,7 +182,7 @@ async fn provision_one(
     encrypted_seed: Option<Vec<u8>>,
 ) -> anyhow::Result<()> {
     let provision_req = NodeProvisionRequest {
-        root_seed,
+        root_seed: root_seed.into_unstable(),
         deploy_env: wallet_env.deploy_env,
         network: wallet_env.network,
         google_auth_code,
@@ -211,7 +210,8 @@ async fn provision_one(
 // we still have the seed serialized in a heap-allocated json blob when we
 // make the request, which is much harder for us to zeroize...
 pub fn clone_root_seed(root_seed_ref: &RootSeed) -> RootSeed {
-    RootSeed::new(Secret::new(*root_seed_ref.expose_secret()))
+    RootSeed::try_from(root_seed_ref.unstable().expose_secret().as_slice())
+        .expect("RootSeed always contains 32 bytes")
 }
 
 #[cfg(test)]

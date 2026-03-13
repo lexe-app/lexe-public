@@ -2510,6 +2510,7 @@ dependencies = [
  "async-compat",
  "bip39",
  "bitcoin",
+ "cfg-if 1.0.4",
  "futures",
  "lexe-api",
  "lexe-common",

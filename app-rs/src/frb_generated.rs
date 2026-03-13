@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1476612725;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 891397297;
 
 // Section: executor
 
@@ -1120,17 +1120,17 @@ fn wire__crate__ffi__types__root_seed_from_mnemonic_impl(
                      let output_ok = crate::ffi::types::RootSeed::from_mnemonic(api_mnemonic)?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__types__root_seed_from_sys_rng_impl(
+fn wire__crate__ffi__types__root_seed_generate_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "root_seed_from_sys_rng", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "root_seed_generate", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::RootSeed::from_sys_rng())?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::RootSeed::generate())?;   Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__types__root_seed_seed_phrase_impl(
@@ -1350,7 +1350,7 @@ impl SseDecode for RustOpaqueNom<GDriveRestoreClientRs> {
     }
 }
 
-impl SseDecode for RustOpaqueNom<RootSeedRs> {
+impl SseDecode for RustOpaqueNom<SdkRootSeed> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
@@ -2867,9 +2867,9 @@ impl SseDecode for crate::ffi::types::RootSeed {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut var_inner =
-            <RustOpaqueNom<RootSeedRs>>::sse_decode(deserializer);
-        return crate::ffi::types::RootSeed { inner: var_inner };
+        let mut var_sdk =
+            <RustOpaqueNom<SdkRootSeed>>::sse_decode(deserializer);
+        return crate::ffi::types::RootSeed { sdk: var_sdk };
     }
 }
 
@@ -3199,7 +3199,7 @@ fn pde_ffi_dispatcher_sync_impl(
 70 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
 71 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
 72 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
-73 => wire__crate__ffi__types__root_seed_from_sys_rng_impl(ptr, rust_vec_len, data_len),
+73 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
 74 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
 75 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
 76 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
@@ -4579,7 +4579,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::RevocableClient>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::RootSeed {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.inner.into_into_dart().into_dart()].into_dart()
+        [self.sdk.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -4859,7 +4859,7 @@ impl SseEncode for RustOpaqueNom<GDriveRestoreClientRs> {
     }
 }
 
-impl SseEncode for RustOpaqueNom<RootSeedRs> {
+impl SseEncode for RustOpaqueNom<SdkRootSeed> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -6177,7 +6177,7 @@ impl SseEncode for crate::ffi::types::RootSeed {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <RustOpaqueNom<RootSeedRs>>::sse_encode(self.inner, serializer);
+        <RustOpaqueNom<SdkRootSeed>>::sse_encode(self.sdk, serializer);
     }
 }
 
@@ -6516,20 +6516,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_RootSeedRs(
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SdkRootSeed(
         ptr: *const std::ffi::c_void,
     ) {
         unsafe {
-            StdArc::<RootSeedRs>::increment_strong_count(ptr as _);
+            StdArc::<SdkRootSeed>::increment_strong_count(ptr as _);
         }
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_RootSeedRs(
+    pub extern "C" fn frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SdkRootSeed(
         ptr: *const std::ffi::c_void,
     ) {
         unsafe {
-            StdArc::<RootSeedRs>::decrement_strong_count(ptr as _);
+            StdArc::<SdkRootSeed>::decrement_strong_count(ptr as _);
         }
     }
 

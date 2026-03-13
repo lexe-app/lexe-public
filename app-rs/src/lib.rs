@@ -7,6 +7,11 @@
 // Allow this in generated code
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
+// FRB-generated Rust imports `crate::*` and then names this opaque type
+// directly, so it must exist at crate root.
+#[cfg(feature = "flutter")]
+pub(crate) use lexe::types::auth::RootSeed as SdkRootSeed;
+
 // TODO(phlip9): uncomment when I actually need this
 // /// Android Context and JVM handle.
 // #[cfg(target_os = "android")]

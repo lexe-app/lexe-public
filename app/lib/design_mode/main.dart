@@ -343,7 +343,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SignupBackupSeedPage(
           ctx: SignupCtx(
             this.widget.config,
-            RootSeed.fromSysRng(),
+            RootSeed.generate(),
             GDriveAuth.mock,
             mockSignupApi,
           ),

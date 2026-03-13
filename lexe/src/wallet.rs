@@ -14,13 +14,9 @@ use lexe_common::{
         },
         user::{NodePkProof, UserPk},
     },
-    root_seed::RootSeed,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_node_client::{
-    client::{GatewayClient, NodeClient},
-    credentials::CredentialsRef,
-};
+use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
@@ -34,6 +30,7 @@ use crate::{
         WalletUserDbConfig,
     },
     types::{
+        auth::{CredentialsRef, RootSeed},
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
             GetPaymentResponse, ListPaymentsResponse, NodeInfo,
@@ -197,7 +194,7 @@ impl LexeWallet<WithDb> {
             env_config.wallet_env.use_sgx,
             env_config.wallet_env.deploy_env,
             gateway_client.clone(),
-            credentials,
+            credentials.to_unstable(),
         )
         .context("Failed to build NodeClient")?;
 
@@ -369,7 +366,7 @@ impl LexeWallet<WithoutDb> {
             env_config.wallet_env.use_sgx,
             env_config.wallet_env.deploy_env,
             gateway_client.clone(),
-            credentials,
+            credentials.to_unstable(),
         )
         .context("Failed to build NodeClient")?;
 
@@ -412,11 +409,18 @@ impl<D> LexeWallet<D> {
         root_seed: &RootSeed,
         partner_pk: Option<UserPk>,
     ) -> anyhow::Result<()> {
+        let signup_code = None;
+        let allow_gvfs_access = false;
+        let backup_password = None;
+        let google_auth_code = None;
+
         self.signup_inner(
-            root_seed, partner_pk, None,  // signup_code
-            false, // allow_gvfs_access
-            None,  // backup_password
-            None,  // google_auth_code
+            root_seed,
+            partner_pk,
+            signup_code,
+            allow_gvfs_access,
+            backup_password,
+            google_auth_code,
         )
         .await
     }
@@ -455,11 +459,9 @@ impl<D> LexeWallet<D> {
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
     ) -> anyhow::Result<()> {
-        let mut rng = SysRng::new();
-
         // Derive keys and build signup request
-        let user_key_pair = root_seed.derive_user_key_pair();
-        let node_key_pair = root_seed.derive_node_key_pair();
+        let user_key_pair = root_seed.unstable().derive_user_key_pair();
+        let node_key_pair = root_seed.unstable().derive_node_key_pair();
         let node_pk_proof = NodePkProof::sign(&node_key_pair);
 
         let signup_req = UserSignupRequestWire::V2(UserSignupRequestWireV2 {
@@ -483,7 +485,7 @@ impl<D> LexeWallet<D> {
         // Encrypt seed if backup password provided.
         // NOTE: This is very slow; 600K HMAC iterations!
         let encrypted_seed = backup_password
-            .map(|password| root_seed.password_encrypt(&mut rng, password))
+            .map(|password| root_seed.password_encrypt(password))
             .transpose()
             .context("Could not encrypt root seed under password")?;
 

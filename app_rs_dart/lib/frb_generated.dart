@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1476612725;
+  int get rustContentHash => 891397297;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -373,7 +373,7 @@ abstract class AppRsApi extends BaseApi {
 
   RootSeed crateFfiTypesRootSeedFromMnemonic({required List<String> mnemonic});
 
-  RootSeed crateFfiTypesRootSeedFromSysRng();
+  RootSeed crateFfiTypesRootSeedGenerate();
 
   List<String> crateFfiTypesRootSeedSeedPhrase({required RootSeed that});
 
@@ -441,12 +441,12 @@ abstract class AppRsApi extends BaseApi {
   get rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_RootSeedRs;
+  get rust_arc_increment_strong_count_SdkRootSeed;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_RootSeedRs;
+  get rust_arc_decrement_strong_count_SdkRootSeed;
 
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RootSeedRsPtr;
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SdkRootSeedPtr;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SecretStoreRs;
@@ -2752,7 +2752,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  RootSeed crateFfiTypesRootSeedFromSysRng() {
+  RootSeed crateFfiTypesRootSeedGenerate() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -2763,15 +2763,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeSuccessData: sse_decode_root_seed,
           decodeErrorData: null,
         ),
-        constMeta: kCrateFfiTypesRootSeedFromSysRngConstMeta,
+        constMeta: kCrateFfiTypesRootSeedGenerateConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateFfiTypesRootSeedFromSysRngConstMeta =>
-      const TaskConstMeta(debugName: "root_seed_from_sys_rng", argNames: []);
+  TaskConstMeta get kCrateFfiTypesRootSeedGenerateConstMeta =>
+      const TaskConstMeta(debugName: "root_seed_generate", argNames: []);
 
   @override
   List<String> crateFfiTypesRootSeedSeedPhrase({required RootSeed that}) {
@@ -3112,12 +3112,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       wire.rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRs;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_RootSeedRs =>
-      wire.rust_arc_increment_strong_count_RustOpaque_RootSeedRs;
+  get rust_arc_increment_strong_count_SdkRootSeed =>
+      wire.rust_arc_increment_strong_count_RustOpaque_SdkRootSeed;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_RootSeedRs =>
-      wire.rust_arc_decrement_strong_count_RustOpaque_RootSeedRs;
+  get rust_arc_decrement_strong_count_SdkRootSeed =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_SdkRootSeed;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SecretStoreRs =>
@@ -3204,9 +3204,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  RootSeedRs dco_decode_RustOpaque_RootSeedRs(dynamic raw) {
+  SdkRootSeed dco_decode_RustOpaque_SdkRootSeed(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return RootSeedRsImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return SdkRootSeedImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -4491,7 +4491,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return RootSeed(inner: dco_decode_RustOpaque_RootSeedRs(arr[0]));
+    return RootSeed(sdk: dco_decode_RustOpaque_SdkRootSeed(arr[0]));
   }
 
   @protected
@@ -4719,9 +4719,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  RootSeedRs sse_decode_RustOpaque_RootSeedRs(SseDeserializer deserializer) {
+  SdkRootSeed sse_decode_RustOpaque_SdkRootSeed(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return RootSeedRsImpl.frbInternalSseDecode(
+    return SdkRootSeedImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -6229,8 +6229,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   RootSeed sse_decode_root_seed(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_inner = sse_decode_RustOpaque_RootSeedRs(deserializer);
-    return RootSeed(inner: var_inner);
+    var var_sdk = sse_decode_RustOpaque_SdkRootSeed(deserializer);
+    return RootSeed(sdk: var_sdk);
   }
 
   @protected
@@ -6459,13 +6459,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_RustOpaque_RootSeedRs(
-    RootSeedRs self,
+  void sse_encode_RustOpaque_SdkRootSeed(
+    SdkRootSeed self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-      (self as RootSeedRsImpl).frbInternalSseEncode(move: null),
+      (self as SdkRootSeedImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -7839,7 +7839,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_RustOpaque_RootSeedRs(self.inner, serializer);
+    sse_encode_RustOpaque_SdkRootSeed(self.sdk, serializer);
   }
 
   @protected
@@ -8078,22 +8078,22 @@ class GDriveRestoreClientRsImpl extends RustOpaque
 }
 
 @sealed
-class RootSeedRsImpl extends RustOpaque implements RootSeedRs {
+class SdkRootSeedImpl extends RustOpaque implements SdkRootSeed {
   // Not to be used by end users
-  RootSeedRsImpl.frbInternalDcoDecode(List<dynamic> wire)
+  SdkRootSeedImpl.frbInternalDcoDecode(List<dynamic> wire)
     : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
-  RootSeedRsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+  SdkRootSeedImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
     : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        AppRs.instance.api.rust_arc_increment_strong_count_RootSeedRs,
+        AppRs.instance.api.rust_arc_increment_strong_count_SdkRootSeed,
     rustArcDecrementStrongCount:
-        AppRs.instance.api.rust_arc_decrement_strong_count_RootSeedRs,
+        AppRs.instance.api.rust_arc_decrement_strong_count_SdkRootSeed,
     rustArcDecrementStrongCountPtr:
-        AppRs.instance.api.rust_arc_decrement_strong_count_RootSeedRsPtr,
+        AppRs.instance.api.rust_arc_decrement_strong_count_SdkRootSeedPtr,
   );
 }
 

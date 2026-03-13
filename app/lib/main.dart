@@ -99,7 +99,7 @@ Future<void> main() async {
     // no wallet persisted => first run -> show landing
     child = LandingPage(
       config: config,
-      rootSeed: RootSeed.fromSysRng(),
+      rootSeed: RootSeed.generate(),
       gdriveAuth: gdriveAuth,
       signupApi: SignupApi.prod,
       restoreApi: RestoreApi.prod,

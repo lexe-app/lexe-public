@@ -31,10 +31,6 @@ The gateway URL for this environment.
 Returns ``None`` for dev configs without a gateway URL override.
 """)
 
-# --- RootSeed properties --- #
-
-_make_property(lexe.RootSeed, "seed_bytes", "The 32-byte root seed.")
-
 # --- Wallet properties --- #
 
 _make_property(lexe.BlockingLexeWallet, "user_pk", """\

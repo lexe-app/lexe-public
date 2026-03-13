@@ -113,7 +113,7 @@ impl AppHandle {
             config.env_db_config(),
             config.use_mock_secret_store,
             google_auth_code,
-            &root_seed.inner,
+            &root_seed.sdk,
         )
         .await
         .context("Failed to restore wallet")
@@ -157,7 +157,7 @@ impl AppHandle {
             config.env_config(),
             config.env_db_config(),
             config.use_mock_secret_store,
-            &root_seed.inner,
+            &root_seed.sdk,
             partner,
             signup_code,
             backup_password.as_deref(),

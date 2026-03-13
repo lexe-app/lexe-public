@@ -10,12 +10,12 @@
 use std::{path::PathBuf, time::Duration};
 
 use lexe_api::types::payments::PaymentCreatedIndex;
-use lexe_common::{api::user::UserPk, root_seed::RootSeed};
-use lexe_node_client::credentials::CredentialsRef;
+use lexe_common::api::user::UserPk;
 
 use crate::{
     config::WalletEnvConfig,
     types::{
+        auth::{CredentialsRef, RootSeed},
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
             GetPaymentResponse, ListPaymentsResponse, NodeInfo,

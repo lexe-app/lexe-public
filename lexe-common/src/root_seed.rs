@@ -9,7 +9,7 @@ use bitcoin::{
 use lexe_crypto::{
     aes::{self, AesMasterKey},
     ed25519, password,
-    rng::{Crng, RngExt, SysRng},
+    rng::{Crng, RngExt},
 };
 use lexe_hex::hex;
 use lexe_std::array;
@@ -53,11 +53,6 @@ impl RootSeed {
         let mut seed = [0u8; 32];
         seed[0..8].copy_from_slice(&v.to_le_bytes());
         Self::new(Secret::new(seed))
-    }
-
-    /// Generate a new random [`RootSeed`] using the system CSPRNG.
-    pub fn generate() -> Self {
-        Self::from_rng(&mut SysRng::new())
     }
 
     pub fn from_rng<R: Crng>(rng: &mut R) -> Self {

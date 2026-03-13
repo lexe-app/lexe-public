@@ -24,22 +24,12 @@
 //   serializing `null` fields makes it clear to SDK users that information
 //   could be returned there in future responses.
 
+/// Authentication, identity, and node verification.
+pub mod auth;
 /// Request, response, and command types for SDK operations.
 pub mod command;
 /// Payment data types.
 pub mod payment;
-
-/// Authentication, identity, and node verification.
-pub mod auth {
-    pub use lexe_common::{
-        api::user::{NodePk, UserPk},
-        root_seed::RootSeed,
-    };
-    pub use lexe_enclave::enclave::Measurement;
-    pub use lexe_node_client::credentials::{
-        ClientCredentials, Credentials, CredentialsRef,
-    };
-}
 
 /// On-chain and Bitcoin primitives.
 pub mod bitcoin {

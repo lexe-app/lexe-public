@@ -49,8 +49,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   get rust_arc_decrement_strong_count_GDriveRestoreClientRsPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRsPtr;
 
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_RootSeedRsPtr =>
-      wire._rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr;
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_SdkRootSeedPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_SdkRootSeedPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_SecretStoreRsPtr =>
@@ -93,7 +94,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  RootSeedRs dco_decode_RustOpaque_RootSeedRs(dynamic raw);
+  SdkRootSeed dco_decode_RustOpaque_SdkRootSeed(dynamic raw);
 
   @protected
   SecretStoreRs dco_decode_RustOpaque_SecretStoreRs(dynamic raw);
@@ -634,7 +635,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  RootSeedRs sse_decode_RustOpaque_RootSeedRs(SseDeserializer deserializer);
+  SdkRootSeed sse_decode_RustOpaque_SdkRootSeed(SseDeserializer deserializer);
 
   @protected
   SecretStoreRs sse_decode_RustOpaque_SecretStoreRs(
@@ -1291,8 +1292,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_RustOpaque_RootSeedRs(
-    RootSeedRs self,
+  void sse_encode_RustOpaque_SdkRootSeed(
+    SdkRootSeed self,
     SseSerializer serializer,
   );
 
@@ -2175,32 +2176,32 @@ class AppRsWire implements BaseWire {
       _rust_arc_decrement_strong_count_RustOpaque_GDriveRestoreClientRsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
-  void rust_arc_increment_strong_count_RustOpaque_RootSeedRs(
+  void rust_arc_increment_strong_count_RustOpaque_SdkRootSeed(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_RootSeedRs(ptr);
+    return _rust_arc_increment_strong_count_RustOpaque_SdkRootSeed(ptr);
   }
 
-  late final _rust_arc_increment_strong_count_RustOpaque_RootSeedRsPtr =
+  late final _rust_arc_increment_strong_count_RustOpaque_SdkRootSeedPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_RootSeedRs',
+        'frbgen_app_rs_dart_rust_arc_increment_strong_count_RustOpaque_SdkRootSeed',
       );
-  late final _rust_arc_increment_strong_count_RustOpaque_RootSeedRs =
-      _rust_arc_increment_strong_count_RustOpaque_RootSeedRsPtr
+  late final _rust_arc_increment_strong_count_RustOpaque_SdkRootSeed =
+      _rust_arc_increment_strong_count_RustOpaque_SdkRootSeedPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
-  void rust_arc_decrement_strong_count_RustOpaque_RootSeedRs(
+  void rust_arc_decrement_strong_count_RustOpaque_SdkRootSeed(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_RootSeedRs(ptr);
+    return _rust_arc_decrement_strong_count_RustOpaque_SdkRootSeed(ptr);
   }
 
-  late final _rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr =
+  late final _rust_arc_decrement_strong_count_RustOpaque_SdkRootSeedPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_RootSeedRs',
+        'frbgen_app_rs_dart_rust_arc_decrement_strong_count_RustOpaque_SdkRootSeed',
       );
-  late final _rust_arc_decrement_strong_count_RustOpaque_RootSeedRs =
-      _rust_arc_decrement_strong_count_RustOpaque_RootSeedRsPtr
+  late final _rust_arc_decrement_strong_count_RustOpaque_SdkRootSeed =
+      _rust_arc_decrement_strong_count_RustOpaque_SdkRootSeedPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void rust_arc_increment_strong_count_RustOpaque_SecretStoreRs(

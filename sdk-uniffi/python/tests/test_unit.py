@@ -73,7 +73,7 @@ def test_enums():
 def test_root_seed_creation():
     """Test RootSeed can be created."""
     seed = create_test_root_seed()
-    assert len(seed.seed_bytes) == 32
+    assert len(seed.to_bytes()) == 32
 
 
 def test_root_seed_invalid_length():
@@ -128,7 +128,7 @@ def test_seed_file_roundtrip():
 
         # Read it back
         seed2 = lexe.RootSeed.read_from_path(path)
-        assert seed2.seed_bytes == seed1.seed_bytes
+        assert seed2.to_bytes() == seed1.to_bytes()
 
         # Writing again should raise AlreadyExists
         try:

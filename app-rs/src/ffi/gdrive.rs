@@ -6,12 +6,12 @@ pub(crate) use gdrive::restore::{
     GDriveRestoreClient as GDriveRestoreClientRs,
 };
 use gdrive::{GoogleVfs, gvfs::GvfsRootName};
+use lexe::types::auth::RootSeed as SdkRootSeed;
 use lexe_api::vfs::{
     CHANNEL_MANAGER_FILENAME, CHANNEL_MONITORS_DIR, SINGLETON_DIRECTORY,
     VfsDirectory, VfsFile, VfsFileId,
 };
 use lexe_common::api::user::{NodePk, UserPk};
-pub(crate) use lexe_common::root_seed::RootSeed as RootSeedRs;
 use lexe_crypto::rng::SysRng;
 use serde::Serialize;
 use tracing::{error, instrument};
@@ -173,9 +173,9 @@ impl GDriveClient {
             data: Option<String>,
         }
 
-        let vfs_master_key = root_seed.inner.derive_vfs_master_key();
-        let user_pk = root_seed.inner.derive_user_pk();
-        let node_pk = root_seed.inner.derive_node_pk();
+        let vfs_master_key = root_seed.sdk.unstable().derive_vfs_master_key();
+        let user_pk = root_seed.sdk.derive_user_pk();
+        let node_pk = root_seed.sdk.derive_node_pk();
         let credentials = self.inner.credentials.clone();
 
         // A closure to decrypt and base64-encode blobs
@@ -280,7 +280,7 @@ impl GDriveRestoreClient {
                 deploy_env.into(),
                 network.into(),
                 use_sgx,
-                &root_seed.inner,
+                root_seed.sdk.unstable(),
                 &new_password,
             )
             .await
@@ -295,7 +295,7 @@ impl GDriveRestoreCandidate {
 
     /// flutter_rust_bridge:sync
     pub fn try_decrypt(&self, password: &str) -> anyhow::Result<RootSeed> {
-        let root_seed = RootSeedRs::password_decrypt(
+        let root_seed = SdkRootSeed::password_decrypt(
             password,
             self.inner.pw_enc_root_seed.data.clone(),
         )?;
