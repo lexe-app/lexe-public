@@ -21,10 +21,10 @@ use lexe_common::{
         revocable_clients::RevocableClients,
         user::{NodePk, Scid, UserPk},
     },
-    enclave::Measurement,
     env::DeployEnv,
     ln::network::LxNetwork,
 };
+use lexe_enclave_core::enclave::Measurement;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEvent,

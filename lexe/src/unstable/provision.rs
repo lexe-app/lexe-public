@@ -10,10 +10,11 @@ use lexe_api::def::AppNodeProvisionApi;
 use lexe_common::{
     ExposeSecret, Secret,
     api::{provision::NodeProvisionRequest, version::NodeEnclave},
-    constants, enclave,
+    constants,
     releases::Release,
     root_seed::RootSeed,
 };
+use lexe_enclave_core::enclave;
 use lexe_node_client::client::NodeClient;
 use lexe_tokio::task::LxTask;
 use serde::Deserialize;

@@ -16,6 +16,7 @@ test-utils = ["proptest-derive"]
 
 lexe-api = { path = "../lexe-api" }
 lexe-common = { path = "../lexe-common" }
+lexe-enclave-core = { path = "../lexe-enclave-core" }
 lexe-tls = { path = "../lexe-tls" }
 
 # --- WORKSPACE --- #

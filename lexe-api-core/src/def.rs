@@ -66,8 +66,8 @@ use lexe_common::{
         version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
     },
     ed25519,
-    enclave::Measurement,
 };
+use lexe_enclave_core::enclave::Measurement;
 use lightning::events::Event;
 
 #[cfg(doc)]

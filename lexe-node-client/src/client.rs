@@ -76,10 +76,10 @@ use lexe_common::{
     byte_str::ByteStr,
     constants::{self, node_provision_dns},
     ed25519,
-    enclave::Measurement,
     env::DeployEnv,
     rng::Crng,
 };
+use lexe_enclave_core::enclave::Measurement;
 use lexe_tls::{attestation, lexe_ca, rustls};
 use reqwest::Url;
 

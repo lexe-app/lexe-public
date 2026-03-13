@@ -10,7 +10,8 @@ use lexe_api::{
     error::MegaApiError,
     types::{LeaseId, ports::RunPorts},
 };
-use lexe_common::{enclave, env::DeployEnv, ln::network::LxNetwork, rng::Crng};
+use lexe_common::{env::DeployEnv, ln::network::LxNetwork, rng::Crng};
+use lexe_enclave_core::enclave;
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::{self, FeeEstimates, LexeEsplora},

@@ -4,7 +4,8 @@
 use std::{borrow::Cow, fmt, str::FromStr, time::Duration};
 
 use anyhow::Context;
-use lexe_common::{ed25519, enclave, rng::Crng};
+use lexe_common::{ed25519, rng::Crng};
+use lexe_enclave_core::enclave;
 use lexe_hex::hex;
 use rcgen::string::Ia5String;
 use yasna::models::ObjectIdentifier;

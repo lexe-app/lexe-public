@@ -40,7 +40,6 @@ use lexe_common::{
         user::{NodePk, Scid, UserPk},
     },
     debug_panic_release_log, ed25519,
-    enclave::Measurement,
     ln::{
         amount::Amount,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
@@ -50,6 +49,7 @@ use lexe_common::{
     rng::SysRng,
     time::TimestampMs,
 };
+use lexe_enclave_core::enclave::Measurement;
 use lexe_std::{Apply, const_assert};
 use lexe_tls::{
     shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},

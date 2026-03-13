@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 
+use lexe_enclave_core::enclave::{MachineId, Measurement};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::enclave::{MachineId, Measurement};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 

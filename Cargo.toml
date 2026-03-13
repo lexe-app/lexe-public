@@ -10,6 +10,7 @@ members = [
     "lexe-api-core",
     "lexe-byte-array",
     "lexe-common",
+    "lexe-enclave-core",
     "lexe-hex",
     "lexe-ln",
     "lexe-logger",

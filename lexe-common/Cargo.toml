@@ -25,6 +25,7 @@ test-utils = [
   "dep:proptest",
   "dep:proptest-derive",
   "dep:serde_urlencoded",
+  "lexe-enclave-core/test-utils",
 ]
 
 [dependencies]
@@ -32,6 +33,7 @@ test-utils = [
 # --- LEXE --- #
 
 lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-enclave-core = { path = "../lexe-enclave-core" }
 lexe-hex = { path = "../lexe-hex" }
 lexe-serde = { path = "../lexe-serde" }
 lexe-sha256 = { path = "../lexe-sha256" }
@@ -83,6 +85,8 @@ serde_urlencoded = { optional = true, workspace = true }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]
+lexe-enclave-core = { path = "../lexe-enclave-core", features = ["test-utils"] }
+
 chrono = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive = { workspace = true }

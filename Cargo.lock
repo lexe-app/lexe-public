@@ -2511,6 +2511,7 @@ dependencies = [
  "futures",
  "lexe-api",
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-logger",
  "lexe-node-client",
  "lexe-payment-uri",
@@ -2573,6 +2574,7 @@ dependencies = [
  "http-body-util",
  "lexe-byte-array",
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-hex",
  "lexe-serde",
  "lexe-sha256",
@@ -2622,6 +2624,7 @@ dependencies = [
  "http",
  "http-body-util",
  "lexe-byte-array",
+ "lexe-enclave-core",
  "lexe-hex",
  "lexe-serde",
  "lexe-sha256",
@@ -2652,6 +2655,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe-enclave-core"
+version = "0.0.0"
+dependencies = [
+ "cfg-if 1.0.4",
+ "lexe-byte-array",
+ "lexe-hex",
+ "lexe-serde",
+ "lexe-sha256",
+ "lexe-std",
+ "proptest",
+ "proptest-derive",
+ "ref-cast",
+ "ring",
+ "serde",
+ "serde_json",
+ "sgx-isa",
+]
+
+[[package]]
 name = "lexe-hex"
 version = "0.0.0"
 dependencies = [
@@ -2679,6 +2701,7 @@ dependencies = [
  "futures",
  "lexe-api",
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-hex",
  "lexe-std",
  "lexe-tls",
@@ -2730,6 +2753,7 @@ dependencies = [
  "http",
  "lexe-api",
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-tls",
  "proptest",
  "proptest-derive",
@@ -2822,6 +2846,7 @@ dependencies = [
  "dcap-ql",
  "lexe-byte-array",
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-hex",
  "lexe-serde",
  "lexe-sha256",
@@ -3145,6 +3170,7 @@ dependencies = [
  "lexe-api",
  "lexe-byte-array",
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-hex",
  "lexe-ln",
  "lexe-std",
@@ -4026,7 +4052,7 @@ dependencies = [
  "anyhow",
  "argh",
  "enclave-runner",
- "lexe-common",
+ "lexe-enclave-core",
  "object 0.38.1",
  "rustc-demangle",
  "serde",
@@ -4533,6 +4559,7 @@ name = "sgx-test"
 version = "0.1.0"
 dependencies = [
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-hex",
  "lexe-tls",
 ]
@@ -4580,6 +4607,7 @@ dependencies = [
  "anyhow",
  "lexe-byte-array",
  "lexe-common",
+ "lexe-enclave-core",
  "lexe-hex",
  "lexe-sha256",
  "rsa",

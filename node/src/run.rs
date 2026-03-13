@@ -29,7 +29,6 @@ use lexe_common::{
     },
     constants::{self},
     ed25519,
-    enclave::{MachineId, Measurement},
     env::DeployEnv,
     ln::{
         balance::OnchainBalance, channel::LxOutPoint, hashes::LxTxid,
@@ -40,6 +39,7 @@ use lexe_common::{
     root_seed::RootSeed,
     time::TimestampMs,
 };
+use lexe_enclave_core::enclave::{MachineId, Measurement};
 use lexe_ln::{
     BoxedAnyhowFuture,
     alias::{

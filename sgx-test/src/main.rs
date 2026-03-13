@@ -1,4 +1,8 @@
-use lexe_common::{ed25519, enclave, rng::SysRng};
+use lexe_common::{
+    ed25519,
+    rng::{RngExt, SysRng},
+};
+use lexe_enclave_core::enclave;
 use lexe_hex::hex;
 use lexe_tls::attestation::{
     self,
@@ -62,7 +66,8 @@ fn test_sgx() {
     let mut rng = SysRng::new();
     let label = b"label".as_slice();
     let data = b"my data".as_slice();
-    let sealed = enclave::seal(&mut rng, label, data.into())
+    let random_keyid: [u8; 32] = rng.gen_bytes();
+    let sealed = enclave::seal(random_keyid, label, data.into())
         .expect("Failed to seal some data");
     println!(
         "seal('label', 'my data') := {}",

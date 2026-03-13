@@ -4,12 +4,12 @@ use anyhow::{Context, ensure};
 use lexe_common::{
     api::user::UserPk,
     ed25519,
-    enclave::{self, MachineId, Measurement, Sealed},
     env::DeployEnv,
     ln::network::LxNetwork,
-    rng::Crng,
+    rng::{Crng, RngExt},
     root_seed::RootSeed,
 };
+use lexe_enclave_core::enclave::{self, MachineId, Measurement, Sealed};
 use lexe_serde::hexstr_or_bytes;
 use lexe_std::array;
 #[cfg(test)]
@@ -38,7 +38,7 @@ pub struct SealedSeedId {
 /// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`LxNetwork`])
 ///   into a [`SealedSeed`], use [`seal_from_root_seed`].
 ///
-/// See [`lexe_common::enclave::seal`] for more implementation details.
+/// See [`lexe_enclave_core::enclave::seal`] for more implementation details.
 ///
 /// [`unseal_and_validate`]: Self::unseal_and_validate
 /// [`seal_from_root_seed`]: Self::seal_from_root_seed
@@ -114,7 +114,8 @@ impl SealedSeed {
         // Sealed::seal will encrypt the (Cow::Owned) json bytes in place,
         // thereby disposing of the sensitive root seed bytes.
         let json_bytes_cow = Cow::Owned(json_bytes);
-        let sealed = enclave::seal(rng, Self::LABEL, json_bytes_cow)
+        let random_keyid: [u8; 32] = rng.gen_bytes();
+        let sealed = enclave::seal(random_keyid, Self::LABEL, json_bytes_cow)
             .context("Failed to seal root seed w network")?;
         let ciphertext = sealed.serialize();
 

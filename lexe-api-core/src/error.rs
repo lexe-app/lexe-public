@@ -8,15 +8,13 @@ use std::{error::Error, fmt};
 
 use anyhow::anyhow;
 use http::status::StatusCode;
+use lexe_common::api::{
+    MegaId, auth,
+    user::{NodePk, UserPk},
+};
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
-use lexe_common::{
-    api::{
-        MegaId, auth,
-        user::{NodePk, UserPk},
-    },
-    enclave::{self, Measurement},
-};
+use lexe_enclave_core::enclave::{self, Measurement};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

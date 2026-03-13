@@ -10,8 +10,8 @@ use anyhow::ensure;
 use lexe_common::{
     api::user::UserPk,
     constants::{self, YANKED_NODE_MEASUREMENTS, YANKED_NODE_VERSIONS},
-    enclave::Measurement,
 };
+use lexe_enclave_core::enclave::Measurement;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 

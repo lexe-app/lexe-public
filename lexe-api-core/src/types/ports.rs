@@ -1,7 +1,5 @@
-use lexe_common::{
-    api::{MegaId, user::UserPk},
-    enclave::Measurement,
-};
+use lexe_common::api::{MegaId, user::UserPk};
+use lexe_enclave_core::enclave::Measurement;
 use serde::{Deserialize, Serialize};
 
 pub type Port = u16;

@@ -23,6 +23,7 @@ unstable = []
 
 lexe-api = { path = "../lexe-api" }
 lexe-common = { path = "../lexe-common" }
+lexe-enclave-core = { path = "../lexe-enclave-core" }
 lexe-logger = { path = "../lexe-logger" }
 lexe-node-client = { path = "../lexe-node-client" }
 lexe-payment-uri = { path = "../lexe-payment-uri" }

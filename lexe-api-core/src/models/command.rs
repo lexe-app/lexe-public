@@ -7,7 +7,6 @@ use lexe_common::root_seed::RootSeed;
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::user::{NodePk, UserPk},
-    enclave::Measurement,
     ln::{
         amount::Amount,
         balance::{LightningBalance, OnchainBalance},
@@ -18,6 +17,7 @@ use lexe_common::{
     },
     time::TimestampMs,
 };
+use lexe_enclave_core::enclave::Measurement;
 use lexe_serde::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;

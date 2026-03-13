@@ -11,6 +11,7 @@ publish = false
 # --- LEXE --- #
 
 lexe-common = { path = "../lexe-common" }
+lexe-enclave-core = { path = "../lexe-enclave-core" }
 lexe-hex = { path = "../lexe-hex" }
 lexe-tls = { path = "../lexe-tls" }
 

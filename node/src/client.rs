@@ -48,10 +48,10 @@ use lexe_common::{
         version::MeasurementStruct,
     },
     ed25519,
-    enclave::Measurement,
     env::DeployEnv,
     rng::Crng,
 };
+use lexe_enclave_core::enclave::Measurement;
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;
 

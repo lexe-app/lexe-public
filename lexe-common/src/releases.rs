@@ -1,6 +1,5 @@
+use lexe_enclave_core::enclave::Measurement;
 use serde::{Deserialize, Serialize};
-
-use crate::enclave;
 
 /// Information about a single release in a 'releases.json' file, excluding its
 /// bin kind and [`semver::Version`] (which are its indices).
@@ -8,7 +7,7 @@ use crate::enclave;
 #[serde(rename_all = "kebab-case")]
 pub struct Release {
     /// e.g. "8f4d5576a6a657992b6f9103f7587cb832a346982fa468055b30642143cc31fd"
-    pub measurement: enclave::Measurement,
+    pub measurement: Measurement,
     /// Git revision, e.g. "edb70312d24ab871e2278b46b55fffc373d0889b".
     /// Is a monorepo git hash for private SGX binaries, is a `public/` subrepo
     /// hash for public SGX binaries (e.g. user nodes)

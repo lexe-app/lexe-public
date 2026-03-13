@@ -51,6 +51,7 @@ gdrive = { path = "../gdrive" }
 lexe-api = { path = "../lexe-api" }
 lexe-byte-array = { path = "../lexe-byte-array" }
 lexe-common = { path = "../lexe-common" }
+lexe-enclave-core = { path = "../lexe-enclave-core" }
 lexe-hex = { path = "../lexe-hex" }
 lexe-ln = { path = "../lexe-ln" }
 lexe-std = { path = "../lexe-std" }

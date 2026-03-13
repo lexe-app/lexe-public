@@ -11,10 +11,10 @@ use lexe_api::{
 };
 use lexe_common::{
     api::user::{NodePk, UserPk},
-    enclave,
     ln::amount::Amount,
     time::TimestampMs,
 };
+use lexe_enclave_core::enclave;
 use serde::{Deserialize, Serialize};
 
 use crate::types::payment::Payment;

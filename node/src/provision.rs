@@ -29,12 +29,13 @@ use lexe_api::{
 };
 use lexe_common::{
     api::provision::NodeProvisionRequest,
-    constants, enclave,
+    constants,
     env::DeployEnv,
     ln::network::LxNetwork,
     net,
     rng::{Crng, SysRng},
 };
+use lexe_enclave_core::enclave;
 use lexe_tls::attestation::{self, NodeMode};
 use lexe_tokio::{
     notify_once::NotifyOnce,
@@ -376,9 +377,8 @@ mod handlers {
 
 mod helpers {
     use lexe_api::error::{BackendApiError, BackendErrorKind};
-    use lexe_common::{
-        aes::AesMasterKey, api::user::UserPk, enclave::Measurement,
-    };
+    use lexe_common::{aes::AesMasterKey, api::user::UserPk};
+    use lexe_enclave_core::enclave::Measurement;
     use tracing::warn;
 
     use super::*;

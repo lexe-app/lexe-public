@@ -2,7 +2,8 @@ use std::env;
 
 use anyhow::{Context, bail};
 use lexe_api::cli::{EnclaveArgs, node::MegaArgs};
-use lexe_common::{enclave, rng::SysRng};
+use lexe_common::rng::SysRng;
+use lexe_enclave_core::enclave;
 
 use crate::{DEV_VERSION, SEMVER_VERSION, mega};
 

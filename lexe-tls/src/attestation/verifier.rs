@@ -12,11 +12,8 @@ use dcap_ql::quote::{
     CertificationDataType, Quote, Quote3SignatureEcdsaP256, RawQe3CertData,
 };
 use lexe_byte_array::ByteArray;
-use lexe_common::{
-    ed25519,
-    enclave::{self, Measurement},
-    env::DeployEnv,
-};
+use lexe_common::{ed25519, env::DeployEnv};
+use lexe_enclave_core::enclave::{self, Measurement};
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use rustls::{
@@ -565,11 +562,12 @@ impl EnclavePolicy {
         deploy_env: DeployEnv,
         measurements: Vec<Measurement>,
     ) -> Self {
+        let is_dev = deploy_env.is_dev();
         Self {
-            allow_debug: deploy_env.is_dev(),
+            allow_debug: is_dev,
             trusted_mrenclaves: Some(measurements),
             trusted_mrsigner: Some(Measurement::expected_signer(
-                use_sgx, deploy_env,
+                use_sgx, is_dev,
             )),
         }
     }
@@ -577,11 +575,12 @@ impl EnclavePolicy {
     /// An [`EnclavePolicy`] which trusts any measurement signed by the
     /// [`Measurement::expected_signer`].
     pub fn trust_expected_signer(use_sgx: bool, deploy_env: DeployEnv) -> Self {
+        let is_dev = deploy_env.is_dev();
         Self {
-            allow_debug: deploy_env.is_dev(),
+            allow_debug: is_dev,
             trusted_mrenclaves: None,
             trusted_mrsigner: Some(Measurement::expected_signer(
-                use_sgx, deploy_env,
+                use_sgx, is_dev,
             )),
         }
     }
@@ -892,7 +891,8 @@ mod test {
     #[ignore]
     fn dump_attest_cert() {
         use base64::Engine;
-        use lexe_common::{enclave, rng::FastRng};
+        use lexe_common::rng::FastRng;
+        use lexe_enclave_core::enclave;
 
         use crate::attestation::cert::AttestationCert;
 

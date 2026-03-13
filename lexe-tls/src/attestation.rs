@@ -69,12 +69,8 @@ use std::{
 };
 
 use anyhow::{Context, format_err};
-use lexe_common::{
-    constants,
-    enclave::{Measurement, MrShort},
-    env::DeployEnv,
-    rng::Crng,
-};
+use lexe_common::{constants, env::DeployEnv, rng::Crng};
+use lexe_enclave_core::enclave::{Measurement, MrShort};
 use rustls::{
     DigitallySignedStruct,
     client::{
@@ -277,7 +273,7 @@ fn get_or_generate_node_attestation_cert(
 ///   with the gateway, and we use the remote attestation verifier for the inner
 ///   TLS connection which terminates inside the user node SGX enclave.
 ///
-/// [`MrShort`]: lexe_common::enclave::MrShort
+/// [`MrShort`]: lexe_enclave_core::enclave::MrShort
 #[derive(Debug)]
 struct AppNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier
@@ -355,7 +351,8 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{enclave, rng::FastRng};
+    use lexe_common::rng::FastRng;
+    use lexe_enclave_core::enclave;
 
     use super::*;
     use crate::test_utils;

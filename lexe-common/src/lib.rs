@@ -30,8 +30,6 @@ pub mod constants;
 pub mod dotenv;
 /// Ed25519 types.
 pub mod ed25519;
-/// SGX types.
-pub mod enclave;
 /// `DeployEnv`.
 pub mod env;
 /// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln
