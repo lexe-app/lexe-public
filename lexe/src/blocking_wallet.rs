@@ -25,23 +25,16 @@ use crate::{
         payment::{Order, Payment, PaymentFilter},
     },
     unstable::{ffs::DiskFs, payments_db::PaymentsDb},
-    wallet::{LexeWallet, WithDb},
+    wallet::{LexeWallet, WithDb, WithoutDb},
 };
-
-/// Wraps the future with `async_compat::Compat` so it runs on the shared
-/// tokio runtime, then blocks with `futures::executor::block_on`.
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-    let f = async_compat::Compat::new(f);
-    futures::executor::block_on(f)
-}
 
 /// Synchronous wallet handle. Provides the same API as [`LexeWallet`] but
 /// with blocking methods instead of async.
-pub struct BlockingLexeWallet {
-    inner: LexeWallet<WithDb>,
+pub struct BlockingLexeWallet<Db> {
+    inner: LexeWallet<Db>,
 }
 
-impl BlockingLexeWallet {
+impl BlockingLexeWallet<WithDb> {
     /// Create a fresh [`BlockingLexeWallet`], deleting any existing database
     /// state for this user. Data for other users and environments is not
     /// affected.
@@ -155,7 +148,25 @@ impl BlockingLexeWallet {
     ) -> anyhow::Result<Payment> {
         block_on(self.inner.wait_for_payment(index, timeout))
     }
+}
 
+impl BlockingLexeWallet<WithoutDb> {
+    /// Create a [`BlockingLexeWallet`] without any persistence.
+    /// It is recommended to use [`fresh`] or [`load`] instead, to initialize
+    /// with persistence.
+    ///
+    /// [`fresh`]: BlockingLexeWallet::fresh
+    /// [`load`]: BlockingLexeWallet::load
+    pub fn without_db(
+        env_config: WalletEnvConfig,
+        credentials: CredentialsRef<'_>,
+    ) -> anyhow::Result<Self> {
+        let inner = LexeWallet::without_db(env_config, credentials)?;
+        Ok(Self { inner })
+    }
+}
+
+impl<D> BlockingLexeWallet<D> {
     /// Get a reference to the user's wallet configuration.
     pub fn user_config(&self) -> &crate::config::WalletUserConfig {
         self.inner.user_config()
@@ -237,4 +248,11 @@ impl BlockingLexeWallet {
     ) -> anyhow::Result<()> {
         block_on(self.inner.update_payment_note(req))
     }
+}
+
+/// Wraps the future with `async_compat::Compat` so it runs on the shared
+/// tokio runtime, then blocks with `futures::executor::block_on`.
+fn block_on<F: std::future::Future>(f: F) -> F::Output {
+    let f = async_compat::Compat::new(f);
+    futures::executor::block_on(f)
 }

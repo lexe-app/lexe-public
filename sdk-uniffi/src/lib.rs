@@ -28,7 +28,7 @@ use lexe::{
         },
         payment::Payment as SdkPayment,
     },
-    wallet::LexeWallet as SdkLexeWallet,
+    wallet::{LexeWallet as SdkLexeWallet, WithDb, WithoutDb},
 };
 use lexe_api_core::{
     error::GatewayApiError as GatewayApiErrorRs,
@@ -590,11 +590,32 @@ impl From<SdkNodeInfo> for NodeInfo {
 /// For synchronous usage, use [`BlockingLexeWallet`].
 #[derive(uniffi::Object)]
 pub struct AsyncLexeWallet {
-    inner: SdkLexeWallet<lexe::wallet::WithDb>,
+    inner: AsyncLexeWalletInner,
+}
+
+enum AsyncLexeWalletInner {
+    WithDb(SdkLexeWallet<WithDb>),
+    WithoutDb(SdkLexeWallet<WithoutDb>),
+}
+
+impl AsyncLexeWallet {
+    /// Returns the inner `WithDb` wallet, or an error if this wallet was
+    /// created without local persistence.
+    fn with_db(&self) -> FfiResult<&SdkLexeWallet<WithDb>> {
+        match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) => Ok(wallet),
+            AsyncLexeWalletInner::WithoutDb(_) => Err(anyhow!(
+                "This wallet was created without local persistence"
+            )
+            .into()),
+        }
+    }
 }
 
 #[uniffi::export(async_runtime = "tokio")]
 impl AsyncLexeWallet {
+    // --- Constructors --- //
+
     /// Create a fresh wallet, deleting any existing local state for this user.
     /// Data for other users and environments is not affected.
     ///
@@ -611,13 +632,15 @@ impl AsyncLexeWallet {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = SdkLexeWallet::fresh(
+        let sdk_wallet = SdkLexeWallet::fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
         )?;
 
-        Ok(Arc::new(Self { inner }))
+        Ok(Arc::new(Self {
+            inner: AsyncLexeWalletInner::WithDb(sdk_wallet),
+        }))
     }
 
     /// Load an existing wallet from local state.
@@ -644,7 +667,7 @@ impl AsyncLexeWallet {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let maybe_inner = SdkLexeWallet::load(
+        let maybe_sdk_wallet = SdkLexeWallet::load(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -653,8 +676,10 @@ impl AsyncLexeWallet {
             message: format!("{e:#}"),
         })?;
 
-        match maybe_inner {
-            Some(inner) => Ok(Arc::new(Self { inner })),
+        match maybe_sdk_wallet {
+            Some(sdk_wallet) => Ok(Arc::new(Self {
+                inner: AsyncLexeWalletInner::WithDb(sdk_wallet),
+            })),
             None => Err(LoadWalletError::NotFound),
         }
     }
@@ -676,14 +701,39 @@ impl AsyncLexeWallet {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = SdkLexeWallet::load_or_fresh(
+        let sdk_wallet = SdkLexeWallet::load_or_fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
         )?;
 
-        Ok(Arc::new(Self { inner }))
+        Ok(Arc::new(Self {
+            inner: AsyncLexeWalletInner::WithDb(sdk_wallet),
+        }))
     }
+
+    /// Create a wallet without local persistence.
+    ///
+    /// Node operations (invoices, payments, node info) work normally.
+    /// Local payment cache operations (`sync_payments`, `list_payments`,
+    /// `clear_payments`, `wait_for_payment`) are not available and will
+    /// return an error if called.
+    #[uniffi::constructor]
+    pub fn without_db(
+        env_config: Arc<WalletEnvConfig>,
+        root_seed: Arc<RootSeed>,
+    ) -> FfiResult<Arc<Self>> {
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
+        let env_config_rs = env_config.to_rs();
+
+        let sdk_wallet = SdkLexeWallet::without_db(env_config_rs, credentials)?;
+
+        Ok(Arc::new(Self {
+            inner: AsyncLexeWalletInner::WithoutDb(sdk_wallet),
+        }))
+    }
+
+    // --- Shared methods (WithDb + WithoutDb) --- //
 
     /// Registers this user with Lexe and provisions their node.
     ///
@@ -709,7 +759,12 @@ impl AsyncLexeWallet {
             })
             .transpose()?;
 
-        self.inner.signup(root_seed.as_sdk(), partner).await?;
+        match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.signup(root_seed.as_sdk(), partner).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.signup(root_seed.as_sdk(), partner).await?,
+        }
         Ok(())
     }
 
@@ -720,18 +775,30 @@ impl AsyncLexeWallet {
     /// gateway and provisions any that need updating.
     pub async fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
-        self.inner.provision(credentials).await?;
+        match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) => wallet.provision(credentials).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.provision(credentials).await?,
+        }
         Ok(())
     }
 
     /// Get the user's hex-encoded public key derived from the root seed.
     pub fn user_pk(&self) -> String {
-        self.inner.user_config().user_pk.to_string()
+        match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.user_config().user_pk.to_string(),
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.user_config().user_pk.to_string(),
+        }
     }
 
     /// Get information about the node.
     pub async fn node_info(&self) -> FfiResult<NodeInfo> {
-        let info = self.inner.node_info().await?;
+        let info = match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) => wallet.node_info().await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.node_info().await?,
+        };
         Ok(info.into())
     }
 
@@ -761,7 +828,10 @@ impl AsyncLexeWallet {
             description,
             payer_note,
         };
-        let resp = self.inner.create_invoice(req).await?;
+        let resp = match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) => wallet.create_invoice(req).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.create_invoice(req).await?,
+        };
         Ok(resp.into())
     }
 
@@ -796,7 +866,10 @@ impl AsyncLexeWallet {
             note,
             payer_note,
         };
-        let resp = self.inner.pay_invoice(req).await?;
+        let resp = match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) => wallet.pay_invoice(req).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.pay_invoice(req).await?,
+        };
         Ok(resp.into())
     }
 
@@ -807,7 +880,10 @@ impl AsyncLexeWallet {
     ) -> FfiResult<Option<Payment>> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
-        let resp = self.inner.get_payment(req).await?;
+        let resp = match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) => wallet.get_payment(req).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.get_payment(req).await?,
+        };
         Ok(resp.payment.map(Into::into))
     }
 
@@ -822,13 +898,23 @@ impl AsyncLexeWallet {
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkUpdatePaymentNoteRequest { index, note };
-        self.inner.update_payment_note(req).await?;
+        match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.update_payment_note(req).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.update_payment_note(req).await?,
+        }
         Ok(())
     }
 
+    // --- DB-only methods --- //
+
     /// Sync payments from the node to local storage.
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     pub async fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
-        let summary = self.inner.sync_payments().await?;
+        let summary = self.with_db()?.sync_payments().await?;
         Ok(PaymentSyncSummary {
             num_new: summary.num_new as u64,
             num_updated: summary.num_updated as u64,
@@ -844,6 +930,9 @@ impl AsyncLexeWallet {
     ///
     /// If needed, use `sync_payments` to fetch the latest data from the
     /// node before calling this method.
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     #[uniffi::method(default(order = None, limit = None, after = None))]
     pub fn list_payments(
         &self,
@@ -852,18 +941,15 @@ impl AsyncLexeWallet {
         limit: Option<u32>,
         after: Option<String>,
     ) -> FfiResult<ListPaymentsResponse> {
+        let sdk_wallet = self.with_db()?;
         let filter_rs = filter.to_rs();
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
         let after_rs = after
             .map(|s| PaymentCreatedIndexRs::from_str(&s))
             .transpose()?;
-        let resp = self.inner.list_payments(
-            &filter_rs,
-            order_rs,
-            limit_rs,
-            after_rs.as_ref(),
-        );
+        let resp =
+            sdk_wallet.list_payments(&filter_rs, order_rs, limit_rs, after_rs.as_ref());
 
         Ok(ListPaymentsResponse {
             payments: resp.payments.into_iter().map(Payment::from).collect(),
@@ -875,8 +961,11 @@ impl AsyncLexeWallet {
     ///
     /// Clears the local payment cache only. Remote data on the node is not
     /// affected. Call `sync_payments` to re-populate.
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     pub fn clear_payments(&self) -> FfiResult<()> {
-        self.inner.clear_payments()?;
+        self.with_db()?.clear_payments()?;
         Ok(())
     }
 
@@ -885,6 +974,9 @@ impl AsyncLexeWallet {
     /// Polls the node with exponential backoff until the payment finalizes or
     /// the timeout is reached. Defaults to 10 minutes if not specified.
     /// Maximum timeout is 86,400 seconds (24 hours).
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     #[uniffi::method(default(timeout_secs = None))]
     pub async fn wait_for_payment(
         &self,
@@ -893,7 +985,7 @@ impl AsyncLexeWallet {
     ) -> FfiResult<Payment> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
-        let payment = self.inner.wait_for_payment(index, timeout).await?;
+        let payment = self.with_db()?.wait_for_payment(index, timeout).await?;
         Ok(Payment::from(payment))
     }
 }
@@ -908,11 +1000,34 @@ impl AsyncLexeWallet {
 /// For async usage, use [`AsyncLexeWallet`].
 #[derive(uniffi::Object)]
 pub struct BlockingLexeWallet {
-    inner: SdkBlockingLexeWallet,
+    inner: BlockingLexeWalletInner,
+}
+
+enum BlockingLexeWalletInner {
+    WithDb(SdkBlockingLexeWallet<WithDb>),
+    WithoutDb(SdkBlockingLexeWallet<WithoutDb>),
+}
+
+impl BlockingLexeWallet {
+    /// Returns the inner `WithDb` wallet, or an error if this wallet was
+    /// created without local persistence.
+    fn with_db(
+        &self,
+    ) -> FfiResult<&SdkBlockingLexeWallet<WithDb>> {
+        match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) => Ok(wallet),
+            BlockingLexeWalletInner::WithoutDb(_) => Err(anyhow!(
+                "This wallet was created without local persistence"
+            )
+            .into()),
+        }
+    }
 }
 
 #[uniffi::export]
 impl BlockingLexeWallet {
+    // --- Constructors --- //
+
     /// Create a fresh wallet, deleting any existing local state for this user.
     /// Data for other users and environments is not affected.
     ///
@@ -929,13 +1044,15 @@ impl BlockingLexeWallet {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = SdkBlockingLexeWallet::fresh(
+        let sdk_wallet = SdkBlockingLexeWallet::fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
         )?;
 
-        Ok(Arc::new(Self { inner }))
+        Ok(Arc::new(Self {
+            inner: BlockingLexeWalletInner::WithDb(sdk_wallet),
+        }))
     }
 
     /// Load an existing wallet from local state.
@@ -962,7 +1079,7 @@ impl BlockingLexeWallet {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let maybe_inner = SdkBlockingLexeWallet::load(
+        let maybe_sdk_wallet = SdkBlockingLexeWallet::load(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
@@ -971,8 +1088,10 @@ impl BlockingLexeWallet {
             message: format!("{e:#}"),
         })?;
 
-        match maybe_inner {
-            Some(inner) => Ok(Arc::new(Self { inner })),
+        match maybe_sdk_wallet {
+            Some(sdk_wallet) => Ok(Arc::new(Self {
+                inner: BlockingLexeWalletInner::WithDb(sdk_wallet),
+            })),
             None => Err(LoadWalletError::NotFound),
         }
     }
@@ -994,14 +1113,39 @@ impl BlockingLexeWallet {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let inner = SdkBlockingLexeWallet::load_or_fresh(
+        let sdk_wallet = SdkBlockingLexeWallet::load_or_fresh(
             env_config_rs,
             credentials,
             lexe_data_dir.map(PathBuf::from),
         )?;
 
-        Ok(Arc::new(Self { inner }))
+        Ok(Arc::new(Self {
+            inner: BlockingLexeWalletInner::WithDb(sdk_wallet),
+        }))
     }
+
+    /// Create a wallet without local persistence.
+    ///
+    /// Node operations (invoices, payments, node info) work normally.
+    /// Local payment cache operations (`sync_payments`, `list_payments`,
+    /// `clear_payments`, `wait_for_payment`) are not available and will
+    /// return an error if called.
+    #[uniffi::constructor]
+    pub fn without_db(
+        env_config: Arc<WalletEnvConfig>,
+        root_seed: Arc<RootSeed>,
+    ) -> FfiResult<Arc<Self>> {
+        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
+        let env_config_rs = env_config.to_rs();
+
+        let sdk_wallet = SdkBlockingLexeWallet::without_db(env_config_rs, credentials)?;
+
+        Ok(Arc::new(Self {
+            inner: BlockingLexeWalletInner::WithoutDb(sdk_wallet),
+        }))
+    }
+
+    // --- Shared methods (WithDb + WithoutDb) --- //
 
     /// Registers this user with Lexe and provisions their node.
     ///
@@ -1027,7 +1171,12 @@ impl BlockingLexeWallet {
             })
             .transpose()?;
 
-        self.inner.signup(root_seed.as_sdk(), partner)?;
+        match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.signup(root_seed.as_sdk(), partner)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.signup(root_seed.as_sdk(), partner)?,
+        }
         Ok(())
     }
 
@@ -1038,18 +1187,30 @@ impl BlockingLexeWallet {
     /// gateway and provisions any that need updating.
     pub fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
         let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
-        self.inner.provision(credentials)?;
+        match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) => wallet.provision(credentials)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.provision(credentials)?,
+        }
         Ok(())
     }
 
     /// Get the user's hex-encoded public key derived from the root seed.
     pub fn user_pk(&self) -> String {
-        self.inner.user_config().user_pk.to_string()
+        match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.user_config().user_pk.to_string(),
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.user_config().user_pk.to_string(),
+        }
     }
 
     /// Get information about the node.
     pub fn node_info(&self) -> FfiResult<NodeInfo> {
-        let info = self.inner.node_info()?;
+        let info = match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) => wallet.node_info()?,
+            BlockingLexeWalletInner::WithoutDb(wallet) => wallet.node_info()?,
+        };
         Ok(info.into())
     }
 
@@ -1079,7 +1240,10 @@ impl BlockingLexeWallet {
             description,
             payer_note,
         };
-        let resp = self.inner.create_invoice(req)?;
+        let resp = match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) => wallet.create_invoice(req)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) => wallet.create_invoice(req)?,
+        };
         Ok(resp.into())
     }
 
@@ -1114,7 +1278,10 @@ impl BlockingLexeWallet {
             note,
             payer_note,
         };
-        let resp = self.inner.pay_invoice(req)?;
+        let resp = match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) => wallet.pay_invoice(req)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) => wallet.pay_invoice(req)?,
+        };
         Ok(resp.into())
     }
 
@@ -1122,7 +1289,10 @@ impl BlockingLexeWallet {
     pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
-        let resp = self.inner.get_payment(req)?;
+        let resp = match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) => wallet.get_payment(req)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) => wallet.get_payment(req)?,
+        };
         Ok(resp.payment.map(Into::into))
     }
 
@@ -1137,13 +1307,22 @@ impl BlockingLexeWallet {
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkUpdatePaymentNoteRequest { index, note };
-        self.inner.update_payment_note(req)?;
+        match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) => wallet.update_payment_note(req)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.update_payment_note(req)?,
+        }
         Ok(())
     }
 
+    // --- DB-only methods --- //
+
     /// Sync payments from the node to local storage.
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     pub fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
-        let summary = self.inner.sync_payments()?;
+        let summary = self.with_db()?.sync_payments()?;
         Ok(PaymentSyncSummary {
             num_new: summary.num_new as u64,
             num_updated: summary.num_updated as u64,
@@ -1159,6 +1338,9 @@ impl BlockingLexeWallet {
     ///
     /// If needed, use `sync_payments` to fetch the latest data from the
     /// node before calling this method.
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     #[uniffi::method(default(order = None, limit = None, after = None))]
     pub fn list_payments(
         &self,
@@ -1167,18 +1349,15 @@ impl BlockingLexeWallet {
         limit: Option<u32>,
         after: Option<String>,
     ) -> FfiResult<ListPaymentsResponse> {
+        let sdk_wallet = self.with_db()?;
         let filter_rs = filter.to_rs();
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
         let after_rs = after
             .map(|s| PaymentCreatedIndexRs::from_str(&s))
             .transpose()?;
-        let resp = self.inner.list_payments(
-            &filter_rs,
-            order_rs,
-            limit_rs,
-            after_rs.as_ref(),
-        );
+        let resp =
+            sdk_wallet.list_payments(&filter_rs, order_rs, limit_rs, after_rs.as_ref());
 
         Ok(ListPaymentsResponse {
             payments: resp.payments.into_iter().map(Payment::from).collect(),
@@ -1190,8 +1369,11 @@ impl BlockingLexeWallet {
     ///
     /// Clears the local payment cache only. Remote data on the node is not
     /// affected. Call `sync_payments` to re-populate.
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     pub fn clear_payments(&self) -> FfiResult<()> {
-        self.inner.clear_payments()?;
+        self.with_db()?.clear_payments()?;
         Ok(())
     }
 
@@ -1200,6 +1382,9 @@ impl BlockingLexeWallet {
     /// Polls the node with exponential backoff until the payment finalizes or
     /// the timeout is reached. Defaults to 10 minutes if not specified.
     /// Maximum timeout is 86,400 seconds (24 hours).
+    ///
+    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
+    /// Returns an error for wallets created with `without_db`.
     #[uniffi::method(default(timeout_secs = None))]
     pub fn wait_for_payment(
         &self,
@@ -1208,7 +1393,7 @@ impl BlockingLexeWallet {
     ) -> FfiResult<Payment> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
-        let payment = self.inner.wait_for_payment(index, timeout)?;
+        let payment = self.with_db()?.wait_for_payment(index, timeout)?;
         Ok(Payment::from(payment))
     }
 }
