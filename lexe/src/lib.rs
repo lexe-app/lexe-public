@@ -33,11 +33,8 @@ pub use lexe_common::default_lexe_data_dir;
 #[cfg(feature = "blocking")]
 pub mod blocking_wallet;
 
-// Reexport possibly-useful dependencies
-// TODO(max): Consider also re-exporting: dotenvy, serde
-pub use anyhow;
-pub use serde_json;
-pub use tracing;
+// Reexport crates that are reachable through the stable public API surface.
+pub use bip39;
 
 /// Initialize the Lexe logger with the given default log level.
 ///
@@ -45,6 +42,11 @@ pub use tracing;
 pub fn init_logger(default_level: &str) {
     lexe_logger::init_with_default(default_level);
 }
+
+// Reexport additional dependencies that may be useful to SDK consumers.
+pub use anyhow;
+pub use serde_json;
+pub use tracing;
 
 // --- Unstable APIs --- //
 

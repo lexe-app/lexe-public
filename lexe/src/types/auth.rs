@@ -7,6 +7,7 @@ use lexe_common::{
     ExposeSecret, root_seed::RootSeed as UnstableRootSeed,
 };
 use lexe_crypto::rng::SysRng;
+use lexe_hex::hex;
 use lexe_node_client::credentials::{
     ClientCredentials as UnstableClientCredentials,
     CredentialsRef as UnstableCredentialsRef,
@@ -158,6 +159,18 @@ impl RootSeed {
         Self::try_from(mnemonic)
     }
 
+    /// Construct a [`RootSeed`] from a 32-byte slice.
+    pub fn from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
+        Self::try_from(bytes)
+    }
+
+    /// Construct a [`RootSeed`] from a 64-character hex string.
+    pub fn from_hex(hex: &str) -> anyhow::Result<Self> {
+        Self::from_str(hex).map_err(anyhow::Error::from)
+    }
+
+    // --- Serialization --- //
+
     /// Convert this root secret to its BIP39 mnemonic.
     pub fn to_mnemonic(&self) -> Mnemonic {
         self.unstable().to_mnemonic()
@@ -168,6 +181,12 @@ impl RootSeed {
         self.unstable().expose_secret()
     }
 
+    /// Encode the root secret as a 64-character hex string.
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.as_bytes())
+    }
+
+    // --- Derived Identity --- //
     /// Derive the user's public key.
     pub fn derive_user_pk(&self) -> UserPk {
         self.unstable().derive_user_pk()
@@ -177,6 +196,8 @@ impl RootSeed {
     pub fn derive_node_pk(&self) -> NodePk {
         self.unstable().derive_node_pk()
     }
+
+    // --- Encryption --- //
 
     /// Encrypt this root secret under the given password.
     pub fn password_encrypt(&self, password: &str) -> anyhow::Result<Vec<u8>> {
@@ -191,6 +212,8 @@ impl RootSeed {
     ) -> anyhow::Result<Self> {
         UnstableRootSeed::password_decrypt(password, encrypted).map(Self)
     }
+
+    // --- Internal Escape Hatches --- //
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "unstable")] {

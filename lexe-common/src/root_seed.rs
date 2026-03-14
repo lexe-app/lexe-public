@@ -27,6 +27,8 @@ use crate::{
 
 /// The user's 32-byte root seed, from which all keys and credentials are
 /// derived (user keypair, node keypair, TLS certificates, etc.).
+// We intentionally don't implement ByteArray because it makes it too easy
+// to access the secret.
 pub struct RootSeed(Secret<[u8; Self::LENGTH]>);
 
 impl RootSeed {

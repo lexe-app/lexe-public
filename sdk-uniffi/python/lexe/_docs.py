@@ -89,7 +89,7 @@ Example::
     try:
         seed = RootSeed.read(config)
     except SeedFileError.NotFound:
-        seed = RootSeed(os.urandom(32))
+        seed = RootSeed.from_bytes(os.urandom(32))
 """)
 
 _set_method_doc(lexe.RootSeed, "read_from_path", """\
@@ -110,7 +110,7 @@ Example::
     try:
         seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
     except SeedFileError.NotFound:
-        seed = RootSeed(os.urandom(32))
+        seed = RootSeed.from_bytes(os.urandom(32))
 """)
 
 _set_method_doc(lexe.RootSeed, "write", """\
@@ -145,7 +145,7 @@ Raises:
 
 Example::
 
-    seed = RootSeed(os.urandom(32))
+    seed = RootSeed.from_bytes(os.urandom(32))
     seed.write_to_path("/home/user/.lexe/seedphrase.txt")
 """)
 
@@ -212,7 +212,7 @@ lexe.RootSeed.__doc__ = """\
 The secret root seed for deriving all user keys and credentials.
 
 Create with :meth:`RootSeed.generate`, from raw bytes with
-:class:`RootSeed`, or load from a file with :meth:`RootSeed.read`
+:meth:`RootSeed.from_bytes`, or load from a file with :meth:`RootSeed.read`
 or :meth:`RootSeed.read_from_path`.
 
 Example::
@@ -222,7 +222,7 @@ Example::
 
     # Or create from raw bytes
     import os
-    seed = RootSeed(os.urandom(32))
+    seed = RootSeed.from_bytes(os.urandom(32))
 
     # Or load from the default seedphrase path for this environment
     config = WalletEnvConfig.mainnet()

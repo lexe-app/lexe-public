@@ -66,7 +66,7 @@ def load_prefunded_wallet(
         A loaded LexeWallet instance
     """
     seed_bytes = bytes.fromhex(wallet_info["seed_hex"])
-    seed = lexe.RootSeed(seed_bytes=seed_bytes)
+    seed = lexe.RootSeed.from_bytes(seed_bytes)
 
     config = lexe.WalletEnvConfig.regtest(gateway_url=gateway_url)
 
@@ -85,7 +85,7 @@ def load_prefunded_wallet(
 def create_test_root_seed() -> lexe.RootSeed:
     """Create a test root seed (insecure, for testing only)."""
     seed_bytes = b"test_seed_for_python_sdk_1234567"
-    return lexe.RootSeed(seed_bytes=seed_bytes)
+    return lexe.RootSeed.from_bytes(seed_bytes)
 
 
 def create_dev_config() -> lexe.WalletEnvConfig:

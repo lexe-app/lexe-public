@@ -436,13 +436,20 @@ impl RootSeed {
         Ok(Arc::new(Self { sdk }))
     }
 
-    /// Create a new root seed from raw bytes.
+    /// Construct a root seed from raw bytes.
     ///
     /// The seed must be exactly 32 bytes.
     #[uniffi::constructor]
-    pub fn new(mut seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
+    pub fn from_bytes(mut seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
         let sdk = SdkRootSeed::try_from(seed_bytes.as_slice())?;
         seed_bytes.zeroize();
+        Ok(Arc::new(Self { sdk }))
+    }
+
+    /// Construct a root seed from a 64-character hex string.
+    #[uniffi::constructor]
+    pub fn from_hex(hex_string: String) -> FfiResult<Arc<Self>> {
+        let sdk = SdkRootSeed::from_hex(&hex_string)?;
         Ok(Arc::new(Self { sdk }))
     }
 
@@ -451,6 +458,11 @@ impl RootSeed {
     /// Return the 32-byte root seed.
     pub fn to_bytes(&self) -> Vec<u8> {
         self.sdk.as_bytes().to_vec()
+    }
+
+    /// Encode the root secret as a 64-character hex string.
+    pub fn to_hex(&self) -> String {
+        self.sdk.to_hex()
     }
 
     /// Return this root seed's mnemonic as a space-separated string.
