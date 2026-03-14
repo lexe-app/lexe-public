@@ -58,7 +58,7 @@ impl LexeKeysManager {
         wallet: OnchainWallet,
     ) -> anyhow::Result<Self> {
         // Build the KeysManager from the LDK seed derived from the root seed
-        let ldk_seed = root_seed.derive_ldk_seed(rng);
+        let ldk_seed = root_seed.derive_ldk_seed();
 
         // KeysManager requires a "starting_time_secs" and "starting_time_nanos"
         // to seed an CRNG. We just provide random values from our system CRNG.
@@ -290,10 +290,10 @@ mod test {
             root_seed in any::<RootSeed>(),
             mut rng in any::<FastRng>()
         )| {
-            let root_seed_node_pk = root_seed.derive_node_pk(&mut rng);
+            let root_seed_node_pk = root_seed.derive_node_pk();
 
             let keys_manager = KeysManager::new(
-                root_seed.derive_ldk_seed(&mut rng).expose_secret(),
+                root_seed.derive_ldk_seed().expose_secret(),
                 rng.gen_u64(),
                 rng.gen_u32(),
             );

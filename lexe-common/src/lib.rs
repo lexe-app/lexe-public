@@ -46,6 +46,8 @@ pub mod releases;
 pub mod rng;
 /// `RootSeed`.
 pub mod root_seed;
+/// Global `Secp256k1` context
+pub mod secp256k1_ctx;
 /// `TimestampMs` and `DisplayMs`.
 pub mod time;
 

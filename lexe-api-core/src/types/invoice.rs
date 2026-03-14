@@ -214,8 +214,7 @@ pub mod arbitrary_impl {
     };
     use lexe_byte_array::ByteArray;
     use lexe_common::{
-        rng::{Crng, FastRng},
-        root_seed::RootSeed,
+        rng::FastRng, root_seed::RootSeed, secp256k1_ctx::SECP256K1,
         test_utils::arbitrary,
     };
     use lightning::{
@@ -243,7 +242,7 @@ pub mod arbitrary_impl {
             let bytes32 = any::<[u8; 32]>().no_shrink();
 
             let node_key_pair = any::<FastRng>().prop_map(|mut rng| {
-                RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
+                RootSeed::from_rng(&mut rng).derive_node_key_pair()
             });
             let network = any::<LxNetwork>();
             let description_or_hash =
@@ -341,9 +340,6 @@ pub mod arbitrary_impl {
         fallback: Option<Fallback>,
         route_hint: RouteHint,
     ) -> LxInvoice {
-        // This rng doesn't affect the output.
-        let secp_ctx = FastRng::from_u64(981999).gen_secp256k1_ctx();
-
         // Build invoice
 
         let invoice = InvoiceBuilder::new(network.into());
@@ -386,7 +382,7 @@ pub mod arbitrary_impl {
         // Sign invoice
 
         let do_sign = |msg: &Message| {
-            secp_ctx.sign_ecdsa_recoverable(msg, &node_key_pair.secret_key())
+            SECP256K1.sign_ecdsa_recoverable(msg, &node_key_pair.secret_key())
         };
 
         let invoice = match metadata {
@@ -493,8 +489,7 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
     #[ignore]
     #[test]
     fn invoice_dump() {
-        let node_key_pair = RootSeed::from_u64(12345)
-            .derive_node_key_pair(&mut FastRng::from_u64(123));
+        let node_key_pair = RootSeed::from_u64(12345).derive_node_key_pair();
 
         let network = LxNetwork::Regtest;
         let amount = None;

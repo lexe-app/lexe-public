@@ -144,7 +144,7 @@ impl LspInfo {
         use lexe_common::{rng::FastRng, root_seed::RootSeed};
 
         let mut rng = FastRng::from_u64(20230216);
-        let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
+        let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk();
         let addr = LxSocketAddress::TcpIpv6 {
             ip: Ipv6Addr::LOCALHOST,
             port: 42069,

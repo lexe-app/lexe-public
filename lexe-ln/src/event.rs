@@ -8,7 +8,8 @@ use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::test_event::TestEvent,
     ln::channel::{LxChannelId, LxUserChannelId},
-    rng::{Crng, RngExt, SysRng},
+    rng::{RngExt, SysRng},
+    secp256k1_ctx::SECP256K1,
     time::{DisplayMs, TimestampMs},
 };
 use lexe_tokio::{
@@ -749,7 +750,6 @@ where
         wallet.get_internal_address().script_pubkey();
     let feerate_sat_per_1000_weight = fee_estimates
         .get_est_sat_per_1000_weight(ConfirmationTarget::NonAnchorChannelFee);
-    let secp_ctx = SysRng::new().gen_secp256k1_ctx();
 
     // We set nLockTime to the current height to discourage fee sniping.
     let best_height = channel_manager.current_best_block().height;
@@ -766,7 +766,7 @@ where
             destination_change_script,
             feerate_sat_per_1000_weight,
             maybe_locktime,
-            &secp_ctx,
+            &SECP256K1,
         )
         .with_context(|| format!("{channel_id}"))
         .context("Error creating spending tx for spendable outputs")

@@ -1930,21 +1930,19 @@ mod test {
         script::{self, ScriptBuf},
         secp256k1,
     };
-    use lexe_common::rng::{Crng, FastRng};
+    use lexe_common::secp256k1_ctx::SECP256K1;
     use proptest::proptest;
 
     use super::*;
 
     fn pubkey() -> PublicKey {
-        let mut rng = FastRng::new();
-        let secp_ctx = rng.gen_secp256k1_ctx_signing();
         let secret_key = secp256k1::SecretKey::from_slice(&[
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
         ])
         .unwrap();
         PublicKey::new(secp256k1::PublicKey::from_secret_key(
-            &secp_ctx,
+            &*SECP256K1,
             &secret_key,
         ))
     }

@@ -8,7 +8,8 @@ use lexe_api::models::nwc::{
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
-    aes::AesMasterKey, env::DeployEnv, rng::Crng, time::TimestampMs,
+    aes::AesMasterKey, env::DeployEnv, rng::Crng, secp256k1_ctx::SECP256K1,
+    time::TimestampMs,
 };
 use lexe_hex::hex;
 use nostr::nips::nip44;
@@ -302,7 +303,6 @@ impl NwcClient {
     ) -> anyhow::Result<NostrSignedEvent> {
         let event = {
             let kind = nostr::Kind::WalletConnectResponse;
-            let secp = rng.gen_secp256k1_ctx();
             let client_nostr_pk = convert::to_nostr_pk(self.client_nostr_pk());
             let event_id = nostr::event::EventId::from_byte_array(event_id.0);
             let now = Instant::now();
@@ -312,7 +312,7 @@ impl NwcClient {
             nostr::EventBuilder::new(kind, content)
                 .tag(nostr::Tag::public_key(client_nostr_pk))
                 .tag(nostr::Tag::event(event_id))
-                .sign_with_ctx(&secp, rng, &now, &keys)?
+                .sign_with_ctx(&SECP256K1, rng, &now, &keys)?
         };
 
         let event_json = serde_json::to_string(&event)

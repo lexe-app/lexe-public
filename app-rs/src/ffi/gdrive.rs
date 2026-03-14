@@ -177,6 +177,7 @@ impl GDriveClient {
 
         let vfs_master_key = root_seed.inner.derive_vfs_master_key();
         let user_pk = root_seed.inner.derive_user_pk();
+        let node_pk = root_seed.inner.derive_node_pk();
         let credentials = self.inner.credentials.clone();
 
         // A closure to decrypt and base64-encode blobs
@@ -238,7 +239,7 @@ impl GDriveClient {
         // Serialize the state dump to JSON
         let node_state_dump = NodeStateDump {
             user_pk,
-            node_pk: root_seed.inner.derive_node_pk(&mut SysRng::new()),
+            node_pk,
             channel_manager,
             channel_monitors,
         };

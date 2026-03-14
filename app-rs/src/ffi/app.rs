@@ -29,7 +29,6 @@ use lexe_common::{
     },
     env::DeployEnv,
     ln::amount::Amount,
-    rng::SysRng,
 };
 use lexe_hex::hex::FromHex;
 use lexe_std::Apply;
@@ -79,7 +78,6 @@ impl AppHandle {
         config.validate();
 
         App::load(
-            &mut SysRng::new(),
             config.env_config(),
             config.env_db_config(),
             config.use_mock_secret_store,
@@ -111,7 +109,6 @@ impl AppHandle {
         };
 
         App::restore(
-            &mut SysRng::new(),
             config.env_config(),
             config.env_db_config(),
             config.use_mock_secret_store,
@@ -157,7 +154,6 @@ impl AppHandle {
             .context("Failed to parse partner id")?;
 
         App::signup(
-            &mut SysRng::new(),
             config.env_config(),
             config.env_db_config(),
             config.use_mock_secret_store,

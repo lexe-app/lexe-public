@@ -25,7 +25,7 @@ use crate::root_seed::RootSeed;
 use crate::test_utils::arbitrary;
 use crate::{
     ed25519::{self, Signable},
-    rng::Crng,
+    secp256k1_ctx::SECP256K1,
 };
 
 /// A Lexe user, as represented in the DB.
@@ -320,9 +320,7 @@ impl Arbitrary for NodePk {
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         any::<FastRng>()
-            .prop_map(|mut rng| {
-                RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng)
-            })
+            .prop_map(|mut rng| RootSeed::from_rng(&mut rng).derive_node_pk())
             .boxed()
     }
 }
@@ -342,15 +340,10 @@ impl NodePkProof {
 
     /// Given a [`secp256k1::Keypair`], sign a new [`NodePkProof`]
     /// Proof-of-Key-Possession for your key pair.
-    pub fn sign<R: Crng>(
-        rng: &mut R,
-        node_key_pair: &secp256k1::Keypair,
-    ) -> Self {
+    pub fn sign(node_key_pair: &secp256k1::Keypair) -> Self {
         let node_pk = NodePk::from(node_key_pair.public_key());
         let msg = Self::message(&node_pk);
-        let sig = rng
-            .gen_secp256k1_ctx_signing()
-            .sign_ecdsa(&msg, &node_key_pair.secret_key());
+        let sig = SECP256K1.sign_ecdsa(&msg, &node_key_pair.secret_key());
 
         Self { node_pk, sig }
     }
@@ -384,8 +377,8 @@ impl Arbitrary for NodePkProof {
         any::<FastRng>()
             .prop_map(|mut rng| {
                 let key_pair =
-                    RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng);
-                NodePkProof::sign(&mut rng, &key_pair)
+                    RootSeed::from_rng(&mut rng).derive_node_key_pair();
+                NodePkProof::sign(&key_pair)
             })
             .boxed()
     }
@@ -445,9 +438,9 @@ mod test {
         let mut rng = FastRng::from_u64(811011698);
         let root_seed = RootSeed::from_rng(&mut rng);
         let user_pk = root_seed.derive_user_pk();
-        let node_key_pair = root_seed.derive_node_key_pair(&mut rng);
+        let node_key_pair = root_seed.derive_node_key_pair();
         let node_pk = NodePk(node_key_pair.public_key());
-        let node_pk_proof = NodePkProof::sign(&mut rng, &node_key_pair);
+        let node_pk_proof = NodePkProof::sign(&node_key_pair);
 
         assert_eq!(
             "52b999003525a3d905f9916eff26cee6625a3976fc25270ce5b3e79aa3c16f45",
@@ -512,11 +505,11 @@ mod test {
             mut mutation in arb_mutation,
         )| {
             let node_key_pair = RootSeed::from_rng(&mut rng)
-                .derive_node_key_pair(&mut rng);
+                .derive_node_key_pair();
             let node_pk1 = NodePk::from(node_key_pair.public_key());
 
-            let proof1 = NodePkProof::sign(&mut rng, &node_key_pair);
-            let proof2 = NodePkProof::sign(&mut rng, &node_key_pair);
+            let proof1 = NodePkProof::sign(&node_key_pair);
+            let proof2 = NodePkProof::sign(&node_key_pair);
 
             // signing should be deterministic
             assert_eq!(proof1, proof2);

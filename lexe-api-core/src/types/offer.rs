@@ -372,8 +372,9 @@ mod arb {
 
     use bitcoin::hashes::{Hash, Hmac};
     use lexe_common::{
-        rng::{Crng, FastRng, RngExt},
+        rng::{FastRng, RngExt},
         root_seed::RootSeed,
+        secp256k1_ctx::SECP256K1,
         test_utils::arbitrary::{self, any_option_string},
     };
     use lightning::{
@@ -529,9 +530,8 @@ mod arb {
         paths: Vec<(Vec<MessageForwardNode>, MessageContext)>,
     ) -> LxOffer {
         let root_seed = RootSeed::from_rng(&mut rng);
-        let node_pk = root_seed.derive_node_pk(&mut rng);
+        let node_pk = root_seed.derive_node_pk();
         let expanded_key = ExpandedKey::new(rng.gen_bytes());
-        let secp_ctx = rng.gen_secp256k1_ctx();
 
         let network = network.map(LxNetwork::to_bitcoin);
         let amount = amount.map(|x| x.msat());
@@ -545,7 +545,7 @@ mod arb {
                     recipient_node_id,
                     message_context,
                     &mut rng,
-                    &secp_ctx,
+                    &SECP256K1,
                 )
                 .unwrap()
             })
@@ -558,7 +558,7 @@ mod arb {
                 node_pk.inner(),
                 &expanded_key,
                 nonce,
-                &secp_ctx,
+                &SECP256K1,
             )
             .supported_quantity(max_quantity.into());
             if let Some(network) = network {

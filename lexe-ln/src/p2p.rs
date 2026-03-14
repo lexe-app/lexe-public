@@ -1714,7 +1714,10 @@ mod ldk_test {
         constants::ChainHash,
         secp256k1::{self, ecdh, ecdsa, schnorr},
     };
-    use lexe_common::rng::{Crng, FastRng, RngExt, ThreadFastRng};
+    use lexe_common::{
+        rng::{FastRng, RngExt, ThreadFastRng},
+        secp256k1_ctx::SECP256K1,
+    };
     use lexe_tokio::task::LxTask;
     use lightning::{
         events::*,
@@ -1744,11 +1747,10 @@ mod ldk_test {
         let mut rng = FastRng::from_u64(328974289374);
         ThreadFastRng::seed(rng.gen_u64());
 
-        let secp_ctx = rng.gen_secp256k1_ctx();
         let a_key = secp256k1::SecretKey::from_slice(&[1; 32]).unwrap();
         let b_key = secp256k1::SecretKey::from_slice(&[2; 32]).unwrap();
-        let a_pub = secp256k1::PublicKey::from_secret_key(&secp_ctx, &a_key);
-        let b_pub = secp256k1::PublicKey::from_secret_key(&secp_ctx, &b_key);
+        let a_pub = secp256k1::PublicKey::from_secret_key(&SECP256K1, &a_key);
+        let b_pub = secp256k1::PublicKey::from_secret_key(&SECP256K1, &b_key);
 
         let (a_connected_sender, mut a_connected) = mpsc::channel(1);
         let (a_disconnected_sender, mut a_disconnected) = mpsc::channel(1);
@@ -1975,7 +1977,7 @@ mod ldk_test {
                 Recipient::PhantomNode => Err(()),
             }?;
             Ok(secp256k1::PublicKey::from_secret_key(
-                &FastRng::from_u64(324234).gen_secp256k1_ctx_signing(),
+                &SECP256K1,
                 node_secret,
             ))
         }

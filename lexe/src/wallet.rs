@@ -459,8 +459,8 @@ impl<D> LexeWallet<D> {
 
         // Derive keys and build signup request
         let user_key_pair = root_seed.derive_user_key_pair();
-        let node_key_pair = root_seed.derive_node_key_pair(&mut rng);
-        let node_pk_proof = NodePkProof::sign(&mut rng, &node_key_pair);
+        let node_key_pair = root_seed.derive_node_key_pair();
+        let node_pk_proof = NodePkProof::sign(&node_key_pair);
 
         let signup_req = UserSignupRequestWire::V2(UserSignupRequestWireV2 {
             v1: UserSignupRequestWireV1 {

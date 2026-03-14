@@ -269,9 +269,8 @@ mod tests {
     use bitcoin::secp256k1::PublicKey;
     use lexe_api::cli::LspInfo;
     use lexe_common::{
-        api::user::NodePk,
-        ln::addr::LxSocketAddress,
-        rng::{Crng, FastRng},
+        api::user::NodePk, ln::addr::LxSocketAddress, rng::FastRng,
+        secp256k1_ctx::SECP256K1,
     };
     use lightning::{
         blinded_path::message::OffersContext,
@@ -385,14 +384,13 @@ mod tests {
             network_graph.clone(),
             lsp_info.clone(),
         );
-        let mut rng = Box::new(FastRng::from_u64(12354654));
-        let secp_ctx = rng.gen_secp256k1_ctx();
+        let rng = Box::new(FastRng::from_u64(12354654));
         let nonce = Nonce::from_entropy_source(rng);
         let msg_ctx =
             MessageContext::Offers(OffersContext::InvoiceRequest { nonce });
         let peers = vec![lsp_pk];
         let blinded_path = user_router
-            .create_blinded_paths(dummy_user_pk(), msg_ctx, peers, &secp_ctx)
+            .create_blinded_paths(dummy_user_pk(), msg_ctx, peers, &SECP256K1)
             .unwrap()
             .into_iter()
             .next()

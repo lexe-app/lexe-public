@@ -24,7 +24,6 @@ use lexe::{
 use lexe_common::{
     api::user::{NodePk, NodePkProof, UserPk},
     constants,
-    rng::Crng,
     root_seed::RootSeed,
 };
 use lexe_node_client::{
@@ -80,7 +79,6 @@ impl App {
     ///   node enclave during provisioning.
     #[instrument(skip_all, name = "(signup)")]
     pub async fn signup(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         env_db_config: WalletEnvDbConfig,
         use_mock_secret_store: bool,
@@ -90,7 +88,7 @@ impl App {
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
     ) -> anyhow::Result<Self> {
-        let wallet_user = WalletUser::from_seed(rng, root_seed);
+        let wallet_user = WalletUser::from_seed(root_seed);
 
         let user_db_config =
             WalletUserDbConfig::new(env_db_config.clone(), wallet_user.user_pk);
@@ -153,8 +151,7 @@ impl App {
     /// Try to load the root seed from the platform secret store and app state
     /// from the local storage. Returns `None` if this is the first run.
     #[instrument(skip_all, name = "(load)")]
-    pub async fn load<R: Crng>(
-        rng: &mut R,
+    pub async fn load(
         env_config: WalletEnvConfig,
         env_db_config: WalletEnvDbConfig,
         use_mock_secret_store: bool,
@@ -175,7 +172,7 @@ impl App {
             None => return Ok(None),
         };
 
-        let wallet_user = WalletUser::from_seed(rng, &root_seed);
+        let wallet_user = WalletUser::from_seed(&root_seed);
         let user_db_config =
             WalletUserDbConfig::new(env_db_config.clone(), wallet_user.user_pk);
 
@@ -223,14 +220,13 @@ impl App {
     /// [`NodeProvisionRequest::google_auth_code`]: lexe_common::api::provision::NodeProvisionRequest::google_auth_code
     #[instrument(skip_all, name = "(restore)")]
     pub async fn restore(
-        rng: &mut impl Crng,
         env_config: WalletEnvConfig,
         env_db_config: WalletEnvDbConfig,
         use_mock_secret_store: bool,
         google_auth_code: Option<String>,
         root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
-        let wallet_user = WalletUser::from_seed(rng, root_seed);
+        let wallet_user = WalletUser::from_seed(root_seed);
         let user_db_config =
             WalletUserDbConfig::new(env_db_config.clone(), wallet_user.user_pk);
 
@@ -396,11 +392,11 @@ impl App {
 
 impl WalletUser {
     /// Derive a [`WalletUser`] from a [`RootSeed`].
-    pub fn from_seed(rng: &mut impl Crng, root_seed: &RootSeed) -> Self {
+    pub fn from_seed(root_seed: &RootSeed) -> Self {
         let user_pk = root_seed.derive_user_pk();
-        let node_key_pair = root_seed.derive_node_key_pair(rng);
+        let node_key_pair = root_seed.derive_node_key_pair();
         let node_pk = NodePk(node_key_pair.public_key());
-        let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
+        let node_pk_proof = NodePkProof::sign(&node_key_pair);
         Self {
             user_pk,
             node_pk,

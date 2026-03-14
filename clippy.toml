@@ -22,9 +22,9 @@ disallowed-methods = [
     # Footgun: `.is_elapsed()` counts as 'using' the future, which may still be unpolled
     { path = "tokio::time::Sleep::is_elapsed",           reason = "Just poll!() the sleep future instead" },
 
-    { path = "secp256k1::Secp256k1::new",           reason = "Use `Crng::gen_secp256k1_ctx`" },
-    { path = "secp256k1::Secp256k1::gen_new",       reason = "Use `Crng::gen_secp256k1_ctx`" },
-    { path = "secp256k1::Secp256k1::signing_only",  reason = "Use `Crng::gen_secp256k1_ctx_signing`" },
+    { path = "secp256k1::Secp256k1::new",           reason = "Use `lexe_common::secp256k1_ctx::SECP256K1`" },
+    { path = "secp256k1::Secp256k1::gen_new",       reason = "Use `lexe_common::secp256k1_ctx::SECP256K1`" },
+    { path = "secp256k1::Secp256k1::signing_only",  reason = "Use `lexe_common::secp256k1_ctx::SECP256K1`" },
 
     { path = "sea_orm_migration::prelude::ColumnDef::binary_len", reason = "Use `.binary()` for consistency. See crate docs." },
     { path = "sea_orm_migration::prelude::ColumnDef::var_binary", reason = "Use `.binary()` for consistency. See crate docs." },

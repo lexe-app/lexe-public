@@ -18,6 +18,7 @@ use crate::{
     ln::network::LxNetwork,
     password,
     rng::{Crng, RngExt, SysRng},
+    secp256k1_ctx::SECP256K1,
 };
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
@@ -240,17 +241,16 @@ impl RootSeed {
 
     /// Derives the root seed used in LDK. The `KeysManager` is initialized
     /// using this seed, and `secp256k1` keys are derived from this seed.
-    pub fn derive_ldk_seed<R: Crng>(&self, rng: &mut R) -> Secret<[u8; 32]> {
+    pub fn derive_ldk_seed(&self) -> Secret<[u8; 32]> {
         // The [u8; 32] output will be the same regardless of the network the
         // master_xprv uses, as tested in `when_does_network_matter`
         let master_xprv = self.derive_legacy_master_xprv(LxNetwork::Mainnet);
 
         // Derive the hardened child key at `m/535h`, where 535 is T9 for "LDK"
-        let secp_ctx = rng.gen_secp256k1_ctx();
         let m_535h =
             ChildNumber::from_hardened_idx(535).expect("Is within [0, 2^31-1]");
         let ldk_xprv = master_xprv
-            .derive_priv(&secp_ctx, &m_535h)
+            .derive_priv(&SECP256K1, &m_535h)
             .expect("Should always succeed");
 
         Secret::new(ldk_xprv.private_key.secret_bytes())
@@ -258,12 +258,9 @@ impl RootSeed {
 
     /// Derive the Lightning node key pair without needing to derive all the
     /// other auxiliary node secrets used in the `KeysManager`.
-    pub fn derive_node_key_pair<R: Crng>(
-        &self,
-        rng: &mut R,
-    ) -> secp256k1::Keypair {
+    pub fn derive_node_key_pair(&self) -> secp256k1::Keypair {
         // Derive the LDK seed first.
-        let ldk_seed = self.derive_ldk_seed(rng);
+        let ldk_seed = self.derive_ldk_seed();
 
         // When deriving a secp256k1 key, the network doesn't matter.
         // This is checked in when_does_network_matter.
@@ -273,20 +270,19 @@ impl RootSeed {
         )
         .expect("should never fail; the sizes match up");
 
-        let secp_ctx = rng.gen_secp256k1_ctx();
         let m_0h = ChildNumber::from_hardened_idx(0)
             .expect("should never fail; index is in range");
         let node_sk = ldk_xprv
-            .derive_priv(&secp_ctx, &m_0h)
+            .derive_priv(&SECP256K1, &m_0h)
             .expect("should never fail")
             .private_key;
 
-        secp256k1::Keypair::from_secret_key(&secp_ctx, &node_sk)
+        secp256k1::Keypair::from_secret_key(&SECP256K1, &node_sk)
     }
 
     /// Convenience function to derive the Lightning node pubkey.
-    pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> NodePk {
-        NodePk(self.derive_node_key_pair(rng).public_key())
+    pub fn derive_node_pk(&self) -> NodePk {
+        NodePk(self.derive_node_key_pair().public_key())
     }
 
     pub fn derive_vfs_master_key(&self) -> AesMasterKey {
@@ -654,11 +650,10 @@ mod test {
     #[ignore]
     #[test]
     fn dump_root_seed() {
-        let mut rng = FastRng::from_u64(1234);
         let root_seed = RootSeed::from_u64(20240506);
         let root_seed_hex = hex::encode(root_seed.expose_secret());
         let user_pk = root_seed.derive_user_pk();
-        let node_pk = root_seed.derive_node_pk(&mut rng);
+        let node_pk = root_seed.derive_node_pk();
 
         println!(
             "root_seed: '{root_seed_hex}', \
@@ -754,14 +749,12 @@ mod test {
     #[test]
     fn when_does_network_matter() {
         proptest!(|(
-            mut rng in any::<FastRng>(),
             root_seed in any::<RootSeed>(),
             network1 in any::<LxNetwork>(),
             network2 in any::<LxNetwork>(),
         )| {
             let network_kind1 = NetworkKind::from(network1.to_bitcoin());
             let network_kind2 = NetworkKind::from(network2.to_bitcoin());
-            let secp_ctx = rng.gen_secp256k1_ctx();
 
             // Network DOES matter for master xprvs (and all xprvs in general),
             // but only to the extent that their `NetworkKind` is different.
@@ -778,12 +771,12 @@ mod test {
             let m_535h = ChildNumber::from_hardened_idx(535)
                 .expect("Is within [0, 2^31-1]");
             let ldk_seed1 = master_xprv1
-                .derive_priv(&secp_ctx, &m_535h)
+                .derive_priv(&SECP256K1, &m_535h)
                 .expect("Should always succeed")
                 .private_key
                 .secret_bytes();
             let ldk_seed2 = master_xprv2
-                .derive_priv(&secp_ctx, &m_535h)
+                .derive_priv(&SECP256K1, &m_535h)
                 .expect("Should always succeed")
                 .private_key
                 .secret_bytes();
@@ -804,19 +797,19 @@ mod test {
             let m_0h = ChildNumber::from_hardened_idx(0)
                 .expect("should never fail; index is in range");
             let node_sk1 = ldk_xprv1
-                .derive_priv(&secp_ctx, &m_0h)
+                .derive_priv(&SECP256K1, &m_0h)
                 .expect("should never fail")
                 .private_key;
             let node_sk2 = ldk_xprv2
-                .derive_priv(&secp_ctx, &m_0h)
+                .derive_priv(&SECP256K1, &m_0h)
                 .expect("should never fail")
                 .private_key;
             prop_assert_eq!(node_sk1, node_sk2);
             // Then check the keypairs
             let keypair1 =
-                secp256k1::Keypair::from_secret_key(&secp_ctx, &node_sk1);
+                secp256k1::Keypair::from_secret_key(&SECP256K1, &node_sk1);
             let keypair2 =
-                secp256k1::Keypair::from_secret_key(&secp_ctx, &node_sk2);
+                secp256k1::Keypair::from_secret_key(&SECP256K1, &node_sk2);
             prop_assert_eq!(keypair1, keypair2);
             // Then check the node_pks
             let node_pk1 = NodePk(secp256k1::PublicKey::from(keypair1));
@@ -1000,14 +993,14 @@ mod test {
         );
 
         // Lightning node pubkey
-        let node_pk = seed.derive_node_pk(&mut FastRng::from_u64(1234));
+        let node_pk = seed.derive_node_pk();
         assert_eq!(
             node_pk.to_string(),
             "035a70d45eec7efb270319f116a9684250acb4ef282a26d21874878e7c5088f73b",
         );
 
         // LDK seed (used to initialize KeysManager)
-        let ldk_seed = seed.derive_ldk_seed(&mut FastRng::from_u64(1234));
+        let ldk_seed = seed.derive_ldk_seed();
         assert_eq!(
             hex::encode(ldk_seed.expose_secret()),
             "551444699ae8acbebe67d5b54da844e8297b83e26e205203a65f29564eaf3787",
