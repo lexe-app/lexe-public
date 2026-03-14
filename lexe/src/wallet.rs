@@ -52,6 +52,10 @@ pub struct WithoutDb;
 /// Default number of payments per page.
 const DEFAULT_LIST_LIMIT: usize = 100;
 
+const WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+const WAIT_FOR_PAYMENT_MAX_TIMEOUT: Duration =
+    Duration::from_secs(24 * 60 * 60);
+
 /// Top-level handle to a Lexe wallet.
 pub struct LexeWallet<Db> {
     user_config: WalletUserConfig,
@@ -293,14 +297,11 @@ impl LexeWallet<WithDb> {
         index: PaymentCreatedIndex,
         timeout: Option<Duration>,
     ) -> anyhow::Result<Payment> {
-        const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
-        const MAX_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
-
-        let timeout = timeout.unwrap_or(DEFAULT_TIMEOUT);
-        let max_secs = MAX_TIMEOUT.as_secs();
+        let timeout = timeout.unwrap_or(WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT);
+        let max_secs = WAIT_FOR_PAYMENT_MAX_TIMEOUT.as_secs();
         let timeout_secs = timeout.as_secs();
         ensure!(
-            timeout <= MAX_TIMEOUT,
+            timeout <= WAIT_FOR_PAYMENT_MAX_TIMEOUT,
             "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
         );
 
@@ -385,6 +386,55 @@ impl LexeWallet<WithoutDb> {
             lnurl_client,
             _marker: PhantomData,
         })
+    }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    pub async fn wait_for_payment(
+        &self,
+        index: PaymentCreatedIndex,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Payment> {
+        let timeout = timeout.unwrap_or(WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT);
+        let max_secs = WAIT_FOR_PAYMENT_MAX_TIMEOUT.as_secs();
+        let timeout_secs = timeout.as_secs();
+        ensure!(
+            timeout <= WAIT_FOR_PAYMENT_MAX_TIMEOUT,
+            "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
+        );
+
+        let initial_wait_ms = 1_000;
+        let max_wait_ms = 5 * 60 * 1_000;
+        let start = tokio::time::Instant::now();
+        let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
+
+        loop {
+            let payment = self
+                .node_client
+                .get_payment_by_id(command::LxPaymentIdStruct { id: index.id })
+                .await
+                .context("Failed to get payment")?
+                .maybe_payment
+                .map(Payment::from);
+
+            if let Some(payment) = payment {
+                match payment.status {
+                    PaymentStatus::Completed | PaymentStatus::Failed =>
+                        return Ok(payment),
+                    PaymentStatus::Pending => (), // Continue polling
+                }
+            }
+
+            ensure!(
+                start.elapsed() < timeout,
+                "Payment did not complete within {timeout_secs}s timeout",
+            );
+
+            tokio::time::sleep(backoff.next().unwrap()).await;
+        }
     }
 }
 

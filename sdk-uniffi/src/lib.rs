@@ -792,8 +792,7 @@ impl AsyncLexeWallet {
     ///
     /// Node operations (invoices, payments, node info) work normally.
     /// Local payment cache operations (`sync_payments`, `list_payments`,
-    /// `clear_payments`, `wait_for_payment`) are not available and will
-    /// return an error if called.
+    /// `clear_payments`) are not available and will return an error if called.
     #[uniffi::constructor]
     pub fn without_db(
         env_config: Arc<WalletEnvConfig>,
@@ -992,6 +991,28 @@ impl AsyncLexeWallet {
         Ok(())
     }
 
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    #[uniffi::method(default(timeout_secs = None))]
+    pub async fn wait_for_payment(
+        &self,
+        index: String,
+        timeout_secs: Option<u32>,
+    ) -> FfiResult<Payment> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
+        let payment = match &self.inner {
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.wait_for_payment(index, timeout).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.wait_for_payment(index, timeout).await?,
+        };
+        Ok(Payment::from(payment))
+    }
+
     // --- DB-only methods --- //
 
     /// Sync payments from the node to local storage.
@@ -1056,26 +1077,6 @@ impl AsyncLexeWallet {
     pub fn clear_payments(&self) -> FfiResult<()> {
         self.with_db()?.clear_payments()?;
         Ok(())
-    }
-
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 10 minutes if not specified.
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    ///
-    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
-    #[uniffi::method(default(timeout_secs = None))]
-    pub async fn wait_for_payment(
-        &self,
-        index: String,
-        timeout_secs: Option<u32>,
-    ) -> FfiResult<Payment> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
-        let payment = self.with_db()?.wait_for_payment(index, timeout).await?;
-        Ok(Payment::from(payment))
     }
 }
 
@@ -1212,8 +1213,7 @@ impl BlockingLexeWallet {
     ///
     /// Node operations (invoices, payments, node info) work normally.
     /// Local payment cache operations (`sync_payments`, `list_payments`,
-    /// `clear_payments`, `wait_for_payment`) are not available and will
-    /// return an error if called.
+    /// `clear_payments`) are not available and will return an error if called.
     #[uniffi::constructor]
     pub fn without_db(
         env_config: Arc<WalletEnvConfig>,
@@ -1407,6 +1407,28 @@ impl BlockingLexeWallet {
         Ok(())
     }
 
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    #[uniffi::method(default(timeout_secs = None))]
+    pub fn wait_for_payment(
+        &self,
+        index: String,
+        timeout_secs: Option<u32>,
+    ) -> FfiResult<Payment> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
+        let payment = match &self.inner {
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.wait_for_payment(index, timeout)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.wait_for_payment(index, timeout)?,
+        };
+        Ok(Payment::from(payment))
+    }
+
     // --- DB-only methods --- //
 
     /// Sync payments from the node to local storage.
@@ -1471,26 +1493,6 @@ impl BlockingLexeWallet {
     pub fn clear_payments(&self) -> FfiResult<()> {
         self.with_db()?.clear_payments()?;
         Ok(())
-    }
-
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 10 minutes if not specified.
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    ///
-    /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
-    #[uniffi::method(default(timeout_secs = None))]
-    pub fn wait_for_payment(
-        &self,
-        index: String,
-        timeout_secs: Option<u32>,
-    ) -> FfiResult<Payment> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let timeout = timeout_secs.map(|s| Duration::from_secs(s.into()));
-        let payment = self.with_db()?.wait_for_payment(index, timeout)?;
-        Ok(Payment::from(payment))
     }
 }
 

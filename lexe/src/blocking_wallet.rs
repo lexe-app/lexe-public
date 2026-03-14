@@ -164,6 +164,19 @@ impl BlockingLexeWallet<WithoutDb> {
         let inner = LexeWallet::without_db(env_config, credentials)?;
         Ok(Self { inner })
     }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    pub fn wait_for_payment(
+        &self,
+        index: PaymentCreatedIndex,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Payment> {
+        block_on(self.inner.wait_for_payment(index, timeout))
+    }
 }
 
 impl<D> BlockingLexeWallet<D> {
