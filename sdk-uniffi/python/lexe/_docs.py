@@ -70,8 +70,11 @@ Example::
     # '/home/user/.lexe/seedphrase.txt'
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "read_seed", """\
+_set_method_doc(lexe.RootSeed, "read", """\
 Reads a root seed from ``~/.lexe/seedphrase[.env].txt``.
+
+Args:
+    env_config: The wallet environment config.
 
 Returns:
     The root seed loaded from the file.
@@ -84,7 +87,7 @@ Example::
 
     config = WalletEnvConfig.mainnet()
     try:
-        seed = config.read_seed()
+        seed = RootSeed.read(config)
     except SeedFileError.NotFound:
         seed = RootSeed(os.urandom(32))
 """)
@@ -110,13 +113,13 @@ Example::
         seed = RootSeed(os.urandom(32))
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "write_seed", """\
-Writes a root seed's mnemonic to ``~/.lexe/seedphrase[.env].txt``.
+_set_method_doc(lexe.RootSeed, "write", """\
+Writes this root seed's mnemonic to ``~/.lexe/seedphrase[.env].txt``.
 
 Creates parent directories if needed.
 
 Args:
-    root_seed: The root seed to persist.
+    env_config: The wallet environment config.
 
 Raises:
     SeedFileError.AlreadyExists: If the file already exists.
@@ -125,7 +128,7 @@ Raises:
 Example::
 
     config = WalletEnvConfig.mainnet()
-    config.write_seed(seed)
+    seed.write(config)
 """)
 
 _set_method_doc(lexe.RootSeed, "write_to_path", """\
@@ -209,8 +212,8 @@ lexe.RootSeed.__doc__ = """\
 The secret root seed for deriving all user keys and credentials.
 
 Create with :meth:`RootSeed.generate`, from raw bytes with
-:class:`RootSeed`, or load from a file with :meth:`RootSeed.read_from_path`
-or :meth:`WalletEnvConfig.read_seed`.
+:class:`RootSeed`, or load from a file with :meth:`RootSeed.read`
+or :meth:`RootSeed.read_from_path`.
 
 Example::
 
@@ -223,7 +226,7 @@ Example::
 
     # Or load from the default seedphrase path for this environment
     config = WalletEnvConfig.mainnet()
-    seed = config.read_seed()
+    seed = RootSeed.read(config)
 
     # Or load from a specific file path
     seed = RootSeed.read_from_path("/home/user/.lexe/seedphrase.txt")
@@ -278,7 +281,7 @@ Then call :meth:`signup` and :meth:`provision` before using payment methods.
 Example::
 
     config = WalletEnvConfig.mainnet()
-    seed = config.read_seed()  # Raises SeedFileError.NotFound if missing
+    seed = RootSeed.read(config)  # Raises SeedFileError.NotFound if missing
 
     wallet = LexeWallet.load_or_fresh(config, seed)
     wallet.signup(seed, partner_pk=None)
@@ -370,7 +373,7 @@ Raises:
 Example::
 
     wallet.signup(seed, partner_pk=None)
-    config.write_seed(seed)  # Persist seed after signup!
+    seed.write(config)  # Persist seed after signup!
 """)
 
 _set_method_doc(LexeWallet, "provision", """\
@@ -591,7 +594,7 @@ Example::
     from lexe import AsyncLexeWallet, WalletEnvConfig
 
     config = WalletEnvConfig.mainnet()
-    seed = config.read_seed()
+    seed = RootSeed.read(config)
 
     wallet = AsyncLexeWallet.load_or_fresh(config, seed)
     await wallet.signup(seed, partner_pk=None)
@@ -683,7 +686,7 @@ Raises:
 Example::
 
     await wallet.signup(seed, partner_pk=None)
-    config.write_seed(seed)  # Persist seed after signup!
+    seed.write(config)  # Persist seed after signup!
 """)
 
 _set_method_doc(AsyncLexeWallet, "provision", """\
@@ -1045,8 +1048,9 @@ Attributes:
 lexe.SeedFileError.__doc__ = """\
 Error type for seedphrase file operations.
 
-Raised by :meth:`RootSeed.read_from_path`, :meth:`RootSeed.write_to_path`,
-:meth:`WalletEnvConfig.read_seed`, and :meth:`WalletEnvConfig.write_seed`.
+Raised by :meth:`RootSeed` file I/O methods (:meth:`~RootSeed.read`,
+:meth:`~RootSeed.read_from_path`, :meth:`~RootSeed.write`,
+:meth:`~RootSeed.write_to_path`).
 
 Variants:
 

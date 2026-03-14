@@ -2,6 +2,7 @@
 
 use std::{fmt, path::Path, str::FromStr};
 
+use anyhow::Context;
 use lexe_common::{
     ExposeSecret, root_seed::RootSeed as UnstableRootSeed,
 };
@@ -11,6 +12,8 @@ use lexe_node_client::credentials::{
     CredentialsRef as UnstableCredentialsRef,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::config::WalletEnv;
 
 /// Re-exports that are part of the SDK's public API.
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
@@ -104,13 +107,36 @@ impl<'a> From<&'a ClientCredentials> for CredentialsRef<'a> {
 pub struct RootSeed(UnstableRootSeed);
 
 impl RootSeed {
-    // TODO(max): Move the WalletEnvConfig root seed methods here.
+    // --- Constructors & File I/O --- //
+
     /// Generate a new random [`RootSeed`] using the system CSPRNG.
     pub fn generate() -> Self {
         Self(UnstableRootSeed::from_rng(&mut SysRng::new()))
     }
 
-    /// Read a [`RootSeed`] from a seedphrase file.
+    /// Read a [`RootSeed`] from the default seedphrase path for this
+    /// environment (`~/.lexe/seedphrase[.env].txt`).
+    ///
+    /// Returns `Ok(None)` if the file doesn't exist.
+    pub fn read(wallet_env: &WalletEnv) -> anyhow::Result<Option<Self>> {
+        let lexe_data_dir = lexe_common::default_lexe_data_dir()
+            .context("Could not get default lexe data dir")?;
+        let path = wallet_env.seedphrase_path(&lexe_data_dir);
+        Self::read_from_path(&path)
+    }
+
+    /// Write this [`RootSeed`] to the default seedphrase path for this
+    /// environment (`~/.lexe/seedphrase[.env].txt`).
+    ///
+    /// Creates parent directories if needed. Fails if the file already exists.
+    pub fn write(&self, wallet_env: &WalletEnv) -> anyhow::Result<()> {
+        let lexe_data_dir = lexe_common::default_lexe_data_dir()
+            .context("Could not get default lexe data dir")?;
+        let path = wallet_env.seedphrase_path(&lexe_data_dir);
+        self.write_to_path(&path)
+    }
+
+    /// Read a [`RootSeed`] from a seedphrase file at a specific path.
     ///
     /// Returns `Ok(None)` if the file doesn't exist.
     pub fn read_from_path(path: &Path) -> anyhow::Result<Option<Self>> {
@@ -118,7 +144,7 @@ impl RootSeed {
             .map(|maybe_root_seed| maybe_root_seed.map(Self))
     }
 
-    /// Write this [`RootSeed`] to a seedphrase file.
+    /// Write this [`RootSeed`] to a seedphrase file at a specific path.
     ///
     /// Creates parent directories if needed. Returns an error if the file
     /// already exists. On Unix, the file is created with mode 0600 (owner
@@ -127,14 +153,14 @@ impl RootSeed {
         self.unstable().write_to_path(path)
     }
 
-    /// Convert this root secret to its BIP39 mnemonic.
-    pub fn to_mnemonic(&self) -> Mnemonic {
-        self.unstable().to_mnemonic()
-    }
-
     /// Construct a [`RootSeed`] from a BIP39 mnemonic.
     pub fn from_mnemonic(mnemonic: Mnemonic) -> anyhow::Result<Self> {
         Self::try_from(mnemonic)
+    }
+
+    /// Convert this root secret to its BIP39 mnemonic.
+    pub fn to_mnemonic(&self) -> Mnemonic {
+        self.unstable().to_mnemonic()
     }
 
     /// Borrow the 32-byte root secret.

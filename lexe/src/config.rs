@@ -7,10 +7,7 @@ use std::{
 use anyhow::Context;
 use lexe_common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
 
-use crate::{
-    types::auth::{CredentialsRef, RootSeed},
-    unstable::SDK_USER_AGENT,
-};
+use crate::{types::auth::CredentialsRef, unstable::SDK_USER_AGENT};
 
 // --- Structs --- //
 //
@@ -114,8 +111,6 @@ impl WalletEnv {
         }
     }
 
-    // --- Seedphrase file I/O --- //
-
     /// Returns the path to the seedphrase file for this environment.
     ///
     /// - Mainnet (prod): `<data_dir>/seedphrase.txt`
@@ -127,26 +122,6 @@ impl WalletEnv {
             Cow::Owned(format!("seedphrase.{self}.txt"))
         };
         data_dir.join(filename.as_ref())
-    }
-
-    /// Reads a [`RootSeed`] from `~/.lexe/seedphrase[.env].txt`.
-    ///
-    /// Returns `Ok(None)` if the file doesn't exist.
-    pub fn read_seed(&self) -> anyhow::Result<Option<RootSeed>> {
-        let lexe_data_dir = lexe_common::default_lexe_data_dir()
-            .context("Could not get default lexe data dir")?;
-        let path = self.seedphrase_path(&lexe_data_dir);
-        RootSeed::read_from_path(&path)
-    }
-
-    /// Writes a [`RootSeed`]'s mnemonic to `~/.lexe/seedphrase[.env].txt`.
-    ///
-    /// Creates parent directories if needed. Fails if the file already exists.
-    pub fn write_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
-        let lexe_data_dir = lexe_common::default_lexe_data_dir()
-            .context("Could not get default lexe data dir")?;
-        let path = self.seedphrase_path(&lexe_data_dir);
-        root_seed.write_to_path(&path)
     }
 }
 
@@ -259,20 +234,6 @@ impl WalletEnvConfig {
     /// Returns the path to the seedphrase file for this environment.
     pub fn seedphrase_path(&self, data_dir: &Path) -> PathBuf {
         self.wallet_env.seedphrase_path(data_dir)
-    }
-
-    /// Reads a [`RootSeed`] from `~/.lexe/seedphrase[.env].txt`.
-    ///
-    /// Returns `Ok(None)` if the file doesn't exist.
-    pub fn read_seed(&self) -> anyhow::Result<Option<RootSeed>> {
-        self.wallet_env.read_seed()
-    }
-
-    /// Writes a [`RootSeed`]'s mnemonic to `~/.lexe/seedphrase[.env].txt`.
-    ///
-    /// Creates parent directories if needed. Fails if the file already exists.
-    pub fn write_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
-        self.wallet_env.write_seed(root_seed)
     }
 }
 

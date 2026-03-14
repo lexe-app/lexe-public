@@ -122,8 +122,7 @@ pub type FfiResult<T> = std::result::Result<T, FfiError>;
 
 /// Error type for seedphrase file operations.
 ///
-/// Returned by [`RootSeed::read_from_path`], [`RootSeed::write_to_path`],
-/// [`WalletEnvConfig::read_seed`], and [`WalletEnvConfig::write_seed`].
+/// Returned by [`RootSeed`] file I/O methods.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum SeedFileError {
     /// The seedphrase file was not found at the given path.
@@ -299,46 +298,6 @@ impl WalletEnvConfig {
             .to_string_lossy()
             .into_owned()
     }
-
-    /// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
-    ///
-    /// Raises [`SeedFileError::NotFound`] if the file doesn't exist.
-    pub fn read_seed(&self) -> Result<Arc<RootSeed>, SeedFileError> {
-        let data_dir = default_lexe_data_dir().unwrap_or_default();
-        let path = self.seedphrase_path(data_dir);
-        match self.to_rs().read_seed() {
-            Ok(Some(sdk)) => Ok(Arc::new(RootSeed { sdk })),
-            Ok(None) => Err(SeedFileError::NotFound { path }),
-            Err(e) => Err(SeedFileError::ParseError {
-                message: format!("{e:#}"),
-            }),
-        }
-    }
-
-    /// Writes a root seed's mnemonic to `~/.lexe/seedphrase[.env].txt`.
-    ///
-    /// Creates parent directories if needed. Returns an error if the file
-    /// already exists.
-    pub fn write_seed(
-        &self,
-        root_seed: Arc<RootSeed>,
-    ) -> Result<(), SeedFileError> {
-        self.to_rs().write_seed(root_seed.as_sdk()).map_err(|e| {
-            // Check if the root cause is an "already exists" IO error.
-            for cause in e.chain() {
-                if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
-                    && io_err.kind() == std::io::ErrorKind::AlreadyExists
-                {
-                    let data_dir = default_lexe_data_dir().unwrap_or_default();
-                    let path = self.seedphrase_path(data_dir);
-                    return SeedFileError::AlreadyExists { path };
-                }
-            }
-            SeedFileError::IoError {
-                message: format!("{e:#}"),
-            }
-        })
-    }
 }
 
 impl WalletEnvConfig {
@@ -367,6 +326,8 @@ pub struct RootSeed {
 
 #[uniffi::export]
 impl RootSeed {
+    // --- Constructors & File I/O --- //
+
     /// Generate a new random root seed.
     #[uniffi::constructor]
     pub fn generate() -> Arc<Self> {
@@ -375,17 +336,58 @@ impl RootSeed {
         })
     }
 
-    /// Create a new root seed from raw bytes.
+    /// Reads a root seed from `~/.lexe/seedphrase[.env].txt`.
     ///
-    /// The seed must be exactly 32 bytes.
+    /// Raises [`SeedFileError::NotFound`] if the file doesn't exist,
+    /// or [`SeedFileError::ParseError`] if the file can't be parsed.
     #[uniffi::constructor]
-    pub fn new(mut seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
-        let sdk = SdkRootSeed::try_from(seed_bytes.as_slice())?;
-        seed_bytes.zeroize();
+    pub fn read(
+        env_config: Arc<WalletEnvConfig>,
+    ) -> Result<Arc<Self>, SeedFileError> {
+        let wallet_env = env_config.to_rs().wallet_env;
+        let sdk = match SdkRootSeed::read(&wallet_env) {
+            Ok(Some(sdk)) => sdk,
+            Ok(None) => {
+                let data_dir = default_lexe_data_dir().unwrap_or_default();
+                let path = env_config.seedphrase_path(data_dir);
+                return Err(SeedFileError::NotFound { path });
+            }
+            Err(e) =>
+                return Err(SeedFileError::ParseError {
+                    message: format!("{e:#}"),
+                }),
+        };
         Ok(Arc::new(Self { sdk }))
     }
 
-    /// Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
+    /// Writes this root seed's mnemonic to `~/.lexe/seedphrase[.env].txt`.
+    ///
+    /// Creates parent directories if needed. Raises
+    /// [`SeedFileError::AlreadyExists`] if the file already exists.
+    pub fn write(
+        &self,
+        env_config: Arc<WalletEnvConfig>,
+    ) -> Result<(), SeedFileError> {
+        let wallet_env = env_config.to_rs().wallet_env;
+        self.as_sdk().write(&wallet_env).map_err(|e| {
+            // Check if the root cause is an "already exists" IO error.
+            for cause in e.chain() {
+                if let Some(io_err) = cause.downcast_ref::<std::io::Error>()
+                    && io_err.kind() == std::io::ErrorKind::AlreadyExists
+                {
+                    let data_dir = default_lexe_data_dir().unwrap_or_default();
+                    let path = env_config.seedphrase_path(data_dir);
+                    return SeedFileError::AlreadyExists { path };
+                }
+            }
+            SeedFileError::IoError {
+                message: format!("{e:#}"),
+            }
+        })
+    }
+
+    /// Reads a root seed from a seedphrase file at a specific path,
+    /// containing a BIP39 mnemonic.
     ///
     /// Raises [`SeedFileError::NotFound`] if the file doesn't exist,
     /// or [`SeedFileError::ParseError`] if the file can't be parsed.
@@ -403,52 +405,8 @@ impl RootSeed {
         Ok(Arc::new(Self { sdk }))
     }
 
-    /// Return the 32-byte root seed.
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.sdk.as_bytes().to_vec()
-    }
-
-    /// Return this root seed's mnemonic as a space-separated string.
-    pub fn to_mnemonic(&self) -> String {
-        self.sdk.to_mnemonic().to_string()
-    }
-
-    /// Construct a root seed from a BIP39 mnemonic string.
-    #[uniffi::constructor]
-    pub fn from_mnemonic(mnemonic: String) -> FfiResult<Arc<Self>> {
-        let mnemonic = mnemonic
-            .parse()
-            .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
-        let sdk = SdkRootSeed::from_mnemonic(mnemonic)?;
-        Ok(Arc::new(Self { sdk }))
-    }
-
-    /// Derive the user's public key.
-    pub fn derive_user_pk(&self) -> String {
-        self.sdk.derive_user_pk().to_string()
-    }
-
-    /// Derive the node public key.
-    pub fn derive_node_pk(&self) -> String {
-        self.sdk.derive_node_pk().to_string()
-    }
-
-    /// Encrypt this root seed under the given password.
-    pub fn password_encrypt(&self, password: String) -> FfiResult<Vec<u8>> {
-        self.sdk.password_encrypt(&password).map_err(Into::into)
-    }
-
-    /// Decrypt a password-encrypted root seed.
-    #[uniffi::constructor]
-    pub fn password_decrypt(
-        password: String,
-        encrypted: Vec<u8>,
-    ) -> FfiResult<Arc<Self>> {
-        let sdk = SdkRootSeed::password_decrypt(&password, encrypted)?;
-        Ok(Arc::new(Self { sdk }))
-    }
-
-    /// Writes this root seed's mnemonic to a seedphrase file.
+    /// Writes this root seed's mnemonic to a seedphrase file at a specific
+    /// path.
     ///
     /// Creates parent directories if needed. Raises
     /// [`SeedFileError::AlreadyExists`] if the file already exists.
@@ -466,6 +424,67 @@ impl RootSeed {
                 message: format!("{e:#}"),
             }
         })
+    }
+
+    /// Construct a root seed from a BIP39 mnemonic string.
+    #[uniffi::constructor]
+    pub fn from_mnemonic(mnemonic: String) -> FfiResult<Arc<Self>> {
+        let mnemonic = mnemonic
+            .parse()
+            .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
+        let sdk = SdkRootSeed::from_mnemonic(mnemonic)?;
+        Ok(Arc::new(Self { sdk }))
+    }
+
+    /// Create a new root seed from raw bytes.
+    ///
+    /// The seed must be exactly 32 bytes.
+    #[uniffi::constructor]
+    pub fn new(mut seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
+        let sdk = SdkRootSeed::try_from(seed_bytes.as_slice())?;
+        seed_bytes.zeroize();
+        Ok(Arc::new(Self { sdk }))
+    }
+
+    // --- Serialization --- //
+
+    /// Return the 32-byte root seed.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.sdk.as_bytes().to_vec()
+    }
+
+    /// Return this root seed's mnemonic as a space-separated string.
+    pub fn to_mnemonic(&self) -> String {
+        self.sdk.to_mnemonic().to_string()
+    }
+
+    // --- Derived Identity --- //
+
+    /// Derive the user's public key.
+    pub fn derive_user_pk(&self) -> String {
+        self.sdk.derive_user_pk().to_string()
+    }
+
+    /// Derive the node public key.
+    pub fn derive_node_pk(&self) -> String {
+        self.sdk.derive_node_pk().to_string()
+    }
+
+    // --- Encryption --- //
+
+    /// Encrypt this root seed under the given password.
+    pub fn password_encrypt(&self, password: String) -> FfiResult<Vec<u8>> {
+        self.sdk.password_encrypt(&password).map_err(Into::into)
+    }
+
+    /// Decrypt a password-encrypted root seed.
+    #[uniffi::constructor]
+    pub fn password_decrypt(
+        password: String,
+        encrypted: Vec<u8>,
+    ) -> FfiResult<Arc<Self>> {
+        let sdk = SdkRootSeed::password_decrypt(&password, encrypted)?;
+        Ok(Arc::new(Self { sdk }))
     }
 }
 
