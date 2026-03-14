@@ -13,12 +13,13 @@ pip install lexe-sdk
 ## Example
 
 ```python
-from lexe import LexeWallet, RootSeed, WalletEnvConfig
+from lexe import Credentials, LexeWallet, RootSeed, WalletEnvConfig
 
 # Load an existing Lexe wallet from ~/.lexe
 config = WalletEnvConfig.mainnet()
 seed = RootSeed.read(config)
-wallet = LexeWallet.load(config, seed)
+creds = Credentials.from_root_seed(seed)
+wallet = LexeWallet.load(config, creds)
 
 # Pay a Lightning invoice
 payment = wallet.pay_invoice(

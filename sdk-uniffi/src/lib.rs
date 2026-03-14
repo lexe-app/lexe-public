@@ -506,19 +506,98 @@ impl RootSeed {
     }
 }
 
-/// Client credentials for authenticating with Lexe.
-#[derive(Clone, uniffi::Record)]
+/// Scoped and revocable credentials for controlling a Lexe user node.
+///
+/// These are useful when you want node access without exposing the user's
+/// [`RootSeed`], which is irrevocable.
+/// Wrap into [`Credentials`] to use with wallet constructors.
+#[derive(uniffi::Object)]
+#[uniffi::export(Display)]
 pub struct ClientCredentials {
-    /// Base64-encoded credentials blob.
-    pub credentials_base64: String,
+    sdk: SdkClientCredentials,
+}
+
+#[uniffi::export]
+impl ClientCredentials {
+    /// Parse client credentials from a string.
+    #[uniffi::constructor]
+    pub fn from_string(s: String) -> FfiResult<Arc<Self>> {
+        let sdk = SdkClientCredentials::from_string(&s)?;
+        Ok(Arc::new(Self { sdk }))
+    }
+
+    /// Export these credentials as a portable string.
+    ///
+    /// The returned string can be passed to [`ClientCredentials::from_string`]
+    /// to reconstruct the credentials.
+    //
+    // Intentional departure: the `lexe` SDK has both `Display` and
+    // `export_string` (which wraps `to_string()`). UniFFI exports
+    // `Display` too, but `export_string` is more discoverable for
+    // SDK consumers who may not know about `Display` / `__str__`.
+    pub fn export_string(&self) -> String {
+        self.sdk.export_string()
+    }
+}
+
+impl fmt::Display for ClientCredentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.sdk)
+    }
 }
 
 impl ClientCredentials {
-    // TODO(mpch): Remove once credentials auth flow is implemented
-    #[allow(dead_code)]
-    fn to_rs(&self) -> FfiResult<SdkClientCredentials> {
-        SdkClientCredentials::from_string(&self.credentials_base64)
-            .map_err(|e| anyhow!("Invalid credentials: {e}").into())
+    fn as_sdk(&self) -> &SdkClientCredentials {
+        &self.sdk
+    }
+}
+
+/// Credentials for authenticating with a Lexe user node.
+///
+/// Create from a [`RootSeed`] or [`ClientCredentials`], then pass to
+/// wallet constructors and [`provision`](AsyncLexeWallet::provision).
+//
+// Language-agnostic adaptation of the Rust SDK's `CredentialsRef<'_>`.
+// Root-seed-only APIs like `signup` intentionally still take `RootSeed`.
+#[derive(uniffi::Object)]
+pub struct Credentials {
+    inner: CredentialsInner,
+}
+
+enum CredentialsInner {
+    RootSeed(Arc<RootSeed>),
+    ClientCredentials(Arc<ClientCredentials>),
+}
+
+#[uniffi::export]
+impl Credentials {
+    /// Create credentials from a root seed.
+    #[uniffi::constructor]
+    pub fn from_root_seed(root_seed: Arc<RootSeed>) -> Arc<Self> {
+        Arc::new(Self {
+            inner: CredentialsInner::RootSeed(root_seed),
+        })
+    }
+
+    /// Create credentials from client credentials.
+    #[uniffi::constructor]
+    pub fn from_client_credentials(
+        client_credentials: Arc<ClientCredentials>,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            inner: CredentialsInner::ClientCredentials(client_credentials),
+        })
+    }
+}
+
+impl Credentials {
+    fn as_sdk(&self) -> SdkCredentialsRef<'_> {
+        match &self.inner {
+            CredentialsInner::RootSeed(rs) =>
+                SdkCredentialsRef::from(rs.as_sdk()),
+            CredentialsInner::ClientCredentials(cc) =>
+                SdkCredentialsRef::from(cc.as_sdk()),
+        }
     }
 }
 
@@ -626,15 +705,14 @@ impl AsyncLexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn fresh(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
         let sdk_wallet = SdkLexeWallet::fresh(
             env_config_rs,
-            credentials,
+            credentials.as_sdk(),
             lexe_data_dir.map(PathBuf::from),
         )?;
 
@@ -661,15 +739,14 @@ impl AsyncLexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
         let maybe_sdk_wallet = SdkLexeWallet::load(
             env_config_rs,
-            credentials,
+            credentials.as_sdk(),
             lexe_data_dir.map(PathBuf::from),
         )
         .map_err(|e| LoadWalletError::LoadFailed {
@@ -695,15 +772,14 @@ impl AsyncLexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load_or_fresh(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
         let sdk_wallet = SdkLexeWallet::load_or_fresh(
             env_config_rs,
-            credentials,
+            credentials.as_sdk(),
             lexe_data_dir.map(PathBuf::from),
         )?;
 
@@ -721,12 +797,12 @@ impl AsyncLexeWallet {
     #[uniffi::constructor]
     pub fn without_db(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let sdk_wallet = SdkLexeWallet::without_db(env_config_rs, credentials)?;
+        let sdk_wallet =
+            SdkLexeWallet::without_db(env_config_rs, credentials.as_sdk())?;
 
         Ok(Arc::new(Self {
             inner: AsyncLexeWalletInner::WithoutDb(sdk_wallet),
@@ -753,9 +829,8 @@ impl AsyncLexeWallet {
         let partner = partner_pk
             .as_deref()
             .map(|s| {
-                s.parse::<UserPk>().map_err(|e| {
-                    anyhow!("Invalid partner user_pk: {e}")
-                })
+                s.parse::<UserPk>()
+                    .map_err(|e| anyhow!("Invalid partner user_pk: {e}"))
             })
             .transpose()?;
 
@@ -773,17 +848,20 @@ impl AsyncLexeWallet {
     /// Call this every time the wallet is loaded to ensure the user is running
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
-    pub async fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
+    pub async fn provision(
+        &self,
+        credentials: Arc<Credentials>,
+    ) -> FfiResult<()> {
         match &self.inner {
-            AsyncLexeWalletInner::WithDb(wallet) => wallet.provision(credentials).await?,
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.provision(credentials.as_sdk()).await?,
             AsyncLexeWalletInner::WithoutDb(wallet) =>
-                wallet.provision(credentials).await?,
+                wallet.provision(credentials.as_sdk()).await?,
         }
         Ok(())
     }
 
-    /// Get the user's hex-encoded public key derived from the root seed.
+    /// Get the user's hex-encoded public key.
     pub fn user_pk(&self) -> String {
         match &self.inner {
             AsyncLexeWalletInner::WithDb(wallet) =>
@@ -797,7 +875,8 @@ impl AsyncLexeWallet {
     pub async fn node_info(&self) -> FfiResult<NodeInfo> {
         let info = match &self.inner {
             AsyncLexeWalletInner::WithDb(wallet) => wallet.node_info().await?,
-            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.node_info().await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.node_info().await?,
         };
         Ok(info.into())
     }
@@ -829,8 +908,10 @@ impl AsyncLexeWallet {
             payer_note,
         };
         let resp = match &self.inner {
-            AsyncLexeWalletInner::WithDb(wallet) => wallet.create_invoice(req).await?,
-            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.create_invoice(req).await?,
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.create_invoice(req).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.create_invoice(req).await?,
         };
         Ok(resp.into())
     }
@@ -867,8 +948,10 @@ impl AsyncLexeWallet {
             payer_note,
         };
         let resp = match &self.inner {
-            AsyncLexeWalletInner::WithDb(wallet) => wallet.pay_invoice(req).await?,
-            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.pay_invoice(req).await?,
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.pay_invoice(req).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.pay_invoice(req).await?,
         };
         Ok(resp.into())
     }
@@ -881,8 +964,10 @@ impl AsyncLexeWallet {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
         let resp = match &self.inner {
-            AsyncLexeWalletInner::WithDb(wallet) => wallet.get_payment(req).await?,
-            AsyncLexeWalletInner::WithoutDb(wallet) => wallet.get_payment(req).await?,
+            AsyncLexeWalletInner::WithDb(wallet) =>
+                wallet.get_payment(req).await?,
+            AsyncLexeWalletInner::WithoutDb(wallet) =>
+                wallet.get_payment(req).await?,
         };
         Ok(resp.payment.map(Into::into))
     }
@@ -948,8 +1033,12 @@ impl AsyncLexeWallet {
         let after_rs = after
             .map(|s| PaymentCreatedIndexRs::from_str(&s))
             .transpose()?;
-        let resp =
-            sdk_wallet.list_payments(&filter_rs, order_rs, limit_rs, after_rs.as_ref());
+        let resp = sdk_wallet.list_payments(
+            &filter_rs,
+            order_rs,
+            limit_rs,
+            after_rs.as_ref(),
+        );
 
         Ok(ListPaymentsResponse {
             payments: resp.payments.into_iter().map(Payment::from).collect(),
@@ -1011,9 +1100,7 @@ enum BlockingLexeWalletInner {
 impl BlockingLexeWallet {
     /// Returns the inner `WithDb` wallet, or an error if this wallet was
     /// created without local persistence.
-    fn with_db(
-        &self,
-    ) -> FfiResult<&SdkBlockingLexeWallet<WithDb>> {
+    fn with_db(&self) -> FfiResult<&SdkBlockingLexeWallet<WithDb>> {
         match &self.inner {
             BlockingLexeWalletInner::WithDb(wallet) => Ok(wallet),
             BlockingLexeWalletInner::WithoutDb(_) => Err(anyhow!(
@@ -1038,15 +1125,14 @@ impl BlockingLexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn fresh(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
         let sdk_wallet = SdkBlockingLexeWallet::fresh(
             env_config_rs,
-            credentials,
+            credentials.as_sdk(),
             lexe_data_dir.map(PathBuf::from),
         )?;
 
@@ -1073,15 +1159,14 @@ impl BlockingLexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
         let maybe_sdk_wallet = SdkBlockingLexeWallet::load(
             env_config_rs,
-            credentials,
+            credentials.as_sdk(),
             lexe_data_dir.map(PathBuf::from),
         )
         .map_err(|e| LoadWalletError::LoadFailed {
@@ -1107,15 +1192,14 @@ impl BlockingLexeWallet {
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load_or_fresh(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
         let sdk_wallet = SdkBlockingLexeWallet::load_or_fresh(
             env_config_rs,
-            credentials,
+            credentials.as_sdk(),
             lexe_data_dir.map(PathBuf::from),
         )?;
 
@@ -1133,12 +1217,14 @@ impl BlockingLexeWallet {
     #[uniffi::constructor]
     pub fn without_db(
         env_config: Arc<WalletEnvConfig>,
-        root_seed: Arc<RootSeed>,
+        credentials: Arc<Credentials>,
     ) -> FfiResult<Arc<Self>> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
         let env_config_rs = env_config.to_rs();
 
-        let sdk_wallet = SdkBlockingLexeWallet::without_db(env_config_rs, credentials)?;
+        let sdk_wallet = SdkBlockingLexeWallet::without_db(
+            env_config_rs,
+            credentials.as_sdk(),
+        )?;
 
         Ok(Arc::new(Self {
             inner: BlockingLexeWalletInner::WithoutDb(sdk_wallet),
@@ -1165,9 +1251,8 @@ impl BlockingLexeWallet {
         let partner = partner_pk
             .as_deref()
             .map(|s| {
-                s.parse::<UserPk>().map_err(|e| {
-                    anyhow!("Invalid partner user_pk: {e}")
-                })
+                s.parse::<UserPk>()
+                    .map_err(|e| anyhow!("Invalid partner user_pk: {e}"))
             })
             .transpose()?;
 
@@ -1185,17 +1270,17 @@ impl BlockingLexeWallet {
     /// Call this every time the wallet is loaded to ensure the user is running
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
-    pub fn provision(&self, root_seed: Arc<RootSeed>) -> FfiResult<()> {
-        let credentials = SdkCredentialsRef::from(root_seed.as_sdk());
+    pub fn provision(&self, credentials: Arc<Credentials>) -> FfiResult<()> {
         match &self.inner {
-            BlockingLexeWalletInner::WithDb(wallet) => wallet.provision(credentials)?,
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.provision(credentials.as_sdk())?,
             BlockingLexeWalletInner::WithoutDb(wallet) =>
-                wallet.provision(credentials)?,
+                wallet.provision(credentials.as_sdk())?,
         }
         Ok(())
     }
 
-    /// Get the user's hex-encoded public key derived from the root seed.
+    /// Get the user's hex-encoded public key.
     pub fn user_pk(&self) -> String {
         match &self.inner {
             BlockingLexeWalletInner::WithDb(wallet) =>
@@ -1241,8 +1326,10 @@ impl BlockingLexeWallet {
             payer_note,
         };
         let resp = match &self.inner {
-            BlockingLexeWalletInner::WithDb(wallet) => wallet.create_invoice(req)?,
-            BlockingLexeWalletInner::WithoutDb(wallet) => wallet.create_invoice(req)?,
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.create_invoice(req)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.create_invoice(req)?,
         };
         Ok(resp.into())
     }
@@ -1279,8 +1366,10 @@ impl BlockingLexeWallet {
             payer_note,
         };
         let resp = match &self.inner {
-            BlockingLexeWalletInner::WithDb(wallet) => wallet.pay_invoice(req)?,
-            BlockingLexeWalletInner::WithoutDb(wallet) => wallet.pay_invoice(req)?,
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.pay_invoice(req)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.pay_invoice(req)?,
         };
         Ok(resp.into())
     }
@@ -1290,8 +1379,10 @@ impl BlockingLexeWallet {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
         let resp = match &self.inner {
-            BlockingLexeWalletInner::WithDb(wallet) => wallet.get_payment(req)?,
-            BlockingLexeWalletInner::WithoutDb(wallet) => wallet.get_payment(req)?,
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.get_payment(req)?,
+            BlockingLexeWalletInner::WithoutDb(wallet) =>
+                wallet.get_payment(req)?,
         };
         Ok(resp.payment.map(Into::into))
     }
@@ -1308,7 +1399,8 @@ impl BlockingLexeWallet {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkUpdatePaymentNoteRequest { index, note };
         match &self.inner {
-            BlockingLexeWalletInner::WithDb(wallet) => wallet.update_payment_note(req)?,
+            BlockingLexeWalletInner::WithDb(wallet) =>
+                wallet.update_payment_note(req)?,
             BlockingLexeWalletInner::WithoutDb(wallet) =>
                 wallet.update_payment_note(req)?,
         }
@@ -1356,8 +1448,12 @@ impl BlockingLexeWallet {
         let after_rs = after
             .map(|s| PaymentCreatedIndexRs::from_str(&s))
             .transpose()?;
-        let resp =
-            sdk_wallet.list_payments(&filter_rs, order_rs, limit_rs, after_rs.as_ref());
+        let resp = sdk_wallet.list_payments(
+            &filter_rs,
+            order_rs,
+            limit_rs,
+            after_rs.as_ref(),
+        );
 
         Ok(ListPaymentsResponse {
             payments: resp.payments.into_iter().map(Payment::from).collect(),

@@ -233,10 +233,36 @@ Example::
 """
 
 lexe.ClientCredentials.__doc__ = """\
-Client credentials for authenticating with Lexe.
+Scoped and revocable credentials for controlling a Lexe user node.
 
-Attributes:
-    credentials_base64: Base64-encoded credentials blob.
+These are useful when you want node access without exposing the user's
+:class:`RootSeed`, which is irrevocable.
+Wrap into :class:`Credentials` to use with wallet constructors.
+
+Methods:
+    from_string(s): Parse credentials from a portable string.
+    export_string(): Export credentials as a portable string
+        (round-trips with ``from_string``).
+"""
+
+lexe.Credentials.__doc__ = """\
+Authentication credentials for a Lexe user node.
+
+Create from a :class:`RootSeed` or :class:`ClientCredentials`, then pass
+to wallet constructors and :meth:`~LexeWallet.provision`.
+
+Example::
+
+    # From a root seed
+    creds = Credentials.from_root_seed(seed)
+
+    # From client credentials
+    cc = ClientCredentials.from_string(token_string)
+    creds = Credentials.from_client_credentials(cc)
+
+    # Use with wallet constructors
+    wallet = LexeWallet.load_or_fresh(config, creds)
+    wallet.provision(creds)
 """
 
 # ================= #
@@ -282,10 +308,11 @@ Example::
 
     config = WalletEnvConfig.mainnet()
     seed = RootSeed.read(config)  # Raises SeedFileError.NotFound if missing
+    creds = Credentials.from_root_seed(seed)
 
-    wallet = LexeWallet.load_or_fresh(config, seed)
+    wallet = LexeWallet.load_or_fresh(config, creds)
     wallet.signup(seed, partner_pk=None)
-    wallet.provision(seed)
+    wallet.provision(creds)
 
     info = wallet.node_info()
     print(f"Balance: {info.balance_sats} sats")
@@ -299,7 +326,7 @@ Use :meth:`LexeWallet.fresh` to create local state.
 
 Args:
     env_config: Wallet environment configuration.
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
     lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
@@ -312,9 +339,9 @@ Raises:
 Example::
 
     try:
-        wallet = LexeWallet.load(config, seed)
+        wallet = LexeWallet.load(config, creds)
     except LoadWalletError.NotFound:
-        wallet = LexeWallet.fresh(config, seed)
+        wallet = LexeWallet.fresh(config, creds)
 """)
 
 _set_method_doc(LexeWallet, "fresh", """\
@@ -324,7 +351,7 @@ Data for other users and environments is not affected.
 
 Args:
     env_config: Wallet environment configuration.
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
     lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
@@ -341,7 +368,7 @@ what you want to use.
 
 Args:
     env_config: Wallet environment configuration.
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
     lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
@@ -383,15 +410,15 @@ Call every time the wallet is loaded to keep the user running
 the most up-to-date enclave software.
 
 Args:
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
 
 Raises:
     FfiError: If provisioning fails.
 
 Example::
 
-    wallet = LexeWallet.load_or_fresh(config, seed)
-    wallet.provision(seed)
+    wallet = LexeWallet.load_or_fresh(config, creds)
+    wallet.provision(creds)
 """)
 
 _set_method_doc(LexeWallet, "node_info", """\
@@ -591,14 +618,15 @@ For synchronous usage, use :class:`LexeWallet`.
 
 Example::
 
-    from lexe import AsyncLexeWallet, WalletEnvConfig
+    from lexe import AsyncLexeWallet, Credentials, WalletEnvConfig
 
     config = WalletEnvConfig.mainnet()
     seed = RootSeed.read(config)
+    creds = Credentials.from_root_seed(seed)
 
-    wallet = AsyncLexeWallet.load_or_fresh(config, seed)
+    wallet = AsyncLexeWallet.load_or_fresh(config, creds)
     await wallet.signup(seed, partner_pk=None)
-    await wallet.provision(seed)
+    await wallet.provision(creds)
 
     info = await wallet.node_info()
     print(f"Balance: {info.balance_sats} sats")
@@ -612,7 +640,7 @@ Use :meth:`AsyncLexeWallet.fresh` to create local state.
 
 Args:
     env_config: Wallet environment configuration.
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
     lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
@@ -625,9 +653,9 @@ Raises:
 Example::
 
     try:
-        wallet = AsyncLexeWallet.load(config, seed)
+        wallet = AsyncLexeWallet.load(config, creds)
     except LoadWalletError.NotFound:
-        wallet = AsyncLexeWallet.fresh(config, seed)
+        wallet = AsyncLexeWallet.fresh(config, creds)
 """)
 
 _set_method_doc(AsyncLexeWallet, "fresh", """\
@@ -637,7 +665,7 @@ Data for other users and environments is not affected.
 
 Args:
     env_config: Wallet environment configuration.
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
     lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
@@ -654,7 +682,7 @@ what you want to use.
 
 Args:
     env_config: Wallet environment configuration.
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
     lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
@@ -696,15 +724,15 @@ Call every time the wallet is loaded to keep the user running
 the most up-to-date enclave software.
 
 Args:
-    root_seed: The user's root seed.
+    credentials: Authentication credentials (see :class:`Credentials`).
 
 Raises:
     FfiError: If provisioning fails.
 
 Example::
 
-    wallet = AsyncLexeWallet.load_or_fresh(config, seed)
-    await wallet.provision(seed)
+    wallet = AsyncLexeWallet.load_or_fresh(config, creds)
+    await wallet.provision(creds)
 """)
 
 _set_method_doc(AsyncLexeWallet, "node_info", """\
@@ -1082,9 +1110,9 @@ Variants:
 Example::
 
     try:
-        wallet = LexeWallet.load(config, seed)
+        wallet = LexeWallet.load(config, creds)
     except LoadWalletError.NotFound:
-        wallet = LexeWallet.fresh(config, seed)
+        wallet = LexeWallet.fresh(config, creds)
     except LoadWalletError.LoadFailed as e:
         print(f"Load failed: {e.message}")
 """
