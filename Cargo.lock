@@ -2624,6 +2624,7 @@ dependencies = [
  "http",
  "http-body-util",
  "lexe-byte-array",
+ "lexe-crypto",
  "lexe-enclave-core",
  "lexe-hex",
  "lexe-serde",
@@ -2652,6 +2653,16 @@ dependencies = [
  "tracing",
  "x509-parser",
  "yasna",
+]
+
+[[package]]
+name = "lexe-crypto"
+version = "0.0.0"
+dependencies = [
+ "proptest",
+ "rand_core 0.6.4",
+ "ring",
+ "serde_json",
 ]
 
 [[package]]

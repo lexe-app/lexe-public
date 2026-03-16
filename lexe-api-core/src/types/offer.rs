@@ -372,7 +372,7 @@ mod arb {
 
     use bitcoin::hashes::{Hash, Hmac};
     use lexe_common::{
-        rng::{FastRng, RngExt},
+        rng::{FastRng, FastRngDerefHack, RngExt},
         root_seed::RootSeed,
         secp256k1_ctx::SECP256K1,
         test_utils::arbitrary::{self, any_option_string},
@@ -396,8 +396,9 @@ mod arb {
 
     fn any_offers_context() -> impl Strategy<Value = OffersContext> {
         fn any_nonce() -> impl Strategy<Value = Nonce> {
-            any::<FastRng>()
-                .prop_map(|mut rng| Nonce::from_entropy_source(&mut rng))
+            any::<FastRng>().prop_map(|mut rng| {
+                Nonce::from_entropy_source(FastRngDerefHack::from_rng(&mut rng))
+            })
         }
         fn any_payment_id() -> impl Strategy<Value = PaymentId> {
             any::<[u8; 32]>().prop_map(PaymentId)
@@ -544,7 +545,7 @@ mod arb {
                     intermediate_nodes.as_slice(),
                     recipient_node_id,
                     message_context,
-                    &mut rng,
+                    FastRngDerefHack::from_rng(&mut rng),
                     &SECP256K1,
                 )
                 .unwrap()
@@ -553,7 +554,9 @@ mod arb {
 
         // each builder constructor returns a different type, hence the copying
         let offer = if is_blinded {
-            let nonce = Nonce::from_entropy_source(&mut rng);
+            let nonce = Nonce::from_entropy_source(FastRngDerefHack::from_rng(
+                &mut rng,
+            ));
             let mut offer = OfferBuilder::deriving_signing_pubkey(
                 node_pk.inner(),
                 &expanded_key,
@@ -627,7 +630,7 @@ mod arb {
 #[cfg(test)]
 mod test {
     use lexe_common::{
-        rng::FastRng,
+        rng::{FastRng, FastRngDerefHack},
         test_utils::{arbitrary, roundtrip},
     };
     use lexe_hex::hex;
@@ -767,7 +770,9 @@ mod test {
         let max_quantity = MaxQuantity::ONE;
         let message_context =
             MessageContext::Offers(OffersContext::InvoiceRequest {
-                nonce: Nonce::from_entropy_source(&mut rng),
+                nonce: Nonce::from_entropy_source(FastRngDerefHack::from_rng(
+                    &mut rng,
+                )),
             });
         let intermediate_nodes = vec![
             MessageForwardNode {

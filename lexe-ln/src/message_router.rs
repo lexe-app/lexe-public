@@ -269,7 +269,7 @@ mod tests {
     use bitcoin::secp256k1::PublicKey;
     use lexe_api::cli::LspInfo;
     use lexe_common::{
-        api::user::NodePk, ln::addr::LxSocketAddress, rng::FastRng,
+        api::user::NodePk, ln::addr::LxSocketAddress, rng::FastRngDerefHack,
         secp256k1_ctx::SECP256K1,
     };
     use lightning::{
@@ -384,8 +384,8 @@ mod tests {
             network_graph.clone(),
             lsp_info.clone(),
         );
-        let rng = Box::new(FastRng::from_u64(12354654));
-        let nonce = Nonce::from_entropy_source(rng);
+        let nonce =
+            Nonce::from_entropy_source(FastRngDerefHack::from_u64(12354654));
         let msg_ctx =
             MessageContext::Offers(OffersContext::InvoiceRequest { nonce });
         let peers = vec![lsp_pk];
