@@ -15,6 +15,7 @@ publish = false
 lexe-api-core = { path = "../lexe-api-core" }
 lexe-byte-array = { path = "../lexe-byte-array" }
 lexe-common = { path = "../lexe-common" }
+lexe-crypto = { path = "../lexe-crypto" }
 lexe-sha256 = { path = "../lexe-sha256" }
 lexe-std = { path = "../lexe-std" }
 

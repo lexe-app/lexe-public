@@ -53,8 +53,8 @@ use lexe_common::{
     },
     debug_panic_release_log,
     ln::{amount::Amount, channel::LxChannelId},
-    rng::{RngExt, ThreadFastRng},
 };
+use lexe_crypto::rng::{RngExt, ThreadFastRng};
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::ChannelEvent,

@@ -10,7 +10,8 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use lexe_api::server::LayerConfig;
-use lexe_common::{env::DeployEnv, ln::network::LxNetwork, rng::SysRng};
+use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+use lexe_crypto::rng::SysRng;
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::Credentials,

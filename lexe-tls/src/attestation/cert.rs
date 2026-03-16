@@ -4,7 +4,8 @@
 use std::{borrow::Cow, fmt, str::FromStr, time::Duration};
 
 use anyhow::Context;
-use lexe_common::{ed25519, rng::Crng};
+use lexe_common::ed25519;
+use lexe_crypto::rng::Crng;
 use lexe_enclave_core::enclave;
 use lexe_hex::hex;
 use rcgen::string::Ia5String;
@@ -200,7 +201,7 @@ impl fmt::Debug for SgxAttestationExtension<'_> {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::rng::FastRng;
+    use lexe_crypto::rng::FastRng;
 
     use super::*;
 

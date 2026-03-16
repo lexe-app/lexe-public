@@ -53,8 +53,8 @@ use lexe_common::{
     },
     constants::{self},
     ln::{amount::Amount, channel::LxUserChannelId},
-    rng::SysRng,
 };
+use lexe_crypto::rng::SysRng;
 use lexe_ln::p2p;
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;

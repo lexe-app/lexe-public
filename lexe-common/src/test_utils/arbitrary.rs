@@ -24,6 +24,7 @@ use bitcoin::{
 };
 use bytes::Bytes;
 use chrono::Utc;
+use lexe_crypto::rng::{FastRng, RngExt};
 use lightning::{
     routing::{
         gossip::RoutingFees,
@@ -42,10 +43,7 @@ use proptest::{
 use rust_decimal::Decimal;
 use semver::{BuildMetadata, Prerelease};
 
-use crate::{
-    api::user::NodePk,
-    rng::{FastRng, RngExt},
-};
+use crate::api::user::NodePk;
 
 // --- `std` types --- ///
 

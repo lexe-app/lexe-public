@@ -29,10 +29,8 @@ use std::fmt;
 
 use anyhow::{ensure, format_err};
 use lexe_byte_array::ByteArray;
-use lexe_common::{
-    Secret,
-    rng::{Crng, SysRng},
-};
+use lexe_common::Secret;
+use lexe_crypto::rng::{Crng, SysRng};
 use lexe_enclave_core::enclave;
 use lexe_hex::hex;
 use lexe_sha256::sha256;

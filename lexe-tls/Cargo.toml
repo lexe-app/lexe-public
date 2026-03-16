@@ -17,6 +17,7 @@ default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
   "lexe-common/test-utils",
+  "lexe-crypto/test-utils",
   "dep:proptest",
   "dep:proptest-derive",
   "dep:tokio-rustls",
@@ -28,6 +29,7 @@ test-utils = [
 
 lexe-byte-array = { path = "../lexe-byte-array" }
 lexe-common = { path = "../lexe-common" }
+lexe-crypto = { path = "../lexe-crypto" }
 lexe-enclave-core = { path = "../lexe-enclave-core" }
 lexe-hex = { path = "../lexe-hex" }
 lexe-serde = { path = "../lexe-serde" }
@@ -70,6 +72,7 @@ cmac = { workspace = true }
 
 [dev-dependencies]
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
+lexe-crypto = { path = "../lexe-crypto", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive = { workspace = true }

@@ -14,9 +14,9 @@ use lexe_common::{
         },
         user::{NodePkProof, UserPk},
     },
-    rng::SysRng,
     root_seed::RootSeed,
 };
+use lexe_crypto::rng::SysRng;
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::CredentialsRef,

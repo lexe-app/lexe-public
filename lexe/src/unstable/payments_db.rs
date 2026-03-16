@@ -853,7 +853,7 @@ mod test {
     use std::{collections::HashSet, time::Duration};
 
     use lexe_api::types::payments::PaymentStatus;
-    use lexe_common::rng::{FastRng, RngExt};
+    use lexe_crypto::rng::{FastRng, RngExt};
     use proptest::{
         collection::vec, prelude::any, proptest, sample::Index,
         test_runner::Config,

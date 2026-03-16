@@ -324,11 +324,8 @@ impl LnurlClient {
 mod test {
     use std::time::Duration;
 
-    use lexe_common::{
-        env::DeployEnv,
-        ln::amount::Amount,
-        rng::{RngExt, ThreadFastRng},
-    };
+    use lexe_common::{env::DeployEnv, ln::amount::Amount};
+    use lexe_crypto::rng::{RngExt, ThreadFastRng};
     use tracing::info;
 
     use super::*;

@@ -10,7 +10,8 @@ use lexe_api::{
     error::MegaApiError,
     types::{LeaseId, ports::RunPorts},
 };
-use lexe_common::{env::DeployEnv, ln::network::LxNetwork, rng::Crng};
+use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+use lexe_crypto::rng::Crng;
 use lexe_enclave_core::enclave;
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
@@ -231,9 +232,8 @@ impl MegaContext {
     pub fn dummy() -> Self {
         use std::sync::Mutex;
 
-        use lexe_common::{
-            env::DeployEnv, ln::network::LxNetwork, rng::SysRng,
-        };
+        use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+        use lexe_crypto::rng::SysRng;
         use lexe_ln::{esplora::LexeEsplora, logger::LexeTracingLogger};
         use lightning::routing::{
             gossip::NetworkGraph, scoring::ProbabilisticScorer,

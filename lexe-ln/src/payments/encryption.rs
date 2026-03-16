@@ -2,7 +2,8 @@ use std::{borrow::Cow, str::FromStr};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::types::payments::{DbPaymentMetadata, DbPaymentV2, LxPaymentId};
-use lexe_common::{aes::AesMasterKey, rng::Crng, time::TimestampMs};
+use lexe_common::{aes::AesMasterKey, time::TimestampMs};
+use lexe_crypto::rng::Crng;
 use lexe_std::{const_assert, fmt::DisplayOption};
 use tracing::warn;
 
@@ -366,7 +367,8 @@ fn decrypt_payment_v2(
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{aes::AesMasterKey, rng::FastRng, time::TimestampMs};
+    use lexe_common::{aes::AesMasterKey, time::TimestampMs};
+    use lexe_crypto::rng::FastRng;
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;

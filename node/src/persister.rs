@@ -73,9 +73,9 @@ use lexe_common::{
     },
     constants,
     ln::channel::LxOutPoint,
-    rng::{Crng, SysRng},
     time::TimestampMs,
 };
+use lexe_crypto::rng::{Crng, SysRng};
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,

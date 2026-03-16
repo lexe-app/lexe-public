@@ -372,11 +372,12 @@ mod arb {
 
     use bitcoin::hashes::{Hash, Hmac};
     use lexe_common::{
-        rng::{FastRng, FastRngDerefHack, RngExt},
+        rng::FastRngDerefHack,
         root_seed::RootSeed,
         secp256k1_ctx::SECP256K1,
         test_utils::arbitrary::{self, any_option_string},
     };
+    use lexe_crypto::rng::{FastRng, RngExt};
     use lightning::{
         blinded_path::message::{
             BlindedMessagePath, MessageContext, MessageForwardNode,
@@ -630,9 +631,10 @@ mod arb {
 #[cfg(test)]
 mod test {
     use lexe_common::{
-        rng::{FastRng, FastRngDerefHack},
+        rng::FastRngDerefHack,
         test_utils::{arbitrary, roundtrip},
     };
+    use lexe_crypto::rng::FastRng;
     use lexe_hex::hex;
     use lightning::{
         blinded_path::message::{

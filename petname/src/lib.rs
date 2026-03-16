@@ -29,10 +29,8 @@ pub fn userpk_to_petname(user_pk: &[u8; 32]) -> String {
 #[cfg(test)]
 mod test {
     use lexe_byte_array::ByteArray;
-    use lexe_common::{
-        api::user::UserPk,
-        rng::{RngExt, SysRng},
-    };
+    use lexe_common::api::user::UserPk;
+    use lexe_crypto::rng::{RngExt, SysRng};
 
     use super::*;
 

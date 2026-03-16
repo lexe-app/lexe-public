@@ -1160,10 +1160,8 @@ mod arbitrary_helpers {
 mod test {
     use std::{cmp, fs, path::Path};
 
-    use lexe_common::{
-        rng::FastRng,
-        test_utils::{arbitrary, roundtrip},
-    };
+    use lexe_common::test_utils::{arbitrary, roundtrip};
+    use lexe_crypto::rng::FastRng;
     use proptest::{
         arbitrary::any, prop_assert_eq, proptest, strategy::Strategy,
         test_runner::Config,

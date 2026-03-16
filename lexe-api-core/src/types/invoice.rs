@@ -214,9 +214,9 @@ pub mod arbitrary_impl {
     };
     use lexe_byte_array::ByteArray;
     use lexe_common::{
-        rng::FastRng, root_seed::RootSeed, secp256k1_ctx::SECP256K1,
-        test_utils::arbitrary,
+        root_seed::RootSeed, secp256k1_ctx::SECP256K1, test_utils::arbitrary,
     };
+    use lexe_crypto::rng::FastRng;
     use lightning::{
         routing::router::RouteHint, types::payment::PaymentSecret,
     };
@@ -401,10 +401,10 @@ mod test {
 
     use lexe_byte_array::ByteArray;
     use lexe_common::{
-        rng::FastRng,
         root_seed::RootSeed,
         test_utils::{arbitrary, roundtrip, snapshot},
     };
+    use lexe_crypto::rng::FastRng;
     use lexe_sha256::sha256;
     use lightning::{
         ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,

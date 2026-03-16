@@ -7,12 +7,13 @@
 // dependencies in our low-level, foundational crates, as `lightning` takes a
 // long time to compile.
 
-// TODO(phlip9): make callers use `lexe-crypto` directly
-pub use lexe_crypto::rng::*;
+#[cfg(any(test, feature = "test-utils"))]
+use lexe_crypto::rng::FastRng;
+use lexe_crypto::rng::{RngExt, SysRng};
 use lightning::sign::EntropySource;
 
-/// Dumb hack so we can pass `SysRng` as an `EntropySource` without wrapping
-/// in an Arc/Box.
+/// Dumb hack so we can pass `SysRng` as an LDK [`EntropySource`] without
+/// wrapping in an Arc/Box.
 #[repr(transparent)]
 pub struct SysRngDerefHack(InnerSysrng);
 

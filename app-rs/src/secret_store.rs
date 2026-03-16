@@ -270,7 +270,7 @@ impl CredentialApi for ThreadKeyringCredential {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::rng::SysRng;
+    use lexe_crypto::rng::SysRng;
 
     use super::*;
 
@@ -319,7 +319,7 @@ mod test {
 
     #[cfg(not(target_os = "android"))]
     fn test_keyring_secret_store_inner() {
-        use lexe_common::rng::RngExt;
+        use lexe_crypto::rng::RngExt;
 
         let mut rng = SysRng::new();
         let dummy_id = rng.gen_u64();

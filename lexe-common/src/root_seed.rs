@@ -6,6 +6,7 @@ use bitcoin::{
     bip32::{self, ChildNumber},
     secp256k1,
 };
+use lexe_crypto::rng::{Crng, RngExt, SysRng};
 use lexe_hex::hex;
 use lexe_std::array;
 use secrecy::{ExposeSecret, Secret, SecretVec, Zeroize};
@@ -17,7 +18,6 @@ use crate::{
     ed25519,
     ln::network::LxNetwork,
     password,
-    rng::{Crng, RngExt, SysRng},
     secp256k1_ctx::SECP256K1,
 };
 
@@ -557,6 +557,7 @@ mod test_impls {
 #[cfg(test)]
 mod test {
     use bitcoin::NetworkKind;
+    use lexe_crypto::rng::FastRng;
     use lexe_sha256::sha256;
     use proptest::{
         arbitrary::any, collection::vec, prop_assert_eq, proptest,
@@ -564,7 +565,7 @@ mod test {
     };
 
     use super::*;
-    use crate::{ln::network::LxNetwork, rng::FastRng};
+    use crate::ln::network::LxNetwork;
 
     // simple implementations of some crypto functions for equivalence testing
 

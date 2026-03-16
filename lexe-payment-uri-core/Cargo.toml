@@ -13,6 +13,7 @@ publish = true
 
 lexe-api-core = { path = "../lexe-api-core" }
 lexe-common = { path = "../lexe-common" }
+lexe-crypto = { path = "../lexe-crypto" }
 
 # --- WORKSPACE --- #
 

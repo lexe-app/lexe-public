@@ -227,7 +227,8 @@ impl fmt::Display for PaymentUri {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{rng::FastRng, test_utils::arbitrary};
+    use lexe_common::test_utils::arbitrary;
+    use lexe_crypto::rng::FastRng;
     use proptest::{arbitrary::any, prop_assert_eq, prop_assume, proptest};
 
     use super::*;

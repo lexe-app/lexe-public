@@ -640,7 +640,8 @@ mod arb {
 #[cfg(test)]
 mod test {
     use arbitrary::gen_values;
-    use lexe_common::{rng::FastRng, test_utils::snapshot};
+    use lexe_common::test_utils::snapshot;
+    use lexe_crypto::rng::FastRng;
     use proptest::arbitrary::any;
 
     use super::*;

@@ -15,3 +15,4 @@ publish = false
 [dev-dependencies]
 lexe-byte-array = { path = "../lexe-byte-array" }
 lexe-common = { path = "../lexe-common" }
+lexe-crypto = { path = "../lexe-crypto" }

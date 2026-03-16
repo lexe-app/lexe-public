@@ -40,6 +40,7 @@ use std::{fmt, str::FromStr};
 use asn1_rs::{Oid, oid};
 use bytes::{BufMut, Bytes, BytesMut};
 use lexe_byte_array::ByteArray;
+use lexe_crypto::rng::{Crng, RngExt};
 use lexe_hex::hex::{self, FromHex};
 use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
@@ -52,7 +53,6 @@ use x509_parser::x509;
 
 #[cfg(doc)]
 use crate::ed25519;
-use crate::rng::{Crng, RngExt};
 
 /// The standard PKCS OID for Ed25519.
 /// See "id-Ed25519" in [RFC 8410](https://tools.ietf.org/html/rfc8410).
@@ -861,15 +861,13 @@ fn deserialize_keypair_pkcs8_der(
 
 #[cfg(test)]
 mod test {
+    use lexe_crypto::rng::FastRng;
     use lexe_std::array;
     use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
     use proptest_derive::Arbitrary;
 
     use super::*;
-    use crate::{
-        rng::FastRng,
-        test_utils::{arbitrary::gen_values, snapshot},
-    };
+    use crate::test_utils::{arbitrary::gen_values, snapshot};
 
     #[derive(Arbitrary, Serialize, Deserialize)]
     struct SignableBytes(Vec<u8>);

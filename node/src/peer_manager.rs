@@ -4,11 +4,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use lexe_common::{
-    api::user::NodePk,
-    ln::addr::LxSocketAddress,
-    rng::{Crng, RngExt},
-};
+use lexe_common::{api::user::NodePk, ln::addr::LxSocketAddress};
+use lexe_crypto::rng::{Crng, RngExt};
 use lexe_ln::{
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,

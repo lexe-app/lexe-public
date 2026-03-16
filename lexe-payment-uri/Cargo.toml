@@ -12,6 +12,7 @@ publish = true
 
 lexe-api-core = { path = "../lexe-api-core" }
 lexe-common = { path = "../lexe-common" }
+lexe-crypto = { path = "../lexe-crypto" }
 lexe-payment-uri-core = { path = "../lexe-payment-uri-core" }
 lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
 

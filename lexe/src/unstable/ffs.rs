@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use lexe_common::rng::{RngExt, ThreadFastRng};
+use lexe_crypto::rng::{RngExt, ThreadFastRng};
 
 /// Abstraction over a flat file system (no subdirs), suitable for mocking.
 ///
@@ -193,7 +193,7 @@ pub mod fsext {
 pub mod test_utils {
     use std::{cell::RefCell, collections::BTreeMap, io};
 
-    use lexe_common::rng::{FastRng, RngSliceExt};
+    use lexe_crypto::rng::{FastRng, RngSliceExt};
 
     use super::Ffs;
 

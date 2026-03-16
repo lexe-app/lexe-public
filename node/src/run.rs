@@ -35,10 +35,10 @@ use lexe_common::{
         network::LxNetwork,
     },
     net,
-    rng::Crng,
     root_seed::RootSeed,
     time::TimestampMs,
 };
+use lexe_crypto::rng::Crng;
 use lexe_enclave_core::enclave::{MachineId, Measurement};
 use lexe_ln::{
     BoxedAnyhowFuture,

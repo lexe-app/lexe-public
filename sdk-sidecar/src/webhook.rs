@@ -21,7 +21,8 @@ use lexe_api::{
         VecBasicPaymentV2,
     },
 };
-use lexe_common::{api::user::UserPk, env::DeployEnv, rng::SysRng};
+use lexe_common::{api::user::UserPk, env::DeployEnv};
+use lexe_crypto::rng::SysRng;
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::{ClientCredentials, Credentials},

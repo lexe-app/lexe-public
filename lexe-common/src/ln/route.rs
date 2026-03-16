@@ -218,13 +218,11 @@ impl From<BlindedTail> for LxBlindedTail {
 
 #[cfg(test)]
 mod test {
+    use lexe_crypto::rng::{FastRng, SysRng};
     use proptest::prelude::any;
 
     use super::*;
-    use crate::{
-        rng::{FastRng, SysRng},
-        test_utils::arbitrary,
-    };
+    use crate::test_utils::arbitrary;
 
     /// Check the [`fmt::Display`] implementation of [`LxRoute`].
     ///

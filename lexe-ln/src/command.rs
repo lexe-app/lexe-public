@@ -46,9 +46,9 @@ use lexe_common::{
         network::LxNetwork,
         route::LxRoute,
     },
-    rng::SysRng,
     time::TimestampMs,
 };
+use lexe_crypto::rng::SysRng;
 use lexe_enclave_core::enclave::Measurement;
 use lexe_std::{Apply, const_assert};
 use lexe_tls::{

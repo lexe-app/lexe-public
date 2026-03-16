@@ -20,9 +20,9 @@ use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     debug_panic_release_log,
     ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
-    rng::{RngCore, RngExt},
     time::TimestampMs,
 };
+use lexe_crypto::rng::{RngCore, RngExt};
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
 use lightning::{
@@ -1605,10 +1605,8 @@ impl Display for LxPaymentId {
 mod test {
     use std::fs;
 
-    use lexe_common::{
-        rng::FastRng,
-        test_utils::{arbitrary, roundtrip, snapshot},
-    };
+    use lexe_common::test_utils::{arbitrary, roundtrip, snapshot};
+    use lexe_crypto::rng::FastRng;
     use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
 
     use super::*;

@@ -82,8 +82,9 @@ use certs::{
 };
 use lexe_common::{
     api::revocable_clients::RevocableClients, constants, ed25519,
-    env::DeployEnv, rng::Crng, root_seed::RootSeed, time::TimestampMs,
+    env::DeployEnv, root_seed::RootSeed, time::TimestampMs,
 };
+use lexe_crypto::rng::Crng;
 use rustls::{
     DigitallySignedStruct, DistinguishedName, RootCertStore,
     client::{
@@ -520,10 +521,10 @@ mod test {
     use lexe_common::{
         api::{auth::Scope, revocable_clients::RevocableClient},
         env::DeployEnv,
-        rng::FastRng,
         root_seed::RootSeed,
         time::TimestampMs,
     };
+    use lexe_crypto::rng::FastRng;
     use secrecy::Secret;
 
     use super::*;

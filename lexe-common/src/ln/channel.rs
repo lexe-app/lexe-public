@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::Context;
 use lexe_byte_array::ByteArray;
+use lexe_crypto::rng::{RngCore, RngExt};
 use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::Apply;
@@ -23,7 +24,6 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 use crate::{
     api::user::{NodePk, Scid},
     ln::{amount::Amount, hashes::LxTxid},
-    rng::{RngCore, RngExt},
 };
 
 /// A newtype for [`lightning::ln::types::ChannelId`].

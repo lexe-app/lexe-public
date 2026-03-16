@@ -8,10 +8,8 @@ use futures::StreamExt;
 use lexe_api::models::runner::{
     MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
 };
-use lexe_common::{
-    rng::{FastRng, RngExt, SysRng},
-    time::TimestampMs,
-};
+use lexe_common::time::TimestampMs;
+use lexe_crypto::rng::{FastRng, RngExt, SysRng};
 use tokio::sync::oneshot;
 
 use super::{
@@ -231,12 +229,10 @@ impl UserRunnerFuzzer {
 mod helpers {
     use lexe_api::cli::{LspInfo, node::MegaArgs};
     use lexe_common::{
-        api::user::UserPk,
-        env::DeployEnv,
-        ln::network::LxNetwork,
-        rng::{FastRng, RngCore, RngExt},
+        api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
         time::TimestampMs,
     };
+    use lexe_crypto::rng::{FastRng, RngCore, RngExt};
     use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce};
     use tokio::sync::mpsc;
 

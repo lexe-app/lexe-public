@@ -16,8 +16,8 @@ use lexe_common::{
         network::LxNetwork,
         priority::{ConfirmationPriority, ToNumBlocks},
     },
-    rng::{RngCore, RngSliceExt},
 };
+use lexe_crypto::rng::{RngCore, RngSliceExt};
 use lexe_tls_core::rustls;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{

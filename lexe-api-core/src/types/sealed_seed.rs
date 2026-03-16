@@ -2,13 +2,10 @@ use std::{borrow::Cow, fmt};
 
 use anyhow::{Context, ensure};
 use lexe_common::{
-    api::user::UserPk,
-    ed25519,
-    env::DeployEnv,
-    ln::network::LxNetwork,
-    rng::{Crng, RngExt},
+    api::user::UserPk, ed25519, env::DeployEnv, ln::network::LxNetwork,
     root_seed::RootSeed,
 };
+use lexe_crypto::rng::{Crng, RngExt};
 use lexe_enclave_core::enclave::{self, MachineId, Measurement, Sealed};
 use lexe_serde::hexstr_or_bytes;
 use lexe_std::array;
@@ -225,7 +222,8 @@ mod test_impls {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{rng::FastRng, test_utils::roundtrip};
+    use lexe_common::test_utils::roundtrip;
+    use lexe_crypto::rng::FastRng;
     use proptest::{arbitrary::any, proptest};
 
     use super::*;

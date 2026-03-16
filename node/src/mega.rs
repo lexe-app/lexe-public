@@ -2,7 +2,8 @@ use anyhow::Context;
 use lexe_api::{
     cli::node::MegaArgs, def::MegaRunnerApi, types::ports::MegaPorts,
 };
-use lexe_common::{constants, rng::Crng, time::TimestampMs};
+use lexe_common::{constants, time::TimestampMs};
+use lexe_crypto::rng::Crng;
 use lexe_tls::attestation::NodeMode;
 use lexe_tokio::{notify_once::NotifyOnce, task};
 use tokio::sync::mpsc;

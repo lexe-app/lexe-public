@@ -105,11 +105,8 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use lexe_common::{
-    api::user::NodePk,
-    ln::addr::LxSocketAddress,
-    rng::{RngExt, ThreadFastRng},
-};
+use lexe_common::{api::user::NodePk, ln::addr::LxSocketAddress};
+use lexe_crypto::rng::{RngExt, ThreadFastRng};
 use lexe_hex::hex;
 use lexe_std::{Apply, backoff};
 use lexe_tokio::{
@@ -1160,7 +1157,7 @@ mod test {
     };
 
     use io::BufRead;
-    use lexe_common::rng::{RngCore, RngExt, RngSliceExt, ThreadFastRng};
+    use lexe_crypto::rng::{RngCore, RngExt, RngSliceExt, ThreadFastRng};
     use lexe_tokio::task::LxTask;
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
@@ -1714,10 +1711,8 @@ mod ldk_test {
         constants::ChainHash,
         secp256k1::{self, ecdh, ecdsa, schnorr},
     };
-    use lexe_common::{
-        rng::{FastRng, RngExt, ThreadFastRng},
-        secp256k1_ctx::SECP256K1,
-    };
+    use lexe_common::secp256k1_ctx::SECP256K1;
+    use lexe_crypto::rng::{FastRng, RngExt, ThreadFastRng};
     use lexe_tokio::task::LxTask;
     use lightning::{
         events::*,

@@ -141,7 +141,8 @@ impl LspInfo {
     pub fn dummy() -> Self {
         use std::net::Ipv6Addr;
 
-        use lexe_common::{rng::FastRng, root_seed::RootSeed};
+        use lexe_common::root_seed::RootSeed;
+        use lexe_crypto::rng::FastRng;
 
         let mut rng = FastRng::from_u64(20230216);
         let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk();

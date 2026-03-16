@@ -850,7 +850,7 @@ mod test {
     #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_verify_dummy_server_cert() {
-        use lexe_common::rng::FastRng;
+        use lexe_crypto::rng::FastRng;
 
         use crate::attestation::cert::AttestationCert;
 
@@ -891,7 +891,7 @@ mod test {
     #[ignore]
     fn dump_attest_cert() {
         use base64::Engine;
-        use lexe_common::rng::FastRng;
+        use lexe_crypto::rng::FastRng;
         use lexe_enclave_core::enclave;
 
         use crate::attestation::cert::AttestationCert;

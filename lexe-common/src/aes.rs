@@ -82,6 +82,7 @@
 use std::fmt;
 
 use bytes::BufMut;
+use lexe_crypto::rng::{Crng, RngExt};
 use lexe_std::array;
 use ref_cast::RefCast;
 use ring::{
@@ -90,8 +91,6 @@ use ring::{
 };
 use serde::Serialize;
 use thiserror::Error;
-
-use crate::rng::{Crng, RngExt};
 
 /// serialized version length
 const VERSION_LEN: usize = 1;
@@ -403,13 +402,14 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use lexe_crypto::rng::FastRng;
     use lexe_hex::hex;
     use proptest::{
         arbitrary::any, collection::vec, prop_assert, prop_assert_eq, proptest,
     };
 
     use super::*;
-    use crate::{rng::FastRng, root_seed::RootSeed};
+    use crate::root_seed::RootSeed;
 
     #[test]
     fn test_aad_compat() {

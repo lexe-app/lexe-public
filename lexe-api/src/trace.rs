@@ -9,10 +9,8 @@ use std::{
 
 use anyhow::{Context, bail, ensure};
 use http::{HeaderName, HeaderValue};
-use lexe_common::{
-    rng::{RngCore, ThreadFastRng},
-    time::DisplayMs,
-};
+use lexe_common::time::DisplayMs;
+use lexe_crypto::rng::{RngCore, ThreadFastRng};
 use tracing::{Dispatch, span, warn};
 
 #[cfg(doc)]
@@ -67,7 +65,7 @@ impl TraceId {
 
     /// Generate a [`TraceId`] from an existing rng.
     pub fn from_rng(rng: &mut impl RngCore) -> Self {
-        use lexe_common::rng::RngExt;
+        use lexe_crypto::rng::RngExt;
 
         // Generate a 16 byte array with alphanumeric characters
         let buf: [u8; Self::LENGTH] = rng.gen_alphanum_bytes();
@@ -262,7 +260,7 @@ impl fmt::Debug for TraceId {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use lexe_common::rng::FastRng;
+    use lexe_crypto::rng::FastRng;
     use proptest::{
         arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},

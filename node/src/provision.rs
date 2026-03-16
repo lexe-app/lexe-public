@@ -28,13 +28,10 @@ use lexe_api::{
     types::{Empty, ports::ProvisionPorts, sealed_seed::SealedSeed},
 };
 use lexe_common::{
-    api::provision::NodeProvisionRequest,
-    constants,
-    env::DeployEnv,
-    ln::network::LxNetwork,
-    net,
-    rng::{Crng, SysRng},
+    api::provision::NodeProvisionRequest, constants, env::DeployEnv,
+    ln::network::LxNetwork, net,
 };
+use lexe_crypto::rng::{Crng, SysRng};
 use lexe_enclave_core::enclave;
 use lexe_tls::attestation::{self, NodeMode};
 use lexe_tokio::{

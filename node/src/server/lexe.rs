@@ -16,9 +16,9 @@ use lexe_api::{
 };
 use lexe_common::{
     api::{models::Status, test_event::TestEventOp, user::UserPkStruct},
-    rng::SysRng,
     time::TimestampMs,
 };
+use lexe_crypto::rng::SysRng;
 use lexe_ln::test_event;
 use tracing::warn;
 

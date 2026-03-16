@@ -6,11 +6,8 @@ use bitcoin::{
         PublicKey, Secp256k1, Signing, ecdh, ecdsa, scalar::Scalar, schnorr,
     },
 };
-use lexe_common::{
-    api::user::NodePk,
-    rng::{Crng, RngExt},
-    root_seed::RootSeed,
-};
+use lexe_common::{api::user::NodePk, root_seed::RootSeed};
+use lexe_crypto::rng::{Crng, RngExt};
 use lightning::{
     ln::{
         inbound_payment::ExpandedKey,
@@ -277,7 +274,7 @@ impl SignerProvider for LexeKeysManager {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::rng::FastRng;
+    use lexe_crypto::rng::FastRng;
     use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;

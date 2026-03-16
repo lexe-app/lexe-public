@@ -10,11 +10,9 @@ use lexe_api::vfs::{
     CHANNEL_MANAGER_FILENAME, CHANNEL_MONITORS_DIR, SINGLETON_DIRECTORY,
     VfsDirectory, VfsFile, VfsFileId,
 };
+use lexe_common::api::user::{NodePk, UserPk};
 pub(crate) use lexe_common::root_seed::RootSeed as RootSeedRs;
-use lexe_common::{
-    api::user::{NodePk, UserPk},
-    rng::SysRng,
-};
+use lexe_crypto::rng::SysRng;
 use serde::Serialize;
 use tracing::{error, instrument};
 

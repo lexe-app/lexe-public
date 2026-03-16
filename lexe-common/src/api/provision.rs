@@ -79,8 +79,10 @@ impl fmt::Debug for NodeProvisionRequest {
 
 #[cfg(test)]
 mod test {
+    use lexe_crypto::rng::FastRng;
+
     use super::*;
-    use crate::{rng::FastRng, test_utils::roundtrip};
+    use crate::test_utils::roundtrip;
 
     #[test]
     fn test_node_provision_request_sample() {

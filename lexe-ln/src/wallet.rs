@@ -74,9 +74,9 @@ use lexe_common::{
         amount::Amount, balance::OnchainBalance, hashes::LxTxid,
         network::LxNetwork, priority::ConfirmationPriority,
     },
-    rng::RngCore,
     time::TimestampMs,
 };
+use lexe_crypto::rng::RngCore;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use tracing::{debug, info, instrument, warn};
 
@@ -1622,11 +1622,11 @@ mod test {
     use lexe_api::types::payments::ClientPaymentId;
     use lexe_common::{
         ln::hashes::LxTxid,
-        rng::FastRng,
         root_seed::RootSeed,
         sat,
         test_utils::{arbitrary, roundtrip},
     };
+    use lexe_crypto::rng::FastRng;
     use proptest::test_runner::Config;
     use tracing::trace;
 

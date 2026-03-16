@@ -5,10 +5,8 @@ use std::{
     time::Duration,
 };
 
-use lexe_common::{
-    rng::{RngExt, ThreadFastRng},
-    time::DisplayMs,
-};
+use lexe_common::time::DisplayMs;
+use lexe_crypto::rng::{RngExt, ThreadFastRng};
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };

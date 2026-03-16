@@ -1,8 +1,7 @@
 use std::sync::LazyLock;
 
 use bitcoin::secp256k1::{All, Secp256k1};
-
-use crate::rng::{RngExt, SysRng};
+use lexe_crypto::rng::{RngExt, SysRng};
 
 /// A global static [`Secp256k1`] context to avoid creating multiple contexts.
 ///

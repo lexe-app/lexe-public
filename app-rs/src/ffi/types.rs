@@ -43,9 +43,9 @@ use lexe_common::{
         network::LxNetwork as NetworkRs,
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
-    rng::SysRng,
     time::TimestampMs,
 };
+use lexe_crypto::rng::SysRng;
 use lexe_hex::hex;
 use lexe_payment_uri::OfferWithAmount;
 

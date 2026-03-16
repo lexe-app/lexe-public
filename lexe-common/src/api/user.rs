@@ -2,6 +2,8 @@ use std::{collections::HashSet, fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 use lexe_byte_array::ByteArray;
+#[cfg(any(test, feature = "test-utils"))]
+use lexe_crypto::rng::FastRng;
 use lexe_hex::hex;
 use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
@@ -17,8 +19,6 @@ use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[cfg(any(test, feature = "test-utils"))]
-use crate::rng::FastRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
 #[cfg(any(test, feature = "test-utils"))]

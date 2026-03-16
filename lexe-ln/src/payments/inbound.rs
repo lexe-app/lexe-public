@@ -1346,10 +1346,8 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{
-        rng::FastRng,
-        test_utils::{arbitrary, roundtrip},
-    };
+    use lexe_common::test_utils::{arbitrary, roundtrip};
+    use lexe_crypto::rng::FastRng;
     use proptest::arbitrary::any;
 
     use super::*;

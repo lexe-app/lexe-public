@@ -23,10 +23,10 @@ use lexe_api::{
         payments::{ClientPaymentId, PaymentKind},
     },
 };
-use lexe_common::{
-    ln::{amount::Amount, network::LxNetwork, priority::ConfirmationPriority},
-    rng::SysRng,
+use lexe_common::ln::{
+    amount::Amount, network::LxNetwork, priority::ConfirmationPriority,
 };
+use lexe_crypto::rng::SysRng;
 use lexe_tokio::{notify, task::LxTask};
 use tracing::{debug, error, instrument};
 

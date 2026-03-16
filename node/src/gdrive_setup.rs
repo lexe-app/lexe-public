@@ -5,10 +5,8 @@ use gdrive::{GoogleVfs, gvfs::GvfsRootName, oauth2::GDriveCredentials};
 use lexe_api::{
     auth::BearerAuthenticator, cli::OAuthConfig, error::NodeApiError,
 };
-use lexe_common::{
-    aes::AesMasterKey,
-    rng::{Crng, SysRng},
-};
+use lexe_common::aes::AesMasterKey;
+use lexe_crypto::rng::{Crng, SysRng};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tracing::{debug, info, info_span, warn};
 

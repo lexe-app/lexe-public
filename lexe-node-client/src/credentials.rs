@@ -13,9 +13,9 @@ use lexe_common::{
     },
     ed25519,
     env::DeployEnv,
-    rng::Crng,
     root_seed::RootSeed,
 };
+use lexe_crypto::rng::Crng;
 use lexe_tls::{
     rustls, shared_seed,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
@@ -240,9 +240,9 @@ mod test {
 
     use lexe_common::{
         byte_str::ByteStr,
-        rng::FastRng,
         test_utils::{arbitrary, snapshot},
     };
+    use lexe_crypto::rng::FastRng;
     use lexe_tls::shared_seed::certs::{
         EphemeralIssuingCaCert, RevocableClientCert, RevocableIssuingCaCert,
     };

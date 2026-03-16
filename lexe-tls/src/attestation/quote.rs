@@ -56,7 +56,7 @@ mod sgx {
     use anyhow::{Context, ensure, format_err};
     use bytemuck::{Pod, Zeroable};
     use cmac::{Cmac, Mac, digest::generic_array::GenericArray};
-    use lexe_common::rng::{Crng, RngExt};
+    use lexe_crypto::rng::{Crng, RngExt};
     use lexe_hex::hex;
     use lexe_sha256::sha256;
     use sgx_isa::{Report, Targetinfo};
@@ -321,7 +321,7 @@ mod sgx {
 
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
-    use lexe_common::rng::Crng;
+    use lexe_crypto::rng::Crng;
 
     use super::*;
     use crate::attestation::cert::SgxAttestationExtension;

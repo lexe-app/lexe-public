@@ -20,14 +20,12 @@
 
 use std::num::NonZeroU32;
 
+use lexe_crypto::rng::Crng;
 use ring::pbkdf2;
 use secrecy::Zeroize;
 use thiserror::Error;
 
-use crate::{
-    aes::{self, AesMasterKey},
-    rng::Crng,
-};
+use crate::aes::{self, AesMasterKey};
 
 /// The specific algorithm used for our password encryption scheme.
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
@@ -152,6 +150,7 @@ fn derive_aes_key(password: &str, salt: &[u8; 32]) -> AesMasterKey {
 mod test {
     use std::path::Path;
 
+    use lexe_crypto::rng::FastRng;
     use lexe_hex::hex;
     use proptest::{
         arbitrary::any, proptest, strategy::Strategy, test_runner::Config,
@@ -159,7 +158,7 @@ mod test {
     use secrecy::ExposeSecret;
 
     use super::*;
-    use crate::{rng::FastRng, root_seed::RootSeed};
+    use crate::root_seed::RootSeed;
 
     #[test]
     fn encryption_roundtrip() {

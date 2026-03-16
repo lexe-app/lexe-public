@@ -26,6 +26,7 @@ test-utils = [
 
 lexe-api-core = { path = "../lexe-api-core", features = ["axum", "reqwest"] }
 lexe-common = { path = "../lexe-common" }
+lexe-crypto = { path = "../lexe-crypto" }
 lexe-std = { path = "../lexe-std" }
 lexe-tls = { path = "../lexe-tls" }
 lexe-tokio = { path = "../lexe-tokio" }

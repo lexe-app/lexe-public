@@ -660,7 +660,8 @@ mod helpers {
     use lexe_api::{
         def::MegaRunnerApi, models::runner::UserFinishedRequest, types::LeaseId,
     };
-    use lexe_common::{api::MegaId, rng::SysRng};
+    use lexe_common::api::MegaId;
+    use lexe_crypto::rng::SysRng;
     use tracing::{error, info, warn};
 
     use super::*;

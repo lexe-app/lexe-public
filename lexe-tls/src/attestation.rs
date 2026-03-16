@@ -69,7 +69,8 @@ use std::{
 };
 
 use anyhow::{Context, format_err};
-use lexe_common::{constants, env::DeployEnv, rng::Crng};
+use lexe_common::{constants, env::DeployEnv};
+use lexe_crypto::rng::Crng;
 use lexe_enclave_core::enclave::{Measurement, MrShort};
 use rustls::{
     DigitallySignedStruct,
@@ -351,7 +352,7 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::rng::FastRng;
+    use lexe_crypto::rng::FastRng;
     use lexe_enclave_core::enclave;
 
     use super::*;

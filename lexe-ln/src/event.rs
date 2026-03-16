@@ -8,10 +8,10 @@ use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::test_event::TestEvent,
     ln::channel::{LxChannelId, LxUserChannelId},
-    rng::{RngExt, SysRng},
     secp256k1_ctx::SECP256K1,
     time::{DisplayMs, TimestampMs},
 };
+use lexe_crypto::rng::{RngExt, SysRng};
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
