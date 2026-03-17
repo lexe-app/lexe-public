@@ -271,20 +271,20 @@ impl ByteArray<16> for MinCpusvn {
 impl FromStr for MinCpusvn {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
+        Self::from_hex(s)
     }
 }
 
 impl fmt::Display for MinCpusvn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
+        Self::fmt_as_hex(self, f)
     }
 }
 
 impl fmt::Debug for MinCpusvn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("MinCpusvn")
-            .field(&self.hex_display())
+            .field(&self.as_hex_display())
             .finish()
     }
 }

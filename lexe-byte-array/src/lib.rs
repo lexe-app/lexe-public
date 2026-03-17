@@ -10,13 +10,10 @@ use std::{
 #[doc(hidden)]
 pub use lexe_hex;
 use lexe_hex::hex::{self, FromHex, HexDisplay};
-pub use ref_cast::RefCast;
 
 /// A trait for types represented in memory as a byte array. Should NOT be
 /// implemented for types that require validation of the byte array contents.
-pub trait ByteArray<const N: usize>:
-    Copy + Debug + Eq + Hash + RefCast<From = [u8; N]> + Sized
-{
+pub trait ByteArray<const N: usize>: Copy + Debug + Eq + Hash + Sized {
     // --- Required: array --- //
 
     fn from_array(array: [u8; N]) -> Self;
@@ -25,9 +22,6 @@ pub trait ByteArray<const N: usize>:
 
     // --- Provided: array / slice / vec --- //
 
-    fn from_array_ref(array: &[u8; N]) -> &Self {
-        Self::ref_cast(array)
-    }
     fn as_slice(&self) -> &[u8] {
         self.as_array().as_slice()
     }
@@ -43,14 +37,17 @@ pub trait ByteArray<const N: usize>:
 
     // --- Provided: hex --- //
 
-    fn hex_display(&self) -> HexDisplay<'_> {
-        hex::display(self.as_slice())
-    }
-    fn try_from_hexstr(s: &str) -> Result<Self, hex::DecodeError> {
+    fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
         <[u8; N]>::from_hex(s).map(Self::from_array)
     }
-    fn fmt_hexstr(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Display::fmt(&hex::display(self.as_slice()), f)
+    fn to_hex(&self) -> String {
+        hex::encode(self.as_slice())
+    }
+    fn as_hex_display(&self) -> HexDisplay<'_> {
+        hex::display(self.as_slice())
+    }
+    fn fmt_as_hex(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(&self.as_hex_display(), f)
     }
 }
 
@@ -99,7 +96,7 @@ macro_rules! impl_fromstr_fromhex {
         impl std::str::FromStr for $type {
             type Err = $crate::lexe_hex::hex::DecodeError;
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Self::try_from_hexstr(s)
+                <Self as ByteArray<$n>>::from_hex(s)
             }
         }
         impl $crate::lexe_hex::hex::FromHex for $type {
@@ -125,12 +122,17 @@ macro_rules! impl_debug_display_as_hex {
                 // We don't implement this like
                 // `f.debug_tuple(stringify!($type)).field(&self.0).finish()`
                 // because that includes useless newlines when pretty printing.
-                write!(f, "{}(\"{}\")", stringify!($type), self.hex_display())
+                write!(
+                    f,
+                    "{}(\"{}\")",
+                    stringify!($type),
+                    self.as_hex_display()
+                )
             }
         }
         impl std::fmt::Display for $type {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                Self::fmt_hexstr(self, f)
+                Self::fmt_as_hex(self, f)
             }
         }
     };
@@ -165,16 +167,14 @@ mod test {
 
     use super::*;
 
-    #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast)]
-    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash)]
     struct MyStruct([u8; 4]);
 
     impl_byte_array!(MyStruct, 4);
     impl_fromstr_fromhex!(MyStruct, 4);
     impl_debug_display_as_hex!(MyStruct);
 
-    #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast)]
-    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash)]
     struct MySecret([u8; 4]);
 
     impl_byte_array!(MySecret, 4);
@@ -192,6 +192,8 @@ mod test {
         assert_eq!(format!("{my_struct:#}"), "deadbeef");
         assert_eq!(format!("{:?}", my_struct), r#"MyStruct("deadbeef")"#);
         assert_eq!(format!("{:#?}", my_struct), r#"MyStruct("deadbeef")"#);
+        assert_eq!(my_struct.as_hex_display().to_string(), "deadbeef");
+        assert_eq!(my_struct.to_hex(), "deadbeef");
 
         // Test redacted display/debug
         let my_secret = MySecret(data);

@@ -2513,6 +2513,7 @@ dependencies = [
  "cfg-if 1.0.4",
  "futures",
  "lexe-api",
+ "lexe-byte-array",
  "lexe-common",
  "lexe-crypto",
  "lexe-enclave",
@@ -2611,7 +2612,6 @@ name = "lexe-byte-array"
 version = "0.0.0"
 dependencies = [
  "lexe-hex",
- "ref-cast",
 ]
 
 [[package]]
