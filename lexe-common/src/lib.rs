@@ -15,6 +15,8 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 // Some re-exports to prevent having to re-declare dependencies
 pub use lexe_byte_array::ByteArray;
+// TODO(phlip9): remove re-export
+pub use lexe_crypto::ed25519;
 pub use ref_cast::RefCast;
 pub use secrecy::{ExposeSecret, Secret};
 
@@ -28,8 +30,6 @@ pub mod byte_str;
 pub mod constants;
 /// [`dotenvy`] extensions.
 pub mod dotenv;
-/// Ed25519 types.
-pub mod ed25519;
 /// `DeployEnv`.
 pub mod env;
 /// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln

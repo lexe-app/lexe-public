@@ -42,17 +42,17 @@ use std::{
 };
 
 use lexe_byte_array::ByteArray;
-use lexe_crypto::rng::{Crng, RngExt};
 use lexe_hex::hex::{self, FromHex};
 use lexe_serde::impl_serde_hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::const_utils;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
-use serde::{de::Deserialize, ser::Serialize};
+use serde_core::{de::Deserialize, ser::Serialize};
 
 #[cfg(doc)]
 use crate::ed25519;
+use crate::rng::{Crng, RngExt};
 
 pub const SECRET_KEY_LEN: usize = 32;
 pub const PUBLIC_KEY_LEN: usize = 32;
@@ -122,8 +122,7 @@ pub struct InvalidSignature;
 /// signature in order to bind that signature to only this particular type.
 pub trait Signable {
     /// Implementors will only need to fill in this value. An example is
-    /// `array::pad(*b"LEXE-REALM::RootSeed")`, used in the
-    /// [`RootSeed`](crate::root_seed::RootSeed).
+    /// `array::pad(*b"LEXE-REALM::RootSeed")`, used in the `RootSeed`.
     const DOMAIN_SEPARATOR: [u8; 32];
 }
 
@@ -222,8 +221,7 @@ fn verify_signed_struct_inner(
 impl KeyPair {
     /// Create a new `ed25519::KeyPair` from a random 32-byte seed.
     ///
-    /// Use this when deriving a key pair from a KDF like
-    /// [`RootSeed`](crate::root_seed::RootSeed).
+    /// Use this when deriving a key pair from a KDF like `RootSeed`.
     pub fn from_seed(seed: &[u8; 32]) -> Self {
         let key_pair = ring::signature::Ed25519KeyPair::from_seed_unchecked(
             seed,
@@ -817,14 +815,13 @@ fn deserialize_keypair_pkcs8_der(
 
 #[cfg(test)]
 mod test {
-    use lexe_crypto::rng::FastRng;
     use lexe_std::array;
     use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
     use proptest_derive::Arbitrary;
     use serde::{Deserialize, Serialize};
 
     use super::*;
-    use crate::test_utils::{arbitrary::gen_values, snapshot};
+    use crate::rng::FastRng;
 
     #[derive(Arbitrary, Serialize, Deserialize)]
     struct SignableBytes(Vec<u8>);
@@ -858,24 +855,21 @@ mod test {
 
     #[test]
     fn test_pkcs8_der_snapshot() {
-        let inputs = r#"
---- old, incorrect PKCS#8 v2 format
-3053020101300506032b657004220420244ae26baa35db07ed4ea37908f111a8fa4cb81109f9897a133b8a8de6e800dca1230321007dc65033bee5975aab9bb06e1e514d29533173511446adc5a73a9540d2addbac
-3053020101300506032b657004220420170ddf655e4f125ab6b2aba1269396547de5ce55d05b44817d451bce9ed5c27da12303210050fe5d186563228e8ff7788b205daba94819015ae2e6d1b816103d44c4d904e7
-3053020101300506032b6570042204206af81a54ce849cf9fd7700e1727683b6827804ecfa01c2445a3a36965f0f2665a1230321000fe43d0ade1b82e2572c66b1f4a91deb287b8191cd625fb9f22ec2a3291837a9
-3053020101300506032b65700422042065fb1f762df47c461af399128d7723c657a96ca830a60d7c490a887e4d58fac9a123032100a8523e4de7594c1ed74e5c8e86cb84a0e8bd66f874e0d3de15e5a7f2017bb822
-3053020101300506032b65700422042013d80a53bb2a99ea48cfe3ab0990aa866c7de5e858787c0a80e2af33f7b345dda12303210081da71be7da3f2df6905550470c99d263447046d3e8bf6b2ea019c5587652c49
---- new, correct PKCS#8 v2 format
-3051020101300506032b657004220420244ae26baa35db07ed4ea37908f111a8fa4cb81109f9897a133b8a8de6e800dc8121007dc65033bee5975aab9bb06e1e514d29533173511446adc5a73a9540d2addbac
-3051020101300506032b657004220420170ddf655e4f125ab6b2aba1269396547de5ce55d05b44817d451bce9ed5c27d81210050fe5d186563228e8ff7788b205daba94819015ae2e6d1b816103d44c4d904e7
-3051020101300506032b6570042204206af81a54ce849cf9fd7700e1727683b6827804ecfa01c2445a3a36965f0f26658121000fe43d0ade1b82e2572c66b1f4a91deb287b8191cd625fb9f22ec2a3291837a9
-3051020101300506032b65700422042065fb1f762df47c461af399128d7723c657a96ca830a60d7c490a887e4d58fac9812100a8523e4de7594c1ed74e5c8e86cb84a0e8bd66f874e0d3de15e5a7f2017bb822
-3051020101300506032b65700422042013d80a53bb2a99ea48cfe3ab0990aa866c7de5e858787c0a80e2af33f7b345dd81210081da71be7da3f2df6905550470c99d263447046d3e8bf6b2ea019c5587652c49
-"#;
-        for input in snapshot::parse_sample_data(inputs) {
-            let der = hex::decode(input).unwrap();
+        #[track_caller]
+        fn assert_pkcs8_roundtrip(hexstr: &str) {
+            let der = hex::decode(hexstr).unwrap();
             let _ = KeyPair::deserialize_pkcs8_der(&der).unwrap();
         }
+
+        // old, incorrect PKCS#8 v2 format
+        assert_pkcs8_roundtrip(
+            "3053020101300506032b657004220420244ae26baa35db07ed4ea37908f111a8fa4cb81109f9897a133b8a8de6e800dca1230321007dc65033bee5975aab9bb06e1e514d29533173511446adc5a73a9540d2addbac",
+        );
+
+        // new, correct PKCS#8 v2 format
+        assert_pkcs8_roundtrip(
+            "3051020101300506032b657004220420244ae26baa35db07ed4ea37908f111a8fa4cb81109f9897a133b8a8de6e800dc8121007dc65033bee5975aab9bb06e1e514d29533173511446adc5a73a9540d2addbac",
+        );
     }
 
     // ```bash
@@ -885,10 +879,8 @@ mod test {
     #[test]
     fn pkcs8_der_snapshot_data() {
         let mut rng = FastRng::from_u64(202510211432);
-        let keys = gen_values(&mut rng, any::<KeyPair>(), 5);
-        for key in keys {
-            println!("{}", hex::display(key.serialize_pkcs8_der().as_slice()));
-        }
+        let key = KeyPair::from_seed_owned(rng.gen_bytes());
+        println!("{}", hex::display(key.serialize_pkcs8_der().as_slice()));
     }
 
     #[test]

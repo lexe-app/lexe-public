@@ -2663,9 +2663,19 @@ dependencies = [
 name = "lexe-crypto"
 version = "0.0.0"
 dependencies = [
+ "bcs",
+ "lexe-byte-array",
+ "lexe-hex",
+ "lexe-serde",
+ "lexe-sha256",
+ "lexe-std",
  "proptest",
+ "proptest-derive",
  "rand_core 0.6.4",
+ "ref-cast",
  "ring",
+ "serde",
+ "serde_core",
  "serde_json",
 ]
 

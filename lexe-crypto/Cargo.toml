@@ -21,10 +21,21 @@ test-utils = [
 
 # --- LEXE --- #
 
+lexe-byte-array = { path = "../lexe-byte-array" }
+lexe-hex = { path = "../lexe-hex" }
+lexe-serde = { path = "../lexe-serde" }
+lexe-sha256 = { path = "../lexe-sha256" }
+lexe-std = { path = "../lexe-std" }
+
 # --- WORKSPACE --- #
 
+# TODO(phlip9): figure out how to remove this dep
+bcs = { workspace = true }
 rand_core = { workspace = true }
+# TODO(phlip9): figure out how to remove this dep
+ref-cast = { workspace = true }
 ring = { workspace = true }
+serde_core = { workspace = true }
 
 # --- OPTIONAL --- #
 
@@ -32,4 +43,6 @@ proptest = { workspace = true, optional = true, features = ["alloc"] }
 
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }
+proptest-derive = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
