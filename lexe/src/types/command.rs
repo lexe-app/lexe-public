@@ -244,7 +244,7 @@ pub struct PayInvoiceResponse {
 /// A request to update the personal note on an existing payment.
 /// Pass `None` to clear the note.
 #[derive(Serialize, Deserialize)]
-pub struct SdkUpdatePaymentNoteRequest {
+pub struct UpdatePaymentNoteRequest {
     /// Identifier for the payment to be updated.
     pub index: PaymentCreatedIndex,
     /// The updated note, or `None` to clear.
@@ -253,10 +253,10 @@ pub struct SdkUpdatePaymentNoteRequest {
     pub note: Option<String>,
 }
 
-impl TryFrom<SdkUpdatePaymentNoteRequest> for command::UpdatePaymentNote {
+impl TryFrom<UpdatePaymentNoteRequest> for command::UpdatePaymentNote {
     type Error = anyhow::Error;
 
-    fn try_from(sdk: SdkUpdatePaymentNoteRequest) -> anyhow::Result<Self> {
+    fn try_from(sdk: UpdatePaymentNoteRequest) -> anyhow::Result<Self> {
         Ok(Self {
             index: sdk.index,
             note: sdk.note.map(BoundedNote::new).transpose().context(

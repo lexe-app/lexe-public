@@ -24,7 +24,7 @@ use lexe::{
             GetPaymentRequest as SdkGetPaymentRequest, NodeInfo as SdkNodeInfo,
             PayInvoiceRequest as SdkPayInvoiceRequest,
             PayInvoiceResponse as SdkPayInvoiceResponse,
-            SdkUpdatePaymentNoteRequest,
+            UpdatePaymentNoteRequest,
         },
         payment::Payment as SdkPayment,
     },
@@ -981,7 +981,7 @@ impl AsyncLexeWallet {
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkUpdatePaymentNoteRequest { index, note };
+        let req = UpdatePaymentNoteRequest { index, note };
         match &self.inner {
             AsyncLexeWalletInner::WithDb(wallet) =>
                 wallet.update_payment_note(req).await?,
@@ -1397,7 +1397,7 @@ impl BlockingLexeWallet {
         note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkUpdatePaymentNoteRequest { index, note };
+        let req = UpdatePaymentNoteRequest { index, note };
         match &self.inner {
             BlockingLexeWalletInner::WithDb(wallet) =>
                 wallet.update_payment_note(req)?,

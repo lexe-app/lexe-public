@@ -35,7 +35,7 @@ use crate::{
             CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
             GetPaymentResponse, ListPaymentsResponse, NodeInfo,
             PayInvoiceRequest, PayInvoiceResponse, PaymentSyncSummary,
-            SdkUpdatePaymentNoteRequest,
+            UpdatePaymentNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -778,7 +778,7 @@ impl<D> LexeWallet<D> {
     /// counterparty.
     pub async fn update_payment_note(
         &self,
-        req: SdkUpdatePaymentNoteRequest,
+        req: UpdatePaymentNoteRequest,
     ) -> anyhow::Result<()> {
         let req: command::UpdatePaymentNote = req.try_into()?;
 

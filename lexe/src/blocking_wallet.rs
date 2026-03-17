@@ -20,7 +20,7 @@ use crate::{
             CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
             GetPaymentResponse, ListPaymentsResponse, NodeInfo,
             PayInvoiceRequest, PayInvoiceResponse, PaymentSyncSummary,
-            SdkUpdatePaymentNoteRequest,
+            UpdatePaymentNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -257,7 +257,7 @@ impl<D> BlockingLexeWallet<D> {
     /// counterparty.
     pub fn update_payment_note(
         &self,
-        req: SdkUpdatePaymentNoteRequest,
+        req: UpdatePaymentNoteRequest,
     ) -> anyhow::Result<()> {
         block_on(self.inner.update_payment_note(req))
     }
