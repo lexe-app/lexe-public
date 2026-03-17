@@ -35,10 +35,12 @@
 // TODO(phlip9): Submit PR to ring for `Ed25519Ctx` support so we don't have to
 //               pre-hash.
 
-use std::{fmt, str::FromStr};
+use std::{
+    fmt,
+    io::{Cursor, Write},
+    str::FromStr,
+};
 
-use asn1_rs::{Oid, oid};
-use bytes::{BufMut, Bytes, BytesMut};
 use lexe_byte_array::ByteArray;
 use lexe_crypto::rng::{Crng, RngExt};
 use lexe_hex::hex::{self, FromHex};
@@ -48,17 +50,9 @@ use lexe_std::const_utils;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use x509_parser::x509;
 
 #[cfg(doc)]
 use crate::ed25519;
-
-/// The standard PKCS OID for Ed25519.
-/// See "id-Ed25519" in [RFC 8410](https://tools.ietf.org/html/rfc8410).
-#[rustfmt::skip]
-pub const PKCS_OID: Oid<'static> = oid!(1.3.101.112);
-pub const PKCS_OID_SLICE: &[u64] = &[1, 3, 101, 112];
 
 pub const SECRET_KEY_LEN: usize = 32;
 pub const PUBLIC_KEY_LEN: usize = 32;
@@ -103,38 +97,19 @@ pub struct Signed<T: Signable> {
     inner: T,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum Error {
-    #[error("ed25519 public key must be exactly 32 bytes")]
     InvalidPkLength,
-
-    #[error("the algorithm OID doesn't match the standard ed25519 OID")]
     UnexpectedAlgorithm,
-
-    #[error("failed deserializing PKCS#8-encoded key pair")]
     KeyDeserializeError,
-
-    #[error("derived public key doesn't match expected public key")]
     PublicKeyMismatch,
-
-    #[error("invalid signature")]
     InvalidSignature,
-
-    #[error("error serializing inner struct for signing: {0}")]
-    BcsSerialize(bcs::Error),
-
-    #[error("error deserializing inner struct to verify: {0}")]
-    BcsDeserialize(bcs::Error),
-
-    #[error("signed struct is too short")]
+    BcsDeserialize,
     SignedTooShort,
-
-    #[error("message was signed with a different key pair than expected")]
     UnexpectedSigner,
 }
 
-#[derive(Debug, Error)]
-#[error("invalid signature")]
+#[derive(Debug)]
 pub struct InvalidSignature;
 
 /// `Signable` types are types that can be signed with
@@ -191,7 +166,7 @@ where
 
     // canonically deserialize the struct; assume it's bcs-serialized
     let inner: T =
-        bcs::from_bytes(ser_struct).map_err(Error::BcsDeserialize)?;
+        bcs::from_bytes(ser_struct).map_err(|_| Error::BcsDeserialize)?;
 
     // wrap the deserialized struct in a "proof-carrying" type that can only
     // be instantiated by actually verifying the signature.
@@ -526,21 +501,6 @@ impl TryFrom<&[u8]> for PublicKey {
     }
 }
 
-impl TryFrom<&x509::SubjectPublicKeyInfo<'_>> for PublicKey {
-    type Error = Error;
-
-    fn try_from(
-        spki: &x509::SubjectPublicKeyInfo<'_>,
-    ) -> Result<Self, Self::Error> {
-        let alg = &spki.algorithm;
-        if !(alg.oid() == &PKCS_OID) {
-            return Err(Error::UnexpectedAlgorithm);
-        }
-
-        Self::try_from(spki.subject_public_key.as_ref())
-    }
-}
-
 impl AsRef<[u8]> for PublicKey {
     fn as_ref(&self) -> &[u8] {
         self.as_slice()
@@ -683,27 +643,18 @@ impl<T: Signable> Signed<T> {
 }
 
 impl<T: Signable + Serialize> Signed<T> {
-    pub fn serialize(&self) -> Result<Bytes, bcs::Error> {
-        let mut bytes = BytesMut::new();
-        self.serialize_inout(&mut bytes)?;
-        Ok(bytes.freeze())
-    }
-
-    pub fn serialize_inout(
-        &self,
-        inout: &mut BytesMut,
-    ) -> Result<(), bcs::Error> {
-        let struct_ser_len =
-            bcs::serialized_size(&self.inner)? + SIGNED_STRUCT_OVERHEAD;
-        inout.reserve(struct_ser_len);
+    pub fn serialize(&self) -> Result<Vec<u8>, bcs::Error> {
+        let len = bcs::serialized_size(&self.inner)? + SIGNED_STRUCT_OVERHEAD;
+        let mut out = Vec::with_capacity(len);
+        let mut writer = Cursor::new(&mut out);
 
         // out := signer || signature || serialized struct
 
-        inout.put_slice(self.signer.as_slice());
-        inout.put_slice(self.sig.as_slice());
-        bcs::serialize_into(&mut inout.writer(), &self.inner)?;
+        writer.write_all(self.signer.as_slice()).unwrap();
+        writer.write_all(self.sig.as_slice()).unwrap();
+        bcs::serialize_into(&mut writer, &self.inner)?;
 
-        Ok(())
+        Ok(out)
     }
 }
 
@@ -724,6 +675,42 @@ impl<T: Signable + Clone> Clone for Signed<T> {
             sig: self.sig,
             inner: self.inner.clone(),
         }
+    }
+}
+
+// --- impl Error --- //
+
+impl std::error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let msg = match self {
+            Self::InvalidPkLength =>
+                "ed25519 public key must be exactly 32 bytes",
+            Self::UnexpectedAlgorithm =>
+                "the algorithm OID doesn't match the standard ed25519 OID",
+            Self::KeyDeserializeError =>
+                "failed deserializing PKCS#8-encoded key pair",
+            Self::PublicKeyMismatch =>
+                "derived public key doesn't match expected public key",
+            Self::InvalidSignature => "invalid signature",
+            Self::BcsDeserialize =>
+                "error deserializing inner struct to verify",
+            Self::SignedTooShort => "signed struct is too short",
+            Self::UnexpectedSigner =>
+                "message was signed with a different key pair than expected",
+        };
+        f.write_str(msg)
+    }
+}
+
+// --- impl InvalidSignature --- //
+
+impl std::error::Error for InvalidSignature {}
+
+impl fmt::Display for InvalidSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("invalid signature")
     }
 }
 

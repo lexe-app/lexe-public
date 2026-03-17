@@ -30,7 +30,10 @@ use rustls::{
 use x509_parser::certificate::X509Certificate;
 
 use super::quote::ReportData;
-use crate::attestation::cert::SgxAttestationExtension;
+use crate::{
+    attestation::cert::SgxAttestationExtension,
+    ed25519_ext::Ed25519PublicKeyExt,
+};
 
 /// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
 /// Enclave (QE).
@@ -349,7 +352,7 @@ impl<'a> AttestEvidence<'a> {
             return Err(invalid_cert_error(io_error));
         }
 
-        let cert_pk = ed25519::PublicKey::try_from(cert.public_key())
+        let cert_pk = ed25519::PublicKey::try_from_spki(cert.public_key())
             .map_err(invalid_cert_error)?;
 
         let sgx_ext_oid = SgxAttestationExtension::oid_asn1_rs();

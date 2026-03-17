@@ -102,6 +102,7 @@ use rustls::{
 use x509_parser::prelude::X509Certificate;
 
 use crate::{
+    ed25519_ext::Ed25519PublicKeyExt,
     lexe_ca,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
@@ -458,7 +459,7 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
         let (_remaining, end_entity) =
             X509Certificate::from_der(end_entity_der.as_bytes())
                 .map_err(|_| rustls_err("Cert was not encoded correctly"))?;
-        let end_entity_pk = ed25519::PublicKey::try_from(
+        let end_entity_pk = ed25519::PublicKey::try_from_spki(
             &end_entity.tbs_certificate.subject_pki,
         )
         .map_err(|e| rustls_err(format!("Not an ed25519 pk: {e}")))?;

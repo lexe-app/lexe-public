@@ -256,5 +256,8 @@ mod test {
         X509Certificate::from_der(LEXE_PROD_CA_CERT_DER).unwrap();
         X509Certificate::from_der(LEXE_STAGING_CA_CERT_DER).unwrap();
         X509Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
+        X509Certificate::from_der(GTS_ROOT_R2_CA_CERT_DER).unwrap();
+        X509Certificate::from_der(GTS_ROOT_R3_CA_CERT_DER).unwrap();
+        X509Certificate::from_der(GTS_ROOT_R4_CA_CERT_DER).unwrap();
     }
 }
