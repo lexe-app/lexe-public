@@ -8,14 +8,13 @@ use lexe_common::{
     ExposeSecret, root_seed::RootSeed as UnstableRootSeed,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_hex::hex;
 use lexe_node_client::credentials::{
     ClientCredentials as UnstableClientCredentials,
     CredentialsRef as UnstableCredentialsRef,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::config::WalletEnv;
+use crate::{config::WalletEnv, hex};
 
 /// Re-exports that are part of the SDK's public API.
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.

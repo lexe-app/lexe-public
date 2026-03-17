@@ -33,8 +33,14 @@ pub use lexe_common::default_lexe_data_dir;
 #[cfg(feature = "blocking")]
 pub mod blocking_wallet;
 
-// Reexport crates that are reachable through the stable public API surface.
+// Reexport crates and items reachable through the stable public API surface.
+pub use anyhow;
 pub use bip39;
+pub use bitcoin;
+pub use lexe_byte_array::ByteArray;
+pub use lexe_hex::hex;
+pub use lightning;
+pub use semver;
 
 /// Initialize the Lexe logger with the given default log level.
 ///
@@ -44,7 +50,6 @@ pub fn init_logger(default_level: &str) {
 }
 
 // Reexport additional dependencies that may be useful to SDK consumers.
-pub use anyhow;
 pub use serde_json;
 pub use tracing;
 
