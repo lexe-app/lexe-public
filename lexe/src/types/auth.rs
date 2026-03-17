@@ -3,6 +3,7 @@
 use std::{fmt, path::Path, str::FromStr};
 
 use anyhow::Context;
+use bip39::Mnemonic;
 use lexe_common::{
     ExposeSecret, root_seed::RootSeed as UnstableRootSeed,
 };
@@ -19,7 +20,6 @@ use crate::config::WalletEnv;
 /// Re-exports that are part of the SDK's public API.
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
 mod reexports {
-    pub use bip39::Mnemonic;
     pub use lexe_common::api::user::{NodePk, UserPk};
     pub use lexe_enclave::enclave::Measurement;
 }
