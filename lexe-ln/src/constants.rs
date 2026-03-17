@@ -8,9 +8,9 @@ use lightning::routing::scoring::ProbabilisticScoringDecayParameters;
 pub const LEXE_SCORER_PARAMS: ProbabilisticScoringDecayParameters =
     ProbabilisticScoringDecayParameters {
         // Decay once every 30 days. LDK default: 14 days.
-        historical_no_updates_half_life: Duration::new(30 * 24 * 60 * 60, 0),
+        historical_no_updates_half_life: Duration::from_secs(30 * 24 * 60 * 60),
         // Decay once every two weeks. LDK default: 30 minutes.
-        liquidity_offset_half_life: Duration::new(14 * 24 * 60 * 60, 0),
+        liquidity_offset_half_life: Duration::from_secs(14 * 24 * 60 * 60),
     };
 
 /// Minimum CLTV difference between the current block height and received
@@ -32,3 +32,7 @@ lexe_std::const_assert_usize_eq!(USER_MIN_FINAL_CLTV_EXPIRY_DELTA as usize, 24,)
 // LSP should always be running, so this value could be shorter.
 pub const LSP_MIN_FINAL_CLTV_EXPIRY_DELTA: u16 =
     lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA;
+
+/// Maximum invoice expiryt duration. Requested Lightning invoices with
+/// `expiry_time` greater than this value will be rejected.
+pub const MAX_INVOICE_EXPIRY: Duration = Duration::from_secs(24 * 60 * 60);
