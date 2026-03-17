@@ -33,7 +33,6 @@ lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
 cfg-if = { workspace = true }
 ref-cast = { workspace = true }
 ring = { workspace = true }
-serde = { workspace = true }
 sgx-isa = { workspace = true }
 
 # --- OPTIONAL --- #
@@ -44,4 +43,5 @@ proptest-derive = { workspace = true, optional = true }
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive = { workspace = true }
+serde_core = { workspace = true }
 serde_json = { workspace = true }

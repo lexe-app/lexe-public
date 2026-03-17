@@ -2,12 +2,11 @@ use std::{borrow::Cow, error::Error as StdError, fmt, io, mem, str::FromStr};
 
 use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
-use lexe_serde::hexstr_or_bytes;
+use lexe_serde::impl_serde_hexstr_or_bytes;
 use lexe_sha256::sha256;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
-use serde::{Deserialize, Serialize};
 
 /// An SGX enclave measurement (MRENCLAVE): a SHA-256 hash of the enclave
 /// binary, used to verify node integrity. Serialized as a 64-character hex
@@ -16,16 +15,19 @@ use serde::{Deserialize, Serialize};
 // Get the current enclave measurement with [`measurement`].
 // Get the current signer measurement with [`signer`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-#[derive(RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, RefCast)]
 #[repr(transparent)]
-pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct Measurement([u8; 32]);
+
+impl_serde_hexstr_or_bytes!(Measurement);
 
 /// A [`Measurement`] shortened to its first four bytes (8 hex chars).
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast)]
 #[repr(transparent)]
-pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
+pub struct MrShort([u8; 4]);
+
+impl_serde_hexstr_or_bytes!(MrShort);
 
 pub enum Error {
     SgxError(sgx_isa::ErrorCode),
@@ -60,16 +62,17 @@ pub enum Error {
 /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
 /// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[derive(RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, RefCast)]
 #[repr(transparent)]
-pub struct MachineId(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
+pub struct MachineId([u8; 16]);
+
+impl_serde_hexstr_or_bytes!(MachineId);
 
 /// TODO(max): Needs docs
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast)]
 #[repr(transparent)]
-pub struct MinCpusvn(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
+pub struct MinCpusvn([u8; 16]);
 
 /// Sealed and encrypted data
 // TODO(phlip9): use a real serialization format like CBOR or something
@@ -448,7 +451,7 @@ pub mod miscselect {
 #[cfg(test)]
 mod test {
     use proptest::{arbitrary::any, proptest, strategy::Strategy};
-    use serde::de::DeserializeOwned;
+    use serde_core::{de::DeserializeOwned, ser::Serialize};
 
     use super::*;
 
@@ -484,9 +487,6 @@ mod test {
             "\"c4f249b8d3121b0e61170a93a526beda574058f782c0b3f339e74651c379f888\"",
         );
         json_string_roundtrip::<MachineId>(
-            "\"df3d290e1371112bd3da4a6cdda1f245\"",
-        );
-        json_string_roundtrip::<MinCpusvn>(
             "\"df3d290e1371112bd3da4a6cdda1f245\"",
         );
     }

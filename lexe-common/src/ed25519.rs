@@ -44,12 +44,12 @@ use std::{
 use lexe_byte_array::ByteArray;
 use lexe_crypto::rng::{Crng, RngExt};
 use lexe_hex::hex::{self, FromHex};
-use lexe_serde::hexstr_or_bytes;
+use lexe_serde::impl_serde_hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::const_utils;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
-use serde::{Deserialize, Serialize};
+use serde::{de::Deserialize, ser::Serialize};
 
 #[cfg(doc)]
 use crate::ed25519;
@@ -78,9 +78,11 @@ pub struct KeyPair {
 }
 
 /// An ed25519 public key.
-#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
 #[repr(transparent)]
-pub struct PublicKey(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct PublicKey([u8; 32]);
+
+impl_serde_hexstr_or_bytes!(PublicKey);
 
 /// An ed25519 signature.
 #[derive(Copy, Clone, Eq, PartialEq, RefCast)]
@@ -852,6 +854,7 @@ mod test {
     use lexe_std::array;
     use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
     use proptest_derive::Arbitrary;
+    use serde::{Deserialize, Serialize};
 
     use super::*;
     use crate::test_utils::{arbitrary::gen_values, snapshot};

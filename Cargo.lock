@@ -2684,7 +2684,7 @@ dependencies = [
  "proptest-derive",
  "ref-cast",
  "ring",
- "serde",
+ "serde_core",
  "serde_json",
  "sgx-isa",
 ]

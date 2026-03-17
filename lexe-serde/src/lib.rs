@@ -1,5 +1,8 @@
 //! `serde` helpers
 
+#[doc(hidden)] // re-export for macro_rules macros
+pub use serde_core;
+
 /// serde_with helper for base64-encoded bytes types.
 pub mod base64_or_bytes;
 /// `base64_or_bytes` but for [`Option`] bytes types.

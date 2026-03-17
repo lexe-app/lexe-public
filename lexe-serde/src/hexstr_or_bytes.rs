@@ -19,6 +19,8 @@ use std::{fmt, marker::PhantomData};
 use lexe_hex::hex::{self, FromHex};
 use serde_core::{Deserializer, Serializer, de, ser};
 
+// --- #[serde(with = "hexstr_or_bytes")] --- //
+
 pub fn serialize<S, T>(data: T, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -56,6 +58,72 @@ where
     } else {
         T::deserialize(deserializer)
     }
+}
+
+// --- impl_{ser,deser}_hexstr_or_bytes!(Type) macros --- //
+
+/// A macro_rules-based `#[derive(Serialize, Deserialize)]` for simple
+/// new-types. Prefer this in dependency-minimized foundational crates that
+/// want to avoid proc-macros.
+///
+/// Example:
+///
+/// (before)
+///
+/// ```ignore
+/// use serde::{Deserialize, Serialize};
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct PublicKey(#[serde(with = "hexstr_or_bytes")] [u8; 32])
+/// ```
+///
+/// (after)
+///
+/// ```ignore
+/// struct PublicKey([u8; 32]);
+///
+/// lexe_serde::impl_serde_hexstr_or_bytes!(PublicKey);
+/// ```
+#[macro_export]
+macro_rules! impl_serde_hexstr_or_bytes {
+    ($Type:ty) => {
+        $crate::impl_deser_hexstr_or_bytes!($Type);
+        $crate::impl_ser_hexstr_or_bytes!($Type);
+    };
+}
+
+/// A macro_rules-based `#[derive(Deserialize)]` for simple new-types. Prefer
+/// this in dependency-minimized foundational crates that want to avoid
+/// proc-macros.
+#[macro_export]
+macro_rules! impl_deser_hexstr_or_bytes {
+    ($Type:ty) => {
+        impl<'de> $crate::serde_core::Deserialize<'de> for $Type {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: $crate::serde_core::Deserializer<'de>,
+            {
+                $crate::hexstr_or_bytes::deserialize(deserializer).map(Self)
+            }
+        }
+    };
+}
+
+/// A macro_rules-based `#[derive(Serialize)]` for simple new-types. Prefer this
+/// in dependency-minimized foundational crates that want to avoid
+/// proc-macros.
+#[macro_export]
+macro_rules! impl_ser_hexstr_or_bytes {
+    ($Type:ty) => {
+        impl $crate::serde_core::Serialize for $Type {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: $crate::serde_core::Serializer,
+            {
+                $crate::hexstr_or_bytes::serialize(&self.0, serializer)
+            }
+        }
+    };
 }
 
 #[cfg(test)]
@@ -107,5 +175,23 @@ mod test {
         let foo2: Foo = serde_json::from_str(&s).unwrap();
 
         assert_eq!(foo, foo2);
+    }
+
+    #[test]
+    fn test_impl_serde_hexstr_or_bytes() {
+        #[derive(Debug, Eq, PartialEq)]
+        struct MyKey([u8; 32]);
+
+        impl_serde_hexstr_or_bytes!(MyKey);
+
+        let hex_str = r#""4242424242424242424242424242424242424242424242424242424242424242""#;
+
+        // Deserialize
+        let key: MyKey = serde_json::from_str(hex_str).unwrap();
+        assert_eq!(key, MyKey([0x42; 32]));
+
+        // Serialize
+        let serialized = serde_json::to_string(&key).unwrap();
+        assert_eq!(serialized, hex_str);
     }
 }
