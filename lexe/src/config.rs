@@ -5,9 +5,12 @@ use std::{
 };
 
 use anyhow::Context;
-use lexe_common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
+use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
 
-use crate::{types::auth::CredentialsRef, unstable::SDK_USER_AGENT};
+use crate::{
+    types::auth::{CredentialsRef, UserPk},
+    unstable::SDK_USER_AGENT,
+};
 
 // --- Structs --- //
 //

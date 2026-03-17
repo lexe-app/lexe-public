@@ -1,5 +1,6 @@
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
+use lexe::{ByteArray, types::auth::UserPk};
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
     models::command::{
@@ -20,17 +21,13 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::{
-        revocable_clients::{
-            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-            GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
-        },
-        user::UserPk,
+    api::revocable_clients::{
+        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+        GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
     },
     env::DeployEnv,
     ln::amount::Amount,
 };
-use lexe_hex::hex::FromHex;
 use lexe_std::Apply;
 use tracing::instrument;
 

@@ -19,15 +19,12 @@ use lexe::{
     ffs::{DiskFs, fsext},
     payments_db::PaymentsDb,
     types::{
-        auth::{CredentialsRef, RootSeed as SdkRootSeed},
+        auth::{CredentialsRef, NodePk, RootSeed as SdkRootSeed, UserPk},
         command::PaymentSyncSummary,
     },
     wallet::{LexeWallet, WithDb},
 };
-use lexe_common::{
-    api::user::{NodePk, NodePkProof, UserPk},
-    constants,
-};
+use lexe_common::{api::user::NodePkProof, constants};
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{bip353, lnurl};
 use tracing::{info, instrument, warn};
@@ -82,7 +79,7 @@ impl App {
         env_db_config: WalletEnvDbConfig,
         use_mock_secret_store: bool,
         root_seed: &SdkRootSeed,
-        partner: Option<UserPk>,
+        partner_pk: Option<UserPk>,
         signup_code: Option<String>,
         backup_password: Option<&str>,
         google_auth_code: Option<String>,
@@ -110,7 +107,7 @@ impl App {
         wallet
             .signup_custom(
                 root_seed,
-                partner,
+                partner_pk,
                 signup_code,
                 allow_gvfs_access,
                 backup_password,
@@ -394,7 +391,7 @@ impl WalletUser {
     pub fn from_seed(root_seed: &SdkRootSeed) -> Self {
         let user_pk = root_seed.derive_user_pk();
         let node_key_pair = root_seed.unstable().derive_node_key_pair();
-        let node_pk = NodePk(node_key_pair.public_key());
+        let node_pk = NodePk::from_unstable(node_key_pair.public_key().into());
         let node_pk_proof = NodePkProof::sign(&node_key_pair);
         Self {
             user_pk,

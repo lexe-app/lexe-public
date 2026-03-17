@@ -174,8 +174,8 @@ impl GDriveClient {
         }
 
         let vfs_master_key = root_seed.sdk.unstable().derive_vfs_master_key();
-        let user_pk = root_seed.sdk.derive_user_pk();
-        let node_pk = root_seed.sdk.derive_node_pk();
+        let user_pk = root_seed.sdk.derive_user_pk().unstable();
+        let node_pk = root_seed.sdk.derive_node_pk().unstable();
         let credentials = self.inner.credentials.clone();
 
         // A closure to decrypt and base64-encode blobs

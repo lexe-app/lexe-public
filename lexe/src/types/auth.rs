@@ -5,7 +5,9 @@ use std::{fmt, path::Path, str::FromStr};
 use anyhow::Context;
 use bip39::Mnemonic;
 use lexe_common::{
-    ExposeSecret, root_seed::RootSeed as UnstableRootSeed,
+    ExposeSecret,
+    api::user::{NodePk as UnstableNodePk, UserPk as UnstableUserPk},
+    root_seed::RootSeed as UnstableRootSeed,
 };
 use lexe_crypto::rng::SysRng;
 use lexe_enclave::enclave::Measurement as UnstableMeasurement;
@@ -16,13 +18,6 @@ use lexe_node_client::credentials::{
 use serde::{Deserialize, Serialize};
 
 use crate::{ByteArray, config::WalletEnv, hex};
-
-/// Re-exports that are part of the SDK's public API.
-/// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
-mod reexports {
-    pub use lexe_common::api::user::{NodePk, UserPk};
-}
-pub use reexports::*;
 
 // --- Credentials --- //
 
@@ -73,7 +68,7 @@ impl<'a> CredentialsRef<'a> {
     ///
     /// Always `Some(_)` if the credentials were created by `node-v0.8.11+`.
     pub(crate) fn user_pk(self) -> Option<UserPk> {
-        self.to_unstable().user_pk()
+        self.to_unstable().user_pk().map(UserPk::from_unstable)
     }
 
     /// Convert to the inner [`UnstableCredentialsRef`] used by
@@ -188,12 +183,12 @@ impl RootSeed {
     // --- Derived Identity --- //
     /// Derive the user's public key.
     pub fn derive_user_pk(&self) -> UserPk {
-        self.unstable().derive_user_pk()
+        UserPk::from_unstable(self.unstable().derive_user_pk())
     }
 
     /// Derive the node public key.
     pub fn derive_node_pk(&self) -> NodePk {
-        self.unstable().derive_node_pk()
+        NodePk::from_unstable(self.unstable().derive_node_pk())
     }
 
     // --- Encryption --- //
@@ -358,6 +353,26 @@ impl AsRef<[u8; 32]> for Measurement {
     }
 }
 
+impl fmt::Debug for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl fmt::Display for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for Measurement {
+    type Err = <UnstableMeasurement as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        UnstableMeasurement::from_str(s).map(Self)
+    }
+}
+
 impl Measurement {
     /// Destructure this SDK type into the internal type.
     #[cfg(feature = "unstable")]
@@ -379,26 +394,6 @@ impl Measurement {
     }
 }
 
-impl fmt::Debug for Measurement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl fmt::Display for Measurement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl FromStr for Measurement {
-    type Err = <UnstableMeasurement as FromStr>::Err;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        UnstableMeasurement::from_str(s).map(Self)
-    }
-}
-
 #[cfg(feature = "unstable")]
 impl From<UnstableMeasurement> for Measurement {
     fn from(inner: UnstableMeasurement) -> Self {
@@ -409,6 +404,179 @@ impl From<UnstableMeasurement> for Measurement {
 #[cfg(feature = "unstable")]
 impl From<Measurement> for UnstableMeasurement {
     fn from(outer: Measurement) -> Self {
+        outer.0
+    }
+}
+
+// --- UserPk --- //
+
+/// A Lexe user's primary identifier, derived from the root seed.
+///
+/// Serialized as a 64-character hex string (32 bytes).
+///
+/// Implements [`ByteArray<32>`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct UserPk(UnstableUserPk);
+
+impl ByteArray<32> for UserPk {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(UnstableUserPk::from_array(array))
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0.to_array()
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        self.0.as_array()
+    }
+}
+
+impl AsRef<[u8]> for UserPk {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_array().as_slice()
+    }
+}
+
+impl AsRef<[u8; 32]> for UserPk {
+    fn as_ref(&self) -> &[u8; 32] {
+        self.0.as_array()
+    }
+}
+
+impl fmt::Debug for UserPk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl fmt::Display for UserPk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for UserPk {
+    type Err = <UnstableUserPk as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        UnstableUserPk::from_str(s).map(Self)
+    }
+}
+
+impl UserPk {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Destructure this SDK type into the internal type.
+            pub fn unstable(self) -> UnstableUserPk {
+                self.0
+            }
+        } else {
+            pub(crate) fn unstable(self) -> UnstableUserPk {
+                self.0
+            }
+        }
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Wraps an internal type into this SDK type.
+            pub fn from_unstable(inner: UnstableUserPk) -> Self {
+                Self(inner)
+            }
+        } else {
+            pub(crate) fn from_unstable(inner: UnstableUserPk) -> Self {
+                Self(inner)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl From<UnstableUserPk> for UserPk {
+    fn from(inner: UnstableUserPk) -> Self {
+        Self(inner)
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl From<UserPk> for UnstableUserPk {
+    fn from(outer: UserPk) -> Self {
+        outer.0
+    }
+}
+
+// --- NodePk --- //
+
+/// A Lightning node's secp256k1 public key (the `node_id`).
+///
+/// Serialized as a 66-character hex string (33 bytes, compressed).
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct NodePk(UnstableNodePk);
+
+impl NodePk {
+    /// Construct from a 66-character hex string.
+    pub fn from_hex(hex_str: &str) -> anyhow::Result<Self> {
+        Self::from_str(hex_str).map_err(anyhow::Error::from)
+    }
+
+    /// Encode as a 66-character hex string.
+    pub fn to_hex(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl fmt::Debug for NodePk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl fmt::Display for NodePk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for NodePk {
+    type Err = <UnstableNodePk as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        UnstableNodePk::from_str(s).map(Self)
+    }
+}
+
+impl NodePk {
+    /// Destructure this SDK type into the internal type.
+    #[cfg(feature = "unstable")]
+    pub fn unstable(self) -> UnstableNodePk {
+        self.0
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Wraps an internal type into this SDK type.
+            pub fn from_unstable(inner: UnstableNodePk) -> Self {
+                Self(inner)
+            }
+        } else {
+            pub(crate) fn from_unstable(inner: UnstableNodePk) -> Self {
+                Self(inner)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl From<UnstableNodePk> for NodePk {
+    fn from(inner: UnstableNodePk) -> Self {
+        Self(inner)
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl From<NodePk> for UnstableNodePk {
+    fn from(outer: NodePk) -> Self {
         outer.0
     }
 }

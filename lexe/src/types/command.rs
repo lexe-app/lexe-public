@@ -9,15 +9,14 @@ use lexe_api::{
         payments::{LxPaymentHash, LxPaymentSecret, PaymentCreatedIndex},
     },
 };
-use lexe_common::{
-    api::user::{NodePk, UserPk},
-    ln::amount::Amount,
-    time::TimestampMs,
-};
+use lexe_common::{ln::amount::Amount, time::TimestampMs};
 use lexe_enclave::enclave;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{auth::Measurement, payment::Payment};
+use crate::types::{
+    auth::{Measurement, NodePk, UserPk},
+    payment::Payment,
+};
 
 /// Information about a Lexe node.
 // Simple version of `lexe_api::models::command::NodeInfo`.
@@ -81,8 +80,8 @@ impl From<command::NodeInfo> for NodeInfo {
         Self {
             version: info.version,
             measurement: Measurement::from_unstable(info.measurement),
-            user_pk: info.user_pk,
-            node_pk: info.node_pk,
+            user_pk: UserPk::from_unstable(info.user_pk),
+            node_pk: NodePk::from_unstable(info.node_pk),
 
             balance,
 

@@ -17,6 +17,7 @@ use lexe::{
         auth::{
             ClientCredentials as SdkClientCredentials,
             CredentialsRef as SdkCredentialsRef, RootSeed as SdkRootSeed,
+            UserPk,
         },
         command::{
             CreateInvoiceRequest as SdkCreateInvoiceRequest,
@@ -43,7 +44,6 @@ use lexe_api_core::{
     },
 };
 use lexe_common::{
-    api::user::UserPk,
     env::DeployEnv as DeployEnvRs,
     ln::{
         amount::Amount as AmountRs, network::LxNetwork as LxNetworkRs,

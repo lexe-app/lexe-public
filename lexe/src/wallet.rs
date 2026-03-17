@@ -12,7 +12,7 @@ use lexe_common::{
             UserSignupRequestWire, UserSignupRequestWireV1,
             UserSignupRequestWireV2,
         },
-        user::{NodePkProof, UserPk},
+        user::NodePkProof,
     },
 };
 use lexe_crypto::rng::SysRng;
@@ -30,7 +30,7 @@ use crate::{
         WalletUserDbConfig,
     },
     types::{
-        auth::{CredentialsRef, RootSeed},
+        auth::{CredentialsRef, RootSeed, UserPk},
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
             GetPaymentResponse, ListPaymentsResponse, NodeInfo,
@@ -519,7 +519,7 @@ impl<D> LexeWallet<D> {
                 node_pk_proof,
                 signup_code,
             },
-            partner: partner_pk,
+            partner: partner_pk.map(UserPk::unstable),
         });
         let signed_signup_req = user_key_pair
             .sign_struct(&signup_req)
