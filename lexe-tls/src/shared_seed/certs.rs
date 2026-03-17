@@ -7,7 +7,10 @@ use lexe_crypto::rng::Crng;
 use rcgen::string::Ia5String;
 
 use crate as tls;
-use crate::types::{LxCertificateDer, LxPrivatePkcs8KeyDer};
+use crate::{
+    ed25519_ext::{Ed25519KeyPairExt, RcgenEd25519KeyPair},
+    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
+};
 
 /// The "ephemeral issuing" CA cert derived from the root seed.
 /// The keypair is derived from the root seed.
@@ -87,13 +90,13 @@ impl EphemeralIssuingCaCert {
         &self,
     ) -> Result<LxCertificateDer, rcgen::Error> {
         self.cert_params
-            .self_signed(&self.key_pair)
+            .self_signed(&self.key_pair.rcgen())
             .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 
     /// [`rcgen::Issuer`] that can sign child certs.
-    fn issuer(&self) -> rcgen::Issuer<'_, &ed25519::KeyPair> {
-        rcgen::Issuer::from_params(&self.cert_params, &self.key_pair)
+    fn issuer(&self) -> rcgen::Issuer<'_, RcgenEd25519KeyPair<'_>> {
+        rcgen::Issuer::from_params(&self.cert_params, self.key_pair.rcgen())
     }
 }
 
@@ -138,7 +141,7 @@ impl EphemeralClientCert {
         ca_cert: &EphemeralIssuingCaCert,
     ) -> Result<LxCertificateDer, rcgen::Error> {
         self.cert_params
-            .signed_by(&self.key_pair, &ca_cert.issuer())
+            .signed_by(&self.key_pair.rcgen(), &ca_cert.issuer())
             .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 
@@ -197,7 +200,7 @@ impl EphemeralServerCert {
         ca_cert: &EphemeralIssuingCaCert,
     ) -> Result<LxCertificateDer, rcgen::Error> {
         self.cert_params
-            .signed_by(&self.key_pair, &ca_cert.issuer())
+            .signed_by(&self.key_pair.rcgen(), &ca_cert.issuer())
             .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 
@@ -244,13 +247,13 @@ impl RevocableIssuingCaCert {
         &self,
     ) -> Result<LxCertificateDer, rcgen::Error> {
         self.cert_params
-            .self_signed(&self.key_pair)
+            .self_signed(&self.key_pair.rcgen())
             .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 
     /// [`rcgen::Issuer`] that can sign child certs.
-    fn issuer(&self) -> rcgen::Issuer<'_, &ed25519::KeyPair> {
-        rcgen::Issuer::from_params(&self.cert_params, &self.key_pair)
+    fn issuer(&self) -> rcgen::Issuer<'_, RcgenEd25519KeyPair<'_>> {
+        rcgen::Issuer::from_params(&self.cert_params, self.key_pair.rcgen())
     }
 }
 
@@ -293,7 +296,7 @@ impl RevocableClientCert {
         ca_cert: &RevocableIssuingCaCert,
     ) -> Result<LxCertificateDer, rcgen::Error> {
         self.cert_params
-            .signed_by(&self.key_pair, &ca_cert.issuer())
+            .signed_by(&self.key_pair.rcgen(), &ca_cert.issuer())
             .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 

@@ -387,29 +387,6 @@ impl KeyPair {
     }
 }
 
-impl rcgen::SigningKey for KeyPair {
-    fn sign(&self, msg: &[u8]) -> Result<Vec<u8>, rcgen::Error> {
-        Ok(self.sign_raw(msg).0.to_vec())
-    }
-}
-
-// Forward impls to `ed25519::PublicKey`. This impl on the `KeyPair` lets us use
-// `cert_params.self_signed(&key_pair)`.
-impl rcgen::PublicKeyData for KeyPair {
-    #[inline]
-    fn der_bytes(&self) -> &[u8] {
-        self.public_key().der_bytes()
-    }
-    #[inline]
-    fn algorithm(&self) -> &'static rcgen::SignatureAlgorithm {
-        &rcgen::PKCS_ED25519
-    }
-    #[inline]
-    fn subject_public_key_info(&self) -> Vec<u8> {
-        self.public_key().subject_public_key_info()
-    }
-}
-
 impl fmt::Debug for KeyPair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ed25519::KeyPair")
@@ -480,16 +457,6 @@ impl PublicKey {
     ) -> Result<Signed<T>, Error> {
         let accept_self_signer = |signer| signer == self;
         verify_signed_struct(accept_self_signer, serialized)
-    }
-}
-
-impl rcgen::PublicKeyData for PublicKey {
-    fn der_bytes(&self) -> &[u8] {
-        self.as_slice()
-    }
-
-    fn algorithm(&self) -> &'static rcgen::SignatureAlgorithm {
-        &rcgen::PKCS_ED25519
     }
 }
 

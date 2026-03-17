@@ -13,7 +13,10 @@ use yasna::models::ObjectIdentifier;
 
 use super::quote::ReportData;
 use crate as tls;
-use crate::types::{LxCertificateDer, LxPrivatePkcs8KeyDer};
+use crate::{
+    ed25519_ext::Ed25519KeyPairExt,
+    types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
+};
 
 /// An x509 certificate containing remote attestation endorsements.
 pub struct AttestationCert {
@@ -104,7 +107,7 @@ impl AttestationCert {
         &self,
     ) -> Result<LxCertificateDer, rcgen::Error> {
         self.cert_params
-            .self_signed(&self.key_pair)
+            .self_signed(&self.key_pair.rcgen())
             .map(|cert| LxCertificateDer(cert.der().to_vec()))
     }
 

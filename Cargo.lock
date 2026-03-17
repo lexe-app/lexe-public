@@ -2640,7 +2640,6 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "rand_core 0.6.4",
- "rcgen",
  "ref-cast",
  "ring",
  "rust_decimal",

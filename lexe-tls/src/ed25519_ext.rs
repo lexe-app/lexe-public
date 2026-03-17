@@ -21,6 +21,10 @@ pub trait Ed25519KeyPairExt: Sized {
 
     /// Deserialize the [`ed25519::KeyPair`] from a PKCS#8 PEM string.
     fn deserialize_pkcs8_pem(pem: &[u8]) -> Result<Self, ed25519::Error>;
+
+    /// Returns a wrapper type that impls `rcgen` traits so you can use
+    /// this keypair with `rcgen`.
+    fn rcgen(&self) -> RcgenEd25519KeyPair<'_>;
 }
 
 pub trait Ed25519PublicKeyExt: Sized {
@@ -29,7 +33,15 @@ pub trait Ed25519PublicKeyExt: Sized {
     fn try_from_spki(
         spki: &x509::SubjectPublicKeyInfo<'_>,
     ) -> Result<Self, ed25519::Error>;
+
+    /// Returns a wrapper type that impls `rcgen` traits so you can use
+    /// this public key with `rcgen`.
+    fn rcgen(&self) -> RcgenEd25519PublicKey<'_>;
 }
+
+pub struct RcgenEd25519KeyPair<'a>(pub &'a ed25519::KeyPair);
+
+pub struct RcgenEd25519PublicKey<'a>(pub &'a ed25519::PublicKey);
 
 // --- impl Ed25519KeyPairExt --- //
 
@@ -54,6 +66,10 @@ impl Ed25519KeyPairExt for ed25519::KeyPair {
             .map_err(|_| ed25519::Error::KeyDeserializeError)?;
         ed25519::KeyPair::deserialize_pkcs8_der(der.secret_pkcs8_der())
     }
+
+    fn rcgen(&self) -> RcgenEd25519KeyPair<'_> {
+        RcgenEd25519KeyPair(self)
+    }
 }
 
 // --- impl Ed25519PublicKeyExt --- //
@@ -68,6 +84,46 @@ impl Ed25519PublicKeyExt for ed25519::PublicKey {
         }
 
         Self::try_from(spki.subject_public_key.as_ref())
+    }
+
+    fn rcgen(&self) -> RcgenEd25519PublicKey<'_> {
+        RcgenEd25519PublicKey(self)
+    }
+}
+
+// --- impl RcgenEd25519KeyPair --- //
+
+impl<'a> rcgen::SigningKey for RcgenEd25519KeyPair<'a> {
+    fn sign(&self, msg: &[u8]) -> Result<Vec<u8>, rcgen::Error> {
+        Ok(self.0.sign_raw(msg).as_slice().to_vec())
+    }
+}
+
+impl<'a> rcgen::PublicKeyData for RcgenEd25519KeyPair<'a> {
+    #[inline]
+    fn der_bytes(&self) -> &[u8] {
+        self.0.public_key().as_slice()
+    }
+    #[inline]
+    fn algorithm(&self) -> &'static rcgen::SignatureAlgorithm {
+        self.0.public_key().rcgen().algorithm()
+    }
+    #[inline]
+    fn subject_public_key_info(&self) -> Vec<u8> {
+        self.0.public_key().rcgen().subject_public_key_info()
+    }
+}
+
+// --- impl RcgenEd25519KeyPair --- //
+
+impl<'a> rcgen::PublicKeyData for RcgenEd25519PublicKey<'a> {
+    #[inline]
+    fn der_bytes(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+    #[inline]
+    fn algorithm(&self) -> &'static rcgen::SignatureAlgorithm {
+        &rcgen::PKCS_ED25519
     }
 }
 

@@ -109,6 +109,7 @@ mod test {
     use proptest::{arbitrary::any, proptest, test_runner::Config};
 
     use super::*;
+    use crate::ed25519_ext::Ed25519KeyPairExt;
 
     /// Generate a dummy Lexe CA cert along with its corresponding private key.
     fn gen_dummy_lexe_ca_cert() -> CertWithKey {
@@ -126,11 +127,13 @@ mod test {
             },
         );
 
-        let issuer =
-            rcgen::Issuer::from_params(&dummy_cert_params, &dummy_key_pair);
+        let issuer = rcgen::Issuer::from_params(
+            &dummy_cert_params,
+            dummy_key_pair.rcgen(),
+        );
 
         let dummy_cert = dummy_cert_params
-            .signed_by(&dummy_key_pair, &issuer)
+            .signed_by(&dummy_key_pair.rcgen(), &issuer)
             .unwrap();
         let dummy_cert_der = LxCertificateDer(dummy_cert.der().to_vec());
         let dummy_cert_key_der =
