@@ -1,5 +1,7 @@
-use lexe_common::ed25519;
-use lexe_crypto::rng::{RngExt, SysRng};
+use lexe_crypto::{
+    ed25519,
+    rng::{RngExt, SysRng},
+};
 use lexe_enclave_core::enclave;
 use lexe_hex::hex;
 use lexe_tls::attestation::{

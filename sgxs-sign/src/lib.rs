@@ -29,7 +29,6 @@ use std::fmt;
 
 use anyhow::{ensure, format_err};
 use lexe_byte_array::ByteArray;
-use lexe_common::Secret;
 use lexe_crypto::rng::{Crng, SysRng};
 use lexe_enclave_core::enclave;
 use lexe_hex::hex;
@@ -128,14 +127,12 @@ impl KeyPair {
             .and_then(Self::try_from_inner)
     }
 
-    pub fn serialize_pkcs8_der(&self) -> Secret<Vec<u8>> {
-        Secret::new(
-            self.inner
-                .to_pkcs8_der()
-                .expect("Failed to PKCS#8 DER-serialize RSA keypair")
-                .as_bytes()
-                .to_vec(),
-        )
+    pub fn serialize_pkcs8_der(&self) -> Vec<u8> {
+        self.inner
+            .to_pkcs8_der()
+            .expect("Failed to PKCS#8 DER-serialize RSA keypair")
+            .as_bytes()
+            .to_vec()
     }
 
     pub fn serialize_pubkey_pkcs8_der(&self) -> Vec<u8> {
@@ -344,8 +341,6 @@ impl fmt::Debug for StringError {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::ExposeSecret;
-
     use super::*;
 
     #[test]
@@ -383,8 +378,7 @@ mod test {
         let key_bytes_pkcs8 = key.serialize_pkcs8_der();
 
         let key_pkcs8 =
-            KeyPair::deserialize_pkcs8_der(key_bytes_pkcs8.expose_secret())
-                .unwrap();
+            KeyPair::deserialize_pkcs8_der(&key_bytes_pkcs8).unwrap();
 
         assert_eq!(key, key_pkcs8);
     }

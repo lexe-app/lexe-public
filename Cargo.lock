@@ -4591,7 +4591,6 @@ dependencies = [
 name = "sgx-test"
 version = "0.1.0"
 dependencies = [
- "lexe-common",
  "lexe-crypto",
  "lexe-enclave-core",
  "lexe-hex",
@@ -4640,7 +4639,6 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "lexe-byte-array",
- "lexe-common",
  "lexe-crypto",
  "lexe-enclave-core",
  "lexe-hex",
