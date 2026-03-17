@@ -8,19 +8,19 @@ use lexe_common::{
     ExposeSecret, root_seed::RootSeed as UnstableRootSeed,
 };
 use lexe_crypto::rng::SysRng;
+use lexe_enclave::enclave::Measurement as UnstableMeasurement;
 use lexe_node_client::credentials::{
     ClientCredentials as UnstableClientCredentials,
     CredentialsRef as UnstableCredentialsRef,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{config::WalletEnv, hex};
+use crate::{ByteArray, config::WalletEnv, hex};
 
 /// Re-exports that are part of the SDK's public API.
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
 mod reexports {
     pub use lexe_common::api::user::{NodePk, UserPk};
-    pub use lexe_enclave::enclave::Measurement;
 }
 pub use reexports::*;
 
@@ -315,5 +315,100 @@ impl FromStr for ClientCredentials {
 impl fmt::Display for ClientCredentials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.unstable().to_base64_blob())
+    }
+}
+
+// --- Measurement --- //
+
+/// An SGX enclave measurement (MRENCLAVE).
+///
+/// This is the hash of the enclave binary, used to verify that a node is
+/// running a specific version. Returned in
+/// [`NodeInfo`](super::command::NodeInfo).
+///
+/// The measurement is a 32-byte value typically represented as a 64-character
+/// hex string.
+///
+/// Implements [`ByteArray<32>`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Measurement(UnstableMeasurement);
+
+impl ByteArray<32> for Measurement {
+    fn from_array(array: [u8; 32]) -> Self {
+        Self(UnstableMeasurement::from_array(array))
+    }
+    fn to_array(&self) -> [u8; 32] {
+        self.0.to_array()
+    }
+    fn as_array(&self) -> &[u8; 32] {
+        self.0.as_array()
+    }
+}
+
+impl AsRef<[u8]> for Measurement {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_array().as_slice()
+    }
+}
+
+impl AsRef<[u8; 32]> for Measurement {
+    fn as_ref(&self) -> &[u8; 32] {
+        self.0.as_array()
+    }
+}
+
+impl Measurement {
+    /// Destructure this SDK type into the internal type.
+    #[cfg(feature = "unstable")]
+    pub fn unstable(self) -> UnstableMeasurement {
+        self.0
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Wraps an internal type into this SDK type.
+            pub fn from_unstable(inner: UnstableMeasurement) -> Self {
+                Self(inner)
+            }
+        } else {
+            pub(crate) fn from_unstable(inner: UnstableMeasurement) -> Self {
+                Self(inner)
+            }
+        }
+    }
+}
+
+impl fmt::Debug for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl fmt::Display for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for Measurement {
+    type Err = <UnstableMeasurement as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        UnstableMeasurement::from_str(s).map(Self)
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl From<UnstableMeasurement> for Measurement {
+    fn from(inner: UnstableMeasurement) -> Self {
+        Self(inner)
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl From<Measurement> for UnstableMeasurement {
+    fn from(outer: Measurement) -> Self {
+        outer.0
     }
 }

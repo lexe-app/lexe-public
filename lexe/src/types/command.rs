@@ -17,7 +17,7 @@ use lexe_common::{
 use lexe_enclave::enclave;
 use serde::{Deserialize, Serialize};
 
-use crate::types::payment::Payment;
+use crate::types::{auth::Measurement, payment::Payment};
 
 /// Information about a Lexe node.
 // Simple version of `lexe_api::models::command::NodeInfo`.
@@ -27,7 +27,7 @@ pub struct NodeInfo {
     pub version: semver::Version,
     /// The hex-encoded SGX 'measurement' of the current node.
     /// The measurement is the hash of the enclave binary.
-    pub measurement: enclave::Measurement,
+    pub measurement: Measurement,
     /// The hex-encoded ed25519 user public key used to identify a Lexe user.
     /// The user keypair is derived from the root seed.
     pub user_pk: UserPk,
@@ -80,7 +80,7 @@ impl From<command::NodeInfo> for NodeInfo {
 
         Self {
             version: info.version,
-            measurement: info.measurement,
+            measurement: Measurement::from_unstable(info.measurement),
             user_pk: info.user_pk,
             node_pk: info.node_pk,
 
