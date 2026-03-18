@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
 mod reexports {
     pub use lexe_api::types::payments::{
-        PaymentCreatedIndex, PaymentDirection, PaymentHash, PaymentId,
-        PaymentKind, PaymentRail, PaymentSecret, PaymentStatus,
-        PaymentUpdatedIndex,
+        ClientPaymentId, LnClaimId, PaymentCreatedIndex, PaymentDirection,
+        PaymentHash, PaymentId, PaymentKind, PaymentRail, PaymentSecret,
+        PaymentStatus, PaymentUpdatedIndex,
     };
 }
 pub use reexports::*;
