@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::Context;
-use lexe_common::{env::DeployEnv, ln::network::Network};
+pub use lexe_common::{env::DeployEnv, ln::network::Network};
 
 use crate::{
     types::auth::{CredentialsRef, UserPk},
