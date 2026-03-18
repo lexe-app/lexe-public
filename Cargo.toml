@@ -38,14 +38,18 @@ members = [
 [workspace.package]
 authors = [
     "Max Fang <max@lexe.app>",
-    "Philip Hayes <philip@lexe.app>"
+    "Philip Hayes <philip@lexe.app>",
 ]
 edition = "2024"
-license = "PolyForm-Noncommercial-1.0.0"
 # This is just a default version which can be inherited by workspace members
 # that don't actually need semver versioning. Crates that require versioning
 # will specify their version in their Cargo.toml as usual.
 version = "0.0.0"
+
+# --- LICENSE --- #
+# All crates are licensed on a crate-by-crate basis:
+# - Crates that the SDKs depend on are `license = "MIT"`.
+# - All other crates are `license = "PolyForm-Noncommercial-1.0.0"`.
 
 [workspace.dependencies]
 # Use this section to declare dependencies used across multiple lexe crates.
