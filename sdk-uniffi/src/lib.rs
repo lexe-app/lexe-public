@@ -36,6 +36,7 @@ use lexe_api_core::{
     types::{
         invoice::Invoice as InvoiceRs,
         payments::{
+            ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
             PaymentKind as PaymentKindRs, PaymentRail as PaymentRailRs,
@@ -1499,6 +1500,36 @@ impl BlockingLexeWallet {
 // ================ //
 // --- Payments --- //
 // ================ //
+
+/// A unique, client-generated id for payment types (onchain send,
+/// ln spontaneous send) that need an extra id for idempotency.
+///
+/// Its primary purpose is to prevent accidental double payments.
+#[derive(uniffi::Object)]
+pub struct ClientPaymentId {
+    inner: ClientPaymentIdRs,
+}
+
+#[uniffi::export]
+impl ClientPaymentId {
+    /// Generate a random [`ClientPaymentId`].
+    #[uniffi::constructor]
+    pub fn generate() -> Arc<Self> {
+        Arc::new(Self {
+            inner: ClientPaymentIdRs::generate(),
+        })
+    }
+
+    /// Return the 32-byte id.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.inner.0.to_vec()
+    }
+
+    /// Encode the id as a 64-character hex string.
+    pub fn to_hex(&self) -> String {
+        self.inner.to_string()
+    }
+}
 
 /// Confirmation priority for on-chain sends.
 #[derive(Clone, uniffi::Enum)]
