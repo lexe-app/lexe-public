@@ -11,7 +11,7 @@ use x509_parser::{
     certificate::X509Certificate, extensions::GeneralName, time::ASN1Time,
 };
 
-/// (m)TLS based on SGX remote attestation.
+/// mTLS clients for verifying SGX remote attestations.
 pub mod attestation;
 /// ed25519 key pair extension trait (PEM ser/de).
 pub mod ed25519_ext;

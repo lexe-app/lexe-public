@@ -33,7 +33,7 @@ use lexe_common::{
 };
 use lexe_crypto::rng::{Crng, SysRng};
 use lexe_enclave_core::enclave;
-use lexe_tls::attestation::{self, NodeMode};
+use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{
     notify_once::NotifyOnce,
     task::{self, LxTask},
@@ -99,7 +99,7 @@ impl ProvisionInstance {
         // Create a backend client for provisioning
         let measurement = mega_ctx.measurement;
         let mr_short = measurement.short();
-        let node_mode = NodeMode::Provision { mr_short };
+        let node_mode = tls_attest::NodeMode::Provision { mr_short };
         let backend_client = NodeBackendClient::new(
             rng,
             mega_ctx.untrusted_deploy_env,
@@ -132,7 +132,7 @@ impl ProvisionInstance {
             .context("Couldn't get app addr")?
             .port();
         let (app_tls_config, app_dns) =
-            attestation::app_node_provision_server_config(rng, &measurement)
+            tls_attest::app_node_provision_server_config(rng, &measurement)
                 .context("Failed to build TLS config for provisioning")?;
         let (app_server_task, _app_url) =
             server::spawn_server_task_with_listener(

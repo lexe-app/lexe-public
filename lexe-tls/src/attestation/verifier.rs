@@ -30,9 +30,8 @@ use rustls::{
 };
 use x509_parser::certificate::X509Certificate;
 
-use super::quote::ReportData;
 use crate::{
-    attestation::cert::SgxAttestationExtension,
+    attestation::{cert::SgxAttestationExtension, quote::ReportData},
     ed25519_ext::Ed25519PublicKeyExt,
 };
 
@@ -771,11 +770,12 @@ fn rustls_err(s: impl Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::{include_str, time::Duration};
+    use std::include_str;
 
     use super::*;
 
-    // These two consts can be regenerated (in SGX) using [`dump_attest_cert`].
+    // These two consts can be regenerated (in SGX) using
+    // `lexe_tls_attest_server::cert::test::dump_attest_cert`.
     const SGX_SERVER_CERT_PEM: &str =
         include_str!("../../test_data/attest_cert.pem");
     const SERVER_MRENCLAVE: Measurement = Measurement::new(hex::decode_const(
@@ -848,77 +848,5 @@ mod test {
                 UnixTime::now(),
             )
             .unwrap();
-    }
-
-    // SGX generates a real quote
-    #[cfg(not(target_env = "sgx"))]
-    #[test]
-    fn test_verify_dummy_server_cert() {
-        use lexe_crypto::rng::FastRng;
-
-        use crate::attestation::cert::AttestationCert;
-
-        let mut rng = FastRng::new();
-        let dns_name = "run.lexe.app".to_owned();
-        let lifetime = Duration::from_secs(60);
-
-        let cert = AttestationCert::generate(&mut rng, &[&dns_name], lifetime)
-            .unwrap();
-        let cert_der = cert.serialize_der_self_signed().unwrap();
-
-        let verifier = AttestationCertVerifier {
-            expect_dummy_quote: true,
-            enclave_policy: EnclavePolicy::dangerous_trust_any(),
-        };
-
-        let intermediates = &[];
-        let ocsp_response = &[];
-
-        verifier
-            .verify_server_cert(
-                &cert_der.into(),
-                intermediates,
-                &ServerName::try_from(dns_name.as_str()).unwrap(),
-                ocsp_response,
-                UnixTime::now(),
-            )
-            .unwrap();
-    }
-
-    /// Dump fresh attestation cert (intended for SGX only):
-    ///
-    /// ```bash
-    /// cargo test -p lexe-common --target=x86_64-fortanix-unknown-sgx dump_attest_cert -- --ignored --show-output
-    /// ```
-    #[test]
-    #[cfg(target_env = "sgx")]
-    #[ignore]
-    fn dump_attest_cert() {
-        use base64::Engine;
-        use lexe_crypto::rng::FastRng;
-        use lexe_enclave_core::enclave;
-
-        use crate::attestation::cert::AttestationCert;
-
-        let mut rng = FastRng::new();
-        let dns_name = "localhost".to_owned();
-        // Use a long lifetime so the test won't fail just bc the cert expired
-        let lifetime = Duration::from_secs(60 * 60 * 24 * 365 * 1000);
-
-        let attest_cert =
-            AttestationCert::generate(&mut rng, &[&dns_name], lifetime)
-                .unwrap();
-
-        println!("measurement: '{}'", enclave::measurement());
-        println!("Set `SERVER_MRENCLAVE` to this value.");
-
-        let cert_der = attest_cert.serialize_der_self_signed().unwrap();
-        let cert_base64 = base64::engine::general_purpose::STANDARD
-            .encode(cert_der.as_slice());
-
-        println!("attestation certificate:");
-        println!("-----BEGIN CERTIFICATE-----");
-        println!("{cert_base64}");
-        println!("-----END CERTIFICATE-----");
     }
 }

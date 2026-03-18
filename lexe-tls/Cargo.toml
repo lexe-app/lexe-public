@@ -64,12 +64,6 @@ proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
 tokio-rustls = { optional = true, workspace = true }
 
-[target.'cfg(target_env = "sgx")'.dependencies]
-aes = { workspace = true }
-aesm-client = { workspace = true }
-bytemuck = { workspace = true }
-cmac = { workspace = true }
-
 [dev-dependencies]
 lexe-common = { path = "../lexe-common", features = ["test-utils"] }
 lexe-crypto = { path = "../lexe-crypto", features = ["test-utils"] }

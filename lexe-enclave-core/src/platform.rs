@@ -58,7 +58,7 @@ pub fn report() -> &'static sgx_isa::Report {
                     isvprodid: 0u16,
                     isvsvn: 0u16,
                     _reserved4: [0; 60],
-                    // This field is newtyped in `tls::attestation::quote`.
+                    // This is newtyped in `lexe_tls_attest_server::quote`
                     reportdata: [0; 64],
                     keyid: MACHINE_ID_KEY_ID,
                     mac: [0; 16],

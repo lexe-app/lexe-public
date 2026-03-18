@@ -51,7 +51,7 @@ use lexe_common::{
 };
 use lexe_crypto::{ed25519, rng::Crng};
 use lexe_enclave_core::enclave::Measurement;
-use lexe_tls::attestation::{self, NodeMode};
+use lexe_tls_attest_server as tls_attest;
 use lightning::events::Event;
 
 /// The user agent string for external requests.
@@ -67,11 +67,11 @@ impl RunnerClient {
     pub(crate) fn new(
         rng: &mut impl Crng,
         deploy_env: DeployEnv,
-        node_mode: NodeMode,
+        node_mode: tls_attest::NodeMode,
         runner_url: String,
     ) -> anyhow::Result<Self> {
         let tls_config =
-            attestation::node_lexe_client_config(rng, deploy_env, node_mode)
+            tls_attest::node_lexe_client_config(rng, deploy_env, node_mode)
                 .context("Failed to build Node->Lexe client TLS config")?;
         let rest = RestClient::new("node", "runner", tls_config);
         Ok(Self { rest, runner_url })
@@ -148,11 +148,11 @@ impl NodeLspClient {
     pub(crate) fn new(
         rng: &mut impl Crng,
         deploy_env: DeployEnv,
-        node_mode: NodeMode,
+        node_mode: tls_attest::NodeMode,
         lsp_url: String,
     ) -> anyhow::Result<Self> {
         let tls_config =
-            attestation::node_lexe_client_config(rng, deploy_env, node_mode)
+            tls_attest::node_lexe_client_config(rng, deploy_env, node_mode)
                 .context("Failed to build Node->Lexe client TLS config")?;
         let rest = RestClient::new("node", "lsp", tls_config);
 
@@ -201,11 +201,11 @@ impl NodeBackendClient {
     pub(crate) fn new(
         rng: &mut impl Crng,
         deploy_env: DeployEnv,
-        node_mode: NodeMode,
+        node_mode: tls_attest::NodeMode,
         backend_url: String,
     ) -> anyhow::Result<Self> {
         let tls_config =
-            attestation::node_lexe_client_config(rng, deploy_env, node_mode)
+            tls_attest::node_lexe_client_config(rng, deploy_env, node_mode)
                 .context("Failed to build Node->Lexe client TLS config")?;
 
         let rest = RestClient::new("node", "backend", tls_config);

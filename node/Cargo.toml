@@ -61,6 +61,7 @@ lexe-hex = { path = "../lexe-hex" }
 lexe-ln = { path = "../lexe-ln" }
 lexe-std = { path = "../lexe-std" }
 lexe-tls = { path = "../lexe-tls" }
+lexe-tls-attest-server = { path = "../lexe-tls-attest-server" }
 lexe-tokio = { path = "../lexe-tokio" }
 
 # --- WORKSPACE --- #

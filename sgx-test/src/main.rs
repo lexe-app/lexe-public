@@ -4,10 +4,8 @@ use lexe_crypto::{
 };
 use lexe_enclave_core::enclave;
 use lexe_hex::hex;
-use lexe_tls::attestation::{
-    self,
-    verifier::{EnclavePolicy, SgxQuoteVerifier},
-};
+use lexe_tls::attestation::verifier::{EnclavePolicy, SgxQuoteVerifier};
+use lexe_tls_attest_server::quote;
 
 const HELP: &str = r#"
 sgx-test [OPTIONS] [TEST]
@@ -82,7 +80,7 @@ fn test_sgx() {
     let pubkey = ed25519::PublicKey::new([69; 32]);
     println!("fake pubkey we're attesting to: {pubkey}");
 
-    let evidence = attestation::quote::quote_enclave(&mut rng, &pubkey)
+    let evidence = quote::quote_enclave(&mut rng, &pubkey)
         .expect("Failed to produce remote attestation");
 
     println!("SGX DER-serialized evidence:");

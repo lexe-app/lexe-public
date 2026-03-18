@@ -2866,13 +2866,9 @@ dependencies = [
 name = "lexe-tls"
 version = "0.0.0"
 dependencies = [
- "aes",
- "aesm-client",
  "anyhow",
  "asn1-rs",
  "base64 0.21.7",
- "bytemuck",
- "cmac",
  "dcap-ql",
  "lexe-byte-array",
  "lexe-common",
@@ -2899,6 +2895,29 @@ dependencies = [
  "webpki-roots",
  "x509-parser",
  "yasna",
+]
+
+[[package]]
+name = "lexe-tls-attest-server"
+version = "0.0.0"
+dependencies = [
+ "aes",
+ "aesm-client",
+ "anyhow",
+ "bytemuck",
+ "cmac",
+ "lexe-common",
+ "lexe-crypto",
+ "lexe-enclave-core",
+ "lexe-hex",
+ "lexe-sha256",
+ "lexe-tls",
+ "lexe-tls-core",
+ "rcgen",
+ "rustls",
+ "sgx-isa",
+ "time",
+ "tokio",
 ]
 
 [[package]]
@@ -3207,6 +3226,7 @@ dependencies = [
  "lexe-ln",
  "lexe-std",
  "lexe-tls",
+ "lexe-tls-attest-server",
  "lexe-tokio",
  "lightning",
  "lightning-transaction-sync",
@@ -4605,6 +4625,7 @@ dependencies = [
  "lexe-enclave-core",
  "lexe-hex",
  "lexe-tls",
+ "lexe-tls-attest-server",
 ]
 
 [[package]]

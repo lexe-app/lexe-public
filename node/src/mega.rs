@@ -4,7 +4,7 @@ use lexe_api::{
 };
 use lexe_common::{constants, time::TimestampMs};
 use lexe_crypto::rng::Crng;
-use lexe_tls::attestation::NodeMode;
+use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{notify_once::NotifyOnce, task};
 use tokio::sync::mpsc;
 
@@ -86,7 +86,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         // TODO(max): This deploy env doesn't secure anything dangerous, but we
         // should still find a way to validate the untrusted deploy env.
         args.untrusted_deploy_env,
-        NodeMode::Mega { mr_short },
+        tls_attest::NodeMode::Mega { mr_short },
         args.runner_url.clone(),
     )
     .context("Couldn't init runner client")?;

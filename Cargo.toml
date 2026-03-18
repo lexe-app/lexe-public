@@ -22,6 +22,7 @@ members = [
     "lexe-sha256",
     "lexe-std",
     "lexe-tls",
+    "lexe-tls-attest-server",
     "lexe-tls-core",
     "lexe-tokio",
     "node",

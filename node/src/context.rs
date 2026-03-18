@@ -18,7 +18,7 @@ use lexe_ln::{
     esplora::{self, FeeEstimates, LexeEsplora},
     logger::LexeTracingLogger,
 };
-use lexe_tls::attestation::NodeMode;
+use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::util::{config::UserConfig, ser::ReadableArgs};
 use tokio::sync::{mpsc, oneshot};
@@ -85,7 +85,7 @@ pub(crate) struct MegaContext {
 }
 
 impl MegaContext {
-    const NODE_MODE: NodeMode = NodeMode::Run;
+    const NODE_MODE: tls_attest::NodeMode = tls_attest::NodeMode::Run;
 
     /// Creates a [`MegaContext`]; also returns spawned `static_tasks`.
     ///
