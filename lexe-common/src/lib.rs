@@ -16,7 +16,7 @@ use anyhow::anyhow;
 // Some re-exports to prevent having to re-declare dependencies
 pub use lexe_byte_array::ByteArray;
 // TODO(phlip9): remove re-exports
-pub use lexe_crypto::{aes, ed25519};
+pub use lexe_crypto::{aes, ed25519, password};
 pub use ref_cast::RefCast;
 pub use secrecy::{ExposeSecret, Secret};
 
@@ -36,8 +36,6 @@ pub mod ln;
 pub mod net;
 /// `OrEnvExt` utility trait.
 pub mod or_env;
-/// Password-based encryption for arbitrary bytes.
-pub mod password;
 /// Types related to `releases.json`.
 pub mod releases;
 /// Random number generation.

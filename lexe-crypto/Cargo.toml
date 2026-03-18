@@ -36,6 +36,7 @@ rand_core = { workspace = true }
 ref-cast = { workspace = true }
 ring = { workspace = true }
 serde_core = { workspace = true }
+zeroize = { workspace = true }
 
 # --- OPTIONAL --- #
 

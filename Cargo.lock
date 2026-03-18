@@ -2677,6 +2677,7 @@ dependencies = [
  "serde",
  "serde_core",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

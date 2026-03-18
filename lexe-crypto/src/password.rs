@@ -18,14 +18,15 @@
 //! The main entrypoints to this module are [`password::encrypt`] and
 //! [`password::decrypt`]. See the respective function docs for details.
 
-use std::num::NonZeroU32;
+use std::{fmt, num::NonZeroU32};
 
-use lexe_crypto::rng::Crng;
 use ring::pbkdf2;
-use secrecy::Zeroize;
-use thiserror::Error;
+use zeroize::Zeroize;
 
-use crate::aes::{self, AesMasterKey};
+use crate::{
+    aes::{self, AesMasterKey},
+    rng::Crng,
+};
 
 /// The specific algorithm used for our password encryption scheme.
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
@@ -45,14 +46,33 @@ pub const MIN_PASSWORD_LENGTH: usize = 12;
 pub const MAX_PASSWORD_LENGTH: usize = 512;
 lexe_std::const_assert!(MIN_PASSWORD_LENGTH < MAX_PASSWORD_LENGTH);
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug)]
 pub enum Error {
-    #[error("Password must have at least {MIN_PASSWORD_LENGTH} characters")]
     PasswordTooShort,
-    #[error("Password cannot have more than {MAX_PASSWORD_LENGTH} characters")]
     PasswordTooLong,
-    #[error("Decryption error: {0}")]
-    AesDecrypt(#[from] aes::DecryptError),
+    AesDecrypt(aes::DecryptError),
+}
+
+impl std::error::Error for Error {}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::PasswordTooShort => write!(
+                f,
+                "Password must have at least {MIN_PASSWORD_LENGTH} characters"
+            ),
+            Self::PasswordTooLong => write!(
+                f,
+                "Password cannot have more than {MAX_PASSWORD_LENGTH} characters"
+            ),
+            Self::AesDecrypt(err) => err.fmt(f),
+        }
+    }
+}
+impl From<aes::DecryptError> for Error {
+    fn from(err: aes::DecryptError) -> Self {
+        Self::AesDecrypt(err)
+    }
 }
 
 /// Password-encrypt some binary `data` to a [`Vec<u8>`] ciphertext.
@@ -148,17 +168,13 @@ fn derive_aes_key(password: &str, salt: &[u8; 32]) -> AesMasterKey {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
-
-    use lexe_crypto::rng::FastRng;
     use lexe_hex::hex;
     use proptest::{
         arbitrary::any, proptest, strategy::Strategy, test_runner::Config,
     };
-    use secrecy::ExposeSecret;
 
     use super::*;
-    use crate::root_seed::RootSeed;
+    use crate::rng::FastRng;
 
     #[test]
     fn encryption_roundtrip() {
@@ -249,28 +265,5 @@ mod test {
                 }
             }
         }
-    }
-
-    // ```bash
-    // $ nix shell .#secretctl
-    // $ PASSWORD=".." IN_PATH=".." \
-    //     cargo test -p lexe-common --lib -- test_decrypt_root_seed --nocapture --ignored
-    // ```
-    #[test]
-    #[ignore]
-    fn test_decrypt_root_seed() {
-        let password = std::env::var("PASSWORD").expect("`$PASSWORD` not set");
-        let in_path = std::env::var_os("IN_PATH").expect("`$IN_PATH` not set");
-        let in_path = Path::new(&in_path);
-
-        let ciphertext = std::fs::read(in_path).unwrap();
-        let root_seed = RootSeed::password_decrypt(&password, ciphertext)
-            .expect("Failed to decrypt");
-
-        let root_seed_bytes = root_seed.expose_secret().as_slice();
-        let mut root_seed_hex = hex::encode(root_seed_bytes);
-        println!("{root_seed_hex}");
-
-        root_seed_hex.zeroize();
     }
 }

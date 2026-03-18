@@ -210,6 +210,8 @@ webpki-roots = "1"
 x509-parser = { version = "0.18", default-features = false }
 # For constructing/parsing ASN.1 data in x509 certs
 yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
+# Zeroize secrets in memory
+zeroize = { version = "1", default-features = false, features = [] }
 
 # --- PATCHED DEPENDENCIES --- #
 # Use this section to declare patched dependencies.
