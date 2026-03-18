@@ -69,7 +69,7 @@ use lexe_enclave::enclave::Measurement;
 use lightning::events::Event;
 
 #[cfg(doc)]
-use crate::types::payments::{LxPaymentId, PaymentCreatedIndex};
+use crate::types::payments::{PaymentCreatedIndex, PaymentId};
 use crate::{
     error::{
         BackendApiError, GatewayApiError, LspApiError, MegaApiError,
@@ -82,17 +82,18 @@ use crate::{
             CreateOfferResponse, EnclavesToProvisionRequest,
             GetAddressResponse, GetGeneratedUsernameResponse, GetNewPayments,
             GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanBitcoinAddress,
-            ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-            PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, ResyncRequest, SetupGDrive,
-            UpdateHumanBitcoinAddress, UpdatePaymentNote, VecLxPaymentId,
+            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, PaymentIdStruct,
+            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
+            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOfferRequest, PreflightPayOfferResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            ResyncRequest, SetupGDrive, UpdateHumanBitcoinAddress,
+            UpdatePaymentNote, VecPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -349,12 +350,12 @@ pub trait AppNodeRunApi {
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
 
-    /// GET /app/v1/payments/id [`LxPaymentIdStruct`] -> [`MaybeBasicPaymentV2`]
+    /// GET /app/v1/payments/id [`PaymentIdStruct`] -> [`MaybeBasicPaymentV2`]
     //
     // Added in `node-v0.8.10`.
     async fn get_payment_by_id(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
     ) -> Result<MaybeBasicPaymentV2, NodeApiError>;
 
     /// POST /app/payments/indexes [`PaymentCreatedIndexes`]
@@ -789,18 +790,18 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/payments/id [`LxPaymentIdStruct`] -> [`MaybeDbPaymentV1`]
+    /// GET /node/v1/payments/id [`PaymentIdStruct`] -> [`MaybeDbPaymentV1`]
     #[deprecated(note = "since node-v0.8.10: Use get_payment_by_id instead")]
     async fn get_payment_by_id_v1(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV1, BackendApiError>;
 
-    /// GET /node/v2/payments/id [`LxPaymentIdStruct`] -> [`MaybeDbPaymentV2`]
+    /// GET /node/v2/payments/id [`PaymentIdStruct`] -> [`MaybeDbPaymentV2`]
     async fn get_payment_by_id(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV2, BackendApiError>;
 
@@ -849,16 +850,16 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV1, BackendApiError>;
 
-    /// POST /node/v1/payments/ids [`VecLxPaymentId`]
+    /// POST /node/v1/payments/ids [`VecPaymentId`]
     ///                         -> [`VecDbPaymentV2`]
     ///
-    /// Fetch a batch of payments by their [`LxPaymentId`]s.
+    /// Fetch a batch of payments by their [`PaymentId`]s.
     //
     // We use POST because there may be a lot of ids,
     // which might be too large to fit inside query params.
     async fn get_payments_by_ids(
         &self,
-        req: VecLxPaymentId,
+        req: VecPaymentId,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError>;
 
@@ -904,14 +905,14 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError>;
 
-    /// GET /node/v1/payments/final -> [`VecLxPaymentId`]
+    /// GET /node/v1/payments/final -> [`VecPaymentId`]
     ///
     /// Fetches the IDs of all finalized payments.
     #[deprecated(note = "since node-v0.8.8")]
     async fn get_finalized_payment_ids(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<VecLxPaymentId, BackendApiError>;
+    ) -> Result<VecPaymentId, BackendApiError>;
 
     /// PUT /node/v1/payments/metadata [`DbPaymentMetadata`] -> [`Empty`]
     async fn upsert_payment_metadata(
@@ -930,26 +931,26 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/payments/metadata/id [`LxPaymentIdStruct`]
+    /// GET /node/v1/payments/metadata/id [`PaymentIdStruct`]
     ///                                -> [`MaybeDbPaymentMetadata`]
     ///
-    /// Fetch a payment metadata by its [`LxPaymentId`].
+    /// Fetch a payment metadata by its [`PaymentId`].
     async fn get_payment_metadata_by_id(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
         token: BearerAuthToken,
     ) -> Result<MaybeDbPaymentMetadata, BackendApiError>;
 
-    /// POST /node/v1/payments/metadata/ids [`VecLxPaymentId`]
+    /// POST /node/v1/payments/metadata/ids [`VecPaymentId`]
     ///                                  -> [`VecDbPaymentMetadata`]
     ///
-    /// Fetch a batch of payment metadata by their [`LxPaymentId`]s.
+    /// Fetch a batch of payment metadata by their [`PaymentId`]s.
     //
     // We use POST because there may be a lot of ids,
     // which might be too large to fit inside query params.
     async fn get_payment_metadata_by_ids(
         &self,
-        req: VecLxPaymentId,
+        req: VecPaymentId,
         token: BearerAuthToken,
     ) -> Result<VecDbPaymentMetadata, BackendApiError>;
 

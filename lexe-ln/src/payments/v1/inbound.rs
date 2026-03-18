@@ -2,10 +2,10 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::Context;
 use lexe_api::types::{
-    invoice::LxInvoice,
+    invoice::Invoice,
     payments::{
-        LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        LxPaymentSecret, PaymentKind,
+        LnClaimId, LxOfferId, PaymentHash, PaymentId, PaymentKind,
+        PaymentPreimage, PaymentSecret,
     },
 };
 #[cfg(test)]
@@ -39,19 +39,19 @@ use crate::payments::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundInvoicePaymentV1 {
     /// Created in [`create_invoice`].
-    pub invoice: Arc<LxInvoice>,
+    pub invoice: Arc<Invoice>,
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
     /// [`create_invoice`].
-    pub hash: LxPaymentHash,
+    pub hash: PaymentHash,
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
     /// [`create_invoice`].
-    pub secret: LxPaymentSecret,
+    pub secret: PaymentSecret,
     /// Returned by:
     /// - the call to [`ChannelManager::get_payment_preimage`] inside
     ///   [`create_invoice`].
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimable`] event.
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimed`] event.
-    pub preimage: LxPaymentPreimage,
+    pub preimage: PaymentPreimage,
     /// Contained in:
     /// - the [`PaymentClaimable`] and [`PaymentClaimed`] events.
     ///
@@ -89,8 +89,8 @@ pub struct InboundInvoicePaymentV1 {
 
 impl InboundInvoicePaymentV1 {
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::Lightning(self.hash)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::Lightning(self.hash)
     }
 }
 
@@ -208,7 +208,7 @@ pub struct InboundOfferReusablePaymentV1 {
     /// times.
     pub offer_id: LxOfferId,
     /// The payment preimage for this offer payment.
-    pub preimage: LxPaymentPreimage,
+    pub preimage: PaymentPreimage,
     /// The amount we received for this payment.
     pub amount: Amount,
     // TODO(phlip9): impl
@@ -237,8 +237,8 @@ pub struct InboundOfferReusablePaymentV1 {
 
 impl InboundOfferReusablePaymentV1 {
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OfferRecvReusable(self.claim_id)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::OfferRecvReusable(self.claim_id)
     }
 }
 
@@ -335,9 +335,9 @@ impl TryFrom<PaymentWithMetadata<InboundOfferReusablePaymentV2>>
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundSpontaneousPaymentV1 {
     /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].
-    pub hash: LxPaymentHash,
+    pub hash: PaymentHash,
     /// Given by [`PaymentPurpose`].
-    pub preimage: LxPaymentPreimage,
+    pub preimage: PaymentPreimage,
     /// The amount received in this payment.
     pub amount: Amount,
     /// The amount we paid in on-chain fees (possibly arising from receiving
@@ -358,8 +358,8 @@ pub struct InboundSpontaneousPaymentV1 {
 
 impl InboundSpontaneousPaymentV1 {
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::Lightning(self.hash)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::Lightning(self.hash)
     }
 }
 
@@ -448,7 +448,7 @@ mod arb {
     use arbitrary::{any_duration, any_option_simple_string};
     use lexe_api::types::{
         offer::MaxQuantity,
-        payments::{LxPaymentPreimage, PaymentStatus},
+        payments::{PaymentPreimage, PaymentStatus},
     };
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
@@ -463,8 +463,8 @@ mod arb {
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             (
-                any::<LxInvoice>(),
-                any::<LxPaymentPreimage>(),
+                any::<Invoice>(),
+                any::<PaymentPreimage>(),
                 any::<Option<LnClaimId>>(),
                 any::<Option<Amount>>(),
                 any::<Option<Amount>>(),
@@ -511,7 +511,7 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
-            let preimage = any::<LxPaymentPreimage>();
+            let preimage = any::<PaymentPreimage>();
             let claim_id = any::<LnClaimId>();
             let offer_id = any::<LxOfferId>();
             let amount = any::<Amount>();
@@ -589,7 +589,7 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
-            let preimage = any::<LxPaymentPreimage>();
+            let preimage = any::<PaymentPreimage>();
             let amount = any::<Amount>();
             let status =
                 any_with::<InboundSpontaneousPaymentStatus>(pending_only);

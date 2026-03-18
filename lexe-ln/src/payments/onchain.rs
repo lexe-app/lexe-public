@@ -6,11 +6,11 @@ use lexe_api::{
     models::command::PayOnchainRequest,
     types::{
         bounded_note::BoundedNote,
-        payments::{ClientPaymentId, LxPaymentId, PaymentKind, PaymentRail},
+        payments::{ClientPaymentId, PaymentId, PaymentKind, PaymentRail},
     },
 };
 use lexe_common::{
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::Txid},
     time::TimestampMs,
 };
 #[cfg(test)]
@@ -32,7 +32,7 @@ pub(crate) const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OnchainSendV2 {
     pub cid: ClientPaymentId,
-    pub txid: LxTxid,
+    pub txid: Txid,
 
     pub kind: PaymentKind,
 
@@ -120,7 +120,7 @@ impl OnchainSendV2 {
         } = req;
         let note = note.map(BoundedNote::into_inner);
 
-        let txid = LxTxid(tx.compute_txid());
+        let txid = Txid(tx.compute_txid());
         let os = Self {
             cid,
             txid,
@@ -154,16 +154,13 @@ impl OnchainSendV2 {
     }
 
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OnchainSend(self.cid)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::OnchainSend(self.cid)
     }
 
     // Event sources:
     // - `pay_onchain` API
-    pub fn broadcasted(
-        &self,
-        broadcasted_txid: &LxTxid,
-    ) -> anyhow::Result<Self> {
+    pub fn broadcasted(&self, broadcasted_txid: &Txid) -> anyhow::Result<Self> {
         use OnchainSendStatus::*;
 
         ensure!(broadcasted_txid == &self.txid, "Txids don't match");
@@ -285,7 +282,7 @@ impl OnchainSendV2 {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OnchainReceiveV2 {
-    pub txid: LxTxid,
+    pub txid: Txid,
 
     pub kind: PaymentKind,
 
@@ -347,7 +344,7 @@ impl OnchainReceiveV2 {
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Onchain)?;
 
-        let txid = LxTxid(tx.compute_txid());
+        let txid = Txid(tx.compute_txid());
         let or = Self {
             txid,
             kind,
@@ -368,8 +365,8 @@ impl OnchainReceiveV2 {
     }
 
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OnchainRecv(self.txid)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::OnchainRecv(self.txid)
     }
 
     /// Event sources:

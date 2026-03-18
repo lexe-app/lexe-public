@@ -33,9 +33,9 @@ pub mod payment;
 
 /// On-chain and Bitcoin primitives.
 pub mod bitcoin {
-    pub use lexe_api::types::invoice::LxInvoice;
+    pub use lexe_api::types::invoice::Invoice;
     pub use lexe_common::ln::{
-        amount::Amount, hashes::LxTxid, priority::ConfirmationPriority,
+        amount::Amount, hashes::Txid, priority::ConfirmationPriority,
     };
 }
 

@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use lexe_api::{
     models::command::{GetUpdatedPaymentMetadata, GetUpdatedPayments},
     types::payments::{
-        DbPaymentMetadata, DbPaymentV2, LxPaymentId, PaymentUpdatedIndex,
+        DbPaymentMetadata, DbPaymentV2, PaymentId, PaymentUpdatedIndex,
     },
     vfs::{self, Vfs, VfsDirectory, VfsFile, VfsFileId},
 };
@@ -187,12 +187,12 @@ pub trait LexePersisterMethods: Vfs {
 
     async fn get_payment_by_id(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
     ) -> anyhow::Result<Option<PaymentV2>>;
 
     async fn get_payment_metadata_by_id(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
     ) -> anyhow::Result<Option<PaymentMetadata>>;
 
     /// NOTE: The implementor *must* call `set_created_at_idempotent` on the
@@ -223,12 +223,12 @@ pub trait LexePersisterMethods: Vfs {
 
     async fn get_payments_by_ids(
         &self,
-        ids: Vec<LxPaymentId>,
+        ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentV2>>;
 
     async fn get_payment_metadatas_by_ids(
         &self,
-        ids: Vec<LxPaymentId>,
+        ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentMetadata>>;
 
     async fn upsert_payments(
@@ -276,7 +276,7 @@ pub trait LexePersisterMethods: Vfs {
 
     async fn get_payment_with_metadata_by_id(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
     ) -> anyhow::Result<Option<PaymentWithMetadata>> {
         let (payment_result, metadata_result) = tokio::join!(
             self.get_payment_by_id(id),
@@ -413,8 +413,8 @@ pub trait LexePersisterMethods: Vfs {
             .map(|p| {
                 let updated_at = TimestampMs::try_from(p.updated_at)
                     .context("Invalid payment updated_at")?;
-                let id = LxPaymentId::from_str(&p.id)
-                    .context("Invalid payment id")?;
+                let id =
+                    PaymentId::from_str(&p.id).context("Invalid payment id")?;
                 anyhow::Ok(PaymentUpdatedIndex { updated_at, id })
             })
             .transpose()
@@ -425,7 +425,7 @@ pub trait LexePersisterMethods: Vfs {
             .map(|m| {
                 let updated_at = TimestampMs::try_from(m.updated_at)
                     .context("Invalid metadata updated_at")?;
-                let id = LxPaymentId::from_str(&m.id)
+                let id = PaymentId::from_str(&m.id)
                     .context("Invalid metadata id")?;
                 anyhow::Ok(PaymentUpdatedIndex { updated_at, id })
             })
@@ -447,8 +447,8 @@ pub trait LexePersisterMethods: Vfs {
             .map(|p| {
                 let updated_at = TimestampMs::try_from(p.updated_at)
                     .context("Invalid payment updated_at")?;
-                let id = LxPaymentId::from_str(&p.id)
-                    .context("Invalid payment id")?;
+                let id =
+                    PaymentId::from_str(&p.id).context("Invalid payment id")?;
                 let idx = PaymentUpdatedIndex { updated_at, id };
                 anyhow::Ok((p, idx))
             })
@@ -464,7 +464,7 @@ pub trait LexePersisterMethods: Vfs {
             .map(|m| {
                 let updated_at = TimestampMs::try_from(m.updated_at)
                     .context("Invalid metadata updated_at")?;
-                let id = LxPaymentId::from_str(&m.id)
+                let id = PaymentId::from_str(&m.id)
                     .context("Invalid metadata id")?;
                 let idx = PaymentUpdatedIndex { updated_at, id };
                 anyhow::Ok((m, idx))
@@ -490,11 +490,11 @@ pub trait LexePersisterMethods: Vfs {
         // Find IDs that need their counterpart fetched
         let payment_ids_needing_metadata = payment_ids
             .difference(&metadata_ids)
-            .filter_map(|id| LxPaymentId::from_str(id).ok())
+            .filter_map(|id| PaymentId::from_str(id).ok())
             .collect::<Vec<_>>();
         let metadata_ids_needing_payment = metadata_ids
             .difference(&payment_ids)
-            .filter_map(|id| LxPaymentId::from_str(id).ok())
+            .filter_map(|id| PaymentId::from_str(id).ok())
             .collect::<Vec<_>>();
 
         // Fetch missing payments and metadata

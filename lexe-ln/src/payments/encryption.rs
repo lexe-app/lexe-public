@@ -1,7 +1,7 @@
 use std::{borrow::Cow, str::FromStr};
 
 use anyhow::{Context, anyhow, ensure};
-use lexe_api::types::payments::{DbPaymentMetadata, DbPaymentV2, LxPaymentId};
+use lexe_api::types::payments::{DbPaymentMetadata, DbPaymentV2, PaymentId};
 use lexe_common::time::TimestampMs;
 use lexe_crypto::{aes::AesMasterKey, rng::Crng};
 use lexe_std::{const_assert, fmt::DisplayOption};
@@ -247,7 +247,7 @@ fn decrypt_payment_v1(
             .context("Could not deserialize PaymentV1")?;
 
     // Validate plaintext fields match decrypted values
-    let db_id = LxPaymentId::from_str(&db_id).context("invalid db id")?;
+    let db_id = PaymentId::from_str(&db_id).context("invalid db id")?;
     ensure!(
         payment.id() == db_id,
         "Payment id mismatch: db={db_id}, payment={}",
@@ -321,7 +321,7 @@ fn decrypt_payment_v2(
         .context("Could not deserialize PaymentV2")?;
 
     // Validate all plaintext fields match
-    let db_id = LxPaymentId::from_str(&db_id).context("invalid db id")?;
+    let db_id = PaymentId::from_str(&db_id).context("invalid db id")?;
     let db_kind = kind.context("version 2 payment missing 'kind' field")?;
     let db_direction =
         direction.context("version 2 payment missing 'direction' field")?;

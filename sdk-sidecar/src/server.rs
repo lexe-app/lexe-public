@@ -19,8 +19,7 @@ use lexe_api::{
     def::AppNodeRunApi,
     error::{SdkApiError, SdkErrorKind},
     models::command::{
-        CreateInvoiceResponse as InternalCreateInvoiceResponse,
-        LxPaymentIdStruct,
+        CreateInvoiceResponse as InternalCreateInvoiceResponse, PaymentIdStruct,
     },
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
@@ -223,7 +222,7 @@ mod node {
         let id = req.index.id;
 
         let maybe_basic_payment = node_client
-            .get_payment_by_id(LxPaymentIdStruct { id })
+            .get_payment_by_id(PaymentIdStruct { id })
             .await
             .map_err(SdkApiError::command)?
             .maybe_payment;

@@ -24,9 +24,9 @@ use lexe_api::{
     rest::API_REQUEST_TIMEOUT,
     types::{
         Empty,
-        invoice::LxInvoice,
+        invoice::Invoice,
         offer::{LxOffer, MaxQuantity},
-        payments::{LxPaymentId, PaymentDirection, PaymentKind},
+        payments::{PaymentDirection, PaymentId, PaymentKind},
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
 };
@@ -63,15 +63,12 @@ use lightning::{
     },
     ln::{
         channel_state::ChannelDetails,
-        channelmanager::{
-            PaymentId, RecipientOnionFields, RetryableSendFailure,
-        },
+        channelmanager::{RecipientOnionFields, RetryableSendFailure},
         msgs::RoutingMessageHandler,
         types::ChannelId,
     },
     routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
-    types::payment::PaymentHash,
     util::config::UserConfig,
 };
 use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
@@ -869,7 +866,7 @@ where
         .sign(|_| Ok::<_, Infallible>(raw_invoice_signature))
         .expect("Infallible");
     let invoice = Bolt11Invoice::from_signed(signed_raw_invoice)
-        .map(LxInvoice)
+        .map(Invoice)
         .context("Invoice was semantically incorrect")?;
 
     let kind = PaymentKind::Invoice;
@@ -962,14 +959,14 @@ where
 
     // NOTE(phlip9): we rely on `payment_id == payment_hash` to disambiguate
     // invoice/spontaneous payments from offer payments.
-    let payment_id = PaymentId::from(hash);
+    let ldk_payment_id = lightning::ln::channelmanager::PaymentId::from(hash);
 
     // Send the payment using send_payment_with_route (Lexe manages retries).
     match channel_manager.send_payment_with_route(
         ldk_route,
-        PaymentHash::from(hash),
+        lightning::types::payment::PaymentHash::from(hash),
         recipient_fields,
-        payment_id,
+        ldk_payment_id,
     ) {
         Ok(()) => {
             payments_manager
@@ -1346,7 +1343,7 @@ where
 
     // Fail early if we already tried paying this invoice,
     // or we are trying to pay ourselves (yes, users actually do this).
-    let payment_id = LxPaymentId::Lightning(invoice.payment_hash());
+    let payment_id = PaymentId::Lightning(invoice.payment_hash());
     let maybe_existing_payment = payments_manager
         .get_payment(&payment_id)
         .await
@@ -1465,7 +1462,7 @@ where
     );
 
     // Fail early if we already tried paying with this client ID.
-    let payment_id = LxPaymentId::OfferSend(req.cid);
+    let payment_id = PaymentId::OfferSend(req.cid);
     let maybe_existing_payment = payments_manager
         .get_payment(&payment_id)
         .await

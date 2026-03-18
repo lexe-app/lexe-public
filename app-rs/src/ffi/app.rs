@@ -14,7 +14,7 @@ use lexe_api::{
     types::{
         Empty,
         lnurl::LnurlPayRequest as LnurlPayRequestRs,
-        payments::{LxPaymentId, PaymentCreatedIndex as PaymentCreatedIndexRs},
+        payments::{PaymentCreatedIndex as PaymentCreatedIndexRs, PaymentId},
         username::{
             Username as UsernameRs, UsernameStruct as UsernameStructRs,
         },
@@ -382,7 +382,7 @@ impl AppHandle {
         req: PayOfferRequest,
     ) -> anyhow::Result<PayOfferResponse> {
         let req = PayOfferRequestRs::try_from(req)?;
-        let id = LxPaymentId::OfferSend(req.cid);
+        let id = PaymentId::OfferSend(req.cid);
         self.inner
             .node_client()?
             .pay_offer(req)

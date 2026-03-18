@@ -11,7 +11,7 @@ use lexe_common::{
         amount::Amount,
         balance::{LightningBalance, OnchainBalance},
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
-        hashes::LxTxid,
+        hashes::Txid,
         priority::ConfirmationPriority,
         route::LxRoute,
     },
@@ -25,10 +25,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::{
     bounded_note::BoundedNote,
-    invoice::LxInvoice,
+    invoice::Invoice,
     offer::{LxOffer, MaxQuantity},
     payments::{
-        ClientPaymentId, LxPaymentId, PaymentCreatedIndex, PaymentUpdatedIndex,
+        ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentUpdatedIndex,
     },
     username::Username,
 };
@@ -182,19 +182,19 @@ pub struct PreflightCloseChannelResponse {
 
 // --- Syncing and updating payments data --- //
 
-/// Upgradeable API struct for a [`LxPaymentId`].
+/// Upgradeable API struct for a [`PaymentId`].
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct LxPaymentIdStruct {
+pub struct PaymentIdStruct {
     /// The id of the payment to be fetched.
-    pub id: LxPaymentId,
+    pub id: PaymentId,
 }
 
-/// An upgradeable version of [`Vec<LxPaymentId>`].
+/// An upgradeable version of [`Vec<PaymentId>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct VecLxPaymentId {
-    pub ids: Vec<LxPaymentId>,
+pub struct VecPaymentId {
+    pub ids: Vec<PaymentId>,
 }
 
 /// Upgradeable API struct for a payment index.
@@ -255,7 +255,7 @@ pub struct PaymentCreatedIndexes {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UpdatePaymentNote {
     /// The index of the payment whose note should be updated.
-    // TODO(max): The server side only needs the `LxPaymentId`.
+    // TODO(max): The server side only needs the `PaymentId`.
     // This API should be changed to pass that instead.
     pub index: PaymentCreatedIndex,
     /// The updated note, or `None` to clear.
@@ -293,7 +293,7 @@ pub struct CreateInvoiceRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateInvoiceResponse {
-    pub invoice: LxInvoice,
+    pub invoice: Invoice,
     /// The [`PaymentCreatedIndex`] of the newly created invoice payment.
     ///
     /// Is always `Some` starting at `node-v0.8.10` and `lsp-v0.8.11`.
@@ -305,7 +305,7 @@ pub struct CreateInvoiceResponse {
 #[derive(Serialize, Deserialize)]
 pub struct PayInvoiceRequest {
     /// The invoice we want to pay.
-    pub invoice: LxInvoice,
+    pub invoice: Invoice,
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be [`Some`] for amountless invoices.
     pub fallback_amount: Option<Amount>,
@@ -328,7 +328,7 @@ pub struct PayInvoiceResponse {
 #[derive(Serialize, Deserialize)]
 pub struct PreflightPayInvoiceRequest {
     /// The invoice we want to pay.
-    pub invoice: LxInvoice,
+    pub invoice: Invoice,
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be [`Some`] for amountless invoices.
     pub fallback_amount: Option<Amount>,
@@ -336,13 +336,13 @@ pub struct PreflightPayInvoiceRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct PreflightPayInvoiceResponse {
-    /// The total amount to-be-paid for the pre-flighted [`LxInvoice`],
+    /// The total amount to-be-paid for the pre-flighted [`Invoice`],
     /// excluding the fees.
     ///
     /// This value may be different from the value originally requested if
     /// we had to reach `htlc_minimum_msat` for some intermediate hops.
     pub amount: Amount,
-    /// The total amount of fees to-be-paid for the pre-flighted [`LxInvoice`].
+    /// The total amount of fees to-be-paid for the pre-flighted [`Invoice`].
     pub fees: Amount,
     /// The route this invoice will be paid over.
     // Added in node,lsp-v0.7.8
@@ -494,7 +494,7 @@ pub struct PayOnchainResponse {
     /// [`PaymentCreatedIndex`].
     pub created_at: TimestampMs,
     /// The Bitcoin txid for the transaction we just submitted to the mempool.
-    pub txid: LxTxid,
+    pub txid: Txid,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -623,7 +623,7 @@ mod test {
 
     #[test]
     fn payment_id_struct_roundtrip() {
-        query_string_roundtrip_proptest::<LxPaymentIdStruct>();
+        query_string_roundtrip_proptest::<PaymentIdStruct>();
     }
 
     #[test]

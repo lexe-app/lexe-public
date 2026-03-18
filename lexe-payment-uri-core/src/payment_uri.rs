@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
-use lexe_api_core::types::{invoice::LxInvoice, offer::LxOffer};
+use lexe_api_core::types::{invoice::Invoice, offer::LxOffer};
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 #[cfg(test)]
@@ -47,7 +47,7 @@ pub enum PaymentUri {
     /// A standalone BOLT11 Lightning invoice.
     ///
     /// ex: "lnbc1pvjlue..."
-    Invoice(LxInvoice),
+    Invoice(Invoice),
 
     /// A standalone BOLT12 Lightning offer.
     ///
@@ -149,8 +149,8 @@ impl PaymentUri {
         }
 
         // ex: "lnbc1pvjlue..."
-        if LxInvoice::matches_hrp_prefix(s) {
-            return LxInvoice::from_str(s)
+        if Invoice::matches_hrp_prefix(s) {
+            return Invoice::from_str(s)
                 .map(Self::Invoice)
                 .map_err(Error::InvalidInvoice);
         }

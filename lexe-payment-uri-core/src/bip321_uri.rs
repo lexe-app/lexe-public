@@ -8,7 +8,7 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
-use lexe_api_core::types::{invoice::LxInvoice, offer::LxOffer};
+use lexe_api_core::types::{invoice::Invoice, offer::LxOffer};
 #[cfg(test)]
 use lexe_common::ln::amount;
 use lexe_common::ln::amount::Amount;
@@ -58,7 +58,7 @@ pub struct Bip321Uri {
     pub onchain: Vec<bitcoin::Address<NetworkUnchecked>>,
 
     // TODO(phlip9): support multiple invoices?
-    pub invoice: Option<LxInvoice>,
+    pub invoice: Option<Invoice>,
 
     // TODO(phlip9): support multiple offers?
     pub offer: Option<LxOffer>,
@@ -140,7 +140,7 @@ impl Bip321Uri {
 
             if key.is("lightning") {
                 if out.invoice.is_none()
-                    && let Ok(invoice) = LxInvoice::from_str(&param.value)
+                    && let Ok(invoice) = Invoice::from_str(&param.value)
                 {
                     out.invoice = Some(invoice);
                     continue;

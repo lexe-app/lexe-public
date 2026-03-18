@@ -28,10 +28,10 @@ use lexe_api::{
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             EnclavesToProvisionRequest, GetAddressResponse, GetNewPayments,
             GetUpdatedPayments, HumanBitcoinAddress, ListChannelsResponse,
-            LxPaymentIdStruct, NodeInfo, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentCreatedIndexes,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            PayOfferResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentCreatedIndexes, PaymentIdStruct,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -751,7 +751,7 @@ impl AppNodeRunApi for NodeClient {
 
     async fn get_payment_by_id(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
     ) -> Result<MaybeBasicPaymentV2, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;

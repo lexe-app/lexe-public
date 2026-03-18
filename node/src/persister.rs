@@ -49,7 +49,7 @@ use lexe_api::{
     models::{
         command::{
             GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            LxPaymentIdStruct, VecLxPaymentId,
+            PaymentIdStruct, VecPaymentId,
         },
         nwc::{GetNwcClients, NostrPk},
     },
@@ -57,7 +57,7 @@ use lexe_api::{
         Empty,
         payments::{
             BasicPaymentV1, BasicPaymentV2, DbPaymentMetadata, DbPaymentV2,
-            LxPaymentId, VecDbPaymentMetadata, VecDbPaymentV2,
+            PaymentId, VecDbPaymentMetadata, VecDbPaymentV2,
         },
     },
     vfs::{
@@ -538,11 +538,11 @@ impl NodePersister {
         // Fetch corresponding metadata
         let ids = db_payments
             .iter()
-            .filter_map(|p| LxPaymentId::from_str(&p.id).ok())
-            .collect::<Vec<LxPaymentId>>();
+            .filter_map(|p| PaymentId::from_str(&p.id).ok())
+            .collect::<Vec<PaymentId>>();
         let mut metadatas = self
             .backend_api
-            .get_payment_metadata_by_ids(VecLxPaymentId { ids }, token)
+            .get_payment_metadata_by_ids(VecPaymentId { ids }, token)
             .await
             .context("Could not fetch payment metadata")?
             .metadatas
@@ -591,11 +591,11 @@ impl NodePersister {
 
     pub(crate) async fn read_payment_by_id(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
     ) -> anyhow::Result<Option<BasicPaymentV2>> {
         let token = self.get_token().await?;
 
-        let req = LxPaymentIdStruct { id };
+        let req = PaymentIdStruct { id };
         let (payment_result, metadata_result) = tokio::join!(
             self.backend_api.get_payment_by_id(req, token.clone()),
             self.backend_api.get_payment_metadata_by_id(req, token),
@@ -631,13 +631,13 @@ impl NodePersister {
 
     pub(crate) async fn read_payments_by_ids(
         &self,
-        ids: Vec<LxPaymentId>,
+        ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<BasicPaymentV2>> {
         let token = self.get_token().await?;
 
         let payments = self
             .backend_api
-            .get_payments_by_ids(VecLxPaymentId { ids }, token)
+            .get_payments_by_ids(VecPaymentId { ids }, token)
             .await
             .context("Could not fetch payments")?
             .payments
@@ -937,10 +937,10 @@ impl LexePersisterMethods for NodePersister {
 
     async fn get_payment_by_id(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
     ) -> anyhow::Result<Option<PaymentV2>> {
         let token = self.get_token().await?;
-        let req = LxPaymentIdStruct { id };
+        let req = PaymentIdStruct { id };
 
         let maybe_db_payment = self
             .backend_api
@@ -965,10 +965,10 @@ impl LexePersisterMethods for NodePersister {
 
     async fn get_payment_metadata_by_id(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
     ) -> anyhow::Result<Option<PaymentMetadata>> {
         let token = self.get_token().await?;
-        let req = LxPaymentIdStruct { id };
+        let req = PaymentIdStruct { id };
 
         let maybe_db_metadata = self
             .backend_api
@@ -1128,7 +1128,7 @@ impl LexePersisterMethods for NodePersister {
 
     async fn get_payments_by_ids(
         &self,
-        ids: Vec<LxPaymentId>,
+        ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentV2>> {
         if ids.is_empty() {
             return Ok(Vec::new());
@@ -1137,7 +1137,7 @@ impl LexePersisterMethods for NodePersister {
         let token = self.get_token().await?;
         Ok(self
             .backend_api
-            .get_payments_by_ids(VecLxPaymentId { ids }, token)
+            .get_payments_by_ids(VecPaymentId { ids }, token)
             .await
             .context("Could not fetch payments by IDs")?
             .payments)
@@ -1145,7 +1145,7 @@ impl LexePersisterMethods for NodePersister {
 
     async fn get_payment_metadatas_by_ids(
         &self,
-        ids: Vec<LxPaymentId>,
+        ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentMetadata>> {
         if ids.is_empty() {
             return Ok(Vec::new());
@@ -1154,7 +1154,7 @@ impl LexePersisterMethods for NodePersister {
         let token = self.get_token().await?;
         Ok(self
             .backend_api
-            .get_payment_metadata_by_ids(VecLxPaymentId { ids }, token)
+            .get_payment_metadata_by_ids(VecPaymentId { ids }, token)
             .await
             .context("Could not fetch metadata by IDs")?
             .metadatas)

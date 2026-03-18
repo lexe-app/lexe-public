@@ -12,7 +12,7 @@ use esplora_client::{AsyncClient, api::OutputStatus};
 use lexe_common::{
     constants,
     ln::{
-        hashes::LxTxid,
+        hashes::Txid,
         network::LxNetwork,
         priority::{ConfirmationPriority, ToNumBlocks},
     },
@@ -63,7 +63,7 @@ pub fn url_is_whitelisted(esplora_url: &str, network: LxNetwork) -> bool {
 /// The minimum information about a [`bitcoin::Transaction`] required to query
 /// Esplora for if the transaction has been confirmed or replaced.
 pub struct TxConfQuery {
-    pub txid: LxTxid,
+    pub txid: Txid,
     pub inputs: Vec<OutPoint>,
     pub created_at: SystemTime,
 }
@@ -88,7 +88,7 @@ pub enum TxConfStatus {
         /// The number of confirmations that the replacement tx has.
         confs: u32,
         /// The txid of the replacement transaction.
-        rp_txid: LxTxid,
+        rp_txid: Txid,
     },
     /// All of the following are true:
     /// (1) The tx was not included in a block in the best chain.
@@ -470,7 +470,7 @@ impl LexeEsplora {
             .into_iter()
             .filter_map(|output_status| {
                 // Aborts if there was no spending txid.
-                let rp_txid = LxTxid(output_status.txid?);
+                let rp_txid = Txid(output_status.txid?);
                 // Aborts if there was no tx status for the spending tx.
                 let rp_tx_status = output_status.status?;
                 // Aborts if the spending tx status had no block height.
@@ -532,7 +532,7 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let confs = arbitrary::any_tx_confs();
-            let rp_txid = proptest::option::weighted(0.2, any::<LxTxid>());
+            let rp_txid = proptest::option::weighted(0.2, any::<Txid>());
             let is_dropped = proptest::bool::weighted(0.2);
 
             (confs, rp_txid, is_dropped)

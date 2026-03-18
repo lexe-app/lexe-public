@@ -4,17 +4,17 @@ use std::{collections::HashSet, num::NonZeroU64};
 
 use anyhow::Context;
 use lexe_api::types::{
-    invoice::LxInvoice,
+    invoice::Invoice,
     offer::LxOffer,
     payments::{
-        BasicPaymentV1, LxOfferId, LxPaymentId, PaymentCreatedIndex,
-        PaymentDirection, PaymentKind, PaymentRail, PaymentStatus,
+        BasicPaymentV1, LxOfferId, PaymentCreatedIndex, PaymentDirection,
+        PaymentId, PaymentKind, PaymentRail, PaymentStatus,
     },
 };
 #[cfg(test)]
 use lexe_common::ln::priority::ConfirmationPriority;
 use lexe_common::{
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::Txid},
     time::TimestampMs,
 };
 #[cfg(test)]
@@ -351,17 +351,17 @@ impl PaymentV1 {
         }
     }
 
-    pub fn id(&self) -> LxPaymentId {
+    pub fn id(&self) -> PaymentId {
         match self {
-            Self::OnchainSend(os) => LxPaymentId::OnchainSend(os.cid),
-            Self::OnchainReceive(or) => LxPaymentId::OnchainRecv(or.txid),
-            Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
+            Self::OnchainSend(os) => PaymentId::OnchainSend(os.cid),
+            Self::OnchainReceive(or) => PaymentId::OnchainRecv(or.txid),
+            Self::InboundInvoice(iip) => PaymentId::Lightning(iip.hash),
             Self::InboundOfferReusable(iorp) =>
-                LxPaymentId::OfferRecvReusable(iorp.claim_id),
-            Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
-            Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
-            Self::OutboundOffer(oop) => LxPaymentId::OfferSend(oop.cid),
-            Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
+                PaymentId::OfferRecvReusable(iorp.claim_id),
+            Self::InboundSpontaneous(isp) => PaymentId::Lightning(isp.hash),
+            Self::OutboundInvoice(oip) => PaymentId::Lightning(oip.hash),
+            Self::OutboundOffer(oop) => PaymentId::OfferSend(oop.cid),
+            Self::OutboundSpontaneous(osp) => PaymentId::Lightning(osp.hash),
         }
     }
 
@@ -407,7 +407,7 @@ impl PaymentV1 {
     }
 
     /// Returns the BOLT11 invoice corresponding to this payment, if any.
-    pub fn invoice(&self) -> Option<Arc<LxInvoice>> {
+    pub fn invoice(&self) -> Option<Arc<Invoice>> {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
@@ -480,7 +480,7 @@ impl PaymentV1 {
     }
 
     /// Returns the original txid, if there is one.
-    pub fn txid(&self) -> Option<LxTxid> {
+    pub fn txid(&self) -> Option<Txid> {
         match self {
             Self::OnchainSend(OnchainSendV1 { txid, .. }) => Some(*txid),
             Self::OnchainReceive(OnchainReceiveV1 { txid, .. }) => Some(*txid),
@@ -510,7 +510,7 @@ impl PaymentV1 {
     }
 
     /// Returns the txid of the replacement tx, if there is one.
-    pub fn replacement(&self) -> Option<LxTxid> {
+    pub fn replacement(&self) -> Option<Txid> {
         match self {
             Self::OnchainSend(OnchainSendV1 { replacement, .. }) =>
                 *replacement,

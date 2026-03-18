@@ -34,11 +34,12 @@ use lexe_api::{
     },
     types::{
         bounded_note::BoundedNote,
-        invoice::LxInvoice,
+        invoice::Invoice as InvoiceRs,
         offer::{LxOffer, MaxQuantity},
         payments::{
-            ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
+            ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
+            PaymentId as PaymentIdRs,
         },
     },
 };
@@ -317,7 +318,7 @@ impl PayOnchainResponse {
     ) -> Self {
         let index = PaymentCreatedIndexRs {
             created_at: resp.created_at,
-            id: LxPaymentIdRs::OnchainSend(cid),
+            id: PaymentIdRs::OnchainSend(cid),
         };
         Self {
             index: PaymentCreatedIndex::from(index),
@@ -433,7 +434,7 @@ pub struct PayInvoiceRequest {
 impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
     type Error = anyhow::Error;
     fn try_from(value: PayInvoiceRequest) -> Result<Self, Self::Error> {
-        let invoice = LxInvoice::from_str(&value.invoice)
+        let invoice = InvoiceRs::from_str(&value.invoice)
             .context("Failed to parse invoice")?;
 
         let fallback_amount = match value.fallback_amount_sats {
@@ -466,7 +467,7 @@ pub struct PayInvoiceResponse {
 
 impl PayInvoiceResponse {
     pub(crate) fn from_id_and_response(
-        id: LxPaymentIdRs,
+        id: PaymentIdRs,
         resp: PayInvoiceResponseRs,
     ) -> Self {
         let index = PaymentCreatedIndexRs {
@@ -492,7 +493,7 @@ impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
     fn try_from(
         value: PreflightPayInvoiceRequest,
     ) -> Result<Self, Self::Error> {
-        let invoice = LxInvoice::from_str(&value.invoice)
+        let invoice = InvoiceRs::from_str(&value.invoice)
             .context("Failed to parse invoice")?;
 
         let fallback_amount = match value.fallback_amount_sats {
@@ -655,7 +656,7 @@ pub struct PayOfferResponse {
 
 impl PayOfferResponse {
     pub(crate) fn from_id_and_response(
-        id: LxPaymentIdRs,
+        id: PaymentIdRs,
         resp: PayOfferResponseRs,
     ) -> Self {
         let index = PaymentCreatedIndexRs {

@@ -34,7 +34,7 @@ use lexe::{
 use lexe_api_core::{
     error::GatewayApiError as GatewayApiErrorRs,
     types::{
-        invoice::LxInvoice as LxInvoiceRs,
+        invoice::Invoice as InvoiceRs,
         payments::{
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
@@ -932,7 +932,7 @@ impl AsyncLexeWallet {
         note: Option<String>,
         payer_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
-        let invoice: LxInvoiceRs = invoice
+        let invoice: InvoiceRs = invoice
             .parse()
             .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
         let fallback_amount = fallback_amount_sats
@@ -1351,7 +1351,7 @@ impl BlockingLexeWallet {
         note: Option<String>,
         payer_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
-        let invoice: LxInvoiceRs = invoice
+        let invoice: InvoiceRs = invoice
             .parse()
             .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
         let fallback_amount = fallback_amount_sats
@@ -1700,8 +1700,8 @@ pub struct Invoice {
     pub payee_pubkey: String,
 }
 
-impl From<&LxInvoiceRs> for Invoice {
-    fn from(invoice: &LxInvoiceRs) -> Self {
+impl From<&InvoiceRs> for Invoice {
+    fn from(invoice: &InvoiceRs) -> Self {
         Self {
             string: invoice.to_string(),
             description: invoice.description_str().map(String::from),
@@ -1713,8 +1713,8 @@ impl From<&LxInvoiceRs> for Invoice {
     }
 }
 
-impl From<&Arc<LxInvoiceRs>> for Invoice {
-    fn from(invoice: &Arc<LxInvoiceRs>) -> Self {
+impl From<&Arc<InvoiceRs>> for Invoice {
+    fn from(invoice: &Arc<InvoiceRs>) -> Self {
         Self::from(invoice.as_ref())
     }
 }

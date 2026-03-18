@@ -5,8 +5,8 @@ use lexe_api::{
     models::command,
     types::{
         bounded_note::BoundedNote,
-        invoice::LxInvoice,
-        payments::{LxPaymentHash, LxPaymentSecret, PaymentCreatedIndex},
+        invoice::Invoice,
+        payments::{PaymentCreatedIndex, PaymentHash, PaymentSecret},
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
@@ -126,7 +126,7 @@ pub struct CreateInvoiceResponse {
     /// Identifier for this inbound invoice payment.
     pub index: PaymentCreatedIndex,
     /// The string-encoded BOLT 11 invoice.
-    pub invoice: LxInvoice,
+    pub invoice: Invoice,
     /// The description encoded in the invoice, if one was provided.
     pub description: Option<String>,
     /// The amount encoded in the invoice, if there was one.
@@ -137,14 +137,14 @@ pub struct CreateInvoiceResponse {
     /// The invoice expiration time, in milliseconds since the UNIX epoch.
     pub expires_at: TimestampMs,
     /// The hex-encoded payment hash of the invoice.
-    pub payment_hash: LxPaymentHash,
+    pub payment_hash: PaymentHash,
     /// The payment secret of the invoice.
-    pub payment_secret: LxPaymentSecret,
+    pub payment_secret: PaymentSecret,
 }
 
 impl CreateInvoiceResponse {
     /// Build a [`CreateInvoiceResponse`] from an index and invoice.
-    pub fn new(index: PaymentCreatedIndex, invoice: LxInvoice) -> Self {
+    pub fn new(index: PaymentCreatedIndex, invoice: Invoice) -> Self {
         let description = invoice.description_str().map(|s| s.to_owned());
         let amount_sats = invoice.amount();
         let created_at = invoice.saturating_created_at();
@@ -191,7 +191,7 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
 #[derive(Serialize, Deserialize)]
 pub struct PayInvoiceRequest {
     /// The invoice we want to pay.
-    pub invoice: LxInvoice,
+    pub invoice: Invoice,
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be set if the invoice is amountless.
     pub fallback_amount: Option<Amount>,

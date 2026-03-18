@@ -3,11 +3,11 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::types::{
     bounded_note::BoundedNote,
-    invoice::LxInvoice,
+    invoice::Invoice,
     offer::LxOffer,
     payments::{
-        LnClaimId, LxOfferId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-        LxPaymentSecret, PaymentKind, PaymentRail,
+        LnClaimId, LxOfferId, PaymentHash, PaymentId, PaymentKind,
+        PaymentPreimage, PaymentRail, PaymentSecret,
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
@@ -144,24 +144,24 @@ impl ClaimableError {
 #[derive(Clone)]
 pub enum LnClaimCtx {
     Bolt11Invoice {
-        preimage: LxPaymentPreimage,
-        hash: LxPaymentHash,
-        secret: LxPaymentSecret,
+        preimage: PaymentPreimage,
+        hash: PaymentHash,
+        secret: PaymentSecret,
         // TODO(phlip9): make non-Option once we don't have replaying Claimed
         claim_id: Option<LnClaimId>,
     },
     Bolt12Offer(OfferClaimCtx),
     // // TODO(phlip9): BOLT12 refund
     // Bolt12Refund {
-    //     preimage: LxPaymentPreimage,
-    //     hash: LxPaymentHash,
-    //     secret: LxPaymentSecret,
+    //     preimage: PaymentPreimage,
+    //     hash: PaymentHash,
+    //     secret: PaymentSecret,
     //     claim_id: Option<LnClaimId>,
     //     context: Bolt12RefundContext,
     // },
     Spontaneous {
-        preimage: LxPaymentPreimage,
-        hash: LxPaymentHash,
+        preimage: PaymentPreimage,
+        hash: PaymentHash,
         // TODO(phlip9): make non-Option once we don't have replaying Claimed
         claim_id: Option<LnClaimId>,
     },
@@ -171,7 +171,7 @@ pub enum LnClaimCtx {
 /// [`InboundOfferReusablePaymentV2`].
 #[derive(Clone)]
 pub struct OfferClaimCtx {
-    pub preimage: LxPaymentPreimage,
+    pub preimage: PaymentPreimage,
     // We don't have any BOLT12 offers pending, so we can assume claim id
     // is present.
     pub claim_id: LnClaimId,
@@ -186,7 +186,7 @@ pub struct OfferClaimCtx {
 impl LnClaimCtx {
     pub fn new(
         purpose: PaymentPurpose,
-        hash: LxPaymentHash,
+        hash: PaymentHash,
         claim_id: Option<LnClaimId>,
         offer: Option<LxOffer>,
     ) -> anyhow::Result<Self> {
@@ -194,7 +194,7 @@ impl LnClaimCtx {
              always using `ChannelManager::create_inbound_payment` instead of \
              `ChannelManager::create_inbound_payment_for_hash`. \
              Either we failed to do this, or there is a bug in LDK.";
-        let maybe_preimage = purpose.preimage().map(LxPaymentPreimage::from);
+        let maybe_preimage = purpose.preimage().map(PaymentPreimage::from);
         debug_assert!(maybe_preimage.is_some(), "{no_preimage_msg}");
         let preimage = maybe_preimage.context(no_preimage_msg)?;
 
@@ -203,7 +203,7 @@ impl LnClaimCtx {
                 payment_preimage: _,
                 payment_secret,
             } => {
-                let secret = LxPaymentSecret::from(payment_secret);
+                let secret = PaymentSecret::from(payment_secret);
                 Ok(Self::Bolt11Invoice {
                     preimage,
                     hash,
@@ -258,17 +258,17 @@ impl LnClaimCtx {
         }
     }
 
-    pub fn id(&self) -> LxPaymentId {
+    pub fn id(&self) -> PaymentId {
         match self {
-            Self::Bolt11Invoice { hash, .. } => LxPaymentId::Lightning(*hash),
+            Self::Bolt11Invoice { hash, .. } => PaymentId::Lightning(*hash),
             // TODO(phlip9): how to disambiguate single-use BOLT12 offer
             Self::Bolt12Offer(OfferClaimCtx { claim_id, .. }) =>
-                LxPaymentId::OfferRecvReusable(*claim_id),
-            Self::Spontaneous { hash, .. } => LxPaymentId::Lightning(*hash),
+                PaymentId::OfferRecvReusable(*claim_id),
+            Self::Spontaneous { hash, .. } => PaymentId::Lightning(*hash),
         }
     }
 
-    pub fn preimage(&self) -> LxPaymentPreimage {
+    pub fn preimage(&self) -> PaymentPreimage {
         match self {
             Self::Bolt11Invoice { preimage, .. } => *preimage,
             Self::Bolt12Offer(OfferClaimCtx { preimage, .. }) => *preimage,
@@ -294,16 +294,16 @@ impl LnClaimCtx {
 pub struct InboundInvoicePaymentV2 {
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
     /// [`create_invoice`].
-    pub hash: LxPaymentHash,
+    pub hash: PaymentHash,
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
     /// [`create_invoice`].
-    pub secret: LxPaymentSecret,
+    pub secret: PaymentSecret,
     /// Returned by:
     /// - the call to [`ChannelManager::get_payment_preimage`] inside
     ///   [`create_invoice`].
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimable`] event.
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimed`] event.
-    pub preimage: LxPaymentPreimage,
+    pub preimage: PaymentPreimage,
     /// Contained in:
     /// - the [`PaymentClaimable`] and [`PaymentClaimed`] events.
     ///
@@ -375,10 +375,10 @@ impl InboundInvoicePaymentV2 {
     // Event sources:
     // - `create_invoice` API
     pub fn new(
-        invoice: LxInvoice,
-        hash: LxPaymentHash,
-        secret: LxPaymentSecret,
-        preimage: LxPaymentPreimage,
+        invoice: Invoice,
+        hash: PaymentHash,
+        secret: PaymentSecret,
+        preimage: PaymentPreimage,
         kind: PaymentKind,
         payer_note: Option<BoundedNote>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
@@ -426,8 +426,8 @@ impl InboundInvoicePaymentV2 {
     }
 
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::Lightning(self.hash)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::Lightning(self.hash)
     }
 
     /// ## Precondition
@@ -437,9 +437,9 @@ impl InboundInvoicePaymentV2 {
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn check_payment_claimable(
         &self,
-        hash: LxPaymentHash,
-        secret: LxPaymentSecret,
-        preimage: LxPaymentPreimage,
+        hash: PaymentHash,
+        secret: PaymentSecret,
+        preimage: PaymentPreimage,
         // TODO(phlip9): make non-Option once all replaying Claimable events
         // drain in prod.
         claim_id: Option<LnClaimId>,
@@ -546,9 +546,9 @@ impl InboundInvoicePaymentV2 {
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     pub(crate) fn check_payment_claimed(
         &self,
-        hash: LxPaymentHash,
-        secret: LxPaymentSecret,
-        preimage: LxPaymentPreimage,
+        hash: PaymentHash,
+        secret: PaymentSecret,
+        preimage: PaymentPreimage,
         amount: Amount,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
@@ -665,7 +665,7 @@ pub struct InboundOfferReusablePaymentV2 {
     /// times.
     pub offer_id: LxOfferId,
     /// The payment preimage for this offer payment.
-    pub preimage: LxPaymentPreimage,
+    pub preimage: PaymentPreimage,
 
     pub kind: PaymentKind,
 
@@ -843,8 +843,8 @@ impl InboundOfferReusablePaymentV2 {
     }
 
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OfferRecvReusable(self.claim_id)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::OfferRecvReusable(self.claim_id)
     }
 }
 
@@ -856,9 +856,9 @@ impl InboundOfferReusablePaymentV2 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundSpontaneousPaymentV2 {
     /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].
-    pub hash: LxPaymentHash,
+    pub hash: PaymentHash,
     /// Given by [`PaymentPurpose`].
-    pub preimage: LxPaymentPreimage,
+    pub preimage: PaymentPreimage,
 
     pub kind: PaymentKind,
 
@@ -908,8 +908,8 @@ impl InboundSpontaneousPaymentV2 {
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn new(
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
+        hash: PaymentHash,
+        preimage: PaymentPreimage,
         kind: PaymentKind,
         amount: Amount,
         skimmed_fee: Option<Amount>,
@@ -937,8 +937,8 @@ impl InboundSpontaneousPaymentV2 {
     }
 
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::Lightning(self.hash)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::Lightning(self.hash)
     }
 
     /// ## Precondition
@@ -948,8 +948,8 @@ impl InboundSpontaneousPaymentV2 {
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
     pub(crate) fn check_payment_claimable(
         &self,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
+        hash: PaymentHash,
+        preimage: PaymentPreimage,
         amount: Amount,
     ) -> ClaimableError {
         use InboundSpontaneousPaymentStatus::*;
@@ -993,8 +993,8 @@ impl InboundSpontaneousPaymentV2 {
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
     pub(crate) fn check_payment_claimed(
         &self,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
+        hash: PaymentHash,
+        preimage: PaymentPreimage,
         amount: Amount,
     ) -> anyhow::Result<Self> {
         use InboundSpontaneousPaymentStatus::*;
@@ -1025,7 +1025,7 @@ impl InboundSpontaneousPaymentV2 {
 #[cfg(test)]
 mod arbitrary_impl {
     use lexe_api::types::{
-        invoice::arbitrary_impl::LxInvoiceParams, payments::LxPaymentPreimage,
+        invoice::arbitrary_impl::InvoiceParams, payments::PaymentPreimage,
     };
     use lexe_common::test_utils::arbitrary;
     use proptest::{
@@ -1044,9 +1044,9 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
-            let preimage = any::<LxPaymentPreimage>();
+            let preimage = any::<PaymentPreimage>();
             let preimage_invoice = preimage.prop_ind_flat_map2(|preimage| {
-                any_with::<LxInvoice>(LxInvoiceParams {
+                any_with::<Invoice>(InvoiceParams {
                     payment_preimage: Some(preimage),
                 })
             });
@@ -1073,7 +1073,7 @@ mod arbitrary_impl {
             )| {
                 use InboundInvoicePaymentStatus::*;
 
-                let (preimage, invoice): (LxPaymentPreimage, LxInvoice) =
+                let (preimage, invoice): (PaymentPreimage, Invoice) =
                     preimage_invoice;
                 let hash = invoice.payment_hash();
                 let secret = invoice.payment_secret();
@@ -1163,7 +1163,7 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
-            let preimage = any::<LxPaymentPreimage>();
+            let preimage = any::<PaymentPreimage>();
             let claim_id = any::<LnClaimId>();
             let offer_id = any::<LxOfferId>();
             let kind = PaymentRail::Offer.any_child_kind();
@@ -1258,8 +1258,8 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
-            let hash = any::<LxPaymentHash>();
-            let preimage = any::<LxPaymentPreimage>();
+            let hash = any::<PaymentHash>();
+            let preimage = any::<PaymentPreimage>();
             let kind = PaymentRail::Spontaneous.any_child_kind();
             let amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();

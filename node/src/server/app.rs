@@ -11,10 +11,10 @@ use lexe_api::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
             CreateOfferResponse, GDriveStatus, GetAddressResponse,
             GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
-            ListChannelsResponse, LxPaymentIdStruct, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
+            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentCreatedIndexes, PaymentIdStruct,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -422,7 +422,7 @@ pub(super) async fn get_updated_payments(
 
 pub(super) async fn get_payment_by_id(
     State(state): State<Arc<RouterState>>,
-    LxQuery(req): LxQuery<LxPaymentIdStruct>,
+    LxQuery(req): LxQuery<PaymentIdStruct>,
 ) -> Result<LxJson<MaybeBasicPaymentV2>, NodeApiError> {
     let maybe_payment = state
         .persister

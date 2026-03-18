@@ -7,17 +7,17 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use bitcoin::address::NetworkUnchecked;
 use lexe_api::types::{
-    invoice::LxInvoice,
+    invoice::Invoice,
     offer::LxOffer,
     payments::{
-        BasicPaymentV2, LxOfferId, LxPaymentId, PaymentDirection, PaymentKind,
+        BasicPaymentV2, LxOfferId, PaymentDirection, PaymentId, PaymentKind,
         PaymentRail, PaymentStatus,
     },
 };
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
-    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
 use lexe_std::const_assert_mem_size;
@@ -162,7 +162,7 @@ pub struct PaymentMetadata {
     // --- Identifier and basic info fields --- //
     // -
     /// Payment identifier; globally unique from the user's perspective.
-    pub id: LxPaymentId,
+    pub id: PaymentId,
 
     /// The ids of payments related to this payment.
     #[cfg_attr(
@@ -171,9 +171,9 @@ pub struct PaymentMetadata {
     )]
     #[cfg_attr(
         test,
-        proptest(strategy = "arbitrary::any_hashset::<LxPaymentId>()")
+        proptest(strategy = "arbitrary::any_hashset::<PaymentId>()")
     )]
-    pub related_ids: HashSet<LxPaymentId>,
+    pub related_ids: HashSet<PaymentId>,
 
     // --- Payment methods --- //
     // -
@@ -193,7 +193,7 @@ pub struct PaymentMetadata {
         test,
         proptest(strategy = "arbitrary_helpers::any_option_arc_invoice()")
     )]
-    pub invoice: Option<Arc<LxInvoice>>,
+    pub invoice: Option<Arc<Invoice>>,
 
     /// The BOLT12 offer associated with this payment, if any.
     #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
@@ -244,7 +244,7 @@ pub struct PaymentMetadata {
 
     /// (Onchain payments only) The txid of the replacement tx, if one exists.
     #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
-    pub replacement_txid: Option<LxTxid>,
+    pub replacement_txid: Option<Txid>,
 }
 
 // Debug the size_of `PaymentMetadata`
@@ -257,16 +257,16 @@ pub(crate) struct PaymentMetadataUpdate {
     // --- Identifier and basic info fields --- //
     // -
     /// The ids of payments newly associated with this payment.
-    pub new_related_ids: HashSet<LxPaymentId>,
+    pub new_related_ids: HashSet<PaymentId>,
 
     // TODO(max): Can keep this commented until we're sure we actually need it
     // /// The ids of payments no longer associated with this payment.
-    // pub removed_related_ids: HashSet<LxPaymentId>,
+    // pub removed_related_ids: HashSet<PaymentId>,
 
     // --- Payment methods --- //
     pub address: Option<Option<Arc<bitcoin::Address<NetworkUnchecked>>>>,
 
-    pub invoice: Option<Option<Arc<LxInvoice>>>,
+    pub invoice: Option<Option<Arc<Invoice>>>,
 
     pub offer: Option<Option<Arc<LxOffer>>>,
 
@@ -282,7 +282,7 @@ pub(crate) struct PaymentMetadataUpdate {
 
     pub quantity: Option<Option<NonZeroU64>>,
 
-    pub replacement_txid: Option<Option<LxTxid>>,
+    pub replacement_txid: Option<Option<Txid>>,
 }
 
 // --- Payment subtype -> top-level Payment type --- //
@@ -408,7 +408,7 @@ impl PaymentWithMetadata<PaymentV2> {
 
 impl PaymentMetadata {
     /// Construct an empty `PaymentMetadata`.
-    pub fn empty(id: LxPaymentId) -> Self {
+    pub fn empty(id: PaymentId) -> Self {
         Self {
             id,
             related_ids: HashSet::new(),
@@ -525,17 +525,17 @@ impl PaymentMetadataUpdate {
 // --- impl Payment --- //
 
 impl PaymentV2 {
-    pub fn id(&self) -> LxPaymentId {
+    pub fn id(&self) -> PaymentId {
         match self {
-            Self::OnchainSend(os) => LxPaymentId::OnchainSend(os.cid),
-            Self::OnchainReceive(or) => LxPaymentId::OnchainRecv(or.txid),
-            Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
+            Self::OnchainSend(os) => PaymentId::OnchainSend(os.cid),
+            Self::OnchainReceive(or) => PaymentId::OnchainRecv(or.txid),
+            Self::InboundInvoice(iip) => PaymentId::Lightning(iip.hash),
             Self::InboundOfferReusable(iorp) =>
-                LxPaymentId::OfferRecvReusable(iorp.claim_id),
-            Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
-            Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
-            Self::OutboundOffer(oop) => LxPaymentId::OfferSend(oop.client_id),
-            Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
+                PaymentId::OfferRecvReusable(iorp.claim_id),
+            Self::InboundSpontaneous(isp) => PaymentId::Lightning(isp.hash),
+            Self::OutboundInvoice(oip) => PaymentId::Lightning(oip.hash),
+            Self::OutboundOffer(oop) => PaymentId::OfferSend(oop.client_id),
+            Self::OutboundSpontaneous(osp) => PaymentId::Lightning(osp.hash),
         }
     }
 
@@ -560,7 +560,7 @@ impl PaymentV2 {
     }
 
     /// Returns the original txid, if there is one.
-    pub fn txid(&self) -> Option<LxTxid> {
+    pub fn txid(&self) -> Option<Txid> {
         match self {
             PaymentV2::OnchainSend(OnchainSendV2 { txid, .. }) => Some(*txid),
             PaymentV2::OnchainReceive(OnchainReceiveV2 { txid, .. }) =>
@@ -1146,8 +1146,8 @@ mod arbitrary_helpers {
     use super::*;
 
     pub fn any_option_arc_invoice()
-    -> impl Strategy<Value = Option<Arc<LxInvoice>>> {
-        option::of(any::<LxInvoice>()).prop_map(|opt| opt.map(Arc::new))
+    -> impl Strategy<Value = Option<Arc<Invoice>>> {
+        option::of(any::<Invoice>()).prop_map(|opt| opt.map(Arc::new))
     }
 
     pub fn any_option_arc_offer() -> impl Strategy<Value = Option<Arc<LxOffer>>>

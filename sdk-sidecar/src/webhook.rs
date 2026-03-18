@@ -17,7 +17,7 @@ use lexe_api::{
     def::AppNodeRunApi,
     models::command::GetUpdatedPayments,
     types::payments::{
-        LxPaymentId, PaymentCreatedIndex, PaymentStatus, PaymentUpdatedIndex,
+        PaymentCreatedIndex, PaymentId, PaymentStatus, PaymentUpdatedIndex,
         VecBasicPaymentV2,
     },
 };
@@ -501,7 +501,7 @@ pub(crate) struct PersistedUserTrackingState {
     /// `created_at` timestamp.
     pub cursor: PaymentUpdatedIndex,
     /// Payment IDs we're tracking.
-    pub pending: HashSet<LxPaymentId>,
+    pub pending: HashSet<PaymentId>,
 }
 
 /// Wrapper for JSON persistence of all users' payment tracking state.

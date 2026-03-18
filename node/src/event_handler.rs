@@ -43,7 +43,7 @@ use anyhow::{Context, anyhow};
 use lexe_api::{
     cli::LspInfo,
     def::NodeLspApi,
-    types::payments::{LnClaimId, LxPaymentHash, LxPaymentId},
+    types::payments::{LnClaimId, PaymentHash, PaymentId},
     vfs::VfsFile,
 };
 use lexe_common::{
@@ -440,8 +440,8 @@ async fn do_handle_event(
             fee_paid_msat,
         } => {
             // NOTE: Err(Replay) ==> must be handled idempotently
-            let hash = LxPaymentHash::from(payment_hash);
-            let id = LxPaymentId::from_ldk_event(payment_id, hash);
+            let hash = PaymentHash::from(payment_hash);
+            let id = PaymentId::from_ldk_event(payment_id, hash);
             ctx.payments_manager
                 .payment_sent(id, hash, payment_preimage.into(), fee_paid_msat)
                 .await
@@ -455,8 +455,8 @@ async fn do_handle_event(
             reason,
             payment_hash,
         } => {
-            let maybe_hash = payment_hash.map(LxPaymentHash::from);
-            let id = LxPaymentId::from_payment_failed(payment_id, maybe_hash);
+            let maybe_hash = payment_hash.map(PaymentHash::from);
+            let id = PaymentId::from_payment_failed(payment_id, maybe_hash);
 
             // NOTE: Err(Replay) ==> must be handled idempotently
             let reason =
@@ -503,8 +503,8 @@ async fn do_handle_event(
         } => {
             // Record path failure for in-memory retry tracking.
             if let Some(scid) = short_channel_id {
-                let hash = LxPaymentHash::from(payment_hash);
-                let id = LxPaymentId::from_ldk_event(payment_id, hash);
+                let hash = PaymentHash::from(payment_hash);
+                let id = PaymentId::from_ldk_event(payment_id, hash);
                 ctx.payments_manager.record_path_failure(&id, scid).await;
             }
 
@@ -640,12 +640,10 @@ mod anonymize {
     use lexe_common::time::DisplayMs;
     use lightning::{
         events::PathFailure,
-        ln::channelmanager::PaymentId,
         routing::{
             gossip::{NetworkUpdate, NodeId, ReadOnlyNetworkGraph},
             router::Path,
         },
-        types::payment::PaymentHash,
     };
     use tokio::time::Instant;
 
@@ -665,8 +663,8 @@ mod anonymize {
     /// Anonymizes a [`Event::PaymentPathSuccessful`].
     pub(super) fn successful_path(
         ctx: &EventCtx,
-        payment_id: PaymentId,
-        payment_hash: Option<PaymentHash>,
+        payment_id: lightning::ln::channelmanager::PaymentId,
+        payment_hash: Option<lightning::types::payment::PaymentHash>,
         path: Path,
     ) -> Option<Event> {
         anonymize_path(ctx, path).map(|path| Event::PaymentPathSuccessful {
@@ -679,8 +677,8 @@ mod anonymize {
     /// Anonymizes a [`Event::PaymentPathFailed`].
     pub(super) fn failed_path(
         ctx: &EventCtx,
-        payment_id: Option<PaymentId>,
-        payment_hash: PaymentHash,
+        payment_id: Option<lightning::ln::channelmanager::PaymentId>,
+        payment_hash: lightning::types::payment::PaymentHash,
         payment_failed_permanently: bool,
         failure: PathFailure,
         path: Path,

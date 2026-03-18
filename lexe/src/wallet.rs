@@ -426,7 +426,7 @@ impl LexeWallet<WithoutDb> {
         loop {
             let payment = self
                 .node_client
-                .get_payment_by_id(command::LxPaymentIdStruct { id: index.id })
+                .get_payment_by_id(command::PaymentIdStruct { id: index.id })
                 .await
                 .context("Failed to get payment")?
                 .maybe_payment
@@ -776,7 +776,7 @@ impl<D> LexeWallet<D> {
         let id = req.index.id;
         let payment = self
             .node_client
-            .get_payment_by_id(command::LxPaymentIdStruct { id })
+            .get_payment_by_id(command::PaymentIdStruct { id })
             .await
             .context("Failed to get payment")?
             .maybe_payment

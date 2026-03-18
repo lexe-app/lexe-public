@@ -30,7 +30,7 @@ use lexe_common::{
     constants::{self},
     env::DeployEnv,
     ln::{
-        balance::OnchainBalance, channel::LxOutPoint, hashes::LxTxid,
+        balance::OnchainBalance, channel::LxOutPoint, hashes::Txid,
         network::LxNetwork,
     },
     net,
@@ -474,8 +474,7 @@ impl UserNode {
                 Box::pin(async move {
                     encoded_result?;
 
-                    let broadcasted_tx =
-                        BroadcastedTx::new(LxTxid(txid), tx_buf);
+                    let broadcasted_tx = BroadcastedTx::new(Txid(txid), tx_buf);
 
                     let file_id = VfsFileId::new(
                         vfs::BROADCASTED_TXS_DIR,

@@ -23,7 +23,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::user::{NodePk, Scid},
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::Txid},
 };
 
 /// A newtype for [`lightning::ln::types::ChannelId`].
@@ -382,14 +382,14 @@ impl LxChannelDetails {
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxOutPoint {
-    pub txid: LxTxid,
+    pub txid: Txid,
     pub index: u16,
 }
 
 impl From<OutPoint> for LxOutPoint {
     fn from(op: OutPoint) -> Self {
         Self {
-            txid: LxTxid(op.txid),
+            txid: Txid(op.txid),
             index: op.index,
         }
     }
@@ -425,7 +425,7 @@ impl FromStr for LxOutPoint {
             .next()
             .context("Missing <index> in <txid>_<index>")?;
 
-        let txid = LxTxid::from_str(txid_str)
+        let txid = Txid::from_str(txid_str)
             .context("Invalid txid returned from DB")?;
         let index = u16::from_str(index_str)
             .context("Could not parse index into u16")?;

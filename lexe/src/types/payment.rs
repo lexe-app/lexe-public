@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use bitcoin::address::NetworkUnchecked;
-use lexe_api::types::{invoice::LxInvoice, payments::BasicPaymentV2};
+use lexe_api::types::{invoice::Invoice, payments::BasicPaymentV2};
 use lexe_common::{
-    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
 use serde::{Deserialize, Serialize};
@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
 mod reexports {
     pub use lexe_api::types::payments::{
-        LxPaymentHash, LxPaymentId, LxPaymentSecret, PaymentCreatedIndex,
-        PaymentDirection, PaymentKind, PaymentRail, PaymentStatus,
+        PaymentCreatedIndex, PaymentDirection, PaymentHash, PaymentId,
+        PaymentKind, PaymentRail, PaymentSecret, PaymentStatus,
         PaymentUpdatedIndex,
     };
 }
@@ -45,7 +45,7 @@ pub struct Payment {
     pub offer_id: Option<LxOfferId>,
     */
     /// (Onchain payments only) The hex-encoded Bitcoin txid.
-    pub txid: Option<LxTxid>,
+    pub txid: Option<Txid>,
 
     /// The amount of this payment.
     ///
@@ -78,7 +78,7 @@ pub struct Payment {
     pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
 
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
-    pub invoice: Option<Arc<LxInvoice>>,
+    pub invoice: Option<Arc<Invoice>>,
 
     /* TODO(max): Expose offer once we have out-of-line Offer storage.
     /// (Outbound offer payments only) The BOLT12 offer used in this payment.
@@ -108,7 +108,7 @@ pub struct Payment {
     /* TODO(max): Expose replacement_txid once someone cares about it.
     /// (Onchain payments only) The hex-encoded txid of the transaction that
     /// replaced this on-chain payment, if one exists.
-    pub replacement_txid: Option<LxTxid>,
+    pub replacement_txid: Option<Txid>,
     */
     /// The invoice or offer expiry time.
     /// `None` otherwise, or if the timestamp overflows.

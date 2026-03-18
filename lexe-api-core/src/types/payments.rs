@@ -19,16 +19,13 @@ use lexe_byte_array::ByteArray;
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     debug_panic_release_log,
-    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
 use lexe_crypto::rng::{RngCore, RngExt};
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
-use lightning::{
-    offers::offer::OfferId,
-    types::payment::{PaymentHash, PaymentPreimage, PaymentSecret},
-};
+use lightning::offers::offer::OfferId;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{prelude::Just, strategy::Strategy, strategy::Union};
 #[cfg(any(test, feature = "test-utils"))]
@@ -39,7 +36,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 #[cfg(test)]
 use strum::VariantArray;
 
-use crate::types::{invoice::LxInvoice, offer::LxOffer};
+use crate::types::{invoice::Invoice, offer::LxOffer};
 
 // --- Top-level payment types --- //
 
@@ -54,15 +51,15 @@ pub struct BasicPaymentV2 {
     // --- Identifier and basic info fields --- //
     ///
     /// Payment identifier; globally unique from the user's perspective.
-    pub id: LxPaymentId,
+    pub id: PaymentId,
 
     /// The ids of payments related to this payment.
     #[cfg_attr(
         any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_hashset::<LxPaymentId>()")
+        proptest(strategy = "arbitrary::any_hashset::<PaymentId>()")
     )]
     #[serde(default, skip_serializing_if = "HashSet::is_empty")]
-    pub related_ids: HashSet<LxPaymentId>,
+    pub related_ids: HashSet<PaymentId>,
 
     /// Payment kind: Application-level purpose of this payment.
     pub kind: PaymentKind,
@@ -78,7 +75,7 @@ pub struct BasicPaymentV2 {
     // NOTE: we're duplicating the txid here for onchain receives because its
     // less error prone to use, esp. for external API consumers.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub txid: Option<LxTxid>,
+    pub txid: Option<Txid>,
 
     // --- Amounts --- //
     ///
@@ -143,7 +140,7 @@ pub struct BasicPaymentV2 {
 
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub invoice: Option<Arc<LxInvoice>>,
+    pub invoice: Option<Arc<Invoice>>,
 
     /// (Outbound offer payments only) The BOLT12 offer used in this payment.
     /// Until we store offers out-of-line, this is not yet available for
@@ -224,7 +221,7 @@ pub struct BasicPaymentV2 {
     // Renamed in node-v0.8.10.
     // Can be removed only after *all* payments have migrated to payments v2.
     #[serde(rename = "replacement", alias = "replacement_txid")]
-    pub replacement_txid: Option<LxTxid>,
+    pub replacement_txid: Option<Txid>,
 
     // --- Timestamps --- //
     ///
@@ -269,15 +266,15 @@ pub struct BasicPaymentV1 {
     pub rail: PaymentRail,
     pub direction: PaymentDirection,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub invoice: Option<Arc<LxInvoice>>,
+    pub invoice: Option<Arc<Invoice>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer_id: Option<LxOfferId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer: Option<Arc<LxOffer>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub txid: Option<LxTxid>,
+    pub txid: Option<Txid>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub replacement: Option<LxTxid>,
+    pub replacement: Option<Txid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<Amount>,
     pub fees: Amount,
@@ -600,9 +597,9 @@ pub enum PaymentStatus {
 /// cursor-based pagination. Serialized as `"<created_at>-<id>"`, e.g.
 /// `"0002683862736062841-ln_3ddc..."`.
 //
-// Essentially a [`(TimestampMs, LxPaymentId)`] which:
+// Essentially a [`(TimestampMs, PaymentId)`] which:
 // 1) retains uniqueness per payment
-// 2) is ordered first by `created_at` timestamp and then by [`LxPaymentId`].
+// 2) is ordered first by `created_at` timestamp and then by [`PaymentId`].
 //
 // String-serialized ordering is equivalent to the unserialized ordering,
 // since created_at is zero-padded to 19 digits.
@@ -611,7 +608,7 @@ pub enum PaymentStatus {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentCreatedIndex {
     pub created_at: TimestampMs,
-    pub id: LxPaymentId,
+    pub id: PaymentId,
 }
 
 /// A unique, ordered payment identifier: `(updated_at, payment_id)`.
@@ -627,7 +624,7 @@ pub struct PaymentCreatedIndex {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentUpdatedIndex {
     pub updated_at: TimestampMs,
-    pub id: LxPaymentId,
+    pub id: PaymentId,
 }
 
 /// A globally unique identifier for any payment (Lightning or on-chain).
@@ -637,7 +634,7 @@ pub struct PaymentUpdatedIndex {
 /// `fr` (offer receive), `fs` (offer send).
 //
 // - Lightning inbound+outbound invoice+spontaneous payments use their
-//   [`LxPaymentHash`] as their id. TODO(phlip9): inbound spontaneous payments
+//   [`PaymentHash`] as their id. TODO(phlip9): inbound spontaneous payments
 //   should use `LnClaimId` as their id.
 // - Lightning _reusable_ inbound offer payments use the [`LnClaimId`] as their
 //   id.
@@ -645,26 +642,25 @@ pub struct PaymentUpdatedIndex {
 //   id. TODO(phlip9): impl
 // - Lightning outbound offer payments use a [`ClientPaymentId`] as their id.
 // - On-chain sends use a [`ClientPaymentId`] as their id.
-// - On-chain receives use their [`LxTxid`] as their id.
+// - On-chain receives use their [`Txid`] as their id.
 //
-// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
-// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
-//
-// [`PaymentId`]: lightning::ln::channelmanager::PaymentId
+// NOTE that this is NOT a drop-in replacement for LDK's
+// `lightning::ln::channelmanager::PaymentId`, since that type is
+// Lightning-specific, whereas this `PaymentId` is not.
 // TODO(phlip9): bolt12 refunds
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub enum LxPaymentId {
-    // NOTE: the enum order is important. `LxPaymentId::prefix()` determines
+pub enum PaymentId {
+    // NOTE: the enum order is important. `PaymentId::prefix()` determines
     // the order ("fi" < .. < "os").
     // Added `Offer*` variants in `node-v0.7.8`
     // TODO(phlip9): single-use offer payments would require a different id
     // OfferRecvInvoice(LxOfferId),  // "fi"
     OfferRecvReusable(LnClaimId), // "fr"
     OfferSend(ClientPaymentId),   // "fs"
-    Lightning(LxPaymentHash),     // "ln"
-    OnchainRecv(LxTxid),          // "or"
+    Lightning(PaymentHash),       // "ln"
+    OnchainRecv(Txid),            // "or"
     OnchainSend(ClientPaymentId), // "os"
 }
 
@@ -682,28 +678,30 @@ pub struct ClientPaymentId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 /// The payment hash of a Lightning payment. Serialized as a 64-character hex
 /// string.
 //
-// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
+// Newtype for LDK's `PaymentHash` which impls [`Serialize`] / [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct LxPaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct PaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-/// Newtype for [`PaymentPreimage`] which impls [`Serialize`] / [`Deserialize`].
+/// Newtype for LDK's `PaymentPreimage` which impls [`Serialize`] /
+/// [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct PaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// The payment secret of a Lightning invoice, used to authenticate the payer.
 /// Serialized as a 64-character hex string.
 //
-// Newtype for [`PaymentSecret`] which impls [`Serialize`] / [`Deserialize`].
+// Newtype for LDK's `PaymentSecret` which impls [`Serialize`] /
+// [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct PaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`OfferId`] which impls [`Serialize`] / [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -712,8 +710,8 @@ pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[repr(transparent)]
 pub struct LxOfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-/// Newtype for LDK's [`PaymentId`] but used specifically for inbound lightning
-/// payment idempotency.
+/// Newtype for LDK's `lightning::ln::channelmanager::PaymentId` but used
+/// specifically for inbound lightning payment idempotency.
 ///
 /// It is the hash of the HTLC(s) paying for a specific payment hash. There can
 /// be multiple `LnClaimId`s for a single payment hash if e.g. a payer
@@ -722,7 +720,6 @@ pub struct LxOfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 /// We get this value from LDK's [`PaymentClaimable`] and [`PaymentClaimed`]
 /// events.
 ///
-/// [`PaymentId`]: lightning::ln::channelmanager::PaymentId
 /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
 /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -776,7 +773,7 @@ impl BasicPaymentV2 {
     }
 
     #[inline]
-    pub fn payment_id(&self) -> LxPaymentId {
+    pub fn payment_id(&self) -> PaymentId {
         self.id
     }
 
@@ -832,7 +829,7 @@ impl BasicPaymentV2 {
     pub fn description(&self) -> Option<&str> {
         self.invoice
             .as_deref()
-            .and_then(LxInvoice::description_str)
+            .and_then(Invoice::description_str)
             .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
     }
 
@@ -872,7 +869,7 @@ impl BasicPaymentV1 {
     pub fn created_at(&self) -> TimestampMs {
         self.index.created_at
     }
-    pub fn payment_id(&self) -> LxPaymentId {
+    pub fn payment_id(&self) -> PaymentId {
         self.index.id
     }
     pub fn is_pending(&self) -> bool {
@@ -906,7 +903,7 @@ impl BasicPaymentV1 {
     pub fn description(&self) -> Option<&str> {
         self.invoice
             .as_deref()
-            .and_then(LxInvoice::description_str)
+            .and_then(Invoice::description_str)
             .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
     }
 }
@@ -947,20 +944,20 @@ impl PaymentCreatedIndex {
     /// The index that is lexicographically <= all other indexes.
     pub const MIN: Self = Self {
         created_at: TimestampMs::MIN,
-        id: LxPaymentId::MIN,
+        id: PaymentId::MIN,
     };
 
     /// The index that is lexicographically >= all other indexes.
     pub const MAX: Self = Self {
         created_at: TimestampMs::MAX,
-        id: LxPaymentId::MAX,
+        id: PaymentId::MAX,
     };
 
     /// Quickly create a dummy index which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
         let created_at = TimestampMs::from_u8(i);
-        let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
+        let id = PaymentId::Lightning(PaymentHash([i; 32]));
         Self { created_at, id }
     }
 }
@@ -969,31 +966,31 @@ impl PaymentUpdatedIndex {
     /// The index that is lexicographically <= all other indexes.
     pub const MIN: Self = Self {
         updated_at: TimestampMs::MIN,
-        id: LxPaymentId::MIN,
+        id: PaymentId::MIN,
     };
 
     /// The index that is lexicographically >= all other indexes.
     pub const MAX: Self = Self {
         updated_at: TimestampMs::MAX,
-        id: LxPaymentId::MAX,
+        id: PaymentId::MAX,
     };
 
     /// Quickly create a dummy index which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
         let updated_at = TimestampMs::from_u8(i);
-        let id = LxPaymentId::from_u8(i);
+        let id = PaymentId::from_u8(i);
         Self { updated_at, id }
     }
 }
 
-// --- impl LxPaymentId --- //
+// --- impl PaymentId --- //
 
-impl LxPaymentId {
-    /// The `LxPaymentId` that is lexicographically <= all other ids.
+impl PaymentId {
+    /// The `PaymentId` that is lexicographically <= all other ids.
     pub const MIN: Self = Self::OfferRecvReusable(LnClaimId([0; 32]));
 
-    /// The `LxPaymentId` that is lexicographically >= all other ids.
+    /// The `PaymentId` that is lexicographically >= all other ids.
     pub const MAX: Self = Self::OnchainSend(ClientPaymentId([255; 32]));
 
     /// Returns the prefix to use when serializing this payment id to a string.
@@ -1007,26 +1004,26 @@ impl LxPaymentId {
         }
     }
 
-    /// Construct an [`LxPaymentId`] from LDK event fields.
+    /// Construct an [`PaymentId`] from LDK event fields.
     pub fn from_ldk_event(
         ldk_payment_id: Option<lightning::ln::channelmanager::PaymentId>,
-        payment_hash: LxPaymentHash,
+        payment_hash: PaymentHash,
     ) -> Self {
         match ldk_payment_id {
             Some(ldk_payment_id) => {
                 // BOLT11 invoice and spontaneous should always use the payment
                 // hash as the payment id
                 if &ldk_payment_id.0 == payment_hash.as_array() {
-                    LxPaymentId::Lightning(payment_hash)
+                    PaymentId::Lightning(payment_hash)
                 } else {
-                    LxPaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
+                    PaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
                 }
             }
             None => {
                 // We should always be setting a payment id, but maybe this is
                 // just an ancient event?
                 debug_panic_release_log!("event did not include a PaymentId");
-                LxPaymentId::Lightning(payment_hash)
+                PaymentId::Lightning(payment_hash)
             }
         }
     }
@@ -1035,22 +1032,22 @@ impl LxPaymentId {
     /// id for this outbound lightning payment.
     pub fn from_payment_failed(
         ldk_payment_id: lightning::ln::channelmanager::PaymentId,
-        payment_hash: Option<LxPaymentHash>,
+        payment_hash: Option<PaymentHash>,
     ) -> Self {
         match payment_hash {
             Some(payment_hash) => {
                 // BOLT11 invoice and spontaneous should always use the payment
                 // hash as the payment id
                 if &ldk_payment_id.0 == payment_hash.as_array() {
-                    LxPaymentId::Lightning(payment_hash)
+                    PaymentId::Lightning(payment_hash)
                 } else {
-                    LxPaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
+                    PaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
                 }
             }
             None => {
                 // Payment hash is `None` if this was an offer payment and it
                 // failed before we managed to fetch the BOLT12 invoice.
-                LxPaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
+                PaymentId::OfferSend(ClientPaymentId(ldk_payment_id.0))
             }
         }
     }
@@ -1058,7 +1055,7 @@ impl LxPaymentId {
     /// Quickly create a dummy id which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn from_u8(i: u8) -> Self {
-        Self::Lightning(LxPaymentHash([i; 32]))
+        Self::Lightning(PaymentHash([i; 32]))
     }
 }
 
@@ -1072,47 +1069,47 @@ impl ClientPaymentId {
     }
 }
 
-// --- impl LxPaymentPreimage --- //
+// --- impl PaymentPreimage --- //
 
-impl LxPaymentPreimage {
-    /// Computes the [`LxPaymentHash`] corresponding to this preimage.
-    pub fn compute_hash(&self) -> LxPaymentHash {
+impl PaymentPreimage {
+    /// Computes the [`PaymentHash`] corresponding to this preimage.
+    pub fn compute_hash(&self) -> PaymentHash {
         let sha256_hash = sha256::Hash::hash(&self.0);
-        LxPaymentHash::from(sha256_hash)
+        PaymentHash::from(sha256_hash)
     }
 }
 
 // --- Boilerplate: ByteArray / FromStr / Display / Debug --- //
 
 lexe_byte_array::impl_byte_array!(ClientPaymentId, 32);
-lexe_byte_array::impl_byte_array!(LxPaymentHash, 32);
-lexe_byte_array::impl_byte_array!(LxPaymentPreimage, 32);
-lexe_byte_array::impl_byte_array!(LxPaymentSecret, 32);
+lexe_byte_array::impl_byte_array!(PaymentHash, 32);
+lexe_byte_array::impl_byte_array!(PaymentPreimage, 32);
+lexe_byte_array::impl_byte_array!(PaymentSecret, 32);
 lexe_byte_array::impl_byte_array!(LxOfferId, 32);
 lexe_byte_array::impl_byte_array!(LnClaimId, 32);
 
 lexe_byte_array::impl_fromstr_fromhex!(ClientPaymentId, 32);
-lexe_byte_array::impl_fromstr_fromhex!(LxPaymentHash, 32);
-lexe_byte_array::impl_fromstr_fromhex!(LxPaymentPreimage, 32);
-lexe_byte_array::impl_fromstr_fromhex!(LxPaymentSecret, 32);
+lexe_byte_array::impl_fromstr_fromhex!(PaymentHash, 32);
+lexe_byte_array::impl_fromstr_fromhex!(PaymentPreimage, 32);
+lexe_byte_array::impl_fromstr_fromhex!(PaymentSecret, 32);
 lexe_byte_array::impl_fromstr_fromhex!(LxOfferId, 32);
 lexe_byte_array::impl_fromstr_fromhex!(LnClaimId, 32);
 
 lexe_byte_array::impl_debug_display_as_hex!(ClientPaymentId);
-lexe_byte_array::impl_debug_display_as_hex!(LxPaymentHash);
+lexe_byte_array::impl_debug_display_as_hex!(PaymentHash);
 lexe_byte_array::impl_debug_display_as_hex!(LxOfferId);
 lexe_byte_array::impl_debug_display_as_hex!(LnClaimId);
 // Redacted to prevent accidentally leaking secrets in logs
-lexe_byte_array::impl_debug_display_redacted!(LxPaymentPreimage);
-lexe_byte_array::impl_debug_display_redacted!(LxPaymentSecret);
+lexe_byte_array::impl_debug_display_redacted!(PaymentPreimage);
+lexe_byte_array::impl_debug_display_redacted!(PaymentSecret);
 
 // --- Newtype From impls --- //
 
-// LxPaymentId -> ClientPaymentId / Txid / LxPaymentHash
-impl TryFrom<LxPaymentId> for ClientPaymentId {
+// PaymentId -> ClientPaymentId / Txid / PaymentHash
+impl TryFrom<PaymentId> for ClientPaymentId {
     type Error = anyhow::Error;
-    fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
-        use LxPaymentId::*;
+    fn try_from(id: PaymentId) -> anyhow::Result<Self> {
+        use PaymentId::*;
         match id {
             OnchainSend(cid) | OfferSend(cid) => Ok(cid),
             OfferRecvReusable(_) | OnchainRecv(_) | Lightning(_) =>
@@ -1120,10 +1117,10 @@ impl TryFrom<LxPaymentId> for ClientPaymentId {
         }
     }
 }
-impl TryFrom<LxPaymentId> for LxPaymentHash {
+impl TryFrom<PaymentId> for PaymentHash {
     type Error = anyhow::Error;
-    fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
-        use LxPaymentId::*;
+    fn try_from(id: PaymentId) -> anyhow::Result<Self> {
+        use PaymentId::*;
         match id {
             Lightning(hash) => Ok(hash),
             OnchainSend(_) | OfferSend(_) | OfferRecvReusable(_)
@@ -1133,25 +1130,25 @@ impl TryFrom<LxPaymentId> for LxPaymentHash {
 }
 
 // Bitcoin -> Lexe
-impl From<sha256::Hash> for LxPaymentHash {
+impl From<sha256::Hash> for PaymentHash {
     fn from(hash: sha256::Hash) -> Self {
         Self(hash.to_byte_array())
     }
 }
 
 // LDK -> Lexe
-impl From<PaymentHash> for LxPaymentHash {
-    fn from(hash: PaymentHash) -> Self {
+impl From<lightning::types::payment::PaymentHash> for PaymentHash {
+    fn from(hash: lightning::types::payment::PaymentHash) -> Self {
         Self(hash.0)
     }
 }
-impl From<PaymentPreimage> for LxPaymentPreimage {
-    fn from(preimage: PaymentPreimage) -> Self {
+impl From<lightning::types::payment::PaymentPreimage> for PaymentPreimage {
+    fn from(preimage: lightning::types::payment::PaymentPreimage) -> Self {
         Self(preimage.0)
     }
 }
-impl From<PaymentSecret> for LxPaymentSecret {
-    fn from(secret: PaymentSecret) -> Self {
+impl From<lightning::types::payment::PaymentSecret> for PaymentSecret {
+    fn from(secret: lightning::types::payment::PaymentSecret) -> Self {
         Self(secret.0)
     }
 }
@@ -1167,18 +1164,18 @@ impl From<lightning::ln::channelmanager::PaymentId> for LnClaimId {
 }
 
 // Lexe -> LDK
-impl From<LxPaymentHash> for PaymentHash {
-    fn from(hash: LxPaymentHash) -> Self {
+impl From<PaymentHash> for lightning::types::payment::PaymentHash {
+    fn from(hash: PaymentHash) -> Self {
         Self(hash.0)
     }
 }
-impl From<LxPaymentPreimage> for PaymentPreimage {
-    fn from(preimage: LxPaymentPreimage) -> Self {
+impl From<PaymentPreimage> for lightning::types::payment::PaymentPreimage {
+    fn from(preimage: PaymentPreimage) -> Self {
         Self(preimage.0)
     }
 }
-impl From<LxPaymentSecret> for PaymentSecret {
-    fn from(secret: LxPaymentSecret) -> Self {
+impl From<PaymentSecret> for lightning::types::payment::PaymentSecret {
+    fn from(secret: PaymentSecret) -> Self {
         Self(secret.0)
     }
 }
@@ -1193,8 +1190,8 @@ impl From<LnClaimId> for lightning::ln::channelmanager::PaymentId {
     }
 }
 
-impl From<LxPaymentHash> for lightning::ln::channelmanager::PaymentId {
-    fn from(hash: LxPaymentHash) -> Self {
+impl From<PaymentHash> for lightning::ln::channelmanager::PaymentId {
+    fn from(hash: PaymentHash) -> Self {
         Self(hash.0)
     }
 }
@@ -1461,7 +1458,7 @@ impl Serialize for PaymentStatus {
 // --- PaymentCreatedIndex FromStr / Display impl --- //
 
 /// `<created_at>-<id>`
-// We use the - separator because LxPaymentId already uses _
+// We use the - separator because PaymentId already uses _
 impl FromStr for PaymentCreatedIndex {
     type Err = anyhow::Error;
     fn from_str(createdat_id: &str) -> anyhow::Result<Self> {
@@ -1478,7 +1475,7 @@ impl FromStr for PaymentCreatedIndex {
 
         let created_at = TimestampMs::from_str(createdat_str)
             .context("Invalid timestamp in <created_at>-<id>")?;
-        let id = LxPaymentId::from_str(id_str)
+        let id = PaymentId::from_str(id_str)
             .context("Invalid payment id in <created_at>-<id>")?;
 
         Ok(Self { created_at, id })
@@ -1490,7 +1487,7 @@ impl FromStr for PaymentCreatedIndex {
 /// When serializing to string, pad the timestamp with leading zeroes (up to the
 /// maximum number of digits in an [`i64`]) so that the lexicographic ordering
 /// is equivalent to the non-serialized ordering.
-// We use the - separator because LxPaymentId already uses _
+// We use the - separator because PaymentId already uses _
 impl Display for PaymentCreatedIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let created_at = self.created_at.to_i64();
@@ -1504,7 +1501,7 @@ impl Display for PaymentCreatedIndex {
 //
 // Format: `u<updated_at>-<id>`
 //
-// - We use the '-' separator because LxPaymentId already uses '_'.
+// - We use the '-' separator because PaymentId already uses '_'.
 // - We require a 'u' prefix to so that no `PaymentCreatedIndex` can be
 //   interpreted as a `PaymentUpdatedIndex` and vice versa.
 
@@ -1531,7 +1528,7 @@ impl FromStr for PaymentUpdatedIndex {
 
         let updated_at = TimestampMs::from_str(updatedat_str)
             .context("Invalid timestamp in u<updated_at>-<id>")?;
-        let id = LxPaymentId::from_str(id_str)
+        let id = PaymentId::from_str(id_str)
             .context("Invalid payment id in u<updated_at>-<id>")?;
 
         Ok(Self { updated_at, id })
@@ -1552,10 +1549,10 @@ impl Display for PaymentUpdatedIndex {
     }
 }
 
-// --- LxPaymentId FromStr / Display impl --- //
+// --- PaymentId FromStr / Display impl --- //
 
 /// `<kind>_<id>`
-impl FromStr for LxPaymentId {
+impl FromStr for PaymentId {
     type Err = anyhow::Error;
     fn from_str(kind_id: &str) -> anyhow::Result<Self> {
         let mut parts = kind_id.split('_');
@@ -1572,10 +1569,10 @@ impl FromStr for LxPaymentId {
             "fs" => ClientPaymentId::from_str(id_str)
                 .map(Self::OfferSend)
                 .context("Invalid ClientPaymentId"),
-            "ln" => LxPaymentHash::from_str(id_str)
+            "ln" => PaymentHash::from_str(id_str)
                 .map(Self::Lightning)
                 .context("Invalid payment hash"),
-            "or" => LxTxid::from_str(id_str)
+            "or" => Txid::from_str(id_str)
                 .map(Self::OnchainRecv)
                 .context("Invalid Txid"),
             "os" => ClientPaymentId::from_str(id_str)
@@ -1587,7 +1584,7 @@ impl FromStr for LxPaymentId {
 }
 
 /// `<kind>_<id>`
-impl Display for LxPaymentId {
+impl Display for PaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prefix = self.prefix();
         match self {
@@ -1653,10 +1650,10 @@ mod test {
     fn newtype_serde_roundtrip() {
         roundtrip::json_string_roundtrip_proptest::<PaymentCreatedIndex>();
         roundtrip::json_string_roundtrip_proptest::<PaymentUpdatedIndex>();
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentId>();
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentSecret>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentId>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentHash>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentPreimage>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentSecret>();
         roundtrip::json_string_roundtrip_proptest::<LxOfferId>();
         roundtrip::json_string_roundtrip_proptest::<LnClaimId>();
     }
@@ -1665,21 +1662,21 @@ mod test {
     fn newtype_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentCreatedIndex>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentUpdatedIndex>();
-        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentId>();
-        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentId>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentHash>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxOfferId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LnClaimId>();
-        // `Display` for `LxPaymentPreimage` and `LxPaymentSecret` are redacted
-        // roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
-        // roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
+        // `Display` for `PaymentPreimage` and `PaymentSecret` are redacted
+        // roundtrip::fromstr_display_roundtrip_proptest::<PaymentPreimage>();
+        // roundtrip::fromstr_display_roundtrip_proptest::<PaymentSecret>();
     }
 
     #[test]
     fn payment_index_createdat_precedence() {
         let time1 = TimestampMs::from_secs_u32(1);
         let time2 = TimestampMs::from_secs_u32(2);
-        let id1 = LxPaymentId::Lightning(LxPaymentHash([1; 32]));
-        let id2 = LxPaymentId::Lightning(LxPaymentHash([2; 32]));
+        let id1 = PaymentId::Lightning(PaymentHash([1; 32]));
+        let id2 = PaymentId::Lightning(PaymentHash([2; 32]));
 
         let index12 = PaymentCreatedIndex {
             created_at: time1,
@@ -1697,8 +1694,8 @@ mod test {
     fn payment_index_updatedat_precedence() {
         let time1 = TimestampMs::from_secs_u32(1);
         let time2 = TimestampMs::from_secs_u32(2);
-        let id1 = LxPaymentId::Lightning(LxPaymentHash([1; 32]));
-        let id2 = LxPaymentId::Lightning(LxPaymentHash([2; 32]));
+        let id1 = PaymentId::Lightning(PaymentHash([1; 32]));
+        let id2 = PaymentId::Lightning(PaymentHash([2; 32]));
 
         let index12 = PaymentUpdatedIndex {
             updated_at: time1,
@@ -1743,7 +1740,7 @@ mod test {
     }
 
     // ∀ idx ∈ PaymentCreatedIndex, MIN <= idx <= MAX
-    // ∀  id ∈ LxPaymentId , MIN <= id <= MAX
+    // ∀  id ∈ PaymentId , MIN <= id <= MAX
     #[test]
     fn payment_created_index_bounds() {
         fn assert_bounds(
@@ -1759,13 +1756,13 @@ mod test {
                 Ordering::Less | Ordering::Equal,
             ));
 
-            // LxPaymentId bounds
+            // PaymentId bounds
             prop_assert!(matches!(
-                LxPaymentId::MIN.cmp(&idx.id),
+                PaymentId::MIN.cmp(&idx.id),
                 Ordering::Less | Ordering::Equal,
             ));
             prop_assert!(matches!(
-                idx.id.cmp(&LxPaymentId::MAX),
+                idx.id.cmp(&PaymentId::MAX),
                 Ordering::Less | Ordering::Equal,
             ));
 
@@ -1785,17 +1782,17 @@ mod test {
             })?;
             assert_bounds(PaymentCreatedIndex {
                 created_at: idx.created_at,
-                id: LxPaymentId::MIN,
+                id: PaymentId::MIN,
             })?;
             assert_bounds(PaymentCreatedIndex {
                 created_at: idx.created_at,
-                id: LxPaymentId::MAX,
+                id: PaymentId::MAX,
             })?;
         });
     }
 
     // ∀ idx ∈ PaymentUpdatedIndex, MIN <= idx <= MAX
-    // ∀  id ∈ LxPaymentId , MIN <= id <= MAX
+    // ∀  id ∈ PaymentId , MIN <= id <= MAX
     #[test]
     fn payment_updated_index_bounds() {
         fn assert_bounds(
@@ -1811,13 +1808,13 @@ mod test {
                 Ordering::Less | Ordering::Equal,
             ));
 
-            // LxPaymentId bounds
+            // PaymentId bounds
             prop_assert!(matches!(
-                LxPaymentId::MIN.cmp(&idx.id),
+                PaymentId::MIN.cmp(&idx.id),
                 Ordering::Less | Ordering::Equal,
             ));
             prop_assert!(matches!(
-                idx.id.cmp(&LxPaymentId::MAX),
+                idx.id.cmp(&PaymentId::MAX),
                 Ordering::Less | Ordering::Equal,
             ));
 
@@ -1837,11 +1834,11 @@ mod test {
             })?;
             assert_bounds(PaymentUpdatedIndex {
                 updated_at: idx.updated_at,
-                id: LxPaymentId::MIN,
+                id: PaymentId::MIN,
             })?;
             assert_bounds(PaymentUpdatedIndex {
                 updated_at: idx.updated_at,
-                id: LxPaymentId::MAX,
+                id: PaymentId::MAX,
             })?;
         });
     }
@@ -1871,7 +1868,7 @@ mod test {
 
     #[test]
     fn payment_id_ordering_equivalence() {
-        proptest!(|(id1 in any::<LxPaymentId>(), id2 in any::<LxPaymentId>())| {
+        proptest!(|(id1 in any::<PaymentId>(), id2 in any::<PaymentId>())| {
             let id1_str = id1.to_string();
             let id2_str = id2.to_string();
 
@@ -1888,8 +1885,7 @@ mod test {
     #[test]
     fn payment_id_gen_sample_data() {
         let mut rng = FastRng::from_u64(202504212022);
-        let mut ids =
-            arbitrary::gen_values(&mut rng, any::<LxPaymentId>(), 100);
+        let mut ids = arbitrary::gen_values(&mut rng, any::<PaymentId>(), 100);
         // only need one of each prefix
         ids.sort_unstable();
         ids.dedup_by_key(|id| id.prefix());
@@ -1910,9 +1906,9 @@ fr_00e32fe42d1249bd1299a2839c017584b09a924f935a5da5b121346950d2676d
 fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
 "#;
         for input in snapshot::parse_sample_data(inputs) {
-            let value1 = LxPaymentId::from_str(input).unwrap();
+            let value1 = PaymentId::from_str(input).unwrap();
             let output = value1.to_string();
-            let value2 = LxPaymentId::from_str(&output).unwrap();
+            let value2 = PaymentId::from_str(&output).unwrap();
             assert_eq!(value1, value2);
         }
     }

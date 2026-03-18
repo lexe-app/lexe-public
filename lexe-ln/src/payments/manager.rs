@@ -12,16 +12,16 @@ use lexe_api::{
     models::command::UpdatePaymentNote,
     types::{
         bounded_note::BoundedNote,
-        invoice::LxInvoice,
+        invoice::Invoice,
         payments::{
-            LnClaimId, LxPaymentHash, LxPaymentId, LxPaymentPreimage,
-            PaymentCreatedIndex, PaymentKind, PaymentStatus,
+            LnClaimId, PaymentCreatedIndex, PaymentHash, PaymentId,
+            PaymentKind, PaymentPreimage, PaymentStatus,
         },
     },
 };
 use lexe_common::{
     api::test_event::TestEvent,
-    ln::{amount::Amount, hashes::LxTxid},
+    ln::{amount::Amount, hashes::Txid},
     time::TimestampMs,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -32,7 +32,6 @@ use lightning::{
     ln::channelmanager::{
         FailureCode, RecipientOnionFields, RetryableSendFailure,
     },
-    types::payment::PaymentHash,
 };
 use tokio::{sync::MutexGuard, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
@@ -117,7 +116,7 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 ///    state. This is done by [`PaymentsData::commit`].
 ///
 /// To prevent update and persist races, a (Tokio) lock to the [`PaymentsData`]
-/// struct (or at least the [`LxPaymentId`] of the payment) should be held
+/// struct (or at least the [`PaymentId`] of the payment) should be held
 /// throughout the entirety of the state update, including the all of the check,
 /// persist, and commit stages. TODO(max): If this turns out to be a performance
 /// bottleneck, we should switch to per-payment or per-payment-type locks.
@@ -126,12 +125,12 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// [`upsert_payment_batch`]: LexePersisterMethods::upsert_payment_batch
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
-    pending: HashMap<LxPaymentId, PaymentWithMetadata>,
+    pending: HashMap<PaymentId, PaymentWithMetadata>,
     /// A non-exhaustive cache of finalized payments.
     finalized_payments_cache:
-        quick_cache::unsync::Cache<LxPaymentId, PaymentWithMetadata>,
+        quick_cache::unsync::Cache<PaymentId, PaymentWithMetadata>,
     /// In-memory retry state for outbound payments currently in-flight.
-    in_flight: HashMap<LxPaymentId, InFlightRetryState>,
+    in_flight: HashMap<PaymentId, InFlightRetryState>,
 }
 
 /// In-memory state for an outbound payment that is currently being retried.
@@ -145,7 +144,7 @@ pub(crate) struct InFlightRetryState {
     /// Used to exclude these channels when computing retry routes.
     pub failed_channel_scids: HashSet<u64>,
     /// The invoice being paid (contains hash and secret).
-    pub invoice: Arc<LxInvoice>,
+    pub invoice: Arc<Invoice>,
     /// The amount being sent (excluding fees).
     pub amount: Amount,
 }
@@ -180,7 +179,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     None
                 }
             })
-            .collect::<HashMap<LxPaymentId, PaymentWithMetadata>>();
+            .collect::<HashMap<PaymentId, PaymentWithMetadata>>();
 
         let finalized_payments_cache =
             quick_cache::unsync::Cache::new(finalized_cache_capacity);
@@ -336,12 +335,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(retry-payment)", fields(%id))]
     async fn retry_payment(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
     ) -> Result<(), LxOutboundPaymentFailure> {
         debug!("Attempting retry");
 
         struct RetryInfo {
-            invoice: Arc<LxInvoice>,
+            invoice: Arc<Invoice>,
             amount: Amount,
             failed_channel_scids: HashSet<u64>,
         }
@@ -412,9 +411,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             let recipient_fields = recipient_onion_fields(&retry_info.invoice);
 
             let (payment_id, payment_hash) = match id {
-                LxPaymentId::Lightning(hash) => (
+                PaymentId::Lightning(hash) => (
                     lightning::ln::channelmanager::PaymentId::from(hash),
-                    PaymentHash::from(hash),
+                    lightning::types::payment::PaymentHash::from(hash),
                 ),
                 _ => return Err(LxOutboundPaymentFailure::LexeErr),
             };
@@ -513,9 +512,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     // - `pay_invoice` API (after send_payment_with_route)
     pub async fn start_in_flight(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
         max_attempts: u8,
-        invoice: Arc<LxInvoice>,
+        invoice: Arc<Invoice>,
         amount: Amount,
     ) {
         let state = InFlightRetryState {
@@ -531,11 +530,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         locked_data.start_in_flight(id, state);
     }
 
-    /// Get a [`PaymentWithMetadata`] by its [`LxPaymentId`].
+    /// Get a [`PaymentWithMetadata`] by its [`PaymentId`].
     /// Returns the in-memory payment if cached, fetches from the DB otherwise.
     pub async fn get_payment(
         &self,
-        id: &LxPaymentId,
+        id: &PaymentId,
     ) -> anyhow::Result<Option<PaymentWithMetadata>> {
         let mut locked_data = self.data.lock().await;
         self.get_cow_payment(&mut locked_data, id)
@@ -548,7 +547,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     async fn get_cow_payment<'param>(
         &self,
         locked_data: &'param mut MutexGuard<'_, PaymentsData>,
-        id: &LxPaymentId,
+        id: &PaymentId,
     ) -> anyhow::Result<Option<Cow<'param, PaymentWithMetadata>>> {
         // Check if payment exists WITHOUT borrowing the data. This convinces
         // the borrow checker that the code paths are mutually exclusive:
@@ -633,7 +632,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     pub async fn payment_claimable(
         &self,
         purpose: PaymentPurpose,
-        hash: LxPaymentHash,
+        hash: PaymentHash,
         // TODO(phlip9): make non-Option once replaying events drain in prod
         claim_id: Option<LnClaimId>,
         amt_msat: u64,
@@ -776,7 +775,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     pub async fn payment_claimed(
         &self,
         purpose: PaymentPurpose,
-        hash: LxPaymentHash,
+        hash: PaymentHash,
         claim_id: Option<LnClaimId>,
         amt_msat: u64,
     ) -> anyhow::Result<()> {
@@ -833,9 +832,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-sent)", fields(%hash), err)]
     pub async fn payment_sent(
         &self,
-        id: LxPaymentId,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
+        id: PaymentId,
+        hash: PaymentHash,
+        preimage: PaymentPreimage,
         maybe_fees_paid_msat: Option<u64>,
     ) -> anyhow::Result<()> {
         let maybe_fees_paid = maybe_fees_paid_msat.map(Amount::from_msat);
@@ -897,8 +896,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-failed)", fields(?failure, %id), err)]
     pub async fn payment_failed(
         &self,
-        id: LxPaymentId,
-        // TODO(phlip9): Option<LxPaymentHash>,
+        id: PaymentId,
+        // TODO(phlip9): Option<PaymentHash>,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<()> {
         warn!("handling PaymentFailed");
@@ -968,7 +967,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// payment is not in-flight.
     ///
     /// [`PaymentPathFailed`]: lightning::events::Event::PaymentPathFailed
-    pub async fn record_path_failure(&self, id: &LxPaymentId, scid: u64) {
+    pub async fn record_path_failure(&self, id: &PaymentId, scid: u64) {
         let mut locked_data = self.data.lock().await;
         locked_data.record_path_failure(id, scid);
     }
@@ -1025,8 +1024,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(onchain-send-broadcasted)")]
     pub async fn onchain_send_broadcasted(
         &self,
-        id: &LxPaymentId,
-        txid: &LxTxid,
+        id: &PaymentId,
+        txid: &Txid,
     ) -> anyhow::Result<()> {
         debug!(%id, "Registering that an onchain send has been broadcasted");
         let mut locked_data = self.data.lock().await;
@@ -1092,7 +1091,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let payment_ids_pending_queries = {
             let locked_data = self.data.lock().await;
 
-            // Construct a `(LxPaymentId, TxConfQuery)` for every pending
+            // Construct a `(PaymentId, TxConfQuery)` for every pending
             // onchain payment.
             locked_data
                 .pending
@@ -1187,7 +1186,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let unseen_txids = {
             let mut unseen = Vec::new();
             for txid in &unspent_txids {
-                let id = LxPaymentId::OnchainRecv(LxTxid(*txid));
+                let id = PaymentId::OnchainRecv(Txid(*txid));
                 let is_unseen_txid = self
                     .get_cow_payment(&mut locked_data, &id)
                     .await
@@ -1280,19 +1279,19 @@ impl PaymentsData {
     // --- In-flight retry state management ---
 
     /// Store retry state when a payment starts.
-    fn start_in_flight(&mut self, id: LxPaymentId, state: InFlightRetryState) {
+    fn start_in_flight(&mut self, id: PaymentId, state: InFlightRetryState) {
         self.in_flight.insert(id, state);
     }
 
     /// Get a reference to the in-flight retry state for a payment.
-    fn get_in_flight(&self, id: &LxPaymentId) -> Option<&InFlightRetryState> {
+    fn get_in_flight(&self, id: &PaymentId) -> Option<&InFlightRetryState> {
         self.in_flight.get(id)
     }
 
     /// Get a mutable reference to the in-flight retry state for a payment.
     fn get_in_flight_mut(
         &mut self,
-        id: &LxPaymentId,
+        id: &PaymentId,
     ) -> Option<&mut InFlightRetryState> {
         self.in_flight.get_mut(id)
     }
@@ -1300,7 +1299,7 @@ impl PaymentsData {
     /// Remove and return the in-flight retry state for a payment.
     fn remove_in_flight(
         &mut self,
-        id: &LxPaymentId,
+        id: &PaymentId,
     ) -> Option<InFlightRetryState> {
         self.in_flight.remove(id)
     }
@@ -1309,7 +1308,7 @@ impl PaymentsData {
     ///
     /// Adds the SCID to the set of failed channels to avoid on retry.
     /// Silently ignores if the payment is not in-flight.
-    fn record_path_failure(&mut self, id: &LxPaymentId, scid: u64) {
+    fn record_path_failure(&mut self, id: &PaymentId, scid: u64) {
         let Some(state) = self.get_in_flight_mut(id) else {
             return;
         };
@@ -1319,21 +1318,21 @@ impl PaymentsData {
     /// Determines whether a failed payment should be retried.
     fn should_retry(
         &self,
-        id: &LxPaymentId,
+        id: &PaymentId,
         failure: &LxOutboundPaymentFailure,
     ) -> bool {
         !failure.is_permanent() && self.has_remaining_attempts(id)
     }
 
     /// Increments the attempt count for an in-flight payment.
-    fn increment_attempt(&mut self, id: &LxPaymentId) {
+    fn increment_attempt(&mut self, id: &PaymentId) {
         if let Some(state) = self.get_in_flight_mut(id) {
             state.attempts_count = state.attempts_count.saturating_add(1);
         }
     }
 
     /// Returns whether the payment has remaining retry attempts.
-    fn has_remaining_attempts(&self, id: &LxPaymentId) -> bool {
+    fn has_remaining_attempts(&self, id: &PaymentId) -> bool {
         self.get_in_flight(id)
             .is_some_and(|s| s.attempts_count < s.max_attempts)
     }
@@ -1481,9 +1480,9 @@ impl PaymentsData {
     // - `EventHandler` -> `Event::PaymentSent` (replayable)
     fn check_payment_sent(
         &self,
-        id: LxPaymentId,
-        hash: LxPaymentHash,
-        preimage: LxPaymentPreimage,
+        id: PaymentId,
+        hash: PaymentHash,
+        preimage: PaymentPreimage,
         maybe_fees_paid: Option<Amount>,
     ) -> anyhow::Result<CheckedPayment> {
         let pending_pwm = self
@@ -1526,7 +1525,7 @@ impl PaymentsData {
     // - `pay_invoice` API
     fn check_payment_failed(
         &self,
-        id: LxPaymentId,
+        id: PaymentId,
         failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<CheckedPayment> {
         let pending_pwm = self
@@ -1635,7 +1634,7 @@ impl PaymentsData {
     // - `PaymentsManager::spawn_onchain_confs_checker` task
     fn check_onchain_confs<'id>(
         &self,
-        ids: impl Iterator<Item = &'id LxPaymentId>,
+        ids: impl Iterator<Item = &'id PaymentId>,
         conf_statuses: Vec<TxConfStatus>,
     ) -> anyhow::Result<Vec<CheckedPayment>> {
         ids.zip(conf_statuses)
@@ -1696,7 +1695,7 @@ impl PaymentsData {
 
 /// Build [`RecipientOnionFields`] from an invoice.
 pub(crate) fn recipient_onion_fields(
-    invoice: &LxInvoice,
+    invoice: &Invoice,
 ) -> RecipientOnionFields {
     let payment_secret = invoice.payment_secret().into();
     let mut fields = RecipientOnionFields::secret_only(payment_secret);
@@ -1949,7 +1948,7 @@ mod test {
 
     #[test]
     fn prop_outbound_invoice_payment_idempotency() {
-        let preimage = LxPaymentPreimage::from_array([0x42; 32]);
+        let preimage = PaymentPreimage::from_array([0x42; 32]);
         proptest!(|(
             mut data in any::<PaymentsData>(),
             //   check_payment_sent precondition: Must not be finalized
@@ -1979,7 +1978,7 @@ mod test {
             //   check_payment_sent precondition: Must not be finalized
             // check_payment_failed precondition: Must not be finalized
             oop in any_with::<OutboundOfferPaymentV2>(pending_only),
-            preimage in any::<LxPaymentPreimage>(),
+            preimage in any::<PaymentPreimage>(),
             fees in any::<Amount>(),
             failure in any::<LxOutboundPaymentFailure>(),
         )| {
@@ -1999,7 +1998,7 @@ mod test {
     fn prop_outbound_invoice_payment() {
         use OutboundInvoicePaymentStatus::*;
 
-        let preimage = LxPaymentPreimage::from_array([0x42; 32]);
+        let preimage = PaymentPreimage::from_array([0x42; 32]);
         proptest!(|(
             oip in any_with::<OutboundInvoicePaymentV2>(OipParamsV2 {
                 payment_preimage: Some(preimage),
@@ -2066,9 +2065,9 @@ mod test {
     #[test]
     fn prop_record_path_failure() {
         proptest!(|(
-            id in any::<LxPaymentId>(),
-            unknown_id in any::<LxPaymentId>(),
-            invoice in any::<LxInvoice>(),
+            id in any::<PaymentId>(),
+            unknown_id in any::<PaymentId>(),
+            invoice in any::<Invoice>(),
             amount in any::<Amount>(),
             scids in proptest::collection::vec(any::<u64>(), 1..10),
         )| {
@@ -2111,9 +2110,9 @@ mod test {
             q9agkw6ta9wect076du6p3mvcp9w4lu3";
 
         let mut data = PaymentsData::from_vec(vec![]);
-        let id = LxPaymentId::from_u8(1);
-        let unknown_id = LxPaymentId::from_u8(2);
-        let invoice: LxInvoice = TEST_INVOICE.parse().unwrap();
+        let id = PaymentId::from_u8(1);
+        let unknown_id = PaymentId::from_u8(2);
+        let invoice: Invoice = TEST_INVOICE.parse().unwrap();
         let amount = Amount::from_sats_u32(1000);
         let transient = LxOutboundPaymentFailure::NoRetries;
         let permanent = LxOutboundPaymentFailure::Rejected;

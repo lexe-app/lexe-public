@@ -1,18 +1,18 @@
 use bitcoin::address::NetworkUnchecked;
-use lexe_api_core::types::invoice::LxInvoice;
+use lexe_api_core::types::invoice::Invoice;
 
 use crate::payment_method::{Onchain, PaymentMethod};
 
-/// "Flatten" an [`LxInvoice`] into its "component" [`PaymentMethod`]s.
-pub fn flatten_invoice(invoice: LxInvoice) -> Vec<PaymentMethod> {
+/// "Flatten" an [`Invoice`] into its "component" [`PaymentMethod`]s.
+pub fn flatten_invoice(invoice: Invoice) -> Vec<PaymentMethod> {
     let mut out = Vec::with_capacity(1);
     flatten_invoice_into(invoice, &mut out);
     out
 }
 
-/// "Flatten" an [`LxInvoice`] into its "component" [`PaymentMethod`]s,
+/// "Flatten" an [`Invoice`] into its "component" [`PaymentMethod`]s,
 /// pushing them into an existing `Vec`.
-pub fn flatten_invoice_into(invoice: LxInvoice, out: &mut Vec<PaymentMethod>) {
+pub fn flatten_invoice_into(invoice: Invoice, out: &mut Vec<PaymentMethod>) {
     let onchain_fallback_addrs = invoice.onchain_fallbacks();
     out.reserve(1 + onchain_fallback_addrs.len());
 

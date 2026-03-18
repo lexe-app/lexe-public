@@ -14,7 +14,7 @@ use lexe_std::Apply;
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::types::payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret};
+use crate::types::payments::{PaymentHash, PaymentId, PaymentSecret};
 
 /// A BOLT 11 Lightning invoice. Serialized as a bech32-encoded string
 /// (e.g. `"lnbc1..."`).
@@ -22,28 +22,28 @@ use crate::types::payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret};
 // Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /
 // Deserialize using LDK's [`FromStr`] / [`Display`] impls.
 #[derive(Clone, Debug, Eq, PartialEq, SerializeDisplay, DeserializeFromStr)]
-pub struct LxInvoice(pub Bolt11Invoice);
+pub struct Invoice(pub Bolt11Invoice);
 
-impl LxInvoice {
+impl Invoice {
     /// The invoice payment hash. The payer will receive the preimage to this
     /// hash upon successful payment, as proof-of-payment.
     #[inline]
-    pub fn payment_hash(&self) -> LxPaymentHash {
-        LxPaymentHash::from(*self.0.payment_hash())
+    pub fn payment_hash(&self) -> PaymentHash {
+        PaymentHash::from(*self.0.payment_hash())
     }
 
     /// The invoice payment secret, used to authenticate the payer to the payee
     /// and tie MPP HTLCs together.
     #[inline]
-    pub fn payment_secret(&self) -> LxPaymentSecret {
-        LxPaymentSecret::from(*self.0.payment_secret())
+    pub fn payment_secret(&self) -> PaymentSecret {
+        PaymentSecret::from(*self.0.payment_secret())
     }
 
     /// Lexe's main identifier for this payment, which for BOLT11 invoice
-    /// payments is just the [`LxInvoice::payment_hash`].
+    /// payments is just the [`Invoice::payment_hash`].
     #[inline]
-    pub fn payment_id(&self) -> LxPaymentId {
-        LxPaymentId::Lightning(self.payment_hash())
+    pub fn payment_id(&self) -> PaymentId {
+        PaymentId::Lightning(self.payment_hash())
     }
 
     #[inline]
@@ -179,14 +179,14 @@ impl LxInvoice {
     }
 }
 
-impl FromStr for LxInvoice {
+impl FromStr for Invoice {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Bolt11Invoice::from_str(s).map(Self).map_err(ParseError)
     }
 }
 
-impl Display for LxInvoice {
+impl Display for Invoice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.0, f)
     }
@@ -217,9 +217,7 @@ pub mod arbitrary_impl {
         root_seed::RootSeed, secp256k1_ctx::SECP256K1, test_utils::arbitrary,
     };
     use lexe_crypto::rng::FastRng;
-    use lightning::{
-        routing::router::RouteHint, types::payment::PaymentSecret,
-    };
+    use lightning::routing::router::RouteHint;
     use lightning_invoice::{Fallback, InvoiceBuilder, MAX_TIMESTAMP};
     use proptest::{
         arbitrary::{Arbitrary, any},
@@ -228,15 +226,15 @@ pub mod arbitrary_impl {
     };
 
     use super::*;
-    use crate::types::payments::LxPaymentPreimage;
+    use crate::types::payments::PaymentPreimage;
 
     #[derive(Default)]
-    pub struct LxInvoiceParams {
-        pub payment_preimage: Option<LxPaymentPreimage>,
+    pub struct InvoiceParams {
+        pub payment_preimage: Option<PaymentPreimage>,
     }
 
-    impl Arbitrary for LxInvoice {
-        type Parameters = LxInvoiceParams;
+    impl Arbitrary for Invoice {
+        type Parameters = InvoiceParams;
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             let bytes32 = any::<[u8; 32]>().no_shrink();
@@ -339,7 +337,7 @@ pub mod arbitrary_impl {
         add_pubkey: bool,
         fallback: Option<Fallback>,
         route_hint: RouteHint,
-    ) -> LxInvoice {
+    ) -> Invoice {
         // Build invoice
 
         let invoice = InvoiceBuilder::new(network.into());
@@ -353,7 +351,9 @@ pub mod arbitrary_impl {
         let mut invoice = invoice
             .duration_since_epoch(timestamp)
             .payment_hash(sha256::Hash::from_byte_array(payment_hash))
-            .payment_secret(PaymentSecret(payment_secret))
+            .payment_secret(lightning::types::payment::PaymentSecret(
+                payment_secret,
+            ))
             .basic_mpp()
             .min_final_cltv_expiry_delta(min_final_cltv_expiry_delta.into());
 
@@ -391,7 +391,7 @@ pub mod arbitrary_impl {
             None => invoice.build_signed(do_sign),
         };
 
-        LxInvoice(invoice.expect("Failed to build and sign invoice"))
+        Invoice(invoice.expect("Failed to build and sign invoice"))
     }
 }
 
@@ -438,7 +438,7 @@ lntb5826417333454665580p1c5rwh5edlhf33hvkj5vav5z3t02a5hxvj3vfv5kuny2f3yzj6zwf9hx
 lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8nsnv3whzszhv89lnhwum9u4vk284sfr6c2jnee9yhcn08qd65ghznuac4w5l9fahknyt4sugg0p22tqqdsxlrf465fwzvupw7z7tm9p97wyerp8j5676zafx8s9rlj967x4cld6dty3w9q9w7zvm8wl3kkacj4l3hkzcauutj630rx5pnp4l805v50g63ayd5w7lr8yrsvqxq3ljh6mf0uuxsjlq5fqtfsdsqrgd8unzuxl35zvgemamhu9kreu9kc7jduuq5ksdr2r4pd74ct39ytpgku6u6x5y5h8zszhrnuuqs6qz2uex7z3m9v7r5lc2lval8nhml0wrja0lp89yj4rv8gcm7xammz7rnuj7l0aap929c7rva7lmmmypk5jlrw4m5eqrmuap46szva32a7lm6fl0hwljauvrjzjj7r00hwljfuvn46vdr2x34pvjz37r3unj5ne8yshreuuxhzhphu4l46hlrvak4q3q4u40jkn9euveh2cxqhpy9me23r9neza870p67xug4qk34refmtufu2wg5wju7wlm4tjurvxlrvu8n8cfdd538tcm8z9nezar5tcm7z0etd834kkmgwny7zgt4y7ghgpp5f5a605yw4snw7vw44vdzyk9stc04t0993vqeau6f4c4qnvkmdc7ssp5hae8vd4p95e3shsu44ewsc7g0yy723htt3zgdd82dnn6agvj0ups9qyysgqcqypaqaxq8lllllllfppqsmsyt0w88nycxpxa4v8rd0yevu6e436vrzjqwjpdn2djrehkzaaydyzrk6kg5nhtsjrmdqalv4qvuvfhjg0uev9rund8d9uqxt5kadklnrf28wd4crjscqkhvztylj52y75en2z7jmsjs6pz72kujhcn46v0wvh6wcy7xsgzqkrr5m7gf35eps9pkuln0upsw6jkunmnv8ma3tqph5r8yyaj9vkgp0ymxnf
 "#;
         for input in snapshot::parse_sample_data(inputs) {
-            let invoice = LxInvoice::from_str(input).unwrap();
+            let invoice = Invoice::from_str(input).unwrap();
             let invoice_str = invoice.to_string();
             assert_eq!(input, invoice_str);
         }
@@ -446,24 +446,24 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
 
     #[test]
     fn invoice_serde_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<LxInvoice>();
+        roundtrip::json_string_roundtrip_proptest::<Invoice>();
     }
 
     #[test]
     fn invoice_fromstr_display_roundtrip() {
-        roundtrip::fromstr_display_roundtrip_proptest::<LxInvoice>();
+        roundtrip::fromstr_display_roundtrip_proptest::<Invoice>();
     }
 
     #[test]
     fn invoice_matches_hrp_prefix() {
-        proptest!(|(invoice: LxInvoice)| {
+        proptest!(|(invoice: Invoice)| {
             let mut invoice_str = invoice.to_string();
-            prop_assert!(LxInvoice::matches_hrp_prefix(&invoice_str));
+            prop_assert!(Invoice::matches_hrp_prefix(&invoice_str));
 
             // uppercase
             invoice_str.make_ascii_uppercase();
-            prop_assert!(LxInvoice::matches_hrp_prefix(&invoice_str));
-            prop_assert_eq!(LxInvoice::from_str(&invoice_str).unwrap(), invoice);
+            prop_assert!(Invoice::matches_hrp_prefix(&invoice_str));
+            prop_assert_eq!(Invoice::from_str(&invoice_str).unwrap(), invoice);
         });
     }
 
@@ -472,7 +472,7 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
     #[test]
     fn invoice_sample_data() {
         let mut rng = FastRng::from_u64(366519812156561);
-        let strategy = any::<LxInvoice>();
+        let strategy = any::<Invoice>();
         let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
 
         for value in value_iter.take(10) {
@@ -546,7 +546,7 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
     #[test]
     fn invoice_print() {
         let s = "lnbc1pn79l2rdqqpp5y3u8cttsjvusa34xnx9ceh8watmrvy99qw7pwpsvxjq3zl2mm8wscqpcsp5p4wrl7xfrgxj3w05ksjv2qtccyt0feg2c0suwcjc5pyrawxvlt0q9qyysgqxqyz5vqnp4q0vzagw8x7r9eyalw35t0u6syql8rtqf9tejep0z6xrwkqrua5advrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wrf0egqqy2sqqcqqqqqqqqqqhwqqfqrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wzmk4uqqj5sqqyqqqqqqqqqqhwqqfqrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wz2g6uqqt5cqqcqqqqqqqqqqhwqqfqd5xs0luhzmmdmevhqtcyuwrcr43pq3xpmtdvdenvcsslg8vuhmfyqtcs3y54yxpsw8wlt5epz0y0y64ul7fc37zt5cklumx0u6at2dcphm9mhh";
-        let invoice = LxInvoice::from_str(s).unwrap();
+        let invoice = Invoice::from_str(s).unwrap();
 
         dbg!(&invoice);
 

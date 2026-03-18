@@ -13,8 +13,9 @@ use lexe_api::{
         command::{
             ClaimGeneratedHumanBitcoinAddress, GetGeneratedUsernameResponse,
             GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            HumanBitcoinAddress, LxPaymentIdStruct, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, UpdateHumanBitcoinAddress, VecLxPaymentId,
+            HumanBitcoinAddress, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, PaymentIdStruct, UpdateHumanBitcoinAddress,
+            VecPaymentId,
         },
         nwc::{
             DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPkStruct,
@@ -495,7 +496,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment_by_id_v1(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV1, BackendApiError> {
         let backend = &self.backend_url;
@@ -508,7 +509,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment_by_id(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV2, BackendApiError> {
         let backend = &self.backend_url;
@@ -563,7 +564,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payments_by_ids(
         &self,
-        req: VecLxPaymentId,
+        req: VecPaymentId,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError> {
         let backend = &self.backend_url;
@@ -632,7 +633,7 @@ impl NodeBackendApi for NodeBackendClient {
     async fn get_finalized_payment_ids(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<VecLxPaymentId, BackendApiError> {
+    ) -> Result<VecPaymentId, BackendApiError> {
         let backend = &self.backend_url;
         let data = Empty {};
         let req = self
@@ -668,7 +669,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment_metadata_by_id(
         &self,
-        req: LxPaymentIdStruct,
+        req: PaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentMetadata, BackendApiError> {
         let backend = &self.backend_url;
@@ -681,7 +682,7 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payment_metadata_by_ids(
         &self,
-        req: VecLxPaymentId,
+        req: VecPaymentId,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentMetadata, BackendApiError> {
         let backend = &self.backend_url;

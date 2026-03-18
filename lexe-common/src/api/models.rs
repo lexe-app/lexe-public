@@ -7,7 +7,7 @@ use super::user::NodePk;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
-    ln::{amount::Amount, hashes::LxTxid, network::LxNetwork},
+    ln::{amount::Amount, hashes::Txid, network::LxNetwork},
     time::TimestampMs,
 };
 
@@ -54,7 +54,7 @@ pub struct VerifyMsgResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BroadcastedTx {
     /// (PK)
-    pub txid: LxTxid,
+    pub txid: Txid,
     /// Consensus-encoded [`bitcoin::Transaction`].
     #[serde(with = "hexstr_or_bytes")]
     pub tx: Vec<u8>,
@@ -64,7 +64,7 @@ pub struct BroadcastedTx {
 }
 
 impl BroadcastedTx {
-    pub fn new(txid: LxTxid, tx: Vec<u8>) -> Self {
+    pub fn new(txid: Txid, tx: Vec<u8>) -> Self {
         Self {
             txid,
             tx,
@@ -76,7 +76,7 @@ impl BroadcastedTx {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BroadcastedTxInfo {
     /// (PK)
-    pub txid: LxTxid,
+    pub txid: Txid,
     /// Consensus-encoded [`bitcoin::Transaction`].
     #[serde(with = "hexstr_or_bytes")]
     pub tx: Vec<u8>,
@@ -157,7 +157,7 @@ mod arbitrary_impl {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
                 arbitrary::any_raw_tx_bytes(),
-                any::<LxTxid>(),
+                any::<Txid>(),
                 any::<TimestampMs>(),
             )
                 .prop_map(|(tx, txid, created_at)| Self {

@@ -1,11 +1,11 @@
 use std::{collections::HashSet, sync::Arc};
 
 use anyhow::Context;
-use lexe_api::types::payments::{ClientPaymentId, LxPaymentId, PaymentKind};
+use lexe_api::types::payments::{ClientPaymentId, PaymentId, PaymentKind};
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
-    ln::{amount::Amount, hashes::LxTxid, priority::ConfirmationPriority},
+    ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
 #[cfg(test)]
@@ -28,14 +28,14 @@ use crate::payments::{
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainSendV1 {
     pub cid: ClientPaymentId,
-    pub txid: LxTxid,
+    pub txid: Txid,
     #[cfg_attr(
         test,
         proptest(strategy = "arbitrary::any_raw_tx().prop_map(Arc::new)")
     )]
     pub tx: Arc<bitcoin::Transaction>,
     /// The txid of the replacement tx, if one exists.
-    pub replacement: Option<LxTxid>,
+    pub replacement: Option<Txid>,
     pub priority: ConfirmationPriority,
     pub amount: Amount,
     pub fees: Amount,
@@ -52,8 +52,8 @@ pub struct OnchainSendV1 {
 
 impl OnchainSendV1 {
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OnchainSend(self.cid)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::OnchainSend(self.cid)
     }
 }
 
@@ -143,14 +143,14 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainReceiveV1 {
-    pub txid: LxTxid,
+    pub txid: Txid,
     #[cfg_attr(
         test,
         proptest(strategy = "arbitrary::any_raw_tx().prop_map(Arc::new)")
     )]
     pub tx: Arc<bitcoin::Transaction>,
     /// The txid of the replacement tx, if one exists.
-    pub replacement: Option<LxTxid>,
+    pub replacement: Option<Txid>,
     pub amount: Amount,
     pub status: OnchainReceiveStatus,
     pub created_at: TimestampMs,
@@ -166,8 +166,8 @@ pub struct OnchainReceiveV1 {
 
 impl OnchainReceiveV1 {
     #[inline]
-    pub fn id(&self) -> LxPaymentId {
-        LxPaymentId::OnchainRecv(self.txid)
+    pub fn id(&self) -> PaymentId {
+        PaymentId::OnchainRecv(self.txid)
     }
 }
 

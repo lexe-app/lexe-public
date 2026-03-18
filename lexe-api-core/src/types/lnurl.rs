@@ -9,7 +9,7 @@ use lexe_common::{ByteArray, ln::amount::Amount};
 use lexe_sha256::sha256;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{invoice::LxInvoice, username::Username};
+use crate::types::{invoice::Invoice, username::Username};
 
 /// The validated and parsed LNURL-pay request ("payRequest").
 ///
@@ -119,7 +119,7 @@ impl LnurlCallbackRequestParams {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LnurlCallbackResponse {
     /// The BOLT11 invoice to pay.
-    pub pr: LxInvoice,
+    pub pr: Invoice,
     // The LUD-06 spec mandates a `routes` field (always empty array).
     // Modern implementations (Breez SDK, Phoenix) ignore it entirely.
     // It was likely intended for source routing hints but became
@@ -485,7 +485,7 @@ pub mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<LxInvoice>()
+            any::<Invoice>()
                 .prop_map(|pr| LnurlCallbackResponse { pr, routes: vec![] })
                 .boxed()
         }

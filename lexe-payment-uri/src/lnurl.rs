@@ -78,7 +78,7 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api_core::types::{
-    invoice::LxInvoice,
+    invoice::Invoice,
     lnurl::{
         LnurlCallbackResponse, LnurlErrorWire, LnurlPayRequest,
         LnurlPayRequestMetadata, LnurlPayRequestWire,
@@ -218,7 +218,7 @@ impl LnurlClient {
         pay_req: &LnurlPayRequest,
         amount: Amount,
         comment: Option<&str>,
-    ) -> anyhow::Result<LxInvoice> {
+    ) -> anyhow::Result<Invoice> {
         let callback = &pay_req.callback;
         debug!(%amount, %callback, "Resolving LNURL-pay request");
 

@@ -11,7 +11,7 @@ use lexe_api::{
         BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
     },
     types::{
-        invoice::LxInvoice,
+        invoice::Invoice as InvoiceRs,
         lnurl::{
             LnurlPayRequest as LnurlPayRequestRs,
             LnurlPayRequestMetadata as LnurlPayRequestMetadataRs,
@@ -602,7 +602,7 @@ impl From<lexe_payment_uri::Onchain> for Onchain {
 }
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
-/// Mirrors the [`LxInvoice`] type.
+/// Mirrors the [`Invoice`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Invoice {
@@ -618,8 +618,8 @@ pub struct Invoice {
     pub payee_pubkey: String,
 }
 
-impl From<&LxInvoice> for Invoice {
-    fn from(invoice: &LxInvoice) -> Self {
+impl From<&InvoiceRs> for Invoice {
+    fn from(invoice: &InvoiceRs) -> Self {
         Self {
             string: invoice.to_string(),
 
@@ -635,9 +635,9 @@ impl From<&LxInvoice> for Invoice {
     }
 }
 
-impl From<LxInvoice> for Invoice {
+impl From<InvoiceRs> for Invoice {
     #[inline]
-    fn from(value: LxInvoice) -> Self {
+    fn from(value: InvoiceRs) -> Self {
         Self::from(&value)
     }
 }

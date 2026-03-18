@@ -71,7 +71,7 @@ use lexe_common::ln::channel::LxOutPoint;
 use lexe_common::{
     constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
-        amount::Amount, balance::OnchainBalance, hashes::LxTxid,
+        amount::Amount, balance::OnchainBalance, hashes::Txid,
         network::LxNetwork, priority::ConfirmationPriority,
     },
     time::TimestampMs,
@@ -721,9 +721,9 @@ impl OnchainWallet {
         locked_wallet.list_unspent().collect()
     }
 
-    /// Get a [`TxDetails`] for given [`LxTxid`] inside of the wallet.
+    /// Get a [`TxDetails`] for given [`Txid`] inside of the wallet.
     /// If not found, returns `None`.
-    pub fn get_tx_details(&self, txid: LxTxid) -> Option<TxDetails> {
+    pub fn get_tx_details(&self, txid: Txid) -> Option<TxDetails> {
         let locked_wallet = self.inner.read().unwrap();
         locked_wallet.tx_details(txid.0)
     }
@@ -880,7 +880,7 @@ impl OnchainWallet {
     fn unconfirmed_transaction_evicted_at(
         &self,
         evicted_at: TimestampMs,
-        txid: lexe_common::ln::hashes::LxTxid,
+        txid: lexe_common::ln::hashes::Txid,
     ) {
         let evicted_at_secs = evicted_at.to_duration().as_secs();
         self.inner
@@ -1618,10 +1618,10 @@ mod test {
         AddressInfo,
         KeychainKind::{External, Internal},
     };
-    use bitcoin::{TxOut, Txid, hashes::Hash as _};
+    use bitcoin::{TxOut, hashes::Hash as _};
     use lexe_api::types::payments::ClientPaymentId;
     use lexe_common::{
-        ln::hashes::LxTxid,
+        ln::hashes::Txid,
         root_seed::RootSeed,
         sat,
         test_utils::{arbitrary, roundtrip},
@@ -1749,7 +1749,7 @@ mod test {
         #[track_caller]
         fn assert_sync(
             &self,
-            mut expected: BTreeMap<bitcoin::ScriptBuf, BTreeSet<Txid>>,
+            mut expected: BTreeMap<bitcoin::ScriptBuf, BTreeSet<bitcoin::Txid>>,
         ) {
             let (mut sync_req, _sync_stats) =
                 self.wallet.build_sync_request_at(self.now());
@@ -1832,7 +1832,7 @@ mod test {
 
         /// Confirm the given txids in the next block, then add enough blocks to
         /// give them X confirmations.
-        fn confirm_txids(&mut self, confs: u32, txids: &[Txid]);
+        fn confirm_txids(&mut self, confs: u32, txids: &[bitcoin::Txid]);
 
         fn add_unconfirmed_tx(&mut self, tx: &Transaction);
 
@@ -1901,7 +1901,7 @@ mod test {
             self.apply_unconfirmed_txs(iter::once((tx.clone(), now)));
         }
 
-        fn confirm_txids(&mut self, confs: u32, txids: &[Txid]) {
+        fn confirm_txids(&mut self, confs: u32, txids: &[bitcoin::Txid]) {
             assert!(confs > 0);
             let anchor = self.add_checkpoint(1);
             let anchors = txids.iter().map(|txid| (anchor, *txid)).collect();
@@ -2137,7 +2137,7 @@ mod test {
         // Manually declare it evicted / replaced / dropped from the mempool
         let now = h.now();
         let outpoint = LxOutPoint {
-            txid: LxTxid(tx_u.compute_txid()),
+            txid: Txid(tx_u.compute_txid()),
             index: 0,
         };
         h.wallet.unconfirmed_utxo_evicted_at(now, outpoint).unwrap();
@@ -2150,7 +2150,7 @@ mod test {
 
         // We can't evict a confirmed UTXO
         let outpoint = LxOutPoint {
-            txid: LxTxid(tx_c.compute_txid()),
+            txid: Txid(tx_c.compute_txid()),
             index: 0,
         };
         h.wallet

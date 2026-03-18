@@ -9,7 +9,7 @@ use anyhow::{anyhow, ensure};
 use bitcoin::secp256k1;
 use cfg_if::cfg_if;
 use either::Either;
-use lexe_api::{cli::LspInfo, types::invoice::LxInvoice};
+use lexe_api::{cli::LspInfo, types::invoice::Invoice};
 use lexe_common::{
     api::user::{NodePk, Scid},
     debug_panic_release_log,
@@ -426,7 +426,7 @@ impl RoutingContext {
 // LDK's builder API is unergonomic and hides a lot of details, so we
 // 'unbuilderify' it to make clear how each field modifies the final result.
 pub fn build_payment_params(
-    payee_pk_or_invoice: Either<NodePk, &LxInvoice>,
+    payee_pk_or_invoice: Either<NodePk, &Invoice>,
     num_usable_channels: Option<usize>,
     previously_failed_channels: Vec<u64>,
 ) -> anyhow::Result<PaymentParameters> {

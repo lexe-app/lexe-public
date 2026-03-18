@@ -1,6 +1,6 @@
 use bitcoin::address::{NetworkUnchecked, NetworkValidation};
 use lexe_api_core::types::{
-    invoice::LxInvoice, lnurl::LnurlPayRequest, offer::LxOffer,
+    invoice::Invoice, lnurl::LnurlPayRequest, offer::LxOffer,
 };
 use lexe_common::ln::{amount::Amount, network::LxNetwork};
 #[cfg(test)]
@@ -19,7 +19,7 @@ use proptest_derive::Arbitrary;
 #[allow(clippy::large_enum_variant)]
 pub enum PaymentMethod {
     Onchain(Onchain),
-    Invoice(LxInvoice),
+    Invoice(Invoice),
     Offer(OfferWithAmount),
     LnurlPayRequest(LnurlPayRequest),
 }
