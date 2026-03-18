@@ -31,7 +31,7 @@ use rustls::{
 use x509_parser::certificate::X509Certificate;
 
 use crate::{
-    attestation::{cert::SgxAttestationExtension, quote::ReportData},
+    attest_client::{cert::SgxAttestationExtension, quote::ReportData},
     ed25519_ext::Ed25519PublicKeyExt,
 };
 

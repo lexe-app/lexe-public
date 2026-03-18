@@ -22,12 +22,13 @@ mod sgx {
     use lexe_crypto::rng::{Crng, RngExt};
     use lexe_hex::hex;
     use lexe_sha256::sha256;
+    use lexe_tls::attest_client::{
+        cert::SgxAttestationExtension, quote::ReportData,
+        verifier::EnclavePolicy,
+    };
     use sgx_isa::{Report, Targetinfo};
 
     use super::*;
-    use crate::attestation::{
-        cert::SgxAttestationExtension, verifier::EnclavePolicy,
-    };
 
     #[cfg(all(not(target_feature = "aes"), not(doc)))]
     std::compile_error!(
@@ -285,7 +286,7 @@ mod sgx {
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
     use lexe_crypto::rng::Crng;
-    use lexe_tls::attestation::cert::SgxAttestationExtension;
+    use lexe_tls::attest_client::cert::SgxAttestationExtension;
 
     use super::*;
 

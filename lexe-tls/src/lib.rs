@@ -12,7 +12,7 @@ use x509_parser::{
 };
 
 /// mTLS clients for verifying SGX remote attestations.
-pub mod attestation;
+pub mod attest_client;
 /// ed25519 key pair extension trait (PEM ser/de).
 pub mod ed25519_ext;
 /// Certs and utilities related to Lexe's CA.

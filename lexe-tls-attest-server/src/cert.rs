@@ -95,7 +95,7 @@ impl AttestationCert {
 #[cfg(test)]
 mod test {
     use lexe_crypto::rng::FastRng;
-    use lexe_tls::attestation::verifier::{
+    use lexe_tls::attest_client::verifier::{
         AttestationCertVerifier, EnclavePolicy,
     };
     use rustls::{
@@ -199,7 +199,7 @@ mod test {
         use lexe_crypto::rng::FastRng;
         use lexe_enclave_core::enclave;
 
-        use crate::attestation::cert::AttestationCert;
+        use crate::cert::AttestationCert;
 
         let mut rng = FastRng::new();
         let dns_name = "localhost".to_owned();

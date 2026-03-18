@@ -53,17 +53,17 @@
 //! [`REPORTDATA`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#report-ereport
 //! [`AttestationCert`]: cert::AttestationCert
 //! [`AttestationCert::generate`]: cert::AttestationCert::generate
-//! [`AttestationCertVerifier`]: lexe_tls::attestation::verifier::AttestationCertVerifier
-//! [`AttestEvidence`]: lexe_tls::attestation::verifier::AttestEvidence
-//! [`AttestEvidence::parse_cert_der`]: lexe_tls::attestation::verifier::AttestEvidence::parse_cert_der
-//! [`SgxAttestationExtension`]: lexe_tls::attestation::cert::SgxAttestationExtension
-//! [`SgxQuoteVerifier`]: lexe_tls::attestation::verifier::SgxQuoteVerifier
-//! [`SgxQuoteVerifier::verify`]: lexe_tls::attestation::verifier::SgxQuoteVerifier::verify
+//! [`AttestationCertVerifier`]: lexe_tls::attest_client::verifier::AttestationCertVerifier
+//! [`AttestEvidence`]: lexe_tls::attest_client::verifier::AttestEvidence
+//! [`AttestEvidence::parse_cert_der`]: lexe_tls::attest_client::verifier::AttestEvidence::parse_cert_der
+//! [`SgxAttestationExtension`]: lexe_tls::attest_client::cert::SgxAttestationExtension
+//! [`SgxQuoteVerifier`]: lexe_tls::attest_client::verifier::SgxQuoteVerifier
+//! [`SgxQuoteVerifier::verify`]: lexe_tls::attest_client::verifier::SgxQuoteVerifier::verify
 //! [`quote::quote_enclave`]: quote::quote_enclave
 //! [`ClientCertVerifier`]: rustls::server::danger::ClientCertVerifier
 //! [`ServerCertVerifier`]: rustls::client::danger::ServerCertVerifier
-//! [`EnclavePolicy`]: lexe_tls::attestation::verifier::EnclavePolicy
-//! [`EnclavePolicy::verify`]: lexe_tls::attestation::verifier::EnclavePolicy::verify
+//! [`EnclavePolicy`]: lexe_tls::attest_client::verifier::EnclavePolicy
+//! [`EnclavePolicy::verify`]: lexe_tls::attest_client::verifier::EnclavePolicy::verify
 
 use std::{sync::OnceLock, time::Duration};
 
@@ -215,7 +215,9 @@ mod test {
 
     use lexe_crypto::rng::FastRng;
     use lexe_enclave_core::enclave;
-    use lexe_tls::{attestation::app_node_provision_client_config, test_utils};
+    use lexe_tls::{
+        attest_client::app_node_provision_client_config, test_utils,
+    };
 
     use super::*;
 

@@ -79,7 +79,7 @@ use lexe_common::{
 };
 use lexe_crypto::{ed25519, rng::Crng};
 use lexe_enclave_core::enclave::Measurement;
-use lexe_tls::{attestation, lexe_ca, rustls};
+use lexe_tls::{attest_client, lexe_ca, rustls};
 use reqwest::Url;
 
 use crate::credentials::{ClientCredentials, CredentialsRef};
@@ -411,7 +411,7 @@ impl NodeClient {
         )
         .context("Invalid proxy config")?;
 
-        let tls_config = attestation::app_node_provision_client_config(
+        let tls_config = attest_client::app_node_provision_client_config(
             self.inner.use_sgx,
             self.inner.deploy_env,
             measurement,

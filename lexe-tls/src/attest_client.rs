@@ -21,7 +21,7 @@ use rustls::{
     pki_types::{CertificateDer, ServerName, UnixTime},
 };
 
-use crate::{attestation::verifier::EnclavePolicy, lexe_ca};
+use crate::{attest_client::verifier::EnclavePolicy, lexe_ca};
 
 /// An x509 cert extension containing remote attestation endorsements.
 pub mod cert;
