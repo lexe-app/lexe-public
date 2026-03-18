@@ -11,6 +11,8 @@ use std::{path::PathBuf, time::Duration};
 
 use lexe_api::types::payments::PaymentCreatedIndex;
 
+#[cfg(feature = "unstable")]
+use crate::unstable;
 use crate::{
     config::WalletEnvConfig,
     types::{
@@ -23,7 +25,6 @@ use crate::{
         },
         payment::{Order, Payment, PaymentFilter},
     },
-    unstable::{ffs::DiskFs, payments_db::PaymentsDb},
     wallet::{LexeWallet, WithDb, WithoutDb},
 };
 
@@ -142,11 +143,20 @@ impl BlockingLexeWallet<WithDb> {
         block_on(self.inner.wait_for_payment(index, timeout))
     }
 
+    /// Get a reference to the
+    /// [`WalletDb`](crate::unstable::wallet_db::WalletDb).
+    #[cfg(feature = "unstable")]
+    pub fn db(&self) -> &unstable::wallet_db::WalletDb<unstable::ffs::DiskFs> {
+        self.inner.db()
+    }
+
     /// Get a reference to the payments database.
     /// This is the primary data source for constructing a payments
     /// list UI.
     #[cfg(feature = "unstable")]
-    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
+    pub fn payments_db(
+        &self,
+    ) -> &unstable::payments_db::PaymentsDb<unstable::ffs::DiskFs> {
         self.inner.payments_db()
     }
 }
@@ -211,6 +221,28 @@ impl<D> BlockingLexeWallet<D> {
         block_on(self.inner.signup(root_seed, partner_pk))
     }
 
+    /// [`signup`](Self::signup) but with extra parameters generally only used
+    /// by the Lexe App.
+    #[cfg(feature = "unstable")]
+    pub fn signup_custom(
+        &self,
+        root_seed: &RootSeed,
+        partner_pk: Option<UserPk>,
+        signup_code: Option<String>,
+        allow_gvfs_access: bool,
+        backup_password: Option<&str>,
+        google_auth_code: Option<String>,
+    ) -> anyhow::Result<()> {
+        block_on(self.inner.signup_custom(
+            root_seed,
+            partner_pk,
+            signup_code,
+            allow_gvfs_access,
+            backup_password,
+            google_auth_code,
+        ))
+    }
+
     /// Ensures the wallet is provisioned to all recent trusted releases.
     /// This should be called every time the wallet is loaded, to ensure the
     /// user is running the most up-to-date enclave software.
@@ -223,6 +255,54 @@ impl<D> BlockingLexeWallet<D> {
     ) -> anyhow::Result<()> {
         block_on(self.inner.provision(credentials))
     }
+
+    /// [`provision`](Self::provision) but with extra parameters generally only
+    /// used by the Lexe App.
+    #[cfg(feature = "unstable")]
+    pub fn provision_custom(
+        &self,
+        credentials: CredentialsRef<'_>,
+        allow_gvfs_access: bool,
+        encrypted_seed: Option<Vec<u8>>,
+        google_auth_code: Option<String>,
+    ) -> anyhow::Result<()> {
+        block_on(self.inner.provision_custom(
+            credentials,
+            allow_gvfs_access,
+            encrypted_seed,
+            google_auth_code,
+        ))
+    }
+
+    /// Get a reference to the
+    /// [`GatewayClient`](lexe_node_client::client::GatewayClient).
+    #[cfg(feature = "unstable")]
+    pub fn gateway_client(&self) -> &lexe_node_client::client::GatewayClient {
+        self.inner.gateway_client()
+    }
+
+    /// Get a reference to the
+    /// [`NodeClient`](lexe_node_client::client::NodeClient).
+    #[cfg(feature = "unstable")]
+    pub fn node_client(&self) -> &lexe_node_client::client::NodeClient {
+        self.inner.node_client()
+    }
+
+    /// Get a reference to the
+    /// [`Bip353Client`](lexe_payment_uri::bip353::Bip353Client).
+    #[cfg(feature = "unstable")]
+    pub fn bip353_client(&self) -> &lexe_payment_uri::bip353::Bip353Client {
+        self.inner.bip353_client()
+    }
+
+    /// Get a reference to the
+    /// [`LnurlClient`](lexe_payment_uri::lnurl::LnurlClient).
+    #[cfg(feature = "unstable")]
+    pub fn lnurl_client(&self) -> &lexe_payment_uri::lnurl::LnurlClient {
+        self.inner.lnurl_client()
+    }
+
+    // --- Command API --- //
 
     /// Get information about this Lexe node, including balance and channels.
     pub fn node_info(&self) -> anyhow::Result<NodeInfo> {
