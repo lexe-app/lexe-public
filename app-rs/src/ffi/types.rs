@@ -16,7 +16,7 @@ use lexe_api::{
             LnurlPayRequest as LnurlPayRequestRs,
             LnurlPayRequestMetadata as LnurlPayRequestMetadataRs,
         },
-        offer::LxOffer,
+        offer::Offer as OfferRs,
         payments::{
             BasicPaymentV1 as BasicPaymentV1Rs,
             BasicPaymentV2 as BasicPaymentV2Rs,
@@ -643,7 +643,7 @@ impl From<InvoiceRs> for Invoice {
 }
 
 /// A lightning offer with useful fields parsed out for the flutter frontend.
-/// Mirrors the [`LxOffer`] type.
+/// Mirrors the [`OfferRs`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Offer {
@@ -662,8 +662,8 @@ pub struct Offer {
     pub payee_pubkey: Option<String>,
 }
 
-impl From<&LxOffer> for Offer {
-    fn from(offer: &LxOffer) -> Self {
+impl From<&OfferRs> for Offer {
+    fn from(offer: &OfferRs) -> Self {
         Self {
             string: offer.to_string(),
 
@@ -678,9 +678,9 @@ impl From<&LxOffer> for Offer {
     }
 }
 
-impl From<LxOffer> for Offer {
+impl From<OfferRs> for Offer {
     #[inline]
-    fn from(value: LxOffer) -> Self {
+    fn from(value: OfferRs) -> Self {
         Self::from(&value)
     }
 }

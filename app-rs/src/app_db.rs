@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use anyhow::Context;
-use lexe_api::types::{offer::LxOffer, username::Username};
+use lexe_api::types::{offer::Offer, username::Username};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub(crate) struct AppDb {
     /// AppDb schema version.
     pub schema: SchemaVersion,
     /// User's preferred Offer. Based on the user's human Bitcoin address.
-    pub offer: Option<LxOffer>,
+    pub offer: Option<Offer>,
     /// User's username to receive BIP353 and lnurl payments.
     pub username: Option<Username>,
 }
@@ -57,7 +57,7 @@ impl Default for AppDb {
     }
 }
 
-impl Update for LxOffer {}
+impl Update for Offer {}
 impl Update for Username {}
 
 #[cfg(test)]
@@ -77,7 +77,7 @@ mod test {
 
         let tmpdir = tempfile::tempdir().unwrap();
         let ffs = DiskFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
-        let dummy_offer = LxOffer::from_str(
+        let dummy_offer = Offer::from_str(
                 "lno1pgx9getnwss8vetrw3hhyuckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg",
             ).unwrap();
         let dummy_username = Username::parse("dummy").unwrap();

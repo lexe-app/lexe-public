@@ -8,7 +8,7 @@ pub mod bounded_note;
 pub mod invoice;
 /// Lnurl types
 pub mod lnurl;
-/// `LxOffer`, a wrapper around LDK's BOLT12 offer type.
+/// `Offer`, a wrapper around LDK's BOLT12 offer type.
 pub mod offer;
 /// Payments types and newtypes.
 pub mod payments;

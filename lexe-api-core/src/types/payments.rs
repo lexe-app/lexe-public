@@ -25,7 +25,6 @@ use lexe_common::{
 use lexe_crypto::rng::{RngCore, RngExt};
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
-use lightning::offers::offer::OfferId;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{prelude::Just, strategy::Strategy, strategy::Union};
 #[cfg(any(test, feature = "test-utils"))]
@@ -36,7 +35,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 #[cfg(test)]
 use strum::VariantArray;
 
-use crate::types::{invoice::Invoice, offer::LxOffer};
+use crate::types::{invoice::Invoice, offer::Offer};
 
 // --- Top-level payment types --- //
 
@@ -69,7 +68,7 @@ pub struct BasicPaymentV2 {
 
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub offer_id: Option<LxOfferId>,
+    pub offer_id: Option<OfferId>,
 
     /// (Onchain payments only) The original txid.
     // NOTE: we're duplicating the txid here for onchain receives because its
@@ -146,7 +145,7 @@ pub struct BasicPaymentV2 {
     /// Until we store offers out-of-line, this is not yet available for
     /// inbound offer payments.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub offer: Option<Arc<LxOffer>>,
+    pub offer: Option<Arc<Offer>>,
 
     /// The on-chain transaction, if there is one.
     /// Always [`Some`] for on-chain sends and receives.
@@ -268,9 +267,9 @@ pub struct BasicPaymentV1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice: Option<Arc<Invoice>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub offer_id: Option<LxOfferId>,
+    pub offer_id: Option<OfferId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub offer: Option<Arc<LxOffer>>,
+    pub offer: Option<Arc<Offer>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub txid: Option<Txid>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -656,7 +655,7 @@ pub enum PaymentId {
     // the order ("fi" < .. < "os").
     // Added `Offer*` variants in `node-v0.7.8`
     // TODO(phlip9): single-use offer payments would require a different id
-    // OfferRecvInvoice(LxOfferId),  // "fi"
+    // OfferRecvInvoice(OfferId),  // "fi"
     OfferRecvReusable(LnClaimId), // "fr"
     OfferSend(ClientPaymentId),   // "fs"
     Lightning(PaymentHash),       // "ln"
@@ -703,12 +702,12 @@ pub struct PaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[repr(transparent)]
 pub struct PaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-/// Newtype for [`OfferId`] which impls [`Serialize`] / [`Deserialize`].
+/// Newtype for LDK's `OfferId` which impls [`Serialize`] / [`Deserialize`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct LxOfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct OfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for LDK's `lightning::ln::channelmanager::PaymentId` but used
 /// specifically for inbound lightning payment idempotency.
@@ -830,7 +829,7 @@ impl BasicPaymentV2 {
         self.invoice
             .as_deref()
             .and_then(Invoice::description_str)
-            .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
+            .or_else(|| self.offer.as_deref().and_then(Offer::description))
     }
 
     #[inline]
@@ -904,7 +903,7 @@ impl BasicPaymentV1 {
         self.invoice
             .as_deref()
             .and_then(Invoice::description_str)
-            .or_else(|| self.offer.as_deref().and_then(LxOffer::description))
+            .or_else(|| self.offer.as_deref().and_then(Offer::description))
     }
 }
 
@@ -1085,19 +1084,19 @@ lexe_byte_array::impl_byte_array!(ClientPaymentId, 32);
 lexe_byte_array::impl_byte_array!(PaymentHash, 32);
 lexe_byte_array::impl_byte_array!(PaymentPreimage, 32);
 lexe_byte_array::impl_byte_array!(PaymentSecret, 32);
-lexe_byte_array::impl_byte_array!(LxOfferId, 32);
+lexe_byte_array::impl_byte_array!(OfferId, 32);
 lexe_byte_array::impl_byte_array!(LnClaimId, 32);
 
 lexe_byte_array::impl_fromstr_fromhex!(ClientPaymentId, 32);
 lexe_byte_array::impl_fromstr_fromhex!(PaymentHash, 32);
 lexe_byte_array::impl_fromstr_fromhex!(PaymentPreimage, 32);
 lexe_byte_array::impl_fromstr_fromhex!(PaymentSecret, 32);
-lexe_byte_array::impl_fromstr_fromhex!(LxOfferId, 32);
+lexe_byte_array::impl_fromstr_fromhex!(OfferId, 32);
 lexe_byte_array::impl_fromstr_fromhex!(LnClaimId, 32);
 
 lexe_byte_array::impl_debug_display_as_hex!(ClientPaymentId);
 lexe_byte_array::impl_debug_display_as_hex!(PaymentHash);
-lexe_byte_array::impl_debug_display_as_hex!(LxOfferId);
+lexe_byte_array::impl_debug_display_as_hex!(OfferId);
 lexe_byte_array::impl_debug_display_as_hex!(LnClaimId);
 // Redacted to prevent accidentally leaking secrets in logs
 lexe_byte_array::impl_debug_display_redacted!(PaymentPreimage);
@@ -1152,8 +1151,8 @@ impl From<lightning::types::payment::PaymentSecret> for PaymentSecret {
         Self(secret.0)
     }
 }
-impl From<OfferId> for LxOfferId {
-    fn from(id: OfferId) -> Self {
+impl From<lightning::offers::offer::OfferId> for OfferId {
+    fn from(id: lightning::offers::offer::OfferId) -> Self {
         Self(id.0)
     }
 }
@@ -1179,8 +1178,8 @@ impl From<PaymentSecret> for lightning::types::payment::PaymentSecret {
         Self(secret.0)
     }
 }
-impl From<LxOfferId> for OfferId {
-    fn from(id: LxOfferId) -> Self {
+impl From<OfferId> for lightning::offers::offer::OfferId {
+    fn from(id: OfferId) -> Self {
         Self(id.0)
     }
 }
@@ -1654,7 +1653,7 @@ mod test {
         roundtrip::json_string_roundtrip_proptest::<PaymentHash>();
         roundtrip::json_string_roundtrip_proptest::<PaymentPreimage>();
         roundtrip::json_string_roundtrip_proptest::<PaymentSecret>();
-        roundtrip::json_string_roundtrip_proptest::<LxOfferId>();
+        roundtrip::json_string_roundtrip_proptest::<OfferId>();
         roundtrip::json_string_roundtrip_proptest::<LnClaimId>();
     }
 
@@ -1664,7 +1663,7 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentUpdatedIndex>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentId>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentHash>();
-        roundtrip::fromstr_display_roundtrip_proptest::<LxOfferId>();
+        roundtrip::fromstr_display_roundtrip_proptest::<OfferId>();
         roundtrip::fromstr_display_roundtrip_proptest::<LnClaimId>();
         // `Display` for `PaymentPreimage` and `PaymentSecret` are redacted
         // roundtrip::fromstr_display_roundtrip_proptest::<PaymentPreimage>();

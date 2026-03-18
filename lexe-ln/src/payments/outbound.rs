@@ -4,9 +4,9 @@ use anyhow::ensure;
 use lexe_api::types::{
     bounded_note::BoundedNote,
     invoice::Invoice,
-    offer::LxOffer,
+    offer::Offer,
     payments::{
-        ClientPaymentId, LxOfferId, PaymentHash, PaymentId, PaymentKind,
+        ClientPaymentId, OfferId, PaymentHash, PaymentId, PaymentKind,
         PaymentPreimage, PaymentRail, PaymentSecret,
     },
 };
@@ -376,7 +376,7 @@ pub struct OutboundOfferPaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preimage: Option<PaymentPreimage>,
     /// Unique identifier for the original offer.
-    pub offer_id: LxOfferId,
+    pub offer_id: OfferId,
 
     pub kind: PaymentKind,
 
@@ -442,7 +442,7 @@ impl OutboundOfferPaymentV2 {
     // - `pay_offer` API
     pub fn new(
         client_id: ClientPaymentId,
-        offer: LxOffer,
+        offer: Offer,
         kind: PaymentKind,
         amount: Amount,
         quantity: Option<NonZeroU64>,
@@ -942,7 +942,7 @@ pub(crate) mod arbitrary_impl {
             let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
             let client_id = any::<ClientPaymentId>();
             let preimage = any::<PaymentPreimage>();
-            let offer_id = any::<LxOfferId>();
+            let offer_id = any::<OfferId>();
             let kind = PaymentRail::Offer.any_child_kind();
 
             let amount = any::<Amount>();

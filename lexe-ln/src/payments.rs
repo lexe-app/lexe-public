@@ -8,9 +8,9 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 use bitcoin::address::NetworkUnchecked;
 use lexe_api::types::{
     invoice::Invoice,
-    offer::LxOffer,
+    offer::Offer,
     payments::{
-        BasicPaymentV2, LxOfferId, PaymentDirection, PaymentId, PaymentKind,
+        BasicPaymentV2, OfferId, PaymentDirection, PaymentId, PaymentKind,
         PaymentRail, PaymentStatus,
     },
 };
@@ -201,7 +201,7 @@ pub struct PaymentMetadata {
         test,
         proptest(strategy = "arbitrary_helpers::any_option_arc_offer()")
     )]
-    pub offer: Option<Arc<LxOffer>>,
+    pub offer: Option<Arc<Offer>>,
 
     // --- Notes and sender/receiver identifiers --- //
     // -
@@ -268,7 +268,7 @@ pub(crate) struct PaymentMetadataUpdate {
 
     pub invoice: Option<Option<Arc<Invoice>>>,
 
-    pub offer: Option<Option<Arc<LxOffer>>>,
+    pub offer: Option<Option<Arc<Offer>>>,
 
     // --- Notes and sender/receiver identifiers --- //
     pub note: Option<Option<String>>,
@@ -541,7 +541,7 @@ impl PaymentV2 {
 
     /// Returns the id of the BOLT12 offer associated with this payment, if
     /// there is one.
-    pub fn offer_id(&self) -> Option<LxOfferId> {
+    pub fn offer_id(&self) -> Option<OfferId> {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
@@ -1150,9 +1150,8 @@ mod arbitrary_helpers {
         option::of(any::<Invoice>()).prop_map(|opt| opt.map(Arc::new))
     }
 
-    pub fn any_option_arc_offer() -> impl Strategy<Value = Option<Arc<LxOffer>>>
-    {
-        option::of(any::<LxOffer>()).prop_map(|opt| opt.map(Arc::new))
+    pub fn any_option_arc_offer() -> impl Strategy<Value = Option<Arc<Offer>>> {
+        option::of(any::<Offer>()).prop_map(|opt| opt.map(Arc::new))
     }
 }
 

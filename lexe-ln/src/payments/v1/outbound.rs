@@ -3,7 +3,7 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 use anyhow::Context;
 use lexe_api::types::{
     invoice::Invoice,
-    offer::LxOffer,
+    offer::Offer,
     payments::{
         ClientPaymentId, PaymentHash, PaymentId, PaymentKind, PaymentPreimage,
         PaymentSecret,
@@ -199,8 +199,8 @@ pub struct OutboundOfferPaymentV1 {
     /// The unique idempotency id for this payment.
     pub cid: ClientPaymentId,
     /// The offer we're paying.
-    // LxOffer is ~568 bytes, Box to avoid the enum variant lint
-    pub offer: Arc<LxOffer>,
+    // Offer is ~568 bytes, Box to avoid the enum variant lint
+    pub offer: Arc<Offer>,
     /// The payment hash encoded in the BOLT12 invoice. Since we don't fetch
     /// the BOLT12 invoice before registering the offer payment, this field
     /// is populated iff. the status is `Completed`.
@@ -556,7 +556,7 @@ pub(crate) mod arb {
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
             let cid = any::<ClientPaymentId>();
-            let offer = any::<LxOffer>().prop_map(Arc::new);
+            let offer = any::<Offer>().prop_map(Arc::new);
             let preimage = any::<PaymentPreimage>();
 
             let amount = any::<Amount>();

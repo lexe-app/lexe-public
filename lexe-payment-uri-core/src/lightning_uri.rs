@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
-use lexe_api_core::types::{invoice::Invoice, offer::LxOffer};
+use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
@@ -31,7 +31,7 @@ use crate::{
 #[cfg_attr(test, derive(Arbitrary, Eq, PartialEq))]
 pub struct LightningUri {
     pub invoice: Option<Invoice>,
-    pub offer: Option<LxOffer>,
+    pub offer: Option<Offer>,
 }
 
 impl LightningUri {
@@ -72,7 +72,7 @@ impl LightningUri {
         // Try parsing the body as an invoice or offer
         if let Ok(invoice) = Invoice::from_str(&uri.body) {
             out.invoice = Some(invoice);
-        } else if let Ok(offer) = LxOffer::from_str(&uri.body) {
+        } else if let Ok(offer) = Offer::from_str(&uri.body) {
             // non-standard
             out.offer = Some(offer);
         }
@@ -86,7 +86,7 @@ impl LightningUri {
                 out.invoice = Invoice::from_str(&param.value).ok();
             } else if (key.is("lno") || key.is("b12")) && out.offer.is_none() {
                 // non-standard
-                out.offer = LxOffer::from_str(&param.value).ok();
+                out.offer = Offer::from_str(&param.value).ok();
             }
             // ignore duplicates or other keys
         }

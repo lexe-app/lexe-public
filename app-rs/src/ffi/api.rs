@@ -35,7 +35,7 @@ use lexe_api::{
     types::{
         bounded_note::BoundedNote,
         invoice::Invoice as InvoiceRs,
-        offer::{LxOffer, MaxQuantity},
+        offer::{MaxQuantity, Offer as OfferRs},
         payments::{
             ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
@@ -589,7 +589,7 @@ impl TryFrom<PreflightPayOfferRequest> for PreflightPayOfferRequestRs {
     fn try_from(value: PreflightPayOfferRequest) -> Result<Self, Self::Error> {
         Ok(Self {
             cid: ClientPaymentIdRs::from(value.cid),
-            offer: LxOffer::from_str(&value.offer)
+            offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
             fallback_amount: value
                 .fallback_amount_sats
@@ -633,7 +633,7 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
     fn try_from(value: PayOfferRequest) -> Result<Self, Self::Error> {
         Ok(Self {
             cid: ClientPaymentIdRs::from(value.cid),
-            offer: LxOffer::from_str(&value.offer)
+            offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
             fallback_amount: value
                 .fallback_amount_sats

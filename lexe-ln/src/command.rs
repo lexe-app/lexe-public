@@ -25,7 +25,7 @@ use lexe_api::{
     types::{
         Empty,
         invoice::Invoice,
-        offer::{LxOffer, MaxQuantity},
+        offer::{MaxQuantity, Offer},
         payments::{PaymentDirection, PaymentId, PaymentKind},
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
@@ -1107,9 +1107,9 @@ where
         builder = builder.description(description);
     }
 
-    let offer: LxOffer = builder
+    let offer: Offer = builder
         .build()
-        .map(LxOffer)
+        .map(Offer)
         .map_err(|err| anyhow!("Failed to build offer: {err:?}"))?;
     Ok(CreateOfferResponse { offer })
 }

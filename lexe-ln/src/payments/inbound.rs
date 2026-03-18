@@ -4,9 +4,9 @@ use anyhow::{Context, anyhow, ensure};
 use lexe_api::types::{
     bounded_note::BoundedNote,
     invoice::Invoice,
-    offer::LxOffer,
+    offer::Offer,
     payments::{
-        LnClaimId, LxOfferId, PaymentHash, PaymentId, PaymentKind,
+        LnClaimId, OfferId, PaymentHash, PaymentId, PaymentKind,
         PaymentPreimage, PaymentRail, PaymentSecret,
     },
 };
@@ -175,8 +175,8 @@ pub struct OfferClaimCtx {
     // We don't have any BOLT12 offers pending, so we can assume claim id
     // is present.
     pub claim_id: LnClaimId,
-    pub offer_id: LxOfferId,
-    pub offer: Option<Arc<LxOffer>>,
+    pub offer_id: OfferId,
+    pub offer: Option<Arc<Offer>>,
     pub quantity: Option<NonZeroU64>,
     pub payer_note: Option<BoundedNote>,
     // TODO(phlip9): use newtype
@@ -188,7 +188,7 @@ impl LnClaimCtx {
         purpose: PaymentPurpose,
         hash: PaymentHash,
         claim_id: Option<LnClaimId>,
-        offer: Option<LxOffer>,
+        offer: Option<Offer>,
     ) -> anyhow::Result<Self> {
         let no_preimage_msg = "We should always let LDK handle payment preimages for us by \
              always using `ChannelManager::create_inbound_payment` instead of \
@@ -219,7 +219,7 @@ impl LnClaimCtx {
                 debug_assert!(claim_id.is_some());
                 let claim_id = claim_id
                     .context("BOLT12 offer payment must have a claim id")?;
-                let offer_id = LxOfferId::from(context.offer_id);
+                let offer_id = OfferId::from(context.offer_id);
                 let quantity =
                     context.invoice_request.quantity.and_then(NonZeroU64::new);
                 // LDK truncates to PAYER_NOTE_LIMIT (512 B); we also enforce
@@ -663,7 +663,7 @@ pub struct InboundOfferReusablePaymentV2 {
     pub claim_id: LnClaimId,
     /// Unique identifier for the original offer, which may be paid multiple
     /// times.
-    pub offer_id: LxOfferId,
+    pub offer_id: OfferId,
     /// The payment preimage for this offer payment.
     pub preimage: PaymentPreimage,
 
@@ -1165,7 +1165,7 @@ mod arbitrary_impl {
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let preimage = any::<PaymentPreimage>();
             let claim_id = any::<LnClaimId>();
-            let offer_id = any::<LxOfferId>();
+            let offer_id = any::<OfferId>();
             let kind = PaymentRail::Offer.any_child_kind();
             let amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();

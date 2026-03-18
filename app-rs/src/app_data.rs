@@ -4,7 +4,7 @@ use anyhow::Context;
 use lexe::ffs::Ffs;
 #[cfg(doc)]
 use lexe_api::models::command::HumanBitcoinAddress;
-use lexe_api::types::{offer::LxOffer, username::Username};
+use lexe_api::types::{offer::Offer, username::Username};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ use crate::db::{SchemaVersion, Update, WritebackDb};
 const APP_JSON: &str = "app.json";
 
 /// In-memory app state.
-// We don't use LxOffer and Username here because
+// We don't use Offer and Username here because
 // they are leaked into the FFI and we don't want
 // to.
 // TODO(maurice): Find out why we are leaking these types
@@ -63,7 +63,7 @@ impl Default for AppDataRs {
 /// Serialized [`HumanBitcoinAddress`] struct that stores,
 /// Usename and Offer as Strings and timestamps as i64 since
 /// we don't want to leak the underlying types.
-/// TODO(maurice): We should probably want to use the LxOffer and Username
+/// TODO(maurice): We should probably want to use the Offer and Username
 /// types directly after fixing the leaks.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
@@ -89,7 +89,7 @@ impl Default for HumanBitcoinAddressRs {
     }
 }
 
-impl Update for LxOffer {}
+impl Update for Offer {}
 impl Update for Username {}
 impl Update for i64 {}
 impl Update for HumanBitcoinAddressRs {

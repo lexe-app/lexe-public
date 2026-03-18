@@ -4,7 +4,7 @@ use anyhow::Context;
 use lexe_api::types::{
     invoice::Invoice,
     payments::{
-        LnClaimId, LxOfferId, PaymentHash, PaymentId, PaymentKind,
+        LnClaimId, OfferId, PaymentHash, PaymentId, PaymentKind,
         PaymentPreimage, PaymentSecret,
     },
 };
@@ -206,7 +206,7 @@ pub struct InboundOfferReusablePaymentV1 {
     pub claim_id: LnClaimId,
     /// Unique identifier for the original offer, which may be paid multiple
     /// times.
-    pub offer_id: LxOfferId,
+    pub offer_id: OfferId,
     /// The payment preimage for this offer payment.
     pub preimage: PaymentPreimage,
     /// The amount we received for this payment.
@@ -513,7 +513,7 @@ mod arb {
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let preimage = any::<PaymentPreimage>();
             let claim_id = any::<LnClaimId>();
-            let offer_id = any::<LxOfferId>();
+            let offer_id = any::<OfferId>();
             let amount = any::<Amount>();
             let quantity = any::<Option<MaxQuantity>>()
                 .prop_map(|opt_q| opt_q.map(|q| q.0));

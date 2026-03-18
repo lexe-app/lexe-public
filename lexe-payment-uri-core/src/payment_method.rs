@@ -1,6 +1,6 @@
 use bitcoin::address::{NetworkUnchecked, NetworkValidation};
 use lexe_api_core::types::{
-    invoice::Invoice, lnurl::LnurlPayRequest, offer::LxOffer,
+    invoice::Invoice, lnurl::LnurlPayRequest, offer::Offer,
 };
 use lexe_common::ln::{amount::Amount, network::Network};
 #[cfg(test)]
@@ -118,7 +118,7 @@ impl<V: NetworkValidation> From<bitcoin::Address<V>> for Onchain {
 
 /// An offer payment method with optional amount from a BIP321 URI.
 pub struct OfferWithAmount {
-    pub offer: LxOffer,
+    pub offer: Offer,
     /// Amount from BIP321 URI.
     /// Used when the offer is amount-less to pre-fill an amount in the UI.
     pub bip321_amount: Option<Amount>,
@@ -137,7 +137,7 @@ impl OfferWithAmount {
         self.offer.supports_network(network)
     }
 
-    pub fn no_bip321_amount(offer: LxOffer) -> Self {
+    pub fn no_bip321_amount(offer: Offer) -> Self {
         Self {
             offer,
             bip321_amount: None,

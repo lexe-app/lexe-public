@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe_api::types::offer::LxOffer as LxOfferRs;
+use lexe_api::types::offer::Offer as OfferRs;
 
 use crate::{
     app_data::{AppDataRs, HumanBitcoinAddressRs},
@@ -85,7 +85,7 @@ impl TryFrom<HumanBitcoinAddressRs> for HumanBitcoinAddress {
             .transpose()?;
         let offer = a
             .offer
-            .map(|o| LxOfferRs::from_str(o.as_str()))
+            .map(|o| OfferRs::from_str(o.as_str()))
             .transpose()?
             .map(Offer::from);
         let updated_at = a.updated_at;

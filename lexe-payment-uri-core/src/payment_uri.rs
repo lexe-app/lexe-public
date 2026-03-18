@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
-use lexe_api_core::types::{invoice::Invoice, offer::LxOffer};
+use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 #[cfg(test)]
@@ -53,7 +53,7 @@ pub enum PaymentUri {
     ///
     /// ex: "lno1pqps7sj..."
     // TODO(phlip9): BOLT12 refund
-    Offer(LxOffer),
+    Offer(Offer),
 
     /// A standalone onchain Bitcoin address.
     ///
@@ -156,8 +156,8 @@ impl PaymentUri {
         }
 
         // ex: "lno1pqps7sj..."
-        if LxOffer::matches_hrp_prefix(s) {
-            return LxOffer::from_str(s)
+        if Offer::matches_hrp_prefix(s) {
+            return Offer::from_str(s)
                 .map(Self::Offer)
                 .map_err(Error::InvalidOffer);
         }

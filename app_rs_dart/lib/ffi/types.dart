@@ -307,7 +307,7 @@ enum Network {
 }
 
 /// A lightning offer with useful fields parsed out for the flutter frontend.
-/// Mirrors the [`LxOffer`] type.
+/// Mirrors the [`Offer`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed

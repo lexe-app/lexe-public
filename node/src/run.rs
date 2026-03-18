@@ -18,7 +18,7 @@ use lexe_api::{
         runner::UserLeaseRenewalRequest,
     },
     server::LayerConfig,
-    types::{offer::LxOffer, ports::RunPorts, sealed_seed::SealedSeedId},
+    types::{offer::Offer, ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_common::{
@@ -612,7 +612,7 @@ impl UserNode {
                         .description(description)
                         .build()
                         .map_err(|e| anyhow!("Failed to build offer: {e:?}"))?;
-                    let lx_offer = LxOffer(offer);
+                    let lx_offer = Offer(offer);
 
                     let req = ClaimGeneratedHumanBitcoinAddress {
                         offer: lx_offer,

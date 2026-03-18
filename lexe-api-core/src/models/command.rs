@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{
     bounded_note::BoundedNote,
     invoice::Invoice,
-    offer::{LxOffer, MaxQuantity},
+    offer::{MaxQuantity, Offer},
     payments::{
         ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentUpdatedIndex,
     },
@@ -394,7 +394,7 @@ pub struct CreateOfferRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateOfferResponse {
-    pub offer: LxOffer,
+    pub offer: Offer,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -402,7 +402,7 @@ pub struct PreflightPayOfferRequest {
     /// The user-provided idempotency id for this payment.
     pub cid: ClientPaymentId,
     /// The offer we want to pay.
-    pub offer: LxOffer,
+    pub offer: Offer,
     /// Specifies the amount we will pay if the offer to be paid is
     /// amountless. This field must be [`Some`] for amountless offers.
     pub fallback_amount: Option<Amount>,
@@ -410,13 +410,13 @@ pub struct PreflightPayOfferRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct PreflightPayOfferResponse {
-    /// The total amount to-be-paid for the pre-flighted [`LxOffer`],
+    /// The total amount to-be-paid for the pre-flighted [`Offer`],
     /// excluding the fees.
     ///
     /// This value may be different from the value originally requested if
     /// we had to reach `htlc_minimum_msat` for some intermediate hops.
     pub amount: Amount,
-    /// The total amount of fees to-be-paid for the pre-flighted [`LxOffer`].
+    /// The total amount of fees to-be-paid for the pre-flighted [`Offer`].
     ///
     /// Since we only approximate the route atm, we likely underestimate the
     /// actual fee.
@@ -436,7 +436,7 @@ pub struct PayOfferRequest {
     /// The user-provided idempotency id for this payment.
     pub cid: ClientPaymentId,
     /// The offer we want to pay.
-    pub offer: LxOffer,
+    pub offer: Offer,
     /// Specifies the amount we will pay if the offer to be paid is
     /// amountless. This field must be [`Some`] for amountless offers.
     pub fallback_amount: Option<Amount>,
@@ -542,7 +542,7 @@ pub struct UpdateHumanBitcoinAddress {
     /// Username for BIP-353 and LNURL.
     pub username: Username,
     /// Offer to be used to fetch invoices on BIP-353.
-    pub offer: LxOffer,
+    pub offer: Offer,
 }
 
 /// Claims a generated human Bitcoin address.
@@ -554,7 +554,7 @@ pub struct UpdateHumanBitcoinAddress {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct ClaimGeneratedHumanBitcoinAddress {
     /// Offer to be used to fetch invoices on BIP-353.
-    pub offer: LxOffer,
+    pub offer: Offer,
     /// The username to claim. This must be the username returned by
     /// `get_generated_username`.
     pub username: Username,
@@ -578,7 +578,7 @@ pub struct HumanBitcoinAddress {
     /// Current username for BIP-353 and LNURL.
     pub username: Option<Username>,
     /// Current offer for fetching invoices on BIP-353.
-    pub offer: Option<LxOffer>,
+    pub offer: Option<Offer>,
     /// Last time the human Bitcoin address was updated.
     pub updated_at: Option<TimestampMs>,
     /// Whether the human Bitcoin address can be updated. Always `true` for

@@ -42,7 +42,7 @@ pub struct Payment {
 
     /* TODO(max): Expose offer_id once we have out-of-line Offer storage.
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
-    pub offer_id: Option<LxOfferId>,
+    pub offer_id: Option<OfferId>,
     */
     /// (Onchain payments only) The hex-encoded Bitcoin txid.
     pub txid: Option<Txid>,
@@ -84,7 +84,7 @@ pub struct Payment {
     /// (Outbound offer payments only) The BOLT12 offer used in this payment.
     /// Until we store offers out-of-line, this is not yet available for
     /// inbound offer payments.
-    pub offer: Option<Arc<LxOffer>>,
+    pub offer: Option<Arc<Offer>>,
     */
     /// The on-chain transaction, if there is one.
     /// Always [`Some`] for on-chain sends and receives.

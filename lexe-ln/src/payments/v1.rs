@@ -5,9 +5,9 @@ use std::{collections::HashSet, num::NonZeroU64};
 use anyhow::Context;
 use lexe_api::types::{
     invoice::Invoice,
-    offer::LxOffer,
+    offer::Offer,
     payments::{
-        BasicPaymentV1, LxOfferId, PaymentCreatedIndex, PaymentDirection,
+        BasicPaymentV1, OfferId, PaymentCreatedIndex, PaymentDirection,
         PaymentId, PaymentKind, PaymentRail, PaymentStatus,
     },
 };
@@ -426,7 +426,7 @@ impl PaymentV1 {
 
     /// Returns the id of the BOLT12 offer associated with this payment, if
     /// there is one.
-    pub fn offer_id(&self) -> Option<LxOfferId> {
+    pub fn offer_id(&self) -> Option<OfferId> {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
@@ -444,7 +444,7 @@ impl PaymentV1 {
     }
 
     /// Returns the BOLT12 offer associated with this payment, if there is one.
-    pub fn offer(&self) -> Option<Arc<LxOffer>> {
+    pub fn offer(&self) -> Option<Arc<Offer>> {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,

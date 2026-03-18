@@ -8,7 +8,7 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
-use lexe_api_core::types::{invoice::Invoice, offer::LxOffer};
+use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 #[cfg(test)]
 use lexe_common::ln::amount;
 use lexe_common::ln::amount::Amount;
@@ -61,7 +61,7 @@ pub struct Bip321Uri {
     pub invoice: Option<Invoice>,
 
     // TODO(phlip9): support multiple offers?
-    pub offer: Option<LxOffer>,
+    pub offer: Option<Offer>,
 
     /// On-chain amount
     #[cfg_attr(
@@ -146,7 +146,7 @@ impl Bip321Uri {
                     continue;
                 }
                 if out.offer.is_none()
-                    && let Ok(offer) = LxOffer::from_str(&param.value)
+                    && let Ok(offer) = Offer::from_str(&param.value)
                 {
                     // bitcoinqr.dev showcases an offer inside a
                     // `lightning` parameter
@@ -155,7 +155,7 @@ impl Bip321Uri {
                 }
             } else if key.is("lno") || /* legacy */ key.is("b12") {
                 if out.offer.is_none() {
-                    out.offer = LxOffer::from_str(&param.value).ok();
+                    out.offer = Offer::from_str(&param.value).ok();
                 }
             } else if key.is("bc") {
                 if let Ok(address) = bitcoin::Address::from_str(&param.value)
@@ -388,7 +388,7 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 mod test {
     use std::{borrow::Cow, str::FromStr};
 
-    use lexe_api_core::types::offer::LxOffer;
+    use lexe_api_core::types::offer::Offer;
     use lexe_common::{
         ln::amount::Amount, test_utils::arbitrary::any_mainnet_addr_unchecked,
     };
@@ -487,7 +487,7 @@ mod test {
         let address = bitcoin::Address::from_str(address_str).unwrap();
         let offer_str =
             "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
-        let offer = LxOffer::from_str(offer_str).unwrap();
+        let offer = Offer::from_str(offer_str).unwrap();
         let expected = Ok(Bip321Uri {
             onchain: vec![address.clone()],
             offer: Some(offer.clone()),
@@ -535,7 +535,7 @@ mod test {
     // support `lightning=<offer>` param
     #[test]
     fn test_bip321_uri_prop_lightning_offer_param() {
-        proptest!(|(uri: Bip321Uri, offer: LxOffer)| {
+        proptest!(|(uri: Bip321Uri, offer: Offer)| {
             let mut uri_raw = uri.to_uri();
             let offer_str = Cow::Owned(offer.to_string());
             let param = UriParam { key: "lightning".into(), value: offer_str };

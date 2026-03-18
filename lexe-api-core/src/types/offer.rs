@@ -10,7 +10,7 @@ use lexe_std::const_assert_mem_size;
 use lightning::{
     blinded_path::IntroductionNode,
     offers::{
-        offer::{self, CurrencyCode, Offer},
+        offer::{self, CurrencyCode},
         parse::Bolt12ParseError,
     },
     routing::gossip::ReadOnlyNetworkGraph,
@@ -18,7 +18,7 @@ use lightning::{
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use super::payments::LxOfferId;
+use super::payments::OfferId;
 
 /// A Lightning BOLT12 offer.
 ///
@@ -110,13 +110,13 @@ use super::payments::LxOfferId;
 /// },
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, SerializeDisplay, DeserializeFromStr)]
-pub struct LxOffer(pub Offer);
+pub struct Offer(pub lightning::offers::offer::Offer);
 
-impl LxOffer {
-    /// Return the [`LxOfferId`] of this offer.
+impl Offer {
+    /// Return the [`OfferId`] of this offer.
     #[inline]
-    pub fn id(&self) -> LxOfferId {
-        LxOfferId::from(self.0.id())
+    pub fn id(&self) -> OfferId {
+        OfferId::from(self.0.id())
     }
 
     /// Return the serialized offer.
@@ -268,32 +268,36 @@ impl LxOffer {
     }
 }
 
-const_assert_mem_size!(LxOffer, 568);
+const_assert_mem_size!(Offer, 568);
 
-impl From<Offer> for LxOffer {
+impl From<lightning::offers::offer::Offer> for Offer {
     #[inline]
-    fn from(value: Offer) -> Self {
-        LxOffer(value)
+    fn from(value: lightning::offers::offer::Offer) -> Self {
+        Self(value)
     }
 }
 
-impl fmt::Display for LxOffer {
+impl fmt::Display for Offer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
 }
 
-impl FromStr for LxOffer {
+impl FromStr for Offer {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Offer::from_str(s).map(LxOffer).map_err(ParseError)
+        lightning::offers::offer::Offer::from_str(s)
+            .map(Self)
+            .map_err(ParseError)
     }
 }
 
-impl TryFrom<Vec<u8>> for LxOffer {
+impl TryFrom<Vec<u8>> for Offer {
     type Error = ParseError;
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        Offer::try_from(bytes).map(LxOffer).map_err(ParseError)
+        lightning::offers::offer::Offer::try_from(bytes)
+            .map(Self)
+            .map_err(ParseError)
     }
 }
 
@@ -462,7 +466,7 @@ mod arb {
         )
     }
 
-    impl Arbitrary for LxOffer {
+    impl Arbitrary for Offer {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
@@ -530,7 +534,7 @@ mod arb {
         issuer: Option<String>,
         max_quantity: MaxQuantity,
         paths: Vec<(Vec<MessageForwardNode>, MessageContext)>,
-    ) -> LxOffer {
+    ) -> Offer {
         let root_seed = RootSeed::from_rng(&mut rng);
         let node_pk = root_seed.derive_node_pk();
         let expanded_key = ExpandedKey::new(rng.gen_bytes());
@@ -608,7 +612,7 @@ mod arb {
             offer.build()
         };
 
-        LxOffer(offer.expect("Failed to build BOLT12 offer"))
+        Offer(offer.expect("Failed to build BOLT12 offer"))
     }
 
     impl Arbitrary for MaxQuantity {
@@ -650,8 +654,8 @@ mod test {
     #[test]
     fn offer_parse_examples() {
         #[track_caller]
-        fn parse_ok(s: &str) -> LxOffer {
-            let offer = LxOffer::from_str(s).unwrap();
+        fn parse_ok(s: &str) -> Offer {
+            let offer = Offer::from_str(s).unwrap();
             // Also check that it roundtrips.
             assert_eq!(offer.to_string(), s);
             offer
@@ -700,24 +704,24 @@ mod test {
 
     #[test]
     fn offer_serde_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<LxOffer>();
+        roundtrip::json_string_roundtrip_proptest::<Offer>();
     }
 
     #[test]
     fn offer_fromstr_display_roundtrip() {
-        roundtrip::fromstr_display_roundtrip_proptest::<LxOffer>();
+        roundtrip::fromstr_display_roundtrip_proptest::<Offer>();
     }
 
     #[test]
     fn offer_matches_hrp_prefix() {
-        proptest!(|(offer: LxOffer)| {
+        proptest!(|(offer: Offer)| {
             let mut offer_str = offer.to_string();
-            prop_assert!(LxOffer::matches_hrp_prefix(&offer_str));
+            prop_assert!(Offer::matches_hrp_prefix(&offer_str));
 
             // uppercase
             offer_str.make_ascii_uppercase();
-            prop_assert!(LxOffer::matches_hrp_prefix(&offer_str));
-            prop_assert_eq!(LxOffer::from_str(&offer_str).unwrap(), offer);
+            prop_assert!(Offer::matches_hrp_prefix(&offer_str));
+            prop_assert_eq!(Offer::from_str(&offer_str).unwrap(), offer);
         });
     }
 
@@ -742,7 +746,7 @@ mod test {
     #[test]
     fn offer_sample_data() {
         let mut rng = FastRng::from_u64(949846484986610);
-        let strategy = any::<LxOffer>();
+        let strategy = any::<Offer>();
         let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
 
         for value in value_iter.take(10) {
@@ -824,7 +828,7 @@ mod test {
     #[test]
     fn offer_decode() {
         let offer_str = "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps";
-        let offer = LxOffer::from_str(offer_str).unwrap();
+        let offer = Offer::from_str(offer_str).unwrap();
         dbg!(&offer);
         dbg!(offer.id());
         dbg!(offer.payee_node_pk());
