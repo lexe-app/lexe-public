@@ -15,13 +15,11 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 // Some re-exports to prevent having to re-declare dependencies
 pub use lexe_byte_array::ByteArray;
-// TODO(phlip9): remove re-export
-pub use lexe_crypto::ed25519;
+// TODO(phlip9): remove re-exports
+pub use lexe_crypto::{aes, ed25519};
 pub use ref_cast::RefCast;
 pub use secrecy::{ExposeSecret, Secret};
 
-/// Encrypt/decrypt blobs for remote storage.
-pub mod aes;
 /// API definitions, errors, clients, and structs sent across the wire.
 pub mod api;
 /// [`tokio::Bytes`](bytes::Bytes) but must contain a string.

@@ -82,7 +82,6 @@
 use std::fmt;
 
 use bytes::BufMut;
-use lexe_crypto::rng::{Crng, RngExt};
 use lexe_std::array;
 use ref_cast::RefCast;
 use ring::{
@@ -91,6 +90,8 @@ use ring::{
 };
 use serde::Serialize;
 use thiserror::Error;
+
+use crate::rng::{Crng, RngExt};
 
 /// serialized version length
 const VERSION_LEN: usize = 1;
@@ -379,6 +380,28 @@ impl aead::NonceSequence for ZeroNonce {
     }
 }
 
+// See `lexe_common::root_seed::RootSeed::derive_vfs_master_key`
+#[cfg(any(test, feature = "test-utils"))]
+pub(crate) fn derive_key(rng: &mut crate::rng::FastRng) -> AesMasterKey {
+    struct OkmLength;
+    impl hkdf::KeyType for OkmLength {
+        fn len(&self) -> usize {
+            32
+        }
+    }
+
+    const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::RootSeed");
+    let seed: [u8; 32] = rng.gen_bytes();
+    let mut key_seed = [0u8; 32];
+    hkdf::Salt::new(hkdf::HKDF_SHA256, HKDF_SALT.as_slice())
+        .extract(&seed)
+        .expand(&[b"vfs master key"], OkmLength)
+        .unwrap()
+        .fill(key_seed.as_mut_slice())
+        .unwrap();
+    AesMasterKey::new(&key_seed)
+}
+
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
     use proptest::{
@@ -387,14 +410,14 @@ mod arbitrary_impl {
     };
 
     use super::*;
-    use crate::root_seed::RootSeed;
+    use crate::rng::FastRng;
 
     impl Arbitrary for AesMasterKey {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<RootSeed>()
-                .prop_map(|seed| seed.derive_vfs_master_key())
+            any::<FastRng>()
+                .prop_map(|mut rng| derive_key(&mut rng))
                 .boxed()
         }
     }
@@ -402,14 +425,13 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use lexe_crypto::rng::FastRng;
     use lexe_hex::hex;
     use proptest::{
         arbitrary::any, collection::vec, prop_assert, prop_assert_eq, proptest,
     };
 
     use super::*;
-    use crate::root_seed::RootSeed;
+    use crate::rng::FastRng;
 
     #[test]
     fn test_aad_compat() {
@@ -452,8 +474,7 @@ mod test {
     #[test]
     fn test_decrypt_compat() {
         let mut rng = FastRng::from_u64(123);
-        let root_seed = RootSeed::from_rng(&mut rng);
-        let vfs_key = root_seed.derive_vfs_master_key();
+        let vfs_key = derive_key(&mut rng);
 
         // aad = [], plaintext = ""
 
@@ -505,8 +526,7 @@ mod test {
             aad in vec(vec(any::<u8>(), 0..=16), 0..=4),
             plaintext in vec(any::<u8>(), 0..=256),
         )| {
-            let root_seed = RootSeed::from_rng(&mut rng);
-            let vfs_key = root_seed.derive_vfs_master_key();
+            let vfs_key = derive_key(&mut rng);
 
             let aad_ref = aad
                 .iter()
