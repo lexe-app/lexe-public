@@ -169,7 +169,7 @@ async fn sync_and_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
         .create_sweep_tx(&dest_address, priority)
         .context("Failed to create tx")?;
     let req = PayOnchainRequest {
-        cid: ClientPaymentId::from_rng(&mut SysRng::new()),
+        cid: ClientPaymentId::generate(),
         address: dest_address.into_unchecked(),
         // This is a little funny, but I think this makes the most sense since
         // we're effectively paying ourselves. We'll only see this entry in our

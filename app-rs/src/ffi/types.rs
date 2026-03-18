@@ -781,9 +781,9 @@ pub struct ClientPaymentId {
 
 impl ClientPaymentId {
     /// flutter_rust_bridge:sync
-    pub fn gen_new() -> Self {
+    pub fn generate() -> Self {
         ClientPaymentId {
-            id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
+            id: ClientPaymentIdRs::generate().0,
         }
     }
 }

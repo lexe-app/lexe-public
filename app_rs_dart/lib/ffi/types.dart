@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `into_inner`, `try_from_unstable`
+// These functions are ignored because they are not marked as `pub`: `into_inner`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
@@ -58,8 +58,8 @@ sealed class ClientPaymentId with _$ClientPaymentId {
   const factory ClientPaymentId({required U8Array32 id}) = _ClientPaymentId;
 
   /// flutter_rust_bridge:sync
-  static ClientPaymentId genNew() =>
-      AppRs.instance.api.crateFfiTypesClientPaymentIdGenNew();
+  static ClientPaymentId generate() =>
+      AppRs.instance.api.crateFfiTypesClientPaymentIdGenerate();
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -144,7 +144,7 @@ sealed class GDriveStatus with _$GDriveStatus {
 }
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
-/// Mirrors the [`LxInvoice`] type.
+/// Mirrors the [`Invoice`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -307,7 +307,7 @@ enum Network {
 }
 
 /// A lightning offer with useful fields parsed out for the flutter frontend.
-/// Mirrors the [`Offer`] type.
+/// Mirrors the [`OfferRs`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed

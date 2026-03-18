@@ -521,7 +521,7 @@ class WalletPageState extends State<WalletPage> {
         paymentService: SendPaymentServiceImpl(this.widget.app),
         configNetwork: this.widget.config.network,
         balance: nodeInfo.balance,
-        cid: ClientPaymentId.genNew(),
+        cid: ClientPaymentId.generate(),
         fiatRate: this.fiatRateService.fiatRate,
       );
 

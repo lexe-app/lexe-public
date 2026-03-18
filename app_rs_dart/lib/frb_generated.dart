@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 891397297;
+  int get rustContentHash => -1855442256;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -292,7 +292,7 @@ abstract class AppRsApi extends BaseApi {
 
   AppUserInfo crateFfiAppAppHandleWalletUser({required AppHandle that});
 
-  ClientPaymentId crateFfiTypesClientPaymentIdGenNew();
+  ClientPaymentId crateFfiTypesClientPaymentIdGenerate();
 
   Future<void> crateFfiTypesConfigValidate({required Config that});
 
@@ -2071,7 +2071,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  ClientPaymentId crateFfiTypesClientPaymentIdGenNew() {
+  ClientPaymentId crateFfiTypesClientPaymentIdGenerate() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -2082,15 +2082,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeSuccessData: sse_decode_client_payment_id,
           decodeErrorData: null,
         ),
-        constMeta: kCrateFfiTypesClientPaymentIdGenNewConstMeta,
+        constMeta: kCrateFfiTypesClientPaymentIdGenerateConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateFfiTypesClientPaymentIdGenNewConstMeta =>
-      const TaskConstMeta(debugName: "client_payment_id_gen_new", argNames: []);
+  TaskConstMeta get kCrateFfiTypesClientPaymentIdGenerateConstMeta =>
+      const TaskConstMeta(
+        debugName: "client_payment_id_generate",
+        argNames: [],
+      );
 
   @override
   Future<void> crateFfiTypesConfigValidate({required Config that}) {

@@ -22,7 +22,7 @@ use lexe_common::{
     ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
     time::TimestampMs,
 };
-use lexe_crypto::rng::{RngCore, RngExt};
+use lexe_crypto::rng::{RngCore, ThreadFastRng};
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
 #[cfg(any(test, feature = "test-utils"))]
@@ -1061,9 +1061,17 @@ impl PaymentId {
 // --- impl ClientPaymentId --- //
 
 impl ClientPaymentId {
-    /// Sample a random [`ClientPaymentId`].
-    /// The rng is not required to be cryptographically secure.
+    /// Generate a random [`ClientPaymentId`].
+    pub fn generate() -> Self {
+        let mut bytes = [0u8; 32];
+        ThreadFastRng::new().fill_bytes(&mut bytes);
+        Self(bytes)
+    }
+
+    /// Sample a random [`ClientPaymentId`] from the given rng.
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn from_rng(rng: &mut impl RngCore) -> Self {
+        use lexe_crypto::rng::RngExt;
         Self(rng.gen_bytes())
     }
 }

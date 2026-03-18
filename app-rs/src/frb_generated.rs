@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 891397297;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1855442256;
 
 // Section: executor
 
@@ -790,17 +790,17 @@ fn wire__crate__ffi__app__app_handle_wallet_user_impl(
                      let output_ok = Result::<_,()>::Ok(crate::ffi::app::AppHandle::wallet_user(&api_that))?;   Ok(output_ok)
                 })()) })
 }
-fn wire__crate__ffi__types__client_payment_id_gen_new_impl(
+fn wire__crate__ffi__types__client_payment_id_generate_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "client_payment_id_gen_new", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "client_payment_id_generate", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
                 transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::ClientPaymentId::gen_new())?;   Ok(output_ok)
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::ClientPaymentId::generate())?;   Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__types__config_validate_impl(
@@ -3183,7 +3183,7 @@ fn pde_ffi_dispatcher_sync_impl(
 24 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
 43 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
 49 => wire__crate__ffi__app__app_handle_wallet_user_impl(ptr, rust_vec_len, data_len),
-50 => wire__crate__ffi__types__client_payment_id_gen_new_impl(ptr, rust_vec_len, data_len),
+50 => wire__crate__ffi__types__client_payment_id_generate_impl(ptr, rust_vec_len, data_len),
 52 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
 53 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
 54 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
