@@ -66,7 +66,6 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    aes::AesMasterKey,
     api::{
         auth::BearerAuthToken,
         user::{Scid, Scids},
@@ -75,7 +74,10 @@ use lexe_common::{
     ln::channel::LxOutPoint,
     time::TimestampMs,
 };
-use lexe_crypto::rng::{Crng, SysRng};
+use lexe_crypto::{
+    aes::AesMasterKey,
+    rng::{Crng, SysRng},
+};
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,

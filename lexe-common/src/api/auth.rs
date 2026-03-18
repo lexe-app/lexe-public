@@ -6,6 +6,7 @@ use std::{
 };
 
 use base64::Engine;
+use lexe_crypto::ed25519::{self, Signed};
 use lexe_std::array;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -13,12 +14,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::user::{NodePkProof, UserPk};
+use crate::byte_str::ByteStr;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
-use crate::{
-    byte_str::ByteStr,
-    ed25519::{self, Signed},
-};
 
 #[derive(Debug, Error)]
 pub enum Error {

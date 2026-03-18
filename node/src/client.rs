@@ -47,10 +47,9 @@ use lexe_common::{
         },
         version::MeasurementStruct,
     },
-    ed25519,
     env::DeployEnv,
 };
-use lexe_crypto::rng::Crng;
+use lexe_crypto::{ed25519, rng::Crng};
 use lexe_enclave_core::enclave::Measurement;
 use lexe_tls::attestation::{self, NodeMode};
 use lightning::events::Event;

@@ -2,10 +2,13 @@ use std::{borrow::Cow, fmt};
 
 use anyhow::{Context, ensure};
 use lexe_common::{
-    api::user::UserPk, ed25519, env::DeployEnv, ln::network::LxNetwork,
+    api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
     root_seed::RootSeed,
 };
-use lexe_crypto::rng::{Crng, RngExt};
+use lexe_crypto::{
+    ed25519,
+    rng::{Crng, RngExt},
+};
 use lexe_enclave_core::enclave::{self, MachineId, Measurement, Sealed};
 use lexe_serde::hexstr_or_bytes;
 use lexe_std::array;

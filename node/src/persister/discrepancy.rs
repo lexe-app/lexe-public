@@ -14,7 +14,8 @@ use lexe_api::{
     def::NodeBackendApi,
     vfs::{VfsFile, VfsFileId},
 };
-use lexe_common::{Secret, aes::AesMasterKey, debug_panic_release_log};
+use lexe_common::{Secret, debug_panic_release_log};
+use lexe_crypto::aes::AesMasterKey;
 use lexe_ln::persister;
 use tracing::{error, warn};
 

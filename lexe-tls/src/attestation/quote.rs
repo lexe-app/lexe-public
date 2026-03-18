@@ -6,7 +6,7 @@
 #[rustfmt::skip]
 #[cfg(target_env = "sgx")]
 pub use sgx::quote_enclave;
-use lexe_common::ed25519;
+use lexe_crypto::ed25519;
 #[cfg(not(target_env = "sgx"))]
 pub use not_sgx::quote_enclave;
 

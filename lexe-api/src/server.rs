@@ -68,10 +68,8 @@ use lexe_api_core::{
     axum_helpers,
     error::{CommonApiError, CommonErrorKind},
 };
-use lexe_common::{
-    api::auth::{self, Scope},
-    ed25519,
-};
+use lexe_common::api::auth::{self, Scope};
+use lexe_crypto::ed25519;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{Serialize, de::DeserializeOwned};
 use tower::{

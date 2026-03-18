@@ -11,7 +11,8 @@ use http::{
 use lexe_api_core::error::{
     ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
 };
-use lexe_common::{ed25519, time::DisplayMs};
+use lexe_common::time::DisplayMs;
+use lexe_crypto::ed25519;
 use lexe_std::backoff;
 use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;

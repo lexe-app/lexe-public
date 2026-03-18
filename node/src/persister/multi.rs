@@ -13,7 +13,8 @@ use lexe_api::{
     error::BackendErrorKind,
     vfs::{VfsFile, VfsFileId},
 };
-use lexe_common::{aes::AesMasterKey, constants::IMPORTANT_PERSIST_RETRIES};
+use lexe_common::constants::IMPORTANT_PERSIST_RETRIES;
+use lexe_crypto::aes::AesMasterKey;
 use lexe_ln::persister;
 use lexe_std::backoff;
 use secrecy::Secret;

@@ -28,7 +28,6 @@ use lexe_common::{
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
     constants::{self},
-    ed25519,
     env::DeployEnv,
     ln::{
         balance::OnchainBalance, channel::LxOutPoint, hashes::LxTxid,
@@ -38,7 +37,7 @@ use lexe_common::{
     root_seed::RootSeed,
     time::TimestampMs,
 };
-use lexe_crypto::rng::Crng;
+use lexe_crypto::{ed25519, rng::Crng};
 use lexe_enclave_core::enclave::{MachineId, Measurement};
 use lexe_ln::{
     BoxedAnyhowFuture,

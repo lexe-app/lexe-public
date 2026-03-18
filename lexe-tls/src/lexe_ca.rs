@@ -2,7 +2,8 @@
 
 use std::sync::{Arc, LazyLock};
 
-use lexe_common::{constants, ed25519, env::DeployEnv};
+use lexe_common::{constants, env::DeployEnv};
+use lexe_crypto::ed25519;
 use rustls::{
     RootCertStore,
     client::WebPkiServerVerifier,

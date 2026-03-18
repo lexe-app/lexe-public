@@ -25,7 +25,8 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
 };
-use lexe_common::{ed25519, env::DeployEnv};
+use lexe_common::env::DeployEnv;
+use lexe_crypto::ed25519;
 use lexe_node_client::{client::NodeClient, credentials::Credentials};
 use quick_cache::unsync;
 use tokio::sync::mpsc;

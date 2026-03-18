@@ -13,10 +13,11 @@ use lexe_api::{
     },
     vfs::{self, Vfs, VfsDirectory, VfsFile, VfsFileId},
 };
-use lexe_common::{
-    aes::AesMasterKey, constants, ln::channel::LxOutPoint, time::TimestampMs,
+use lexe_common::{constants, ln::channel::LxOutPoint, time::TimestampMs};
+use lexe_crypto::{
+    aes::AesMasterKey,
+    rng::{Crng, SysRng},
 };
-use lexe_crypto::rng::{Crng, SysRng};
 use lexe_std::fmt::DisplayOption;
 use lightning::{events::Event, util::ser::Writeable};
 use serde::{Serialize, de::DeserializeOwned};

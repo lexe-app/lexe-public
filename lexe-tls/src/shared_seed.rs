@@ -81,10 +81,10 @@ use certs::{
     RevocableIssuingCaCert,
 };
 use lexe_common::{
-    api::revocable_clients::RevocableClients, constants, ed25519,
-    env::DeployEnv, root_seed::RootSeed, time::TimestampMs,
+    api::revocable_clients::RevocableClients, constants, env::DeployEnv,
+    root_seed::RootSeed, time::TimestampMs,
 };
-use lexe_crypto::rng::Crng;
+use lexe_crypto::{ed25519, rng::Crng};
 use rustls::{
     DigitallySignedStruct, DistinguishedName, RootCertStore,
     client::{

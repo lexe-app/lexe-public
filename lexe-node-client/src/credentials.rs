@@ -11,11 +11,10 @@ use lexe_common::{
         revocable_clients::CreateRevocableClientResponse,
         user::UserPk,
     },
-    ed25519,
     env::DeployEnv,
     root_seed::RootSeed,
 };
-use lexe_crypto::rng::Crng;
+use lexe_crypto::{ed25519, rng::Crng};
 use lexe_tls::{
     rustls, shared_seed,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},

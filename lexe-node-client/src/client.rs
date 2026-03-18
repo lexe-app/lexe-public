@@ -75,10 +75,9 @@ use lexe_common::{
     },
     byte_str::ByteStr,
     constants::{self, node_provision_dns},
-    ed25519,
     env::DeployEnv,
 };
-use lexe_crypto::rng::Crng;
+use lexe_crypto::{ed25519, rng::Crng};
 use lexe_enclave_core::enclave::Measurement;
 use lexe_tls::{attestation, lexe_ca, rustls};
 use reqwest::Url;

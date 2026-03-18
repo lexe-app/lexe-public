@@ -35,6 +35,27 @@ use std::collections::HashSet;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use lexe_common::api::{
+    MegaId,
+    auth::{
+        BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
+        UserSignupRequestWire, UserSignupRequestWireV1,
+    },
+    fiat_rates::FiatRates,
+    models::{
+        SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
+        VerifyMsgResponse,
+    },
+    provision::NodeProvisionRequest,
+    revocable_clients::{
+        CreateRevocableClientRequest, CreateRevocableClientResponse,
+        GetRevocableClients, RevocableClients, UpdateClientRequest,
+        UpdateClientResponse,
+    },
+    test_event::TestEventOp,
+    user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
+    version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
+};
 #[cfg(doc)]
 use lexe_common::{
     api::MegaIdStruct,
@@ -43,30 +64,7 @@ use lexe_common::{
     api::user::{UserPkSet, UserPkStruct},
     api::version::MeasurementStruct,
 };
-use lexe_common::{
-    api::{
-        MegaId,
-        auth::{
-            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
-            UserSignupRequestWire, UserSignupRequestWireV1,
-        },
-        fiat_rates::FiatRates,
-        models::{
-            SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
-            VerifyMsgResponse,
-        },
-        provision::NodeProvisionRequest,
-        revocable_clients::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
-        },
-        test_event::TestEventOp,
-        user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
-        version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
-    },
-    ed25519,
-};
+use lexe_crypto::ed25519;
 use lexe_enclave_core::enclave::Measurement;
 use lightning::events::Event;
 

@@ -374,7 +374,8 @@ mod handlers {
 
 mod helpers {
     use lexe_api::error::{BackendApiError, BackendErrorKind};
-    use lexe_common::{aes::AesMasterKey, api::user::UserPk};
+    use lexe_common::api::user::UserPk;
+    use lexe_crypto::aes::AesMasterKey;
     use lexe_enclave_core::enclave::Measurement;
     use tracing::warn;
 

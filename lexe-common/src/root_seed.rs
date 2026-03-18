@@ -6,18 +6,19 @@ use bitcoin::{
     bip32::{self, ChildNumber},
     secp256k1,
 };
-use lexe_crypto::rng::{Crng, RngExt, SysRng};
+use lexe_crypto::{
+    aes::{self, AesMasterKey},
+    ed25519, password,
+    rng::{Crng, RngExt, SysRng},
+};
 use lexe_hex::hex;
 use lexe_std::array;
 use secrecy::{ExposeSecret, Secret, SecretVec, Zeroize};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 use crate::{
-    aes::{self, AesMasterKey},
     api::user::{NodePk, UserPk},
-    ed25519,
     ln::network::LxNetwork,
-    password,
     secp256k1_ctx::SECP256K1,
 };
 
@@ -305,8 +306,8 @@ impl RootSeed {
     /// Returns a [`Vec<u8>`] which can be persisted and later decrypted using
     /// only the given password.
     ///
-    /// [`MIN_PASSWORD_LENGTH`]: crate::password::MIN_PASSWORD_LENGTH
-    /// [`MAX_PASSWORD_LENGTH`]: crate::password::MAX_PASSWORD_LENGTH
+    /// [`MIN_PASSWORD_LENGTH`]: lexe_crypto::password::MIN_PASSWORD_LENGTH
+    /// [`MAX_PASSWORD_LENGTH`]: lexe_crypto::password::MAX_PASSWORD_LENGTH
     pub fn password_encrypt(
         &self,
         rng: &mut impl Crng,

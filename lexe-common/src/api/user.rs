@@ -2,6 +2,7 @@ use std::{collections::HashSet, fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 use lexe_byte_array::ByteArray;
+use lexe_crypto::ed25519::{self, Signable};
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_crypto::rng::FastRng;
 use lexe_hex::hex;
@@ -21,12 +22,9 @@ use thiserror::Error;
 
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
+use crate::secp256k1_ctx::SECP256K1;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
-use crate::{
-    ed25519::{self, Signable},
-    secp256k1_ctx::SECP256K1,
-};
 
 /// A Lexe user, as represented in the DB.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]

@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
+use lexe_crypto::ed25519;
 use lexe_serde::{
     base64_or_bytes,
     optopt::{self, none},
@@ -13,7 +14,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     api::{auth::Scope, user::UserPk},
-    ed25519,
     time::TimestampMs,
 };
 

@@ -4,8 +4,7 @@ use anyhow::Context;
 use axum::extract::FromRequestParts;
 use http::header::AUTHORIZATION;
 use lexe_api::error::SdkApiError;
-use lexe_common::ed25519;
-use lexe_crypto::rng::SysRng;
+use lexe_crypto::{ed25519, rng::SysRng};
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
     credentials::{ClientCredentials, Credentials, CredentialsRef},

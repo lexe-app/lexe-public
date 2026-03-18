@@ -3,6 +3,7 @@ use std::{
     str::FromStr,
 };
 
+use lexe_crypto::ed25519;
 use lexe_hex::hex;
 use proptest::{
     arbitrary::{Arbitrary, any},
@@ -11,8 +12,6 @@ use proptest::{
     test_runner::Config,
 };
 use serde::{Serialize, de::DeserializeOwned};
-
-use crate::ed25519;
 
 /// Quickly create a BCS roundtrip proptest.
 ///

@@ -4,7 +4,7 @@
 
 use asn1_rs::{Oid, oid};
 use base64::Engine as _;
-use lexe_common::ed25519;
+use lexe_crypto::ed25519;
 use rustls::pki_types::pem::PemObject;
 use secrecy::Zeroize;
 use x509_parser::x509;

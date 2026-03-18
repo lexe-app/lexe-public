@@ -51,12 +51,12 @@ use lexe_common::{
             UpdateClientRequest as UpdateClientRequestRs,
         },
     },
-    ed25519,
     ln::{
         amount::Amount,
         channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
     },
 };
+use lexe_crypto::ed25519;
 
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,

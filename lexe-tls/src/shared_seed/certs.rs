@@ -2,8 +2,8 @@
 
 use std::str::FromStr;
 
-use lexe_common::{ed25519, root_seed::RootSeed};
-use lexe_crypto::rng::Crng;
+use lexe_common::root_seed::RootSeed;
+use lexe_crypto::{ed25519, rng::Crng};
 use rcgen::string::Ia5String;
 
 use crate as tls;

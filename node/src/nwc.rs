@@ -8,10 +8,9 @@ use lexe_api::models::nwc::{
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
-    aes::AesMasterKey, env::DeployEnv, secp256k1_ctx::SECP256K1,
-    time::TimestampMs,
+    env::DeployEnv, secp256k1_ctx::SECP256K1, time::TimestampMs,
 };
-use lexe_crypto::rng::Crng;
+use lexe_crypto::{aes::AesMasterKey, rng::Crng};
 use lexe_hex::hex;
 use nostr::nips::nip44;
 use serde::{Deserialize, Serialize};
@@ -328,8 +327,8 @@ impl NwcClient {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{aes::AesMasterKey, time::TimestampMs};
-    use lexe_crypto::rng::FastRng;
+    use lexe_common::time::TimestampMs;
+    use lexe_crypto::{aes::AesMasterKey, rng::FastRng};
 
     use super::*;
 

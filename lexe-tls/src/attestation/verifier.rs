@@ -12,7 +12,8 @@ use dcap_ql::quote::{
     CertificationDataType, Quote, Quote3SignatureEcdsaP256, RawQe3CertData,
 };
 use lexe_byte_array::ByteArray;
-use lexe_common::{ed25519, env::DeployEnv};
+use lexe_common::env::DeployEnv;
+use lexe_crypto::ed25519;
 use lexe_enclave_core::enclave::{self, Measurement};
 use lexe_hex::hex;
 use lexe_sha256::sha256;
