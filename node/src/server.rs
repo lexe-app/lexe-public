@@ -22,7 +22,7 @@ use lexe_common::{
         user::{NodePk, Scid, UserPk},
     },
     env::DeployEnv,
-    ln::network::LxNetwork,
+    ln::network::Network,
 };
 use lexe_enclave::enclave::Measurement;
 use lexe_ln::{
@@ -63,7 +63,7 @@ mod nwc;
 pub(crate) struct RouterState {
     // --- Info --- //
     pub user_pk: UserPk,
-    pub network: LxNetwork,
+    pub network: Network,
     pub measurement: Measurement,
     pub version: semver::Version,
     pub config: Arc<UserConfig>,

@@ -2,7 +2,7 @@ use bitcoin::address::{NetworkUnchecked, NetworkValidation};
 use lexe_api_core::types::{
     invoice::Invoice, lnurl::LnurlPayRequest, offer::LxOffer,
 };
-use lexe_common::ln::{amount::Amount, network::LxNetwork};
+use lexe_common::ln::{amount::Amount, network::Network};
 #[cfg(test)]
 use lexe_common::{ln::amount, test_utils::arbitrary};
 #[cfg(test)]
@@ -37,7 +37,7 @@ impl PaymentMethod {
         matches!(self, Self::Offer(_))
     }
 
-    pub fn supports_network(&self, network: LxNetwork) -> bool {
+    pub fn supports_network(&self, network: Network) -> bool {
         match self {
             Self::Onchain(o) => o.supports_network(network),
             Self::Invoice(i) => i.supports_network(network),
@@ -73,7 +73,7 @@ pub struct Onchain {
 
 impl Onchain {
     #[inline]
-    pub fn supports_network(&self, network: LxNetwork) -> bool {
+    pub fn supports_network(&self, network: Network) -> bool {
         self.address.is_valid_for_network(network.to_bitcoin())
     }
 
@@ -133,7 +133,7 @@ impl OfferWithAmount {
     }
 
     #[inline]
-    pub fn supports_network(&self, network: LxNetwork) -> bool {
+    pub fn supports_network(&self, network: Network) -> bool {
         self.offer.supports_network(network)
     }
 

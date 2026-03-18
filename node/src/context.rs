@@ -10,7 +10,7 @@ use lexe_api::{
     error::MegaApiError,
     types::{LeaseId, ports::RunPorts},
 };
-use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+use lexe_common::{env::DeployEnv, ln::network::Network};
 use lexe_crypto::rng::Crng;
 use lexe_enclave::enclave;
 use lexe_ln::{
@@ -79,7 +79,7 @@ pub(crate) struct MegaContext {
     /// The untrusted deploy environment.
     pub untrusted_deploy_env: DeployEnv,
     /// The untrusted network.
-    pub untrusted_network: LxNetwork,
+    pub untrusted_network: Network,
     /// The semantic version of the node.
     pub version: semver::Version,
 }
@@ -99,7 +99,7 @@ impl MegaContext {
         gdrive_oauth_config: Option<OAuthConfig>,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
-        untrusted_network: LxNetwork,
+        untrusted_network: Network,
         runner_tx: mpsc::Sender<UserRunnerCommand>,
         mega_shutdown: NotifyOnce,
     ) -> anyhow::Result<(Self, Vec<LxTask<()>>)> {
@@ -233,7 +233,7 @@ impl MegaContext {
     pub fn dummy() -> Self {
         use std::sync::Mutex;
 
-        use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+        use lexe_common::{env::DeployEnv, ln::network::Network};
         use lexe_crypto::rng::SysRng;
         use lexe_ln::{esplora::LexeEsplora, logger::LexeTracingLogger};
         use lightning::routing::{
@@ -241,7 +241,7 @@ impl MegaContext {
         };
 
         let logger = LexeTracingLogger::new();
-        let network = LxNetwork::Regtest;
+        let network = Network::Regtest;
         let deploy_env = DeployEnv::Dev;
 
         let mut rng = SysRng::new();

@@ -1,6 +1,6 @@
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
-use lexe_common::{api::MegaId, env::DeployEnv, ln::network::LxNetwork};
+use lexe_common::{api::MegaId, env::DeployEnv, ln::network::Network};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,7 @@ pub struct MegaArgs {
 
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
-    pub untrusted_network: LxNetwork,
+    pub untrusted_network: Network,
 
     /// How long the usernode can remain inactive (in seconds) before it gets
     /// evicted by the UserRunner.

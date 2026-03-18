@@ -31,7 +31,7 @@ use lexe_common::{
     env::DeployEnv,
     ln::{
         balance::OnchainBalance, channel::LxOutPoint, hashes::Txid,
-        network::LxNetwork,
+        network::Network,
     },
     net,
     root_seed::RootSeed,
@@ -134,7 +134,7 @@ pub(crate) struct RunArgs {
     pub untrusted_esplora_urls: Vec<String>,
 
     /// bitcoin, testnet, regtest, or signet.
-    pub untrusted_network: LxNetwork,
+    pub untrusted_network: Network,
 
     /// How long the usernode can remain inactive (in seconds) before it gets
     /// evicted by the UserRunner.
@@ -1224,7 +1224,7 @@ struct ProvisionedSecrets {
     user: User,
     root_seed: RootSeed,
     deploy_env: DeployEnv,
-    network: LxNetwork,
+    network: Network,
     user_key_pair: ed25519::KeyPair,
     #[allow(unused)] // May be used to generate `NodePkProof`s later
     node_key_pair: secp256k1::Keypair,

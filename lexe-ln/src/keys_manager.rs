@@ -312,7 +312,7 @@ mod test {
             mut rng in any::<FastRng>(),
             msg in ".*",
         )| {
-            let network = lexe_common::ln::network::LxNetwork::Regtest;
+            let network = lexe_common::ln::network::Network::Regtest;
 
             // Create users 1 and 2
             let master_xprv1 = root_seed1.derive_bip32_master_xprv(network);

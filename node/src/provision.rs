@@ -29,7 +29,7 @@ use lexe_api::{
 };
 use lexe_common::{
     api::provision::NodeProvisionRequest, constants, env::DeployEnv,
-    ln::network::LxNetwork, net,
+    ln::network::Network, net,
 };
 use lexe_crypto::rng::{Crng, SysRng};
 use lexe_enclave::enclave;
@@ -65,7 +65,7 @@ pub(crate) struct ProvisionArgs {
 
     /// The current deploy network passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
-    pub untrusted_network: LxNetwork,
+    pub untrusted_network: Network,
 }
 
 impl From<&MegaArgs> for ProvisionArgs {
@@ -199,7 +199,7 @@ struct AppRouterState {
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
     untrusted_deploy_env: DeployEnv,
-    untrusted_network: LxNetwork,
+    untrusted_network: Network,
 }
 
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.

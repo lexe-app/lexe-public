@@ -149,7 +149,7 @@ impl fmt::Display for LightningUri {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{ln::network::LxNetwork, time::TimestampMs};
+    use lexe_common::{ln::network::Network, time::TimestampMs};
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
@@ -163,7 +163,7 @@ mod test {
         assert_eq!(lightning_uri.offer, None);
         assert_eq!(invoice.amount(), None);
         assert_eq!(invoice.description_str(), None);
-        assert_eq!(invoice.network(), LxNetwork::Mainnet.to_bitcoin());
+        assert_eq!(invoice.network(), Network::Mainnet.to_bitcoin());
         assert_eq!(
             invoice.created_at().unwrap(),
             TimestampMs::try_from(9412556961000_i64).unwrap(),
@@ -181,7 +181,7 @@ mod test {
         assert_eq!(lightning_uri.offer, None);
         assert_eq!(invoice.amount(), None);
         assert_eq!(invoice.description_str().map(|s| s.len()), Some(444));
-        assert_eq!(invoice.network(), LxNetwork::Mainnet.to_bitcoin());
+        assert_eq!(invoice.network(), Network::Mainnet.to_bitcoin());
         assert_eq!(
             invoice.created_at().unwrap(),
             TimestampMs::try_from(17626927082000_i64).unwrap(),
@@ -200,7 +200,7 @@ mod test {
         let lightning_uri = LightningUri::parse(uri_str).unwrap();
         let offer = &lightning_uri.offer.unwrap();
         assert_eq!(lightning_uri.invoice, None);
-        assert!(offer.supports_network(LxNetwork::Mainnet));
+        assert!(offer.supports_network(Network::Mainnet));
         assert_eq!(offer.description(), None);
         assert_eq!(offer.amount(), None);
         assert_eq!(offer.fiat_amount(), None);
@@ -214,7 +214,7 @@ mod test {
         let lightning_uri = LightningUri::parse(uri_str).unwrap();
         let offer = &lightning_uri.offer.unwrap();
         assert_eq!(lightning_uri.invoice, None);
-        assert!(offer.supports_network(LxNetwork::Mainnet));
+        assert!(offer.supports_network(Network::Mainnet));
         assert_eq!(offer.description().map(|x| x.len()), Some(401));
         assert_eq!(offer.amount(), None);
         assert_eq!(offer.fiat_amount(), None);

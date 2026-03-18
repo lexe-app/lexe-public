@@ -206,7 +206,7 @@ pub(crate) async fn get_gvfs_root_gid(
 #[cfg(test)]
 mod test {
     use lexe_common::{
-        api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
+        api::user::UserPk, env::DeployEnv, ln::network::Network,
     };
 
     use super::*;
@@ -233,7 +233,7 @@ mod test {
 
         let gvfs_root_name = GvfsRootName {
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             use_sgx: false,
             user_pk: UserPk::from_u64(123123),
         };

@@ -24,7 +24,7 @@ use lexe_api::{
     },
 };
 use lexe_common::ln::{
-    amount::Amount, network::LxNetwork, priority::ConfirmationPriority,
+    amount::Amount, network::Network, priority::ConfirmationPriority,
 };
 use lexe_crypto::rng::SysRng;
 use lexe_tokio::{notify, task::LxTask};
@@ -46,7 +46,7 @@ const WALLET_CHANGESET_LEGACY_FILENAME: &str = "bdk_wallet_changeset";
 pub struct LegacySweepCtx<CM: LexeChannelManager<PS>, PS: LexePersister> {
     /// The legacy (pre-BIP39-compatible) master extended private key.
     pub legacy_master_xprv: Xpriv,
-    pub network: LxNetwork,
+    pub network: Network,
     pub esplora: Arc<LexeEsplora>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub coin_selector: LexeCoinSelector,

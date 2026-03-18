@@ -13,7 +13,7 @@ pub mod balance;
 pub mod channel;
 /// Bitcoin hash types, such as `Txid`.
 pub mod hashes;
-/// `LxNetwork`, a newtype for [`bitcoin::Network`].
+/// `Network`, a newtype for [`bitcoin::Network`].
 pub mod network;
 /// `LxNodeAlias`.
 pub mod node_alias;

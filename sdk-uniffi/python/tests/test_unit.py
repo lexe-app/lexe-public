@@ -34,12 +34,12 @@ def test_enums():
     assert lexe.DeployEnv.STAGING
     assert lexe.DeployEnv.PROD
 
-    # LxNetwork
-    assert lexe.LxNetwork.MAINNET
-    assert lexe.LxNetwork.TESTNET4
-    assert lexe.LxNetwork.REGTEST
-    assert lexe.LxNetwork.TESTNET3
-    assert lexe.LxNetwork.SIGNET
+    # Network
+    assert lexe.Network.MAINNET
+    assert lexe.Network.TESTNET4
+    assert lexe.Network.REGTEST
+    assert lexe.Network.TESTNET3
+    assert lexe.Network.SIGNET
 
     # PaymentDirection
     assert lexe.PaymentDirection.INBOUND
@@ -87,7 +87,7 @@ def test_wallet_env_config():
     """Test WalletEnvConfig can be created."""
     config = create_dev_config()
     assert config.deploy_env == lexe.DeployEnv.DEV
-    assert config.network == lexe.LxNetwork.REGTEST
+    assert config.network == lexe.Network.REGTEST
     assert config.use_sgx == False
 
 

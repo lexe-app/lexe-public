@@ -42,7 +42,7 @@ use lexe_common::{
             LxChannelDetails as LxChannelDetailsRs,
             LxUserChannelId as LxUserChannelIdRs,
         },
-        network::LxNetwork as NetworkRs,
+        network::Network as NetworkRs,
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
     time::TimestampMs,
@@ -101,7 +101,7 @@ impl From<DeployEnv> for DeployEnvRs {
     }
 }
 
-/// See [`lexe_common::ln::network::LxNetwork`]
+/// See [`lexe_common::ln::network::Network`]
 #[derive(Copy, Clone, Debug)]
 pub enum Network {
     Mainnet,

@@ -7,7 +7,7 @@ use anyhow::Context;
 use bitcoin::hashes::Hash;
 use lexe_common::{
     api::user::NodePk,
-    ln::{amount::Amount, network::LxNetwork},
+    ln::{amount::Amount, network::Network},
     time::{self, TimestampMs},
 };
 use lexe_std::Apply;
@@ -52,7 +52,7 @@ impl Invoice {
     }
 
     #[inline]
-    pub fn supports_network(&self, network: LxNetwork) -> bool {
+    pub fn supports_network(&self, network: Network) -> bool {
         self.network() == network.to_bitcoin()
     }
 
@@ -242,7 +242,7 @@ pub mod arbitrary_impl {
             let node_key_pair = any::<FastRng>().prop_map(|mut rng| {
                 RootSeed::from_rng(&mut rng).derive_node_key_pair()
             });
-            let network = any::<LxNetwork>();
+            let network = any::<Network>();
             let description_or_hash =
                 result::maybe_ok(arbitrary::any_simple_string(), bytes32);
             let timestamp = (0..MAX_TIMESTAMP).prop_map(Duration::from_secs);
@@ -325,7 +325,7 @@ pub mod arbitrary_impl {
     /// get in the way when generating via proptest. Only used during testing.
     pub(super) fn gen_invoice(
         node_key_pair: secp256k1::Keypair,
-        network: LxNetwork,
+        network: Network,
         description_or_hash: Result<String, [u8; 32]>,
         timestamp: Duration,
         payment_secret: [u8; 32],
@@ -491,7 +491,7 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
     fn invoice_dump() {
         let node_key_pair = RootSeed::from_u64(12345).derive_node_key_pair();
 
-        let network = LxNetwork::Regtest;
+        let network = Network::Regtest;
         let amount = None;
         let created_at = Duration::from_millis(1741232485);
         let expires_at = Some(Duration::from_millis(1741233485));

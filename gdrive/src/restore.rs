@@ -7,7 +7,7 @@ use lexe_api_core::vfs::{
     PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY, VfsFile, VfsFileId,
 };
 use lexe_common::{
-    env::DeployEnv, ln::network::LxNetwork, root_seed::RootSeed,
+    env::DeployEnv, ln::network::Network, root_seed::RootSeed,
 };
 use lexe_crypto::rng::Crng;
 use tokio::sync::watch;
@@ -55,7 +55,7 @@ impl GDriveRestoreClient {
     pub async fn find_restore_candidates(
         &self,
         deploy_env: DeployEnv,
-        network: LxNetwork,
+        network: Network,
         use_sgx: bool,
     ) -> anyhow::Result<Vec<GDriveRestoreCandidate>> {
         let gvfs_roots = self
@@ -90,7 +90,7 @@ impl GDriveRestoreClient {
         &self,
         rng: &mut impl Crng,
         deploy_env: DeployEnv,
-        network: LxNetwork,
+        network: Network,
         use_sgx: bool,
         root_seed: &RootSeed,
         new_password: &str,
@@ -143,7 +143,7 @@ impl GDriveRestoreClient {
     async fn find_gvfs_root_candidates(
         &self,
         deploy_env: DeployEnv,
-        network: LxNetwork,
+        network: Network,
         use_sgx: bool,
     ) -> anyhow::Result<Vec<GvfsRoot>> {
         // Look for LexeData root dir

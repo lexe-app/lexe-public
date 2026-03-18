@@ -347,7 +347,7 @@ mod direct_dns {
 mod test {
     use std::time::Duration;
 
-    use lexe_common::ln::network::LxNetwork;
+    use lexe_common::ln::network::Network;
     use tracing::info;
 
     use super::*;
@@ -361,7 +361,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_bip353_philip_prod_doh() {
-        do_bip353_resolve_doh(LxNetwork::Mainnet, "philip@lexe.app").await;
+        do_bip353_resolve_doh(Network::Mainnet, "philip@lexe.app").await;
     }
 
     /// Live test that resolves philip's prod BIP353 address using direct DNS.
@@ -375,7 +375,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_bip353_philip_prod_direct() {
-        do_bip353_resolve_direct(LxNetwork::Mainnet, "philip@lexe.app").await;
+        do_bip353_resolve_direct(Network::Mainnet, "philip@lexe.app").await;
     }
 
     /// Live test that resolves lexetestuser's staging BIP353 address using
@@ -388,7 +388,7 @@ mod test {
     #[ignore]
     async fn test_bip353_lexetestuser_staging_doh() {
         do_bip353_resolve_doh(
-            LxNetwork::Testnet3,
+            Network::Testnet3,
             "lexetestuser@staging.lexe.app",
         )
         .await;
@@ -407,7 +407,7 @@ mod test {
     #[ignore]
     async fn test_bip353_lexetestuser_staging_direct() {
         do_bip353_resolve_direct(
-            LxNetwork::Testnet3,
+            Network::Testnet3,
             "lexetestuser@staging.lexe.app",
         )
         .await;
@@ -422,7 +422,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_bip353_bluematt_doh() {
-        do_bip353_resolve_doh(LxNetwork::Mainnet, "matt@mattcorallo.com").await;
+        do_bip353_resolve_doh(Network::Mainnet, "matt@mattcorallo.com").await;
     }
 
     /// Live test that resolves Matt's BIP353 address using direct DNS.
@@ -436,11 +436,11 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_bip353_bluematt_direct() {
-        do_bip353_resolve_direct(LxNetwork::Mainnet, "matt@mattcorallo.com")
+        do_bip353_resolve_direct(Network::Mainnet, "matt@mattcorallo.com")
             .await;
     }
 
-    async fn do_bip353_resolve_doh(network: LxNetwork, uri: &str) {
+    async fn do_bip353_resolve_doh(network: Network, uri: &str) {
         lexe_logger::init_for_testing();
 
         let payment_uri = PaymentUri::parse(uri).unwrap();
@@ -477,7 +477,7 @@ mod test {
         assert_eq!(num_offers, 1, "Expected exactly one BOLT12 offer");
     }
 
-    async fn do_bip353_resolve_direct(network: LxNetwork, uri: &str) {
+    async fn do_bip353_resolve_direct(network: Network, uri: &str) {
         let payment_uri = PaymentUri::parse(uri).unwrap();
 
         let email_like = match payment_uri {

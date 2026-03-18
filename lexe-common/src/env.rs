@@ -10,7 +10,7 @@ use serde::Serialize;
 use serde_with::DeserializeFromStr;
 use strum::VariantArray;
 
-use crate::ln::network::LxNetwork;
+use crate::ln::network::Network;
 
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -56,9 +56,9 @@ impl DeployEnv {
         }
     }
 
-    /// Validate the [`LxNetwork`] parameter for this deploy environment.
-    pub fn validate_network(&self, network: LxNetwork) -> anyhow::Result<()> {
-        use LxNetwork::*;
+    /// Validate the [`Network`] parameter for this deploy environment.
+    pub fn validate_network(&self, network: Network) -> anyhow::Result<()> {
+        use Network::*;
         match self {
             Self::Dev => ensure!(
                 matches!(network, Regtest | Testnet3 | Testnet4),
@@ -99,22 +99,22 @@ impl DeployEnv {
         }
     }
 
-    /// A strategy for *valid* combinations of [`DeployEnv`] and [`LxNetwork`].
+    /// A strategy for *valid* combinations of [`DeployEnv`] and [`Network`].
     #[cfg(any(test, feature = "test-utils"))]
     pub fn any_valid_network_combo()
-    -> impl Strategy<Value = (DeployEnv, LxNetwork)> {
+    -> impl Strategy<Value = (DeployEnv, Network)> {
         use proptest::strategy::Just;
         // We *could* extract an associated const [(DeployEnv, Network); N]
         // enumerating all *valid* combos, then iterate over all *possible*
         // combos to test that `validate_network` is correct, but this
         // boilerplate adds very little value.
         proptest::prop_oneof![
-            Just((Self::Dev, LxNetwork::Regtest)),
-            Just((Self::Dev, LxNetwork::Testnet3)),
-            Just((Self::Dev, LxNetwork::Testnet4)),
-            Just((Self::Staging, LxNetwork::Testnet3)),
-            Just((Self::Staging, LxNetwork::Testnet4)),
-            Just((Self::Prod, LxNetwork::Mainnet)),
+            Just((Self::Dev, Network::Regtest)),
+            Just((Self::Dev, Network::Testnet3)),
+            Just((Self::Dev, Network::Testnet4)),
+            Just((Self::Staging, Network::Testnet3)),
+            Just((Self::Staging, Network::Testnet4)),
+            Just((Self::Prod, Network::Mainnet)),
         ]
     }
 }

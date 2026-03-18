@@ -10,7 +10,7 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use lexe_api::server::LayerConfig;
-use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+use lexe_common::{env::DeployEnv, ln::network::Network};
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::{
     client::{GatewayClient, NodeClient},
@@ -35,7 +35,7 @@ const DEFAULT_LISTEN_ADDR: SocketAddr =
 
 pub struct Sidecar {
     deploy_env: DeployEnv,
-    network: LxNetwork,
+    network: Network,
     sidecar_url: String,
     static_tasks: Vec<LxTask<()>>,
     shutdown: NotifyOnce,
@@ -73,7 +73,7 @@ impl Sidecar {
 
         let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
         let deploy_env = args.deploy_env.unwrap_or(DeployEnv::Prod);
-        let network = args.network.unwrap_or(LxNetwork::Mainnet);
+        let network = args.network.unwrap_or(Network::Mainnet);
         info!(%deploy_env, %network);
 
         let dev_gateway_url = env::var("DEV_GATEWAY_URL").ok().map(Cow::Owned);
@@ -172,7 +172,7 @@ impl Sidecar {
         self.deploy_env
     }
 
-    pub fn network(&self) -> LxNetwork {
+    pub fn network(&self) -> Network {
         self.network
     }
 

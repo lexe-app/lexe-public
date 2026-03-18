@@ -13,7 +13,7 @@ use lexe_api_core::{
     vfs,
     vfs::{VfsDirectory, VfsFile, VfsFileId},
 };
-use lexe_common::{api::user::UserPk, env::DeployEnv, ln::network::LxNetwork};
+use lexe_common::{api::user::UserPk, env::DeployEnv, ln::network::Network};
 use lexe_std::Apply;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
@@ -43,7 +43,7 @@ pub const NOT_FOUND_MSG: &str = "not found";
 #[cfg_attr(test, derive(Debug, proptest_derive::Arbitrary))]
 pub struct GvfsRootName {
     pub deploy_env: DeployEnv,
-    pub network: LxNetwork,
+    pub network: Network,
     pub use_sgx: bool,
     pub user_pk: UserPk,
 }
@@ -513,7 +513,7 @@ impl GvfsRootName {
         };
 
         let deploy_env = DeployEnv::from_str(deploy_env).ok()?;
-        let network = LxNetwork::from_str(network).ok()?;
+        let network = Network::from_str(network).ok()?;
         let use_sgx = match sgx {
             "sgx" => true,
             "dbg" => false,
@@ -558,7 +558,7 @@ mod test {
         // FromStr/Display
         let ex = GvfsRootName {
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             use_sgx: false,
             user_pk: UserPk::from_u64(6546565654654654),
         };
@@ -628,7 +628,7 @@ mod test {
 
         let gvfs_root_name = GvfsRootName {
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             use_sgx: false,
             user_pk: UserPk::from_u64(6549849),
         };
@@ -714,7 +714,7 @@ mod test {
 
         let gvfs_root_name = GvfsRootName {
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             use_sgx: false,
             user_pk: UserPk::from_u64(9849849),
         };
@@ -779,7 +779,7 @@ mod test {
 
         let gvfs_root_name = GvfsRootName {
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             use_sgx: false,
             user_pk: UserPk::from_u64(3385140),
         };

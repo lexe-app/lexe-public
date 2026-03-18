@@ -294,7 +294,7 @@ class LxChannelDetails {
           inboundCapacitySats == other.inboundCapacitySats;
 }
 
-/// See [`lexe_common::ln::network::LxNetwork`]
+/// See [`lexe_common::ln::network::Network`]
 enum Network {
   mainnet,
   testnet3,

@@ -4,7 +4,7 @@ use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
 use lexe_common::{
-    env::DeployEnv, ln::network::LxNetwork, or_env::OrEnvExt as _,
+    env::DeployEnv, ln::network::Network, or_env::OrEnvExt as _,
     root_seed::RootSeed,
 };
 use lexe_node_client::credentials::ClientCredentials;
@@ -78,7 +78,7 @@ pub struct SidecarArgs {
     /// the Bitcoin network to use. one of `mainnet`, `testnet3`, `regtest`.
     /// (default=`mainnet`, env=`NETWORK`)
     #[argh(option, hidden_help)] // hide option until we support staging
-    pub network: Option<LxNetwork>,
+    pub network: Option<Network>,
 
     /// webhook URL for payment notifications. when a payment is finalized
     /// (completed or failed), the sidecar will POST a JSON payload to this

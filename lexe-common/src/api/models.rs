@@ -7,7 +7,7 @@ use super::user::NodePk;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
-    ln::{amount::Amount, hashes::Txid, network::LxNetwork},
+    ln::{amount::Amount, hashes::Txid, network::Network},
     time::TimestampMs,
 };
 
@@ -95,7 +95,7 @@ pub struct BroadcastedTxInfo {
 impl BroadcastedTxInfo {
     pub fn from_broadcasted_tx(
         broadcasted_tx: BroadcastedTx,
-        network: LxNetwork,
+        network: Network,
         confirmation_block_height: Option<u32>,
     ) -> anyhow::Result<Self> {
         let mut reader = Cursor::new(&broadcasted_tx.tx);

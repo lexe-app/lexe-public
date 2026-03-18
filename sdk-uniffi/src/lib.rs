@@ -46,7 +46,7 @@ use lexe_api_core::{
 use lexe_common::{
     env::DeployEnv as DeployEnvRs,
     ln::{
-        amount::Amount as AmountRs, network::LxNetwork as LxNetworkRs,
+        amount::Amount as AmountRs, network::Network as NetworkRs,
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
 };
@@ -179,7 +179,7 @@ impl From<DeployEnv> for DeployEnvRs {
 
 /// Bitcoin network to use.
 #[derive(Clone, uniffi::Enum)]
-pub enum LxNetwork {
+pub enum Network {
     /// Bitcoin mainnet.
     Mainnet,
     /// Bitcoin testnet3.
@@ -192,26 +192,26 @@ pub enum LxNetwork {
     Regtest,
 }
 
-impl From<LxNetwork> for LxNetworkRs {
-    fn from(network: LxNetwork) -> Self {
+impl From<Network> for NetworkRs {
+    fn from(network: Network) -> Self {
         match network {
-            LxNetwork::Mainnet => Self::Mainnet,
-            LxNetwork::Testnet3 => Self::Testnet3,
-            LxNetwork::Testnet4 => Self::Testnet4,
-            LxNetwork::Signet => Self::Signet,
-            LxNetwork::Regtest => Self::Regtest,
+            Network::Mainnet => Self::Mainnet,
+            Network::Testnet3 => Self::Testnet3,
+            Network::Testnet4 => Self::Testnet4,
+            Network::Signet => Self::Signet,
+            Network::Regtest => Self::Regtest,
         }
     }
 }
 
-impl From<LxNetworkRs> for LxNetwork {
-    fn from(network: LxNetworkRs) -> Self {
+impl From<NetworkRs> for Network {
+    fn from(network: NetworkRs) -> Self {
         match network {
-            LxNetworkRs::Mainnet => Self::Mainnet,
-            LxNetworkRs::Testnet3 => Self::Testnet3,
-            LxNetworkRs::Testnet4 => Self::Testnet4,
-            LxNetworkRs::Signet => Self::Signet,
-            LxNetworkRs::Regtest => Self::Regtest,
+            NetworkRs::Mainnet => Self::Mainnet,
+            NetworkRs::Testnet3 => Self::Testnet3,
+            NetworkRs::Testnet4 => Self::Testnet4,
+            NetworkRs::Signet => Self::Signet,
+            NetworkRs::Regtest => Self::Regtest,
         }
     }
 }
@@ -220,7 +220,7 @@ impl From<LxNetworkRs> for LxNetwork {
 #[derive(uniffi::Object)]
 pub struct WalletEnvConfig {
     deploy_env: DeployEnv,
-    network: LxNetwork,
+    network: Network,
     use_sgx: bool,
     gateway_url: Option<String>,
 }
@@ -232,7 +232,7 @@ impl WalletEnvConfig {
     pub fn mainnet() -> Arc<Self> {
         Arc::new(Self {
             deploy_env: DeployEnv::Prod,
-            network: LxNetwork::Mainnet,
+            network: Network::Mainnet,
             use_sgx: true,
             gateway_url: None,
         })
@@ -243,7 +243,7 @@ impl WalletEnvConfig {
     pub fn testnet3() -> Arc<Self> {
         Arc::new(Self {
             deploy_env: DeployEnv::Staging,
-            network: LxNetwork::Testnet3,
+            network: Network::Testnet3,
             use_sgx: true,
             gateway_url: None,
         })
@@ -254,7 +254,7 @@ impl WalletEnvConfig {
     pub fn regtest(use_sgx: bool, gateway_url: Option<String>) -> Arc<Self> {
         Arc::new(Self {
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             use_sgx,
             gateway_url,
         })
@@ -266,7 +266,7 @@ impl WalletEnvConfig {
     }
 
     /// Get the configured Bitcoin network.
-    pub fn network(&self) -> LxNetwork {
+    pub fn network(&self) -> Network {
         self.network.clone()
     }
 

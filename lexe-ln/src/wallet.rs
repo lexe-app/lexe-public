@@ -72,7 +72,7 @@ use lexe_common::{
     constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
         amount::Amount, balance::OnchainBalance, hashes::Txid,
-        network::LxNetwork, priority::ConfirmationPriority,
+        network::Network, priority::ConfirmationPriority,
     },
     time::TimestampMs,
 };
@@ -176,7 +176,7 @@ impl OnchainWallet {
     #[instrument(skip_all, name = "(wallet-init)")]
     pub async fn init(
         master_xprv: bitcoin::bip32::Xpriv,
-        network: LxNetwork,
+        network: Network,
         esplora: &LexeEsplora,
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
@@ -204,7 +204,7 @@ impl OnchainWallet {
 
     fn new(
         master_xprv: bitcoin::bip32::Xpriv,
-        network: LxNetwork,
+        network: Network,
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
@@ -324,7 +324,7 @@ impl OnchainWallet {
     ) -> Self {
         let fee_estimates = FeeEstimates::dummy();
         let coin_selector = LexeCoinSelector::default();
-        let network = LxNetwork::Regtest;
+        let network = Network::Regtest;
         let (persist_tx, _persist_rx) = notify::channel();
         let (wallet, _wallet_created) = OnchainWallet::new(
             master_xprv,
@@ -980,7 +980,7 @@ impl OnchainWallet {
     pub(crate) fn create_onchain_send(
         &self,
         req: PayOnchainRequest,
-        network: LxNetwork,
+        network: Network,
     ) -> anyhow::Result<PaymentWithMetadata<OnchainSendV2>> {
         let (tx, onchain_fee) = {
             let mut locked_wallet = self.inner.write().unwrap();
@@ -1080,7 +1080,7 @@ impl OnchainWallet {
     pub(crate) fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
-        network: LxNetwork,
+        network: Network,
     ) -> anyhow::Result<PreflightPayOnchainResponse> {
         let high_prio = ConfirmationPriority::High;
         let normal_prio = ConfirmationPriority::Normal;
@@ -1454,7 +1454,7 @@ mod arbitrary_impl {
     type TxGraphChangeset = tx_graph::ChangeSet<ConfirmationBlockTime>;
 
     pub(super) fn any_changeset() -> impl Strategy<Value = ChangeSet> {
-        let network = LxNetwork::Mainnet;
+        let network = Network::Mainnet;
         let seed = RootSeed::from_u64(20241114);
         let master_xprv = seed.derive_legacy_master_xprv(network);
         let just_descriptor = Just({
@@ -1473,7 +1473,7 @@ mod arbitrary_impl {
         (
             option::of(just_descriptor),
             option::of(just_change_descriptor),
-            option::of(any::<LxNetwork>().prop_map(Into::into)),
+            option::of(any::<Network>().prop_map(Into::into)),
             any_localchain_changeset(),
             any_txgraph_changeset(),
             any_keychain_changeset(),
@@ -1634,14 +1634,14 @@ mod test {
 
     struct Harness {
         wallet: OnchainWallet,
-        network: LxNetwork,
+        network: Network,
         root_seed: RootSeed,
     }
 
     impl Harness {
         fn new(seed: u64) -> Self {
             let root_seed = RootSeed::from_u64(seed);
-            let network = LxNetwork::Regtest;
+            let network = Network::Regtest;
             let master_xprv = root_seed.derive_bip32_master_xprv(network);
             let changeset = None;
             let wallet = OnchainWallet::dummy(master_xprv, changeset);
@@ -2558,7 +2558,7 @@ mod test {
 
         // Verify we can load the wallet from this changeset
         let root_seed = RootSeed::from_u64(20260117);
-        let network = LxNetwork::Regtest;
+        let network = Network::Regtest;
         let master_xprv = root_seed.derive_legacy_master_xprv(network);
         let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
 
@@ -2577,7 +2577,7 @@ mod test {
 
         // Verify we can load the wallet from this changeset
         let root_seed = RootSeed::from_u64(20260117);
-        let network = LxNetwork::Regtest;
+        let network = Network::Regtest;
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
         let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
 

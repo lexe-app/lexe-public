@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 use crate::test_utils::arbitrary;
-use crate::{env::DeployEnv, ln::network::LxNetwork, root_seed::RootSeed};
+use crate::{env::DeployEnv, ln::network::Network, root_seed::RootSeed};
 
 /// The client sends this request to the provisioning node.
 #[derive(Serialize, Deserialize)]
@@ -18,8 +18,8 @@ pub struct NodeProvisionRequest {
     pub root_seed: RootSeed,
     /// The [`DeployEnv`] that this [`RootSeed`] should be bound to.
     pub deploy_env: DeployEnv,
-    /// The [`LxNetwork`] that this [`RootSeed`] should be bound to.
-    pub network: LxNetwork,
+    /// The [`Network`] that this [`RootSeed`] should be bound to.
+    pub network: Network,
     /// The auth `code` which can used to obtain a set of GDrive credentials.
     /// - Applicable only in staging/prod.
     /// - If provided, the provisioning node will acquire the full set of
@@ -90,7 +90,7 @@ mod test {
         let req = NodeProvisionRequest {
             root_seed: RootSeed::from_rng(&mut rng),
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             google_auth_code: Some("auth_code".to_owned()),
             allow_gvfs_access: false,
             encrypted_seed: None,

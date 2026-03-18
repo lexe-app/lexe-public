@@ -43,7 +43,7 @@ use lexe_common::{
     ln::{
         amount::Amount,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
-        network::LxNetwork,
+        network::Network,
         route::LxRoute,
     },
     time::TimestampMs,
@@ -731,7 +731,7 @@ pub async fn create_invoice<CM, PS>(
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManager<CM, PS>,
     caller: CreateInvoiceCaller,
-    network: LxNetwork,
+    network: Network,
 ) -> anyhow::Result<CreateInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1253,7 +1253,7 @@ where
 #[instrument(skip_all, name = "(pay-onchain)")]
 pub async fn pay_onchain<CM, PS>(
     req: PayOnchainRequest,
-    network: LxNetwork,
+    network: Network,
     wallet: &OnchainWallet,
     tx_broadcaster: &TxBroadcaster,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -1305,7 +1305,7 @@ where
 pub fn preflight_pay_onchain(
     req: PreflightPayOnchainRequest,
     wallet: &OnchainWallet,
-    network: LxNetwork,
+    network: Network,
 ) -> anyhow::Result<PreflightPayOnchainResponse> {
     wallet.preflight_pay_onchain(req, network)
 }

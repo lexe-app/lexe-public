@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt};
 
 use anyhow::{Context, ensure};
 use lexe_common::{
-    api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
+    api::user::UserPk, env::DeployEnv, ln::network::Network,
     root_seed::RootSeed,
 };
 use lexe_crypto::{
@@ -33,9 +33,9 @@ pub struct SealedSeedId {
 /// untrusted and not-yet-validated.
 /// - To validate and convert a [`SealedSeed`] into a [`RootSeed`], use
 ///   [`unseal_and_validate`]. The returned [`RootSeed`] is bound to the
-///   returned [`DeployEnv`] and [`LxNetwork`], which can be used to validate
-///   e.g. the [`LxNetwork`] supplied by the Lexe operators via CLI args.
-/// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`LxNetwork`])
+///   returned [`DeployEnv`] and [`Network`], which can be used to validate e.g.
+///   the [`Network`] supplied by the Lexe operators via CLI args.
+/// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`Network`])
 ///   into a [`SealedSeed`], use [`seal_from_root_seed`].
 ///
 /// See [`lexe_enclave::enclave::seal`] for more implementation details.
@@ -58,9 +58,9 @@ pub struct MaybeSealedSeed {
 }
 
 /// The data that is actually sealed. This struct is serialized to JSON bytes
-/// before it is encrypted. By sealing the [`LxNetwork`] along with the
-/// [`RootSeed`], the root seed is bound to this [`LxNetwork`]. This allows us
-/// to validate the [`LxNetwork`] that Lexe passes in via CLI args, preventing
+/// before it is encrypted. By sealing the [`Network`] along with the
+/// [`RootSeed`], the root seed is bound to this [`Network`]. This allows us
+/// to validate the [`Network`] that Lexe passes in via CLI args, preventing
 /// any attacks that might be triggered by supplying the wrong network.
 #[derive(Serialize, Deserialize)]
 // Not safe to allow non-constant time comparisons outside of tests
@@ -69,7 +69,7 @@ struct RootSeedWithMetadata<'a> {
     #[serde(with = "hexstr_or_bytes")]
     root_seed: Cow<'a, [u8]>,
     deploy_env: DeployEnv,
-    network: LxNetwork,
+    network: Network,
 }
 
 impl SealedSeed {
@@ -95,7 +95,7 @@ impl SealedSeed {
         rng: &mut R,
         root_seed: &RootSeed,
         deploy_env: DeployEnv,
-        network: LxNetwork,
+        network: Network,
         measurement: Measurement,
         machine_id: MachineId,
     ) -> anyhow::Result<Self> {
@@ -129,7 +129,7 @@ impl SealedSeed {
         self,
         expected_measurement: &Measurement,
         expected_machine_id: &MachineId,
-    ) -> anyhow::Result<(RootSeed, DeployEnv, LxNetwork)> {
+    ) -> anyhow::Result<(RootSeed, DeployEnv, Network)> {
         // Validate SGX fields
         ensure!(
             &self.id.measurement == expected_measurement,
@@ -210,7 +210,7 @@ mod test_impls {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<Vec<u8>>(), any::<DeployEnv>(), any::<LxNetwork>())
+            (any::<Vec<u8>>(), any::<DeployEnv>(), any::<Network>())
                 .prop_map(|(root_seed_vec, deploy_env, network)| {
                     RootSeedWithMetadata {
                         root_seed: Cow::from(root_seed_vec),

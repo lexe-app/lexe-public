@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use bitcoin::BlockHash;
-use lexe_common::{constants, ln::network::LxNetwork};
+use lexe_common::{constants, ln::network::Network};
 use lexe_ln::{
     alias::{BroadcasterType, FeeEstimatorType, MessageRouterType, RouterType},
     keys_manager::LexeKeysManager,
@@ -208,7 +208,7 @@ impl Deref for NodeChannelManager {
 
 impl NodeChannelManager {
     pub(crate) fn init(
-        network: LxNetwork,
+        network: Network,
         config: UserConfig,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,
         keys_manager: Arc<LexeKeysManager>,

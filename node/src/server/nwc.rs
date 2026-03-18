@@ -7,7 +7,7 @@ use lexe_api::models::{
         NwcMethod, NwcRequestPayload,
     },
 };
-use lexe_common::ln::{amount::Amount, network::LxNetwork};
+use lexe_common::ln::{amount::Amount, network::Network};
 use lexe_hex::hex;
 use lexe_ln::command::CreateInvoiceCaller;
 
@@ -53,11 +53,11 @@ async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
 
     // NIP-47 only supports mainnet, regtest, testnet, and signet.
     let network = match state.network {
-        LxNetwork::Mainnet => "mainnet",
-        LxNetwork::Regtest => "regtest",
-        LxNetwork::Testnet4 => "testnet",
-        LxNetwork::Testnet3 => "testnet",
-        LxNetwork::Signet => "signet",
+        Network::Mainnet => "mainnet",
+        Network::Regtest => "regtest",
+        Network::Testnet4 => "testnet",
+        Network::Testnet3 => "testnet",
+        Network::Signet => "signet",
     };
 
     Ok(GetInfoResult {

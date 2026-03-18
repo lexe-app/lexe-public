@@ -229,7 +229,7 @@ impl UserRunnerFuzzer {
 mod helpers {
     use lexe_api::cli::{LspInfo, node::MegaArgs};
     use lexe_common::{
-        api::user::UserPk, env::DeployEnv, ln::network::LxNetwork,
+        api::user::UserPk, env::DeployEnv, ln::network::Network,
         time::TimestampMs,
     };
     use lexe_crypto::rng::{FastRng, RngCore, RngExt};
@@ -264,7 +264,7 @@ mod helpers {
             rust_log: None,
             untrusted_deploy_env: DeployEnv::Dev,
             untrusted_esplora_urls: vec![],
-            untrusted_network: LxNetwork::Regtest,
+            untrusted_network: Network::Regtest,
             sgx_heap_size: 0x8000_0000, // 2 GB
             user_inactivity_secs: 3600, // 1 hour (from dummy config)
             // DEFAULT_USERNODE_BUFFER_SLOTS

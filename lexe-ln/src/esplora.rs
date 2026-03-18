@@ -13,7 +13,7 @@ use lexe_common::{
     constants,
     ln::{
         hashes::Txid,
-        network::LxNetwork,
+        network::Network,
         priority::{ConfirmationPriority, ToNumBlocks},
     },
 };
@@ -47,16 +47,16 @@ pub const ESPLORA_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Whether this esplora url is contained in the whitelist for this network.
 #[must_use]
-pub fn url_is_whitelisted(esplora_url: &str, network: LxNetwork) -> bool {
+pub fn url_is_whitelisted(esplora_url: &str, network: Network) -> bool {
     match network {
-        LxNetwork::Mainnet =>
+        Network::Mainnet =>
             constants::MAINNET_ESPLORA_WHITELIST.contains(&esplora_url),
-        LxNetwork::Testnet3 =>
+        Network::Testnet3 =>
             constants::TESTNET3_ESPLORA_WHITELIST.contains(&esplora_url),
-        LxNetwork::Testnet4 => todo!("Don't have testnet4 esplora whitelist"),
-        LxNetwork::Signet => todo!("Don't have a signet esplora whitelist yet"),
+        Network::Testnet4 => todo!("Don't have testnet4 esplora whitelist"),
+        Network::Signet => todo!("Don't have a signet esplora whitelist yet"),
         // Regtest can use whatever
-        LxNetwork::Regtest => true,
+        Network::Regtest => true,
     }
 }
 

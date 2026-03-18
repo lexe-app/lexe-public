@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::Context;
-use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+use lexe_common::{env::DeployEnv, ln::network::Network};
 
 use crate::{
     types::auth::{CredentialsRef, UserPk},
@@ -28,7 +28,7 @@ pub struct WalletEnv {
     /// Prod, staging, or dev.
     pub deploy_env: DeployEnv,
     /// The Bitcoin network: mainnet, testnet, or regtest.
-    pub network: LxNetwork,
+    pub network: Network,
     /// Whether our node should be running in a real SGX enclave.
     /// Set to [`true`] for prod and staging.
     pub use_sgx: bool,
@@ -91,7 +91,7 @@ impl WalletEnv {
     pub fn mainnet() -> Self {
         Self {
             deploy_env: DeployEnv::Prod,
-            network: LxNetwork::Mainnet,
+            network: Network::Mainnet,
             use_sgx: true,
         }
     }
@@ -100,7 +100,7 @@ impl WalletEnv {
     pub fn testnet3() -> Self {
         Self {
             deploy_env: DeployEnv::Staging,
-            network: LxNetwork::Testnet3,
+            network: Network::Testnet3,
             use_sgx: true,
         }
     }
@@ -109,7 +109,7 @@ impl WalletEnv {
     pub fn regtest(use_sgx: bool) -> Self {
         Self {
             deploy_env: DeployEnv::Dev,
-            network: LxNetwork::Regtest,
+            network: Network::Regtest,
             use_sgx,
         }
     }

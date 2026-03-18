@@ -8,7 +8,7 @@ pub mod bip353;
 pub mod lnurl;
 
 use anyhow::{Context, anyhow, ensure};
-use lexe_common::ln::network::LxNetwork;
+use lexe_common::ln::network::Network;
 pub use lexe_payment_uri_core::*;
 
 /// Resolve a `PaymentUri` into a single, "best" [`PaymentMethod`].
@@ -22,7 +22,7 @@ pub use lexe_payment_uri_core::*;
 pub async fn resolve_best(
     bip353_client: &bip353::Bip353Client,
     lnurl_client: &lnurl::LnurlClient,
-    network: LxNetwork,
+    network: Network,
     payment_uri: PaymentUri,
 ) -> anyhow::Result<PaymentMethod> {
     // A single scanned/opened PaymentUri can contain multiple different payment
@@ -140,7 +140,7 @@ async fn resolve_payment_methods(
 mod test {
     use std::time::Duration;
 
-    use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
+    use lexe_common::{env::DeployEnv, ln::network::Network};
     use lexe_std::Apply;
     use tracing::info;
 
@@ -180,7 +180,7 @@ mod test {
         let payment_method = resolve_best(
             &bip353_client,
             &lnurl_client,
-            LxNetwork::Mainnet,
+            Network::Mainnet,
             payment_uri,
         )
         .apply(|fut| tokio::time::timeout(RESOLVE_BEST_TIMEOUT, fut))
@@ -190,7 +190,7 @@ mod test {
 
         // Payment methods are Offer and Onchain, but Offer is higher priority.
         assert!(matches!(payment_method, PaymentMethod::Offer(_)));
-        assert!(payment_method.supports_network(LxNetwork::Mainnet));
+        assert!(payment_method.supports_network(Network::Mainnet));
 
         info!("Successfully resolved BlueMatt's payment methods");
     }

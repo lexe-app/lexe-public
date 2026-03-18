@@ -21,7 +21,7 @@ use strum::VariantArray;
 /// when (de)serializing this network.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, DeserializeFromStr, VariantArray)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub enum LxNetwork {
+pub enum Network {
     Mainnet,
     Testnet3,
     Testnet4,
@@ -29,7 +29,7 @@ pub enum LxNetwork {
     Signet,
 }
 
-impl LxNetwork {
+impl Network {
     /// Convert to a [`bitcoin::Network`].
     /// Equivalent to using the [`From`] impl.
     #[inline]
@@ -47,13 +47,13 @@ impl LxNetwork {
         }
     }
 
-    /// Gets the [`BlockHash`] of the genesis block for this [`LxNetwork`].
+    /// Gets the [`BlockHash`] of the genesis block for this [`Network`].
     pub fn genesis_block_hash(self) -> BlockHash {
         let chain_hash = Self::genesis_chain_hash(self);
         BlockHash::from_byte_array(chain_hash.to_bytes())
     }
 
-    /// Gets the block hash of the genesis block for this [`LxNetwork`], but
+    /// Gets the block hash of the genesis block for this [`Network`], but
     /// returns the other [`ChainHash`] newtype.
     #[inline]
     pub fn genesis_chain_hash(self) -> ChainHash {
@@ -61,7 +61,7 @@ impl LxNetwork {
     }
 }
 
-impl FromStr for LxNetwork {
+impl FromStr for Network {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -70,18 +70,18 @@ impl FromStr for LxNetwork {
             "testnet4" => Ok(Self::Testnet4),
             "regtest" => Ok(Self::Regtest),
             "signet" => Ok(Self::Signet),
-            _ => Err(anyhow!("Invalid `LxNetwork`")),
+            _ => Err(anyhow!("Invalid `Network`")),
         }
     }
 }
 
-impl Display for LxNetwork {
+impl Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
 
-impl From<bitcoin::Network> for LxNetwork {
+impl From<bitcoin::Network> for Network {
     fn from(network: bitcoin::Network) -> Self {
         match network {
             bitcoin::Network::Bitcoin => Self::Mainnet,
@@ -93,30 +93,30 @@ impl From<bitcoin::Network> for LxNetwork {
     }
 }
 
-impl From<LxNetwork> for bitcoin::Network {
-    fn from(lx: LxNetwork) -> Self {
+impl From<Network> for bitcoin::Network {
+    fn from(lx: Network) -> Self {
         match lx {
-            LxNetwork::Mainnet => Self::Bitcoin,
-            LxNetwork::Testnet3 => Self::Testnet,
-            LxNetwork::Testnet4 => Self::Testnet4,
-            LxNetwork::Regtest => Self::Regtest,
-            LxNetwork::Signet => Self::Signet,
+            Network::Mainnet => Self::Bitcoin,
+            Network::Testnet3 => Self::Testnet,
+            Network::Testnet4 => Self::Testnet4,
+            Network::Regtest => Self::Regtest,
+            Network::Signet => Self::Signet,
         }
     }
 }
 
-impl From<LxNetwork> for Currency {
-    fn from(lx: LxNetwork) -> Self {
+impl From<Network> for Currency {
+    fn from(lx: Network) -> Self {
         match lx {
-            LxNetwork::Mainnet => Self::Bitcoin,
-            LxNetwork::Testnet3 | LxNetwork::Testnet4 => Self::BitcoinTestnet,
-            LxNetwork::Regtest => Self::Regtest,
-            LxNetwork::Signet => Self::Signet,
+            Network::Mainnet => Self::Bitcoin,
+            Network::Testnet3 | Network::Testnet4 => Self::BitcoinTestnet,
+            Network::Regtest => Self::Regtest,
+            Network::Signet => Self::Signet,
         }
     }
 }
 
-impl Serialize for LxNetwork {
+impl Serialize for Network {
     fn serialize<S: serde::Serializer>(
         &self,
         serializer: S,
@@ -136,14 +136,14 @@ mod test {
     fn network_roundtrip() {
         let expected_ser =
             r#"["mainnet","testnet3","testnet4","regtest","signet"]"#;
-        roundtrip::json_unit_enum_backwards_compat::<LxNetwork>(expected_ser);
-        roundtrip::fromstr_display_roundtrip_proptest::<LxNetwork>();
+        roundtrip::json_unit_enum_backwards_compat::<Network>(expected_ser);
+        roundtrip::fromstr_display_roundtrip_proptest::<Network>();
     }
 
     // Sanity check that Hash(genesis_block) == precomputed hash
     #[test]
     fn check_precomputed_genesis_block_hashes() {
-        for network in LxNetwork::VARIANTS {
+        for network in Network::VARIANTS {
             let precomputed = network.genesis_block_hash();
             let computed = constants::genesis_block(network.to_bitcoin())
                 .header
@@ -159,7 +159,7 @@ mod test {
             "6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000",
         )
         .unwrap();
-        let actual = LxNetwork::Mainnet.genesis_chain_hash();
+        let actual = Network::Mainnet.genesis_chain_hash();
         assert_eq!(actual.as_bytes().as_slice(), expected.as_slice());
     }
 }

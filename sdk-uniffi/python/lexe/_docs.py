@@ -176,7 +176,7 @@ Deployment environment for a wallet.
 - **PROD** -- Production environment (mainnet).
 """
 
-lexe.LxNetwork.__doc__ = """\
+lexe.Network.__doc__ = """\
 Bitcoin network to use.
 
 - **MAINNET** -- Bitcoin mainnet.
