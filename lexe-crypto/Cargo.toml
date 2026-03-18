@@ -37,11 +37,6 @@ ref-cast = { workspace = true }
 ring = { workspace = true }
 serde_core = { workspace = true }
 
-# TODO(phlip9): remove
-bytes = { workspace = true }
-serde = { workspace = true }
-thiserror = { workspace = true }
-
 # --- OPTIONAL --- #
 
 proptest = { workspace = true, optional = true, features = ["alloc"] }

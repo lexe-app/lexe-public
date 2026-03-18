@@ -2664,7 +2664,6 @@ name = "lexe-crypto"
 version = "0.0.0"
 dependencies = [
  "bcs",
- "bytes",
  "lexe-byte-array",
  "lexe-hex",
  "lexe-serde",
@@ -2678,7 +2677,6 @@ dependencies = [
  "serde",
  "serde_core",
  "serde_json",
- "thiserror 2.0.17",
 ]
 
 [[package]]

@@ -81,15 +81,13 @@
 
 use std::fmt;
 
-use bytes::BufMut;
 use lexe_std::array;
 use ref_cast::RefCast;
 use ring::{
     aead::{self, BoundKey},
     hkdf,
 };
-use serde::Serialize;
-use thiserror::Error;
+use serde_core::ser::{Serialize, SerializeStruct, Serializer};
 
 use crate::rng::{Crng, RngExt};
 
@@ -122,7 +120,7 @@ pub struct AesMasterKey(hkdf::Prk);
 /// As explained in the module docs, AES-GCM nonces are too small (12-bytes), so
 /// we use what is effectively a synthetic nonce scheme by deriving single-use
 /// keys from a larger pool of entropy (2^32 bits) for each separate encryption.
-#[derive(RefCast, Serialize)]
+#[derive(RefCast)]
 #[repr(transparent)]
 struct KeyId([u8; 32]);
 
@@ -135,7 +133,6 @@ struct KeyId([u8; 32]);
 /// 2. bind the encryption key (via the key id)
 /// 3. bind the user-provided additional authenticated data segments, including
 ///    the number of segments, and the lengths of each segment.
-#[derive(Serialize)]
 struct Aad<'data, 'aad> {
     version: u8,
     key_id: &'data KeyId,
@@ -150,9 +147,16 @@ struct DecryptKey(aead::OpeningKey<ZeroNonce>);
 /// more than once (for a particular instance).
 struct ZeroNonce(Option<aead::Nonce>);
 
-#[derive(Clone, Debug, Error)]
-#[error("decrypt error: ciphertext or metadata may be corrupted")]
+#[derive(Clone, Debug)]
 pub struct DecryptError;
+
+impl std::error::Error for DecryptError {}
+
+impl fmt::Display for DecryptError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("decrypt error: ciphertext or metadata may be corrupted")
+    }
+}
 
 impl fmt::Debug for AesMasterKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -217,8 +221,8 @@ impl AesMasterKey {
 
         // data := ""
 
-        data.put_u8(version);
-        data.put(key_id.as_slice());
+        data.push(version);
+        data.extend_from_slice(key_id.as_slice());
         let plaintext_offset = data.len();
 
         // data := [version] || [key_id]
@@ -354,6 +358,15 @@ impl KeyId {
     }
 }
 
+impl Serialize for KeyId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
 impl Aad<'_, '_> {
     fn serialize(&self) -> Vec<u8> {
         let len = bcs::serialized_size(self)
@@ -363,6 +376,19 @@ impl Aad<'_, '_> {
         bcs::serialize_into(&mut out, self)
             .expect("Serializing the AAD should never fail");
         out
+    }
+}
+
+impl Serialize for Aad<'_, '_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut fields = serializer.serialize_struct("Aad", 3)?;
+        fields.serialize_field("version", &self.version)?;
+        fields.serialize_field("key_id", self.key_id)?;
+        fields.serialize_field("aad", self.aad)?;
+        fields.end()
     }
 }
 
