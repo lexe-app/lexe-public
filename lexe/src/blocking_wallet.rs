@@ -94,12 +94,6 @@ impl BlockingLexeWallet<WithDb> {
         Ok(Self { inner })
     }
 
-    /// Get a reference to the payments database.
-    /// This is the primary data source for constructing a payments list UI.
-    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
-        self.inner.payments_db()
-    }
-
     /// Sync payments from the user node to the local database.
     /// This fetches updated payments from the node and persists them locally.
     pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
@@ -146,6 +140,14 @@ impl BlockingLexeWallet<WithDb> {
         timeout: Option<Duration>,
     ) -> anyhow::Result<Payment> {
         block_on(self.inner.wait_for_payment(index, timeout))
+    }
+
+    /// Get a reference to the payments database.
+    /// This is the primary data source for constructing a payments
+    /// list UI.
+    #[cfg(feature = "unstable")]
+    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
+        self.inner.payments_db()
     }
 }
 

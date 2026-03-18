@@ -225,13 +225,25 @@ impl LexeWallet<WithDb> {
         self.db.as_ref().expect("WithDb always has db")
     }
 
-    /// Get a reference to the payments database.
-    /// This is the primary data source for constructing a payments list UI.
-    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
-        self.db
-            .as_ref()
-            .expect("WithDb always has db")
-            .payments_db()
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Get a reference to the payments database.
+            /// This is the primary data source for constructing a payments
+            /// list UI.
+            pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
+                self.db
+                    .as_ref()
+                    .expect("WithDb always has db")
+                    .payments_db()
+            }
+        } else {
+            pub(crate) fn payments_db(&self) -> &PaymentsDb<DiskFs> {
+                self.db
+                    .as_ref()
+                    .expect("WithDb always has db")
+                    .payments_db()
+            }
+        }
     }
 
     /// Sync payments from the user node to the local database.

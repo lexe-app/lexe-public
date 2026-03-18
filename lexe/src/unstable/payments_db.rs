@@ -225,16 +225,19 @@ impl<F: Ffs> PaymentsDb<F> {
     }
 
     /// Number of finalized payments.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn num_finalized(&self) -> usize {
         self.state.read().unwrap().num_finalized()
     }
 
     /// Number of pending payments that are not junk.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn num_pending_not_junk(&self) -> usize {
         self.state.read().unwrap().num_pending_not_junk()
     }
 
     /// Number of finalized payments that are not junk.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn num_finalized_not_junk(&self) -> usize {
         self.state.read().unwrap().num_finalized_not_junk()
     }
@@ -257,6 +260,7 @@ impl<F: Ffs> PaymentsDb<F> {
     }
 
     /// Get a payment by scroll index in UI order (newest to oldest).
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -269,6 +273,7 @@ impl<F: Ffs> PaymentsDb<F> {
     }
 
     /// Get a pending payment by scroll index in UI order (newest to oldest).
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn get_pending_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -281,6 +286,7 @@ impl<F: Ffs> PaymentsDb<F> {
     }
 
     /// Get a "pending and not junk" payment by scroll index in UI order.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn get_pending_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -293,6 +299,7 @@ impl<F: Ffs> PaymentsDb<F> {
     }
 
     /// Get a finalized payment by scroll index in UI order (newest to oldest).
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn get_finalized_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -305,6 +312,7 @@ impl<F: Ffs> PaymentsDb<F> {
     }
 
     /// Get a "finalized and not junk" payment by scroll index in UI order.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     pub fn get_finalized_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -540,10 +548,12 @@ impl PaymentsDbState {
         self.pending.len()
     }
 
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn num_finalized(&self) -> usize {
         self.payments.len() - self.pending.len()
     }
 
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn num_pending_not_junk(&self) -> usize {
         self.pending
             .iter()
@@ -553,6 +563,7 @@ impl PaymentsDbState {
     }
 
     // TODO(max): If needed, we can add an index for this.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn num_finalized_not_junk(&self) -> usize {
         self.payments
             .values()
@@ -579,6 +590,7 @@ impl PaymentsDbState {
         self.payments.get_mut(created_index)
     }
 
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -586,6 +598,7 @@ impl PaymentsDbState {
         self.payments.values().nth_back(scroll_idx)
     }
 
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn get_pending_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -596,6 +609,7 @@ impl PaymentsDbState {
             .and_then(|created_idx| self.payments.get(created_idx))
     }
 
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn get_pending_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -608,6 +622,7 @@ impl PaymentsDbState {
             .nth_back(scroll_idx)
     }
 
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn get_finalized_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
@@ -618,6 +633,7 @@ impl PaymentsDbState {
             .nth_back(scroll_idx)
     }
 
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn get_finalized_not_junk_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,

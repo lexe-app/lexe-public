@@ -16,6 +16,7 @@ pub trait Ffs {
     /// Reads the entire contents of `filename`.
     ///
     /// NOTE: Use [`io::ErrorKind::NotFound`] to detect if a file is missing.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn read(&self, filename: &str) -> io::Result<Vec<u8>> {
         let mut buf = Vec::new();
         self.read_into(filename, &mut buf)?;
@@ -26,6 +27,7 @@ pub trait Ffs {
     fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()>;
 
     /// Reads all filenames in the `Ffs`.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn read_dir(&self) -> io::Result<Vec<String>> {
         let mut filenames = Vec::new();
         self.read_dir_visitor(|filename| {
@@ -49,6 +51,7 @@ pub trait Ffs {
     fn delete_all(&self) -> io::Result<()>;
 
     /// Delete file.
+    #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn delete(&self, filename: &str) -> io::Result<()>;
 }
 
