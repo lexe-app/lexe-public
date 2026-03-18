@@ -1,6 +1,6 @@
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe::{ByteArray, types::auth::UserPk};
+use lexe::{types::auth::UserPk, util::ByteArray};
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
     models::command::{

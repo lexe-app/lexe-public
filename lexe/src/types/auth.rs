@@ -17,7 +17,10 @@ use lexe_node_client::credentials::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{ByteArray, config::WalletEnv, hex};
+use crate::{
+    config::WalletEnv,
+    util::{ByteArray, hex},
+};
 
 // --- Credentials --- //
 

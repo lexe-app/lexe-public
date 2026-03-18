@@ -33,12 +33,16 @@ pub use lexe_common::default_lexe_data_dir;
 #[cfg(feature = "blocking")]
 pub mod blocking_wallet;
 
+/// General-purpose utilities and re-exports.
+pub mod util {
+    pub use lexe_byte_array::ByteArray;
+    pub use lexe_hex::hex;
+}
+
 // Reexport crates and items reachable through the stable public API surface.
 pub use anyhow;
 pub use bip39;
 pub use bitcoin;
-pub use lexe_byte_array::ByteArray;
-pub use lexe_hex::hex;
 pub use lightning;
 pub use semver;
 
