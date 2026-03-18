@@ -168,9 +168,10 @@ def test_wallet_load_nonexistent():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
         try:
-            lexe.LexeWallet.load(config, seed, temp_dir)
+            lexe.LexeWallet.load(config, creds, temp_dir)
             assert False, "Expected NotFound error"
         except lexe.LoadWalletError.NotFound:
             pass

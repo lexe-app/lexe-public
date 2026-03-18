@@ -21,8 +21,9 @@ def test_wallet_fresh():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
         assert wallet is not None
 
 
@@ -32,13 +33,14 @@ def test_wallet_fresh_and_load():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
         # Create fresh wallet
-        wallet1 = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet1 = lexe.LexeWallet.fresh(config, creds, temp_dir)
         assert wallet1 is not None
 
         # Load the same wallet
-        wallet2 = lexe.LexeWallet.load(config, seed, temp_dir)
+        wallet2 = lexe.LexeWallet.load(config, creds, temp_dir)
         assert wallet2 is not None
 
 
@@ -48,8 +50,9 @@ def test_wallet_load_or_fresh():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.load_or_fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.load_or_fresh(config, creds, temp_dir)
         assert wallet is not None
 
 
@@ -61,8 +64,9 @@ def test_wallet_node_info():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
 
         # Sign up and provision
         wallet.signup(seed, None)
@@ -84,14 +88,15 @@ def test_provision():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
 
         # First signup and provision
         wallet.signup(seed, None)
 
         # Now call provision - should succeed since we just provisioned
-        wallet.provision(seed)
+        wallet.provision(creds)
 
         # Verify wallet still works after provision
         info = wallet.node_info()
@@ -107,8 +112,9 @@ def test_payment_sync():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
         wallet.signup(seed, None)
 
         # Sync payments
@@ -124,8 +130,9 @@ def test_list_payments():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
         wallet.signup(seed, None)
 
         # Create an invoice to have at least one payment
@@ -165,8 +172,9 @@ def test_update_payment_note():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
         wallet.signup(seed, None)
 
         # Create an invoice to get a payment index
@@ -197,8 +205,9 @@ def test_clear_payments():
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
         seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
 
-        wallet = lexe.LexeWallet.fresh(config, seed, temp_dir)
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
         wallet.signup(seed, None)
 
         # Create an invoice and sync

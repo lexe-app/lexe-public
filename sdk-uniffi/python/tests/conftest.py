@@ -67,6 +67,7 @@ def load_prefunded_wallet(
     """
     seed_bytes = bytes.fromhex(wallet_info["seed_hex"])
     seed = lexe.RootSeed.from_bytes(seed_bytes)
+    creds = lexe.Credentials.from_root_seed(seed)
 
     config = lexe.WalletEnvConfig.regtest(gateway_url=gateway_url)
 
@@ -75,7 +76,7 @@ def load_prefunded_wallet(
     _TEMP_DIRS.append(temp_dir)
     data_dir = temp_dir.name
 
-    wallet = lexe.LexeWallet.load_or_fresh(config, seed, data_dir)
+    wallet = lexe.LexeWallet.load_or_fresh(config, creds, data_dir)
     if wallet is None:
         raise RuntimeError("Failed to load pre-funded wallet")
 
