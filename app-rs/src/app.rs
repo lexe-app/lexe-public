@@ -22,7 +22,8 @@ use lexe::{
         auth::{CredentialsRef, NodePk, RootSeed as SdkRootSeed, UserPk},
         command::PaymentSyncSummary,
     },
-    wallet::{LexeWallet, WithDb},
+    wallet::LexeWallet,
+    wallet_db::WalletDb,
 };
 use lexe_common::{api::user::NodePkProof, constants};
 use lexe_node_client::client::{GatewayClient, NodeClient};
@@ -35,7 +36,7 @@ use crate::{
 };
 
 pub struct App {
-    wallet: LexeWallet<WithDb>,
+    wallet: LexeWallet,
     app_db: AppDb,
 
     wallet_user: WalletUser,
@@ -339,6 +340,14 @@ impl App {
         self.user_config.env_config.wallet_env
     }
 
+    pub fn db(&self) -> &WalletDb<DiskFs> {
+        self.wallet.db().expect("We always use persistence")
+    }
+
+    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
+        self.db().payments_db()
+    }
+
     #[cfg_attr(not(feature = "flutter"), allow(dead_code))]
     pub(crate) fn settings_db(&self) -> Arc<WritebackDb<SettingsRs>> {
         self.app_db.settings_db().clone()
@@ -362,7 +371,6 @@ impl App {
         info!("start");
 
         let res = self
-            .wallet
             .db()
             .sync_payments(
                 self.wallet.node_client(),
@@ -377,10 +385,6 @@ impl App {
         }
 
         res
-    }
-
-    pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
-        self.wallet.payments_db()
     }
 }
 

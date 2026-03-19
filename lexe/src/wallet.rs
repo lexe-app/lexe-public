@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, path::PathBuf, time::Duration};
+use std::{path::PathBuf, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
@@ -44,11 +44,6 @@ use crate::{
     },
 };
 
-/// Type state indicating the wallet has persistence enabled.
-pub struct WithDb;
-/// Type state indicating the wallet has no persistence.
-pub struct WithoutDb;
-
 /// Default number of payments per page.
 const DEFAULT_LIST_LIMIT: usize = 100;
 
@@ -56,12 +51,17 @@ const WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const WAIT_FOR_PAYMENT_MAX_TIMEOUT: Duration =
     Duration::from_secs(24 * 60 * 60);
 
+/// Error message returned when a DB-required method is called on a wallet
+/// created without local persistence.
+const NO_DB_ERR: &str = "This wallet was created without local persistence";
+
 /// Top-level handle to a Lexe wallet.
-pub struct LexeWallet<Db> {
+pub struct LexeWallet {
     user_config: WalletUserConfig,
 
-    /// Database for persistent storage
-    /// Present iff `Db` = `WithDb`.
+    /// Database for persistent storage.
+    /// Present for wallets created via `fresh`, `load`, or `load_or_fresh`.
+    /// Absent for wallets created via `without_db`.
     db: Option<WalletDb<DiskFs>>,
 
     gateway_client: GatewayClient,
@@ -70,14 +70,14 @@ pub struct LexeWallet<Db> {
     bip353_client: Bip353Client,
     #[allow(dead_code)] // TODO(max): Remove
     lnurl_client: LnurlClient,
-
-    _marker: PhantomData<Db>,
 }
 
 // TODO(max): Consider what happens if someone provides *both* a client
 // credential and a root seed for the same user. Do we need locks for the dbs?
 
-impl LexeWallet<WithDb> {
+impl LexeWallet {
+    // --- Constructors --- //
+
     /// Create a fresh [`LexeWallet`], deleting any existing database state for
     /// this user. Data for other users and environments is not affected.
     ///
@@ -101,7 +101,22 @@ impl LexeWallet<WithDb> {
         let db = WalletDb::fresh(user_db_config)
             .context("Failed to create fresh wallet db")?;
 
-        Self::with_db(env_config, credentials, db)
+        let (
+            user_config,
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        ) = Self::build_clients(env_config, credentials)?;
+
+        Ok(Self {
+            user_config,
+            db: Some(db),
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        })
     }
 
     /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`.
@@ -139,7 +154,22 @@ impl LexeWallet<WithDb> {
             None => return Ok(None),
         };
 
-        Self::with_db(env_config, credentials, db).map(Some)
+        let (
+            user_config,
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        ) = Self::build_clients(env_config, credentials)?;
+
+        Ok(Some(Self {
+            user_config,
+            db: Some(db),
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        }))
     }
 
     /// Load an existing [`LexeWallet`] with persistence from `lexe_data_dir`,
@@ -166,15 +196,69 @@ impl LexeWallet<WithDb> {
         let db = WalletDb::load_or_fresh(user_db_config)
             .context("Failed to load or create wallet db")?;
 
-        Self::with_db(env_config, credentials, db)
+        let (
+            user_config,
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        ) = Self::build_clients(env_config, credentials)?;
+
+        Ok(Self {
+            user_config,
+            db: Some(db),
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        })
     }
 
-    // Internal constructor for a wallet with `WalletDb` enabled.
-    fn with_db(
+    /// Create a [`LexeWallet`] without any persistence. It is recommended to
+    /// use [`fresh`] or [`load`] instead, to initialize with persistence.
+    ///
+    /// Node operations (invoices, payments, node info) work normally.
+    /// Local payment cache operations ([`sync_payments`], [`list_payments`],
+    /// [`clear_payments`]) are not available and will return an error.
+    ///
+    /// [`fresh`]: LexeWallet::fresh
+    /// [`load`]: LexeWallet::load
+    /// [`sync_payments`]: LexeWallet::sync_payments
+    /// [`list_payments`]: LexeWallet::list_payments
+    /// [`clear_payments`]: LexeWallet::clear_payments
+    pub fn without_db(
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
-        db: WalletDb<DiskFs>,
     ) -> anyhow::Result<Self> {
+        let (
+            user_config,
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        ) = Self::build_clients(env_config, credentials)?;
+
+        Ok(Self {
+            user_config,
+            db: None,
+            gateway_client,
+            node_client,
+            bip353_client,
+            lnurl_client,
+        })
+    }
+
+    /// Helper to construct the required clients.
+    fn build_clients(
+        env_config: WalletEnvConfig,
+        credentials: CredentialsRef<'_>,
+    ) -> anyhow::Result<(
+        WalletUserConfig,
+        GatewayClient,
+        NodeClient,
+        Bip353Client,
+        LnurlClient,
+    )> {
         let user_pk = credentials.user_pk().context(
             "Client credentials are out of date. \
              Please create a new one from within the Lexe wallet app.",
@@ -208,50 +292,61 @@ impl LexeWallet<WithDb> {
         let lnurl_client = LnurlClient::new(env_config.wallet_env.deploy_env)
             .context("Failed to build LNURL client")?;
 
-        Ok(Self {
+        Ok((
             user_config,
-            db: Some(db),
             gateway_client,
             node_client,
             bip353_client,
             lnurl_client,
-            _marker: PhantomData,
-        })
+        ))
     }
+
+    // --- DB helpers --- //
+
+    /// Returns a reference to the [`WalletDb`], or an error if this wallet
+    /// was created without local persistence.
+    fn require_db(&self) -> anyhow::Result<&WalletDb<DiskFs>> {
+        self.db.as_ref().ok_or_else(|| anyhow!(NO_DB_ERR))
+    }
+
+    /// Returns a reference to the [`PaymentsDb`], or an error if this wallet
+    /// was created without local persistence.
+    fn require_payments_db(&self) -> anyhow::Result<&PaymentsDb<DiskFs>> {
+        self.db
+            .as_ref()
+            .map(WalletDb::payments_db)
+            .ok_or_else(|| anyhow!(NO_DB_ERR))
+    }
+
+    // --- DB accessors (unstable) --- //
 
     /// Get a reference to the [`WalletDb`].
+    ///
+    /// Returns [`None`] if this wallet was created without local persistence.
     #[cfg(feature = "unstable")]
-    pub fn db(&self) -> &WalletDb<DiskFs> {
-        self.db.as_ref().expect("WithDb always has db")
+    pub fn db(&self) -> Option<&WalletDb<DiskFs>> {
+        self.db.as_ref()
     }
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "unstable")] {
-            /// Get a reference to the payments database.
-            /// This is the primary data source for constructing a payments
-            /// list UI.
-            pub fn payments_db(&self) -> &PaymentsDb<DiskFs> {
-                self.db
-                    .as_ref()
-                    .expect("WithDb always has db")
-                    .payments_db()
-            }
-        } else {
-            pub(crate) fn payments_db(&self) -> &PaymentsDb<DiskFs> {
-                self.db
-                    .as_ref()
-                    .expect("WithDb always has db")
-                    .payments_db()
-            }
-        }
+    /// Get a reference to the payments database.
+    /// This is the primary data source for constructing a payments
+    /// list UI.
+    ///
+    /// Returns [`None`] if this wallet was created without local
+    /// persistence.
+    #[cfg(feature = "unstable")]
+    pub fn payments_db(&self) -> Option<&PaymentsDb<DiskFs>> {
+        self.db.as_ref().map(WalletDb::payments_db)
     }
+
+    // --- DB-required methods --- //
 
     /// Sync payments from the user node to the local database.
     /// This fetches updated payments from the node and persists them locally.
+    ///
+    /// Returns an error if this wallet was created without local persistence.
     pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
-        self.db
-            .as_ref()
-            .expect("WithDb always has db")
+        self.require_db()?
             .sync_payments(
                 &self.node_client,
                 lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
@@ -269,6 +364,8 @@ impl LexeWallet<WithDb> {
     /// If needed, use [`sync_payments`] to fetch the latest data from the
     /// node before calling this method.
     ///
+    /// Returns an error if this wallet was created without local persistence.
+    ///
     /// [`sync_payments`]: Self::sync_payments
     pub fn list_payments(
         &self,
@@ -276,25 +373,27 @@ impl LexeWallet<WithDb> {
         order: Option<Order>,
         limit: Option<usize>,
         after: Option<&PaymentCreatedIndex>,
-    ) -> ListPaymentsResponse {
+    ) -> anyhow::Result<ListPaymentsResponse> {
         let order = order.unwrap_or(Order::Desc);
         let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT);
         let (basics, next_index) = self
-            .payments_db()
+            .require_payments_db()?
             .list_payments(filter, order, limit, after);
         let payments = basics.into_iter().map(Payment::from).collect();
-        ListPaymentsResponse {
+        Ok(ListPaymentsResponse {
             payments,
             next_index,
-        }
+        })
     }
 
     /// Clear all local payment data for this wallet.
     ///
     /// Clears the local payment cache only. Remote data on the node is not
     /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
+    ///
+    /// Returns an error if this wallet was created without local persistence.
     pub fn clear_payments(&self) -> anyhow::Result<()> {
-        self.payments_db()
+        self.require_payments_db()?
             .clear()
             .context("Failed to clear local payments")
     }
@@ -323,114 +422,24 @@ impl LexeWallet<WithDb> {
         let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
 
         loop {
-            self.sync_payments().await?;
-
-            if let Some(payment) =
-                self.payments_db().get_payment_by_created_index(&index)
-            {
-                let payment = Payment::from(payment);
-                match payment.status {
-                    PaymentStatus::Completed | PaymentStatus::Failed =>
-                        return Ok(payment),
-                    PaymentStatus::Pending => (), // Continue polling
-                }
-            }
-
-            ensure!(
-                start.elapsed() < timeout,
-                "Payment did not complete within {timeout_secs}s timeout",
-            );
-
-            tokio::time::sleep(backoff.next().unwrap()).await;
-        }
-    }
-}
-
-impl LexeWallet<WithoutDb> {
-    /// Create a [`LexeWallet`] without any persistence. It is recommended to
-    /// use [`fresh`] or [`load`] instead, to initialize with persistence.
-    ///
-    /// [`fresh`]: LexeWallet::fresh
-    /// [`load`]: LexeWallet::load
-    pub fn without_db(
-        env_config: WalletEnvConfig,
-        credentials: CredentialsRef<'_>,
-    ) -> anyhow::Result<Self> {
-        let user_pk = credentials.user_pk().context(
-            "Client credentials are out of date. \
-             Please create a new one from within the Lexe wallet app.",
-        )?;
-
-        let user_config = WalletUserConfig {
-            user_pk,
-            env_config: env_config.clone(),
-        };
-
-        let gateway_client = GatewayClient::new(
-            env_config.wallet_env.deploy_env,
-            env_config.gateway_url.clone(),
-            env_config.user_agent.clone(),
-        )
-        .context("Failed to build GatewayClient")?;
-
-        let mut rng = SysRng::new();
-        let node_client = NodeClient::new(
-            &mut rng,
-            env_config.wallet_env.use_sgx,
-            env_config.wallet_env.deploy_env,
-            gateway_client.clone(),
-            credentials.to_unstable(),
-        )
-        .context("Failed to build NodeClient")?;
-
-        let bip353_client = Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT)
-            .context("Failed to build BIP353 client")?;
-
-        let lnurl_client = LnurlClient::new(env_config.wallet_env.deploy_env)
-            .context("Failed to build LNURL client")?;
-
-        Ok(Self {
-            user_config,
-            db: None,
-            gateway_client,
-            node_client,
-            bip353_client,
-            lnurl_client,
-            _marker: PhantomData,
-        })
-    }
-
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 10 minutes if not specified.
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    pub async fn wait_for_payment(
-        &self,
-        index: PaymentCreatedIndex,
-        timeout: Option<Duration>,
-    ) -> anyhow::Result<Payment> {
-        let timeout = timeout.unwrap_or(WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT);
-        let max_secs = WAIT_FOR_PAYMENT_MAX_TIMEOUT.as_secs();
-        let timeout_secs = timeout.as_secs();
-        ensure!(
-            timeout <= WAIT_FOR_PAYMENT_MAX_TIMEOUT,
-            "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
-        );
-
-        let initial_wait_ms = 1_000;
-        let max_wait_ms = 5 * 60 * 1_000;
-        let start = tokio::time::Instant::now();
-        let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
-
-        loop {
-            let payment = self
-                .node_client
-                .get_payment_by_id(command::PaymentIdStruct { id: index.id })
-                .await
-                .context("Failed to get payment")?
-                .maybe_payment
-                .map(Payment::from);
+            // Fetch the latest payment state.
+            let payment = if self.db.is_some() {
+                // DB-backed path: sync payments and query local DB.
+                self.sync_payments().await?;
+                self.require_payments_db()?
+                    .get_payment_by_created_index(&index)
+                    .map(Payment::from)
+            } else {
+                // No-DB path: poll the node directly.
+                self.node_client
+                    .get_payment_by_id(command::PaymentIdStruct {
+                        id: index.id,
+                    })
+                    .await
+                    .context("Failed to get payment")?
+                    .maybe_payment
+                    .map(Payment::from)
+            };
 
             if let Some(payment) = payment {
                 match payment.status {
@@ -448,9 +457,9 @@ impl LexeWallet<WithoutDb> {
             tokio::time::sleep(backoff.next().unwrap()).await;
         }
     }
-}
 
-impl<D> LexeWallet<D> {
+    // --- Shared methods --- //
+
     /// Registers this user with Lexe, then provisions the node.
     /// This method must be called after the user's [`LexeWallet`] has been
     /// created for the first time, otherwise subsequent requests will fail.

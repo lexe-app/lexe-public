@@ -25,16 +25,18 @@ use crate::{
         },
         payment::{Order, Payment, PaymentFilter},
     },
-    wallet::{LexeWallet, WithDb, WithoutDb},
+    wallet::LexeWallet,
 };
 
 /// Synchronous wallet handle. Provides the same API as [`LexeWallet`] but
 /// with blocking methods instead of async.
-pub struct BlockingLexeWallet<Db> {
-    inner: LexeWallet<Db>,
+pub struct BlockingLexeWallet {
+    inner: LexeWallet,
 }
 
-impl BlockingLexeWallet<WithDb> {
+impl BlockingLexeWallet {
+    // --- Constructors --- //
+
     /// Create a fresh [`BlockingLexeWallet`], deleting any existing database
     /// state for this user. Data for other users and environments is not
     /// affected.
@@ -95,8 +97,33 @@ impl BlockingLexeWallet<WithDb> {
         Ok(Self { inner })
     }
 
+    /// Create a [`BlockingLexeWallet`] without any persistence.
+    /// It is recommended to use [`fresh`] or [`load`] instead, to initialize
+    /// with persistence.
+    ///
+    /// Node operations (invoices, payments, node info) work normally.
+    /// Local payment cache operations ([`sync_payments`], [`list_payments`],
+    /// [`clear_payments`]) are not available and will return an error.
+    ///
+    /// [`fresh`]: BlockingLexeWallet::fresh
+    /// [`load`]: BlockingLexeWallet::load
+    /// [`sync_payments`]: BlockingLexeWallet::sync_payments
+    /// [`list_payments`]: BlockingLexeWallet::list_payments
+    /// [`clear_payments`]: BlockingLexeWallet::clear_payments
+    pub fn without_db(
+        env_config: WalletEnvConfig,
+        credentials: CredentialsRef<'_>,
+    ) -> anyhow::Result<Self> {
+        let inner = LexeWallet::without_db(env_config, credentials)?;
+        Ok(Self { inner })
+    }
+
+    // --- DB-required methods --- //
+
     /// Sync payments from the user node to the local database.
     /// This fetches updated payments from the node and persists them locally.
+    ///
+    /// Returns an error if this wallet was created without local persistence.
     pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         block_on(self.inner.sync_payments())
     }
@@ -111,6 +138,8 @@ impl BlockingLexeWallet<WithDb> {
     /// If needed, use [`sync_payments`] to fetch the latest data from the
     /// node before calling this method.
     ///
+    /// Returns an error if this wallet was created without local persistence.
+    ///
     /// [`sync_payments`]: Self::sync_payments
     pub fn list_payments(
         &self,
@@ -118,7 +147,7 @@ impl BlockingLexeWallet<WithDb> {
         order: Option<Order>,
         limit: Option<usize>,
         after: Option<&PaymentCreatedIndex>,
-    ) -> ListPaymentsResponse {
+    ) -> anyhow::Result<ListPaymentsResponse> {
         self.inner.list_payments(filter, order, limit, after)
     }
 
@@ -126,6 +155,8 @@ impl BlockingLexeWallet<WithDb> {
     ///
     /// Clears the local payment cache only. Remote data on the node is not
     /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
+    ///
+    /// Returns an error if this wallet was created without local persistence.
     pub fn clear_payments(&self) -> anyhow::Result<()> {
         self.inner.clear_payments()
     }
@@ -145,52 +176,29 @@ impl BlockingLexeWallet<WithDb> {
 
     /// Get a reference to the
     /// [`WalletDb`](crate::unstable::wallet_db::WalletDb).
+    ///
+    /// Returns [`None`] if this wallet was created without local persistence.
     #[cfg(feature = "unstable")]
-    pub fn db(&self) -> &unstable::wallet_db::WalletDb<unstable::ffs::DiskFs> {
+    pub fn db(
+        &self,
+    ) -> Option<&unstable::wallet_db::WalletDb<unstable::ffs::DiskFs>> {
         self.inner.db()
     }
 
     /// Get a reference to the payments database.
     /// This is the primary data source for constructing a payments
     /// list UI.
+    ///
+    /// Returns [`None`] if this wallet was created without local persistence.
     #[cfg(feature = "unstable")]
     pub fn payments_db(
         &self,
-    ) -> &unstable::payments_db::PaymentsDb<unstable::ffs::DiskFs> {
+    ) -> Option<&unstable::payments_db::PaymentsDb<unstable::ffs::DiskFs>> {
         self.inner.payments_db()
     }
-}
 
-impl BlockingLexeWallet<WithoutDb> {
-    /// Create a [`BlockingLexeWallet`] without any persistence.
-    /// It is recommended to use [`fresh`] or [`load`] instead, to initialize
-    /// with persistence.
-    ///
-    /// [`fresh`]: BlockingLexeWallet::fresh
-    /// [`load`]: BlockingLexeWallet::load
-    pub fn without_db(
-        env_config: WalletEnvConfig,
-        credentials: CredentialsRef<'_>,
-    ) -> anyhow::Result<Self> {
-        let inner = LexeWallet::without_db(env_config, credentials)?;
-        Ok(Self { inner })
-    }
+    // --- Shared methods --- //
 
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 10 minutes if not specified.
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    pub fn wait_for_payment(
-        &self,
-        index: PaymentCreatedIndex,
-        timeout: Option<Duration>,
-    ) -> anyhow::Result<Payment> {
-        block_on(self.inner.wait_for_payment(index, timeout))
-    }
-}
-
-impl<D> BlockingLexeWallet<D> {
     /// Get a reference to the user's wallet configuration.
     pub fn user_config(&self) -> &crate::config::WalletUserConfig {
         self.inner.user_config()
