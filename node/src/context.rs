@@ -108,8 +108,9 @@ impl MegaContext {
         let version = crate::version();
         let machine_id = enclave::machine_id();
         let measurement = enclave::measurement();
-        // TODO(phlip9): Compare this with current cpusvn
-        let _min_cpusvn = enclave::MinCpusvn::CURRENT;
+
+        // NOTE(phlip9): enclave::machine_id() implicitly ensures that we're on
+        // a platform CPUSVN >= MinCpusvn::CURRENT.
 
         let config = channel_manager::get_config();
 

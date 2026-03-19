@@ -1,4 +1,4 @@
-use std::{borrow::Cow, error::Error as StdError, fmt, io, mem, str::FromStr};
+use std::{borrow::Cow, error::Error as StdError, fmt, io, mem};
 
 use lexe_byte_array::ByteArray;
 use lexe_hex::hex;
@@ -68,12 +68,6 @@ pub struct MachineId([u8; 16]);
 
 impl_serde_hexstr_or_bytes!(MachineId);
 
-/// TODO(max): Needs docs
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, Eq, PartialEq, RefCast)]
-#[repr(transparent)]
-pub struct MinCpusvn([u8; 16]);
-
 /// Sealed and encrypted data
 // TODO(phlip9): use a real serialization format like CBOR or something
 // TODO(phlip9): additional authenticated data?
@@ -88,6 +82,22 @@ pub struct Sealed<'a> {
     /// Encrypted ciphertext
     pub ciphertext: Cow<'a, [u8]>,
 }
+
+/// Our Min CPUSVN determines our current minimum SGX platform version that our
+/// enclaves will run on.
+///
+/// Each Intel platform that supports running SGX enclaves has a CPU Security
+/// Version Number, which compactly encodes the the security levels of all the
+/// platform components (quoting enclave versions, firmware and microcode
+/// patches, etc).
+///
+/// Intel doesn't appear to publicly commit to the CPUSVN structure, so we
+/// don't have a stable way to compare them. Instead we indirectly rely on
+/// `enclave::machine_id()` and `enclave::seal()` to enforce that we're running
+/// a trustworthy platform version.
+#[derive(Copy, Clone)]
+#[repr(transparent)]
+pub(crate) struct MinCpusvn([u8; 16]);
 
 // --- impl Error --- //
 
@@ -241,57 +251,6 @@ lexe_byte_array::impl_byte_array!(MachineId, 16);
 lexe_byte_array::impl_fromstr_fromhex!(MachineId, 16);
 lexe_byte_array::impl_debug_display_as_hex!(MachineId);
 
-// --- impl MinCpusvn --- //
-
-impl MinCpusvn {
-    /// This is the current CPUSVN we commit to when sealing data in SGX.
-    ///
-    /// Updated: 2024/12/04 - Linux SGX platform v2.25
-    pub const CURRENT: Self =
-        Self::new(hex::decode_const(b"0e0e100fffff01000000000000000000"));
-
-    pub const fn new(bytes: [u8; 16]) -> Self {
-        Self(bytes)
-    }
-
-    pub const fn inner(self) -> [u8; 16] {
-        self.0
-    }
-}
-
-impl ByteArray<16> for MinCpusvn {
-    fn from_array(array: [u8; 16]) -> Self {
-        Self(array)
-    }
-    fn to_array(&self) -> [u8; 16] {
-        self.0
-    }
-    fn as_array(&self) -> &[u8; 16] {
-        &self.0
-    }
-}
-
-impl FromStr for MinCpusvn {
-    type Err = hex::DecodeError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from_hexstr(s)
-    }
-}
-
-impl fmt::Display for MinCpusvn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt_hexstr(self, f)
-    }
-}
-
-impl fmt::Debug for MinCpusvn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("MinCpusvn")
-            .field(&self.hex_display())
-            .finish()
-    }
-}
-
 // --- impl Sealed --- //
 
 impl<'a> Sealed<'a> {
@@ -355,6 +314,24 @@ impl fmt::Debug for Sealed<'_> {
             .field("keyrequest", &hex::display(&self.keyrequest))
             .field("ciphertext", &hex::display(&self.ciphertext))
             .finish()
+    }
+}
+
+// --- impl MinCpusvn --- //
+
+impl MinCpusvn {
+    /// This is the current CPUSVN we commit to when sealing data in SGX.
+    ///
+    /// Updated: 2024/12/04 - Linux SGX platform v2.25
+    pub const CURRENT: Self =
+        Self::new(hex::decode_const(b"0e0e100fffff01000000000000000000"));
+
+    pub const fn new(bytes: [u8; 16]) -> Self {
+        Self(bytes)
+    }
+
+    pub const fn to_array(self) -> [u8; 16] {
+        self.0
     }
 }
 
@@ -450,6 +427,8 @@ pub mod miscselect {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use proptest::{arbitrary::any, proptest, strategy::Strategy};
     use serde_core::{de::DeserializeOwned, ser::Serialize};
 
@@ -497,9 +476,6 @@ mod test {
             "c4f249b8d3121b0e61170a93a526beda574058f782c0b3f339e74651c379f888",
         );
         fromstr_display_roundtrip::<MachineId>(
-            "df3d290e1371112bd3da4a6cdda1f245",
-        );
-        fromstr_display_roundtrip::<MinCpusvn>(
             "df3d290e1371112bd3da4a6cdda1f245",
         );
     }
