@@ -777,10 +777,6 @@ where
     let sha256_hash = sha256::Hash::from_slice(&hash.0)
         .expect("Should never fail with [u8;32]");
 
-    // TODO(max): We should set some sane maximum for the invoice expiry time,
-    // e.g. 180 days. This will not cause LDK state to blow up since
-    // create_inbound_payment derives its payment preimages and hashes, but it
-    // could bloat Lexe's DB with fairly large `LxInvoice`s.
     let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
     if expiry_time > constants::MAX_INVOICE_EXPIRY {
         return Err(anyhow!(format!(

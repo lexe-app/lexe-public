@@ -33,6 +33,8 @@ lexe_std::const_assert_usize_eq!(USER_MIN_FINAL_CLTV_EXPIRY_DELTA as usize, 24,)
 pub const LSP_MIN_FINAL_CLTV_EXPIRY_DELTA: u16 =
     lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA;
 
-/// Maximum invoice expiryt duration. Requested Lightning invoices with
+/// Maximum invoice expiry duration. Requested Lightning invoices with
 /// `expiry_time` greater than this value will be rejected.
+//
+// This matches the maximum timeout in `wait_for_payment`.
 pub const MAX_INVOICE_EXPIRY: Duration = Duration::from_secs(24 * 60 * 60);
