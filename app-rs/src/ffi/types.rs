@@ -30,7 +30,6 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    ExposeSecret,
     api::{
         auth::Scope as ScopeRs,
         revocable_clients::RevocableClient as RevocableClientRs,
@@ -48,7 +47,6 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_hex::hex;
 use lexe_payment_uri::OfferWithAmount;
 
 use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
@@ -230,7 +228,7 @@ impl RootSeed {
     ///
     /// flutter_rust_bridge:sync
     pub fn expose_secret_hex(&self) -> String {
-        hex::encode(self.sdk.unstable().expose_secret().as_slice())
+        self.sdk.to_hex()
     }
 
     /// Return the 24-word BIP-39 seed phrase for this root seed.

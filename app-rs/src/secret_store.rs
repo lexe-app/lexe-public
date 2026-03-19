@@ -32,8 +32,6 @@ use anyhow::Context;
 use cfg_if::cfg_if;
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
 use lexe::{config::WalletEnv, types::auth::RootSeed};
-use lexe_hex::hex;
-use secrecy::ExposeSecret;
 
 /// Persists user secrets like the [`RootSeed`] in each platform's standard
 /// secrets keychain. See module-level docs for platform-specific details.
@@ -158,8 +156,7 @@ impl SecretStore {
 
     /// Write the user's root seed to the secret store.
     pub fn write_root_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
-        let root_seed_hex =
-            hex::encode(root_seed.unstable().expose_secret().as_slice());
+        let root_seed_hex = root_seed.to_hex();
         self.root_seed_cred
             .set_password(&root_seed_hex)
             .context("Failed to write root seed into keyring")
@@ -282,10 +279,7 @@ mod test {
         secret_store.write_root_seed(&root_seed).unwrap();
 
         let root_seed2 = secret_store.read_root_seed().unwrap().unwrap();
-        assert_eq!(
-            root_seed.unstable().expose_secret(),
-            root_seed2.unstable().expose_secret()
-        );
+        assert_eq!(root_seed.as_bytes(), root_seed2.as_bytes());
 
         secret_store.delete_root_seed().unwrap();
         assert!(secret_store.read_root_seed().unwrap().is_none());

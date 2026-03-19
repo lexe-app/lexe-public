@@ -8,7 +8,6 @@ use std::{
 use anyhow::Context;
 use lexe_api::def::AppNodeProvisionApi;
 use lexe_common::{
-    ExposeSecret,
     api::{provision::NodeProvisionRequest, version::NodeEnclave},
     constants,
     releases::Release,
@@ -210,7 +209,7 @@ async fn provision_one(
 // we still have the seed serialized in a heap-allocated json blob when we
 // make the request, which is much harder for us to zeroize...
 pub fn clone_root_seed(root_seed_ref: &RootSeed) -> RootSeed {
-    RootSeed::try_from(root_seed_ref.unstable().expose_secret().as_slice())
+    RootSeed::from_bytes(root_seed_ref.as_bytes())
         .expect("RootSeed always contains 32 bytes")
 }
 
