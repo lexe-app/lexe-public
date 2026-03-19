@@ -1,5 +1,12 @@
 # Set our baseline x86-64 support to CPUs 2015+ with standard crypto intrinsics.
 
+[doc.extern-map.registries]
+# Allows `cargo doc` to generate links to external documentation for crates
+# sourced from crates.io that don't have the `html_root_url` doc attribute defined.
+# See the `rustdoc-map` Cargo feature for more details:
+# <https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#rustdoc-map>
+crates-io = "https://docs.rs/"
+
 [target.x86_64-fortanix-unknown-sgx]
 # Use our custom SGX runner
 runner = "run-sgx-cargo"
