@@ -293,7 +293,7 @@ impl ClientCredentials {
     /// The returned string can be passed to [`ClientCredentials::from_string`]
     /// to reconstruct the credentials.
     pub fn export_string(&self) -> String {
-        self.to_string()
+        self.unstable().to_base64_blob()
     }
 
     /// Access the inner [`UnstableClientCredentials`].
@@ -307,12 +307,6 @@ impl FromStr for ClientCredentials {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         UnstableClientCredentials::try_from_base64_blob(s).map(Self)
-    }
-}
-
-impl fmt::Display for ClientCredentials {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.unstable().to_base64_blob())
     }
 }
 

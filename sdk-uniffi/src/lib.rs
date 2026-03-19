@@ -513,7 +513,6 @@ impl RootSeed {
 /// [`RootSeed`], which is irrevocable.
 /// Wrap into [`Credentials`] to use with wallet constructors.
 #[derive(uniffi::Object)]
-#[uniffi::export(Display)]
 pub struct ClientCredentials {
     sdk: SdkClientCredentials,
 }
@@ -531,19 +530,8 @@ impl ClientCredentials {
     ///
     /// The returned string can be passed to [`ClientCredentials::from_string`]
     /// to reconstruct the credentials.
-    //
-    // Intentional departure: the `lexe` SDK has both `Display` and
-    // `export_string` (which wraps `to_string()`). UniFFI exports
-    // `Display` too, but `export_string` is more discoverable for
-    // SDK consumers who may not know about `Display` / `__str__`.
     pub fn export_string(&self) -> String {
         self.sdk.export_string()
-    }
-}
-
-impl fmt::Display for ClientCredentials {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sdk)
     }
 }
 
