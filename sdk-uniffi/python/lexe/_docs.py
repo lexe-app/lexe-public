@@ -149,6 +149,155 @@ Example::
     seed.write_to_path("/home/user/.lexe/seedphrase.txt")
 """)
 
+_set_method_doc(lexe.RootSeed, "generate", """\
+Generate a new random root seed.
+
+Returns:
+    A new randomly-generated RootSeed.
+
+Example::
+
+    seed = RootSeed.generate()
+""")
+
+_set_method_doc(lexe.RootSeed, "from_mnemonic", """\
+Construct a root seed from a BIP39 mnemonic string.
+
+Args:
+    mnemonic: Space-separated BIP39 mnemonic words.
+
+Returns:
+    The root seed derived from the mnemonic.
+
+Raises:
+    FfiError: If the mnemonic is invalid.
+
+Example::
+
+    seed = RootSeed.from_mnemonic("abandon abandon ... about")
+""")
+
+_set_method_doc(lexe.RootSeed, "from_bytes", """\
+Construct a root seed from raw bytes. The seed must be exactly 32 bytes.
+
+Args:
+    seed_bytes: Raw 32-byte seed.
+
+Returns:
+    A RootSeed from the given bytes.
+
+Raises:
+    FfiError: If the input is not exactly 32 bytes.
+
+Example::
+
+    import os
+    seed = RootSeed.from_bytes(os.urandom(32))
+""")
+
+_set_method_doc(lexe.RootSeed, "from_hex", """\
+Construct a root seed from a 64-character hex string.
+
+Args:
+    hex_string: 64-character hex-encoded seed.
+
+Returns:
+    A RootSeed from the given hex string.
+
+Raises:
+    FfiError: If the hex string is invalid or the wrong length.
+
+Example::
+
+    seed = RootSeed.from_hex("a1b2c3...")
+""")
+
+_set_method_doc(lexe.RootSeed, "to_bytes", """\
+Return the 32-byte root seed.
+
+Returns:
+    The raw seed bytes.
+""")
+
+_set_method_doc(lexe.RootSeed, "to_hex", """\
+Encode the root secret as a 64-character hex string.
+
+Returns:
+    The hex-encoded seed string.
+""")
+
+_set_method_doc(lexe.RootSeed, "to_mnemonic", """\
+Return this root seed's mnemonic as a space-separated string.
+
+Returns:
+    The BIP39 mnemonic string.
+
+Example::
+
+    seed = RootSeed.generate()
+    print(seed.to_mnemonic())
+""")
+
+_set_method_doc(lexe.RootSeed, "derive_user_pk", """\
+Derive the user's public key.
+
+Returns:
+    The hex-encoded ed25519 user public key string.
+
+Example::
+
+    seed = RootSeed.generate()
+    print(f"User PK: {seed.derive_user_pk()}")
+""")
+
+_set_method_doc(lexe.RootSeed, "derive_node_pk", """\
+Derive the node public key.
+
+Returns:
+    The hex-encoded secp256k1 node public key string.
+
+Example::
+
+    seed = RootSeed.generate()
+    print(f"Node PK: {seed.derive_node_pk()}")
+""")
+
+_set_method_doc(lexe.RootSeed, "password_encrypt", """\
+Encrypt this root seed under the given password.
+
+Args:
+    password: The password to encrypt with.
+
+Returns:
+    The encrypted seed as bytes.
+
+Raises:
+    FfiError: If encryption fails.
+
+Example::
+
+    encrypted = seed.password_encrypt("my-password")
+""")
+
+_set_method_doc(lexe.RootSeed, "password_decrypt", """\
+Decrypt a password-encrypted root seed.
+
+Args:
+    password: The password used to encrypt.
+    encrypted: The encrypted seed bytes.
+
+Returns:
+    The decrypted RootSeed.
+
+Raises:
+    FfiError: If decryption fails (wrong password or corrupted data).
+
+Example::
+
+    encrypted = seed.password_encrypt("my-password")
+    decrypted = RootSeed.password_decrypt("my-password", encrypted)
+""")
+
 lexe.init_logger.__doc__ = """\
 Initialize the Lexe logger with the given default log level.
 
@@ -203,6 +352,59 @@ Example::
     config = WalletEnvConfig.regtest()
     config = WalletEnvConfig.regtest(use_sgx=True, gateway_url="http://localhost:8080")
 """
+
+_set_method_doc(lexe.WalletEnvConfig, "mainnet", """\
+Create a config for mainnet (production).
+
+Returns:
+    A WalletEnvConfig for the mainnet environment.
+""")
+
+_set_method_doc(lexe.WalletEnvConfig, "testnet3", """\
+Create a config for testnet3 (staging).
+
+Returns:
+    A WalletEnvConfig for the testnet3 environment.
+""")
+
+_set_method_doc(lexe.WalletEnvConfig, "regtest", """\
+Create a config for regtest (local development).
+
+Args:
+    use_sgx: Whether SGX is enabled. Defaults to ``False``.
+    gateway_url: Gateway URL override, or ``None`` for default.
+
+Returns:
+    A WalletEnvConfig for the regtest environment.
+""")
+
+_set_method_doc(lexe.WalletEnvConfig, "deploy_env", """\
+Get the configured deployment environment.
+
+Returns:
+    The :class:`DeployEnv` for this config.
+""")
+
+_set_method_doc(lexe.WalletEnvConfig, "network", """\
+Get the configured Bitcoin network.
+
+Returns:
+    The :class:`Network` for this config.
+""")
+
+_set_method_doc(lexe.WalletEnvConfig, "use_sgx", """\
+Whether SGX is enabled for this config.
+
+Returns:
+    ``True`` if SGX is enabled, ``False`` otherwise.
+""")
+
+_set_method_doc(lexe.WalletEnvConfig, "gateway_url", """\
+Get the gateway URL for this environment.
+
+Returns:
+    The gateway URL string, or ``None`` if using the default.
+""")
 
 # =================== #
 # --- Credentials --- #
@@ -317,6 +519,17 @@ Example::
     info = wallet.node_info()
     print(f"Balance: {info.balance_sats} sats")
 """
+
+_set_method_doc(LexeWallet, "user_pk", """\
+Get the user's hex-encoded public key.
+
+Returns:
+    The hex-encoded ed25519 user public key string.
+
+Example::
+
+    print(f"User PK: {wallet.user_pk()}")
+""")
 
 _set_method_doc(LexeWallet, "load", """\
 Load an existing wallet from local state.
@@ -631,6 +844,17 @@ Example::
     info = await wallet.node_info()
     print(f"Balance: {info.balance_sats} sats")
 """
+
+_set_method_doc(AsyncLexeWallet, "user_pk", """\
+Get the user's hex-encoded public key.
+
+Returns:
+    The hex-encoded ed25519 user public key string.
+
+Example::
+
+    print(f"User PK: {wallet.user_pk()}")
+""")
 
 _set_method_doc(AsyncLexeWallet, "load", """\
 Load an existing wallet from local state.
@@ -1026,6 +1250,43 @@ Attributes:
     priority: Confirmation priority for on-chain sends.
 """
 
+lexe.ClientPaymentId.__doc__ = """\
+A unique, client-generated id for payment types (onchain send,
+spontaneous send) that need an extra id for idempotency.
+Its primary purpose is to prevent accidental double payments.
+
+Methods:
+    generate(): Generate a random ``ClientPaymentId``.
+    to_bytes(): Return the 32-byte id.
+    to_hex(): Encode the id as a 64-character hex string.
+
+Example::
+
+    payment_id = ClientPaymentId.generate()
+    print(payment_id.to_hex())
+"""
+
+_set_method_doc(lexe.ClientPaymentId, "generate", """\
+Generate a random ``ClientPaymentId``.
+
+Returns:
+    A new random ClientPaymentId.
+""")
+
+_set_method_doc(lexe.ClientPaymentId, "to_bytes", """\
+Return the 32-byte id.
+
+Returns:
+    The id as raw bytes.
+""")
+
+_set_method_doc(lexe.ClientPaymentId, "to_hex", """\
+Encode the id as a 64-character hex string.
+
+Returns:
+    The hex-encoded id string.
+""")
+
 lexe.PaymentSyncSummary.__doc__ = """\
 Summary of a payment sync operation.
 
@@ -1122,6 +1383,9 @@ Error type raised by SDK methods.
 
 Catch this to handle Lexe SDK errors.
 
+Methods:
+    message(): Returns the error message string.
+
 Example::
 
     try:
@@ -1129,3 +1393,10 @@ Example::
     except FfiError as e:
         print(f"SDK error: {e.message()}")
 """
+
+_set_method_doc(lexe.FfiError, "message", """\
+Returns the error message string.
+
+Returns:
+    A human-readable description of the error.
+""")
