@@ -279,7 +279,7 @@ impl RootSeed {
 
 impl fmt::Debug for RootSeed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.unstable().fmt(f)
+        fmt::Debug::fmt(self.unstable(), f)
     }
 }
 
@@ -386,13 +386,13 @@ impl AsRef<[u8; 32]> for Measurement {
 
 impl fmt::Debug for Measurement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        fmt::Debug::fmt(&self.0, f)
     }
 }
 
 impl fmt::Display for Measurement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        fmt::Display::fmt(&self.0, f)
     }
 }
 
@@ -476,13 +476,13 @@ impl AsRef<[u8; 32]> for UserPk {
 
 impl fmt::Debug for UserPk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        fmt::Debug::fmt(&self.0, f)
     }
 }
 
 impl fmt::Display for UserPk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        fmt::Display::fmt(&self.0, f)
     }
 }
 
@@ -559,13 +559,13 @@ impl NodePk {
 
 impl fmt::Debug for NodePk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        fmt::Debug::fmt(&self.0, f)
     }
 }
 
 impl fmt::Display for NodePk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        fmt::Display::fmt(&self.0, f)
     }
 }
 
