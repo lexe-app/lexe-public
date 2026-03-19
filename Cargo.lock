@@ -2514,7 +2514,7 @@ dependencies = [
  "lexe-api",
  "lexe-common",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-logger",
  "lexe-node-client",
  "lexe-payment-uri",
@@ -2579,7 +2579,7 @@ dependencies = [
  "lexe-byte-array",
  "lexe-common",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-serde",
  "lexe-sha256",
@@ -2630,7 +2630,7 @@ dependencies = [
  "http-body-util",
  "lexe-byte-array",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-serde",
  "lexe-sha256",
@@ -2681,7 +2681,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "lexe-enclave-core"
+name = "lexe-enclave"
 version = "0.0.0"
 dependencies = [
  "cfg-if 1.0.4",
@@ -2728,7 +2728,7 @@ dependencies = [
  "lexe-api",
  "lexe-common",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-std",
  "lexe-tls",
@@ -2781,7 +2781,7 @@ dependencies = [
  "lexe-api",
  "lexe-common",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-tls",
  "proptest",
  "proptest-derive",
@@ -2873,7 +2873,7 @@ dependencies = [
  "lexe-byte-array",
  "lexe-common",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-serde",
  "lexe-sha256",
@@ -2908,7 +2908,7 @@ dependencies = [
  "cmac",
  "lexe-common",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-sha256",
  "lexe-tls",
@@ -3221,7 +3221,7 @@ dependencies = [
  "lexe-byte-array",
  "lexe-common",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-ln",
  "lexe-std",
@@ -4105,7 +4105,7 @@ dependencies = [
  "anyhow",
  "argh",
  "enclave-runner",
- "lexe-enclave-core",
+ "lexe-enclave",
  "object 0.38.1",
  "rustc-demangle",
  "serde",
@@ -4622,7 +4622,7 @@ name = "sgx-test"
 version = "0.1.0"
 dependencies = [
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-tls",
  "lexe-tls-attest-server",
@@ -4670,7 +4670,7 @@ dependencies = [
  "anyhow",
  "lexe-byte-array",
  "lexe-crypto",
- "lexe-enclave-core",
+ "lexe-enclave",
  "lexe-hex",
  "lexe-sha256",
  "rsa",

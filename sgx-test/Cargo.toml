@@ -11,7 +11,7 @@ publish = false
 # --- LEXE --- #
 
 lexe-crypto = { path = "../lexe-crypto" }
-lexe-enclave-core = { path = "../lexe-enclave-core" }
+lexe-enclave = { path = "../lexe-enclave" }
 lexe-hex = { path = "../lexe-hex" }
 lexe-tls = { path = "../lexe-tls" }
 lexe-tls-attest-server = { path = "../lexe-tls-attest-server" }

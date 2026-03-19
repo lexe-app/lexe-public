@@ -9,7 +9,7 @@ use lexe_crypto::{
     ed25519,
     rng::{Crng, RngExt},
 };
-use lexe_enclave_core::enclave::{self, MachineId, Measurement, Sealed};
+use lexe_enclave::enclave::{self, MachineId, Measurement, Sealed};
 use lexe_serde::hexstr_or_bytes;
 use lexe_std::array;
 #[cfg(test)]
@@ -38,7 +38,7 @@ pub struct SealedSeedId {
 /// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`LxNetwork`])
 ///   into a [`SealedSeed`], use [`seal_from_root_seed`].
 ///
-/// See [`lexe_enclave_core::enclave::seal`] for more implementation details.
+/// See [`lexe_enclave::enclave::seal`] for more implementation details.
 ///
 /// [`unseal_and_validate`]: Self::unseal_and_validate
 /// [`seal_from_root_seed`]: Self::seal_from_root_seed

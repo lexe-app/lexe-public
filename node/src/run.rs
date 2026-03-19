@@ -38,7 +38,7 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_crypto::{ed25519, rng::Crng};
-use lexe_enclave_core::enclave::{MachineId, Measurement};
+use lexe_enclave::enclave::{MachineId, Measurement};
 use lexe_ln::{
     BoxedAnyhowFuture,
     alias::{

@@ -14,7 +14,7 @@ use dcap_ql::quote::{
 use lexe_byte_array::ByteArray;
 use lexe_common::env::DeployEnv;
 use lexe_crypto::ed25519;
-use lexe_enclave_core::enclave::{self, Measurement};
+use lexe_enclave::enclave::{self, Measurement};
 use lexe_hex::hex;
 use lexe_sha256::sha256;
 use rustls::{

@@ -12,7 +12,7 @@ publish = false
 
 lexe-byte-array = { path = "../lexe-byte-array" }
 lexe-crypto = { path = "../lexe-crypto" }
-lexe-enclave-core = { path = "../lexe-enclave-core" }
+lexe-enclave = { path = "../lexe-enclave" }
 lexe-hex = { path = "../lexe-hex" }
 lexe-sha256 = { path = "../lexe-sha256" }
 

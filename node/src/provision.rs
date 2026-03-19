@@ -32,7 +32,7 @@ use lexe_common::{
     ln::network::LxNetwork, net,
 };
 use lexe_crypto::rng::{Crng, SysRng};
-use lexe_enclave_core::enclave;
+use lexe_enclave::enclave;
 use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{
     notify_once::NotifyOnce,
@@ -376,7 +376,7 @@ mod helpers {
     use lexe_api::error::{BackendApiError, BackendErrorKind};
     use lexe_common::api::user::UserPk;
     use lexe_crypto::aes::AesMasterKey;
-    use lexe_enclave_core::enclave::Measurement;
+    use lexe_enclave::enclave::Measurement;
     use tracing::warn;
 
     use super::*;

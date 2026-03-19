@@ -12,7 +12,7 @@ use lexe_api::{
 };
 use lexe_common::{env::DeployEnv, ln::network::LxNetwork};
 use lexe_crypto::rng::Crng;
-use lexe_enclave_core::enclave;
+use lexe_enclave::enclave;
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::{self, FeeEstimates, LexeEsplora},

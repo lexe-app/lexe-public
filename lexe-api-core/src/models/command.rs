@@ -17,7 +17,7 @@ use lexe_common::{
     },
     time::TimestampMs,
 };
-use lexe_enclave_core::enclave::Measurement;
+use lexe_enclave::enclave::Measurement;
 use lexe_serde::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;

@@ -24,7 +24,7 @@ use lexe_common::{
     env::DeployEnv,
     ln::network::LxNetwork,
 };
-use lexe_enclave_core::enclave::Measurement;
+use lexe_enclave::enclave::Measurement;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEvent,

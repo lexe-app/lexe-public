@@ -2,7 +2,7 @@ use lexe_crypto::{
     ed25519,
     rng::{RngExt, SysRng},
 };
-use lexe_enclave_core::enclave;
+use lexe_enclave::enclave;
 use lexe_hex::hex;
 use lexe_tls::attest_client::verifier::{EnclavePolicy, SgxQuoteVerifier};
 use lexe_tls_attest_server::quote;

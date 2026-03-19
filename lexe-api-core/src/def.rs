@@ -65,7 +65,7 @@ use lexe_common::{
     api::version::MeasurementStruct,
 };
 use lexe_crypto::ed25519;
-use lexe_enclave_core::enclave::Measurement;
+use lexe_enclave::enclave::Measurement;
 use lightning::events::Event;
 
 #[cfg(doc)]

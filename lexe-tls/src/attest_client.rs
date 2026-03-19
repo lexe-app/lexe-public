@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use lexe_common::{constants, env::DeployEnv};
-use lexe_enclave_core::enclave::Measurement;
+use lexe_enclave::enclave::Measurement;
 use rustls::{
     DigitallySignedStruct,
     client::{
@@ -80,7 +80,7 @@ pub fn app_node_provision_client_config(
 ///   with the gateway, and we use the remote attestation verifier for the inner
 ///   TLS connection which terminates inside the user node SGX enclave.
 ///
-/// [`MrShort`]: lexe_enclave_core::enclave::MrShort
+/// [`MrShort`]: lexe_enclave::enclave::MrShort
 #[derive(Debug)]
 struct AppNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier

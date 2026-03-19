@@ -1,6 +1,6 @@
 use std::{include_bytes, time::Duration};
 
-use lexe_enclave_core::enclave::{Measurement, MrShort};
+use lexe_enclave::enclave::{Measurement, MrShort};
 use lexe_std::{const_assert, const_concat_str};
 
 // --- General --- //

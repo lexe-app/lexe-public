@@ -197,7 +197,7 @@ mod test {
     fn dump_attest_cert() {
         use base64::Engine;
         use lexe_crypto::rng::FastRng;
-        use lexe_enclave_core::enclave;
+        use lexe_enclave::enclave;
 
         use crate::cert::AttestationCert;
 

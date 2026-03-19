@@ -11,7 +11,7 @@ members = [
     "lexe-byte-array",
     "lexe-common",
     "lexe-crypto",
-    "lexe-enclave-core",
+    "lexe-enclave",
     "lexe-hex",
     "lexe-ln",
     "lexe-logger",

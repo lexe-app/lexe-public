@@ -56,7 +56,7 @@ lexe-api = { path = "../lexe-api" }
 lexe-byte-array = { path = "../lexe-byte-array" }
 lexe-common = { path = "../lexe-common" }
 lexe-crypto = { path = "../lexe-crypto" }
-lexe-enclave-core = { path = "../lexe-enclave-core" }
+lexe-enclave = { path = "../lexe-enclave" }
 lexe-hex = { path = "../lexe-hex" }
 lexe-ln = { path = "../lexe-ln" }
 lexe-std = { path = "../lexe-std" }

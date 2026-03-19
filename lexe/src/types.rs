@@ -35,7 +35,7 @@ pub mod auth {
         api::user::{NodePk, UserPk},
         root_seed::RootSeed,
     };
-    pub use lexe_enclave_core::enclave::Measurement;
+    pub use lexe_enclave::enclave::Measurement;
     pub use lexe_node_client::credentials::{
         ClientCredentials, Credentials, CredentialsRef,
     };

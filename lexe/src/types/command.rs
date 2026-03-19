@@ -14,7 +14,7 @@ use lexe_common::{
     ln::amount::Amount,
     time::TimestampMs,
 };
-use lexe_enclave_core::enclave;
+use lexe_enclave::enclave;
 use serde::{Deserialize, Serialize};
 
 use crate::types::payment::Payment;

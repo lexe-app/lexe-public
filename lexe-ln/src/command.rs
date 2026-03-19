@@ -49,7 +49,7 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_crypto::{ed25519, rng::SysRng};
-use lexe_enclave_core::enclave::Measurement;
+use lexe_enclave::enclave::Measurement;
 use lexe_std::{Apply, const_assert};
 use lexe_tls::{
     shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},

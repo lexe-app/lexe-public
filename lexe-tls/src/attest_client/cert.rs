@@ -4,7 +4,7 @@
 use std::{borrow::Cow, fmt};
 
 use lexe_crypto::ed25519;
-use lexe_enclave_core::enclave;
+use lexe_enclave::enclave;
 use lexe_hex::hex;
 use yasna::models::ObjectIdentifier;
 

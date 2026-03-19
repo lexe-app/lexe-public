@@ -14,7 +14,7 @@ use lexe_common::api::{
 };
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
-use lexe_enclave_core::enclave::{self, Measurement};
+use lexe_enclave::enclave::{self, Measurement};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

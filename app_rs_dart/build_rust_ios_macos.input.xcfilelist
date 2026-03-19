@@ -10,7 +10,7 @@ ${PODS_TARGET_SRCROOT}/../../lexe-api/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-byte-array/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-common/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-crypto/Cargo.toml
-${PODS_TARGET_SRCROOT}/../../lexe-enclave-core/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-enclave/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-hex/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-ln/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-logger/Cargo.toml

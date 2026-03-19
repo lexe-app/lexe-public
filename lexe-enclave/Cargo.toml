@@ -1,5 +1,5 @@
 [package]
-name = "lexe-enclave-core"
+name = "lexe-enclave"
 license = "MIT"
 authors = { workspace = true }
 edition = { workspace = true }

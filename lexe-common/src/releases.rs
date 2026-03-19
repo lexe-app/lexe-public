@@ -1,4 +1,4 @@
-use lexe_enclave_core::enclave::Measurement;
+use lexe_enclave::enclave::Measurement;
 use serde::{Deserialize, Serialize};
 
 /// Information about a single release in a 'releases.json' file, excluding its

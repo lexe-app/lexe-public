@@ -70,7 +70,7 @@ use std::{sync::OnceLock, time::Duration};
 use anyhow::{Context, format_err};
 use lexe_common::{constants, env::DeployEnv};
 use lexe_crypto::rng::Crng;
-use lexe_enclave_core::enclave::{Measurement, MrShort};
+use lexe_enclave::enclave::{Measurement, MrShort};
 use lexe_tls::{lexe_ca, types::CertWithKey};
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.
@@ -214,7 +214,7 @@ mod test {
     use std::sync::Arc;
 
     use lexe_crypto::rng::FastRng;
-    use lexe_enclave_core::enclave;
+    use lexe_enclave::enclave;
     use lexe_tls::{
         attest_client::app_node_provision_client_config, test_utils,
     };

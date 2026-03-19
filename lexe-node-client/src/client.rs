@@ -78,7 +78,7 @@ use lexe_common::{
     env::DeployEnv,
 };
 use lexe_crypto::{ed25519, rng::Crng};
-use lexe_enclave_core::enclave::Measurement;
+use lexe_enclave::enclave::Measurement;
 use lexe_tls::{attest_client, lexe_ca, rustls};
 use reqwest::Url;
 

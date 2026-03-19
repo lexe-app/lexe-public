@@ -14,7 +14,7 @@ use lexe_common::{
     releases::Release,
     root_seed::RootSeed,
 };
-use lexe_enclave_core::enclave;
+use lexe_enclave::enclave;
 use lexe_node_client::client::NodeClient;
 use lexe_tokio::task::LxTask;
 use serde::Deserialize;
