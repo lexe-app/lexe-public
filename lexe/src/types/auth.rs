@@ -1,6 +1,6 @@
 //! Authentication, identity, and node verification.
 
-use std::{fmt, path::Path, str::FromStr};
+use std::{fmt, io::Write, path::Path, str::FromStr};
 
 use anyhow::Context;
 use bip39::Mnemonic;
@@ -138,8 +138,15 @@ impl RootSeed {
     ///
     /// Returns `Ok(None)` if the file doesn't exist.
     pub fn read_from_path(path: &Path) -> anyhow::Result<Option<Self>> {
-        UnstableRootSeed::read_from_path(path)
-            .map(|maybe_root_seed| maybe_root_seed.map(Self))
+        match std::fs::read_to_string(path) {
+            Ok(contents) => {
+                let mnemonic = bip39::Mnemonic::from_str(contents.trim())
+                    .map_err(|e| anyhow::anyhow!("Invalid mnemonic: {e}"))?;
+                Ok(Some(Self::try_from(mnemonic)?))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e).context("Failed to read seedphrase file"),
+        }
     }
 
     /// Write this [`RootSeed`] to a seedphrase file at a specific path.
@@ -148,7 +155,34 @@ impl RootSeed {
     /// already exists. On Unix, the file is created with mode 0600 (owner
     /// read/write only).
     pub fn write_to_path(&self, path: &Path) -> anyhow::Result<()> {
-        self.unstable().write_to_path(path)
+        #[cfg(unix)]
+        use std::os::unix::fs::OpenOptionsExt;
+
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .context("Failed to create data directory")?;
+        }
+
+        // Open with create_new to fail if file exists
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
+
+        // Set restrictive permissions on Unix (owner read/write only)
+        #[cfg(unix)]
+        opts.mode(0o600);
+
+        let mut file = opts.open(path).with_context(|| {
+            format!("Seedphrase file already exists: {}", path.display())
+        })?;
+
+        let mnemonic = self.to_mnemonic();
+        writeln!(file, "{mnemonic}")
+            .context("Failed to write seedphrase file")?;
+
+        tracing::info!("Persisted seedphrase to {}", path.display());
+
+        Ok(())
     }
 
     /// Construct a [`RootSeed`] from a BIP39 mnemonic.
@@ -575,5 +609,33 @@ impl From<UnstableNodePk> for NodePk {
 impl From<NodePk> for UnstableNodePk {
     fn from(outer: NodePk) -> Self {
         outer.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn seedphrase_file_roundtrip() {
+        let root_seed1 = RootSeed::generate();
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let path = tempdir.path().join("seedphrase.txt");
+
+        // Write seedphrase to file
+        root_seed1.write_to_path(&path).unwrap();
+
+        // Read it back
+        let root_seed2 = RootSeed::read_from_path(&path).unwrap().unwrap();
+        assert_eq!(root_seed1.as_bytes(), root_seed2.as_bytes());
+
+        // Writing again should fail (file exists)
+        let err = root_seed1.write_to_path(&path).unwrap_err();
+        assert!(err.to_string().contains("already exists"));
+
+        // Reading non-existent file should return None
+        let missing = tempdir.path().join("missing.txt");
+        assert!(RootSeed::read_from_path(&missing).unwrap().is_none());
     }
 }
