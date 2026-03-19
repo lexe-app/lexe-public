@@ -20,6 +20,7 @@ config = WalletEnvConfig.mainnet()
 seed = RootSeed.read(config)
 creds = Credentials.from_root_seed(seed)
 wallet = LexeWallet.load(config, creds)
+wallet.provision(creds)
 
 # Pay a Lightning invoice
 payment = wallet.pay_invoice(
