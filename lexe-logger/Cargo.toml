@@ -20,7 +20,7 @@ test-utils = ["lexe-api/test-utils"]
 
 # --- LEXE --- #
 
-lexe-api = { path = "../lexe-api" }
+lexe-api = { workspace = true }
 
 # --- WORKSPACE --- #
 
@@ -37,4 +37,4 @@ tracing-subscriber = { workspace = true, features = [
 
 [dev-dependencies]
 # Enable lexe-api test-utils in tests
-lexe-api = { path = "../lexe-api", features = ["test-utils"] }
+lexe-api = { workspace = true, features = ["test-utils"] }

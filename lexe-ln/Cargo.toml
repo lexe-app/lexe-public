@@ -28,15 +28,15 @@ test-utils = [
 
 # --- LEXE --- #
 
-lexe-api = { path = "../lexe-api" }
-lexe-common = { path = "../lexe-common" }
-lexe-crypto = { path = "../lexe-crypto" }
-lexe-enclave = { path = "../lexe-enclave" }
-lexe-hex = { path = "../lexe-hex" }
-lexe-std = { path = "../lexe-std" }
-lexe-tls = { path = "../lexe-tls" }
-lexe-tls-core = { path = "../lexe-tls-core", features = ["webpki-roots"] }
-lexe-tokio = { path = "../lexe-tokio" }
+lexe-api = { workspace = true }
+lexe-common = { workspace = true }
+lexe-crypto = { workspace = true }
+lexe-enclave = { workspace = true }
+lexe-hex = { workspace = true }
+lexe-std = { workspace = true }
+lexe-tls = { workspace = true }
+lexe-tls-core = { workspace = true, features = ["webpki-roots"] }
+lexe-tokio = { workspace = true }
 
 # --- WORKSPACE --- #
 
@@ -89,8 +89,8 @@ tracing-subscriber = { workspace = true, features = [
 webpki-roots = { workspace = true }
 
 [dev-dependencies]
-lexe-api = { path = "../lexe-api", features = ["test-utils"] }
-lexe-common = { path = "../lexe-common", features = ["test-utils"] }
+lexe-api = { workspace = true, features = ["test-utils"] }
+lexe-common = { workspace = true, features = ["test-utils"] }
 
 bcs = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }

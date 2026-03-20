@@ -10,10 +10,10 @@ publish = false
 
 # --- LEXE --- #
 
-lexe-crypto = { path = "../lexe-crypto" }
-lexe-enclave = { path = "../lexe-enclave" }
-lexe-hex = { path = "../lexe-hex" }
-lexe-tls = { path = "../lexe-tls" }
+lexe-crypto = { workspace = true }
+lexe-enclave = { workspace = true }
+lexe-hex = { workspace = true }
+lexe-tls = { workspace = true }
 lexe-tls-attest-server = { path = "../lexe-tls-attest-server" }
 
 [package.metadata.fortanix-sgx]

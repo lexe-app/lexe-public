@@ -18,8 +18,8 @@ publish = true
 
 # --- LEXE --- #
 
-lexe-byte-array = { path = "../lexe-byte-array" }
-lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
+lexe-byte-array = { workspace = true }
+lexe-std = { workspace = true, features = ["ref-cast"] }
 
 # --- WORKSPACE --- #
 
@@ -27,4 +27,4 @@ ref-cast = { workspace = true }
 ring = { workspace = true }
 
 [dev-dependencies]
-lexe-hex = { path = "../lexe-hex" }
+lexe-hex = { workspace = true }

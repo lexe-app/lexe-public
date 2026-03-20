@@ -29,12 +29,12 @@ test-utils = [
 
 # --- LEXE --- #
 
-lexe-api-core = { path = "../lexe-api-core", features = ["axum", "reqwest"] }
-lexe-common = { path = "../lexe-common" }
-lexe-crypto = { path = "../lexe-crypto" }
-lexe-std = { path = "../lexe-std" }
-lexe-tls = { path = "../lexe-tls" }
-lexe-tokio = { path = "../lexe-tokio" }
+lexe-api-core = { workspace = true, features = ["axum", "reqwest"] }
+lexe-common = { workspace = true }
+lexe-crypto = { workspace = true }
+lexe-std = { workspace = true }
+lexe-tls = { workspace = true }
+lexe-tokio = { workspace = true }
 
 # --- WORKSPACE --- #
 
@@ -65,7 +65,7 @@ proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
 
 [dev-dependencies]
-lexe-common = { path = "../lexe-common", features = ["test-utils"] }
+lexe-common = { workspace = true, features = ["test-utils"] }
 
 axum = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }

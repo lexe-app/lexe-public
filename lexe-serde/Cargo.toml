@@ -18,7 +18,7 @@ publish = true
 
 # --- LEXE --- #
 
-lexe-hex = { path = "../lexe-hex" }
+lexe-hex = { workspace = true }
 
 # --- WORKSPACE --- #
 

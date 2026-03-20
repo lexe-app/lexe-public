@@ -59,6 +59,40 @@ version = "0.0.0"
 # - All other crates are `license = "PolyForm-Noncommercial-1.0.0"`.
 
 [workspace.dependencies]
+# --- LEXE PUBLISHED CRATES --- #
+# Crates published to crates.io can't depend on workspace crates using just
+# `{ path = "<...>"}`; they also need to declare the version range. To avoid
+# repeating each crate's version range across many Cargo.toml's, we'll declare
+# it once here and use e.g. `lexe-common = { workspace = true }` in dependent
+# crates.
+#
+# Regenerate:
+# ```bash
+# $ cargo tree -p sdk-uniffi -e build,normal --depth workspace --prefix none --format '{p}' \
+#   | rg '([^ ]+) v([^ ]+) .*' --replace '$1 = { version = "$2", path = "$1" }' \
+#   | LC_ALL=C sort -u
+# ```
+lexe = { version = "0.1.0", path = "lexe" }
+lexe-api = { version = "0.1.0", path = "lexe-api" }
+lexe-api-core = { version = "0.1.0", path = "lexe-api-core" }
+lexe-byte-array = { version = "0.1.0", path = "lexe-byte-array" }
+lexe-common = { version = "0.1.0", path = "lexe-common" }
+lexe-crypto = { version = "0.1.0", path = "lexe-crypto" }
+lexe-enclave = { version = "0.1.0", path = "lexe-enclave" }
+lexe-hex = { version = "0.1.0", path = "lexe-hex" }
+lexe-logger = { version = "0.1.0", path = "lexe-logger" }
+lexe-node-client = { version = "0.1.0", path = "lexe-node-client" }
+lexe-payment-uri = { version = "0.1.0", path = "lexe-payment-uri" }
+lexe-payment-uri-core = { version = "0.1.0", path = "lexe-payment-uri-core" }
+lexe-serde = { version = "0.1.0", path = "lexe-serde" }
+lexe-sha256 = { version = "0.1.0", path = "lexe-sha256" }
+lexe-std = { version = "0.1.0", path = "lexe-std" }
+lexe-tls = { version = "0.1.0", path = "lexe-tls" }
+lexe-tls-core = { version = "0.1.0", path = "lexe-tls-core" }
+lexe-tokio = { version = "0.1.0", path = "lexe-tokio" }
+sdk-uniffi = { version = "0.1.1", path = "sdk-uniffi" }
+
+# --- EXTERNAL DEPENDENCIES --- #
 # Use this section to declare dependencies used across multiple lexe crates.
 # Lexe crates can then inherit the dependency using `workspace = true`.
 # This makes it easier to keep dependency versions in sync. More info:

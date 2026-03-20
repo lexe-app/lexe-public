@@ -52,17 +52,17 @@ threads = 2
 # --- LEXE --- #
 
 gdrive = { path = "../gdrive" }
-lexe-api = { path = "../lexe-api" }
-lexe-byte-array = { path = "../lexe-byte-array" }
-lexe-common = { path = "../lexe-common" }
-lexe-crypto = { path = "../lexe-crypto" }
-lexe-enclave = { path = "../lexe-enclave" }
-lexe-hex = { path = "../lexe-hex" }
+lexe-api = { workspace = true }
+lexe-byte-array = { workspace = true }
+lexe-common = { workspace = true }
+lexe-crypto = { workspace = true }
+lexe-enclave = { workspace = true }
+lexe-hex = { workspace = true }
 lexe-ln = { path = "../lexe-ln" }
-lexe-std = { path = "../lexe-std" }
-lexe-tls = { path = "../lexe-tls" }
+lexe-std = { workspace = true }
+lexe-tls = { workspace = true }
 lexe-tls-attest-server = { path = "../lexe-tls-attest-server" }
-lexe-tokio = { path = "../lexe-tokio" }
+lexe-tokio = { workspace = true }
 
 # --- WORKSPACE --- #
 
@@ -95,8 +95,8 @@ tower = { workspace = true, features = ["util"] }
 tracing = { workspace = true }
 
 [dev-dependencies]
-lexe-common = { path = "../lexe-common", features = ["test-utils"] }
-lexe-crypto = { path = "../lexe-crypto", features = ["test-utils"] }
+lexe-common = { workspace = true, features = ["test-utils"] }
+lexe-crypto = { workspace = true, features = ["test-utils"] }
 lexe-ln = { path = "../lexe-ln", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }

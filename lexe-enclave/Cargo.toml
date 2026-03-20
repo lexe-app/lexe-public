@@ -27,11 +27,11 @@ test-utils = [
 
 # --- LEXE --- #
 
-lexe-byte-array = { path = "../lexe-byte-array" }
-lexe-hex = { path = "../lexe-hex" }
-lexe-serde = { path = "../lexe-serde" }
-lexe-sha256 = { path = "../lexe-sha256" }
-lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
+lexe-byte-array = { workspace = true }
+lexe-hex = { workspace = true }
+lexe-serde = { workspace = true }
+lexe-sha256 = { workspace = true }
+lexe-std = { workspace = true, features = ["ref-cast"] }
 
 # --- WORKSPACE --- #
 

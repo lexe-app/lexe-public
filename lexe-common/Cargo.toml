@@ -38,13 +38,13 @@ test-utils = [
 
 # --- LEXE --- #
 
-lexe-byte-array = { path = "../lexe-byte-array" }
-lexe-crypto = { path = "../lexe-crypto" }
-lexe-enclave = { path = "../lexe-enclave" }
-lexe-hex = { path = "../lexe-hex" }
-lexe-serde = { path = "../lexe-serde" }
-lexe-sha256 = { path = "../lexe-sha256" }
-lexe-std = { path = "../lexe-std", features = ["ref-cast"] }
+lexe-byte-array = { workspace = true }
+lexe-crypto = { workspace = true }
+lexe-enclave = { workspace = true }
+lexe-hex = { workspace = true }
+lexe-serde = { workspace = true }
+lexe-sha256 = { workspace = true }
+lexe-std = { workspace = true, features = ["ref-cast"] }
 
 # --- WORKSPACE --- #
 
@@ -89,8 +89,8 @@ serde_urlencoded = { optional = true, workspace = true }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]
-lexe-crypto = { path = "../lexe-crypto", features = ["test-utils"] }
-lexe-enclave = { path = "../lexe-enclave", features = ["test-utils"] }
+lexe-crypto = { workspace = true, features = ["test-utils"] }
+lexe-enclave = { workspace = true, features = ["test-utils"] }
 
 asn1-rs = { workspace = true }
 chrono = { workspace = true }

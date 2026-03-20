@@ -22,7 +22,7 @@ serde = { workspace = true }
 tokio = { workspace = true, features = ["net"] }
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
-lexe-enclave = { path = "../lexe-enclave" }
+lexe-enclave = { workspace = true }
 sgxs-sign = { path = "../sgxs-sign" }
 
 aesm-client = { workspace = true, features = ["sgxs"] }
