@@ -13,10 +13,10 @@ pip install lexe-sdk
 ## Example
 
 ```python
-from lexe import Credentials, LexeWallet, RootSeed, WalletEnvConfig
+from lexe import Credentials, LexeWallet, RootSeed, WalletConfig
 
 # Load an existing Lexe wallet from ~/.lexe
-config = WalletEnvConfig.mainnet()
+config = WalletConfig.mainnet()
 seed = RootSeed.read(config)
 creds = Credentials.from_root_seed(seed)
 wallet = LexeWallet.load(config, creds)

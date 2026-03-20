@@ -69,7 +69,7 @@ def load_prefunded_wallet(
     seed = lexe.RootSeed.from_bytes(seed_bytes)
     creds = lexe.Credentials.from_root_seed(seed)
 
-    config = lexe.WalletEnvConfig.regtest(gateway_url=gateway_url)
+    config = lexe.WalletConfig.regtest(gateway_url=gateway_url)
 
     # Use a temporary directory for local wallet data
     temp_dir = tempfile.TemporaryDirectory(prefix="lexe_prefunded_")
@@ -89,6 +89,6 @@ def create_test_root_seed() -> lexe.RootSeed:
     return lexe.RootSeed.from_bytes(seed_bytes)
 
 
-def create_dev_config() -> lexe.WalletEnvConfig:
+def create_dev_config() -> lexe.WalletConfig:
     """Create a dev environment config for testing."""
-    return lexe.WalletEnvConfig.regtest(gateway_url=os.getenv("GATEWAY_URL"))
+    return lexe.WalletConfig.regtest(gateway_url=os.getenv("GATEWAY_URL"))

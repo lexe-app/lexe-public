@@ -83,8 +83,8 @@ def test_root_seed_invalid_length():
     assert "32 bytes" in exc_info.value.message().lower()
 
 
-def test_wallet_env_config():
-    """Test WalletEnvConfig can be created."""
+def test_wallet_config():
+    """Test WalletConfig can be created."""
     config = create_dev_config()
     assert config.deploy_env == lexe.DeployEnv.DEV
     assert config.network == lexe.Network.REGTEST
@@ -103,13 +103,13 @@ def test_seedphrase_path():
     """Test seedphrase_path returns environment-specific paths."""
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mainnet config should return seedphrase.txt
-        mainnet_config = lexe.WalletEnvConfig.mainnet()
+        mainnet_config = lexe.WalletConfig.mainnet()
         mainnet_path = mainnet_config.seedphrase_path(temp_dir)
         assert mainnet_path.endswith("seedphrase.txt")
         assert "prod" not in mainnet_path
 
         # Regtest config should return seedphrase.<env>.txt
-        regtest_config = lexe.WalletEnvConfig.regtest()
+        regtest_config = lexe.WalletConfig.regtest()
         regtest_path = regtest_config.seedphrase_path(temp_dir)
         assert "seedphrase." in regtest_path
         assert regtest_path != mainnet_path

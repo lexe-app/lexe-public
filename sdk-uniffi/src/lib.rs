@@ -219,7 +219,7 @@ impl From<NetworkRs> for Network {
 
 /// Configuration for a wallet environment.
 #[derive(uniffi::Object)]
-pub struct WalletEnvConfig {
+pub struct WalletConfig {
     deploy_env: DeployEnv,
     network: Network,
     use_sgx: bool,
@@ -227,7 +227,7 @@ pub struct WalletEnvConfig {
 }
 
 #[uniffi::export]
-impl WalletEnvConfig {
+impl WalletConfig {
     /// Create config for Bitcoin mainnet.
     #[uniffi::constructor]
     pub fn mainnet() -> Arc<Self> {
@@ -301,7 +301,7 @@ impl WalletEnvConfig {
     }
 }
 
-impl WalletEnvConfig {
+impl WalletConfig {
     // TODO(max): Could all of these to_rs be `From` impls?
     fn to_rs(&self) -> SdkWalletEnvConfig {
         match self.deploy_env {
@@ -343,7 +343,7 @@ impl RootSeed {
     /// or [`SeedFileError::ParseError`] if the file can't be parsed.
     #[uniffi::constructor]
     pub fn read(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
     ) -> Result<Arc<Self>, SeedFileError> {
         let wallet_env = env_config.to_rs().wallet_env;
         let sdk = match SdkRootSeed::read(&wallet_env) {
@@ -367,7 +367,7 @@ impl RootSeed {
     /// [`SeedFileError::AlreadyExists`] if the file already exists.
     pub fn write(
         &self,
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
     ) -> Result<(), SeedFileError> {
         let wallet_env = env_config.to_rs().wallet_env;
         self.as_sdk().write(&wallet_env).map_err(|e| {
@@ -674,7 +674,7 @@ impl AsyncLexeWallet {
     /// Defaults to `~/.lexe` if not specified.
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn fresh(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
@@ -703,7 +703,7 @@ impl AsyncLexeWallet {
     /// Defaults to `~/.lexe` if not specified.
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
@@ -732,7 +732,7 @@ impl AsyncLexeWallet {
     /// Defaults to `~/.lexe` if not specified.
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load_or_fresh(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
@@ -751,7 +751,7 @@ impl AsyncLexeWallet {
     /// `clear_payments`) are not available and will return an error if called.
     #[uniffi::constructor]
     pub fn without_db(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
     ) -> FfiResult<Arc<Self>> {
         let inner = SdkLexeWallet::without_db(
@@ -1014,7 +1014,7 @@ impl BlockingLexeWallet {
     /// Defaults to `~/.lexe` if not specified.
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn fresh(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
@@ -1043,7 +1043,7 @@ impl BlockingLexeWallet {
     /// Defaults to `~/.lexe` if not specified.
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> Result<Arc<Self>, LoadWalletError> {
@@ -1072,7 +1072,7 @@ impl BlockingLexeWallet {
     /// Defaults to `~/.lexe` if not specified.
     #[uniffi::constructor(default(lexe_data_dir = None))]
     pub fn load_or_fresh(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
     ) -> FfiResult<Arc<Self>> {
@@ -1091,7 +1091,7 @@ impl BlockingLexeWallet {
     /// `clear_payments`) are not available and will return an error if called.
     #[uniffi::constructor]
     pub fn without_db(
-        env_config: Arc<WalletEnvConfig>,
+        env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
     ) -> FfiResult<Arc<Self>> {
         let inner = SdkBlockingLexeWallet::without_db(

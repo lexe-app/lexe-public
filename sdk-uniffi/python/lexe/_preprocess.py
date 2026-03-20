@@ -20,12 +20,12 @@ def _make_property(cls: type, name: str, doc: str) -> None:
     setattr(cls, name, property(original, doc=doc))
 
 
-# --- WalletEnvConfig properties --- #
+# --- WalletConfig properties --- #
 
-_make_property(lexe.WalletEnvConfig, "deploy_env", "The configured deployment environment.")
-_make_property(lexe.WalletEnvConfig, "network", "The configured Bitcoin network.")
-_make_property(lexe.WalletEnvConfig, "use_sgx", "Whether SGX is enabled for this config.")
-_make_property(lexe.WalletEnvConfig, "gateway_url", """\
+_make_property(lexe.WalletConfig, "deploy_env", "The configured deployment environment.")
+_make_property(lexe.WalletConfig, "network", "The configured Bitcoin network.")
+_make_property(lexe.WalletConfig, "use_sgx", "Whether SGX is enabled for this config.")
+_make_property(lexe.WalletConfig, "gateway_url", """\
 The gateway URL for this environment.
 
 Returns ``None`` for dev configs without a gateway URL override.

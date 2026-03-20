@@ -51,7 +51,7 @@ Example::
     # '/home/user/.lexe'
 """
 
-_set_method_doc(lexe.WalletEnvConfig, "seedphrase_path", """\
+_set_method_doc(lexe.WalletConfig, "seedphrase_path", """\
 Returns the path to the seedphrase file for this environment.
 
 - Mainnet: ``<lexe_data_dir>/seedphrase.txt``
@@ -65,7 +65,7 @@ Returns:
 
 Example::
 
-    config = WalletEnvConfig.mainnet()
+    config = WalletConfig.mainnet()
     path = config.seedphrase_path("/home/user/.lexe")
     # '/home/user/.lexe/seedphrase.txt'
 """)
@@ -85,7 +85,7 @@ Raises:
 
 Example::
 
-    config = WalletEnvConfig.mainnet()
+    config = WalletConfig.mainnet()
     try:
         seed = RootSeed.read(config)
     except SeedFileError.NotFound:
@@ -127,7 +127,7 @@ Raises:
 
 Example::
 
-    config = WalletEnvConfig.mainnet()
+    config = WalletConfig.mainnet()
     seed.write(config)
 """)
 
@@ -335,7 +335,7 @@ Bitcoin network to use.
 - **REGTEST** -- Bitcoin regtest (local development).
 """
 
-lexe.WalletEnvConfig.__doc__ = """\
+lexe.WalletConfig.__doc__ = """\
 Configuration for a wallet environment.
 
 Use the factory constructors to create configs for standard environments.
@@ -343,31 +343,31 @@ Use the factory constructors to create configs for standard environments.
 Example::
 
     # Production (mainnet)
-    config = WalletEnvConfig.mainnet()
+    config = WalletConfig.mainnet()
 
     # Staging (testnet)
-    config = WalletEnvConfig.testnet3()
+    config = WalletConfig.testnet3()
 
     # Local development (regtest)
-    config = WalletEnvConfig.regtest()
-    config = WalletEnvConfig.regtest(use_sgx=True, gateway_url="http://localhost:8080")
+    config = WalletConfig.regtest()
+    config = WalletConfig.regtest(use_sgx=True, gateway_url="http://localhost:8080")
 """
 
-_set_method_doc(lexe.WalletEnvConfig, "mainnet", """\
+_set_method_doc(lexe.WalletConfig, "mainnet", """\
 Create a config for mainnet (production).
 
 Returns:
-    A WalletEnvConfig for the mainnet environment.
+    A WalletConfig for the mainnet environment.
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "testnet3", """\
+_set_method_doc(lexe.WalletConfig, "testnet3", """\
 Create a config for testnet3 (staging).
 
 Returns:
-    A WalletEnvConfig for the testnet3 environment.
+    A WalletConfig for the testnet3 environment.
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "regtest", """\
+_set_method_doc(lexe.WalletConfig, "regtest", """\
 Create a config for regtest (local development).
 
 Args:
@@ -375,31 +375,31 @@ Args:
     gateway_url: Gateway URL override, or ``None`` for default.
 
 Returns:
-    A WalletEnvConfig for the regtest environment.
+    A WalletConfig for the regtest environment.
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "deploy_env", """\
+_set_method_doc(lexe.WalletConfig, "deploy_env", """\
 Get the configured deployment environment.
 
 Returns:
     The :class:`DeployEnv` for this config.
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "network", """\
+_set_method_doc(lexe.WalletConfig, "network", """\
 Get the configured Bitcoin network.
 
 Returns:
     The :class:`Network` for this config.
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "use_sgx", """\
+_set_method_doc(lexe.WalletConfig, "use_sgx", """\
 Whether SGX is enabled for this config.
 
 Returns:
     ``True`` if SGX is enabled, ``False`` otherwise.
 """)
 
-_set_method_doc(lexe.WalletEnvConfig, "gateway_url", """\
+_set_method_doc(lexe.WalletConfig, "gateway_url", """\
 Get the gateway URL for this environment.
 
 Returns:
@@ -427,7 +427,7 @@ Example::
     seed = RootSeed.from_bytes(os.urandom(32))
 
     # Or load from the default seedphrase path for this environment
-    config = WalletEnvConfig.mainnet()
+    config = WalletConfig.mainnet()
     seed = RootSeed.read(config)
 
     # Or load from a specific file path
@@ -508,7 +508,7 @@ Then call :meth:`signup` and :meth:`provision` before using payment methods.
 
 Example::
 
-    config = WalletEnvConfig.mainnet()
+    config = WalletConfig.mainnet()
     seed = RootSeed.read(config)  # Raises SeedFileError.NotFound if missing
     creds = Credentials.from_root_seed(seed)
 
@@ -831,9 +831,9 @@ For synchronous usage, use :class:`LexeWallet`.
 
 Example::
 
-    from lexe import AsyncLexeWallet, Credentials, WalletEnvConfig
+    from lexe import AsyncLexeWallet, Credentials, WalletConfig
 
-    config = WalletEnvConfig.mainnet()
+    config = WalletConfig.mainnet()
     seed = RootSeed.read(config)
     creds = Credentials.from_root_seed(seed)
 
