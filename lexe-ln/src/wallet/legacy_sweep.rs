@@ -26,7 +26,6 @@ use lexe_api::{
 use lexe_common::ln::{
     amount::Amount, network::Network, priority::ConfirmationPriority,
 };
-use lexe_crypto::rng::SysRng;
 use lexe_tokio::{notify, task::LxTask};
 use tracing::{debug, error, instrument};
 

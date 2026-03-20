@@ -6,14 +6,11 @@ use lexe_api::{
     models::command,
     types::payments::{PaymentCreatedIndex, PaymentStatus},
 };
-use lexe_common::{
-    api::{
-        auth::{
-            UserSignupRequestWire, UserSignupRequestWireV1,
-            UserSignupRequestWireV2,
-        },
-        user::NodePkProof,
+use lexe_common::api::{
+    auth::{
+        UserSignupRequestWire, UserSignupRequestWireV1, UserSignupRequestWireV2,
     },
+    user::NodePkProof,
 };
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};

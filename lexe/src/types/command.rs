@@ -10,7 +10,6 @@ use lexe_api::{
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
-use lexe_enclave::enclave;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{

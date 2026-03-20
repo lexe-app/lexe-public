@@ -6,9 +6,7 @@ use bytes::Bytes;
 use lexe_api_core::vfs::{
     PW_ENC_ROOT_SEED_FILENAME, SINGLETON_DIRECTORY, VfsFile, VfsFileId,
 };
-use lexe_common::{
-    env::DeployEnv, ln::network::Network, root_seed::RootSeed,
-};
+use lexe_common::{env::DeployEnv, ln::network::Network, root_seed::RootSeed};
 use lexe_crypto::rng::Crng;
 use tokio::sync::watch;
 use tracing::{instrument, warn};
