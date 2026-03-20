@@ -1,9 +1,14 @@
 [package]
 name = "lexe-enclave"
+version = "0.1.0"
 license = "MIT"
+description = "Lexe Intel SGX enclave types and platform functions"
+documentation = "https://docs.rs/lexe-enclave"
 authors = { workspace = true }
 edition = { workspace = true }
-version = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 publish = true
 
 # Default config for testing in SGX

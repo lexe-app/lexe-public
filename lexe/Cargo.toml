@@ -3,10 +3,14 @@ name = "lexe"
 # NOTE: Because this crate is published to crates.io, we need to respect
 # semantic versioning; i.e. API-breaking changes should bump the minor version
 # if before 1.0.0, otherwise bump the major version.
-version = "0.0.0"
+version = "0.1.0"
 license = "MIT"
+description = "Lexe Rust SDK"
+documentation = "https://rust.lexe.tech"
 authors = { workspace = true }
 edition = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 publish = true
 
 [features]

@@ -2,8 +2,12 @@
 name = "sdk-uniffi"
 version = "0.1.1"
 license = "MIT"
+description = "Lexe SDK foreign language interface via UniFFI"
+documentation = "https://docs.rs/lexe-hex"
 authors = { workspace = true }
 edition = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 # Not actually published to crates.io, but set to true so cargo-deny lints it.
 publish = true
 

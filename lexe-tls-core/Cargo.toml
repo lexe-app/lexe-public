@@ -1,9 +1,14 @@
 [package]
 name = "lexe-tls-core"
+version = "0.1.0"
 license = "MIT"
+description = "Lexe rustls extension crate"
+documentation = "https://docs.rs/lexe-tls-core"
 authors = { workspace = true }
 edition = { workspace = true }
-version = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 publish = true
 
 # Default config for testing in SGX

@@ -1,10 +1,14 @@
 [package]
 name = "lexe-payment-uri-core"
-description = "Core types for parsing Bitcoin addresses and payment URIs."
+version = "0.1.0"
 license = "MIT"
+description = "I/O-free Bitcoin payment URI parsing and encoding"
+documentation = "https://docs.rs/lexe-payment-uri-core"
 authors = { workspace = true }
 edition = { workspace = true }
-version = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 publish = true
 
 [dependencies]

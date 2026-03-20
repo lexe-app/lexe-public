@@ -1,9 +1,14 @@
 [package]
 name = "lexe-node-client"
+version = "0.1.0"
 license = "MIT"
+description = "Client types used to connect to your Lexe Node"
+documentation = "https://docs.rs/lexe-node-client"
 authors = { workspace = true }
 edition = { workspace = true }
-version = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 publish = true
 
 [features]

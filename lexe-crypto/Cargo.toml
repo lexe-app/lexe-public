@@ -1,9 +1,14 @@
 [package]
 name = "lexe-crypto"
+version = "0.1.0"
 license = "MIT"
+description = "Lexe cryptography library (ring wrapper)"
+documentation = "https://docs.rs/lexe-crypto"
 authors = { workspace = true }
 edition = { workspace = true }
-version = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 publish = true
 
 # Default config for testing in SGX

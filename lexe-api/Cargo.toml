@@ -1,9 +1,14 @@
 [package]
 name = "lexe-api"
+version = "0.1.0"
 license = "MIT"
+description = "Lexe API types, definitions, client/server utils, and TLS config"
+documentation = "https://docs.rs/lexe-api"
 authors = { workspace = true }
 edition = { workspace = true }
-version = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 publish = true
 
 # Default config for testing in SGX
