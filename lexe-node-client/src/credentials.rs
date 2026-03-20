@@ -1,6 +1,6 @@
 //! Client credentials for authentication with Lexe services.
 
-use std::{str::FromStr, sync::Arc};
+use std::{fmt, str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use base64::Engine;
@@ -48,10 +48,7 @@ pub enum CredentialsRef<'a> {
 /// Encoded as a base64 JSON blob for easy transport (e.g. via env var or
 /// config file).
 #[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(
-    any(test, feature = "test-utils"),
-    derive(Arbitrary, Debug, Eq, PartialEq)
-)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary, Eq, PartialEq))]
 pub struct ClientCredentials {
     /// The user public key.
     ///
@@ -167,6 +164,12 @@ impl<'a> CredentialsRef<'a> {
 }
 
 // --- impl ClientCredentials --- //
+
+impl fmt::Debug for ClientCredentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ClientCredentials(..)")
+    }
+}
 
 impl FromStr for ClientCredentials {
     type Err = anyhow::Error;

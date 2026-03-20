@@ -1,6 +1,6 @@
 //! TLS newtypes.
 
-use std::path::Path;
+use std::{fmt, path::Path};
 
 use anyhow::Context;
 use base64::Engine as _;
@@ -78,11 +78,14 @@ pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] pub Vec<u8>);
 #[derive(Clone, Serialize, Deserialize)]
 // This Arbitrary impl is only used for serde tests and generates invalid keys.
 // Feel free to update the impl if needed.
-#[cfg_attr(
-    any(test, feature = "test-utils"),
-    derive(Debug, Eq, PartialEq, Arbitrary)
-)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq, Arbitrary))]
 pub struct LxPrivatePkcs8KeyDer(#[serde(with = "hexstr_or_bytes")] pub Vec<u8>);
+
+impl fmt::Debug for LxPrivatePkcs8KeyDer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("LxPrivatePkcs8KeyDer(..)")
+    }
+}
 
 // --- impl CertWithKey --- //
 

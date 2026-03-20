@@ -178,9 +178,15 @@ pub struct BearerAuthResponse {
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short (~15 min) expiration.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq))]
 pub struct BearerAuthToken(pub ByteStr);
+
+impl fmt::Debug for BearerAuthToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("BearerAuthToken(..)")
+    }
+}
 
 /// A [`BearerAuthToken`] and its expected expiration time, or `None` if the
 /// token never expires.

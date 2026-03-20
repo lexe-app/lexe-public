@@ -25,6 +25,7 @@ use crate::{
 // --- Credentials --- //
 
 /// Credentials used to authenticate with a Lexe user node.
+#[derive(Debug)]
 pub enum Credentials {
     /// Authenticate with a [`RootSeed`].
     RootSeed(RootSeed),
@@ -58,7 +59,7 @@ impl From<ClientCredentials> for Credentials {
 // --- CredentialsRef --- //
 
 /// Borrowed version of [`Credentials`].
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum CredentialsRef<'a> {
     /// Authenticate with a borrowed [`RootSeed`].
     RootSeed(&'a RootSeed),
@@ -341,6 +342,12 @@ impl FromStr for ClientCredentials {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         UnstableClientCredentials::try_from_base64_blob(s).map(Self)
+    }
+}
+
+impl fmt::Debug for ClientCredentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
     }
 }
 
