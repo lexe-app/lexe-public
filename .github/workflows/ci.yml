@@ -121,8 +121,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
       - uses: astral-sh/setup-uv@v7
-      - run: uv --project sdk sync --reinstall-package lexe-sdk
-      - run: uv --project sdk run pytest
+      - run: uv --project sdk-uniffi sync --reinstall-package lexe-sdk
+      - run: uv --project sdk-uniffi run pytest
+        working-directory: sdk-uniffi
 
   # TODO(max): Enable once we are approved so we don't need to constantly reauth
   # test-gdrive:

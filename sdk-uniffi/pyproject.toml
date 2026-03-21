@@ -1,5 +1,6 @@
 [project]
 name = "lexe-sdk"
+version = "0.1.0"
 requires-python = ">=3.10"
 # ^^^^^^^^^^^^^^^^^^^^^^^^
 # NOTE(phlip9): we grep out the `requires-python` above, so don't change the
@@ -19,7 +20,6 @@ keywords = [
     "lexe", "bitcoin", "lightning", "wallet", "payments", "crypto", "btc",
     "ln", "non-custodial", "self-custody"
 ]
-dynamic = ["version"]
 
 # TODO(phlip9): if we can finally get the `lexe` package name, use that.
 # PyPI support issue: <https://github.com/pypi/support/issues/9529>.
