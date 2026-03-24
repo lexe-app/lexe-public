@@ -69,7 +69,7 @@ def test_wallet_node_info():
         wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
 
         # Sign up and provision
-        wallet.signup(seed, None)
+        wallet.signup(seed)
 
         # Get node info
         info = wallet.node_info()
@@ -93,7 +93,7 @@ def test_provision():
         wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
 
         # First signup and provision
-        wallet.signup(seed, None)
+        wallet.signup(seed)
 
         # Now call provision - should succeed since we just provisioned
         wallet.provision(creds)
@@ -115,7 +115,7 @@ def test_payment_sync():
         creds = lexe.Credentials.from_root_seed(seed)
 
         wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
-        wallet.signup(seed, None)
+        wallet.signup(seed)
 
         # Sync payments
         summary = wallet.sync_payments()
@@ -133,7 +133,7 @@ def test_list_payments():
         creds = lexe.Credentials.from_root_seed(seed)
 
         wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
-        wallet.signup(seed, None)
+        wallet.signup(seed)
 
         # Create an invoice to have at least one payment
         wallet.create_invoice(
@@ -175,7 +175,7 @@ def test_update_payment_note():
         creds = lexe.Credentials.from_root_seed(seed)
 
         wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
-        wallet.signup(seed, None)
+        wallet.signup(seed)
 
         # Create an invoice to get a payment index
         create_resp = wallet.create_invoice(
@@ -208,7 +208,7 @@ def test_clear_payments():
         creds = lexe.Credentials.from_root_seed(seed)
 
         wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
-        wallet.signup(seed, None)
+        wallet.signup(seed)
 
         # Create an invoice and sync
         wallet.create_invoice(
@@ -290,8 +290,7 @@ def test_create_and_pay_invoice(prefunded_wallets):
 
     # Pay invoice from wallet1
     pay_resp = wallet1.pay_invoice(
-        invoice=create_resp.invoice,
-        fallback_amount_sats=None,
+        create_resp.invoice,
         note="Paying test invoice from Python SDK",
     )
     assert pay_resp.index != ""
@@ -323,11 +322,7 @@ def test_pay_invalid_invoice_error(prefunded_wallets):
     wallet = load_prefunded_wallet(prefunded_wallets["wallets"][0], gateway_url)
 
     with pytest.raises(lexe.FfiError) as exc_info:
-        wallet.pay_invoice(
-            invoice="lnbc1invalid",
-            fallback_amount_sats=None,
-            note=None,
-        )
+        wallet.pay_invoice("lnbc1invalid")
 
     # Verify error message is specific about the invalid invoice.
     error_msg = exc_info.value.message().lower()

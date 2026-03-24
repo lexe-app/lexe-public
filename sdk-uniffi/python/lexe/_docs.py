@@ -58,7 +58,7 @@ Returns the path to the seedphrase file for this environment.
 - Other environments: ``<lexe_data_dir>/seedphrase.<env>.txt``
 
 Args:
-    lexe_data_dir: Base data directory path.
+    lexe_data_dir: Base data directory path. Defaults to ``~/.lexe``.
 
 Returns:
     The absolute path to the seedphrase file.
@@ -66,7 +66,7 @@ Returns:
 Example::
 
     config = WalletConfig.mainnet()
-    path = config.seedphrase_path("/home/user/.lexe")
+    path = config.seedphrase_path()
     # '/home/user/.lexe/seedphrase.txt'
 """)
 
@@ -306,10 +306,11 @@ Call once at startup to enable logging.
 Args:
     default_level: Log level string. One of
         ``"trace"``, ``"debug"``, ``"info"``, ``"warn"``, ``"error"``.
+        Defaults to ``"info"``.
 
 Example::
 
-    init_logger("info")
+    init_logger()
 """
 
 
@@ -513,7 +514,7 @@ Example::
     creds = Credentials.from_root_seed(seed)
 
     wallet = LexeWallet.load_or_fresh(config, creds)
-    wallet.signup(seed, partner_pk=None)
+    wallet.signup(seed)
     wallet.provision(creds)
 
     info = wallet.node_info()
@@ -612,7 +613,7 @@ Raises:
 
 Example::
 
-    wallet.signup(seed, partner_pk=None)
+    wallet.signup(seed)
     seed.write(config)  # Persist seed after signup!
 """)
 
@@ -838,7 +839,7 @@ Example::
     creds = Credentials.from_root_seed(seed)
 
     wallet = AsyncLexeWallet.load_or_fresh(config, creds)
-    await wallet.signup(seed, partner_pk=None)
+    await wallet.signup(seed)
     await wallet.provision(creds)
 
     info = await wallet.node_info()
@@ -937,7 +938,7 @@ Raises:
 
 Example::
 
-    await wallet.signup(seed, partner_pk=None)
+    await wallet.signup(seed)
     seed.write(config)  # Persist seed after signup!
 """)
 
