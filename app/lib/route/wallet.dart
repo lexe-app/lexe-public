@@ -2093,7 +2093,7 @@ class WalletHints extends StatelessWidget {
             TextSpan(text: " to accept your first Lightning payment.\n"),
             WidgetSpan(child: SizedBox(height: Space.s550)),
             TextSpan(
-              text: "All just-in-time channel opens are free during our beta!",
+              text: "All just-in-time channel opens are currently free!",
             ),
           ],
         ),
