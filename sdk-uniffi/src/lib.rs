@@ -71,7 +71,7 @@ pub fn default_lexe_data_dir() -> FfiResult<String> {
 ///
 /// Call this once at startup to enable logging. Valid levels are:
 /// `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"`.
-#[uniffi::export]
+#[uniffi::export(default(default_level = "info"))]
 pub fn init_logger(default_level: String) {
     lexe::init_logger(&default_level);
 }
@@ -293,11 +293,23 @@ impl WalletConfig {
     ///
     /// - Mainnet: `<lexe_data_dir>/seedphrase.txt`
     /// - Other environments: `<lexe_data_dir>/seedphrase.<env>.txt`
-    pub fn seedphrase_path(&self, lexe_data_dir: String) -> String {
-        self.to_rs()
-            .seedphrase_path(lexe_data_dir.as_ref())
+    ///
+    /// `lexe_data_dir` defaults to `~/.lexe` if not specified.
+    #[uniffi::method(default(lexe_data_dir = None))]
+    pub fn seedphrase_path(
+        &self,
+        lexe_data_dir: Option<String>,
+    ) -> FfiResult<String> {
+        let dir = lexe_data_dir.map(Ok).unwrap_or_else(|| {
+            lexe::default_lexe_data_dir()
+                .map(|p| p.to_string_lossy().into_owned())
+        })?;
+        let path = self
+            .to_rs()
+            .seedphrase_path(dir.as_ref())
             .to_string_lossy()
-            .into_owned()
+            .into_owned();
+        Ok(path)
     }
 }
 
@@ -350,7 +362,9 @@ impl RootSeed {
             Ok(Some(sdk)) => sdk,
             Ok(None) => {
                 let data_dir = default_lexe_data_dir().unwrap_or_default();
-                let path = env_config.seedphrase_path(data_dir);
+                let path = env_config
+                    .seedphrase_path(Some(data_dir))
+                    .unwrap_or_default();
                 return Err(SeedFileError::NotFound { path });
             }
             Err(e) =>
@@ -377,7 +391,9 @@ impl RootSeed {
                     && io_err.kind() == std::io::ErrorKind::AlreadyExists
                 {
                     let data_dir = default_lexe_data_dir().unwrap_or_default();
-                    let path = env_config.seedphrase_path(data_dir);
+                    let path = env_config
+                        .seedphrase_path(Some(data_dir))
+                        .unwrap_or_default();
                     return SeedFileError::AlreadyExists { path };
                 }
             }
