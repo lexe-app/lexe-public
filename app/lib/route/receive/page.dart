@@ -42,6 +42,7 @@ import 'package:lexeapp/route/receive/state.dart'
         PaymentOfferKind;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
+import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
 
@@ -1368,7 +1369,7 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
     final amountState = this.amountFieldKey.currentState!;
     if (!amountState.validate()) return;
 
-    final String? amountStr = amountState.value;
+    final String? amountStr = amountState.value?.nonEmpty();
     final int? amountSats;
     if (amountStr != null) {
       final a = this.intInputFormatter.tryParse(amountStr).ok;
@@ -1383,15 +1384,7 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
 
     final descriptionState = this.descriptionFieldKey.currentState!;
     if (!descriptionState.validate()) return;
-
-    final String? d = descriptionState.value;
-    final String? description;
-    if (d != null) {
-      // "" => null
-      description = (d.isNotEmpty) ? d : null;
-    } else {
-      description = null;
-    }
+    final description = descriptionState.value?.nonEmpty();
 
     final flowResult = AmountDescription(
       amountSats: amountSats,

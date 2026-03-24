@@ -27,4 +27,13 @@ extension StringExt on String {
     // \u2026 == "…" (horizontal ellipsis)
     return "$prefix\u2026$suffix";
   }
+
+  /// Return `null` if empty, otherwise return the original string.
+  String? nonEmpty() {
+    if (this.isEmpty) {
+      return null;
+    } else {
+      return this;
+    }
+  }
 }

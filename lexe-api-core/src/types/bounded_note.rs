@@ -125,7 +125,8 @@ impl std::error::Error for NoteTooLong {}
 impl fmt::Display for NoteTooLong {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Empty => write!(f, "Note cannot be empty."),
+            Self::Empty =>
+                f.write_str("Note is optional but cannot be an empty string."),
             Self::TooManyChars { chars } => write!(
                 f,
                 "Note is too long ({chars} chars). The max length is \

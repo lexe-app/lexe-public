@@ -38,6 +38,7 @@ import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:lexeapp/url.dart' as url;
 
@@ -294,20 +295,17 @@ class PaymentDetailPageInner extends StatelessWidget {
 
           // The invoice/offer description. Only shown for outbound payments.
           final description = (direction == PaymentDirection.outbound)
-              ? payment.description
+              ? payment.description?.nonEmpty()
               : null;
-          final hasDescription = description != null && description.isNotEmpty;
-          final payerName = payment.payerName;
-          final hasPayerName = payerName != null && payerName.isNotEmpty;
-          final payerNote = payment.payerNote;
-          final hasPayerNote = payerNote != null && payerNote.isNotEmpty;
+          final payerName = payment.payerName?.nonEmpty();
+          final payerNote = payment.payerNote?.nonEmpty();
           final payerNoteLabel = switch (direction) {
             PaymentDirection.inbound => "Payer note",
             PaymentDirection.outbound => "Message to recipient",
             PaymentDirection.info => "Payer note",
           };
 
-          final initialNote = payment.note;
+          final initialNote = payment.note?.nonEmpty();
 
           return ScrollableSinglePageBody(
             padding: pagePaddingInsets,
@@ -376,7 +374,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     ),
                   const SizedBox(height: Space.s600),
 
-                  if (hasDescription)
+                  if (description != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         bodyPadding,
@@ -392,7 +390,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     ),
 
                   // Payer name metadata.
-                  if (hasPayerName)
+                  if (payerName != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         bodyPadding,
@@ -408,7 +406,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     ),
 
                   // Recipient metadata provided by the payment protocol.
-                  if (hasPayerNote)
+                  if (payerNote != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         bodyPadding,
@@ -1119,7 +1117,7 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
 
     final req = UpdatePaymentNote(
       index: this.widget.paymentCreatedIndex,
-      note: this.fieldKey.currentState!.value,
+      note: this.fieldKey.currentState!.value?.nonEmpty(),
     );
     final result = await Result.tryFfiAsync(
       () async => this.widget.app.updatePaymentNote(req: req),

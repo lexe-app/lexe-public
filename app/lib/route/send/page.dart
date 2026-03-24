@@ -385,14 +385,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     this.estimatingFee.value = true;
 
     // Get the payer note if the user entered one.
-    final payerNoteText = this.payerNoteFieldKey.currentState?.value;
-    final payerNote = (payerNoteText != null && payerNoteText.isNotEmpty)
-        ? payerNoteText
-        : null;
+    final payerNote = this.payerNoteFieldKey.currentState?.value?.nonEmpty();
 
     // Get a personal note if the user entered one.
-    final noteText = this.noteFieldKey.currentState?.value;
-    final note = (noteText != null && noteText.isNotEmpty) ? noteText : null;
+    final note = this.noteFieldKey.currentState?.value?.nonEmpty();
 
     // Preflight the payment. That means we're checking, on the node itself,
     // for enough balance, if there's a route, fees, etc...
@@ -457,11 +453,15 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     return const Ok(());
   }
 
+  /// Return the first non-empty description-like field from the payment
+  /// request.
   String? description() => switch (this.widget.sendCtx.paymentMethod) {
-    PaymentMethod_Invoice(:final field0) => field0.description,
-    PaymentMethod_Onchain(:final field0) => field0.message ?? field0.label,
-    PaymentMethod_Offer(:final field0) => field0.description,
-    PaymentMethod_LnurlPayRequest(:final field0) => field0.metadata.description,
+    PaymentMethod_Invoice(:final field0) => field0.description?.nonEmpty(),
+    PaymentMethod_Onchain(:final field0) =>
+      field0.message?.nonEmpty() ?? field0.label?.nonEmpty(),
+    PaymentMethod_Offer(:final field0) => field0.description?.nonEmpty(),
+    PaymentMethod_LnurlPayRequest(:final field0) =>
+      field0.metadata.description.nonEmpty(),
   };
 
   Widget? extraDetails() => switch (this.widget.sendCtx.paymentMethod) {
@@ -658,7 +658,7 @@ class LnurlPayRequestDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metadata = this.request.metadata;
-    final longDescription = metadata.longDescription;
+    final longDescription = metadata.longDescription?.nonEmpty();
     final emailOrIdentifier = this.emailOrIdentifier();
 
     return Column(
@@ -792,7 +792,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
       case Err(:final err):
         // The request failed. Set the error message and unset loading.
-        error("SendPaymentConfirmPage: error sending on-chain payment: $err");
+        final kind = this.widget.sendCtx.preflightedPayment.kind();
+        error("SendPaymentConfirmPage: error sending $kind payment: $err");
         this.isSending.value = false;
         this.sendError.value = ErrorMessage(
           title: "Error sending payment",
@@ -849,13 +850,16 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       offer.payee ?? offer.payeePubkey?.ellipsizeMid() ?? "(private node)",
   };
 
-  String? note() => this.noteFieldKey.currentState?.value;
+  /// The current (non-empty) note field contents, if any.
+  String? note() => this.noteFieldKey.currentState?.value?.nonEmpty();
 
+  /// The payment request's first non-empty description-like field.
   String? description() => switch (this.widget.sendCtx.preflightedPayment) {
-    PreflightedPayment_Invoice(:final invoice) => invoice.description,
+    PreflightedPayment_Invoice(:final invoice) =>
+      invoice.description?.nonEmpty(),
     PreflightedPayment_Onchain(:final onchain) =>
-      onchain.message ?? onchain.label,
-    PreflightedPayment_Offer(:final offer) => offer.description,
+      onchain.message?.nonEmpty() ?? onchain.label?.nonEmpty(),
+    PreflightedPayment_Offer(:final offer) => offer.description?.nonEmpty(),
   };
 
   @override
