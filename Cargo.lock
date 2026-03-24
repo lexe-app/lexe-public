@@ -4359,7 +4359,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-uniffi"
-version = "0.0.0-pre"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "lexe",
