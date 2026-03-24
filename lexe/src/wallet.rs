@@ -19,7 +19,7 @@ use lexe_payment_uri::{
     lnurl::LnurlClient,
 };
 use lexe_std::backoff::Backoff;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::{
     config::{
@@ -83,6 +83,7 @@ impl LexeWallet {
     /// user this [`LexeWallet`] is for. Users and environments will not
     /// interfere with each other as all data is namespaced internally.
     /// Defaults to `~/.lexe` if not specified.
+    #[instrument(skip_all, name = "(fresh)")]
     pub fn fresh(
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
@@ -132,6 +133,7 @@ impl LexeWallet {
     ///
     /// [`fresh`]: LexeWallet::fresh
     /// [`signup`]: LexeWallet::signup
+    #[instrument(skip_all, name = "(load)")]
     pub fn load(
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
@@ -178,6 +180,7 @@ impl LexeWallet {
     /// user this [`LexeWallet`] is for. Users and environments will not
     /// interfere with each other as all data is namespaced internally.
     /// Defaults to `~/.lexe` if not specified.
+    #[instrument(skip_all, name = "(load-or-fresh)")]
     pub fn load_or_fresh(
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
@@ -223,6 +226,7 @@ impl LexeWallet {
     /// [`sync_payments`]: LexeWallet::sync_payments
     /// [`list_payments`]: LexeWallet::list_payments
     /// [`clear_payments`]: LexeWallet::clear_payments
+    #[instrument(skip_all, name = "(without-db)")]
     pub fn without_db(
         env_config: WalletEnvConfig,
         credentials: CredentialsRef<'_>,
@@ -342,6 +346,7 @@ impl LexeWallet {
     /// This fetches updated payments from the node and persists them locally.
     ///
     /// Returns an error if this wallet was created without local persistence.
+    #[instrument(skip_all, name = "(sync-payments)")]
     pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         self.require_db()?
             .sync_payments(
@@ -364,6 +369,7 @@ impl LexeWallet {
     /// Returns an error if this wallet was created without local persistence.
     ///
     /// [`sync_payments`]: Self::sync_payments
+    #[instrument(skip_all, name = "(list-payments)")]
     pub fn list_payments(
         &self,
         filter: &PaymentFilter,
@@ -389,6 +395,7 @@ impl LexeWallet {
     /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
     ///
     /// Returns an error if this wallet was created without local persistence.
+    #[instrument(skip_all, name = "(clear-payments)")]
     pub fn clear_payments(&self) -> anyhow::Result<()> {
         self.require_payments_db()?
             .clear()
@@ -400,6 +407,7 @@ impl LexeWallet {
     /// Polls the node with exponential backoff until the payment finalizes or
     /// the timeout is reached. Defaults to 10 minutes if not specified.
     /// Maximum timeout is 86,400 seconds (24 hours).
+    #[instrument(skip_all, name = "(wait-for-payment)")]
     pub async fn wait_for_payment(
         &self,
         index: PaymentCreatedIndex,
@@ -472,6 +480,7 @@ impl LexeWallet {
     ///
     /// - `partner_pk`: Set to your company's [`UserPk`] to earn a share of this
     ///   wallet's fees.
+    #[instrument(skip_all, name = "(signup)")]
     pub async fn signup(
         &self,
         root_seed: &RootSeed,
@@ -494,6 +503,7 @@ impl LexeWallet {
     /// [`signup`](Self::signup) but with extra parameters generally only used
     /// by the Lexe App.
     #[cfg(feature = "unstable")]
+    #[instrument(skip_all, name = "(signup-custom)")]
     pub async fn signup_custom(
         &self,
         root_seed: &RootSeed,
@@ -569,6 +579,7 @@ impl LexeWallet {
     ///
     /// This fetches the current enclaves from the gateway, computes which
     /// releases need to be provisioned, and provisions them.
+    #[instrument(skip_all, name = "(provision)")]
     pub async fn provision(
         &self,
         credentials: CredentialsRef<'_>,
@@ -585,6 +596,7 @@ impl LexeWallet {
     /// [`provision`](Self::provision) but with extra parameters generally only
     /// used by the Lexe App.
     #[cfg(feature = "unstable")]
+    #[instrument(skip_all, name = "(provision-custom)")]
     pub async fn provision_custom(
         &self,
         credentials: CredentialsRef<'_>,
@@ -717,6 +729,7 @@ impl LexeWallet {
     // --- Command API --- //
 
     /// Get information about this Lexe node, including balance and channels.
+    #[instrument(skip_all, name = "(node-info)")]
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
         self.node_client
             .node_info()
@@ -726,6 +739,7 @@ impl LexeWallet {
     }
 
     /// Create a BOLT 11 invoice to receive a Lightning payment.
+    #[instrument(skip_all, name = "(create-invoice)")]
     pub async fn create_invoice(
         &self,
         req: CreateInvoiceRequest,
@@ -743,6 +757,7 @@ impl LexeWallet {
     }
 
     /// Pay a BOLT 11 invoice over Lightning.
+    #[instrument(skip_all, name = "(pay-invoice)")]
     pub async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
@@ -767,6 +782,7 @@ impl LexeWallet {
     }
 
     /// Get information about a payment by its created index.
+    #[instrument(skip_all, name = "(get-payment)")]
     pub async fn get_payment(
         &self,
         req: GetPaymentRequest,
@@ -786,6 +802,7 @@ impl LexeWallet {
     /// Update the personal note on an existing payment.
     /// The note is stored on the user node and is not visible to the
     /// counterparty.
+    #[instrument(skip_all, name = "(update-payment-note)")]
     pub async fn update_payment_note(
         &self,
         req: UpdatePaymentNoteRequest,
