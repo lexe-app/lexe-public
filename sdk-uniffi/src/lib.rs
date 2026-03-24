@@ -773,6 +773,7 @@ impl AsyncLexeWallet {
     ///
     /// - `partner_pk`: Optional hex-encoded [`UserPk`] of your company account.
     ///   Set this to earn a share of fees from wallets you sign up.
+    #[uniffi::method(default(partner_pk = None))]
     pub async fn signup(
         &self,
         root_seed: Arc<RootSeed>,
@@ -821,7 +822,11 @@ impl AsyncLexeWallet {
     /// `payer_note` is an optional note received from the payer out-of-band
     /// via LNURL-pay and is stored with this inbound payment. If provided, it
     /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
-    #[uniffi::method(default(payer_note = None))]
+    #[uniffi::method(default(
+        amount_sats = None,
+        description = None,
+        payer_note = None,
+    ))]
     pub async fn create_invoice(
         &self,
         expiration_secs: u32,
@@ -853,7 +858,11 @@ impl AsyncLexeWallet {
     /// out-of-band via LNURL-pay and is visible to them. If provided,
     /// `payer_note` must be non-empty and at most 200 chars / 512 UTF-8
     /// bytes.
-    #[uniffi::method(default(payer_note = None))]
+    #[uniffi::method(default(
+        fallback_amount_sats = None,
+        note = None,
+        payer_note = None,
+    ))]
     pub async fn pay_invoice(
         &self,
         invoice: String,
@@ -1113,6 +1122,7 @@ impl BlockingLexeWallet {
     ///
     /// - `partner_pk`: Optional hex-encoded [`UserPk`] of your company account.
     ///   Set this to earn a share of fees from wallets you sign up.
+    #[uniffi::method(default(partner_pk = None))]
     pub fn signup(
         &self,
         root_seed: Arc<RootSeed>,
@@ -1158,7 +1168,11 @@ impl BlockingLexeWallet {
     /// `payer_note` is an optional note received from the payer out-of-band
     /// via LNURL-pay and is stored with this inbound payment. If provided, it
     /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
-    #[uniffi::method(default(payer_note = None))]
+    #[uniffi::method(default(
+        amount_sats = None,
+        description = None,
+        payer_note = None,
+    ))]
     pub fn create_invoice(
         &self,
         expiration_secs: u32,
@@ -1190,7 +1204,11 @@ impl BlockingLexeWallet {
     /// out-of-band via LNURL-pay and is visible to them. If provided,
     /// `payer_note` must be non-empty and at most 200 chars / 512 UTF-8
     /// bytes.
-    #[uniffi::method(default(payer_note = None))]
+    #[uniffi::method(default(
+        fallback_amount_sats = None,
+        note = None,
+        payer_note = None,
+    ))]
     pub fn pay_invoice(
         &self,
         invoice: String,
