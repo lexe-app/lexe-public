@@ -1,7 +1,5 @@
 The self-custodial BITCOIN wallet that's always on. Send and receive payments 24/7 - even when your phone's offline.
 
-Lexe is currently in CLOSED BETA. Join the waitlist at https://lexe.app to get access.
-
 Lexe is a self-custodial Lightning wallet with a secure cloud node that's always online, so you never miss a payment. Only you control your funds. We handle the infrastructure.
 
 Download Lexe and get started in minutes.
