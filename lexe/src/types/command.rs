@@ -99,7 +99,9 @@ impl From<command::NodeInfo> for NodeInfo {
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
     /// The expiration, in seconds, to encode into the invoice.
-    pub expiration_secs: u32,
+    /// If no duration is provided, the expiration time defaults to 86400
+    /// (1 day).
+    pub expiration_secs: Option<u32>,
 
     /// Optionally include an amount, in sats, to encode into the invoice.
     /// If no amount is provided, the sender will specify how much to pay.
@@ -168,8 +170,11 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
     type Error = anyhow::Error;
 
     fn try_from(req: CreateInvoiceRequest) -> anyhow::Result<Self> {
+        /// The default expiration we use if none is provided.
+        const DEFAULT_EXPIRATION_SECS: u32 = 60 * 60 * 24; // 1 day
+
         Ok(Self {
-            expiry_secs: req.expiration_secs,
+            expiry_secs: req.expiration_secs.unwrap_or(DEFAULT_EXPIRATION_SECS),
             amount: req.amount,
             description: req.description,
             // TODO(maurice): Add description_hash if we really need it.

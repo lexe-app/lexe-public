@@ -832,7 +832,8 @@ impl AsyncLexeWallet {
     }
 
     /// Create a BOLT11 invoice.
-    /// `expiration_secs` is the invoice expiry, in seconds.
+    /// `expiration_secs` is the optional invoice expiry, in seconds;
+    /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
     /// `payer_note` is an optional note received from the payer out-of-band
@@ -841,11 +842,12 @@ impl AsyncLexeWallet {
     #[uniffi::method(default(
         amount_sats = None,
         description = None,
+        expiration_secs = None,
         payer_note = None,
     ))]
     pub async fn create_invoice(
         &self,
-        expiration_secs: u32,
+        expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
         payer_note: Option<String>,
@@ -1178,7 +1180,8 @@ impl BlockingLexeWallet {
     }
 
     /// Create a BOLT11 invoice.
-    /// `expiration_secs` is the invoice expiry, in seconds.
+    /// `expiration_secs` is the optional invoice expiry, in seconds;
+    /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
     /// `payer_note` is an optional note received from the payer out-of-band
@@ -1191,7 +1194,7 @@ impl BlockingLexeWallet {
     ))]
     pub fn create_invoice(
         &self,
-        expiration_secs: u32,
+        expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
         payer_note: Option<String>,
