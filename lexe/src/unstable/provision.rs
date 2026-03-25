@@ -21,7 +21,7 @@ use tracing::{info, info_span, warn};
 use crate::{config::WalletEnv, types::auth::RootSeed};
 
 /// The contents of `public/releases.json`.
-pub static RELEASES_JSON: &str = include_str!("../../../releases.json");
+pub static RELEASES_JSON: &str = include_str!("../../data/releases.json");
 
 /// The measurements of the three latest trusted node releases.
 /// This is the set of measurements that we want to provision.

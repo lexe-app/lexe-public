@@ -192,7 +192,7 @@ pub mod fsext {
 }
 
 /// [`Ffs`]-related test utilities.
-#[cfg(feature = "test-utils")]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils {
     use std::{cell::RefCell, collections::BTreeMap, io};
 
