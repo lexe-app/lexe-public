@@ -373,7 +373,8 @@ mod test {
     #[test]
     fn client_credentials_deser_compat() {
         let snapshot =
-            fs::read_to_string("data/client_credentials_snapshot.txt").unwrap();
+            fs::read_to_string("test_data/client_credentials_snapshot.txt")
+                .unwrap();
 
         for input in snapshot::parse_sample_data(&snapshot) {
             let value1: ClientCredentials =
