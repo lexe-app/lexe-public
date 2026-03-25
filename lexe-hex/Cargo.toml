@@ -1,6 +1,6 @@
 [package]
 name = "lexe-hex"
-version = "0.1.1"
+version = "0.1.2"
 license = "MIT"
 description = "Opinionated hex encode/decode utilities"
 documentation = "https://docs.rs/lexe-hex"

@@ -1,6 +1,6 @@
 [package]
 name = "lexe-tls-core"
-version = "0.1.1"
+version = "0.1.2"
 license = "MIT"
 description = "Lexe rustls extension crate"
 documentation = "https://docs.rs/lexe-tls-core"

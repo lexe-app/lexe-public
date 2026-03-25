@@ -1,6 +1,6 @@
 [package]
 name = "lexe-common"
-version = "0.1.1"
+version = "0.1.2"
 license = "MIT"
 description = "Lexe common types, traits, and utilities"
 documentation = "https://docs.rs/lexe-common"
