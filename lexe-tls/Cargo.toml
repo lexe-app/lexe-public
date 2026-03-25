@@ -9,6 +9,9 @@ edition = { workspace = true }
 readme = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
+exclude = [
+    "/test_data"
+]
 publish = true
 
 # Config for testing in SGX
