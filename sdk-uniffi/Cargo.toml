@@ -1,6 +1,7 @@
 [package]
 name = "sdk-uniffi"
-version = "0.1.1"
+# Version is unused; pyproject.toml is the source of truth for Python releases.
+version = "0.0.0"
 license = "MIT"
 description = "Lexe SDK foreign language interface via UniFFI"
 documentation = "https://docs.rs/lexe-hex"
