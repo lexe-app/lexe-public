@@ -1,6 +1,6 @@
 [package]
 name = "lexe-api"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 description = "Lexe API types, definitions, client/server utils, and TLS config"
 documentation = "https://docs.rs/lexe-api"

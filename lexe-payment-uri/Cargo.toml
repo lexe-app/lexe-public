@@ -1,6 +1,6 @@
 [package]
 name = "lexe-payment-uri"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 description = "Parse and encode Bitcoin ecosystem payment URIs and strings"
 documentation = "https://docs.rs/lexe-payment-uri"

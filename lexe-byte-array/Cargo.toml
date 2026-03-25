@@ -1,6 +1,6 @@
 [package]
 name = "lexe-byte-array"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 description = "Byte array newtype trait"
 documentation = "https://docs.rs/lexe-byte-array"
