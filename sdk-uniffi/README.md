@@ -5,4 +5,4 @@ Rust.
 
 ## Supported languages
 
-* Python: <./README-PYTHON.md>
+* [Python](./README-PYTHON.md)
