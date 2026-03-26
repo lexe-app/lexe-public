@@ -12,6 +12,7 @@ self-custodial, always-online [Lexe](https://lexe.app) Lightning nodes.
 
 * [Quickstart guide](https://docs.lexe.tech/python/quickstart/)
 * [API reference](https://python.lexe.tech)
+* [GitHub repo](https://github.com/lexe-app/lexe-public/tree/master/sdk-uniffi)
 
 ```bash
 pip install lexe-sdk

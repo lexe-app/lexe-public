@@ -1,5 +1,6 @@
-//! Lexe Rust SDK.
-
+// Use README.md as module docs
+#![doc = include_str!("../README.md")]
+//
 // NOTE: Docs for all stable APIs (i.e. all public items accessible via this
 // crate) must be written for consumption by external users.
 //
@@ -10,7 +11,6 @@
 //   rendered in the public API docs at <rust.lexe.tech>.
 // - `///` comments are still preferred for private, crate-private, and unstable
 //   items.
-
 #![deny(missing_docs)]
 
 // --- Public API --- //

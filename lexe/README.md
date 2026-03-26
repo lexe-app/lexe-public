@@ -7,6 +7,13 @@
 [![MIT](https://img.shields.io/crates/l/lexe.svg)](../LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1151246286549434398)](https://discord.gg/zybuBYgdbr)
 
-This crate contains the source code for the Lexe Rust SDK.
-Users should refer to the main repository for documentation and examples here:
-<https://github.com/lexe-app/lexe-sdk>.
+The Lexe Rust SDK is the most powerful way for developers to control
+self-custodial, always-online [Lexe](https://lexe.app) Lightning nodes.
+
+* [Quickstart guide](https://docs.lexe.tech/rust/quickstart/)
+* [API reference](https://rust.lexe.tech)
+* [GitHub repo](https://github.com/lexe-app/lexe-public/tree/master/lexe)
+
+```bash
+cargo add lexe
+```
