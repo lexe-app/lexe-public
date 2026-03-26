@@ -1,5 +1,12 @@
 # Lexe Python SDK
 
+[![pypi.org](https://img.shields.io/pypi/v/lexe-sdk)](https://pypi.org/project/lexe-sdk/)
+[![pypi.org - requires-python](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Flexe-app%2Flexe-public%2Fmaster%2Fsdk-uniffi%2Fpyproject.toml)](https://pypi.org/project/lexe-sdk/)
+[![python.lexe.tech](https://img.shields.io/badge/docs-passing-brightgreen)](https://python.lexe.tech/)
+[![CI](https://img.shields.io/github/actions/workflow/status/lexe-app/lexe-public/.github%2Fworkflows%2Fci.yml)](https://github.com/lexe-app/lexe-public/actions/workflows/ci.yml)
+[![MIT](https://img.shields.io/pypi/l/lexe-sdk)](../LICENSE-MIT)
+[![Discord](https://img.shields.io/discord/1151246286549434398)](https://discord.gg/zybuBYgdbr)
+
 The Lexe Python SDK provides a Python interface for developers to control
 self-custodial, always-online [Lexe](https://lexe.app) Lightning nodes.
 

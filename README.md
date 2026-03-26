@@ -1,5 +1,10 @@
 # Lexe Public Monorepo
 
+[![crates.io](https://img.shields.io/crates/v/lexe.svg)](https://crates.io/crates/lexe)
+[![pypi.org](https://img.shields.io/pypi/v/lexe-sdk)](https://pypi.org/project/lexe-sdk/)
+[![CI](https://img.shields.io/github/actions/workflow/status/lexe-app/lexe-public/.github%2Fworkflows%2Fci.yml)](https://github.com/lexe-app/lexe-public/actions/workflows/ci.yml)
+[![Discord](https://img.shields.io/discord/1151246286549434398)](https://discord.gg/zybuBYgdbr)
+
 Lexe is a managed, non-custodial Lightning node and wallet based on Intel SGX.
 
 - [LDK](https://github.com/lightningdevkit/rust-lightning)-based Lightning node written in Rust
