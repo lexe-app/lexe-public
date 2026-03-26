@@ -660,6 +660,10 @@ mod test {
             assert_eq!(offer.to_string(), s);
             offer
         }
+        #[track_caller]
+        fn parse_err(s: &str) {
+            Offer::from_str(s).unwrap_err();
+        }
 
         // basically the smallest possible offer (just a node pubkey)
         let o = parse_ok(
@@ -695,11 +699,10 @@ mod test {
             "lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj",
         );
 
-        // offer_amount=Some(0) coerces to None
-        let o = parse_ok(
+        // offer_amount=Some(0) is invalid
+        parse_err(
             "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrcgqq9qq93pqvv5dla0t723qkw63fqr543d764z8xmkwkwlk7qq43easjcetsqjc",
         );
-        assert_eq!(o.amount(), None);
     }
 
     #[test]
