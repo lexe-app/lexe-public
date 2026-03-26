@@ -1,6 +1,6 @@
 [package]
 name = "lexe-api-core"
-version = "0.1.3"
+version = "0.1.4"
 license = "MIT"
 description = "Core Lexe API types and traits"
 documentation = "https://docs.rs/lexe-api-core"
