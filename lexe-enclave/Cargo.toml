@@ -1,6 +1,6 @@
 [package]
 name = "lexe-enclave"
-version = "0.1.2"
+version = "0.1.3"
 license = "MIT"
 description = "Lexe Intel SGX enclave types and platform functions"
 documentation = "https://docs.rs/lexe-enclave"

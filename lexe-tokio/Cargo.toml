@@ -1,6 +1,6 @@
 [package]
 name = "lexe-tokio"
-version = "0.1.2"
+version = "0.1.3"
 license = "MIT"
 description = "Lexe tokio extension crate"
 documentation = "https://docs.rs/lexe-tokio"

@@ -1,6 +1,6 @@
 [package]
 name = "lexe-sha256"
-version = "0.1.2"
+version = "0.1.3"
 license = "MIT"
 description = "Opinionated sha256 hashing via ring"
 documentation = "https://docs.rs/lexe-sha256"

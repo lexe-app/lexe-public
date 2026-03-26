@@ -1,6 +1,6 @@
 [package]
 name = "lexe-node-client"
-version = "0.1.2"
+version = "0.1.3"
 license = "MIT"
 description = "Client types used to connect to your Lexe Node"
 documentation = "https://docs.rs/lexe-node-client"
