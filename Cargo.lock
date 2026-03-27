@@ -2973,7 +2973,7 @@ dependencies = [
 
 [[package]]
 name = "lightning"
-version = "0.1.8"
+version = "0.2.2"
 dependencies = [
  "bech32",
  "bitcoin",
@@ -2981,6 +2981,7 @@ dependencies = [
  "hashbrown 0.13.2",
  "libm",
  "lightning-invoice",
+ "lightning-macros",
  "lightning-types",
  "musig2",
  "possiblyrandom",
@@ -2988,7 +2989,7 @@ dependencies = [
 
 [[package]]
 name = "lightning-invoice"
-version = "0.33.2"
+version = "0.34.0"
 dependencies = [
  "bech32",
  "bitcoin",
@@ -2997,7 +2998,7 @@ dependencies = [
 
 [[package]]
 name = "lightning-macros"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3006,7 +3007,7 @@ dependencies = [
 
 [[package]]
 name = "lightning-transaction-sync"
-version = "0.1.9"
+version = "0.2.1"
 dependencies = [
  "bitcoin",
  "esplora-client",
@@ -3017,7 +3018,7 @@ dependencies = [
 
 [[package]]
 name = "lightning-types"
-version = "0.2.0"
+version = "0.3.1"
 dependencies = [
  "bitcoin",
 ]
