@@ -279,6 +279,39 @@ impl RootSeed {
         NodePk(self.derive_node_key_pair().public_key())
     }
 
+    /// A secret key used by LDK to authenticate message contexts in received
+    /// `BlindedMessagePath`s.
+    ///
+    /// Used within LDK to create BOLT12 offers with a `BlindedMessagePath`.
+    ///
+    /// This method lets us derive this key without needing to derive all the
+    /// other auxiliary node secrets used in the LDK `KeysManager`.
+    //
+    // See: <https://github.com/lightningdevkit/rust-lightning/blob/714777567be2cfc3dc3a041fcaaff2a7f75b533c/lightning/src/sign/mod.rs#L2015>
+    // for how this is derived upstream.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn derive_receive_auth_key(&self) -> [u8; 32] {
+        // Derive the LDK seed first.
+        let ldk_seed = self.derive_ldk_seed();
+
+        // When deriving a secp256k1 key, the network doesn't matter.
+        // This is checked in when_does_network_matter.
+        let ldk_xprv = bip32::Xpriv::new_master(
+            bitcoin::Network::Bitcoin,
+            ldk_seed.expose_secret(),
+        )
+        .expect("should never fail; the sizes match up");
+
+        let m_7h = ChildNumber::from_hardened_idx(7)
+            .expect("should never fail; index is in range");
+        let sk = ldk_xprv
+            .derive_priv(&SECP256K1, &m_7h)
+            .expect("should never fail")
+            .private_key;
+
+        sk.secret_bytes()
+    }
+
     pub fn derive_vfs_master_key(&self) -> AesMasterKey {
         let secret = self.derive(&[b"vfs master key"]);
         AesMasterKey::new(secret.expose_secret())

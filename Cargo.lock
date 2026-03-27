@@ -2638,6 +2638,7 @@ dependencies = [
  "lexe-std",
  "lightning",
  "lightning-invoice",
+ "lightning-types",
  "proptest",
  "proptest-derive",
  "rand_core 0.6.4",

@@ -374,7 +374,6 @@ impl std::error::Error for ParseError {}
 mod arb {
     use std::{num::NonZeroU64, time::Duration};
 
-    use bitcoin::hashes::{Hash, Hmac};
     use lexe_common::{
         rng::FastRngDerefHack,
         root_seed::RootSeed,
@@ -389,6 +388,7 @@ mod arb {
         },
         ln::{channelmanager::PaymentId, inbound_payment::ExpandedKey},
         offers::{nonce::Nonce, offer::OfferBuilder},
+        sign::ReceiveAuthKey,
         types::payment::PaymentHash,
     };
     use proptest::{
@@ -408,37 +408,19 @@ mod arb {
         fn any_payment_id() -> impl Strategy<Value = PaymentId> {
             any::<[u8; 32]>().prop_map(PaymentId)
         }
-        fn any_hmac_sha256()
-        -> impl Strategy<Value = Hmac<bitcoin::hashes::sha256::Hash>> {
-            any::<[u8; 32]>().prop_map(Hmac::from_byte_array)
-        }
         fn any_payment_hash() -> impl Strategy<Value = PaymentHash> {
             any::<[u8; 32]>().prop_map(PaymentHash)
         }
 
-        let any_maybe_hmac = option::of(any_hmac_sha256());
-
         prop_oneof![
             any_nonce()
                 .prop_map(|nonce| OffersContext::InvoiceRequest { nonce }),
-            (any_payment_id(), any_nonce(), any_maybe_hmac).prop_map(
-                |(payment_id, nonce, hmac)| {
-                    OffersContext::OutboundPayment {
-                        payment_id,
-                        nonce,
-                        hmac,
-                    }
-                }
-            ),
-            (any_payment_hash(), any_nonce(), any_hmac_sha256()).prop_map(
-                |(payment_hash, nonce, hmac)| {
-                    OffersContext::InboundPayment {
-                        payment_hash,
-                        nonce,
-                        hmac,
-                    }
-                }
-            ),
+            (any_payment_id(), any_nonce()).prop_map(|(payment_id, nonce)| {
+                OffersContext::OutboundPayment { payment_id, nonce }
+            }),
+            any_payment_hash().prop_map(|payment_hash| {
+                OffersContext::InboundPayment { payment_hash }
+            }),
         ]
     }
 
@@ -538,9 +520,11 @@ mod arb {
         let root_seed = RootSeed::from_rng(&mut rng);
         let node_pk = root_seed.derive_node_pk();
         let expanded_key = ExpandedKey::new(rng.gen_bytes());
-
+        let receive_auth_key =
+            ReceiveAuthKey(root_seed.derive_receive_auth_key());
+        // Just normalize the amount to None | Some(x > 0)
+        let amount = amount.map(|x| x.msat()).filter(|x| *x != 0);
         let network = network.map(Network::to_bitcoin);
-        let amount = amount.map(|x| x.msat());
 
         let paths = paths
             .into_iter()
@@ -549,11 +533,11 @@ mod arb {
                 BlindedMessagePath::new(
                     intermediate_nodes.as_slice(),
                     recipient_node_id,
+                    receive_auth_key,
                     message_context,
                     FastRngDerefHack::from_rng(&mut rng),
                     &SECP256K1,
                 )
-                .unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -660,10 +644,6 @@ mod test {
             assert_eq!(offer.to_string(), s);
             offer
         }
-        #[track_caller]
-        fn parse_err(s: &str) {
-            Offer::from_str(s).unwrap_err();
-        }
 
         // basically the smallest possible offer (just a node pubkey)
         let o = parse_ok(
@@ -699,8 +679,10 @@ mod test {
             "lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj",
         );
 
-        // offer_amount=Some(0) is invalid
-        parse_err(
+        // TODO(phlip9): LDK 0.3+ and updated BOLT12 spec consider
+        // offer_amount=Some(0) invalid.
+        // See: <https://github.com/lightning/bolts/pull/1316>
+        parse_ok(
             "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrcgqq9qq93pqvv5dla0t723qkw63fqr543d764z8xmkwkwlk7qq43easjcetsqjc",
         );
     }

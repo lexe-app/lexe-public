@@ -1118,6 +1118,12 @@ where
     //   = ~ 436B blinded path overhead
 
     if let Some(amount) = req.amount {
+        if amount == Amount::ZERO {
+            return Err(anyhow!(
+                "Offer amount can't be zero. Don't set the amount if you want \
+                 a variable-amount offer."
+            ));
+        }
         builder = builder.amount_msats(amount.msat());
     }
     if let Some(description) = req.description {
