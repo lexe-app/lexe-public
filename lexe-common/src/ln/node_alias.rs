@@ -1,7 +1,8 @@
 use std::fmt::{self, Write};
 
 use lexe_serde::hexstr_or_bytes;
-use lightning::{routing::gossip::NodeAlias, util::string::PrintableString};
+use lightning::routing::gossip::NodeAlias;
+use lightning_types::string::PrintableString;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -51,21 +52,22 @@ impl fmt::Debug for LxNodeAlias {
 
 impl fmt::Display for LxNodeAlias {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bytes = &self.0;
-        let trimmed = bytes.split(|&b| b == 0).next().unwrap_or(bytes);
-
         // This block is basically copied from `NodeAlias`'s `Display` impl.
         // - If bytes are valid UTF-8, display its printable characters.
         // - If bytes are not UTF-8, display its printable ASCII characters.
-        match std::str::from_utf8(trimmed) {
-            Ok(s) => PrintableString(s).fmt(f)?,
+        let first_null =
+            self.0.iter().position(|b| *b == 0).unwrap_or(self.0.len());
+        let bytes = self.0.split_at(first_null).0;
+        match std::str::from_utf8(bytes) {
+            Ok(alias) => PrintableString(alias).fmt(f)?,
             Err(_) =>
-                for c in trimmed.iter().map(|b| *b as char) {
-                    if ('\x20'..='\x7e').contains(&c) {
-                        f.write_char(c)?;
+                for b in bytes.iter() {
+                    let c = if (b'\x20'..=b'\x7e').contains(b) {
+                        *b as char
                     } else {
-                        f.write_char(char::REPLACEMENT_CHARACTER)?;
-                    }
+                        char::REPLACEMENT_CHARACTER
+                    };
+                    f.write_char(c)?;
                 },
         }
 
