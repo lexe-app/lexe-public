@@ -18,7 +18,7 @@ use lexe_api::{
         runner::UserLeaseRenewalRequest,
     },
     server::LayerConfig,
-    types::{offer::Offer, ports::RunPorts, sealed_seed::SealedSeedId},
+    types::{ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_common::{
@@ -603,21 +603,17 @@ impl UserNode {
                     }
                     let username = resp.username;
 
-                    let description = format!("{}@lexe.app", username.inner());
-                    let builder = channel_manager
-                        .create_offer_builder(None)
-                        .map_err(|e| {
-                            anyhow!("Failed to create offer builder: {e:?}")
-                        })?;
-
-                    let offer = builder
-                        .description(description)
-                        .build()
-                        .map_err(|e| anyhow!("Failed to build offer: {e:?}"))?;
-                    let lx_offer = Offer(offer);
+                    let offer_req =
+                        lexe_ln::command::hba_offer_request(username.inner());
+                    let offer_resp = lexe_ln::command::create_offer(
+                        offer_req,
+                        &channel_manager,
+                    )
+                    .await
+                    .context("Failed to create HBA offer")?;
 
                     let req = ClaimGeneratedHumanBitcoinAddress {
-                        offer: lx_offer,
+                        offer: offer_resp.offer,
                         username,
                     };
                     persister

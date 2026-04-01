@@ -1061,6 +1061,23 @@ where
     })
 }
 
+/// Creates a [`CreateOfferRequest`] for an HBA (Human Bitcoin Address).
+///
+/// The resulting offer will have:
+/// - Description: `"Pay to ₿{username}@lexe.app"`
+/// - Issuer: `"₿{username}@lexe.app"`
+pub fn hba_offer_request(username: &str) -> CreateOfferRequest {
+    let hba = format!("₿{username}@lexe.app");
+    let description = format!("Pay to {hba}");
+    CreateOfferRequest {
+        expiry_secs: None,
+        amount: None,
+        description: Some(description),
+        max_quantity: None,
+        issuer: Some(hba),
+    }
+}
+
 #[instrument(skip_all, name = "(create-offer)")]
 pub async fn create_offer<CM, PS>(
     req: CreateOfferRequest,

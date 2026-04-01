@@ -639,17 +639,7 @@ pub(super) async fn update_human_bitcoin_address(
         .await
         .map_err(NodeApiError::command)?;
 
-    let bitcoin_address = format!("{}@lexe.app", req.username.inner());
-    let description = format!("Pay to {}", bitcoin_address);
-
-    let offer_req = CreateOfferRequest {
-        expiry_secs: None,
-        amount: None,
-        description: Some(description),
-        max_quantity: None,
-        issuer: Some(bitcoin_address),
-    };
-
+    let offer_req = lexe_ln::command::hba_offer_request(req.username.inner());
     let offer =
         lexe_ln::command::create_offer(offer_req, &state.channel_manager)
             .await
