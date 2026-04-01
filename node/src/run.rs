@@ -14,7 +14,10 @@ use lexe_api::{
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
     models::{
-        command::{ClaimGeneratedHumanBitcoinAddress, GDriveStatus},
+        command::{
+            ClaimGeneratedHumanBitcoinAddress, GDriveStatus,
+            UpdateHumanBitcoinAddress,
+        },
         runner::UserLeaseRenewalRequest,
     },
     server::LayerConfig,
@@ -1028,6 +1031,47 @@ impl UserNode {
             };
             let sweep_task = legacy_sweep::spawn_legacy_sweep_task(sweep_ctx);
             let _ = eph_tasks_tx.try_send(sweep_task);
+        }
+
+        // Migrate HBA offer to v2 format if needed.
+        // Before: description was "{username}@lexe.app"
+        // After: description is "Pay to ₿{username}@lexe.app"
+        if !initial_migrations.is_applied(migrations::MARKER_HBA_OFFER_V2) {
+            let token = persister.get_token().await?;
+            let hba = persister
+                .backend_api()
+                .get_human_bitcoin_address(token.clone())
+                .await
+                .context("get_human_bitcoin_address failed")?;
+
+            // Regenerate the offer if the user has an HBA.
+            if let Some(username) = hba.username {
+                info!("Migrating HBA offer to v2 format");
+
+                let offer_req =
+                    lexe_ln::command::hba_offer_request(username.inner());
+                let offer =
+                    lexe_ln::command::create_offer(offer_req, &channel_manager)
+                        .await
+                        .context("Failed to create HBA offer")?;
+
+                let req = UpdateHumanBitcoinAddress {
+                    username,
+                    offer: offer.offer,
+                };
+                persister
+                    .backend_api()
+                    .update_human_bitcoin_address(req, token)
+                    .await
+                    .context("update_human_bitcoin_address failed")?;
+            }
+
+            Migrations::mark_applied(
+                &*persister,
+                migrations::MARKER_HBA_OFFER_V2,
+            )
+            .await
+            .context("Failed to mark HBA offer v2 migration")?;
         }
 
         let elapsed = init_start.elapsed().as_millis();

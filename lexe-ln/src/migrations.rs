@@ -26,6 +26,12 @@ pub const MARKER_PAYMENTS_V2: &str = "payments_v2";
 /// sweep them to the new BIP39-compatible wallet.
 pub const MARKER_LEGACY_BDK: &str = "legacy_bdk";
 
+/// Marker for HBA offer v2 migration, introduced in node-v0.9.4.
+///
+/// Before this migration, HBA offers used description "{username}@lexe.app".
+/// After this migration, HBA offers use "Pay to ₿{username}@lexe.app".
+pub const MARKER_HBA_OFFER_V2: &str = "hba_offer_v2";
+
 /// Tracks which node/LSP migrations have been applied.
 ///
 /// Initialized at startup by reading all filenames from the `migrations/`
