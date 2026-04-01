@@ -75,7 +75,10 @@ mod amount_macros {
     #[macro_export]
     macro_rules! btc {
         ($amount:expr) => {
-            Amount::try_from_btc(dec!($amount)).unwrap()
+            $crate::ln::amount::Amount::try_from_btc(
+                $crate::rust_decimal_macros::dec!($amount),
+            )
+            .unwrap()
         };
     }
 
@@ -83,7 +86,7 @@ mod amount_macros {
     #[macro_export]
     macro_rules! sat {
         ($amount:expr) => {
-            Amount::from_sats_u32($amount)
+            $crate::ln::amount::Amount::from_sats_u32($amount)
         };
     }
 
@@ -91,7 +94,7 @@ mod amount_macros {
     #[macro_export]
     macro_rules! msat {
         ($amount:expr) => {
-            Amount::from_msat($amount)
+            $crate::ln::amount::Amount::from_msat($amount)
         };
     }
 }
