@@ -17,12 +17,12 @@ use lightning::{
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::user::{NodePk, Scid},
+    dec,
     ln::{amount::Amount, hashes::Txid},
 };
 

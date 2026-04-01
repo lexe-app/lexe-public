@@ -61,7 +61,6 @@ miniscript = { workspace = true }
 quick_cache = { workspace = true }
 reqwest = { workspace = true }
 rust_decimal = { workspace = true }
-rust_decimal_macros = { workspace = true }
 secrecy = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }

@@ -66,8 +66,9 @@ use std::{
 
 use anyhow::format_err;
 use rust_decimal::{Decimal, RoundingStrategy, prelude::ToPrimitive};
-use rust_decimal_macros::dec;
 use serde::{Deserialize, Deserializer, Serialize};
+
+use crate::dec;
 
 #[macro_use]
 mod amount_macros {
@@ -75,10 +76,8 @@ mod amount_macros {
     #[macro_export]
     macro_rules! btc {
         ($amount:expr) => {
-            $crate::ln::amount::Amount::try_from_btc(
-                $crate::rust_decimal_macros::dec!($amount),
-            )
-            .unwrap()
+            $crate::ln::amount::Amount::try_from_btc($crate::dec!($amount))
+                .unwrap()
         };
     }
 

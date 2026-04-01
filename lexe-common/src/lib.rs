@@ -16,9 +16,6 @@ use anyhow::anyhow;
 // Some re-exports to prevent having to re-declare dependencies
 pub use lexe_byte_array::ByteArray;
 pub use ref_cast::RefCast;
-// Re-export for `btc!()` and `sat!()` `Amount` macros to use
-#[doc(hidden)]
-pub use rust_decimal_macros;
 pub use secrecy::{ExposeSecret, Secret};
 
 /// API definitions, errors, clients, and structs sent across the wire.
@@ -27,6 +24,8 @@ pub mod api;
 pub mod byte_str;
 /// Application-level constants.
 pub mod constants;
+/// [`rust_decimal::Decimal`] extensions.
+pub mod decimal;
 /// [`dotenvy`] extensions.
 pub mod dotenv;
 /// `DeployEnv`.

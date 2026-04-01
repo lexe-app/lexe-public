@@ -5,12 +5,12 @@ use anyhow::Context;
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::user::NodePk,
+    dec,
     ln::{addr::LxSocketAddress, amount::Amount},
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 /// User node CLI args.

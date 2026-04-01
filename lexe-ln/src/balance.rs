@@ -2,11 +2,13 @@ use std::cmp;
 
 use anyhow::Context;
 use lexe_api::cli::LspFees;
-use lexe_common::ln::{amount::Amount, balance::LightningBalance};
+use lexe_common::{
+    dec,
+    ln::{amount::Amount, balance::LightningBalance},
+};
 use lexe_std::Apply;
 use lightning::ln::channel_state::ChannelDetails;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use tracing::{trace, warn};
 
 use crate::{alias::LexeChainMonitorType, traits::LexePersister};

@@ -65,7 +65,6 @@ rand_core = { workspace = true }
 ref-cast = { workspace = true }
 ring = { workspace = true }
 rust_decimal = { workspace = true }
-rust_decimal_macros = { workspace = true }
 secrecy = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true }

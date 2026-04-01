@@ -12,7 +12,7 @@ use either::Either;
 use lexe_api::{cli::LspInfo, types::invoice::Invoice};
 use lexe_common::{
     api::user::{NodePk, Scid},
-    debug_panic_release_log,
+    debug_panic_release_log, dec,
     ln::amount::Amount,
     rng::SysRngDerefHack,
     time::DisplayMs,
@@ -36,7 +36,6 @@ use lightning::{
 use lightning_invoice::{
     DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA, RouteHint, RouteHintHop, RoutingFees,
 };
-use rust_decimal_macros::dec;
 use tracing::{debug, info};
 
 use crate::{

@@ -59,7 +59,6 @@ lightning = { workspace = true }
 lightning-invoice = { workspace = true }
 ref-cast = { workspace = true }
 rust_decimal = { workspace = true }
-rust_decimal_macros = { workspace = true }
 secrecy = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["rc"] }
