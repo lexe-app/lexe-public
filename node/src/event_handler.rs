@@ -577,14 +577,6 @@ async fn do_handle_event(
 
         Event::HTLCHandlingFailed { .. } => {}
 
-        // The node does in fact forward (its own) HTLCs.
-        Event::PendingHTLCsForwardable { .. } =>
-            event::handle_pending_htlcs_forwardable(
-                ctx.channel_manager.clone(),
-                ctx.htlcs_forwarded_bus.clone(),
-                &ctx.eph_tasks_tx,
-            ),
-
         Event::SpendableOutputs {
             outputs,
             channel_id,

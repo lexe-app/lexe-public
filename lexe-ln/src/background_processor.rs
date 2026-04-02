@@ -16,6 +16,7 @@ use tracing::{Instrument, debug, error, info, info_span, trace, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
+    event::HtlcsForwarded,
     persister::LexePersisterMethods,
     traits::{
         LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
@@ -117,6 +118,7 @@ where
                         _ = process_events_timer.tick() =>
                             trace!("Triggered: process_events_timer ticked"),
                         () = channel_manager
+                            .deref()
                             .get_event_or_persistence_needed_future() =>
                             debug!("Triggered: Channel manager update"),
                         () = chain_monitor.get_update_future() =>
@@ -144,6 +146,7 @@ where
                         // can, especially without [async event processing]."
 
                         channel_manager
+                            .deref()
                             .process_pending_events_async(mk_event_handler_fut)
                             .instrument(info_span!("(events)(chan-man)"))
                             .await;
@@ -164,7 +167,7 @@ where
                             // TODO(phlip9): Consider sending a notification to
                             // the new `process_events` task and waiting for
                             // that to complete?
-                            peer_manager.process_events();
+                            peer_manager.deref().process_events();
                         }.instrument(info_span!("(events)(peer-man)")).await;
 
                         // If any HTLCs need forwarding, the channel manager's
@@ -175,31 +178,8 @@ where
                         // (1) batches HTLCs that arrive close together and
                         // (2) makes timing analysis harder, improving privacy.
                         // https://delvingbitcoin.org/t/latency-and-privacy-in-lightning/1723#p-5107-understanding-forwarding-delays-privacy-1
-                        //
-                        // TODO(max): Currently, the HTLC forwarding timer below
-                        // is disabled, as the LSP's `HTLCIntercepted` handler
-                        // currently relies on a `PendingHTLCsForwardable` event
-                        // to wait on HTLC forwarding via `htlcs_forwarded_bus`.
-                        // We can't just disable the `PendingHTLCsForwardable`
-                        // handling and replace it with the logic below, as
-                        // channel_manager.needs_pending_htlc_processing() is
-                        // only available in LDK v0.2, meaning that we'd have to
-                        // fall back to polling for HTLC forwards, which would
-                        // cause spurious wakeups of the HTLCIntercepted handler
-                        // before any HTLCs were actually forwarded. An
-                        // alternative approach is to have the HTLCIntercepted
-                        // poll for a change in the channel balance, but that's
-                        // hacky and not worth pursuing especially as we'll
-                        // switch back to the original behavior (waiting on
-                        // `htlcs_forwarded_bus`) once LDK v0.2 is released.
-                        // Thus, we leave in the PendingHTLCsForwardable-based
-                        // forwarding logic, and once we upgrade to LDK v0.2
-                        // which removes the PendingHTLCsForwardable event, we
-                        // can just delete all PendingHTLCsForwardable handling
-                        // logic and uncomment the if statement below.
-                        if false
-                        // if forward_delay_timer.is_none()
-                        //     && channel_manager.needs_pending_htlc_processing()
+                        if forward_delay_timer.is_none()
+                            && channel_manager.deref().needs_pending_htlc_processing()
                         {
                             let delay_ms =
                                 rng.gen_range_u32(forward_delay_range_ms.clone());
@@ -209,7 +189,7 @@ where
                             trace!("Started HTLC forward timer: {delay_ms}ms");
                         }
 
-                        if channel_manager.get_and_clear_needs_persistence() {
+                        if channel_manager.deref().get_and_clear_needs_persistence() {
                             let try_persist = persister
                                 .persist_manager(channel_manager.deref())
                                 .await;
@@ -246,17 +226,17 @@ where
                             .await
                     }, if forward_delay_timer.is_some() => {
                         debug!("Processing pending HTLC forwards");
-                        channel_manager.process_pending_htlc_forwards();
+                        channel_manager.deref().process_pending_htlc_forwards();
 
                         htlcs_forwarded_bus.send(HtlcsForwarded);
                         forward_delay_timer = None;
                     }
 
                     _ = pm_timer.tick() =>
-                        peer_manager.timer_tick_occurred(),
+                        peer_manager.deref().timer_tick_occurred(),
 
                     _ = cm_timer.tick() =>
-                        channel_manager.timer_tick_occurred(),
+                        channel_manager.deref().timer_tick_occurred(),
 
                     () = shutdown.recv() =>
                         break debug!("Background processor shutting down"),
@@ -269,7 +249,7 @@ where
             // corresponding ChannelManager updates being persisted.
             // This does not risk the loss of funds, but upon next boot the
             // ChannelManager may accidentally trigger a force close.
-            channel_manager.get_and_clear_needs_persistence();
+            channel_manager.deref().get_and_clear_needs_persistence();
             if let Err(e) = persister.persist_manager(&*channel_manager).await {
                 error!("Final channel manager persistence failure: {e:#}");
             }

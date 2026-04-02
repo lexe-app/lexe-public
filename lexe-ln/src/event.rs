@@ -673,44 +673,6 @@ pub fn handle_scorer_update(
 #[derive(Copy, Clone, Debug)]
 pub struct HtlcsForwarded;
 
-pub fn handle_pending_htlcs_forwardable<CM, PS>(
-    channel_manager: CM,
-    htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
-    eph_tasks_tx: &mpsc::Sender<LxTask<()>>,
-) where
-    CM: LexeChannelManager<PS>,
-    PS: LexePersister,
-{
-    // According to the API, we are supposed to wait some random time between
-    // `[time_forwardable, 5 * time_forwardable]` before forwarding HTLCs to
-    // "increase the effort required to correlate payments" (LDK sets
-    // `time_forwardable` to 100ms). But this provides minimal privacy benefit
-    // for us, so we opted out of this and started forwarding payments
-    // immediately. But then this drastically worsened payment latency because
-    // the delay allowed us to batch channel monitor persists in the case of MPP
-    // and some other cases.
-    // TODO(max): We're going with LDK's default of 100ms for now, but that
-    // obviously adds payment latency, so we should try to reduce this once we
-    // have a better understanding of what we're waiting for.
-    let delay = Duration::from_millis(100);
-    let delay_ms = DisplayMs(delay);
-    const SPAN_NAME: &str = "(pending-htlcs-forwardable)";
-    info_span!(SPAN_NAME, %delay_ms).in_scope(|| {
-        info!("Sleeping {delay_ms} before forwarding");
-
-        let task = LxTask::spawn_unlogged(SPAN_NAME, async move {
-            tokio::time::sleep(delay).await;
-            channel_manager.process_pending_htlc_forwards();
-            info!("Forwarded pending HTLCs");
-            htlcs_forwarded_bus.send(HtlcsForwarded);
-        });
-
-        if eph_tasks_tx.try_send(task).is_err() {
-            warn!("Couldn't send task");
-        }
-    });
-}
-
 /// Handles a [`Event::SpendableOutputs`] by spending any non-static outputs to
 /// our BDK wallet.
 //
