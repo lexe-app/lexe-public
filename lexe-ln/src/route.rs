@@ -27,7 +27,8 @@ use lightning::{
     routing::{
         router::{
             DefaultRouter, InFlightHtlcs, MAX_PATH_LENGTH_ESTIMATE, Payee,
-            PaymentParameters, Route, RouteParameters, Router,
+            PaymentParameters, Route, RouteParameters, RouteParametersConfig,
+            Router,
         },
         scoring::ProbabilisticScoringFeeParameters,
     },
@@ -43,6 +44,9 @@ use crate::{
     logger::LexeTracingLogger,
     traits::{LexeChannelManager, LexePersister},
 };
+
+// TODO(max): We may want to set a fee limit at some point
+const MAX_TOTAL_ROUTING_FEE_MSAT: Option<u64> = None;
 
 /// The default LDK [`Router`] impl with concrete Lexe types filled in.
 type DefaultRouterType = DefaultRouter<
@@ -377,9 +381,9 @@ impl RoutingContext {
         CM: LexeChannelManager<PS>,
         PS: LexePersister,
     {
-        let payer_pk = NodePk(channel_manager.deref().get_our_node_id());
-        let usable_channels = channel_manager.deref().list_usable_channels();
-        let in_flight_htlcs = channel_manager.deref().compute_inflight_htlcs();
+        let payer_pk = NodePk(channel_manager.get_our_node_id());
+        let usable_channels = channel_manager.list_usable_channels();
+        let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
 
         Self {
             payment_params,
@@ -395,12 +399,10 @@ impl RoutingContext {
         router: &LexeRouter,
         amount: Amount,
     ) -> anyhow::Result<(Route, RouteParameters)> {
-        // TODO(max): We may want to set a fee limit at some point
-        let max_total_routing_fee_msat = None;
         let route_params = RouteParameters {
             payment_params: self.payment_params.clone(),
             final_value_msat: amount.msat(),
-            max_total_routing_fee_msat,
+            max_total_routing_fee_msat: MAX_TOTAL_ROUTING_FEE_MSAT,
         };
 
         let usable_channels_refs =
@@ -417,6 +419,23 @@ impl RoutingContext {
             .map_err(anyhow::Error::msg)?;
 
         Ok((route, route_params))
+    }
+
+    /// The "high-level", "we handle everything" LDK channel manager payment
+    /// APIs require a [`RouteParametersConfig`]. Until we fully migrate all
+    /// payment paths off these APIs, add this helper so LDK-managed routing
+    /// will at least use somewhat consistent routing configs.
+    pub fn route_params_config(&self) -> RouteParametersConfig {
+        RouteParametersConfig {
+            max_total_routing_fee_msat: MAX_TOTAL_ROUTING_FEE_MSAT,
+            max_total_cltv_expiry_delta: self
+                .payment_params
+                .max_total_cltv_expiry_delta,
+            max_path_count: self.payment_params.max_path_count,
+            max_channel_saturation_power_of_half: self
+                .payment_params
+                .max_channel_saturation_power_of_half,
+        }
     }
 }
 

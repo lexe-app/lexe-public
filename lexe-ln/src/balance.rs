@@ -122,9 +122,7 @@ pub fn channel_balance<PS: LexePersister>(
 ) -> anyhow::Result<Amount> {
     use lightning::chain::channelmonitor::Balance;
 
-    let monitor = channel
-        .funding_txo
-        .and_then(|txo| chain_monitor.get_monitor(txo).ok());
+    let monitor = chain_monitor.get_monitor(channel.channel_id).ok();
     match monitor {
         Some(monitor) => {
             let amount_sats = monitor
@@ -134,18 +132,29 @@ pub fn channel_balance<PS: LexePersister>(
                     trace!("ln_balance: {b:?}");
                     match b {
                         Balance::ClaimableOnChannelClose {
-                            amount_satoshis,
-                            transaction_fee_satoshis,
+                            balance_candidates,
+                            confirmed_balance_candidate_index,
                             outbound_payment_htlc_rounded_msat: _,
                             outbound_forwarded_htlc_rounded_msat: _,
                             inbound_claiming_htlc_rounded_msat: _,
                             inbound_htlc_rounded_msat: _,
                         } => {
+                            let idx = confirmed_balance_candidate_index;
+                            let maybe_b = if idx != 0 {
+                                Some(&balance_candidates[idx])
+                            } else {
+                                balance_candidates.last()
+                            };
                             // Add back in the "reserved"
                             // `transaction_fee_satoshis` to make things more
                             // intuitive, i.e., open 10_000 sat channel, get
                             // 10_000 sats balance.
-                            amount_satoshis + transaction_fee_satoshis
+                            maybe_b
+                                .map(|b| {
+                                    b.amount_satoshis
+                                        + b.transaction_fee_satoshis
+                                })
+                                .unwrap_or(0)
                         }
                         Balance::ClaimableAwaitingConfirmations {
                             amount_satoshis,

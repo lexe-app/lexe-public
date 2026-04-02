@@ -34,6 +34,7 @@ pub type LexeChainMonitorType<PERSISTER> = ChainMonitor<
     Arc<FeeEstimatorType>,
     LexeTracingLogger,
     PERSISTER,
+    Arc<LexeKeysManager>,
 >;
 
 pub type LexeChannelManagerType<PERSISTER> = ChannelManager<
@@ -65,15 +66,19 @@ pub type LexeOnionMessengerType<CHANNEL_MANAGER> = OnionMessenger<
     IgnoringMessageHandler,
 >;
 
-pub type LexePeerManagerType<CHANNEL_MANAGER, RMH> = PeerManager<
+pub type LexePeerManagerType<CHANNEL_MANAGER, RMH, PERSISTER> = PeerManager<
     ConnectionTx,
     CHANNEL_MANAGER,
     // RoutingMessageHandler
     RMH,
+    // OnionMessageHandler
     Arc<LexeOnionMessengerType<CHANNEL_MANAGER>>,
     LexeTracingLogger,
+    // CustomMessageHandler
     Arc<IgnoringMessageHandler>,
     Arc<LexeKeysManager>,
+    // SendOnlyMessageHandler
+    Arc<LexeChainMonitorType<PERSISTER>>,
 >;
 
 // --- Full type aliases --- //

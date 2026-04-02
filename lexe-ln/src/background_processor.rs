@@ -118,7 +118,6 @@ where
                         _ = process_events_timer.tick() =>
                             trace!("Triggered: process_events_timer ticked"),
                         () = channel_manager
-                            .deref()
                             .get_event_or_persistence_needed_future() =>
                             debug!("Triggered: Channel manager update"),
                         () = chain_monitor.get_update_future() =>
@@ -146,7 +145,6 @@ where
                         // can, especially without [async event processing]."
 
                         channel_manager
-                            .deref()
                             .process_pending_events_async(mk_event_handler_fut)
                             .instrument(info_span!("(events)(chan-man)"))
                             .await;
@@ -167,7 +165,7 @@ where
                             // TODO(phlip9): Consider sending a notification to
                             // the new `process_events` task and waiting for
                             // that to complete?
-                            peer_manager.deref().process_events();
+                            peer_manager.process_events();
                         }.instrument(info_span!("(events)(peer-man)")).await;
 
                         // If any HTLCs need forwarding, the channel manager's
@@ -179,7 +177,7 @@ where
                         // (2) makes timing analysis harder, improving privacy.
                         // https://delvingbitcoin.org/t/latency-and-privacy-in-lightning/1723#p-5107-understanding-forwarding-delays-privacy-1
                         if forward_delay_timer.is_none()
-                            && channel_manager.deref().needs_pending_htlc_processing()
+                            && channel_manager.needs_pending_htlc_processing()
                         {
                             let delay_ms =
                                 rng.gen_range_u32(forward_delay_range_ms.clone());
@@ -189,9 +187,9 @@ where
                             trace!("Started HTLC forward timer: {delay_ms}ms");
                         }
 
-                        if channel_manager.deref().get_and_clear_needs_persistence() {
+                        if channel_manager.get_and_clear_needs_persistence() {
                             let try_persist = persister
-                                .persist_manager(channel_manager.deref())
+                                .persist_manager(&*channel_manager)
                                 .await;
                             if let Err(e) = try_persist {
                                 // Failing to persist the channel manager won't
@@ -226,17 +224,17 @@ where
                             .await
                     }, if forward_delay_timer.is_some() => {
                         debug!("Processing pending HTLC forwards");
-                        channel_manager.deref().process_pending_htlc_forwards();
+                        channel_manager.process_pending_htlc_forwards();
 
                         htlcs_forwarded_bus.send(HtlcsForwarded);
                         forward_delay_timer = None;
                     }
 
                     _ = pm_timer.tick() =>
-                        peer_manager.deref().timer_tick_occurred(),
+                        peer_manager.timer_tick_occurred(),
 
                     _ = cm_timer.tick() =>
-                        channel_manager.deref().timer_tick_occurred(),
+                        channel_manager.timer_tick_occurred(),
 
                     () = shutdown.recv() =>
                         break debug!("Background processor shutting down"),
@@ -249,7 +247,7 @@ where
             // corresponding ChannelManager updates being persisted.
             // This does not risk the loss of funds, but upon next boot the
             // ChannelManager may accidentally trigger a force close.
-            channel_manager.deref().get_and_clear_needs_persistence();
+            channel_manager.get_and_clear_needs_persistence();
             if let Err(e) = persister.persist_manager(&*channel_manager).await {
                 error!("Final channel manager persistence failure: {e:#}");
             }

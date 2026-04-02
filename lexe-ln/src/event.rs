@@ -9,12 +9,10 @@ use lexe_common::{
     api::test_event::TestEvent,
     ln::channel::{LxChannelId, LxUserChannelId},
     secp256k1_ctx::SECP256K1,
-    time::{DisplayMs, TimestampMs},
+    time::TimestampMs,
 };
 use lexe_crypto::rng::{RngExt, SysRng};
-use lexe_tokio::{
-    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
-};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},

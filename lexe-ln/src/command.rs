@@ -63,7 +63,10 @@ use lightning::{
     },
     ln::{
         channel_state::ChannelDetails,
-        channelmanager::{RecipientOnionFields, RetryableSendFailure},
+        channelmanager::{
+            OptionalOfferPaymentParams, RecipientOnionFields,
+            RetryableSendFailure,
+        },
         msgs::RoutingMessageHandler,
         types::ChannelId,
     },
@@ -527,9 +530,7 @@ where
         .context("No channel with this id")?;
 
     // If we haven't negotiated a funding_txo, the channel is free to close.
-    let monitor = channel
-        .funding_txo
-        .and_then(|txo| chain_monitor.get_monitor(txo).ok());
+    let monitor = chain_monitor.get_monitor(channel.channel_id).ok();
     let monitor = match monitor {
         Some(x) => x,
         None =>
@@ -547,26 +548,37 @@ where
 }
 
 /// Calculate the fees _we_ have to pay to close this channel.
-///
-/// TODO(phlip9): support v2/anchor channels
 fn our_close_tx_fees_sats(
     fee_estimates: &FeeEstimates,
     channel: &ChannelDetails,
     monitor: LockedChannelMonitor<'_, SignerType>,
 ) -> u64 {
     use lightning::chain::channelmonitor::Balance;
+
+    // See: LDK's `Balance::claimable_amount_satoshis`, which is similar but
+    // not the same.
     let our_sats: u64 = monitor
         .get_claimable_balances()
         .into_iter()
         .map(|b| match b {
             Balance::ClaimableOnChannelClose {
-                amount_satoshis,
-                transaction_fee_satoshis,
+                balance_candidates,
+                confirmed_balance_candidate_index,
                 outbound_payment_htlc_rounded_msat: _,
                 outbound_forwarded_htlc_rounded_msat: _,
                 inbound_claiming_htlc_rounded_msat: _,
                 inbound_htlc_rounded_msat: _,
-            } => amount_satoshis + transaction_fee_satoshis,
+            } => {
+                let idx = confirmed_balance_candidate_index;
+                let maybe_b = if idx != 0 {
+                    Some(&balance_candidates[idx])
+                } else {
+                    balance_candidates.last()
+                };
+                maybe_b
+                    .map(|b| b.amount_satoshis + b.transaction_fee_satoshis)
+                    .unwrap_or(0)
+            }
             Balance::ClaimableAwaitingConfirmations { .. } => 0,
             Balance::ContentiousClaimable { .. } => 0,
             Balance::MaybeTimeoutClaimableHTLC { .. } => 0,
@@ -583,7 +595,10 @@ fn our_close_tx_fees_sats(
     //
     // For our purposes, if we're not the funder and our output is also beneath
     // our dust limit, we'll just consider our remaining channel balance as part
-    // // of the close fee.
+    // of the close fee.
+    //
+    // TODO(phlip9): channel.is_outbound() will no longer be an accurate proxy
+    // for whether we have to pay the close fees once we move to splices.
     if !channel.is_outbound {
         let fee_sats = if our_sats <= constants::LDK_DUST_LIMIT_SATS.into() {
             our_sats
@@ -1087,24 +1102,23 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    // Make absolute expiry deadline.
-    let absolute_expiry = req.expiry_secs.map(|secs| {
-        let expiry = Duration::from_secs(u64::from(secs));
-        let expires_at = TimestampMs::now().saturating_add(expiry);
-        expires_at.to_duration()
-    });
-
     // Create the initial `OfferBuilder` with:
-    // + the given `absolute_expiry` deadline (if any).
     // + a blinded message path to us. built via
     //   `LexeMessageRouter::create_blinded_paths`.
     // + automatically derived offer metadata and signing keys.
     // + the given `max_quantity` (if unset, defaults to 1).
     let mut builder = channel_manager
-        .create_offer_builder(absolute_expiry)
+        .create_offer_builder()
         .map_err(|err| anyhow!("Failed to create offer builder: {err:?}"))?
         .supported_quantity(req.max_quantity.unwrap_or(MaxQuantity::ONE).into())
         .issuer(req.issuer.unwrap_or("lexe.app".to_owned()));
+
+    // Set absolute expiry deadline if requested.
+    if let Some(expiry_secs) = req.expiry_secs {
+        let expiry = Duration::from_secs(u64::from(expiry_secs));
+        let expires_at = TimestampMs::now().saturating_add(expiry);
+        builder = builder.absolute_expiry(expires_at.to_duration());
+    }
 
     // TODO(phlip9): don't add `chains` param when mainnet to save space
 
@@ -1155,7 +1169,11 @@ where
     let offer = req.offer.clone();
 
     // Pre-flight the offer payment (verify and partially route).
-    let PreflightedPayOffer { oopwm, route: _ } = preflight_pay_offer_inner(
+    let PreflightedPayOffer {
+        oopwm,
+        route: _,
+        routing_context,
+    } = preflight_pay_offer_inner(
         req,
         router,
         channel_manager,
@@ -1170,9 +1188,7 @@ where
     let payer_note = oopwm.metadata.payer_note.clone();
     // TODO(max): We should call chan_man.pay_for_offer_from_human_readable_name
     // below if the offer was resolved via BIP353.
-    let _payer_name = oopwm.metadata.payer_name.clone();
-    // Use default
-    let max_total_routing_fee_msat = None;
+    let _payer_name = &oopwm.metadata.payer_name;
 
     let id = oopwm.payment.id();
 
@@ -1186,14 +1202,18 @@ where
 
     // Instruct the LDK channel manager to pay this offer, letting LDK handle
     // fetching the BOLT12 Invoice, routing, and retrying.
+
+    let params = OptionalOfferPaymentParams {
+        route_params_config: routing_context.route_params_config(),
+        payer_note,
+        retry_strategy: OUTBOUND_PAYMENT_RETRY_STRATEGY,
+    };
+
     let result = channel_manager.pay_for_offer(
         &offer.0,
-        oopwm.metadata.quantity.map(NonZeroU64::get),
         Some(oopwm.payment.amount.msat()),
-        payer_note,
         oopwm.payment.ldk_id(),
-        OUTBOUND_PAYMENT_RETRY_STRATEGY,
-        max_total_routing_fee_msat,
+        params,
     );
 
     // Channel manager returned an error
@@ -1207,7 +1227,7 @@ where
             // payment id in the payments manager.
             LdkErr::DuplicatePaymentId => {
                 debug_panic_release_log!(
-                    "LDK believes offer payment is a duplicate, but we don't"
+                    "LDK believes offer payment is a duplicate, but Lexe does not"
                 );
                 LxErr::LexeErr
             }
@@ -1255,7 +1275,11 @@ where
         note: None,
         payer_note: None,
     };
-    let PreflightedPayOffer { oopwm, route } = preflight_pay_offer_inner(
+    let PreflightedPayOffer {
+        oopwm,
+        route,
+        routing_context: _,
+    } = preflight_pay_offer_inner(
         req,
         router,
         channel_manager,
@@ -1457,6 +1481,9 @@ where
 struct PreflightedPayOffer {
     oopwm: PaymentWithMetadata<OutboundOfferPaymentV2>,
     route: LxRoute,
+    // TODO(phlip9): remove this when we route and retry BOLT12 offer payments
+    // ourselves.
+    routing_context: RoutingContext,
 }
 
 async fn preflight_pay_offer_inner<CM, PS>(
@@ -1581,6 +1608,7 @@ where
     Ok(PreflightedPayOffer {
         oopwm,
         route: lx_route,
+        routing_context,
     })
 }
 

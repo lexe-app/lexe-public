@@ -74,7 +74,7 @@ where
 
 /// A 'trait alias' defining all the requirements of a Lexe peer manager.
 pub trait LexePeerManager<CM, PS, RMH>:
-    Clone + Send + Sync + 'static + Deref<Target = LexePeerManagerType<CM, RMH>>
+    Clone + Send + Sync + 'static + Deref<Target = LexePeerManagerType<CM, RMH, PS>>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -86,7 +86,7 @@ where
     /// Returns `true` if we're connected to a peer with `node_pk`.
     fn is_connected(&self, node_pk: &NodePk) -> bool {
         // TODO(max): This LDK fn is O(n) in the # of peers...
-        self.deref().peer_by_node_id(&node_pk.0).is_some()
+        self.peer_by_node_id(&node_pk.0).is_some()
     }
 }
 
@@ -96,7 +96,7 @@ where
         + Send
         + Sync
         + 'static
-        + Deref<Target = LexePeerManagerType<CM, RMH>>,
+        + Deref<Target = LexePeerManagerType<CM, RMH, PS>>,
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
     RMH: Deref,
