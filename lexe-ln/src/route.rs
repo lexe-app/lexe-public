@@ -23,7 +23,7 @@ use lightning::{
         BlindedPaymentPath, ForwardTlvs, PaymentConstraints,
         PaymentForwardNode, PaymentRelay, ReceiveTlvs,
     },
-    ln::{channel_state::ChannelDetails, msgs::LightningError},
+    ln::channel_state::ChannelDetails,
     routing::{
         router::{
             DefaultRouter, InFlightHtlcs, MAX_PATH_LENGTH_ESTIMATE, Payee,
@@ -131,7 +131,7 @@ impl Router for LexeRouter {
         route_params: &RouteParameters,
         first_hops: Option<&[&ChannelDetails]>,
         inflight_htlcs: InFlightHtlcs,
-    ) -> Result<Route, LightningError> {
+    ) -> Result<Route, &'static str> {
         // Just delegate to the default LDK impl.
         Router::find_route(
             self.default_router(),
@@ -152,7 +152,7 @@ impl Router for LexeRouter {
         recipient: secp256k1::PublicKey,
         first_hops: Vec<ChannelDetails>,
         tlvs: ReceiveTlvs,
-        _amount_msats: u64,
+        _amount_msats: Option<u64>,
         secp_ctx: &secp256k1::Secp256k1<T>,
     ) -> Result<Vec<BlindedPaymentPath>, ()> {
         let result = match self {
@@ -377,9 +377,9 @@ impl RoutingContext {
         CM: LexeChannelManager<PS>,
         PS: LexePersister,
     {
-        let payer_pk = NodePk(channel_manager.get_our_node_id());
-        let usable_channels = channel_manager.list_usable_channels();
-        let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
+        let payer_pk = NodePk(channel_manager.deref().get_our_node_id());
+        let usable_channels = channel_manager.deref().list_usable_channels();
+        let in_flight_htlcs = channel_manager.deref().compute_inflight_htlcs();
 
         Self {
             payment_params,
@@ -414,7 +414,7 @@ impl RoutingContext {
                 first_hops,
                 self.in_flight_htlcs.clone(),
             )
-            .map_err(|LightningError { err, action: _ }| anyhow!("{err}"))?;
+            .map_err(anyhow::Error::msg)?;
 
         Ok((route, route_params))
     }

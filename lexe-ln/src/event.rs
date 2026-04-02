@@ -112,13 +112,18 @@ impl EventExt for Event {
             Event::PaymentForwarded { .. } => "PaymentForwarded",
             Event::HTLCIntercepted { .. } => "HTLCIntercepted",
             Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
-            Event::PendingHTLCsForwardable { .. } => "PendingHTLCsForwardable",
             Event::SpendableOutputs { .. } => "SpendableOutputs",
             Event::DiscardFunding { .. } => "DiscardFunding",
             Event::BumpTransaction { .. } => "BumpTransaction",
             Event::OnionMessageIntercepted { .. } => "OnionMessageIntercepted",
             Event::OnionMessagePeerConnected { .. } =>
                 "OnionMessagePeerConnected",
+            Event::FundingTransactionReadyForSigning { .. } =>
+                "FundingTransactionReadyForSigning",
+            Event::PersistStaticInvoice { .. } => "PersistStaticInvoice",
+            Event::SpliceFailed { .. } => "SpliceFailed",
+            Event::SplicePending { .. } => "SplicePending",
+            Event::StaticInvoiceRequested { .. } => "StaticInvoiceRequested",
         }
     }
 
@@ -497,7 +502,7 @@ where
         .or_else(|create_err| {
             // Make sure we force close the channel.
             channel_manager
-                .force_close_without_broadcasting_txn(
+                .force_close_broadcasting_latest_txn(
                     &temporary_channel_id,
                     &counterparty_node_id,
                     "Failed to create channel funding transaction".to_owned(),

@@ -13,6 +13,7 @@ use lightning::{
     ln::msgs::SocketAddress,
     onion_message::messenger::{Destination, MessageRouter, OnionMessagePath},
     routing::gossip::NodeId,
+    sign::ReceiveAuthKey,
 };
 
 use crate::alias::NetworkGraphType;
@@ -88,7 +89,7 @@ impl MessageRouter for LexeMessageRouter {
             return Ok(OnionMessagePath {
                 intermediate_nodes: vec![],
                 destination,
-                first_node_addresses: None,
+                first_node_addresses: vec![],
             });
         }
 
@@ -103,7 +104,7 @@ impl MessageRouter for LexeMessageRouter {
                     Ok(OnionMessagePath {
                         intermediate_nodes: vec![],
                         destination,
-                        first_node_addresses: None,
+                        first_node_addresses: vec![],
                     })
                 } else {
                     // TODO(phlip9): user nodes could reject an intro_node that
@@ -121,7 +122,7 @@ impl MessageRouter for LexeMessageRouter {
                     Ok(OnionMessagePath {
                         intermediate_nodes: vec![*lsp_node_pk],
                         destination,
-                        first_node_addresses: None,
+                        first_node_addresses: vec![],
                     })
                 }
             }
@@ -161,7 +162,7 @@ impl MessageRouter for LexeMessageRouter {
                         .map(|addrs| OnionMessagePath {
                             intermediate_nodes: vec![],
                             destination,
-                            first_node_addresses: Some(addrs),
+                            first_node_addresses: addrs,
                         })
                         .ok_or(()),
                     // This could either be (1) an unannounced external node or
@@ -171,7 +172,7 @@ impl MessageRouter for LexeMessageRouter {
                     None => Ok(OnionMessagePath {
                         intermediate_nodes: vec![],
                         destination,
-                        first_node_addresses: None,
+                        first_node_addresses: vec![],
                     }),
                 }
             }
@@ -183,8 +184,9 @@ impl MessageRouter for LexeMessageRouter {
     fn create_blinded_paths<T: secp256k1::Signing + secp256k1::Verification>(
         &self,
         recipient: secp256k1::PublicKey,
+        receive_key: ReceiveAuthKey,
         context: MessageContext,
-        _peers: Vec<secp256k1::PublicKey>,
+        _peers: Vec<MessageForwardNode>,
         secp_ctx: &secp256k1::Secp256k1<T>,
     ) -> Result<Vec<BlindedMessagePath>, ()> {
         // LDK default `create_blinded_paths` tries to be too smart and breaks
@@ -195,7 +197,7 @@ impl MessageRouter for LexeMessageRouter {
         // - The LSP is a public node, so doesn't need any privacy.
         // - User nodes are always connected to the LSP, so we can just
         //   unconditionally return a blinded path from LSP -> User node.
-        let result = match &self.kind {
+        let path = match &self.kind {
             // Node => Always return a single blinded path: LSP -> User node
             Kind::Node { lsp_info } => BlindedMessagePath::new(
                 // LSP is the introductory node
@@ -204,6 +206,7 @@ impl MessageRouter for LexeMessageRouter {
                     short_channel_id: None,
                 }],
                 recipient,
+                receive_key,
                 context,
                 SysRngDerefHack::new(),
                 secp_ctx,
@@ -212,13 +215,14 @@ impl MessageRouter for LexeMessageRouter {
             // with itself as the introductory node.
             Kind::Lsp => BlindedMessagePath::one_hop(
                 recipient,
+                receive_key,
                 context,
                 SysRngDerefHack::new(),
                 secp_ctx,
             ),
         };
 
-        result.map(|path| vec![path])
+        Ok(vec![path])
     }
 
     // `create_compact_blinded_paths` just uses `create_blinded_paths`.

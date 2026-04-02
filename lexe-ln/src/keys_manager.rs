@@ -3,21 +3,21 @@ use bitcoin::{
     absolute,
     blockdata::transaction::{Transaction, TxOut},
     secp256k1::{
-        PublicKey, Secp256k1, Signing, ecdh, ecdsa, scalar::Scalar, schnorr,
+        All, PublicKey, Secp256k1, ecdh, ecdsa, scalar::Scalar, schnorr,
     },
 };
 use lexe_common::{api::user::NodePk, root_seed::RootSeed};
 use lexe_crypto::rng::{Crng, RngExt};
 use lightning::{
     ln::{
-        inbound_payment::ExpandedKey,
-        msgs::{DecodeError, UnsignedGossipMessage},
+        inbound_payment::ExpandedKey, msgs::UnsignedGossipMessage,
         script::ShutdownScript,
     },
     offers::invoice::UnsignedBolt12Invoice,
     sign::{
         EntropySource, InMemorySigner, KeysManager, NodeSigner, OutputSpender,
-        Recipient, SignerProvider, SpendableOutputDescriptor,
+        PeerStorageKey, ReceiveAuthKey, Recipient, SignerProvider,
+        SpendableOutputDescriptor,
     },
 };
 use lightning_invoice::RawBolt11Invoice;
@@ -61,10 +61,14 @@ impl LexeKeysManager {
         // to seed an CRNG. We just provide random values from our system CRNG.
         let random_secs = rng.gen_u64();
         let random_nanos = rng.gen_u32();
+        // new channels will force close to one of 2000 static spks.
+        // NOTE(phlip9): not safe to downgrade node from LDK v0.2.2 -> v0.1.7
+        let v2_remote_key_derivation = true;
         let inner = KeysManager::new(
             ldk_seed.expose_secret(),
             random_secs,
             random_nanos,
+            v2_remote_key_derivation,
         );
 
         Ok(Self { inner, wallet })
@@ -115,14 +119,14 @@ impl LexeKeysManager {
     ///
     /// [`StaticOutput`]: lightning::sign::SpendableOutputDescriptor::StaticOutput
     /// [ldk-node's implementation]: https://github.com/lightningdevkit/ldk-node/blob/3c7dac9d01ffdf66705b4a27ac699ab3d83c77f6/src/wallet.rs#L361-L378
-    pub fn spend_spendable_outputs<C: Signing>(
+    pub fn spend_spendable_outputs(
         &self,
         descriptors: &[&SpendableOutputDescriptor],
         outputs: Vec<TxOut>,
         change_destination_script: bitcoin::ScriptBuf,
         feerate_sat_per_1000_weight: u32,
         maybe_locktime: Option<absolute::LockTime>,
-        secp_ctx: &Secp256k1<C>,
+        secp_ctx: &Secp256k1<All>,
     ) -> anyhow::Result<Option<Transaction>> {
         let num_outputs = descriptors.len();
         debug!("spend_spendable_outputs spending {num_outputs} outputs");
@@ -167,10 +171,6 @@ impl EntropySource for LexeKeysManager {
 }
 
 impl NodeSigner for LexeKeysManager {
-    fn get_inbound_payment_key(&self) -> ExpandedKey {
-        self.inner.get_inbound_payment_key()
-    }
-
     fn get_node_id(&self, recipient: Recipient) -> Result<PublicKey, ()> {
         self.inner.get_node_id(recipient)
     }
@@ -205,6 +205,29 @@ impl NodeSigner for LexeKeysManager {
     ) -> Result<ecdsa::Signature, ()> {
         self.inner.sign_gossip_message(msg)
     }
+
+    /// NOTE(phlip9): these keys would allow us to create invoices outside the
+    /// node (without any communication, even offline!). we would probably
+    /// export the original input key material `[u8; 32]` and rederive the
+    /// child keys.
+    fn get_expanded_key(&self) -> ExpandedKey {
+        self.inner.get_expanded_key()
+    }
+
+    fn get_peer_storage_key(&self) -> PeerStorageKey {
+        self.inner.get_peer_storage_key()
+    }
+
+    /// NOTE(phlip9): this key would also be required to build BOLT12 offers
+    /// outside the node, though we would need to know the current
+    /// `lsp_info.node_pk`.
+    fn get_receive_auth_key(&self) -> ReceiveAuthKey {
+        self.inner.get_receive_auth_key()
+    }
+
+    fn sign_message(&self, msg: &[u8]) -> Result<String, ()> {
+        self.inner.sign_message(msg)
+    }
 }
 
 impl SignerProvider for LexeKeysManager {
@@ -214,30 +237,17 @@ impl SignerProvider for LexeKeysManager {
     fn generate_channel_keys_id(
         &self,
         inbound: bool,
-        channel_value_satoshis: u64,
         user_channel_id: u128,
     ) -> [u8; 32] {
-        self.inner.generate_channel_keys_id(
-            inbound,
-            channel_value_satoshis,
-            user_channel_id,
-        )
+        self.inner
+            .generate_channel_keys_id(inbound, user_channel_id)
     }
 
     fn derive_channel_signer(
         &self,
-        channel_value_satoshis: u64,
         channel_keys_id: [u8; 32],
     ) -> Self::EcdsaSigner {
-        self.inner
-            .derive_channel_signer(channel_value_satoshis, channel_keys_id)
-    }
-
-    fn read_chan_signer(
-        &self,
-        reader: &[u8],
-    ) -> Result<Self::EcdsaSigner, DecodeError> {
-        self.inner.read_chan_signer(reader)
+        self.inner.derive_channel_signer(channel_keys_id)
     }
 
     /// Returns the scriptpubkey that we should receive time-locked, contestible
@@ -289,10 +299,12 @@ mod test {
         )| {
             let root_seed_node_pk = root_seed.derive_node_pk();
 
+            let v2_remote_key_derivation = true;
             let keys_manager = KeysManager::new(
                 root_seed.derive_ldk_seed().expose_secret(),
                 rng.gen_u64(),
                 rng.gen_u32(),
+                v2_remote_key_derivation,
             );
             let keys_manager_node_pk = keys_manager
                 .get_node_id(Recipient::Node)
