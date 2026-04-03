@@ -308,7 +308,7 @@ mod tests {
             &OnionMessagePath {
                 intermediate_nodes: vec![],
                 destination: Destination::Node(lsp_pk),
-                first_node_addresses: None,
+                first_node_addresses: vec![],
             },
         );
 
@@ -322,7 +322,7 @@ mod tests {
             &OnionMessagePath {
                 intermediate_nodes: vec![lsp_pk],
                 destination: Destination::Node(external_pk),
-                first_node_addresses: None,
+                first_node_addresses: vec![],
             },
         );
     }
@@ -347,7 +347,7 @@ mod tests {
             &OnionMessagePath {
                 intermediate_nodes: vec![],
                 destination: Destination::Node(external_pk),
-                first_node_addresses: None,
+                first_node_addresses: vec![],
             },
         );
 
@@ -363,7 +363,7 @@ mod tests {
                 intermediate_nodes: vec![],
                 destination: Destination::Node(external_pk),
                 // Should lazy connect to indirect external peer
-                first_node_addresses: Some(dummy_supported_external_addrs()),
+                first_node_addresses: dummy_supported_external_addrs(),
             },
         );
 
@@ -378,7 +378,7 @@ mod tests {
             &OnionMessagePath {
                 intermediate_nodes: vec![],
                 destination: Destination::Node(user_pk),
-                first_node_addresses: None,
+                first_node_addresses: vec![],
             },
         );
 
@@ -392,9 +392,14 @@ mod tests {
             Nonce::from_entropy_source(FastRngDerefHack::from_u64(12354654));
         let msg_ctx =
             MessageContext::Offers(OffersContext::InvoiceRequest { nonce });
-        let peers = vec![lsp_pk];
+        let peers = vec![MessageForwardNode {
+            node_id: lsp_pk,
+            short_channel_id: None,
+        }];
+        let user_pk = dummy_user_pk();
+        let recv_key = dummy_recv_key();
         let blinded_path = user_router
-            .create_blinded_paths(dummy_user_pk(), msg_ctx, peers, &SECP256K1)
+            .create_blinded_paths(user_pk, recv_key, msg_ctx, peers, &SECP256K1)
             .unwrap()
             .into_iter()
             .next()
@@ -412,7 +417,7 @@ mod tests {
             &OnionMessagePath {
                 intermediate_nodes: vec![],
                 destination,
-                first_node_addresses: None,
+                first_node_addresses: vec![],
             },
         );
     }
@@ -449,10 +454,11 @@ mod tests {
         network_graph
             .add_channel_from_partial_announcement(
                 12345,      // scid
+                None,       // capacity
                 1234567890, // timestamp
                 ChannelFeatures::empty(),
-                external_pk,
-                dummy_external_pk_2(),
+                NodeId::from_pubkey(&external_pk),
+                NodeId::from_pubkey(&dummy_external_pk_2()),
             )
             .unwrap();
 
@@ -508,6 +514,10 @@ mod tests {
     fn dummy_user_pk() -> PublicKey {
         let s = "03cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebab9";
         PublicKey::from_str(s).unwrap()
+    }
+
+    fn dummy_recv_key() -> ReceiveAuthKey {
+        ReceiveAuthKey(*b"asdfasdfasdfasdfasdfasdfasdfasdf")
     }
 
     fn dummy_supported_external_addrs() -> Vec<SocketAddress> {
