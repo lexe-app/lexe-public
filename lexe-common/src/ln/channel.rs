@@ -28,7 +28,8 @@ use crate::{
 
 /// A newtype for [`lightning::ln::types::ChannelId`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 

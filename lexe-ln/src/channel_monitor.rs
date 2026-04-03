@@ -1,16 +1,17 @@
 use std::{
-    collections::HashMap,
-    fmt::{self, Display},
-    mem,
-    sync::Arc,
-    time::Duration,
+    collections::HashMap, fmt, mem, str::FromStr, sync::Arc, time::Duration,
 };
 
 use anyhow::{Context, anyhow};
 use futures::{StreamExt, stream::FuturesUnordered};
-use lexe_common::ln::channel::LxOutPoint;
+use lexe_common::ln::channel::{LxChannelId, LxOutPoint};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use lightning::chain::transaction::OutPoint;
+use lightning::{
+    chain::transaction::OutPoint, ln::types::ChannelId,
+    util::persist::MonitorName,
+};
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span};
 
@@ -73,10 +74,12 @@ where
     updates_buf: Vec<LxChannelMonitorUpdate>,
 
     /// Per-channel monitor persist state.
-    chanmon_persist_states: HashMap<LxOutPoint, MonitorPersistState>,
+    chanmon_persist_states: HashMap<LxChannelId, MonitorPersistState>,
 
     /// Active persist operations that are currently in-flight.
-    active_persists: FuturesUnordered<LxTask<Result<LxOutPoint, FatalError>>>,
+    active_persists: FuturesUnordered<
+        LxTask<Result<(LxChannelId, LxMonitorName), FatalError>>,
+    >,
 
     /// The number of in-flight pending persists. This is
     /// `active_persists.len()` but doesn't require traversing the whole queue.
@@ -108,7 +111,8 @@ struct MonitorPersistState {
 /// the entire channel monitor, we can persist once and notify the chain monitor
 /// for all updates in the batch.
 struct UpdateBatch {
-    funding_txo: LxOutPoint,
+    channel_id: LxChannelId,
+    monitor_name: LxMonitorName,
     update_ids: Vec<u64>,
     span: tracing::Span,
 }
@@ -117,7 +121,8 @@ struct UpdateBatch {
 pub struct LxChannelMonitorUpdate {
     #[allow(dead_code)] // Conceptually part of the update.
     kind: ChannelMonitorUpdateKind,
-    funding_txo: LxOutPoint,
+    channel_id: LxChannelId,
+    monitor_name: LxMonitorName,
     /// The ID of the channel monitor update, given by
     /// [`ChannelMonitorUpdate::update_id`] or
     /// [`ChannelMonitor::get_latest_update_id`].
@@ -133,6 +138,17 @@ pub struct LxChannelMonitorUpdate {
 pub enum ChannelMonitorUpdateKind {
     New,
     Updated,
+}
+
+/// Exactly [`MonitorName`] but uses our newtypes. This needs to support
+/// deserializing from the actual channel monitor filename, so it can't always
+/// contain the `channel_id`. We need a newtype here as [`LxOutPoint`] has a
+/// different serialization from LDK's `OutPoint` for historical reasons.
+#[derive(Copy, Clone)]
+#[cfg_attr(test, derive(Debug, Eq, PartialEq, Arbitrary))]
+pub enum LxMonitorName {
+    V1Channel(LxOutPoint),
+    V2Channel(LxChannelId),
 }
 
 /// A fatal error that occurs during channel monitor persistence.
@@ -272,7 +288,7 @@ where
     fn handle_update(&mut self, batch: UpdateBatch) {
         let state = self
             .chanmon_persist_states
-            .entry(batch.funding_txo)
+            .entry(batch.channel_id)
             .or_insert_with(|| MonitorPersistState {
                 is_persisting: false,
                 queued_update_ids: Vec::new(),
@@ -310,20 +326,25 @@ where
     /// Handle the completion of a channel monitor persist task.
     async fn handle_persist_completion(
         &mut self,
-        result: Result<Result<LxOutPoint, FatalError>, tokio::task::JoinError>,
+        result: Result<
+            Result<(LxChannelId, LxMonitorName), FatalError>,
+            tokio::task::JoinError,
+        >,
     ) -> Result<(), FatalError> {
         self.num_active_persists -= 1;
 
-        let funding_txo = result.map_err(|_| FatalError).and_then(|r| r)?;
+        let (channel_id, monitor_name) =
+            result.map_err(|_| FatalError).and_then(|r| r)?;
 
         // If there's another queued update for this channel, spawn another
         // persist task for it. Otherwise, reset `is_persisting` back to false.
-        if let Some(state) = self.chanmon_persist_states.get_mut(&funding_txo) {
+        if let Some(state) = self.chanmon_persist_states.get_mut(&channel_id) {
             if !state.queued_update_ids.is_empty() {
                 let span = state.span.clone();
                 let updates = mem::take(&mut state.queued_update_ids);
                 let batch = UpdateBatch {
-                    funding_txo,
+                    channel_id,
+                    monitor_name,
                     update_ids: updates,
                     span,
                 };
@@ -354,7 +375,7 @@ where
                 {
                     if self.channel_manager.get_and_clear_needs_persistence() {
                         let try_persist = self.persister
-                            .persist_manager(self.channel_manager.deref())
+                            .persist_manager(&*self.channel_manager)
                             .await;
                         if let Err(e) = try_persist {
                             error!("(Quiescence) manager persist error: {e:#}");
@@ -410,7 +431,7 @@ where
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
         batch: UpdateBatch,
-    ) -> Result<LxOutPoint, FatalError> {
+    ) -> Result<(LxChannelId, LxMonitorName), FatalError> {
         debug!("Handling channel monitor update");
 
         let result = Self::persist_monitor_batch_inner(
@@ -423,7 +444,7 @@ where
         match result {
             Ok(()) => {
                 info!("Success: persisted monitor");
-                Ok(batch.funding_txo)
+                Ok((batch.channel_id, batch.monitor_name))
             }
             Err(e) => {
                 error!("Fatal: Monitor persist error: {e:#}");
@@ -438,8 +459,10 @@ where
         batch: &UpdateBatch,
     ) -> anyhow::Result<()> {
         // Persist the entire channel monitor.
+        let channel_id = &batch.channel_id;
+        let monitor_name = &batch.monitor_name;
         persister
-            .persist_channel_monitor(chain_monitor, &batch.funding_txo)
+            .persist_channel_monitor(chain_monitor, channel_id, monitor_name)
             .await
             .context("persist_channel_monitor failed")?;
 
@@ -453,9 +476,11 @@ where
         //   channel be reenabled and the BGP woken to process events via the
         //   chain monitor future.
         for update_id in &batch.update_ids {
-            let funding_txo_ldk = OutPoint::from(batch.funding_txo);
             chain_monitor
-                .channel_monitor_updated(funding_txo_ldk, *update_id)
+                .channel_monitor_updated(
+                    ChannelId::from(batch.channel_id),
+                    *update_id,
+                )
                 .map_err(|e| {
                     anyhow!("channel_monitor_updated returned Err: {e:?}")
                 })?;
@@ -470,15 +495,17 @@ where
 impl LxChannelMonitorUpdate {
     pub fn new(
         kind: ChannelMonitorUpdateKind,
-        funding_txo: LxOutPoint,
+        channel_id: LxChannelId,
+        monitor_name: LxMonitorName,
         update_id: u64,
     ) -> Self {
         let span =
-            info_span!("(monitor-update)", %kind, %funding_txo, %update_id);
+            info_span!("(monitor-update)", %kind, %channel_id, %update_id);
 
         Self {
             kind,
-            funding_txo,
+            channel_id,
+            monitor_name,
             update_id,
             span,
         }
@@ -495,11 +522,57 @@ impl LxChannelMonitorUpdate {
 
 // --- impl ChannelMonitorUpdateKind --- //
 
-impl Display for ChannelMonitorUpdateKind {
+impl fmt::Display for ChannelMonitorUpdateKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::New => write!(f, "new"),
             Self::Updated => write!(f, "updated"),
+        }
+    }
+}
+
+// --- impl LxMonitorName --- //
+
+impl From<MonitorName> for LxMonitorName {
+    fn from(value: MonitorName) -> Self {
+        match value {
+            MonitorName::V1Channel(funding_txo) =>
+                Self::V1Channel(LxOutPoint::from(funding_txo)),
+            MonitorName::V2Channel(channel_id) =>
+                Self::V2Channel(LxChannelId::from(channel_id)),
+        }
+    }
+}
+
+impl From<LxMonitorName> for MonitorName {
+    fn from(value: LxMonitorName) -> Self {
+        match value {
+            LxMonitorName::V1Channel(funding_txo) =>
+                Self::V1Channel(OutPoint::from(funding_txo)),
+            LxMonitorName::V2Channel(channel_id) =>
+                Self::V2Channel(ChannelId::from(channel_id)),
+        }
+    }
+}
+
+impl fmt::Display for LxMonitorName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::V1Channel(funding_txo) => fmt::Display::fmt(funding_txo, f),
+            Self::V2Channel(channel_id) => fmt::Display::fmt(channel_id, f),
+        }
+    }
+}
+
+impl FromStr for LxMonitorName {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() == 64 {
+            LxChannelId::from_str(s)
+                .map(Self::V2Channel)
+                .context("Invalid channel id")
+        } else {
+            LxOutPoint::from_str(s).map(Self::V1Channel)
         }
     }
 }
@@ -515,21 +588,49 @@ mod helpers {
     ) -> impl Iterator<Item = UpdateBatch> + '_ {
         // Group by funding_txo. Technically we don't need to sort the
         // update_ids, but it probably helps keep us on the happy path.
-        updates.sort_unstable_by_key(|u| (u.funding_txo, u.update_id));
+        updates.sort_unstable_by_key(|u| (u.channel_id, u.update_id));
         updates
-            .chunk_by(|a, b| a.funding_txo == b.funding_txo)
+            .chunk_by(|a, b| a.channel_id == b.channel_id)
             .map(|chunk| {
                 let last = chunk.last().expect("chunk is non-empty");
-                let funding_txo = last.funding_txo;
                 let span = last.span();
                 let update_ids: Vec<u64> =
                     chunk.iter().map(|u| u.update_id).collect();
 
                 UpdateBatch {
-                    funding_txo,
+                    channel_id: last.channel_id,
+                    monitor_name: last.monitor_name,
                     update_ids,
                     span,
                 }
             })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use lexe_common::test_utils::{roundtrip, snapshot};
+
+    use super::*;
+
+    #[test]
+    fn lx_monitor_name_fromstr_display_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<LxMonitorName>();
+    }
+
+    #[test]
+    fn lx_monitor_name_deser_compat() {
+        let inputs = r#"
+--- V1Channel
+708f379d8de2152ca0b4b155c8aa16bcab74f388216d350c39871b74c6dea324_0
+e7fe4aa0060510447bb2ba0e58a66b34d017fbaa30dff450752e30e5a60c0072_1
+--- V2Channel
+fab3c7e24bc40caa16413e46a9a5145851e69d683a096713ef8be6fb4ff6cca7
+8e2a1a50eaf78e48d255fbe0c65f2fb2797e4f62dca1a0ddda170be8498192d3
+"#;
+        for input in snapshot::parse_sample_data(inputs) {
+            let lmn = LxMonitorName::from_str(input).unwrap();
+            assert_eq!(input, lmn.to_string());
+        }
     }
 }

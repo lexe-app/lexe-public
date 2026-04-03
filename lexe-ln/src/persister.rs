@@ -13,7 +13,7 @@ use lexe_api::{
     },
     vfs::{self, Vfs, VfsDirectory, VfsFile, VfsFileId},
 };
-use lexe_common::{constants, ln::channel::LxOutPoint, time::TimestampMs};
+use lexe_common::{constants, ln::channel::LxChannelId, time::TimestampMs};
 use lexe_crypto::{
     aes::AesMasterKey,
     rng::{Crng, SysRng},
@@ -25,6 +25,7 @@ use tracing::{info, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
+    channel_monitor::LxMonitorName,
     event::EventId,
     migrations::{self, Migrations, MigrationsReadOnce},
     payments::{
@@ -178,7 +179,8 @@ pub trait LexePersisterMethods: Vfs {
     async fn persist_channel_monitor<PS: LexePersister>(
         &self,
         chain_monitor: &LexeChainMonitorType<PS>,
-        funding_txo: &LxOutPoint,
+        channel_id: &LxChannelId,
+        monitor_name: &LxMonitorName,
     ) -> anyhow::Result<()>;
 
     // --- Required methods: payments --- //
