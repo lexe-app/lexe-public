@@ -8,8 +8,10 @@
 #![deny(missing_docs)]
 
 use lexe::types::command::{
-    CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
-    GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+    CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+    CreateOfferResponse, GetPaymentRequest, GetPaymentResponse, NodeInfo,
+    PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+    PreflightPayOfferRequest, PreflightPayOfferResponse,
 };
 use lexe_api::error::SdkApiError;
 #[cfg(doc)]
@@ -38,6 +40,24 @@ pub trait UserSidecarApi {
         &self,
         req: &PayInvoiceRequest,
     ) -> Result<PayInvoiceResponse, SdkApiError>;
+
+    /// Create a reusable BOLT12 offer.
+    async fn create_offer(
+        &self,
+        req: &CreateOfferRequest,
+    ) -> Result<CreateOfferResponse, SdkApiError>;
+
+    /// Pay a BOLT12 offer.
+    async fn pay_offer(
+        &self,
+        req: &PayOfferRequest,
+    ) -> Result<PayOfferResponse, SdkApiError>;
+
+    /// Estimate fees for paying a BOLT12 offer.
+    async fn preflight_pay_offer(
+        &self,
+        req: &PreflightPayOfferRequest,
+    ) -> Result<PreflightPayOfferResponse, SdkApiError>;
 
     /// Get information about a payment by its index.
     async fn get_payment(

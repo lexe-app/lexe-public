@@ -6,7 +6,10 @@ use lexe_api::{
     types::{
         bounded_note::BoundedNote,
         invoice::Invoice,
-        payments::{PaymentCreatedIndex, PaymentHash, PaymentSecret},
+        offer::{MaxQuantity, Offer},
+        payments::{
+            ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentSecret,
+        },
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
@@ -292,6 +295,161 @@ pub struct ListPaymentsResponse {
     /// Cursor for fetching the next page. `None` when there are no more
     /// results. Pass this as the `after` argument to get the next page.
     pub next_index: Option<PaymentCreatedIndex>,
+}
+
+// --- BOLT12 Offer types --- //
+
+/// A request to create a BOLT12 offer.
+#[derive(Default, Serialize, Deserialize)]
+pub struct CreateOfferRequest {
+    /// The expiration, in seconds, from creation time.
+    /// If not provided, the offer does not expire.
+    pub expiry_secs: Option<u32>,
+
+    /// Optionally include an amount, in sats, for the offer.
+    /// If no amount is provided, the payer will specify how much to pay.
+    pub amount: Option<Amount>,
+
+    /// The description to be encoded into the offer.
+    /// The payer will see this description when they scan the offer.
+    pub description: Option<String>,
+
+    /// The max number of items that can be purchased in any one payment for
+    /// the offer. If not provided, defaults to 1.
+    ///
+    /// NOTE: this is NOT related to single-use vs reusable offers.
+    pub max_quantity: Option<MaxQuantity>,
+
+    /// The issuer of the offer. The BOLT12 spec expects this to be a domain
+    /// or a `user@domain` address. If not provided, defaults to "lexe.app".
+    pub issuer: Option<String>,
+}
+
+impl CreateOfferRequest {
+    /// Convert to the internal `CreateOfferRequest`.
+    pub fn into_internal(self) -> command::CreateOfferRequest {
+        command::CreateOfferRequest {
+            expiry_secs: self.expiry_secs,
+            amount: self.amount,
+            description: self.description,
+            max_quantity: self.max_quantity,
+            issuer: self.issuer,
+        }
+    }
+}
+
+/// The response to a BOLT12 offer creation request.
+#[derive(Serialize, Deserialize)]
+pub struct CreateOfferResponse {
+    /// The created BOLT12 offer, encoded as a `lno1...` string.
+    pub offer: Offer,
+}
+
+impl From<command::CreateOfferResponse> for CreateOfferResponse {
+    fn from(resp: command::CreateOfferResponse) -> Self {
+        Self { offer: resp.offer }
+    }
+}
+
+/// A request to pay a BOLT12 offer.
+#[derive(Serialize, Deserialize)]
+pub struct PayOfferRequest {
+    /// A caller-provided idempotency key for this payment.
+    /// Reuse the same value when retrying an ambiguous `pay_offer` request.
+    pub cid: ClientPaymentId,
+    /// The BOLT12 offer we want to pay.
+    pub offer: Offer,
+    /// Specifies the amount we will pay if the offer is amountless.
+    /// This field must be set if the offer is amountless.
+    pub fallback_amount: Option<Amount>,
+    /// An optional personal note for this payment.
+    /// The receiver will not see this note.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub note: Option<String>,
+    /// An optional note included in the BOLT12 invoice request and visible
+    /// to the recipient. If provided, it must be non-empty and no longer
+    /// than 200 chars / 512 UTF-8 bytes.
+    pub payer_note: Option<String>,
+}
+
+impl PayOfferRequest {
+    /// Convert to the internal `PayOfferRequest`.
+    pub fn try_into_internal(
+        self,
+    ) -> anyhow::Result<command::PayOfferRequest> {
+        Ok(command::PayOfferRequest {
+            cid: self.cid,
+            offer: self.offer,
+            fallback_amount: self.fallback_amount,
+            note: self.note.map(BoundedNote::new).transpose().context(
+                "Invalid note (must be non-empty and <=200 chars / \
+                 <=512 UTF-8 bytes)",
+            )?,
+            payer_note: self
+                .payer_note
+                .map(BoundedNote::new)
+                .transpose()
+                .context(
+                    "Invalid payer_note (must be non-empty and <=200 chars / \
+                     <=512 UTF-8 bytes)",
+                )?,
+        })
+    }
+}
+
+/// The response to a request to pay a BOLT12 offer.
+#[derive(Serialize, Deserialize)]
+pub struct PayOfferResponse {
+    /// Identifier for this outbound offer payment.
+    pub index: PaymentCreatedIndex,
+    /// When we tried to pay this offer, in milliseconds since the UNIX epoch.
+    pub created_at: TimestampMs,
+}
+
+/// A request to estimate fees for paying a BOLT12 offer.
+#[derive(Serialize, Deserialize)]
+pub struct PreflightPayOfferRequest {
+    /// A caller-provided idempotency key for this payment attempt.
+    /// Use the same value as the follow-up `pay_offer` request.
+    pub cid: ClientPaymentId,
+    /// The BOLT12 offer we want to estimate fees for.
+    pub offer: Offer,
+    /// Specifies the amount if the offer is amountless.
+    /// This field must be set if the offer is amountless.
+    pub fallback_amount: Option<Amount>,
+}
+
+impl PreflightPayOfferRequest {
+    /// Convert to the internal `PreflightPayOfferRequest`.
+    pub fn into_internal(self) -> command::PreflightPayOfferRequest {
+        command::PreflightPayOfferRequest {
+            cid: self.cid,
+            offer: self.offer,
+            fallback_amount: self.fallback_amount,
+        }
+    }
+}
+
+/// The response to a BOLT12 offer preflight fee estimation.
+#[derive(Serialize, Deserialize)]
+pub struct PreflightPayOfferResponse {
+    /// The total amount to be paid for the offer, excluding fees.
+    pub amount: Amount,
+    /// The estimated fees for paying this offer.
+    ///
+    /// Since we only approximate the route, we may underestimate the
+    /// actual fee.
+    pub fees: Amount,
+}
+
+impl From<command::PreflightPayOfferResponse> for PreflightPayOfferResponse {
+    fn from(resp: command::PreflightPayOfferResponse) -> Self {
+        Self {
+            amount: resp.amount,
+            fees: resp.fees,
+        }
+    }
 }
 
 /// Summary of changes from a payment sync operation.
