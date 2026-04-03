@@ -23,8 +23,10 @@ use crate::{
 const SYNC_INTERVAL: Duration = Duration::from_secs(60 * 10);
 // TODO(phlip9): reduce this once we fix LDK sync timing out after 30sec on
 // our LSP...
+// (2026-04-03): 110s -> 200s. LDK sync is timing out on prod, esp. w/
+// blockstream endpoint.
 /// How long BDK / LDK sync can proceed before we consider sync to have failed.
-pub const SYNC_TIMEOUT: Duration = Duration::from_secs(110);
+pub const SYNC_TIMEOUT: Duration = Duration::from_secs(200);
 
 // TODO(max): The control flow / logic in these two functions are sufficiently
 // complex and similar that it's probably a good idea to extract a helper fn.
