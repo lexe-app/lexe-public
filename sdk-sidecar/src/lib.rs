@@ -46,12 +46,15 @@
 //  GET  /app/payments/new
 //  PUT  /app/payments/note
 //
-// Basic prototype sdk API:
-//  GET  /v1/health
-//  GET  /v1/node/node_info
-// POST  /v1/node/create_invoice
-// POST  /v1/node/pay_invoice
-//  GET  /v1/node/payment
+// Sidecar SDK API (v2):
+//  GET  /v2/health
+//  GET  /v2/node/node_info
+// POST  /v2/node/create_invoice
+// POST  /v2/node/pay_invoice
+// POST  /v2/node/create_offer
+// POST  /v2/node/pay_offer
+// POST  /v2/node/preflight_pay_offer
+//  GET  /v2/node/payment
 
 // design decisions:
 //

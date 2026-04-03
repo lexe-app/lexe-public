@@ -31,6 +31,11 @@ pub mod command;
 /// Payment data types.
 pub mod payment;
 
+/// BOLT12 offer types.
+pub mod offer {
+    pub use lexe_api::types::offer::{MaxQuantity, Offer};
+}
+
 /// On-chain and Bitcoin primitives.
 pub mod bitcoin {
     pub use lexe_api::types::invoice::Invoice;

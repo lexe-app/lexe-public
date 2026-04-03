@@ -10,8 +10,11 @@ use axum::{
 };
 use lexe::types::{
     command::{
-        CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
-        GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse, NodeInfo,
+        PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+        PayOfferResponse, PreflightPayOfferRequest,
+        PreflightPayOfferResponse,
     },
     payment::Payment,
 };
@@ -22,7 +25,7 @@ use lexe_api::{
         CreateInvoiceResponse as InternalCreateInvoiceResponse, PaymentIdStruct,
     },
     server::{LxJson, extract::LxQuery},
-    types::payments::PaymentCreatedIndex,
+    types::payments::{PaymentCreatedIndex, PaymentId},
 };
 use lexe_common::env::DeployEnv;
 use lexe_crypto::ed25519;
@@ -80,6 +83,12 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/node_info", get(node::node_info))
         .route("/v2/node/create_invoice", post(node::create_invoice))
         .route("/v2/node/pay_invoice", post(node::pay_invoice))
+        .route("/v2/node/create_offer", post(node::create_offer))
+        .route("/v2/node/pay_offer", post(node::pay_offer))
+        .route(
+            "/v2/node/preflight_pay_offer",
+            post(node::preflight_pay_offer),
+        )
         .route("/v2/node/payment", get(node::get_payment))
         // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
@@ -183,6 +192,60 @@ mod node {
         try_track_payment(&state, &node_client, credentials, index);
 
         Ok(LxJson(PayInvoiceResponse { index, created_at }))
+    }
+
+    #[instrument(skip_all, name = "(create-offer)")]
+    pub(crate) async fn create_offer(
+        State(_): State<Arc<RouterState>>,
+        NodeClientExtractor { node_client, .. }: NodeClientExtractor,
+        LxJson(req): LxJson<CreateOfferRequest>,
+    ) -> Result<LxJson<CreateOfferResponse>, SdkApiError> {
+        let req = req.into_internal();
+        let resp = node_client
+            .create_offer(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(CreateOfferResponse::from(resp)))
+    }
+
+    #[instrument(skip_all, name = "(pay-offer)")]
+    pub(crate) async fn pay_offer(
+        State(state): State<Arc<RouterState>>,
+        NodeClientExtractor {
+            node_client,
+            credentials,
+        }: NodeClientExtractor,
+        LxJson(req): LxJson<PayOfferRequest>,
+    ) -> Result<LxJson<PayOfferResponse>, SdkApiError> {
+        let internal_req =
+            req.try_into_internal().map_err(SdkApiError::command)?;
+        let cid = internal_req.cid;
+        let id = PaymentId::OfferSend(cid);
+
+        let created_at = node_client
+            .pay_offer(internal_req)
+            .await
+            .map_err(SdkApiError::command)?
+            .created_at;
+
+        let index = PaymentCreatedIndex { id, created_at };
+        try_track_payment(&state, &node_client, credentials, index);
+
+        Ok(LxJson(PayOfferResponse { index, created_at }))
+    }
+
+    #[instrument(skip_all, name = "(preflight-pay-offer)")]
+    pub(crate) async fn preflight_pay_offer(
+        State(_): State<Arc<RouterState>>,
+        NodeClientExtractor { node_client, .. }: NodeClientExtractor,
+        LxJson(req): LxJson<PreflightPayOfferRequest>,
+    ) -> Result<LxJson<PreflightPayOfferResponse>, SdkApiError> {
+        let req = req.into_internal();
+        let resp = node_client
+            .preflight_pay_offer(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(PreflightPayOfferResponse::from(resp)))
     }
 
     /// Legacy: Returns `{ "payment": null }` if not found.

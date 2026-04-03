@@ -1,7 +1,10 @@
 use lexe::types::{
     command::{
-        CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
-        GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse, NodeInfo,
+        PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+        PayOfferResponse, PreflightPayOfferRequest,
+        PreflightPayOfferResponse,
     },
     payment::Payment,
 };
@@ -68,6 +71,36 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<PayInvoiceResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/pay_invoice");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn create_offer(
+        &self,
+        req: &CreateOfferRequest,
+    ) -> Result<CreateOfferResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/create_offer");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn pay_offer(
+        &self,
+        req: &PayOfferRequest,
+    ) -> Result<PayOfferResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/pay_offer");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn preflight_pay_offer(
+        &self,
+        req: &PreflightPayOfferRequest,
+    ) -> Result<PreflightPayOfferResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/preflight_pay_offer");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
