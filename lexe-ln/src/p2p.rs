@@ -21,10 +21,11 @@
 //! TcpStream -> read -> Connection -> PeerManager::read_event()
 //! ```
 //!
-//! Read backpressure is applied when [`PeerManager::read_event`] returns
-//! `true`. We then wait for [`PeerManager`] to send a corresponding
-//! `ConnectionTx::send_data` with `resume_read=true` to stop applying
-//! read backpressure.
+//! Read backpressure is applied when [`PeerManager`] calls
+//! `ConnectionTx::send_data` with `continue_read=false`. We might be called
+//! with an empty `data` param just to apply read backpressure. We'll then wait
+//! for [`PeerManager`] to later call `ConnectionTx::send_data` with
+//! `continue_read=true` to stop applying read backpressure.
 //!
 //! After any [`PeerManager::read_event`], we're also responsible for calling
 //! [`PeerManager::process_events`]. We use a separate, shared task
@@ -356,7 +357,8 @@ pub struct ConnectionTx {
 /// A Lightning p2p connection. Wraps a tokio [`TcpStream`] in additional logic
 /// required to interface with LDK's [`PeerManager`].
 struct Connection<PM> {
-    /// Get notified of connection control updates (disconnect/resume_read).
+    /// Get notified of connection control updates
+    /// (disconnect/pause_read/resume_read).
     ctl: Arc<ConnectionCtl>,
 
     /// Receive write data requests from [`ConnectionTx::send_data`].
@@ -391,7 +393,7 @@ struct Connection<PM> {
 ///
 /// This control-plane state is intentionally separate from the `write_tx` data
 /// plane, since control should not be subject to backpressure. Without this
-/// separation, we can accidentally lose `resume_read=true` commands when the
+/// separation, we can accidentally lose `resume_read` commands when the
 /// [`ConnectionTx`] -> [`Connection`] write queue is full.
 struct ConnectionCtl {
     /// The connection id.
@@ -484,10 +486,6 @@ pub trait PeerManagerTrait: Clone + Send + 'static {
     /// Feed the [`PeerManager`] new data read from the socket associated with
     /// `conn_tx`.
     ///
-    /// Returns `Ok(true)`, if the connection should apply backpressure on
-    /// reads. That means it should avoid calling [`PeerManager::read_event`]
-    /// until the next `ConnectionTx::send_data(.., resume_read: true)` request.
-    ///
     /// Returns `Err` if the socket should be disconnected. You do not need to
     /// call `socket_disconnected`.
     ///
@@ -501,7 +499,7 @@ pub trait PeerManagerTrait: Clone + Send + 'static {
         &self,
         conn_tx: &mut ConnectionTx,
         data: &[u8],
-    ) -> Result<bool, PeerHandleError>;
+    ) -> Result<(), PeerHandleError>;
 
     /// Drive the [`PeerManager`] state machine to handle new `read_event`s.
     /// Drives ALL peers in the [`PeerManager`].
@@ -588,7 +586,7 @@ impl<PM: PeerManagerTrait> Connection<PM> {
             //
             // If `pause_read=true`, we'll avoid calling
             // `PeerManager::read_event` until the next
-            // `ConnectionTx::send_data(.., resume_read: true)` request.
+            // `ConnectionTx::send_data(.., continue_read: true)` request.
             let pause_read = match self.ctl.load_ctl_state() {
                 Ok(pause_read) => pause_read,
                 Err(disconnect) => break disconnect,
@@ -660,10 +658,20 @@ impl<PM: PeerManagerTrait> Connection<PM> {
                     // If socket says it's ready to read
                     // -> try to read a few times.
                     if ready.is_readable() {
-                        if let Err(disconnect) = self.try_read_buf_many() {
-                            break disconnect;
+                        // Re-check pause read. `try_write_buf_many` may have
+                        // called `PeerManager::write_buffer_space_avail`,
+                        // which can pause reads via
+                        // `send_data(_, continue_read=false)`.
+                        let pause_read = match self.ctl.load_ctl_state() {
+                            Ok(pause_read) => pause_read,
+                            Err(disconnect) => break disconnect,
+                        };
+                        if !pause_read {
+                            if let Err(disconnect) = self.try_read_buf_many() {
+                                break disconnect;
+                            }
+                            did_work = true;
                         }
-                        did_work = true;
                     }
                 }
             }
@@ -864,8 +872,8 @@ impl<PM: PeerManagerTrait> Connection<PM> {
         Ok(can_write_more)
     }
 
-    /// Loop `try_read_buf` + `peer_manager.read_buf` until we either drain our
-    /// TCP stream read queue or we get LDK read backpressure. Then call
+    /// Loop `try_read_buf` + `peer_manager.read_buf` until we drain our TCP
+    /// stream read queue. Then call
     /// [`PeerManagerTrait::notify_process_events_task`] if we read anything.
     fn try_read_buf_many(&mut self) -> Result<(), Disconnect> {
         // If we successfully read any data at all, we should eventually call
@@ -888,24 +896,13 @@ impl<PM: PeerManagerTrait> Connection<PM> {
 
             // Give `PeerManager` the data we just read.
             let data = &self.read_buf[..bytes_read.get()];
-            let pause_read =
-                match self.peer_manager.read_event(&mut self.conn_tx, data) {
-                    // LDK may apply read backpressure and ask us to pause reads
-                    Ok(pause_read) => pause_read,
-                    Err(PeerHandleError {}) =>
-                        return Err(Disconnect::PeerManager),
-                };
-
-            // Update our shared state with the `ConnectionTx` handles.
-            let state = if pause_read {
-                STATE_PAUSE_READ
-            } else {
-                STATE_NORMAL
+            match self.peer_manager.read_event(&mut self.conn_tx, data) {
+                Ok(()) => (),
+                Err(PeerHandleError {}) => return Err(Disconnect::PeerManager),
             };
-            self.ctl.store_state_normal_or_pause_read(state)?;
 
             // Stop reading
-            if pause_read || !can_read_more {
+            if !can_read_more {
                 break;
             }
         }
@@ -959,14 +956,20 @@ impl ConnectionTx {
     /// If there is write backpressure, the [`Connection`] MUST call
     /// [`PeerManager::write_buffer_space_avail`] when it has room for more
     /// writes.
-    fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
+    ///
+    /// When this is called with `continue_read=false`, we must apply read
+    /// backpressure. We will only unblock reads after a later call with
+    /// `continue_read=true`.
+    fn send_data(&mut self, data: &[u8], continue_read: bool) -> usize {
         trace!(
             write_len = data.len(),
-            resume_read, "ConnectionTx => send_data"
+            continue_read, "ConnectionTx => send_data"
         );
         let bytes_enqueued = self.try_send_data(data);
-        if resume_read {
+        if continue_read {
             self.ctl.resume_read_and_notify();
+        } else {
+            self.ctl.pause_read();
         }
         bytes_enqueued
     }
@@ -1009,8 +1012,8 @@ impl ConnectionTx {
 // NOTE: use separate impl to make rust-doc links work.
 impl lightning::ln::peer_handler::SocketDescriptor for ConnectionTx {
     #[inline]
-    fn send_data(&mut self, data: &[u8], resume_read: bool) -> usize {
-        ConnectionTx::send_data(self, data, resume_read)
+    fn send_data(&mut self, data: &[u8], continue_read: bool) -> usize {
+        ConnectionTx::send_data(self, data, continue_read)
     }
     #[inline]
     fn disconnect_socket(&mut self) {
@@ -1060,6 +1063,14 @@ impl ConnectionCtl {
             trace!("ConnectionTx => resume read");
             self.notify.notify_one()
         }
+    }
+
+    /// Update [`Connection`] so it will pause reads (if not already paused or
+    /// disconnected), but don't we don't need to actually wake it up. It will
+    /// just see that it shouldn't read on its next iteration.
+    fn pause_read(&self) {
+        trace!("ConnectionTx => pause read");
+        let _ = self.store_state_normal_or_pause_read(STATE_PAUSE_READ);
     }
 
     /// Read [`ConnectionCtl::state`] and maybe resume reads or disconnect.
@@ -1225,8 +1236,18 @@ mod test {
         }
     }
 
+    // Set the p2p fuzzer grinding for a while:
+    //
+    // ```
+    // $ cargo test -p lexe-ln --lib --no-run --release
+    //     Finished `release` profile [optimized] target(s) in 0.55s
+    //   Executable unittests src/lib.rs (target/release/deps/lexe_ln-e762b03c4651e07d)
+    //
+    // $ RUST_LOG=trace RUST_BACKTRACE=1 TEST_ECHO_ITERS=100000 target/release/deps/lexe_ln-e762b03c4651e07d \
+    //   test_echo_fuzz --nocapture 3>&1 1>&2 2>&3 3>&- | tail -n 2000
+    // ```
     #[tokio::test]
-    async fn test_echo() {
+    async fn test_echo_fuzz() {
         use std::str::FromStr;
         crate::logger::init_for_testing();
         let iters = std::env::var("TEST_ECHO_ITERS")
@@ -1255,6 +1276,12 @@ mod test {
     async fn test_echo_3() {
         crate::logger::init_for_testing();
         do_test_echo(TestCtx::new(138)).await;
+    }
+
+    #[tokio::test]
+    async fn test_echo_4() {
+        crate::logger::init_for_testing();
+        do_test_echo(TestCtx::new(1400)).await;
     }
 
     #[derive(Copy, Clone)]
@@ -1570,7 +1597,7 @@ mod test {
             &self,
             conn_tx: &mut ConnectionTx,
             data: &[u8],
-        ) -> Result<bool, PeerHandleError> {
+        ) -> Result<(), PeerHandleError> {
             trace!("PeerManager::read_event");
             if let Some(peer) = self.lock().unwrap().peer_for(conn_tx) {
                 peer.read_event(data)
@@ -1621,9 +1648,8 @@ mod test {
             }
         }
 
-        // Called from `Connection` task when it has read more data. Return
-        // `true` to tell `Connection` to pause read.
-        fn read_event(&mut self, data: &[u8]) -> Result<bool, PeerHandleError> {
+        // Called from `Connection` task when it has read more data.
+        fn read_event(&mut self, data: &[u8]) -> Result<(), PeerHandleError> {
             trace!(
                 buf_len = self.buf.len(),
                 read_len = data.len(),
@@ -1631,16 +1657,15 @@ mod test {
             );
             assert_ne!(data.len(), 0);
 
-            // NOTE: pause_read for LDK is just a suggestion and isn't actually
-            // enforced. We'll enforce it here to check that our logic is
-            // working.
+            // LDK communicates read backpressure through `send_data`'s
+            // `continue_read` flag. Our `Connection` enforces it. Assert
+            // that read_event is never called while reads are paused.
             assert!(!self.pause_read);
 
             self.buf.extend(data);
             self.total_read_event_len += data.len();
 
-            self.pause_read = self.buf.len() >= ctx().pause_read_threshold;
-            Ok(self.pause_read)
+            Ok(())
         }
 
         fn send_next(&mut self) -> bool {
@@ -1653,14 +1678,11 @@ mod test {
 
             let data = self.buf.fill_buf().unwrap();
             if data.is_empty() {
-                let prev_pause_read = self.pause_read;
+                // Communicate current pause_read state
                 self.pause_read = buf_len >= ctx().pause_read_threshold;
-                let resume_read = prev_pause_read && !self.pause_read;
-
-                if resume_read {
-                    let write_len = self.conn_tx.send_data(&[], resume_read);
-                    assert_eq!(write_len, 0);
-                }
+                let continue_read = !self.pause_read;
+                let write_len = self.conn_tx.send_data(&[], continue_read);
+                assert_eq!(write_len, 0);
                 return false;
             }
 
@@ -1669,21 +1691,15 @@ mod test {
             let to_write_len = data.len();
             assert_ne!(to_write_len, 0);
 
-            // NOTE: we're not guaranteed that there is actually write space
-            // available, since `process_events` is a potential caller.
-            // Therefore we can't safely `resume_read` until we know
-            // `written_len > 0`.
-            let resume_read = false;
-            let written_len = self.conn_tx.send_data(data, resume_read);
+            // Send data and communicate current pause_read state
+            self.pause_read = buf_len >= ctx().pause_read_threshold;
+            let continue_read = !self.pause_read;
+            let written_len = self.conn_tx.send_data(data, continue_read);
             trace!(written_len, "EchoPeer::send_data ->");
 
-            // Only `resume_read` if we actually managed to queue a write that
-            // puts us under the pause_read_threshold.
-            let prev_pause_read = self.pause_read;
+            // Update pause_read based on remaining buffer after send.
             self.pause_read =
                 buf_len - written_len >= ctx().pause_read_threshold;
-            let resume_read = prev_pause_read && !self.pause_read;
-            self.conn_tx.send_data(&[], resume_read);
 
             self.total_write_len_queued += written_len;
             assert!(written_len <= to_write_len);
@@ -1715,17 +1731,17 @@ mod ldk_test {
     use lexe_crypto::rng::{FastRng, RngExt, ThreadFastRng};
     use lexe_tokio::task::LxTask;
     use lightning::{
-        events::*,
         ln::{
             inbound_payment::ExpandedKey,
             msgs::*,
             peer_handler::{
                 IgnoringMessageHandler, MessageHandler, PeerManager,
             },
+            types::ChannelId,
         },
         offers::invoice::UnsignedBolt12Invoice,
         routing::gossip::NodeId,
-        sign::{NodeSigner, Recipient},
+        sign::{NodeSigner, PeerStorageKey, ReceiveAuthKey, Recipient},
         types::features::{InitFeatures, NodeFeatures},
     };
     use lightning_invoice::RawBolt11Invoice;
@@ -1749,6 +1765,7 @@ mod ldk_test {
 
         let (a_connected_sender, mut a_connected) = mpsc::channel(1);
         let (a_disconnected_sender, mut a_disconnected) = mpsc::channel(1);
+        let ignore = Arc::new(IgnoringMessageHandler {});
         let a_handler = Arc::new(MsgHandler {
             expected_pubkey: b_pub,
             pubkey_connected: a_connected_sender,
@@ -1759,8 +1776,9 @@ mod ldk_test {
         let a_msg_handler: TestMessageHandler = MessageHandler {
             chan_handler: Arc::clone(&a_handler),
             route_handler: Arc::clone(&a_handler),
-            onion_message_handler: Arc::new(IgnoringMessageHandler {}),
-            custom_message_handler: Arc::new(IgnoringMessageHandler {}),
+            onion_message_handler: Arc::clone(&ignore),
+            custom_message_handler: Arc::clone(&ignore),
+            send_only_message_handler: Arc::clone(&ignore),
         };
         let (a_process_events_tx, a_process_events_rx) = notify::channel();
         let a_manager: TestPeerManager = Arc::new((
@@ -1792,8 +1810,9 @@ mod ldk_test {
         let b_msg_handler: TestMessageHandler = MessageHandler {
             chan_handler: Arc::clone(&b_handler),
             route_handler: Arc::clone(&b_handler),
-            onion_message_handler: Arc::new(IgnoringMessageHandler {}),
-            custom_message_handler: Arc::new(IgnoringMessageHandler {}),
+            onion_message_handler: Arc::clone(&ignore),
+            custom_message_handler: Arc::clone(&ignore),
+            send_only_message_handler: Arc::clone(&ignore),
         };
         let (b_process_events_tx, b_process_events_rx) = notify::channel();
         let b_manager = Arc::new((
@@ -1881,6 +1900,7 @@ mod ldk_test {
         Arc<MsgHandler>,
         Arc<IgnoringMessageHandler>,
         Arc<IgnoringMessageHandler>,
+        Arc<IgnoringMessageHandler>,
     >;
 
     type TestPeerManager = Arc<(
@@ -1892,6 +1912,7 @@ mod ldk_test {
             logger::LexeTracingLogger,
             Arc<IgnoringMessageHandler>,
             Arc<TestNodeSigner>,
+            Arc<IgnoringMessageHandler>,
         >,
         notify::Sender,
     )>;
@@ -1936,7 +1957,7 @@ mod ldk_test {
             &self,
             conn_tx: &mut ConnectionTx,
             data: &[u8],
-        ) -> Result<bool, PeerHandleError> {
+        ) -> Result<(), PeerHandleError> {
             self.as_ref().0.read_event(conn_tx, data)
         }
 
@@ -1993,10 +2014,13 @@ mod ldk_test {
             Ok(ecdh::SharedSecret::new(other_key, &node_secret))
         }
 
-        fn get_inbound_payment_key(&self) -> ExpandedKey { unreachable!() }
-        fn sign_invoice(&self, _: &RawBolt11Invoice, _: Recipient) -> Result<ecdsa::RecoverableSignature, ()> { unreachable!() }
-        fn sign_bolt12_invoice(&self, _invoice: &UnsignedBolt12Invoice) -> Result<schnorr::Signature, ()> { unreachable!() }
-        fn sign_gossip_message(&self, _msg: UnsignedGossipMessage) -> Result<ecdsa::Signature, ()> { unreachable!() }
+        fn sign_invoice( &self, _invoice: &RawBolt11Invoice, _recipient: Recipient,) -> Result<ecdsa::RecoverableSignature, ()> { todo!() }
+        fn sign_bolt12_invoice( &self, _invoice: &UnsignedBolt12Invoice,) -> Result<schnorr::Signature, ()> { todo!() }
+        fn sign_gossip_message( &self, _msg: UnsignedGossipMessage<'_>,) -> Result<ecdsa::Signature, ()> { todo!() }
+        fn get_expanded_key(&self) -> ExpandedKey { todo!() }
+        fn get_peer_storage_key(&self) -> PeerStorageKey { todo!() }
+        fn get_receive_auth_key(&self) -> ReceiveAuthKey { todo!() }
+        fn sign_message(&self, _msg: &[u8]) -> Result<String, ()> { todo!() }
     }
 
     struct MsgHandler {
@@ -2005,6 +2029,43 @@ mod ldk_test {
         pubkey_disconnected: mpsc::Sender<()>,
         disconnected_flag: AtomicBool,
         msg_events: Mutex<Vec<MessageSendEvent>>,
+    }
+    impl BaseMessageHandler for MsgHandler {
+        fn peer_disconnected(&self, their_node_id: secp256k1::PublicKey) {
+            if their_node_id == self.expected_pubkey {
+                self.disconnected_flag.store(true, Ordering::SeqCst);
+                // This method is called twice as we're two message handlers.
+                // `try_send` will fail the second time.
+                let _ = self.pubkey_disconnected.clone().try_send(());
+            }
+        }
+        fn peer_connected(
+            &self,
+            their_node_id: secp256k1::PublicKey,
+            _init_msg: &Init,
+            _inbound: bool,
+        ) -> Result<(), ()> {
+            if their_node_id == self.expected_pubkey {
+                // This method is called twice as we're two message handlers.
+                // `try_send` will fail the second time.
+                let _ = self.pubkey_connected.clone().try_send(());
+            }
+            Ok(())
+        }
+        fn provided_node_features(&self) -> NodeFeatures {
+            NodeFeatures::empty()
+        }
+        fn provided_init_features(
+            &self,
+            _their_node_id: secp256k1::PublicKey,
+        ) -> InitFeatures {
+            InitFeatures::empty()
+        }
+        fn get_and_clear_pending_msg_events(&self) -> Vec<MessageSendEvent> {
+            let mut ret = Vec::new();
+            mem::swap(&mut *self.msg_events.lock().unwrap(), &mut ret);
+            ret
+        }
     }
     #[rustfmt::skip]
     impl RoutingMessageHandler for MsgHandler {
@@ -2023,9 +2084,6 @@ mod ldk_test {
         fn get_next_node_announcement(&self, _starting_point: Option<&NodeId>) -> Option<NodeAnnouncement> {
             None
         }
-        fn peer_connected(&self, _their_node_id: secp256k1::PublicKey, _init_msg: &Init, _inbound: bool) -> Result<(), ()> {
-            Ok(())
-        }
         fn handle_reply_channel_range(&self, _their_node_id: secp256k1::PublicKey, _msg: ReplyChannelRange) -> Result<(), LightningError> {
             Ok(())
         }
@@ -2038,76 +2096,53 @@ mod ldk_test {
         fn handle_query_short_channel_ids(&self, _their_node_id: secp256k1::PublicKey, _msg: QueryShortChannelIds) -> Result<(), LightningError> {
             Ok(())
         }
-        fn provided_node_features(&self) -> NodeFeatures {
-            NodeFeatures::empty()
-        }
-        fn provided_init_features( &self, _their_node_id: secp256k1::PublicKey) -> InitFeatures {
-            InitFeatures::empty()
-        }
         fn processing_queue_high(&self) -> bool { false }
     }
     #[rustfmt::skip]
     impl ChannelMessageHandler for MsgHandler {
-        fn peer_disconnected(&self, their_node_id: secp256k1::PublicKey) {
-            if their_node_id == self.expected_pubkey {
-                self.disconnected_flag.store(true, Ordering::SeqCst);
-                self.pubkey_disconnected.clone().try_send(()).unwrap();
-            }
-        }
-        fn peer_connected(
-            &self,
-            their_node_id: secp256k1::PublicKey,
-            _init_msg: &Init,
-            _inbound: bool,
-        ) -> Result<(), ()> {
-            if their_node_id == self.expected_pubkey {
-                self.pubkey_connected.clone().try_send(()).unwrap();
-            }
-            Ok(())
-        }
         fn get_chain_hashes(&self) -> Option<Vec<ChainHash>> {
             Some(vec![ChainHash::using_genesis_block(Network::Testnet)])
         }
-
-        fn handle_open_channel(&self, _their_node_id: secp256k1::PublicKey, _msg: &OpenChannel) {}
-        fn handle_accept_channel(&self, _their_node_id: secp256k1::PublicKey, _msg: &AcceptChannel) {}
-        fn handle_funding_created(&self, _their_node_id: secp256k1::PublicKey, _msg: &FundingCreated) {}
-        fn handle_funding_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &FundingSigned) {}
-        fn handle_channel_ready(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelReady) {}
-        fn handle_shutdown(&self, _their_node_id: secp256k1::PublicKey, _msg: &Shutdown) {}
-        fn handle_closing_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &ClosingSigned) {}
-        fn handle_update_add_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateAddHTLC) {}
-        fn handle_update_fulfill_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFulfillHTLC) {}
-        fn handle_update_fail_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFailHTLC) {}
-        fn handle_update_fail_malformed_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFailMalformedHTLC) {}
-        fn handle_commitment_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &CommitmentSigned) {}
-        fn handle_revoke_and_ack(&self, _their_node_id: secp256k1::PublicKey, _msg: &RevokeAndACK) {}
-        fn handle_update_fee(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFee) {}
-        fn handle_announcement_signatures(&self, _their_node_id: secp256k1::PublicKey, _msg: &AnnouncementSignatures) {}
-        fn handle_channel_update(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelUpdate) {}
-        fn handle_open_channel_v2(&self, _their_node_id: secp256k1::PublicKey, _msg: &OpenChannelV2) {}
-        fn handle_accept_channel_v2(&self, _their_node_id: secp256k1::PublicKey, _msg: &AcceptChannelV2) {}
-        fn handle_stfu(&self, _their_node_id: secp256k1::PublicKey, _msg: &Stfu) {}
-        fn handle_tx_add_input(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAddInput) {}
-        fn handle_tx_add_output(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAddOutput) {}
-        fn handle_tx_remove_input(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxRemoveInput) {}
-        fn handle_tx_remove_output(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxRemoveOutput) {}
-        fn handle_tx_complete(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxComplete) {}
-        fn handle_tx_signatures(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxSignatures) {}
-        fn handle_tx_init_rbf(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxInitRbf) {}
-        fn handle_tx_ack_rbf(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAckRbf) {}
-        fn handle_tx_abort(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAbort) {}
-        fn handle_channel_reestablish(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelReestablish) { }
-        fn handle_error(&self, _their_node_id: secp256k1::PublicKey, _msg: &ErrorMessage) {}
-        fn provided_node_features(&self) -> NodeFeatures { NodeFeatures::empty() }
-        fn provided_init_features( &self, _their_node_id: secp256k1::PublicKey,) -> InitFeatures { InitFeatures::empty() }
-        fn message_received(&self) {}
-    }
-    impl MessageSendEventsProvider for MsgHandler {
-        fn get_and_clear_pending_msg_events(&self) -> Vec<MessageSendEvent> {
-            let mut ret = Vec::new();
-            mem::swap(&mut *self.msg_events.lock().unwrap(), &mut ret);
-            ret
-        }
+		fn handle_open_channel(&self, _their_node_id: secp256k1::PublicKey, _msg: &OpenChannel) {}
+		fn handle_accept_channel(&self, _their_node_id: secp256k1::PublicKey, _msg: &AcceptChannel) {}
+		fn handle_funding_created(&self, _their_node_id: secp256k1::PublicKey, _msg: &FundingCreated) {}
+		fn handle_funding_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &FundingSigned) {}
+		fn handle_channel_ready(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelReady) {}
+		fn handle_shutdown(&self, _their_node_id: secp256k1::PublicKey, _msg: &Shutdown) {}
+		fn handle_closing_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &ClosingSigned) {}
+		// #[cfg(simple_close)]
+		// fn handle_closing_complete(&self, _their_node_id: secp256k1::PublicKey, _msg: ClosingComplete) {}
+		// #[cfg(simple_close)]
+		// fn handle_closing_sig(&self, _their_node_id: secp256k1::PublicKey, _msg: ClosingSig) {}
+		fn handle_update_add_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateAddHTLC) {}
+		fn handle_update_fulfill_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: UpdateFulfillHTLC) {}
+		fn handle_update_fail_htlc(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFailHTLC) {}
+		fn handle_update_fail_malformed_htlc( &self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFailMalformedHTLC,) { }
+		fn handle_commitment_signed(&self, _their_node_id: secp256k1::PublicKey, _msg: &CommitmentSigned) {}
+		fn handle_commitment_signed_batch( &self, _their_node_id: secp256k1::PublicKey, _channel_id: ChannelId, _batch: Vec<CommitmentSigned>,) { }
+		fn handle_revoke_and_ack(&self, _their_node_id: secp256k1::PublicKey, _msg: &RevokeAndACK) {}
+		fn handle_update_fee(&self, _their_node_id: secp256k1::PublicKey, _msg: &UpdateFee) {}
+		fn handle_announcement_signatures( &self, _their_node_id: secp256k1::PublicKey, _msg: &AnnouncementSignatures,) { }
+		fn handle_channel_update(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelUpdate) {}
+		fn handle_open_channel_v2(&self, _their_node_id: secp256k1::PublicKey, _msg: &OpenChannelV2) {}
+		fn handle_accept_channel_v2(&self, _their_node_id: secp256k1::PublicKey, _msg: &AcceptChannelV2) {}
+		fn handle_stfu(&self, _their_node_id: secp256k1::PublicKey, _msg: &Stfu) {}
+		fn handle_splice_init(&self, _their_node_id: secp256k1::PublicKey, _msg: &SpliceInit) {}
+		fn handle_splice_ack(&self, _their_node_id: secp256k1::PublicKey, _msg: &SpliceAck) {}
+		fn handle_splice_locked(&self, _their_node_id: secp256k1::PublicKey, _msg: &SpliceLocked) {}
+		fn handle_tx_add_input(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAddInput) {}
+		fn handle_tx_add_output(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAddOutput) {}
+		fn handle_tx_remove_input(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxRemoveInput) {}
+		fn handle_tx_remove_output(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxRemoveOutput) {}
+		fn handle_tx_complete(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxComplete) {}
+		fn handle_tx_signatures(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxSignatures) {}
+		fn handle_tx_init_rbf(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxInitRbf) {}
+		fn handle_tx_ack_rbf(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAckRbf) {}
+		fn handle_tx_abort(&self, _their_node_id: secp256k1::PublicKey, _msg: &TxAbort) {}
+		fn handle_peer_storage(&self, _their_node_id: secp256k1::PublicKey, _msg: PeerStorage) {}
+		fn handle_peer_storage_retrieval( &self, _their_node_id: secp256k1::PublicKey, _msg: PeerStorageRetrieval,) { }
+		fn handle_channel_reestablish(&self, _their_node_id: secp256k1::PublicKey, _msg: &ChannelReestablish) { }
+		fn handle_error(&self, _their_node_id: secp256k1::PublicKey, _msg: &ErrorMessage) {}
+		fn message_received(&self) {}
     }
 }
