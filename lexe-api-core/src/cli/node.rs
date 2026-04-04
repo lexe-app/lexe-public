@@ -64,6 +64,13 @@ pub struct MegaArgs {
     /// the allocatable memory available to this enclave in SGX.
     pub sgx_heap_size: u64,
 
+    /// BDK/LDK sync timeout for user nodes (in seconds).
+    ///
+    /// Defaults to [`lexe_common::constants::DEFAULT_USERNODE_SYNC_TIMEOUT`].
+    // Added in node-v0.9.4
+    #[serde(default)]
+    pub usernode_sync_timeout_secs: Option<u64>,
+
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_deploy_env: DeployEnv,

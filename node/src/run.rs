@@ -183,6 +183,7 @@ pub struct UserNode {
 struct SyncContext {
     init_start: Instant,
     ldk_sync_client: Arc<EsploraSyncClientType>,
+    sync_timeout: Duration,
     onchain_recv_tx: notify::Sender,
     bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
@@ -223,6 +224,7 @@ impl UserNode {
             runner_api,
             runner_tx,
             scorer,
+            usernode_sync_timeout,
             untrusted_deploy_env,
             untrusted_network,
             version,
@@ -1068,6 +1070,7 @@ impl UserNode {
             sync: Some(SyncContext {
                 init_start,
                 ldk_sync_client,
+                sync_timeout: usernode_sync_timeout,
                 onchain_recv_tx,
                 bdk_resync_rx,
                 ldk_resync_rx,
@@ -1090,6 +1093,7 @@ impl UserNode {
             first_bdk_sync_tx,
             ctxt.bdk_resync_rx,
             self.shutdown.clone(),
+            ctxt.sync_timeout,
         ));
         let bdk_sync_fut = first_bdk_sync_rx
             .map(|res| res.context("Failed to recv result of first BDK sync"));
@@ -1103,6 +1107,7 @@ impl UserNode {
             first_ldk_sync_tx,
             ctxt.ldk_resync_rx,
             self.shutdown.clone(),
+            ctxt.sync_timeout,
         ));
         let ldk_sync_fut = first_ldk_sync_rx
             .map(|res| res.context("Failed to recv result of first LDK sync"));

@@ -1,6 +1,7 @@
 use std::{
     io::Cursor,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use anyhow::{Context, anyhow, ensure};
@@ -10,7 +11,7 @@ use lexe_api::{
     error::MegaApiError,
     types::{LeaseId, ports::RunPorts},
 };
-use lexe_common::{env::DeployEnv, ln::network::Network};
+use lexe_common::{constants, env::DeployEnv, ln::network::Network};
 use lexe_crypto::rng::Crng;
 use lexe_enclave::enclave;
 use lexe_ln::{
@@ -76,6 +77,8 @@ pub(crate) struct MegaContext {
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     /// The probabilistic scorer for pathfinding.
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    /// BDK/LDK sync timeout for user nodes.
+    pub usernode_sync_timeout: Duration,
     /// The untrusted deploy environment.
     pub untrusted_deploy_env: DeployEnv,
     /// The untrusted network.
@@ -97,6 +100,7 @@ impl MegaContext {
         lsp_url: String,
         runner_url: String,
         gdrive_oauth_config: Option<OAuthConfig>,
+        usernode_sync_timeout_secs: Option<u64>,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: Network,
@@ -202,6 +206,9 @@ impl MegaContext {
                 .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
         };
         let gdrive_oauth_config = Arc::new(gdrive_oauth_config);
+        let usernode_sync_timeout = usernode_sync_timeout_secs
+            .map(Duration::from_secs)
+            .unwrap_or(constants::DEFAULT_USERNODE_SYNC_TIMEOUT);
 
         let context = Self {
             backend_api,
@@ -217,6 +224,7 @@ impl MegaContext {
             runner_api,
             runner_tx,
             scorer,
+            usernode_sync_timeout,
             untrusted_deploy_env,
             untrusted_network,
             version,
@@ -316,6 +324,7 @@ impl MegaContext {
             runner_api,
             runner_tx,
             scorer,
+            usernode_sync_timeout: constants::DEFAULT_USERNODE_SYNC_TIMEOUT,
             untrusted_deploy_env: deploy_env,
             untrusted_network: network,
             version,

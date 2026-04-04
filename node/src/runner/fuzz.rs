@@ -262,10 +262,12 @@ mod helpers {
             runner_url: String::new(),
             rust_backtrace: None,
             rust_log: None,
+            sgx_heap_size: 0x8000_0000, // 2 GB
+            // DEFAULT_USERNODE_SYNC_TIMEOUT
+            usernode_sync_timeout_secs: Some(15),
             untrusted_deploy_env: DeployEnv::Dev,
             untrusted_esplora_urls: vec![],
             untrusted_network: Network::Regtest,
-            sgx_heap_size: 0x8000_0000, // 2 GB
             user_inactivity_secs: 3600, // 1 hour (from dummy config)
             // DEFAULT_USERNODE_BUFFER_SLOTS
             usernode_buffer_slots: 2,

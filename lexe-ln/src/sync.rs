@@ -2,7 +2,6 @@ use std::{sync::Arc, time::Instant};
 
 use anyhow::{Context, anyhow};
 use futures::future::Either;
-use lexe_common::constants::DEFAULT_SYNC_TIMEOUT;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
@@ -39,6 +38,7 @@ pub fn spawn_bdk_sync_task(
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     mut shutdown: NotifyOnce,
+    sync_timeout: Duration,
 ) -> LxTask<()> {
     LxTask::spawn("bdk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
@@ -75,7 +75,7 @@ pub fn spawn_bdk_sync_task(
                     let start = Instant::now();
 
                     // Give up if we time out or receive a shutdown signal
-                    let timeout = time::sleep(DEFAULT_SYNC_TIMEOUT);
+                    let timeout = time::sleep(sync_timeout);
                     let sync_fut = if !is_full_sync {
                         Either::Left(wallet.sync(&esplora))
                     } else {
@@ -129,6 +129,7 @@ pub fn spawn_ldk_sync_task<CMAN, CMON, PS>(
     first_ldk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
     mut shutdown: NotifyOnce,
+    sync_timeout: Duration,
 ) -> LxTask<()>
 where
     CMAN: LexeChannelManager<PS>,
@@ -167,7 +168,7 @@ where
                     ];
 
                     // Give up if we time out or receive a shutdown signal
-                    let timeout = time::sleep(DEFAULT_SYNC_TIMEOUT);
+                    let timeout = time::sleep(sync_timeout);
                     let sync_res = tokio::select! {
                         res = ldk_sync_client.sync(confirmables) =>
                             res.context("LDK sync failed"),
