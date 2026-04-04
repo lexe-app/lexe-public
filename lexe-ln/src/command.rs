@@ -39,7 +39,7 @@ use lexe_common::{
         },
         user::{NodePk, Scid, UserPk},
     },
-    debug_panic_release_log,
+    constants, debug_panic_release_log,
     ln::{
         amount::Amount,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
@@ -79,7 +79,7 @@ use crate::{
     alias::{LexeChainMonitorType, NetworkGraphType, RouterType, SignerType},
     balance,
     channel::ChannelEvent,
-    constants,
+    constants as ln_constants,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
@@ -585,12 +585,11 @@ fn our_close_tx_fees_sats(
     // our dust limit, we'll just consider our remaining channel balance as part
     // // of the close fee.
     if !channel.is_outbound {
-        let fee_sats =
-            if our_sats <= lexe_common::constants::LDK_DUST_LIMIT_SATS.into() {
-                our_sats
-            } else {
-                0
-            };
+        let fee_sats = if our_sats <= constants::LDK_DUST_LIMIT_SATS.into() {
+            our_sats
+        } else {
+            0
+        };
         return fee_sats;
     }
 
@@ -611,7 +610,7 @@ fn our_close_tx_fees_sats(
     // If, after paying the fees, our output would be smaller than our dust
     // limit, then we just donate our sats to the miners.
     let our_sats = our_sats - tx_fees_sats;
-    if our_sats <= lexe_common::constants::LDK_DUST_LIMIT_SATS.into() {
+    if our_sats <= constants::LDK_DUST_LIMIT_SATS.into() {
         return tx_fees_sats + our_sats;
     }
 
@@ -636,7 +635,7 @@ fn close_tx_fees_sats(
     let force_close_avoidance_max_fee_sats = channel
         .config
         .map(|c| c.force_close_avoidance_max_fee_satoshis)
-        .unwrap_or(lexe_common::constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS);
+        .unwrap_or(constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS);
 
     // For some reason the `force_close_avoidance_max_fee_sats` is always
     // getting added?
@@ -742,8 +741,9 @@ where
 
     let cltv_expiry = match caller {
         CreateInvoiceCaller::UserNode { .. } =>
-            constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
-        CreateInvoiceCaller::Lsp => constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
+            ln_constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
+        CreateInvoiceCaller::Lsp =>
+            ln_constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
     };
 
     // Ensure that description and description_hash are mutually
@@ -775,10 +775,10 @@ where
         .expect("Should never fail with [u8;32]");
 
     let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
-    if expiry_time > constants::MAX_INVOICE_EXPIRY {
+    if expiry_time > ln_constants::MAX_INVOICE_EXPIRY {
         return Err(anyhow!(format!(
             "expiry_secs exceeds maximum duration of {}s",
-            constants::MAX_INVOICE_EXPIRY.as_secs()
+            ln_constants::MAX_INVOICE_EXPIRY.as_secs()
         )));
     }
 
