@@ -209,7 +209,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     unawaited(this.doFetchLnInvoice());
 
-    // Use the HBA offer as the default reusable offer.
+    // Use the HBA offer as the default reusable offer. If not yet cached
+    // (first-time provision), fall back to a generic offer and listen for
+    // updates.
     final cachedOffer = this.widget.appData.humanBitcoinAddress.value?.offer;
     if (cachedOffer != null) {
       this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(
@@ -217,6 +219,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       );
     } else {
       unawaited(this.doFetchLnOffer());
+      this.widget.appData.humanBitcoinAddress.addListener(this.onHbaUpdated);
     }
 
     unawaited(this.doFetchBtc());
@@ -333,6 +336,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // Cancel any in-progress peek animation before disposing the controller.
     this.peekAnimationInProgress = false;
 
+    // Remove HBA listener if still attached.
+    this.widget.appData.humanBitcoinAddress.removeListener(this.onHbaUpdated);
+
     this.pageController.dispose();
     this.selectedPageIndex.dispose();
     this.selectedLightningType.dispose();
@@ -380,6 +386,18 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       this.paymentOffers[lnOfferPageIdx];
   ValueNotifier<PaymentOffer> btcPaymentOffer() =>
       this.paymentOffers[btcPageIdx];
+
+  /// Called when the cached HBA is updated (e.g., after first-time provision).
+  /// Updates the reusable offer UI with the HBA offer.
+  void onHbaUpdated() {
+    final offer = this.widget.appData.humanBitcoinAddress.value?.offer;
+    if (offer == null) return;
+
+    this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(offer: offer);
+
+    // Remove listener since we only need the first update.
+    this.widget.appData.humanBitcoinAddress.removeListener(this.onHbaUpdated);
+  }
 
   /// Fetch a bitcoin address for the given [BtcAddrInputs] and return a
   /// full [PaymentOffer].
