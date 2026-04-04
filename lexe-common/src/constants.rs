@@ -35,6 +35,11 @@ const_assert!(
         < USER_RUNNER_SHUTDOWN_TIMEOUT.as_secs()
 );
 
+/// How long BDK / LDK sync can proceed before we consider sync to have failed.
+// (2026-04-03): 110s -> 200s. LDK sync is timing out on prod, esp. w/
+// blockstream endpoint.
+pub const DEFAULT_SYNC_TIMEOUT: Duration = Duration::from_secs(200);
+
 /// Computing `max_flow` takes ~30s at 10 iterations and ~50s at 17 iterations.
 /// Set `LayerConfig::handling_timeout` and `reqwest::RequestBuilder::timeout`
 /// to this value to ensure that callers can get a response.

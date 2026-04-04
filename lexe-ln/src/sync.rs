@@ -2,6 +2,7 @@ use std::{sync::Arc, time::Instant};
 
 use anyhow::{Context, anyhow};
 use futures::future::Either;
+use lexe_common::constants::DEFAULT_SYNC_TIMEOUT;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
@@ -21,12 +22,6 @@ use crate::{
 // This should be fairly infrequent because both sync using a transaction-based
 // API which makes HTTP requests to third party services.
 const SYNC_INTERVAL: Duration = Duration::from_secs(60 * 10);
-// TODO(phlip9): reduce this once we fix LDK sync timing out after 30sec on
-// our LSP...
-// (2026-04-03): 110s -> 200s. LDK sync is timing out on prod, esp. w/
-// blockstream endpoint.
-/// How long BDK / LDK sync can proceed before we consider sync to have failed.
-pub const SYNC_TIMEOUT: Duration = Duration::from_secs(200);
 
 // TODO(max): The control flow / logic in these two functions are sufficiently
 // complex and similar that it's probably a good idea to extract a helper fn.
@@ -80,7 +75,7 @@ pub fn spawn_bdk_sync_task(
                     let start = Instant::now();
 
                     // Give up if we time out or receive a shutdown signal
-                    let timeout = time::sleep(SYNC_TIMEOUT);
+                    let timeout = time::sleep(DEFAULT_SYNC_TIMEOUT);
                     let sync_fut = if !is_full_sync {
                         Either::Left(wallet.sync(&esplora))
                     } else {
@@ -172,7 +167,7 @@ where
                     ];
 
                     // Give up if we time out or receive a shutdown signal
-                    let timeout = time::sleep(SYNC_TIMEOUT);
+                    let timeout = time::sleep(DEFAULT_SYNC_TIMEOUT);
                     let sync_res = tokio::select! {
                         res = ldk_sync_client.sync(confirmables) =>
                             res.context("LDK sync failed"),
