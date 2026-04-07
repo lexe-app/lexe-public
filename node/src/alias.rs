@@ -22,5 +22,10 @@ pub(crate) type OnionMessengerType = LexeOnionMessengerType<NodeChannelManager>;
 pub(crate) type PaymentsManagerType =
     PaymentsManager<NodeChannelManager, Arc<NodePersister>>;
 
-pub(crate) type PeerManagerType =
-    LexePeerManagerType<NodeChannelManager, Arc<IgnoringMessageHandler>>;
+pub(crate) type PeerManagerType = LexePeerManagerType<
+    NodeChannelManager,
+    // RoutingMessageHandler: User nodes don't gossip sync; instead the
+    // meganode fetches the entire network graph from the LSP at startup.
+    IgnoringMessageHandler,
+    Arc<NodePersister>,
+>;

@@ -75,7 +75,7 @@ pub type LexePeerManagerType<CHANNEL_MANAGER, RMH, PERSISTER> = PeerManager<
     Arc<LexeOnionMessengerType<CHANNEL_MANAGER>>,
     LexeTracingLogger,
     // CustomMessageHandler
-    Arc<IgnoringMessageHandler>,
+    IgnoringMessageHandler,
     Arc<LexeKeysManager>,
     // SendOnlyMessageHandler
     Arc<LexeChainMonitorType<PERSISTER>>,

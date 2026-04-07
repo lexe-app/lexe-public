@@ -32,10 +32,7 @@ use lexe_common::{
     },
     constants::{self},
     env::DeployEnv,
-    ln::{
-        balance::OnchainBalance, channel::LxOutPoint, hashes::Txid,
-        network::Network,
-    },
+    ln::{balance::OnchainBalance, hashes::Txid, network::Network},
     net,
     root_seed::RootSeed,
     time::TimestampMs,
@@ -76,8 +73,8 @@ use lexe_tokio::{
     task::{self, LxTask},
 };
 use lightning::{
-    chain::{Watch, chainmonitor::ChainMonitor},
-    ln::{peer_handler::IgnoringMessageHandler, types::ChannelId},
+    chain::chainmonitor::ChainMonitor,
+    ln::peer_handler::IgnoringMessageHandler,
     sign::{NodeSigner, Recipient},
 };
 use lightning_transaction_sync::EsploraSyncClient;
@@ -626,13 +623,12 @@ impl UserNode {
         ));
 
         // Initialize PeerManager
-        let routing_msg_handler = Arc::new(IgnoringMessageHandler {});
         let (peer_manager, process_events_task) = NodePeerManager::init(
             rng,
             keys_manager.clone(),
             channel_manager.clone(),
-            routing_msg_handler,
             onion_messenger.clone(),
+            chain_monitor.clone(),
             logger.clone(),
             shutdown.clone(),
         );

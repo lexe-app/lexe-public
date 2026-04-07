@@ -19,7 +19,7 @@ use lightning::ln::{
 use secrecy::zeroize::Zeroizing;
 
 use crate::{
-    alias::{OnionMessengerType, PeerManagerType},
+    alias::{ChainMonitorType, OnionMessengerType, PeerManagerType},
     channel_manager::NodeChannelManager,
 };
 
@@ -43,16 +43,19 @@ impl NodePeerManager {
         mut rng: &mut dyn Crng,
         keys_manager: Arc<LexeKeysManager>,
         channel_manager: NodeChannelManager,
-        routing_msg_handler: Arc<IgnoringMessageHandler>,
         onion_messenger: Arc<OnionMessengerType>,
+        chain_monitor: Arc<ChainMonitorType>,
         logger: LexeTracingLogger,
         shutdown: NotifyOnce,
     ) -> (Self, LxTask<()>) {
         let lightning_msg_handler = MessageHandler {
             chan_handler: channel_manager,
-            route_handler: routing_msg_handler,
+            // user nodes don't gossip sync with the LSP; instead the meganode
+            // fetches the entire network graph from the LSP at startup.
+            route_handler: IgnoringMessageHandler {},
             onion_message_handler: onion_messenger,
-            custom_message_handler: Arc::new(IgnoringMessageHandler {}),
+            custom_message_handler: IgnoringMessageHandler {},
+            send_only_message_handler: chain_monitor,
         };
 
         // `current_time` is supposed to be monotonically increasing across node
@@ -137,7 +140,7 @@ impl PeerManagerTrait for NodePeerManager {
         &self,
         conn_tx: &mut ConnectionTx,
         data: &[u8],
-    ) -> Result<bool, PeerHandleError> {
+    ) -> Result<(), PeerHandleError> {
         self.0.peer_manager.read_event(conn_tx, data)
     }
 
