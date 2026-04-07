@@ -144,8 +144,8 @@ pub enum ChannelMonitorUpdateKind {
 /// deserializing from the actual channel monitor filename, so it can't always
 /// contain the `channel_id`. We need a newtype here as [`LxOutPoint`] has a
 /// different serialization from LDK's `OutPoint` for historical reasons.
-#[derive(Copy, Clone)]
-#[cfg_attr(test, derive(Debug, Eq, PartialEq, Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(test, derive(Debug, Arbitrary))]
 pub enum LxMonitorName {
     V1Channel(LxOutPoint),
     V2Channel(LxChannelId),

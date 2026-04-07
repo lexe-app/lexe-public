@@ -71,7 +71,7 @@ use lexe_common::{
         user::{Scid, Scids},
     },
     constants,
-    ln::channel::LxOutPoint,
+    ln::channel::LxChannelId,
     time::TimestampMs,
 };
 use lexe_crypto::{
@@ -83,7 +83,9 @@ use lexe_ln::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,
         LexeChainMonitorType, MessageRouterType, RouterType, SignerType,
     },
-    channel_monitor::{ChannelMonitorUpdateKind, LxChannelMonitorUpdate},
+    channel_monitor::{
+        ChannelMonitorUpdateKind, LxChannelMonitorUpdate, LxMonitorName,
+    },
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     payments::{
@@ -91,21 +93,21 @@ use lexe_ln::{
         manager::{CheckedPayment, PersistedPayment},
         v1::PaymentV1,
     },
-    persister,
-    persister::LexePersisterMethods,
+    persister::{self, LexePersisterMethods},
     traits::LexePersister,
     wallet::ChangeSet,
 };
-use lexe_std::{Apply, backoff};
+use lexe_std::backoff;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
         ChannelMonitorUpdateStatus, chainmonitor::Persist,
-        channelmonitor::ChannelMonitorUpdate, transaction::OutPoint,
+        channelmonitor::ChannelMonitorUpdate,
     },
-    ln::channelmanager::ChannelManagerReadArgs,
+    ln::{channelmanager::ChannelManagerReadArgs, types::ChannelId},
     util::{
         config::UserConfig,
+        persist::MonitorName,
         ser::{ReadableArgs, Writeable},
     },
 };
@@ -743,17 +745,16 @@ impl NodePersister {
         for ((file_id, _bytes), (_blockhash, channel_monitor)) in
             ids_and_bytes.iter().zip(values.iter())
         {
-            let expected_txo = LxOutPoint::from_str(&file_id.filename)
+            let expected_name = LxMonitorName::from_str(&file_id.filename)
                 .with_context(|| file_id.filename.clone())
-                .context("Invalid funding txo string")?;
-            let derived_txo = channel_monitor
-                .get_funding_txo()
-                .apply(|(txo, _script)| LxOutPoint::from(txo));
+                .context("Invalid channel monitor name")?;
+            let derived_name =
+                LxMonitorName::from(channel_monitor.persistence_key());
 
             ensure!(
-                derived_txo == expected_txo,
-                "Expected and derived txos don't match: \
-                 {expected_txo} != {derived_txo}"
+                derived_name == expected_name,
+                "Expected and derived channel monitor names don't match: \
+                 {expected_name} != {derived_name}"
             );
         }
 
@@ -887,19 +888,16 @@ impl LexePersisterMethods for NodePersister {
     async fn persist_channel_monitor<PS: LexePersister>(
         &self,
         chain_monitor: &LexeChainMonitorType<PS>,
-        funding_txo: &LxOutPoint,
+        channel_id: &LxChannelId,
+        monitor_name: &LxMonitorName,
     ) -> anyhow::Result<()> {
         let file = {
-            let locked_monitor =
-                chain_monitor.get_monitor((*funding_txo).into()).map_err(
-                    |e| anyhow!("No monitor for this funding_txo: {e:?}"),
-                )?;
-
-            // NOTE: The VFS filename uses the `ToString` impl of `LxOutPoint`
-            // rather than `lightning::chain::transaction::OutPoint` or
-            // `bitcoin::OutPoint`! `LxOutPoint`'s FromStr/Display impls are
-            // guaranteed to roundtrip, and will be stable across LDK versions.
-            let filename = funding_txo.to_string();
+            let locked_monitor = chain_monitor
+                .get_monitor(ChannelId::from(*channel_id))
+                .map_err(|e| {
+                    anyhow!("No monitor for this channel_id: {e:?}")
+                })?;
+            let filename = monitor_name.to_string();
             let file_id = VfsFileId::new(vfs::CHANNEL_MONITORS_DIR, filename);
             self.encrypt_ldk_writeable(file_id, &*locked_monitor)
         };
@@ -1243,13 +1241,15 @@ impl LexePersisterMethods for NodePersister {
 impl Persist<SignerType> for NodePersister {
     fn persist_new_channel(
         &self,
-        funding_txo: OutPoint,
+        name: MonitorName,
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
         let kind = ChannelMonitorUpdateKind::New;
-        let funding_txo = LxOutPoint::from(funding_txo);
+        let channel_id = LxChannelId::from(monitor.channel_id());
+        let name = LxMonitorName::from(name);
         let update_id = monitor.get_latest_update_id();
-        let update = LxChannelMonitorUpdate::new(kind, funding_txo, update_id);
+        let update =
+            LxChannelMonitorUpdate::new(kind, channel_id, name, update_id);
         let update_span = update.span();
 
         update_span.in_scope(|| {
@@ -1274,18 +1274,20 @@ impl Persist<SignerType> for NodePersister {
 
     fn update_persisted_channel(
         &self,
-        funding_txo: OutPoint,
+        name: MonitorName,
         // TODO: We may want to use the id inside for rollback protection
         update: Option<&ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
         let kind = ChannelMonitorUpdateKind::Updated;
-        let funding_txo = LxOutPoint::from(funding_txo);
+        let channel_id = LxChannelId::from(monitor.channel_id());
+        let name = LxMonitorName::from(name);
         let update_id = update
             .as_ref()
             .map(|u| u.update_id)
             .unwrap_or_else(|| monitor.get_latest_update_id());
-        let update = LxChannelMonitorUpdate::new(kind, funding_txo, update_id);
+        let update =
+            LxChannelMonitorUpdate::new(kind, channel_id, name, update_id);
         let update_span = update.span();
 
         update_span.in_scope(|| {
@@ -1308,7 +1310,8 @@ impl Persist<SignerType> for NodePersister {
         ChannelMonitorUpdateStatus::InProgress
     }
 
-    fn archive_persisted_channel(&self, funding_txo: OutPoint) {
+    fn archive_persisted_channel(&self, name: MonitorName) {
+        let monitor_name = LxMonitorName::from(name);
         let backend_api = self.backend_api.clone();
         let authenticator = self.authenticator.clone();
         let vfs_master_key = self.vfs_master_key.clone();
@@ -1319,7 +1322,7 @@ impl Persist<SignerType> for NodePersister {
         let try_archive_fut = async move {
             info!("Archiving channel monitor");
 
-            let filename = funding_txo.to_string();
+            let filename = monitor_name.to_string();
             let source_file_id =
                 VfsFileId::new(vfs::CHANNEL_MONITORS_DIR, filename.clone());
             let archive_file_id =
@@ -1374,7 +1377,7 @@ impl Persist<SignerType> for NodePersister {
         const SPAN_NAME: &str = "(chan-monitor-archiver)";
         let task = LxTask::spawn_with_span(
             SPAN_NAME,
-            info_span!(SPAN_NAME, %funding_txo),
+            info_span!(SPAN_NAME, %monitor_name),
             async move {
                 match try_archive_fut.await {
                     Ok(()) => info!("Success: archived channel monitor"),

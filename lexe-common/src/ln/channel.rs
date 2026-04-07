@@ -1,7 +1,4 @@
-use std::{
-    fmt::{self, Debug, Display},
-    str::FromStr,
-};
+use std::{fmt, str::FromStr};
 
 use anyhow::Context;
 use lexe_byte_array::ByteArray;
@@ -381,7 +378,8 @@ impl LxChannelDetails {
     }
 }
 
-/// A newtype for [`OutPoint`] that provides [`FromStr`] / [`Display`] impls.
+/// A newtype for [`OutPoint`] that provides [`FromStr`] / [`fmt::Display`]
+/// impls.
 ///
 /// Since the persister relies on the string representation to identify
 /// channels, having a newtype (instead of upstreaming these impls to LDK)
@@ -443,7 +441,7 @@ impl FromStr for LxOutPoint {
 }
 
 /// Serializes to `<txid>_<index>`
-impl Display for LxOutPoint {
+impl fmt::Display for LxOutPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}_{}", self.txid, self.index)
     }
@@ -453,6 +451,7 @@ impl Display for LxOutPoint {
 mod test {
     use super::*;
     use crate::test_utils::roundtrip;
+
     #[test]
     fn outpoint_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<LxOutPoint>();

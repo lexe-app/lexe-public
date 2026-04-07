@@ -590,46 +590,22 @@ impl UserNode {
             initial_migrations.clone(),
         );
 
-        // Move the channel monitors into the chain monitor so that it can watch
-        // the chain for closing transactions, fraudulent transactions, etc.
+        // Load the existing channel monitors into the chain monitor so that it
+        // can watch the chain for closing transactions, fraudulent
+        // transactions, etc.
         for (_blockhash, monitor) in channel_monitors {
-            let (funding_txo, _script) = monitor.get_funding_txo();
-            let counterparty_node_id = monitor
-                .get_counterparty_node_id()
-                .expect("Launched after v0.0.110");
-
-            // Method docs indicate that if this `Err`s, we should immediately
-            // force close without broadcasting the funding txn.
-            // No one else seems to do this though...
-            if let Err(()) = chain_monitor.watch_channel(funding_txo, monitor) {
-                let channel_id =
-                    ChannelId::v1_from_funding_outpoint(funding_txo);
-                warn!(
-                    %channel_id, %funding_txo,
-                    "`ChainMonitor::watch_channel` failed; force closing..."
-                );
-
-                channel_manager
-                    .force_close_without_broadcasting_txn(
-                        &channel_id,
-                        &counterparty_node_id,
-                        "Couldn't watch this channel".to_owned(),
+            // This should only error if we (1) somehow load a channel monitor
+            // twice for a channel id or we (2) fail to "watch" a pre ldk-v0.1
+            // channel monitor. We don't have any more channel monitors from
+            // <=ldk-v0.0.125, so we can just forward the error here.
+            let channel_id = monitor.channel_id();
+            chain_monitor
+                .load_existing_monitor(channel_id, monitor)
+                .map_err(|()| {
+                    anyhow!(
+                        "Failed to load existing channel monitor: {channel_id}"
                     )
-                    .inspect(|()| {
-                        info!(
-                            %channel_id, %funding_txo,
-                            "Successfully force closed"
-                        )
-                    })
-                    .map_err(|e| {
-                        let funding_txo = LxOutPoint::from(funding_txo);
-                        anyhow!(
-                            "Couldn't force close bad monitor: {e:?} \
-                             channel_id='{channel_id}', \
-                             funding_txo='{funding_txo}'"
-                        )
-                    })?;
-            }
+                })?;
         }
 
         // Init onion messenger
