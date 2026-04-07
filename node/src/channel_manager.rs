@@ -97,10 +97,22 @@ const fn user_config() -> UserConfig {
         // TODO(max): Add more notes corresponding to the results of current
         // research on zeroconf channels in Nuclino
         manually_accept_inbound_channels: true,
+        // TODO(phlip9): splicing needs testing.
+        reject_inbound_splices: true,
         // The node has no need to intercept HTLCs
         accept_intercept_htlcs: false,
         // For now, no need to manually pay BOLT 12 invoices when received.
         manually_handle_bolt12_invoices: false,
+        // This feature enables the node to hold onto HTLCs until its peer is
+        // online again. User nodes are not routing nodes, so this is not
+        // relevant.
+        enable_htlc_hold: false,
+        // This feature would allow user nodes to pay a `StaticInvoice` to
+        // another "often-offline" recipient by having the LSP hold the invoice
+        // for us.
+        // TODO(phlip9): potentially relevant, would need LSP to support
+        // `enable_htlc_hold`.
+        hold_outbound_htlcs_at_next_hop: false,
     }
 }
 
@@ -127,6 +139,21 @@ const fn channel_handshake_config() -> ChannelHandshakeConfig {
         // that we can check that we have a sufficient wallet balance to cover
         // the fees for all existing and future channels.
         negotiate_anchors_zero_fee_htlc_tx: false,
+        // If true, we'll attempt to negotiate zero-fee commitments for all
+        // future channels.
+        //
+        // Like `negotiate_anchors_zero_fee_htlc_tx` this requires
+        // `manually_accept_inbound_channels` so you can check if you have
+        // enough on-chain reserve available.
+        //
+        // For a force-close transaction to reach miners and get confirmed,
+        // zero-fee commitment channels require a path from your Bitcoin node to
+        // miners that relays TRUC transactions (BIP 431), P2A outputs,
+        // and Ephemeral Dust. Currently, only nodes running Bitcoin
+        // Core v29 and above relay transactions with these features.
+        //
+        // TODO(phlip9): needs testing.
+        negotiate_anchor_zero_fee_commitments: false,
         // User<->LSP channels are private. People route to us via a route hop
         // hint in the invoice.
         announce_for_forwarding: false,
