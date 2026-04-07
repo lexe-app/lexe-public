@@ -59,10 +59,7 @@ use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     channel::ChannelEvent,
     esplora::FeeEstimates,
-    event::{
-        self, EventHandleError, EventId, HtlcsForwarded,
-        LexeEventHandlerMethods,
-    },
+    event::{self, EventHandleError, EventId, LexeEventHandlerMethods},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
     test_event::TestEventSender,
@@ -70,9 +67,7 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
-use lexe_tokio::{
-    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
-};
+use lexe_tokio::{events_bus::EventsBus, notify_once::NotifyOnce};
 use lightning::events::{
     Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
 };
@@ -106,9 +101,7 @@ pub(crate) struct EventCtx {
     pub payments_manager: PaymentsManagerType,
 
     pub channel_events_bus: EventsBus<ChannelEvent>,
-    pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub gdrive_persister_tx: mpsc::Sender<VfsFile>,
-    pub htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
@@ -173,7 +166,7 @@ async fn do_handle_event(
         // (1) we may accept zeroconf channels (2) we need to verify that it is
         // Lexe's LSP that is initiating the channel with us. The event MUST be
         // resolved by (a) rejecting the channel open request by calling
-        // force_close_without_broadcasting_txn() or (b) accepting the request
+        // force_close_broadcasting_latest_txn() or (b) accepting the request
         // using accept_inbound_channel() or (c) accepting as trusted zeroconf
         // using accept_inbound_channel_from_trusted_peer_0conf().
         Event::OpenChannelRequest {
@@ -186,7 +179,7 @@ async fn do_handle_event(
             params: _,
         } => {
             let handle_open_channel_request = || {
-                // TODO(phlip9): support dual-funded channels
+                // TODO(phlip9): support splicing/dual-funded channels
                 match channel_negotiation_type {
                     InboundChannelFunds::PushMsat(_) => (),
                     InboundChannelFunds::DualFunded =>
@@ -215,11 +208,13 @@ async fn do_handle_event(
 
                 // Checks passed, accept the (probably zero-conf) channel.
                 let user_channel_id = ThreadFastRng::new().gen_u128();
+                let channel_config_override = None;
                 ctx.channel_manager
                     .accept_inbound_channel_from_trusted_peer_0conf(
                         &temporary_channel_id,
                         &counterparty_node_id,
                         user_channel_id,
+                        channel_config_override,
                     )
                     .inspect(|_| info!("Accepted zeroconf channel from LSP"))
                     .map_err(|e| anyhow!("accept inbound 0conf: {e:?}"))?;
@@ -231,7 +226,7 @@ async fn do_handle_event(
             // wrong accepting the channel.
             if let Err(handle_err) = handle_open_channel_request() {
                 ctx.channel_manager
-                    .force_close_without_broadcasting_txn(
+                    .force_close_broadcasting_latest_txn(
                         &temporary_channel_id,
                         &counterparty_node_id,
                         handle_err.to_string(),
@@ -281,6 +276,8 @@ async fn do_handle_event(
             counterparty_node_id,
             funding_txo,
             channel_type,
+            // TODO(phlip9): use this to calculate fees spent on splice-in
+            funding_redeem_script: _,
         } => {
             event::log_channel_pending(
                 channel_id.into(),
@@ -302,6 +299,9 @@ async fn do_handle_event(
             user_channel_id,
             counterparty_node_id,
             channel_type,
+            // TODO(phlip9): after a successful splice-in, the channel's
+            // funding_txo will have changed to this.
+            funding_txo: _,
         } => {
             event::log_channel_ready(
                 channel_id.into(),
@@ -348,8 +348,7 @@ async fn do_handle_event(
             counterparty_skimmed_fee_msat,
             onion_fields: _,
             receiver_node_id: _,
-            via_channel_id: _,
-            via_user_channel_id: _,
+            receiving_channel_ids: _,
             claim_deadline: _,
             payment_id,
         } => {
@@ -438,6 +437,12 @@ async fn do_handle_event(
             payment_hash,
             payment_preimage,
             fee_paid_msat,
+            // The total amount paid across all paths (minus fees).
+            // TODO(phlip9): forward this to payment manager for cross-checking
+            amount_msat: _,
+            // TODO(phlip9): if this is a non-static-invoice payment, you can
+            // use this for proof-of-payment I guess?
+            bolt12_invoice: _,
         } => {
             // NOTE: Err(Replay) ==> must be handled idempotently
             let hash = PaymentHash::from(payment_hash);
@@ -478,9 +483,17 @@ async fn do_handle_event(
             payment_id,
             payment_hash,
             path,
+            // The self-reported HTLC hold time (in 100s of ms) at each hop.
+            // TODO(phlip9): use these metrics to improve route scoring.
+            hold_times,
         } => {
-            let maybe_event =
-                anonymize::successful_path(ctx, payment_id, payment_hash, path);
+            let maybe_event = anonymize::successful_path(
+                ctx,
+                payment_id,
+                payment_hash,
+                path,
+                hold_times,
+            );
             match maybe_event {
                 Some(event) => {
                     info!("Sending anonymized succ path to LSP");
@@ -500,6 +513,9 @@ async fn do_handle_event(
             failure,
             path,
             short_channel_id,
+            // The self-reported HTLC hold time at each hop.
+            // TODO(phlip9): use these metrics to improve route scoring.
+            hold_times,
         } => {
             // Record path failure for in-memory retry tracking.
             if let Some(scid) = short_channel_id {
@@ -516,6 +532,7 @@ async fn do_handle_event(
                 failure,
                 path,
                 short_channel_id,
+                hold_times,
             );
             match maybe_event {
                 Some(event) => {
@@ -609,6 +626,34 @@ async fn do_handle_event(
             // TODO(max): Implement this once we support anchor outputs
         }
 
+        // TODO(phlip9): support channel splicing
+        Event::FundingTransactionReadyForSigning { channel_id, .. } =>
+            debug_panic_release_log!(
+                "Unexpected `FundingTransactionReadyForSigning` event: \
+                 channel_id={channel_id}"
+            ),
+        Event::SplicePending {
+            counterparty_node_id,
+            ..
+        } => debug_panic_release_log!(
+            "Unexpected `SplicePending` event: \
+             counterparty_node_id={counterparty_node_id}"
+        ),
+        Event::SpliceFailed {
+            counterparty_node_id,
+            ..
+        } => debug_panic_release_log!(
+            "Unexpected `SpliceFailed` event: \
+             counterparty_node_id={counterparty_node_id}"
+        ),
+
+        // User nodes don't support static invoices.
+        Event::PersistStaticInvoice { .. } =>
+            debug_panic_release_log!("Unexpected `PersistStaticInvoice` event"),
+        Event::StaticInvoiceRequested { .. } => debug_panic_release_log!(
+            "Unexpected `StaticInvoiceRequested` event"
+        ),
+
         // We don't use this
         Event::OnionMessageIntercepted { peer_node_id, .. } =>
             debug_panic_release_log!(
@@ -658,11 +703,13 @@ mod anonymize {
         payment_id: lightning::ln::channelmanager::PaymentId,
         payment_hash: Option<lightning::types::payment::PaymentHash>,
         path: Path,
+        hold_times: Vec<u32>,
     ) -> Option<Event> {
         anonymize_path(ctx, path).map(|path| Event::PaymentPathSuccessful {
             payment_id,
             payment_hash,
             path,
+            hold_times,
         })
     }
 
@@ -675,6 +722,7 @@ mod anonymize {
         failure: PathFailure,
         path: Path,
         short_channel_id: Option<u64>,
+        hold_times: Vec<u32>,
     ) -> Option<Event> {
         let path = anonymize_path(ctx, path)?;
 
@@ -709,6 +757,7 @@ mod anonymize {
             failure,
             path,
             short_channel_id,
+            hold_times,
         })
     }
 

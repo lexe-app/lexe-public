@@ -505,6 +505,12 @@ impl UserNode {
         );
         static_tasks.push(broadcaster_task);
 
+        // Init keys manager.
+        let keys_manager =
+            LexeKeysManager::new(rng, &root_seed, wallet.clone())
+                .map(Arc::new)
+                .context("Failed to construct keys manager")?;
+
         // Initialize the chain monitor
         let chain_monitor = Arc::new(ChainMonitor::new(
             Some(ldk_sync_client.clone()),
@@ -512,13 +518,9 @@ impl UserNode {
             logger.clone(),
             fee_estimates.clone(),
             persister.clone(),
+            keys_manager.clone(),
+            keys_manager.get_peer_storage_key(),
         ));
-
-        // Init keys manager.
-        let keys_manager =
-            LexeKeysManager::new(rng, &root_seed, wallet.clone())
-                .map(Arc::new)
-                .context("Failed to construct keys manager")?;
 
         // Deserialize channel monitors from previously fetched bytes
         let channel_monitor_bytes = try_channel_monitor_bytes
@@ -545,7 +547,7 @@ impl UserNode {
         ));
         let maybe_manager = persister
             .read_channel_manager(
-                *config,
+                (*config).clone(),
                 &mut channel_monitors,
                 keys_manager.clone(),
                 fee_estimates.clone(),
@@ -561,7 +563,7 @@ impl UserNode {
         // Init the NodeChannelManager
         let channel_manager = NodeChannelManager::init(
             network,
-            *config,
+            (*config).clone(),
             maybe_manager,
             keys_manager.clone(),
             fee_estimates.clone(),
@@ -653,7 +655,6 @@ impl UserNode {
 
         // Initialize the event handler
         let channel_events_bus = EventsBus::new();
-        let htlcs_forwarded_bus = EventsBus::new();
         let event_handler = NodeEventHandler {
             ctx: Arc::new(event_handler::EventCtx {
                 user_pk,
@@ -670,9 +671,7 @@ impl UserNode {
                 payments_manager: payments_manager.clone(),
 
                 channel_events_bus: channel_events_bus.clone(),
-                eph_tasks_tx: eph_tasks_tx.clone(),
                 gdrive_persister_tx,
-                htlcs_forwarded_bus: htlcs_forwarded_bus.clone(),
                 runner_tx: runner_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
@@ -918,6 +917,7 @@ impl UserNode {
         // Init background processor. User nodes can't be observed from the
         // outside, so there is no point in having any forwarding delay.
         let forward_delay_range_ms = 0..1;
+        let htlcs_forwarded_bus = EventsBus::new();
         let bg_processor_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),

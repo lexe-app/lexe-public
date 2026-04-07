@@ -158,7 +158,7 @@ pub(super) async fn open_channel(
         user_channel_id,
         req.value,
         lsp_node_pk,
-        *state.config,
+        (*state.config).clone(),
         is_jit_channel,
     )
     .await
