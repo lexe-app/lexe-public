@@ -140,6 +140,13 @@ pub fn channel_balance<PS: LexePersister>(
                             inbound_htlc_rounded_msat: _,
                         } => {
                             let idx = confirmed_balance_candidate_index;
+                            // Mirror LDK's `claimable_amount_satoshis`
+                            // semantics for top-level user balance: when no
+                            // alternative funding tx has confirmed yet, show
+                            // the latest negotiated splice/RBF candidate
+                            // instead of the currently confirmed one. This
+                            // keeps the user-visible balance stable while a
+                            // splice/RBF is pending.
                             let maybe_b = if idx != 0 {
                                 Some(&balance_candidates[idx])
                             } else {
