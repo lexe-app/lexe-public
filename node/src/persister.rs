@@ -1320,9 +1320,9 @@ impl Persist<SignerType> for NodePersister {
         // LDK suggests that instead of deleting the monitor,
         // we should archive the monitor to hedge against data loss.
         let try_archive_fut = async move {
-            info!("Archiving channel monitor");
-
             let filename = monitor_name.to_string();
+            info!(monitor = filename, "Archiving channel monitor");
+
             let source_file_id =
                 VfsFileId::new(vfs::CHANNEL_MONITORS_DIR, filename.clone());
             let archive_file_id =
