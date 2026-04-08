@@ -62,7 +62,8 @@ class AmountDescription {
 /// The inputs used to generate a Lightning invoice [PaymentOffer].
 @immutable
 class LnInvoiceInputs {
-  const LnInvoiceInputs({required this.amountSats, required this.description});
+  const LnInvoiceInputs({required this.amountSats, required this.description})
+    : assert(amountSats != 0);
 
   final int? amountSats;
   final String? description;
@@ -91,7 +92,8 @@ class LnInvoiceInputs {
 /// The inputs used to generate a Lightning BOLT12 offer [PaymentOffer].
 @immutable
 class LnOfferInputs {
-  const LnOfferInputs({required this.amountSats, required this.description});
+  const LnOfferInputs({required this.amountSats, required this.description})
+    : assert(amountSats != 0);
 
   final int? amountSats;
   final String? description;

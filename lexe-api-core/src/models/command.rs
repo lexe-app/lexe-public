@@ -361,7 +361,9 @@ pub struct CreateOfferRequest {
     /// value.
     ///
     /// If `Some`, the offer amount is fixed and the payer must pay exactly
-    /// this value (per item, see `max_quantity`).
+    /// this value (per item, see `max_quantity`). The offer amount must be a
+    /// non-zero value if set; if a variable amount offer is desired, don't set
+    /// an amount.
     pub amount: Option<Amount>,
     /// The description to be encoded into the invoice.
     ///
