@@ -73,7 +73,7 @@ use lexe_tokio::{
     events_bus::EventsBus,
     notify,
     notify_once::NotifyOnce,
-    task::{self, LxTask, MaybeLxTask},
+    task::{self, LxTask},
 };
 use lightning::{
     chain::{Watch, chainmonitor::ChainMonitor},
@@ -576,7 +576,7 @@ impl UserNode {
         )
         .context("Could not init NodeChannelManager")?;
 
-        // Spawn a task to claim a payment address concurrently.
+        // Spawn a task to claim a Human Bitcoin Address (HBA) concurrently.
         // This task is joined before `init` returns.
         //
         // NOTE: There is a potential TOCTTOU race condition here: two nodes
@@ -584,53 +584,11 @@ impl UserNode {
         // then one succeeds at claiming while the other fails. This is unlikely
         // in practice (requires two users with colliding petnames to register
         // simultaneously) and not worth the complexity to handle.
-        let claim_hba_task = {
-            let persister = persister.clone();
-            let channel_manager = channel_manager.clone();
-
-            const SPAN_NAME: &str = "(claim-human-bitcoin-address)";
-            LxTask::spawn_with_span(
-                SPAN_NAME,
-                info_span!(SPAN_NAME),
-                async move {
-                    let token = persister.get_token().await?;
-                    let resp = persister
-                        .backend_api()
-                        .get_generated_username(token.clone())
-                        .await
-                        .context("get_generated_username failed")?;
-
-                    // If already claimed, no need to claim again
-                    if resp.already_claimed {
-                        return anyhow::Ok(());
-                    }
-                    let username = resp.username;
-
-                    let offer_req =
-                        lexe_ln::command::hba_offer_request(username.inner());
-                    let offer_resp = lexe_ln::command::create_offer(
-                        offer_req,
-                        &channel_manager,
-                    )
-                    .await
-                    .context("Failed to create HBA offer")?;
-
-                    let req = ClaimGeneratedHumanBitcoinAddress {
-                        offer: offer_resp.offer,
-                        username,
-                    };
-                    persister
-                        .backend_api()
-                        .claim_generated_human_bitcoin_address(req, token)
-                        .await
-                        .context(
-                            "claim_generated_human_bitcoin_address failed",
-                        )?;
-
-                    anyhow::Ok(())
-                },
-            )
-        };
+        let hba_task = helpers::spawn_hba_task(
+            persister.clone(),
+            channel_manager.clone(),
+            initial_migrations.clone(),
+        );
 
         // Move the channel monitors into the chain monitor so that it can watch
         // the chain for closing transactions, fraudulent transactions, etc.
@@ -1004,13 +962,13 @@ impl UserNode {
         // Ensure channels are using the most up-to-date config.
         channel_manager.check_channel_configs(&config);
 
-        // Wait for the HBA claim task to complete before finishing init.
+        // Wait for the HBA task to complete before finishing init.
         // A failure here should abort node startup since it indicates an issue
         // that requires investigation.
-        claim_hba_task
+        hba_task
             .await
-            .context("claim HBA task panicked")?
-            .context("Failed to claim human Bitcoin address")?;
+            .context("HBA task panicked")?
+            .context("HBA task failed")?;
 
         // Spawn legacy wallet sweep task if migration marker exists.
         // This sweeps funds from the old non-BIP39-compatible derivation path
@@ -1031,47 +989,6 @@ impl UserNode {
             };
             let sweep_task = legacy_sweep::spawn_legacy_sweep_task(sweep_ctx);
             let _ = eph_tasks_tx.try_send(sweep_task);
-        }
-
-        // Migrate HBA offer to v2 format if needed.
-        // Before: description was "{username}@lexe.app"
-        // After: description is "Pay to ₿{username}@lexe.app"
-        if !initial_migrations.is_applied(migrations::MARKER_HBA_OFFER_V2) {
-            let token = persister.get_token().await?;
-            let hba = persister
-                .backend_api()
-                .get_human_bitcoin_address(token.clone())
-                .await
-                .context("get_human_bitcoin_address failed")?;
-
-            // Regenerate the offer if the user has an HBA.
-            if let Some(username) = hba.username {
-                info!("Migrating HBA offer to v2 format");
-
-                let offer_req =
-                    lexe_ln::command::hba_offer_request(username.inner());
-                let offer =
-                    lexe_ln::command::create_offer(offer_req, &channel_manager)
-                        .await
-                        .context("Failed to create HBA offer")?;
-
-                let req = UpdateHumanBitcoinAddress {
-                    username,
-                    offer: offer.offer,
-                };
-                persister
-                    .backend_api()
-                    .update_human_bitcoin_address(req, token)
-                    .await
-                    .context("update_human_bitcoin_address failed")?;
-            }
-
-            Migrations::mark_applied(
-                &*persister,
-                migrations::MARKER_HBA_OFFER_V2,
-            )
-            .await
-            .context("Failed to mark HBA offer v2 migration")?;
         }
 
         let elapsed = init_start.elapsed().as_millis();
@@ -1181,17 +1098,15 @@ impl UserNode {
         // Reconnect to Lexe's LSP.
         // We only reconnect to the LSP *after* we have completed init + sync,
         // as it's our signal to the LSP that we are ready to receive messages.
-        let maybe_connector_task = maybe_reconnect_to_lsp(
+        let connector_task = p2p::connect_to_lsp_then_spawn_connector_task(
             self.peer_manager.clone(),
             &self.args.lsp,
             self.eph_tasks_tx.clone(),
             self.shutdown.clone(),
         )
         .await
-        .context("maybe_reconnect_to_lsp failed")?;
-        if let MaybeLxTask(Some(connector_task)) = maybe_connector_task {
-            self.static_tasks.push(connector_task);
-        }
+        .context("connect_to_lsp_then_spawn_connector_task failed")?;
+        self.static_tasks.push(connector_task);
 
         // Spawn a task which simply responds with `RunPorts` when asked.
         //
@@ -1351,23 +1266,106 @@ async fn fetch_provisioned_secrets(
     }
 }
 
-/// Spawns the task which reconnects to Lexe's LSP, notifying our p2p
-/// reconnector to continuously reconnect if we disconnect for some reason.
-async fn maybe_reconnect_to_lsp(
-    peer_manager: NodePeerManager,
-    lsp: &LspInfo,
-    eph_tasks_tx: mpsc::Sender<LxTask<()>>,
-    shutdown: NotifyOnce,
-) -> anyhow::Result<MaybeLxTask<()>> {
-    info!("Spawning LSP connector task");
-    let task = p2p::connect_to_lsp_then_spawn_connector_task(
-        peer_manager,
-        lsp,
-        eph_tasks_tx,
-        shutdown,
-    )
-    .await
-    .context("connect_to_lsp_then_spawn_connector_task failed")?;
+/// Private helpers for the `node::run` module.
+mod helpers {
+    use super::*;
 
-    Ok(MaybeLxTask(Some(task)))
+    /// Spawns a task to claim a Human Bitcoin Address (HBA) concurrently.
+    ///
+    /// This task handles both:
+    /// 1. Initial HBA claim for fresh nodes
+    /// 2. Migration of existing HBAs to v2 offer format
+    pub(super) fn spawn_hba_task(
+        persister: Arc<NodePersister>,
+        channel_manager: NodeChannelManager,
+        initial_migrations: Arc<Migrations>,
+    ) -> LxTask<anyhow::Result<()>> {
+        const SPAN_NAME: &str = "(claim-human-bitcoin-address)";
+        LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
+            let token = persister.get_token().await?;
+            let generated_username = persister
+                .backend_api()
+                .get_generated_username(token.clone())
+                .await
+                .context("get_generated_username failed")?;
+
+            if !generated_username.already_claimed {
+                // - Fresh node: Claim HBA with v2 offer format. - //
+
+                // Create a fresh offer, encoding the unclaimed generated
+                // username into the offer
+                let username = generated_username.username;
+                let offer_req =
+                    lexe_ln::command::hba_offer_request(username.inner());
+                let offer_resp =
+                    lexe_ln::command::create_offer(offer_req, &channel_manager)
+                        .await
+                        .context("Failed to create HBA offer")?;
+
+                // Claim the HBA with generated username and associated offer
+                let req = ClaimGeneratedHumanBitcoinAddress {
+                    offer: offer_resp.offer,
+                    username,
+                };
+                persister
+                    .backend_api()
+                    .claim_generated_human_bitcoin_address(req, token)
+                    .await
+                    .context("claim_generated_human_bitcoin_address failed")?;
+
+                // Mark migration applied since we just created a v2 offer.
+                Migrations::mark_applied(
+                    &*persister,
+                    migrations::MARKER_HBA_OFFER_V2,
+                )
+                .await
+                .context("Failed to mark HBA offer v2 migration")?;
+            } else if !initial_migrations
+                .is_applied(migrations::MARKER_HBA_OFFER_V2)
+            {
+                // - Existing node with v1 offer: Migrate to v2 format. - //
+
+                // Get existing HBA
+                let hba = persister
+                    .backend_api()
+                    .get_human_bitcoin_address(token.clone())
+                    .await
+                    .context("get_human_bitcoin_address failed")?;
+
+                // Regenerate the offer in v2 format
+                if let Some(username) = hba.username {
+                    info!("Migrating HBA offer to v2 format");
+
+                    let offer_req =
+                        lexe_ln::command::hba_offer_request(username.inner());
+                    let offer = lexe_ln::command::create_offer(
+                        offer_req,
+                        &channel_manager,
+                    )
+                    .await
+                    .context("Failed to create HBA offer")?;
+
+                    let req = UpdateHumanBitcoinAddress {
+                        username,
+                        offer: offer.offer,
+                    };
+                    persister
+                        .backend_api()
+                        .update_human_bitcoin_address(req, token)
+                        .await
+                        .context("update_human_bitcoin_address failed")?;
+                }
+
+                // Migration complete
+                Migrations::mark_applied(
+                    &*persister,
+                    migrations::MARKER_HBA_OFFER_V2,
+                )
+                .await
+                .context("Failed to mark HBA offer v2 migration")?;
+            }
+
+            anyhow::Ok(())
+        })
+    }
 }
