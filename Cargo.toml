@@ -327,10 +327,8 @@ axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-
 # axum-server = { path = "../../axum-server" }
 
 # * license: Add dual license information
-# * async: Log every request
-# * doc: fix cargo doc builds when non-default features are enabled
-#   PR: <https://github.com/bitcoindevkit/rust-esplora-client/pull/129>
-esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.12.0-2025_06_12" }
+# * async: log every request
+esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.12.3-2026_04_09" }
 # esplora-client.path = "../../esplora-client"
 
 # * license: Add dual license information

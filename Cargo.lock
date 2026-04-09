@@ -1550,14 +1550,15 @@ dependencies = [
 
 [[package]]
 name = "esplora-client"
-version = "0.12.0"
-source = "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.0-2025_06_12#3fae9cdd82ce36aca6950a5614536de98f466a69"
+version = "0.12.3"
+source = "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.3-2026_04_09#8d0417a29c2840c25e92d00aa9fbda9b1ca6a189"
 dependencies = [
  "bitcoin",
  "hex-conservative",
  "log",
  "reqwest",
  "serde",
+ "serde_json",
  "tokio",
 ]
 

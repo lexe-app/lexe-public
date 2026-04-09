@@ -153,6 +153,8 @@ rec {
   # Get all updated output hashes:
   # ```
   # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.x86_64-linux.cargoVendorDir
+  # # ... or ...
+  # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.aarch64-darwin.cargoVendorDir
   # ```
   gitDepOutputHashes = {
     "git+https://github.com/arik-so/rust-musig2?rev=6f95a05718cbb44d8fe3fa6021aea8117aa38d50#6f95a05718cbb44d8fe3fa6021aea8117aa38d50" =
@@ -169,8 +171,8 @@ rec {
       "sha256-FOzvw2NBwSTwNsxSOF89+QaMf+j6GVpCZPfR1Fknuro=";
     "git+https://github.com/lexe-app/ring?branch=lexe-v0.17.14-2026_02_28#431f9512aa0477eab06c5f1528f530339fed1c0f" =
       "sha256-2O5LeLKT/Ns99hn7/Q3N+z19OmaGSEVeyXjio6I28i0=";
-    "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.0-2025_06_12#3fae9cdd82ce36aca6950a5614536de98f466a69" =
-      "sha256-kDdRH6eXljD8gULyVOQUqYo51UgNmoMxZOTHyiLuvoo=";
+    "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.3-2026_04_09#8d0417a29c2840c25e92d00aa9fbda9b1ca6a189" =
+      "sha256-0r4UjBmCRdUIeYJ2kw3wgvWtgtUbkZJzX1cPEG39GZE=";
     "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.1.7-2025_11_19#06ab758176885c272dd149e2457969eb8ddb815e" =
       "sha256-+7EFsJpuLZgdJ1RE2PzsOhUhrtA7yoNkLf1qh97vrPA=";
     "git+https://github.com/lexe-app/rust-sgx?branch=lexe-b23e3383-2025_12_18#b23e3383d1a9a7955af8ba5695f95a7a80e6e62a" =
