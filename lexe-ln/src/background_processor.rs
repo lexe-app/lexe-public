@@ -29,6 +29,8 @@ mod interval {
 
     /// Channel manager ticks.
     pub const CHANNEL_MANAGER: Duration = Duration::from_secs(60);
+    /// ChainMonitor::rebroadcast_pending_claims ticks.
+    pub const REBROADCAST: Duration = Duration::from_secs(30);
     /// Peer manager ticks.
     pub const PEER_MANAGER: Duration = Duration::from_secs(15);
     /// Event processing.
@@ -42,7 +44,8 @@ mod interval {
 mod delay {
     use std::time::Duration;
 
-    pub const CHANNEL_MANAGER: Duration = Duration::from_millis(0);
+    pub const CHANNEL_MANAGER: Duration = Duration::from_secs(60);
+    pub const REBROADCAST: Duration = Duration::from_secs(30);
     pub const PEER_MANAGER: Duration = Duration::from_millis(400);
     pub const PROCESS_EVENTS: Duration = Duration::from_millis(800);
 }
@@ -95,6 +98,8 @@ where
                 mk_interval(delay::PEER_MANAGER, interval::PEER_MANAGER);
             let mut cm_timer =
                 mk_interval(delay::CHANNEL_MANAGER, interval::CHANNEL_MANAGER);
+            let mut rebroadcast_timer =
+                mk_interval(delay::REBROADCAST, interval::REBROADCAST);
 
             // This is the event handler future generator type required by LDK
             let mk_event_handler_fut =
@@ -103,6 +108,11 @@ where
             // Optional future for the HTLC forwarding delay. Set to Some when
             // we first detect pending HTLCs and None after processing them.
             let mut forward_delay_timer = None::<Pin<Box<tokio::time::Sleep>>>;
+
+            // Tick CM once at startup.
+            channel_manager.timer_tick_occurred();
+            // Rebroadcast pending claims at startup.
+            chain_monitor.rebroadcast_pending_claims();
 
             loop {
                 // A future that completes when any of the following applies:
@@ -235,6 +245,9 @@ where
 
                     _ = cm_timer.tick() =>
                         channel_manager.timer_tick_occurred(),
+
+                    _ = rebroadcast_timer.tick() =>
+                        chain_monitor.rebroadcast_pending_claims(),
 
                     () = shutdown.recv() =>
                         break debug!("Background processor shutting down"),
