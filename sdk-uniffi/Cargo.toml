@@ -28,6 +28,7 @@ doc = false
 name = "uniffi-bindgen"
 path = "src/bin/uniffi_bindgen.rs"
 required-features = ["bindgen"]
+doc = false
 
 [dependencies]
 
