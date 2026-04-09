@@ -1322,9 +1322,9 @@ mod helpers {
                 // Get existing HBA
                 let hba = persister
                     .backend_api()
-                    .get_human_bitcoin_address(token.clone())
+                    .get_human_bitcoin_address_v1(token.clone())
                     .await
-                    .context("get_human_bitcoin_address failed")?;
+                    .context("get_human_bitcoin_address_v1 failed")?;
 
                 // Regenerate the offer in v2 format
                 if let Some(username) = hba.username {

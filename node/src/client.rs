@@ -13,7 +13,7 @@ use lexe_api::{
         command::{
             ClaimGeneratedHumanBitcoinAddress, GetGeneratedUsernameResponse,
             GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            HumanBitcoinAddress, PaymentCreatedIndexStruct,
+            HumanBitcoinAddressV1, PaymentCreatedIndexStruct,
             PaymentCreatedIndexes, PaymentIdStruct, UpdateHumanBitcoinAddress,
             VecPaymentId,
         },
@@ -710,7 +710,7 @@ impl NodeBackendApi for NodeBackendClient {
         &self,
         req: UpdateHumanBitcoinAddress,
         auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddress, BackendApiError> {
+    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -719,10 +719,10 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_human_bitcoin_address(
+    async fn get_human_bitcoin_address_v1(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddress, BackendApiError> {
+    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
         let backend = &self.backend_url;
         let data = Empty {};
         let req = self
@@ -756,7 +756,7 @@ impl NodeBackendApi for NodeBackendClient {
         &self,
         req: UpdateHumanBitcoinAddress,
         auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddress, BackendApiError> {
+    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
         self.update_human_bitcoin_address(req, auth).await
     }
 
@@ -764,8 +764,8 @@ impl NodeBackendApi for NodeBackendClient {
     async fn get_payment_address(
         &self,
         auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddress, BackendApiError> {
-        self.get_human_bitcoin_address(auth).await
+    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
+        self.get_human_bitcoin_address_v1(auth).await
     }
 
     #[allow(deprecated)]

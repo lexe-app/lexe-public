@@ -10,7 +10,7 @@ use lexe_api::{
         command::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
             CreateOfferResponse, DebugInfo, GDriveStatus, GetAddressResponse,
-            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
+            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddressV1,
             ListChannelsResponse, NodeInfo, NodeInfoV1, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
             PayOfferRequest, PayOfferResponse, PayOnchainRequest,
@@ -652,9 +652,9 @@ pub(super) async fn setup_gdrive(
     Ok(LxJson(Empty {}))
 }
 
-pub(super) async fn get_human_bitcoin_address(
+pub(super) async fn get_human_bitcoin_address_v1(
     State(state): State<Arc<RouterState>>,
-) -> Result<LxJson<HumanBitcoinAddress>, NodeApiError> {
+) -> Result<LxJson<HumanBitcoinAddressV1>, NodeApiError> {
     let token = state
         .persister
         .get_token()
@@ -664,7 +664,7 @@ pub(super) async fn get_human_bitcoin_address(
     let hba = state
         .persister
         .backend_api()
-        .get_human_bitcoin_address(token)
+        .get_human_bitcoin_address_v1(token)
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(hba))
@@ -673,7 +673,7 @@ pub(super) async fn get_human_bitcoin_address(
 pub(super) async fn update_human_bitcoin_address(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UsernameStruct>,
-) -> Result<LxJson<HumanBitcoinAddress>, NodeApiError> {
+) -> Result<LxJson<HumanBitcoinAddressV1>, NodeApiError> {
     let token = state
         .persister
         .get_token()

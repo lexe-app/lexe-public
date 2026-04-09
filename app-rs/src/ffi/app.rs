@@ -658,7 +658,7 @@ impl AppHandle {
         let resp = self
             .inner
             .node_client()?
-            .get_human_bitcoin_address()
+            .get_human_bitcoin_address_v1()
             .await?;
         HumanBitcoinAddress::try_from(resp)
     }

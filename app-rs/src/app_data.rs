@@ -3,7 +3,7 @@
 use anyhow::Context;
 use lexe::ffs::Ffs;
 #[cfg(doc)]
-use lexe_api::models::command::HumanBitcoinAddress;
+use lexe_api::models::command::HumanBitcoinAddressV1;
 use lexe_api::types::{offer::Offer, username::Username};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -60,7 +60,7 @@ impl Default for AppDataRs {
 
 /// In-memory HBA state.
 ///
-/// Serialized [`HumanBitcoinAddress`] struct that stores,
+/// Serialized [`HumanBitcoinAddressV1`] struct that stores,
 /// Usename and Offer as Strings and timestamps as i64 since
 /// we don't want to leak the underlying types.
 /// TODO(maurice): We should probably want to use the Offer and Username

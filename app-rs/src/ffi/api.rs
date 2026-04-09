@@ -15,7 +15,7 @@ use lexe_api::{
         CreateOfferRequest as CreateOfferRequestRs,
         CreateOfferResponse as CreateOfferResponseRs,
         FeeEstimate as FeeEstimateRs,
-        HumanBitcoinAddress as HumanBitcoinAddressRs,
+        HumanBitcoinAddressV1 as HumanBitcoinAddressRs,
         ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
         OpenChannelRequest as OpenChannelRequestRs,
         OpenChannelResponse as OpenChannelResponseRs,

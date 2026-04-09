@@ -27,7 +27,7 @@ use lexe_api::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             DebugInfo, EnclavesToProvisionRequest, GetAddressResponse,
-            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
+            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddressV1,
             ListChannelsResponse, NodeInfo, NodeInfoV1, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
             PayOfferRequest, PayOfferResponse, PayOnchainRequest,
@@ -843,9 +843,9 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn get_human_bitcoin_address(
+    async fn get_human_bitcoin_address_v1(
         &self,
-    ) -> Result<HumanBitcoinAddress, NodeApiError> {
+    ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/human_bitcoin_address");
@@ -856,7 +856,7 @@ impl AppNodeRunApi for NodeClient {
     async fn update_human_bitcoin_address(
         &self,
         req: UsernameStruct,
-    ) -> Result<HumanBitcoinAddress, NodeApiError> {
+    ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/human_bitcoin_address");
@@ -867,15 +867,15 @@ impl AppNodeRunApi for NodeClient {
     #[allow(deprecated)]
     async fn get_payment_address(
         &self,
-    ) -> Result<HumanBitcoinAddress, NodeApiError> {
-        self.get_human_bitcoin_address().await
+    ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
+        self.get_human_bitcoin_address_v1().await
     }
 
     #[allow(deprecated)]
     async fn update_payment_address(
         &self,
         req: UsernameStruct,
-    ) -> Result<HumanBitcoinAddress, NodeApiError> {
+    ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
         self.update_human_bitcoin_address(req).await
     }
 

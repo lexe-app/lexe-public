@@ -743,7 +743,7 @@ pub struct GetGeneratedUsernameResponse {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct HumanBitcoinAddress {
+pub struct HumanBitcoinAddressV1 {
     /// Current username for BIP-353 and LNURL.
     pub username: Option<Username>,
     /// Current offer for fetching invoices on BIP-353.
@@ -843,7 +843,7 @@ mod test {
 
     #[test]
     fn human_bitcoin_address_response_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<HumanBitcoinAddress>();
+        roundtrip::json_value_roundtrip_proptest::<HumanBitcoinAddressV1>();
     }
 
     /// Sanity check the `DebugInfo` serialization against a hard-coded string.
