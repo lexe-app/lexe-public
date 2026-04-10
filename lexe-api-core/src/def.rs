@@ -209,6 +209,7 @@ pub trait AppNodeRunApi {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
     /// GET /app/node_info [`Empty`] -> [`NodeInfoV1`]
+    #[deprecated(note = "since node-v0.9.4: Use node_info instead")]
     async fn node_info_v1(&self) -> Result<NodeInfoV1, NodeApiError>;
 
     /// GET /app/debug_info [`Empty`] -> [`DebugInfo`]

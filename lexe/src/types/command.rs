@@ -66,8 +66,8 @@ pub struct NodeInfo {
     pub num_usable_channels: usize,
 }
 
-impl From<command::NodeInfoV1> for NodeInfo {
-    fn from(info: command::NodeInfoV1) -> Self {
+impl From<command::NodeInfo> for NodeInfo {
+    fn from(info: command::NodeInfo) -> Self {
         let lightning_balance = info.lightning_balance.total();
         let onchain_balance = Amount::try_from(info.onchain_balance.total())
             .expect("We're unreasonably rich!");

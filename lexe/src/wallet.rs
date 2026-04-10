@@ -732,7 +732,7 @@ impl LexeWallet {
     #[instrument(skip_all, name = "(node-info)")]
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
         self.node_client
-            .node_info_v1()
+            .node_info()
             .await
             .map(NodeInfo::from)
             .context("Failed to get node info")

@@ -187,7 +187,7 @@ impl AppHandle {
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
         self.inner
             .node_client()?
-            .node_info_v1()
+            .node_info()
             .await
             .map(NodeInfo::from)
             .map_err(anyhow::Error::new)

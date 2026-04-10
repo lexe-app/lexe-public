@@ -95,6 +95,23 @@ pub struct NodeInfo {
     pub best_block_height: u32,
 }
 
+impl From<NodeInfoV1> for NodeInfo {
+    fn from(v1: NodeInfoV1) -> Self {
+        Self {
+            version: v1.version,
+            measurement: v1.measurement,
+            user_pk: v1.user_pk,
+            node_pk: v1.node_pk,
+            num_peers: v1.num_peers,
+            num_usable_channels: v1.num_usable_channels,
+            num_channels: v1.num_channels,
+            lightning_balance: v1.lightning_balance,
+            onchain_balance: v1.onchain_balance,
+            best_block_height: v1.best_block_height,
+        }
+    }
+}
+
 /// Diagnostic information for debugging purposes.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DebugInfo {
