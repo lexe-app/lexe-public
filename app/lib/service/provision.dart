@@ -34,7 +34,6 @@ class ProvisionService {
     this._isProvisioning.value = true;
     final res = await Result.tryFfiAsync(() => this._app.provision());
     if (this.isDisposed) return;
-    this._isProvisioning.value = false;
 
     switch (res) {
       case Ok():
@@ -47,6 +46,8 @@ class ProvisionService {
         error("provision: err: ${err.message}");
         break;
     }
+
+    this._isProvisioning.value = false;
   }
 
   void wrapListener(void Function() listener) {

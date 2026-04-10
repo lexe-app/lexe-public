@@ -40,6 +40,7 @@ import 'package:lexeapp/route/receive/state.dart'
         LnOfferInputs,
         PaymentOffer,
         PaymentOfferKind;
+import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/string_ext.dart';
@@ -64,6 +65,59 @@ const int lnInvoicePageIdx = 0;
 const int lnOfferPageIdx = 1;
 const int btcPageIdx = 2;
 
+class ReceiveProvisionGate {
+  Future<bool>? waitForProvisionFuture;
+
+  Future<bool> ensureProvisioned(ProvisionService? provisionService) async {
+    if (provisionService == null || provisionService.isProvisioned.value) {
+      return true;
+    }
+
+    final existing = this.waitForProvisionFuture;
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = this._waitForProvision(provisionService);
+    this.waitForProvisionFuture = future;
+
+    try {
+      return await future;
+    } finally {
+      if (identical(this.waitForProvisionFuture, future)) {
+        this.waitForProvisionFuture = null;
+      }
+    }
+  }
+
+  Future<bool> _waitForProvision(ProvisionService provisionService) async {
+    final completer = Completer<bool>();
+
+    void maybeComplete() {
+      if (completer.isCompleted) return;
+
+      if (provisionService.isProvisioned.value) {
+        completer.complete(true);
+      } else if (!provisionService.isProvisioning.value) {
+        completer.complete(false);
+      }
+    }
+
+    provisionService.isProvisioned.addListener(maybeComplete);
+    provisionService.isProvisioning.addListener(maybeComplete);
+
+    unawaited(provisionService.provision());
+    maybeComplete();
+
+    final isProvisioned = await completer.future;
+
+    provisionService.isProvisioned.removeListener(maybeComplete);
+    provisionService.isProvisioning.removeListener(maybeComplete);
+
+    return isProvisioned;
+  }
+}
+
 class ReceivePaymentPage extends StatelessWidget {
   const ReceivePaymentPage({
     super.key,
@@ -72,6 +126,7 @@ class ReceivePaymentPage extends StatelessWidget {
     required this.featureFlags,
     required this.fiatRate,
     required this.settings,
+    this.provisionService,
     this.designInitialPageIdx,
     this.designInitialLightningType,
   });
@@ -85,6 +140,9 @@ class ReceivePaymentPage extends StatelessWidget {
 
   /// User settings.
   final LxSettings settings;
+
+  /// Node provisioning state from the wallet page.
+  final ProvisionService? provisionService;
 
   /// (Design mode screenshot automation only) Initial page to show.
   final int? designInitialPageIdx;
@@ -100,6 +158,7 @@ class ReceivePaymentPage extends StatelessWidget {
     fiatRate: this.fiatRate,
     settings: this.settings,
     viewportWidth: MediaQuery.sizeOf(context).width,
+    provisionService: this.provisionService,
     designInitialPageIdx: this.designInitialPageIdx,
     designInitialLightningType: this.designInitialLightningType,
   );
@@ -116,6 +175,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
     required this.fiatRate,
     required this.settings,
     required this.viewportWidth,
+    this.provisionService,
     this.designInitialPageIdx,
     this.designInitialLightningType,
   });
@@ -126,6 +186,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
   final ValueListenable<FiatRate?> fiatRate;
   final LxSettings settings;
   final double viewportWidth;
+  final ProvisionService? provisionService;
 
   final int? designInitialPageIdx;
   final PaymentOfferKind? designInitialLightningType;
@@ -136,6 +197,8 @@ class ReceivePaymentPageInner extends StatefulWidget {
 }
 
 class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
+  final ReceiveProvisionGate provisionGate = ReceiveProvisionGate();
+
   /// Controls the [PageView].
   late PageController pageController = this.newPageController();
 
@@ -389,6 +452,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     info("ReceivePaymentPage: fetchBtc: inputs: $inputs");
 
+    if (!await this.provisionGate.ensureProvisioned(
+          this.widget.provisionService,
+        ) ||
+        !this.mounted) {
+      return null;
+    }
+
     final result = await Result.tryFfiAsync(this.widget.app.getAddress);
 
     final String address;
@@ -484,6 +554,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     info("ReceivePaymentPage: fetchLnInvoice: inputs: $inputs");
 
+    if (!await this.provisionGate.ensureProvisioned(
+          this.widget.provisionService,
+        ) ||
+        !this.mounted) {
+      return null;
+    }
+
     final result = await Result.tryFfiAsync(
       () => this.widget.app.createInvoice(req: req),
     );
@@ -546,6 +623,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     );
 
     info("ReceivePaymentPage: fetchLnOffer: inputs: $inputs");
+
+    if (!await this.provisionGate.ensureProvisioned(
+          this.widget.provisionService,
+        ) ||
+        !this.mounted) {
+      return null;
+    }
 
     final result = await Result.tryFfiAsync(
       () => this.widget.app.createOffer(req: req),
