@@ -71,6 +71,30 @@ pub struct NodeInfoV1 {
     pub pending_monitor_updates: usize,
 }
 
+/// Information about the Lexe node.
+//
+// This is a cleaned-up version of [`NodeInfoV1`] with diagnostic fields
+// moved to [`DebugInfo`].
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NodeInfo {
+    pub version: semver::Version,
+    pub measurement: Measurement,
+    pub user_pk: UserPk,
+    pub node_pk: NodePk,
+    pub num_peers: usize,
+
+    pub num_usable_channels: usize,
+    pub num_channels: usize,
+    /// Our lightning channel balance.
+    pub lightning_balance: LightningBalance,
+
+    /// Our on-chain wallet balance.
+    pub onchain_balance: OnchainBalance,
+
+    /// The channel manager's best synced block height.
+    pub best_block_height: u32,
+}
+
 /// Diagnostic information for debugging purposes.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DebugInfo {

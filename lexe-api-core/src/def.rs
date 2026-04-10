@@ -82,7 +82,7 @@ use crate::{
             CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
             GetAddressResponse, GetGeneratedUsernameResponse, GetNewPayments,
             GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanBitcoinAddress,
-            ListChannelsResponse, NodeInfoV1, OpenChannelRequest,
+            ListChannelsResponse, NodeInfo, NodeInfoV1, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
             PayOfferRequest, PayOfferResponse, PayOnchainRequest,
             PayOnchainResponse, PaymentCreatedIndexStruct,
@@ -205,6 +205,9 @@ pub trait AppNodeProvisionApi {
 
 /// Defines the api that the node exposes to the app during normal operation.
 pub trait AppNodeRunApi {
+    /// GET /app/v2/node_info [`Empty`] -> [`NodeInfo`]
+    async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
+
     /// GET /app/node_info [`Empty`] -> [`NodeInfoV1`]
     async fn node_info_v1(&self) -> Result<NodeInfoV1, NodeApiError>;
 
