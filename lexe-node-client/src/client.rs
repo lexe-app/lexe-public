@@ -28,7 +28,7 @@ use lexe_api::{
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             DebugInfo, EnclavesToProvisionRequest, GetAddressResponse,
             GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
-            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            ListChannelsResponse, NodeInfoV1, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
             PayOfferRequest, PayOfferResponse, PayOnchainRequest,
             PayOnchainResponse, PaymentCreatedIndexes, PaymentIdStruct,
@@ -538,7 +538,7 @@ impl AppNodeProvisionApi for NodeClient {
 }
 
 impl AppNodeRunApi for NodeClient {
-    async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
+    async fn node_info_v1(&self) -> Result<NodeInfoV1, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/node_info");

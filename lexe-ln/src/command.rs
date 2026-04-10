@@ -12,7 +12,7 @@ use lexe_api::{
     models::command::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
-        NodeInfo, OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        NodeInfoV1, OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
         PayOnchainResponse, PreflightCloseChannelRequest,
         PreflightCloseChannelResponse, PreflightOpenChannelRequest,
@@ -131,7 +131,7 @@ pub enum CreateInvoiceCaller {
 }
 
 #[instrument(skip_all, name = "(node-info)")]
-pub fn node_info<CM, PM, PS, RMH>(
+pub fn node_info_v1<CM, PM, PS, RMH>(
     version: semver::Version,
     measurement: Measurement,
     user_pk: UserPk,
@@ -141,7 +141,7 @@ pub fn node_info<CM, PM, PS, RMH>(
     chain_monitor: &LexeChainMonitorType<PS>,
     channels: &[ChannelDetails],
     lsp_fees: LspFees,
-) -> NodeInfo
+) -> NodeInfoV1
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS, RMH>,
@@ -175,7 +175,7 @@ where
         .map(|v| v.len())
         .sum();
 
-    NodeInfo {
+    NodeInfoV1 {
         version,
         measurement,
         user_pk,

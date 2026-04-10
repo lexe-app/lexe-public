@@ -36,7 +36,7 @@ use crate::types::{
 // --- General --- //
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NodeInfo {
+pub struct NodeInfoV1 {
     pub version: semver::Version,
     pub measurement: Measurement,
     pub user_pk: UserPk,

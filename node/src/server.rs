@@ -111,7 +111,7 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
 
     #[rustfmt::skip]
     let router = Router::new()
-        .route("/app/node_info", get(app::node_info))
+        .route("/app/node_info", get(app::node_info_v1))
         .route("/app/debug_info", get(app::debug_info))
         .route("/app/list_channels", get(app::list_channels))
         .route("/app/sign_message", post(app::sign_message))

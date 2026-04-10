@@ -129,7 +129,7 @@ mod node {
         NodeClientExtractor { node_client, .. }: NodeClientExtractor,
     ) -> Result<LxJson<NodeInfo>, SdkApiError> {
         let info = node_client
-            .node_info()
+            .node_info_v1()
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(NodeInfo::from(info)))

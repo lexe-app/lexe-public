@@ -11,7 +11,7 @@ use lexe_api::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
             CreateOfferResponse, DebugInfo, GDriveStatus, GetAddressResponse,
             GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
-            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            ListChannelsResponse, NodeInfoV1, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
             PayOfferRequest, PayOfferResponse, PayOnchainRequest,
             PayOnchainResponse, PaymentCreatedIndexes, PaymentIdStruct,
@@ -62,11 +62,11 @@ use tracing::warn;
 use super::RouterState;
 use crate::{gdrive_setup, nwc::NwcClient};
 
-pub(super) async fn node_info(
+pub(super) async fn node_info_v1(
     State(state): State<Arc<RouterState>>,
-) -> LxJson<NodeInfo> {
+) -> LxJson<NodeInfoV1> {
     let channels = state.channel_manager.list_channels();
-    LxJson(lexe_ln::command::node_info(
+    LxJson(lexe_ln::command::node_info_v1(
         state.version.clone(),
         state.measurement,
         state.user_pk,
