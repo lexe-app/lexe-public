@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use bitcoin::address::NetworkUnchecked;
+use bitcoin::{address::NetworkUnchecked, bip32::Xpub};
 #[cfg(doc)]
 use lexe_common::root_seed::RootSeed;
 #[cfg(any(test, feature = "test-utils"))]
@@ -69,6 +69,47 @@ pub struct NodeInfo {
     // wait for a node to reach a quiescent state. The polling should be done
     // inside the server handler rather than by the client in the test harness.
     pub pending_monitor_updates: usize,
+}
+
+/// Diagnostic information for debugging purposes.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DebugInfo {
+    /// Extended public keys for the on-chain wallet.
+    pub xpubs: OnchainXpubs,
+    /// Legacy xpubs for wallets created <= node-v0.9.2.
+    /// `None` if the node doesn't have a legacy wallet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_xpubs: Option<OnchainXpubs>,
+
+    /// The total # of UTXOs tracked by BDK.
+    pub num_utxos: usize,
+    /// The # of confirmed UTXOs tracked by BDK.
+    // TODO(max): LSP metrics should warn if this drops too low, as opening
+    // zeroconf with unconfirmed inputs risks double spending of channel funds.
+    pub num_confirmed_utxos: usize,
+    /// The # of unconfirmed UTXOs tracked by BDK.
+    pub num_unconfirmed_utxos: usize,
+
+    /// The number of pending channel monitor updates.
+    /// If this isn't 0, it's likely that at least one channel is paused.
+    // TODO(max): This field is in the wrong place and should be removed.
+    // To my knowledge it is only used by integration tests (in a hacky way) to
+    // wait for a node to reach a quiescent state. The polling should be done
+    // inside the server handler rather than by the client in the test harness.
+    // This field is `Option` precisely so we can easily remove it later.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_monitor_updates: Option<usize>,
+}
+
+/// Extended public keys for the on-chain wallet.
+///
+/// [`Xpub`] serializes to the standard base58 string representation.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OnchainXpubs {
+    /// External (receive) keychain xpub at path `m/84h/{0,1}h/0h/0`.
+    pub external: Xpub,
+    /// Internal (change) keychain xpub at path `m/84h/{0,1}h/0h/1`.
+    pub internal: Xpub,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -612,30 +653,32 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::test_utils::roundtrip::{
-        self, query_string_roundtrip_proptest,
-    };
+    use std::str::FromStr;
+
+    use lexe_common::test_utils::roundtrip;
 
     use super::*;
 
     #[test]
     fn preflight_pay_onchain_roundtrip() {
-        query_string_roundtrip_proptest::<PreflightPayOnchainRequest>();
+        roundtrip::query_string_roundtrip_proptest::<PreflightPayOnchainRequest>(
+        );
     }
 
     #[test]
     fn payment_id_struct_roundtrip() {
-        query_string_roundtrip_proptest::<PaymentIdStruct>();
+        roundtrip::query_string_roundtrip_proptest::<PaymentIdStruct>();
     }
 
     #[test]
     fn payment_index_struct_roundtrip() {
-        query_string_roundtrip_proptest::<PaymentCreatedIndexStruct>();
+        roundtrip::query_string_roundtrip_proptest::<PaymentCreatedIndexStruct>(
+        );
     }
 
     #[test]
     fn get_new_payments_roundtrip() {
-        query_string_roundtrip_proptest::<GetNewPayments>();
+        roundtrip::query_string_roundtrip_proptest::<GetNewPayments>();
     }
 
     #[test]
@@ -675,5 +718,37 @@ mod test {
     #[test]
     fn human_bitcoin_address_response_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<HumanBitcoinAddress>();
+    }
+
+    /// Sanity check the `DebugInfo` serialization.
+    #[test]
+    fn debug_info_serialization() {
+        let xpub_str = "tpubDC2Qwo2TFsaNC4ju8nrUJ9mqVT3eSgdmy1yPqhgkjwmke3PRXutNGRYAUo6RCHTcVQaDR3ohNU9we59brGHuEKPvH1ags2nevW5opEE9Z5Q";
+        let external = Xpub::from_str(xpub_str).unwrap();
+        let internal = Xpub::from_str(xpub_str).unwrap();
+
+        let debug_info = DebugInfo {
+            xpubs: OnchainXpubs { external, internal },
+            legacy_xpubs: None,
+            num_utxos: 5,
+            num_confirmed_utxos: 3,
+            num_unconfirmed_utxos: 2,
+            pending_monitor_updates: Some(0),
+        };
+
+        // Serialize and check against expected JSON
+        let json = serde_json::to_string(&debug_info).unwrap();
+        let expected = r#"{"xpubs":{"external":"tpubDC2Qwo2TFsaNC4ju8nrUJ9mqVT3eSgdmy1yPqhgkjwmke3PRXutNGRYAUo6RCHTcVQaDR3ohNU9we59brGHuEKPvH1ags2nevW5opEE9Z5Q","internal":"tpubDC2Qwo2TFsaNC4ju8nrUJ9mqVT3eSgdmy1yPqhgkjwmke3PRXutNGRYAUo6RCHTcVQaDR3ohNU9we59brGHuEKPvH1ags2nevW5opEE9Z5Q"},"num_utxos":5,"num_confirmed_utxos":3,"num_unconfirmed_utxos":2,"pending_monitor_updates":0}"#;
+        assert_eq!(json, expected);
+
+        // Verify deserialization roundtrips
+        let back: DebugInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.num_utxos, 5);
+        assert_eq!(back.num_confirmed_utxos, 3);
+        assert_eq!(back.num_unconfirmed_utxos, 2);
+        assert_eq!(back.xpubs.external, external);
+        assert_eq!(back.xpubs.internal, internal);
+        assert!(back.legacy_xpubs.is_none());
+        assert_eq!(back.pending_monitor_updates, Some(0));
     }
 }
