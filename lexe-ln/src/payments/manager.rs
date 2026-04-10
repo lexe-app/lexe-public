@@ -835,10 +835,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         id: PaymentId,
         hash: PaymentHash,
         preimage: PaymentPreimage,
-        maybe_fees_paid_msat: Option<u64>,
+        maybe_amount_msat: Option<u64>,
+        fees_paid_msat: u64,
     ) -> anyhow::Result<()> {
-        let maybe_fees_paid = maybe_fees_paid_msat.map(Amount::from_msat);
-        info!(?maybe_fees_paid, "Handling PaymentSent");
+        let maybe_amount = maybe_amount_msat.map(Amount::from_msat);
+        let fees_paid = Amount::from_msat(fees_paid_msat);
+        info!(?maybe_amount, %fees_paid, "Handling PaymentSent");
 
         let mut locked_data = self.data.lock().await;
 
@@ -857,7 +859,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check
         let checked = locked_data
-            .check_payment_sent(id, hash, preimage, maybe_fees_paid)
+            .check_payment_sent(id, hash, preimage, maybe_amount, fees_paid)
             .context("Error validating PaymentSent")?;
 
         // Persist
@@ -1483,7 +1485,8 @@ impl PaymentsData {
         id: PaymentId,
         hash: PaymentHash,
         preimage: PaymentPreimage,
-        maybe_fees_paid: Option<Amount>,
+        maybe_amount: Option<Amount>,
+        fees_paid: Amount,
     ) -> anyhow::Result<CheckedPayment> {
         let pending_pwm = self
             .pending
@@ -1493,7 +1496,7 @@ impl PaymentsData {
         let checked = match &pending_pwm.payment {
             PaymentV2::OutboundInvoice(oip) => {
                 let checked_oip = oip
-                    .check_payment_sent(hash, preimage, maybe_fees_paid)
+                    .check_payment_sent(hash, preimage, maybe_amount, fees_paid)
                     .context("Error checking outbound invoice payment")?;
                 let oipwm = PaymentWithMetadata {
                     payment: checked_oip,
@@ -1503,7 +1506,7 @@ impl PaymentsData {
             }
             PaymentV2::OutboundOffer(oop) => {
                 let checked_oop = oop
-                    .check_payment_sent(hash, preimage, maybe_fees_paid)
+                    .check_payment_sent(hash, preimage, maybe_amount, fees_paid)
                     .context("Error checking outbound offer payment")?;
                 let oopwm = PaymentWithMetadata {
                     payment: checked_oop,
@@ -1963,8 +1966,9 @@ mod test {
             let id = payment.id();
             data.force_insert_payment(payment);
 
-            let _ = data.check_payment_sent(id, oip.hash, preimage, Some(oip.routing_fee))
-                .unwrap();
+            let _ = data.check_payment_sent(
+                    id, oip.hash, preimage, Some(oip.amount), oip.routing_fee
+                ).unwrap();
             let _ = data.check_payment_failed(id, failure).unwrap();
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
@@ -1987,8 +1991,9 @@ mod test {
             data.force_insert_payment(payment);
 
             let hash = preimage.compute_hash();
-            let _ = data.check_payment_sent(id, hash, preimage, Some(fees))
-                .unwrap();
+            let _ = data.check_payment_sent(
+                    id, hash, preimage, Some(oop.amount), fees
+                ).unwrap();
             let _ = data.check_payment_failed(id, failure).unwrap();
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
@@ -2021,9 +2026,12 @@ mod test {
 
             // (_, PaymentSent event) -> _
             let checked = data
-                .check_payment_sent(id, hash, preimage, Some(fees))
+                .check_payment_sent(id, hash, preimage, Some(oip.amount), fees)
                 .unwrap();
-            prop_assert_eq!(PaymentStatus::Completed, checked.0.payment.status());
+            prop_assert_eq!(
+                PaymentStatus::Completed,
+                checked.0.payment.status()
+            );
             data.clone().commit(checked.persisted());
 
             // (_, PaymentFailed event) -> _

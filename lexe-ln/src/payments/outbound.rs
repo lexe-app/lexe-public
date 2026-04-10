@@ -215,7 +215,8 @@ impl OutboundInvoicePaymentV2 {
         &self,
         hash: PaymentHash,
         preimage: PaymentPreimage,
-        maybe_fees_paid: Option<Amount>,
+        maybe_amount: Option<Amount>,
+        fees_paid: Amount,
     ) -> anyhow::Result<Self> {
         use OutboundInvoicePaymentStatus::*;
 
@@ -224,24 +225,18 @@ impl OutboundInvoicePaymentV2 {
         let computed_hash = preimage.compute_hash();
         ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
 
-        let estimated_fee = &self.routing_fee;
-        let final_routing_fee = maybe_fees_paid
-            .inspect(|actual_fee| {
-                if actual_fee != estimated_fee {
-                    info!(
-                        %hash,
-                        "Estimated routing fee from Route was {estimated_fee} \
-                         msat; actually paid {actual_fee} msat."
-                    );
-                }
-            })
-            .unwrap_or_else(|| {
-                warn!(
-                    "Did not hear back on final routing fee paid for OIP; the \
-                    estimated fee will be included with the finalized payment."
-                );
-                *estimated_fee
-            });
+        // This can be different if we e.g. retry with a different path or need
+        // to increase the amount to meet `htlc_minimum_msat`.
+        let est_amount = self.amount;
+        let est_fee = self.routing_fee;
+        let amount = maybe_amount.unwrap_or(est_amount);
+        if fees_paid != est_fee || amount != est_amount {
+            info!(
+                %hash,
+                "route estimate/actual: amt={est_amount}/{amount} \
+                 fee={est_fee}/{fees_paid}"
+            );
+        }
 
         let status = self.status;
         match self.status {
@@ -259,7 +254,8 @@ impl OutboundInvoicePaymentV2 {
 
         let mut clone = self.clone();
         clone.preimage = Some(preimage);
-        clone.routing_fee = final_routing_fee;
+        clone.amount = amount;
+        clone.routing_fee = fees_paid;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -515,34 +511,25 @@ impl OutboundOfferPaymentV2 {
         &self,
         hash: PaymentHash,
         preimage: PaymentPreimage,
-        maybe_fees_paid: Option<Amount>,
+        maybe_amount: Option<Amount>,
+        fees_paid: Amount,
     ) -> anyhow::Result<Self> {
         use OutboundOfferPaymentStatus::*;
 
         let computed_hash = preimage.compute_hash();
         ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
 
-        // TODO(phlip9): LDK-v0.2 adds `amount_msat` to `PaymentSent` event,
-        // which we should use to get the _actual_ amount sent for this offer.
-
-        let estimated_fee = &self.routing_fee;
-        let final_routing_fee = maybe_fees_paid
-            .inspect(|actual_fee| {
-                if actual_fee != estimated_fee {
-                    info!(
-                        %hash,
-                        "Estimated routing fee from Route was {estimated_fee} \
-                         msat; actually paid {actual_fee} msat."
-                    );
-                }
-            })
-            .unwrap_or_else(|| {
-                warn!(
-                    "Did not hear back on final routing fee paid for OOP; the \
-                     estimated fee will be included with the finalized payment."
-                );
-                *estimated_fee
-            });
+        let est_amount = self.amount;
+        let est_fee = self.routing_fee;
+        // For offer payments, this is the authoritative amount
+        let amount = maybe_amount.unwrap_or(est_amount);
+        if fees_paid != est_fee || amount != est_amount {
+            info!(
+                %hash,
+                "route estimate/actual: amt={est_amount}/{amount} \
+                 fee={est_fee}/{fees_paid}"
+            );
+        }
 
         let status = self.status;
         match self.status {
@@ -559,7 +546,8 @@ impl OutboundOfferPaymentV2 {
         let mut clone = self.clone();
         clone.hash = Some(hash);
         clone.preimage = Some(preimage);
-        clone.routing_fee = final_routing_fee;
+        clone.amount = amount;
+        clone.routing_fee = fees_paid;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 

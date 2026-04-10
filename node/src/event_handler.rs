@@ -438,8 +438,7 @@ async fn do_handle_event(
             payment_preimage,
             fee_paid_msat,
             // The total amount paid across all paths (minus fees).
-            // TODO(phlip9): forward this to payment manager for cross-checking
-            amount_msat: _,
+            amount_msat,
             // TODO(phlip9): if this is a non-static-invoice payment, you can
             // use this for proof-of-payment I guess?
             bolt12_invoice: _,
@@ -447,8 +446,18 @@ async fn do_handle_event(
             // NOTE: Err(Replay) ==> must be handled idempotently
             let hash = PaymentHash::from(payment_hash);
             let id = PaymentId::from_ldk_event(payment_id, hash);
+            // `None` for still-pending sends before 0.2
+            let maybe_amount_msat = amount_msat;
+            let fees_paid_msat =
+                fee_paid_msat.expect("No pending sends before 0.0.103");
             ctx.payments_manager
-                .payment_sent(id, hash, payment_preimage.into(), fee_paid_msat)
+                .payment_sent(
+                    id,
+                    hash,
+                    payment_preimage.into(),
+                    maybe_amount_msat,
+                    fees_paid_msat,
+                )
                 .await
                 .context("Error handling PaymentSent")
                 // Don't want to end up with a 'hung' payment state
