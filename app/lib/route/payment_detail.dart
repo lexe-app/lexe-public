@@ -290,7 +290,7 @@ class PaymentDetailPageInner extends StatelessWidget {
             payment.createdAt,
             isUtc: true,
           );
-          final maybeAmountSat = payment.amountSat;
+          final maybeAmountSat = payment.amountSats;
           final txid = payment.txid;
 
           // The invoice/offer description. Only shown for outbound payments.
@@ -368,7 +368,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                           PaymentDetailPrimaryAmount(
                             status: status,
                             direction: direction,
-                            amountSat: maybeAmountSat,
+                            amountSats: maybeAmountSat,
                             fiatRate: fiatRate,
                           ),
                     ),
@@ -552,8 +552,8 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final txid = payment.txid;
                   final replacement = payment.replacement;
 
-                  final amountSat = payment.amountSat;
-                  final feesSat = payment.feesSat;
+                  final amountSats = payment.amountSats;
+                  final feesSats = payment.feesSats;
                   final invoiceAmountSat = invoice?.amountSats;
 
                   final createdAt = DateTime.fromMillisecondsSinceEpoch(
@@ -692,11 +692,11 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                         builder: (_context, fiatRate, child) =>
                             PaymentDetailInfoCard(
                               children: [
-                                if (amountSat != null)
+                                if (amountSats != null)
                                   InfoRow(
                                     label: "Amount $directionLabel",
                                     value: formatSatsAmountFiatBelow(
-                                      amountSat,
+                                      amountSats,
                                       fiatRate,
                                     ),
                                   ),
@@ -723,7 +723,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                                 InfoRow(
                                   label: "Fees",
                                   value: formatSatsAmountFiatBelow(
-                                    feesSat,
+                                    feesSats,
                                     fiatRate,
                                   ),
                                 ),
@@ -1006,13 +1006,13 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
     super.key,
     required this.status,
     required this.direction,
-    required this.amountSat,
+    required this.amountSats,
     this.fiatRate,
   });
 
   final PaymentStatus status;
   final PaymentDirection direction;
-  final int amountSat;
+  final int amountSats;
   final FiatRate? fiatRate;
 
   String? maybeAmountFiatStr() {
@@ -1021,7 +1021,7 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
       return null;
     }
 
-    final amountBtc = currency_format.satsToBtc(this.amountSat);
+    final amountBtc = currency_format.satsToBtc(this.amountSats);
     final amountFiat = amountBtc * fiatRate.rate;
     return currency_format.formatFiat(amountFiat, fiatRate.fiat);
   }
@@ -1029,7 +1029,7 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amountSatsStr = currency_format.formatSatsAmount(
-      this.amountSat,
+      this.amountSats,
       direction: this.direction,
       bitcoinSymbol: true,
     );

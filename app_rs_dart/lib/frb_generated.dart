@@ -4266,8 +4266,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       offer: dco_decode_opt_box_autoadd_offer(arr[5]),
       txid: dco_decode_opt_String(arr[6]),
       replacement: dco_decode_opt_String(arr[7]),
-      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[8]),
-      feesSat: dco_decode_CastedPrimitive_u_64(arr[9]),
+      amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[8]),
+      feesSats: dco_decode_CastedPrimitive_u_64(arr[9]),
       status: dco_decode_payment_status(arr[10]),
       statusStr: dco_decode_String(arr[11]),
       description: dco_decode_opt_String(arr[12]),
@@ -4538,7 +4538,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
       direction: dco_decode_payment_direction(arr[2]),
-      amountSat: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
+      amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
       status: dco_decode_payment_status(arr[4]),
       description: dco_decode_opt_String(arr[5]),
       note: dco_decode_opt_String(arr[6]),
@@ -5988,8 +5988,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_offer = sse_decode_opt_box_autoadd_offer(deserializer);
     var var_txid = sse_decode_opt_String(deserializer);
     var var_replacement = sse_decode_opt_String(deserializer);
-    var var_amountSat = sse_decode_opt_CastedPrimitive_u_64(deserializer);
-    var var_feesSat = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_status = sse_decode_payment_status(deserializer);
     var var_statusStr = sse_decode_String(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
@@ -6007,8 +6007,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       offer: var_offer,
       txid: var_txid,
       replacement: var_replacement,
-      amountSat: var_amountSat,
-      feesSat: var_feesSat,
+      amountSats: var_amountSats,
+      feesSats: var_feesSats,
       status: var_status,
       statusStr: var_statusStr,
       description: var_description,
@@ -6271,7 +6271,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_index = sse_decode_payment_created_index(deserializer);
     var var_kind = sse_decode_payment_kind(deserializer);
     var var_direction = sse_decode_payment_direction(deserializer);
-    var var_amountSat = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_status = sse_decode_payment_status(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
@@ -6280,7 +6280,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       index: var_index,
       kind: var_kind,
       direction: var_direction,
-      amountSat: var_amountSat,
+      amountSats: var_amountSats,
       status: var_status,
       description: var_description,
       note: var_note,
@@ -7652,8 +7652,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_box_autoadd_offer(self.offer, serializer);
     sse_encode_opt_String(self.txid, serializer);
     sse_encode_opt_String(self.replacement, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.amountSat, serializer);
-    sse_encode_CastedPrimitive_u_64(self.feesSat, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
     sse_encode_payment_status(self.status, serializer);
     sse_encode_String(self.statusStr, serializer);
     sse_encode_opt_String(self.description, serializer);
@@ -7872,7 +7872,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_payment_created_index(self.index, serializer);
     sse_encode_payment_kind(self.kind, serializer);
     sse_encode_payment_direction(self.direction, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.amountSat, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_payment_status(self.status, serializer);
     sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.note, serializer);

@@ -381,9 +381,9 @@ class SendState_Preflighted implements SendState {
           // TODO(phlip9): get this from resp/index
           createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
           // TODO(phlip9): get from resp
-          amountSat: preflighted.amountSats,
+          amountSats: preflighted.amountSats,
           // TODO(phlip9): get from resp
-          feesSat: estimatedFee.amountSats,
+          feesSats: estimatedFee.amountSats,
         ),
       ),
     );
@@ -421,9 +421,9 @@ class SendState_Preflighted implements SendState {
           // TODO(phlip9): get from resp/index
           createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
           // TODO(phlip9): get from resp
-          amountSat: preflighted.preflight.amountSats,
+          amountSats: preflighted.preflight.amountSats,
           // TODO(phlip9): get from resp
-          feesSat: preflighted.preflight.feesSats,
+          feesSats: preflighted.preflight.feesSats,
         ),
       ),
     );
@@ -463,9 +463,9 @@ class SendState_Preflighted implements SendState {
           // TODO(phlip9): get from resp/index
           createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
           // TODO(phlip9): get from resp
-          amountSat: preflighted.preflight.amountSats,
+          amountSats: preflighted.preflight.amountSats,
           // TODO(phlip9): get from resp
-          feesSat: preflighted.preflight.feesSats,
+          feesSats: preflighted.preflight.feesSats,
         ),
       ),
     );

@@ -377,7 +377,7 @@ pub struct ShortPayment {
 
     pub direction: PaymentDirection,
 
-    pub amount_sat: Option<u64>,
+    pub amount_sats: Option<u64>,
 
     pub status: PaymentStatus,
 
@@ -408,7 +408,7 @@ impl From<&BasicPaymentV1Rs> for ShortPayment {
 
             direction: PaymentDirection::from(payment.direction),
 
-            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
+            amount_sats: payment.amount.map(|amt| amt.sats_u64()),
 
             status: PaymentStatus::from(payment.status),
 
@@ -429,7 +429,7 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
 
             direction: PaymentDirection::from(payment.direction),
 
-            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
+            amount_sats: payment.amount.map(|amt| amt.sats_u64()),
 
             status: PaymentStatus::from(payment.status),
 
@@ -459,8 +459,8 @@ pub struct Payment {
     pub txid: Option<String>,
     pub replacement: Option<String>,
 
-    pub amount_sat: Option<u64>,
-    pub fees_sat: u64,
+    pub amount_sats: Option<u64>,
+    pub fees_sats: u64,
 
     pub status: PaymentStatus,
     pub status_str: String,
@@ -503,8 +503,8 @@ impl From<&BasicPaymentV1Rs> for Payment {
             txid: payment.txid.map(|txid| txid.to_string()),
             replacement: payment.replacement.map(|txid| txid.to_string()),
 
-            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
-            fees_sat: payment.fees.sats_u64(),
+            amount_sats: payment.amount.map(|amt| amt.sats_u64()),
+            fees_sats: payment.fees.sats_u64(),
 
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),
@@ -537,8 +537,8 @@ impl From<&BasicPaymentV2Rs> for Payment {
             txid: payment.txid.map(|txid| txid.to_string()),
             replacement: payment.replacement_txid.map(|txid| txid.to_string()),
 
-            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
-            fees_sat: payment.fee.sats_u64(),
+            amount_sats: payment.amount.map(|amt| amt.sats_u64()),
+            fees_sats: payment.fee.sats_u64(),
 
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),

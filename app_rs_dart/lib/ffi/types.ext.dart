@@ -50,7 +50,7 @@ extension PaymentExt on Payment {
     index: this.index,
     kind: this.kind,
     direction: this.direction,
-    amountSat: this.amountSat,
+    amountSats: this.amountSats,
     status: this.status,
     description: this.description,
     note: this.note,
@@ -66,8 +66,8 @@ extension PaymentExt on Payment {
     Offer? offer,
     String? txid,
     String? replacement,
-    int? amountSat,
-    int? feesSat,
+    int? amountSats,
+    int? feesSats,
     PaymentStatus? status,
     String? statusStr,
     String? description,
@@ -83,8 +83,8 @@ extension PaymentExt on Payment {
     offer: offer ?? this.offer,
     txid: txid ?? this.txid,
     replacement: replacement ?? this.replacement,
-    amountSat: amountSat ?? this.amountSat,
-    feesSat: feesSat ?? this.feesSat,
+    amountSats: amountSats ?? this.amountSats,
+    feesSats: feesSats ?? this.feesSats,
     status: status ?? this.status,
     statusStr: statusStr ?? this.statusStr,
     description: description ?? this.description,
@@ -105,7 +105,7 @@ extension PaymentExt on Payment {
       this.status != PaymentStatus.completed &&
       this.kind is PaymentKind_Invoice &&
       this.direction == PaymentDirection.inbound &&
-      (this.amountSat == null || this.noteOrDescription == null);
+      (this.amountSats == null || this.noteOrDescription == null);
 
   /// Returns the user's note or invoice/offer description, preferring note.
   String? get noteOrDescription {

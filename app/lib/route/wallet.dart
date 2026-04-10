@@ -2332,7 +2332,7 @@ class PaymentsListEntry extends StatelessWidget {
     final status = this.payment.status;
     final direction = this.payment.direction;
     final kind = this.payment.kind;
-    final amountSats = this.payment.amountSat;
+    final amountSats = this.payment.amountSats;
     final note = this.payment.noteOrDescription;
 
     final leadingIcon = PaymentListIcon(
