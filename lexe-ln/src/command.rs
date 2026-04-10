@@ -12,9 +12,9 @@ use lexe_api::{
     models::command::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
-        NodeInfoV1, OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PreflightCloseChannelRequest,
+        NodeInfo, NodeInfoV1, OpenChannelResponse, PayInvoiceRequest,
+        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
         PreflightCloseChannelResponse, PreflightOpenChannelRequest,
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
@@ -95,7 +95,7 @@ use crate::{
     sync::BdkSyncRequest,
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     tx_broadcaster::TxBroadcaster,
-    wallet::{OnchainWallet, UtxoCounts},
+    wallet::OnchainWallet,
 };
 
 /// The max # of route hints containing intercept scids we'll add to invoices.
@@ -131,6 +131,50 @@ pub enum CreateInvoiceCaller {
 }
 
 #[instrument(skip_all, name = "(node-info)")]
+pub fn node_info<CM, PM, PS, RMH>(
+    version: semver::Version,
+    measurement: Measurement,
+    user_pk: UserPk,
+    channel_manager: &CM,
+    peer_manager: &PM,
+    wallet: &OnchainWallet,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    channels: &[ChannelDetails],
+    lsp_fees: LspFees,
+) -> NodeInfo
+where
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS, RMH>,
+    PS: LexePersister,
+    RMH: Deref,
+    RMH::Target: RoutingMessageHandler,
+{
+    let node_pk = NodePk(channel_manager.get_our_node_id());
+    let num_peers = peer_manager.list_peers().len();
+    let num_channels = channels.len();
+
+    let (lightning_balance, num_usable_channels) =
+        balance::all_channel_balances(chain_monitor, channels, lsp_fees);
+
+    let onchain_balance = wallet.get_balance();
+    let best_block_height = channel_manager.current_best_block().height;
+
+    NodeInfo {
+        version,
+        measurement,
+        user_pk,
+        node_pk,
+        num_peers,
+        num_usable_channels,
+        num_channels,
+        lightning_balance,
+        onchain_balance,
+        best_block_height,
+    }
+}
+
+/// Wrapper around [`node_info`] that adds the deprecated debug fields.
+#[instrument(skip_all, name = "(node-info-v1)")]
 pub fn node_info_v1<CM, PM, PS, RMH>(
     version: semver::Version,
     measurement: Measurement,
@@ -149,26 +193,20 @@ where
     RMH: Deref,
     RMH::Target: RoutingMessageHandler,
 {
-    let node_pk = NodePk(channel_manager.get_our_node_id());
+    let info = node_info(
+        version,
+        measurement,
+        user_pk,
+        channel_manager,
+        peer_manager,
+        wallet,
+        chain_monitor,
+        channels,
+        lsp_fees,
+    );
 
-    let num_peers = peer_manager.list_peers().len();
-
-    let num_channels: usize = channels.len();
-
-    let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(chain_monitor, channels, lsp_fees);
-
-    let onchain_balance = wallet.get_balance();
-
+    // Debug fields
     let utxo_counts = wallet.get_utxo_counts();
-    let UtxoCounts {
-        total: num_utxos,
-        confirmed: num_confirmed_utxos,
-        unconfirmed: num_unconfirmed_utxos,
-    } = utxo_counts;
-
-    let best_block_height = channel_manager.current_best_block().height;
-
     let pending_monitor_updates = chain_monitor
         .list_pending_monitor_updates()
         .values()
@@ -176,19 +214,19 @@ where
         .sum();
 
     NodeInfoV1 {
-        version,
-        measurement,
-        user_pk,
-        node_pk,
-        num_channels,
-        num_usable_channels,
-        lightning_balance,
-        num_peers,
-        onchain_balance,
-        num_utxos,
-        num_confirmed_utxos,
-        num_unconfirmed_utxos,
-        best_block_height,
+        version: info.version,
+        measurement: info.measurement,
+        user_pk: info.user_pk,
+        node_pk: info.node_pk,
+        num_peers: info.num_peers,
+        num_usable_channels: info.num_usable_channels,
+        num_channels: info.num_channels,
+        lightning_balance: info.lightning_balance,
+        onchain_balance: info.onchain_balance,
+        best_block_height: info.best_block_height,
+        num_utxos: utxo_counts.total,
+        num_confirmed_utxos: utxo_counts.confirmed,
+        num_unconfirmed_utxos: utxo_counts.unconfirmed,
         pending_monitor_updates,
     }
 }
