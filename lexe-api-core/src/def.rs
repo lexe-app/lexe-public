@@ -79,7 +79,7 @@ use crate::{
         command::{
             BackupInfo, ClaimGeneratedHumanBitcoinAddress, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, EnclavesToProvisionRequest,
+            CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
             GetAddressResponse, GetGeneratedUsernameResponse, GetNewPayments,
             GetUpdatedPaymentMetadata, GetUpdatedPayments, HumanBitcoinAddress,
             ListChannelsResponse, NodeInfo, OpenChannelRequest,
@@ -207,6 +207,9 @@ pub trait AppNodeProvisionApi {
 pub trait AppNodeRunApi {
     /// GET /app/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
+
+    /// GET /app/debug_info [`Empty`] -> [`DebugInfo`]
+    async fn debug_info(&self) -> Result<DebugInfo, NodeApiError>;
 
     /// GET /app/list_channels [`Empty`] -> [`ListChannelsResponse`]
     async fn list_channels(&self)

@@ -9,7 +9,7 @@ use lexe_api::{
     models::{
         command::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
-            CreateOfferResponse, GDriveStatus, GetAddressResponse,
+            CreateOfferResponse, DebugInfo, GDriveStatus, GetAddressResponse,
             GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
             ListChannelsResponse, NodeInfo, OpenChannelRequest,
             OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
@@ -77,6 +77,27 @@ pub(super) async fn node_info(
         &channels,
         state.lsp_info.lsp_fees(),
     ))
+}
+
+pub(super) async fn debug_info(
+    State(state): State<Arc<RouterState>>,
+) -> LxJson<DebugInfo> {
+    let utxo_counts = state.wallet.get_utxo_counts();
+    let pending_monitor_updates = state
+        .chain_monitor
+        .list_pending_monitor_updates()
+        .values()
+        .map(|v| v.len())
+        .sum::<usize>();
+
+    LxJson(DebugInfo {
+        xpubs: state.xpubs.clone(),
+        legacy_xpubs: state.legacy_xpubs.clone(),
+        num_utxos: utxo_counts.total,
+        num_confirmed_utxos: utxo_counts.confirmed,
+        num_unconfirmed_utxos: utxo_counts.unconfirmed,
+        pending_monitor_updates: Some(pending_monitor_updates),
+    })
 }
 
 pub(super) async fn list_channels(

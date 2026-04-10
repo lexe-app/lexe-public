@@ -14,7 +14,7 @@ use axum::{
 };
 use lexe_api::{
     cli::{LspInfo, OAuthConfig},
-    models::command::GDriveStatus,
+    models::command::{GDriveStatus, OnchainXpubs},
 };
 use lexe_common::{
     api::{
@@ -77,6 +77,8 @@ pub(crate) struct RouterState {
     pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,
     pub deploy_env: DeployEnv,
     pub node_pk: NodePk,
+    pub xpubs: OnchainXpubs,
+    pub legacy_xpubs: Option<OnchainXpubs>,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,
@@ -110,6 +112,7 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
     #[rustfmt::skip]
     let router = Router::new()
         .route("/app/node_info", get(app::node_info))
+        .route("/app/debug_info", get(app::debug_info))
         .route("/app/list_channels", get(app::list_channels))
         .route("/app/sign_message", post(app::sign_message))
         .route("/app/verify_message", post(app::verify_message))

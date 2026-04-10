@@ -26,12 +26,12 @@ use lexe_api::{
         command::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            EnclavesToProvisionRequest, GetAddressResponse, GetNewPayments,
-            GetUpdatedPayments, HumanBitcoinAddress, ListChannelsResponse,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-            PayOfferResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentCreatedIndexes, PaymentIdStruct,
+            DebugInfo, EnclavesToProvisionRequest, GetAddressResponse,
+            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddress,
+            ListChannelsResponse, NodeInfo, OpenChannelRequest,
+            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+            PayOnchainResponse, PaymentCreatedIndexes, PaymentIdStruct,
             PreflightCloseChannelRequest, PreflightCloseChannelResponse,
             PreflightOpenChannelRequest, PreflightOpenChannelResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
@@ -542,6 +542,14 @@ impl AppNodeRunApi for NodeClient {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/app/node_info");
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
+    }
+
+    async fn debug_info(&self) -> Result<DebugInfo, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/debug_info");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
