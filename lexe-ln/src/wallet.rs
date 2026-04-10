@@ -57,11 +57,14 @@ use bdk_wallet::{
     },
     template::Bip84,
 };
-use bitcoin::{Psbt, Transaction};
+use bitcoin::{
+    Psbt, Transaction,
+    bip32::{ChildNumber, Xpub},
+};
 use lexe_api::{
     models::command::{
-        FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse,
+        FeeEstimate, OnchainXpubs, PayOnchainRequest,
+        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
     },
     types::payments::PaymentKind,
     vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_V2_FILENAME},
@@ -74,6 +77,7 @@ use lexe_common::{
         amount::Amount, balance::OnchainBalance, hashes::Txid,
         network::Network, priority::ConfirmationPriority,
     },
+    secp256k1_ctx::SECP256K1,
     time::TimestampMs,
 };
 use lexe_crypto::rng::RngCore;
@@ -161,6 +165,56 @@ pub struct SyncStats {
     pub seen: u32,
     /// The number of relevant transactions discovered evicted from the mempool
     pub evicted: u32,
+}
+
+/// Derives the BIP84 external and internal keychain xpubs from a master xpriv.
+///
+/// Returns xpubs at paths:
+/// - External: `m/84h/{coin}h/0h/0`
+/// - Internal: `m/84h/{coin}h/0h/1`
+///
+/// Where `coin` is 0 for mainnet, 1 for testnet/signet/regtest.
+pub fn derive_bip84_xpubs(
+    network: Network,
+    master_xprv: bitcoin::bip32::Xpriv,
+) -> OnchainXpubs {
+    let coin_type = match network {
+        Network::Mainnet => 0,
+        Network::Testnet3
+        | Network::Testnet4
+        | Network::Regtest
+        | Network::Signet => 1,
+    };
+
+    // BIP84 account path: m/84h/{coin}h/0h
+    let account_path = [
+        ChildNumber::from_hardened_idx(84).expect("Checked in tests"),
+        ChildNumber::from_hardened_idx(coin_type).expect("Checked in tests"),
+        ChildNumber::from_hardened_idx(0).expect("Checked in tests"),
+    ];
+    let account_xprv = master_xprv
+        .derive_priv(&SECP256K1, &account_path)
+        .expect("derivation should succeed");
+
+    // External keychain: m/84h/{coin}h/0h/0
+    let external_xprv = account_xprv
+        .derive_priv(
+            &SECP256K1,
+            &[ChildNumber::from_normal_idx(0).expect("Checked in tests")],
+        )
+        .expect("derivation should succeed");
+    let external = Xpub::from_priv(&SECP256K1, &external_xprv);
+
+    // Internal keychain: m/84h/{coin}h/0h/1
+    let internal_xprv = account_xprv
+        .derive_priv(
+            &SECP256K1,
+            &[ChildNumber::from_normal_idx(1).expect("Checked in tests")],
+        )
+        .expect("derivation should succeed");
+    let internal = Xpub::from_priv(&SECP256K1, &internal_xprv);
+
+    OnchainXpubs { external, internal }
 }
 
 impl OnchainWallet {
@@ -1616,7 +1670,8 @@ mod test {
     use bdk_chain::{BlockId, ConfirmationBlockTime};
     use bdk_wallet::{
         AddressInfo,
-        KeychainKind::{External, Internal},
+        KeychainKind::{self, External, Internal},
+        template::{Bip84, DescriptorTemplate},
     };
     use bitcoin::{TxOut, hashes::Hash as _};
     use lexe_api::types::payments::ClientPaymentId;
@@ -1627,7 +1682,7 @@ mod test {
         test_utils::{arbitrary, roundtrip},
     };
     use lexe_crypto::rng::FastRng;
-    use proptest::test_runner::Config;
+    use proptest::{prop_assert_eq, proptest, test_runner::Config};
     use tracing::trace;
 
     use super::*;
@@ -2608,5 +2663,81 @@ mod test {
 
         let json = serde_json::to_string_pretty(&changeset).unwrap();
         println!("---\n{json}\n---");
+    }
+
+    /// Test that our `derive_bip84_xpubs` produces xpubs that derive the same
+    /// addresses as BDK's `Bip84` descriptor template.
+    ///
+    /// Note: BDK's descriptor stores the xpub at account level (`m/84h/0h/0h`)
+    /// with a `/{0,1}/*` suffix, while we return keychain-level xpubs
+    /// (`m/84h/0h/0h/0` and `m/84h/0h/0h/1`). We verify equivalence by checking
+    /// that addresses derived at matching indices are identical.
+    #[test]
+    fn derive_bip84_xpubs_matches_bdk() {
+        let cfg = Config::with_cases(100);
+
+        proptest!(cfg, |(
+            seed: RootSeed,
+            network: Network,
+            idx in 0u32..1000,
+        )| {
+            let master_xprv = seed.derive_bip32_master_xprv(network);
+
+            // Our implementation: keychain-level xpubs
+            let OnchainXpubs {
+                external: our_external,
+                internal: our_internal,
+            } = derive_bip84_xpubs(network, master_xprv);
+
+            // BDK's implementation: account-level xpub with /{0,1}/* suffix
+            // This is also exactly how we use the `Bip84` template in
+            // `OnchainWallet::new`.
+            let (bdk_desc_ext, _, _) =
+                Bip84(master_xprv, KeychainKind::External)
+                    .build(network.to_bitcoin())
+                    .unwrap();
+            let (bdk_desc_int, _, _) =
+                Bip84(master_xprv, KeychainKind::Internal)
+                    .build(network.to_bitcoin())
+                    .unwrap();
+
+            // Derive address from our keychain xpub at index `idx`
+            let our_ext_pubkey = our_external
+                .derive_pub(
+                    &SECP256K1,
+                    &[ChildNumber::from_normal_idx(idx).unwrap()],
+                )
+                .unwrap();
+            let our_ext_addr = bitcoin::Address::p2wpkh(
+                &bitcoin::CompressedPublicKey(our_ext_pubkey.public_key),
+                network.to_bitcoin(),
+            );
+
+            let our_int_pubkey = our_internal
+                .derive_pub(
+                    &SECP256K1,
+                    &[ChildNumber::from_normal_idx(idx).unwrap()],
+                )
+                .unwrap();
+            let our_int_addr = bitcoin::Address::p2wpkh(
+                &bitcoin::CompressedPublicKey(our_int_pubkey.public_key),
+                network.to_bitcoin(),
+            );
+
+            // Derive address from BDK descriptor at same index
+            let bdk_ext_addr = bdk_desc_ext
+                .at_derivation_index(idx)
+                .unwrap()
+                .address(network.to_bitcoin())
+                .unwrap();
+            let bdk_int_addr = bdk_desc_int
+                .at_derivation_index(idx)
+                .unwrap()
+                .address(network.to_bitcoin())
+                .unwrap();
+
+            prop_assert_eq!(our_ext_addr, bdk_ext_addr);
+            prop_assert_eq!(our_int_addr, bdk_int_addr);
+        });
     }
 }
