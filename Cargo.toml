@@ -341,14 +341,17 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 # * ln: onion-messenger: just queue forwards to offline peers
 # * onion-messenger: bump MAX_TIMER_TICKS to 3 (~30 sec)
 # * log: silence some especially chatty logs
-# lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.7-2025_11_19" }
-# lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.7-2025_11_19" }
-# lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.7-2025_11_19" }
-# lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.1.7-2025_11_19" }
-lightning.path = "../../ldk/lightning"
-lightning-invoice.path = "../../ldk/lightning-invoice"
-lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
-lightning-types.path = "../../ldk/lightning-types"
+# * types: fix zero conf feature missing `clear_zero_conf` (on master)
+# * Bypass channel monitor sync requests when no partition key given (on master)
+# * util: add helper ChannelHandshakeConfig -> ChannelHandshakeConfigUpdate (on master)
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_09" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_09" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_09" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_09" }
+# lightning.path = "../../ldk/lightning"
+# lightning-invoice.path = "../../ldk/lightning-invoice"
+# lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
+# lightning-types.path = "../../ldk/lightning-types"
 
 # * fortanix: SGX port
 # * license: Add dual license information
