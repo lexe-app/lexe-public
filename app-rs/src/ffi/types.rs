@@ -650,6 +650,8 @@ pub struct Offer {
     pub description: Option<String>,
 
     pub expires_at: Option<i64>,
+    /// The amount embedded in the BOLT12 offer itself, if any.
+    pub embedded_amount_sats: Option<u64>,
     /// The amount that we'll prompt the user to pay.
     ///
     /// When paying an offer from a BIP321 URI, this uses the offer's embedded
@@ -668,6 +670,7 @@ impl From<&OfferRs> for Offer {
             description: offer.description().map(String::from),
 
             expires_at: offer.expires_at().map(TimestampMs::to_i64),
+            embedded_amount_sats: offer.amount().map(|amt| amt.sats_u64()),
             amount_sats: offer.amount().map(|amt| amt.sats_u64()),
 
             payee: offer.payee().map(String::from),

@@ -403,8 +403,10 @@ pub struct PreflightPayOfferRequest {
     pub cid: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: Offer,
-    /// Specifies the amount we will pay if the offer to be paid is
-    /// amountless. This field must be [`Some`] for amountless offers.
+    /// The payer-selected amount for this payment.
+    ///
+    /// This field must be [`Some`] for amountless offers, and may also be used
+    /// to pay more than an offer's encoded minimum amount.
     pub fallback_amount: Option<Amount>,
 }
 
@@ -437,8 +439,10 @@ pub struct PayOfferRequest {
     pub cid: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: Offer,
-    /// Specifies the amount we will pay if the offer to be paid is
-    /// amountless. This field must be [`Some`] for amountless offers.
+    /// The payer-selected amount for this payment.
+    ///
+    /// This field must be [`Some`] for amountless offers, and may also be used
+    /// to pay more than an offer's encoded minimum amount.
     pub fallback_amount: Option<Amount>,
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.

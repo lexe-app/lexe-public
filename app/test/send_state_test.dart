@@ -143,6 +143,64 @@ void main() {
       },
     );
 
+    test(
+      'resolveAndMaybePreflight keeps offers with minimum amounts on the amount page',
+      () async {
+        const offer = Offer(
+          string: testOffer,
+          embeddedAmountSats: 1000,
+          amountSats: 1000,
+        );
+        mockService.resolveBestResult = const Ok(PaymentMethod.offer(offer));
+
+        final state = SendState_NeedUri(
+          paymentService: mockService,
+          configNetwork: Network.mainnet,
+          balance: testBalance(),
+          cid: testCid(),
+          fiatRate: fiatRate,
+        );
+
+        final result = await state.resolveAndMaybePreflight(testOffer);
+
+        expect(result.isOk, true);
+        expect(result.ok, isA<SendState_NeedAmount>());
+        expect(mockService.calls, ['resolveBest($testOffer)']);
+      },
+    );
+
+    test(
+      'resolveAndMaybePreflight preflights immediately for BIP321 offer amounts',
+      () async {
+        const offer = Offer(string: testOffer, amountSats: 5000);
+        mockService.resolveBestResult = const Ok(PaymentMethod.offer(offer));
+        mockService.preflightPayOfferResult = const Ok(
+          PreflightPayOfferResponse(amountSats: 5000, feesSats: 5),
+        );
+
+        final state = SendState_NeedUri(
+          paymentService: mockService,
+          configNetwork: Network.mainnet,
+          balance: testBalance(),
+          cid: testCid(),
+          fiatRate: fiatRate,
+        );
+
+        final result = await state.resolveAndMaybePreflight(testOffer);
+
+        expect(result.isOk, true);
+        expect(result.ok, isA<SendState_Preflighted>());
+        expect(mockService.calls, [
+          'resolveBest($testOffer)',
+          'preflightPayOffer($testOffer)',
+        ]);
+        expect(
+          mockService.lastPreflightPayOfferRequest?.fallbackAmountSats,
+          5000,
+        );
+      },
+    );
+
     test('resolveAndMaybePreflight returns error for invalid URI', () async {
       mockService.resolveBestResult = const Err(
         FfiError('Invalid address format'),
@@ -244,6 +302,24 @@ void main() {
       expect(state.canPreflightImmediately(), 1000);
     });
 
+    test('canPreflightImmediately returns null for offers with amount', () {
+      const offer = Offer(
+        string: testOffer,
+        embeddedAmountSats: 1000,
+        amountSats: 1000,
+      );
+      final state = SendState_NeedAmount(
+        paymentService: mockService,
+        configNetwork: Network.mainnet,
+        balance: testBalance(),
+        cid: testCid(),
+        fiatRate: fiatRate,
+        paymentMethod: const PaymentMethod.offer(offer),
+      );
+
+      expect(state.canPreflightImmediately(), null);
+    });
+
     test('preflight succeeds for onchain payment', () async {
       const onchain = Onchain(
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
@@ -324,6 +400,37 @@ void main() {
       expect(mockService.calls, ['preflightPayOffer($testOffer)']);
     });
 
+    test(
+      'preflight uses the user-selected amount for offers with minimums',
+      () async {
+        const offer = Offer(
+          string: testOffer,
+          embeddedAmountSats: 1000,
+          amountSats: 1000,
+        );
+        mockService.preflightPayOfferResult = const Ok(
+          PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
+        );
+
+        final state = SendState_NeedAmount(
+          paymentService: mockService,
+          configNetwork: Network.mainnet,
+          balance: testBalance(),
+          cid: testCid(),
+          fiatRate: fiatRate,
+          paymentMethod: const PaymentMethod.offer(offer),
+        );
+
+        final result = await state.preflight(3000);
+
+        expect(result.isOk, true);
+        expect(
+          mockService.lastPreflightPayOfferRequest?.fallbackAmountSats,
+          3000,
+        );
+      },
+    );
+
     test('preflight returns error on failure', () async {
       const onchain = Onchain(
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
@@ -399,6 +506,31 @@ void main() {
       expect(mockService.lastPayOfferRequest?.note, 'Offer payment');
       expect(mockService.lastPayOfferRequest?.payerNote, 'payer note');
     });
+
+    test(
+      'pay uses the user-selected amount for offers with minimums',
+      () async {
+        mockService.payOfferResult = Ok(
+          PayOfferResponse(index: PaymentCreatedIndex(field0: 'test-index')),
+        );
+
+        final state = _createPreflightedOffer(
+          mockService,
+          fiatRate,
+          payerNote: null,
+          offer: const Offer(
+            string: testOffer,
+            embeddedAmountSats: 1000,
+            amountSats: 1000,
+          ),
+        );
+
+        final result = await state.pay('Offer payment', null);
+
+        expect(result.isOk, true);
+        expect(mockService.lastPayOfferRequest?.fallbackAmountSats, 3000);
+      },
+    );
 
     test('pay returns error on failure', () async {
       mockService.payOnchainResult = const Err(FfiError('Transaction failed'));
@@ -525,6 +657,7 @@ SendState_Preflighted _createPreflightedOffer(
   MockSendPaymentService mockService,
   ValueNotifier<FiatRate?> fiatRate, {
   required String? payerNote,
+  Offer offer = const Offer(string: testOffer),
 }) {
   return SendState_Preflighted(
     paymentService: mockService,
@@ -533,7 +666,7 @@ SendState_Preflighted _createPreflightedOffer(
     cid: testCid(),
     fiatRate: fiatRate,
     preflightedPayment: PreflightedPayment_Offer(
-      offer: Offer(string: testOffer),
+      offer: offer,
       amountSats: 3000,
       preflight: PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
       payerNote: payerNote,

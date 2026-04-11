@@ -439,6 +439,19 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 
   Result<(), String> validateAmount(int amount) {
+    if (this.widget.sendCtx.paymentMethod case PaymentMethod_Offer(
+      :final field0,
+    )) {
+      final minimumAmountSats = field0.embeddedAmountSats;
+      if (minimumAmountSats != null && amount < minimumAmountSats) {
+        final minimumAmountStr = currency_format.formatSatsAmount(
+          minimumAmountSats,
+          bitcoinSymbol: true,
+        );
+        return Err("Can't send less than $minimumAmountStr");
+      }
+    }
+
     final kind = this.widget.sendCtx.paymentMethod.kind();
     final balance = this.widget.sendCtx.balance;
     final balanceMaxSendableSats = balance.maxSendableByKind(kind);
@@ -525,6 +538,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             validate: this.validateAmount,
             allowEmpty: false,
             allowZero: false,
+            initialValue: paymentMethod.amountSats(),
           ),
 
           // Description (if available)

@@ -1481,11 +1481,10 @@ where
         None
     };
     // TODO(phlip9): actual_amount = amount * quantity
-    // TODO(phlip9): support over-paying offers? `offer_amount` is actually a
-    //               _minimum_ amount and the spec allows over-paying.
-    // Compute the amount; handle amountless offers.
+    // Compute the amount; handle amountless offers and allow paying more than
+    // the offer's encoded minimum amount.
     let amount =
-        validate::pay_amount("offers", offer.amount(), req.fallback_amount)?;
+        validate::pay_offer_amount(offer.amount(), req.fallback_amount)?;
 
     // Compute Lightning balances
     let channels = channel_manager.list_channels();
@@ -1584,6 +1583,29 @@ mod validate {
         amount.or(fallback_amount).with_context(|| {
             format!("Missing fallback amount for amountless {kind}")
         })
+    }
+
+    /// Get the final amount we should pay for an offer.
+    ///
+    /// BOLT12 offer amounts are minimums, not exact amounts, so callers may
+    /// request a larger payment amount as long as it meets that minimum.
+    pub(super) fn pay_offer_amount(
+        offer_amount: Option<Amount>,
+        requested_amount: Option<Amount>,
+    ) -> anyhow::Result<Amount> {
+        match (offer_amount, requested_amount) {
+            (Some(minimum_amount), Some(requested_amount)) => {
+                ensure!(
+                    requested_amount >= minimum_amount,
+                    "Requested offer amount is less than the offer minimum"
+                );
+                Ok(requested_amount)
+            }
+            (Some(minimum_amount), None) => Ok(minimum_amount),
+            (None, Some(requested_amount)) => Ok(requested_amount),
+            (None, None) =>
+                Err(anyhow!("Missing fallback amount for amountless offers")),
+        }
     }
 
     /// Check that the user has at least one usable channel.
@@ -2016,5 +2038,36 @@ mod test {
                 result.unwrap();
             }
         });
+    }
+
+    #[test]
+    fn pay_offer_amount_prefers_requested_amount_when_it_exceeds_minimum() {
+        let minimum_amount = Amount::from_sats_u32(1_000);
+        let requested_amount = Amount::from_sats_u32(3_000);
+
+        let amount = validate::pay_offer_amount(
+            Some(minimum_amount),
+            Some(requested_amount),
+        )
+        .unwrap();
+
+        assert_eq!(amount, requested_amount);
+    }
+
+    #[test]
+    fn pay_offer_amount_rejects_requested_amount_below_minimum() {
+        let minimum_amount = Amount::from_sats_u32(1_000);
+        let requested_amount = Amount::from_sats_u32(999);
+
+        let err = validate::pay_offer_amount(
+            Some(minimum_amount),
+            Some(requested_amount),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "Requested offer amount is less than the offer minimum"
+        );
     }
 }

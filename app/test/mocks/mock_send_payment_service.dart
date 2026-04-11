@@ -35,6 +35,7 @@ class MockSendPaymentService implements SendPaymentService {
   FfiResult<PayOnchainResponse>? payOnchainResult;
   FfiResult<PayInvoiceResponse>? payInvoiceResult;
   FfiResult<PayOfferResponse>? payOfferResult;
+  PreflightPayOfferRequest? lastPreflightPayOfferRequest;
   PayOfferRequest? lastPayOfferRequest;
 
   /// Tracked method calls for verification in tests.
@@ -50,6 +51,7 @@ class MockSendPaymentService implements SendPaymentService {
     this.payOnchainResult = null;
     this.payInvoiceResult = null;
     this.payOfferResult = null;
+    this.lastPreflightPayOfferRequest = null;
     this.lastPayOfferRequest = null;
     this.calls.clear();
   }
@@ -86,6 +88,7 @@ class MockSendPaymentService implements SendPaymentService {
   Future<FfiResult<PreflightPayOfferResponse>> preflightPayOffer({
     required PreflightPayOfferRequest req,
   }) async {
+    this.lastPreflightPayOfferRequest = req;
     this.calls.add('preflightPayOffer(${req.offer})');
     return this.preflightPayOfferResult ??
         Err(const FfiError('preflightPayOffer not configured'));

@@ -42,6 +42,14 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/send_payment_service.dart'
     show SendPaymentService;
 
+int? requestedOfferAmountSats(Offer offer, int amountSats) {
+  final minimumAmountSats = offer.embeddedAmountSats;
+  if (minimumAmountSats == null || amountSats != minimumAmountSats) {
+    return amountSats;
+  }
+  return null;
+}
+
 /// The outcome of a successful send flow.
 @immutable
 final class SendFlowResult {
@@ -167,7 +175,8 @@ class SendState_NeedAmount implements SendState {
   int? canPreflightImmediately() => switch (this.paymentMethod) {
     PaymentMethod_Onchain(:final field0) => field0.amountSats,
     PaymentMethod_Invoice(:final field0) => field0.amountSats,
-    PaymentMethod_Offer(:final field0) => field0.amountSats,
+    PaymentMethod_Offer(:final field0) =>
+      field0.embeddedAmountSats == null ? field0.amountSats : null,
     PaymentMethod_LnurlPayRequest(:final field0) =>
       field0.minSendableMsat == field0.maxSendableMsat
           ? field0.minSendableMsat ~/ 1000
@@ -234,7 +243,7 @@ class SendState_NeedAmount implements SendState {
         final req = PreflightPayOfferRequest(
           cid: this.cid,
           offer: offer.string,
-          fallbackAmountSats: (offer.amountSats == null) ? amountSats : null,
+          fallbackAmountSats: requestedOfferAmountSats(offer, amountSats),
         );
 
         final result = await this.paymentService.preflightPayOffer(req: req);
@@ -436,9 +445,10 @@ class SendState_Preflighted implements SendState {
     final req = PayOfferRequest(
       cid: this.cid,
       offer: preflighted.offer.string,
-      fallbackAmountSats: (preflighted.offer.amountSats == null)
-          ? preflighted.amountSats
-          : null,
+      fallbackAmountSats: requestedOfferAmountSats(
+        preflighted.offer,
+        preflighted.amountSats,
+      ),
       note: note,
       payerNote: preflighted.payerNote,
     );

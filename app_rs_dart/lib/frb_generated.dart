@@ -3995,15 +3995,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Offer dco_decode_offer(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return Offer(
       string: dco_decode_String(arr[0]),
       description: dco_decode_opt_String(arr[1]),
       expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[2]),
-      amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
-      payee: dco_decode_opt_String(arr[4]),
-      payeePubkey: dco_decode_opt_String(arr[5]),
+      embeddedAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
+      amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
+      payee: dco_decode_opt_String(arr[5]),
+      payeePubkey: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -5613,6 +5614,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_string = sse_decode_String(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_embeddedAmountSats = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_payee = sse_decode_opt_String(deserializer);
     var var_payeePubkey = sse_decode_opt_String(deserializer);
@@ -5620,6 +5624,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       string: var_string,
       description: var_description,
       expiresAt: var_expiresAt,
+      embeddedAmountSats: var_embeddedAmountSats,
       amountSats: var_amountSats,
       payee: var_payee,
       payeePubkey: var_payeePubkey,
@@ -7308,6 +7313,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.string, serializer);
     sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.embeddedAmountSats, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_opt_String(self.payee, serializer);
     sse_encode_opt_String(self.payeePubkey, serializer);
