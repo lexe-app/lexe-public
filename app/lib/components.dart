@@ -920,7 +920,7 @@ class SplitAmountText extends StatelessWidget {
   }
 }
 
-class PaymentAmountInput extends StatelessWidget {
+class PaymentAmountInput extends StatefulWidget {
   const PaymentAmountInput({
     super.key,
     required this.fieldKey,
@@ -985,8 +985,13 @@ class PaymentAmountInput extends StatelessWidget {
   }
 
   @override
+  State<PaymentAmountInput> createState() => _PaymentAmountInputState();
+}
+
+class _PaymentAmountInputState extends State<PaymentAmountInput> {
+  @override
   Widget build(BuildContext context) {
-    final int? initialValue = this.initialValue;
+    final int? initialValue = this.widget.initialValue;
 
     // Check locale-specific positioning by formatting a dummy amount
     // Call formatSatsAmount on a dummy value using currently active locale
@@ -1020,21 +1025,21 @@ class PaymentAmountInput extends StatelessWidget {
         // The text field with intrinsic width
         IntrinsicWidth(
           child: TextFormField(
-            key: this.fieldKey,
+            key: this.widget.fieldKey,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(
               signed: false,
               decimal: false,
             ),
             initialValue: (initialValue != null)
-                ? this.intInputFormatter.formatInt(initialValue)
+                ? this.widget.intInputFormatter.formatInt(initialValue)
                 : "0",
             textDirection: TextDirection.ltr,
             textInputAction: TextInputAction.next,
             textAlign: TextAlign.left,
-            onChanged: this.onChanged,
-            onEditingComplete: this.onEditingComplete,
-            validator: (str) => this.validateAmountStr(str).err,
+            onChanged: this.widget.onChanged,
+            onEditingComplete: this.widget.onEditingComplete,
+            validator: (str) => this.widget.validateAmountStr(str).err,
             decoration: baseInputDecoration.copyWith(
               hintText: "0",
               // Remove default padding to make it more compact
@@ -1042,7 +1047,7 @@ class PaymentAmountInput extends StatelessWidget {
               // Ensure there's no collapse of the field when empty
               constraints: const BoxConstraints(minWidth: Space.s700),
             ),
-            inputFormatters: [this.intInputFormatter],
+            inputFormatters: [this.widget.intInputFormatter],
             style: amountTextStyle,
           ),
         ),

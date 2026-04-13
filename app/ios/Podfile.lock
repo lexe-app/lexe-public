@@ -75,20 +75,20 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  app_links: f3e17e4ee5e357b39d8b95290a9b2c299fca71c6
-  app_rs_dart: a1e1f11cc54d38820b575dc2d1634810e88a4acb
-  camera_avfoundation: adb0207d868b2d873e895371d88448399ab78d87
-  device_info_plus: bf2e3232933866d73fe290f2942f2156cdd10342
+  app_links: 76b66b60cc809390ca1ad69bfd66b998d2387ac7
+  app_rs_dart: 1eec082c79cde8bbafa5cedd38d2ebba3e63ad4f
+  camera_avfoundation: be3be85408cd4126f250386828e9b1dfa40ab436
+  device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_file_manager_ios: a25a3d5f9473c8486213797d5f5e3c546e4a8c06
-  flutter_web_auth_2: 051cf9f5dc366f31b5dcc4e2952c2b954767be8a
-  flutter_zxing: 19a866d17c8a87ee1026d68521c69d2f008635f6
-  image_picker_ios: c560581cceedb403a6ff17f2f816d7fea1421fc1
-  integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  package_info_plus: c0502532a26c7662a62a356cebe2692ec5fe4ec4
-  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
-  url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
+  flutter_file_manager_ios: 799b040e45c8d2ed1226440f630ca69b65547e66
+  flutter_web_auth_2: 3464a7c16dc6480b6194fc89913bae6e82f28405
+  flutter_zxing: e741c4f3335db8910e5c396c4291cdfb320859dc
+  image_picker_ios: 7fe1ff8e34c1790d6fff70a32484959f563a928a
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
+  url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
 
 PODFILE CHECKSUM: 08f1b9b2fa5d5ad13f5c3615928117c6a3dd311b
 
