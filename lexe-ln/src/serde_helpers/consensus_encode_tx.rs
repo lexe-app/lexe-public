@@ -5,7 +5,7 @@
 //!
 //! ## Example:
 //!
-//! ```rust
+//! ```ignore
 //! use lexe_ln::serde_helpers::consensus_encode_tx;
 //! use serde::{Deserialize, Serialize};
 //!

@@ -27,6 +27,8 @@ pub mod balance;
 pub mod channel;
 /// Channel monitor
 pub mod channel_monitor;
+/// Estimate channel close fees.
+pub(crate) mod close_fee;
 /// Top level commands that can be initiated by the user.
 pub mod command;
 /// Bitcoin and Lightning-specific constants
@@ -52,7 +54,7 @@ pub mod persister;
 /// Routing-related logic.
 pub mod route;
 /// [`serde`] helpers.
-pub mod serde_helpers;
+pub(crate) mod serde_helpers;
 /// Chain sync.
 pub mod sync;
 /// `TestEvent` channels and utils.
