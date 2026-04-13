@@ -667,10 +667,6 @@ pub fn handle_scorer_update(
     }
 }
 
-/// Indicates that a call to `process_pending_htlc_forwards` was complete.
-#[derive(Copy, Clone, Debug)]
-pub struct HtlcsForwarded;
-
 /// Handles a [`Event::SpendableOutputs`] by spending any non-static outputs to
 /// our BDK wallet.
 //

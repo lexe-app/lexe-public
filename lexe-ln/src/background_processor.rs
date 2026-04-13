@@ -16,7 +16,6 @@ use tracing::{Instrument, debug, error, info, info_span, trace, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
-    event::HtlcsForwarded,
     persister::LexePersisterMethods,
     traits::{
         LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
@@ -49,6 +48,11 @@ mod delay {
     pub const PEER_MANAGER: Duration = Duration::from_millis(400);
     pub const PROCESS_EVENTS: Duration = Duration::from_millis(800);
 }
+
+/// An event sent over the `htlcs_forwarded_bus` that indicates a call to
+/// `process_pending_htlc_forwards` was complete.
+#[derive(Copy, Clone, Debug)]
+pub struct HtlcsForwarded;
 
 /// A Tokio-native background processor that runs on a single task and does not
 /// spawn any OS threads. Modeled after the lightning-background-processor crate
