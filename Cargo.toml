@@ -9,6 +9,7 @@ members = [
     "lexe-api",
     "lexe-api-core",
     "lexe-byte-array",
+    "lexe-cli",
     "lexe-common",
     "lexe-crypto",
     "lexe-enclave",
@@ -146,6 +147,8 @@ chrono = { version = "0.4", default-features = false, features = [
     "std",
     "clock"
 ] }
+# Derive-based command line argument parsing (used by lexe-cli)
+clap = { version = "4", default-features = false }
 # For verifying SGX Report MACs
 cmac = { version = "0.7", features = ["std", "zeroize"] }
 # Create and validate transferable DNS proofs (by BlueMatt)

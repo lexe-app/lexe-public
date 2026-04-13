@@ -8,6 +8,7 @@ ${PODS_TARGET_SRCROOT}/../../gdrive/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-api-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-api/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-byte-array/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-cli/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-common/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-crypto/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-enclave/Cargo.toml
