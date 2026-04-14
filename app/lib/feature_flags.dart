@@ -10,8 +10,8 @@ const Set<String> prodLexeDevUserPks = {
   "8cb9479ef8aadec450b64e14daeafe811af881bf6e261229b0658777bfafc686",
   // @maxfangx
   "b484a4890b47358ee68684bcd502d2eefa1bc66cc0f8ac2e5f06384676be74eb",
-  // @a-mpch
-  "7d29ee8dccb4a84368f0c07f6626a5fae03513a3276dde054d613b18e2d6f979",
+  // @nicolft
+  "94c34099b2fade2ba14f7dc795b6c92f59ac62d72b8c013c6443377bcf02a7f7",
   // Lexe iOS dev device
   "7b99af3b38ccec46bd691d1f091053868dc70e5a3945908825beb0271cfe01c9",
 };
