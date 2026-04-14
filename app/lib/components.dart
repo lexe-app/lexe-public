@@ -989,14 +989,18 @@ class PaymentAmountInput extends StatefulWidget {
 }
 
 class _PaymentAmountInputState extends State<PaymentAmountInput> {
-  String? errorText;
+  final ValueNotifier<String?> errorText = ValueNotifier<String?>(null);
 
   // Capture the validation output and store the error message as state.
   String? validator(String? input) {
-    this.setState(
-      () => this.errorText = this.widget.validateAmountStr(input).err,
-    );
-    return this.errorText;
+    this.errorText.value = this.widget.validateAmountStr(input).err;
+    return this.errorText.value;
+  }
+
+  @override
+  void dispose() {
+    this.errorText.dispose();
+    super.dispose();
   }
 
   @override
@@ -1105,13 +1109,16 @@ class _PaymentAmountInputState extends State<PaymentAmountInput> {
         // We hide the TextFormField error message above and display it here instead.
         Padding(
           padding: const EdgeInsets.only(top: 6.0),
-          child: Text(
-            this.errorText ?? "",
-            style: Fonts.fontUI.copyWith(
-              color: LxColors.errorText,
-              fontSize: Fonts.size100,
+          child: ValueListenableBuilder<String?>(
+            valueListenable: this.errorText,
+            builder: (_, value, _) => Text(
+              value ?? "",
+              style: Fonts.fontUI.copyWith(
+                color: LxColors.errorText,
+                fontSize: Fonts.size100,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
         ),
       ],
