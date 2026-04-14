@@ -83,6 +83,7 @@ pub(super) async fn node_info_v1(
     State(state): State<Arc<RouterState>>,
 ) -> LxJson<NodeInfoV1> {
     let channels = state.channel_manager.list_channels();
+    #[allow(deprecated)]
     LxJson(lexe_ln::command::node_info_v1(
         state.version.clone(),
         state.measurement,

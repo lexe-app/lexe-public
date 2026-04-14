@@ -855,7 +855,7 @@ impl UserNode {
                         }
 
                         let channels = channel_manager.list_channels();
-                        let mut node_info = lexe_ln::command::node_info_v1(
+                        let mut node_info = lexe_ln::command::node_info(
                             version.clone(),
                             measurement,
                             user_pk,

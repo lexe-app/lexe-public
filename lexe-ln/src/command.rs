@@ -174,6 +174,7 @@ where
 }
 
 /// Wrapper around [`node_info`] that adds the deprecated debug fields.
+#[deprecated(note = "since node-v0.9.4: Use node_info instead")]
 #[instrument(skip_all, name = "(node-info-v1)")]
 pub fn node_info_v1<CM, PM, PS, RMH>(
     version: semver::Version,
