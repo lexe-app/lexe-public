@@ -989,6 +989,16 @@ class PaymentAmountInput extends StatefulWidget {
 }
 
 class _PaymentAmountInputState extends State<PaymentAmountInput> {
+  String? errorText;
+
+  // Capture the validation output and store the error message as state.
+  String? validator(String? input) {
+    this.setState(
+      () => this.errorText = this.widget.validateAmountStr(input).err,
+    );
+    return this.errorText;
+  }
+
   @override
   Widget build(BuildContext context) {
     final int? initialValue = this.widget.initialValue;
@@ -1014,46 +1024,96 @@ class _PaymentAmountInputState extends State<PaymentAmountInput> {
       letterSpacing: -0.5,
     );
 
+    // Get the box's minWidth
+    final textPainter = (TextPainter(
+      text: TextSpan(text: '0', style: amountTextStyle),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout());
+    final minWidth = textPainter.width;
+
+    // Clean up
+    textPainter.dispose();
+
     // "₿ <amount>" or "<amount> ₿" depending on locale
-    return Row(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Left bitcoin symbol (only if locale uses prefix)
-        if (showPrefix)
-          Text("₿ ", style: amountTextStyle.copyWith(color: LxColors.grey700)),
-        // The text field with intrinsic width
-        IntrinsicWidth(
-          child: TextFormField(
-            key: this.widget.fieldKey,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(
-              signed: false,
-              decimal: false,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Left bitcoin symbol (only if locale uses prefix)
+            if (showPrefix)
+              Text(
+                "₿ ",
+                style: amountTextStyle.copyWith(color: LxColors.grey700),
+              ),
+            Flexible(
+              // The text field with intrinsic width
+              child: IntrinsicWidth(
+                child: TextFormField(
+                  key: this.widget.fieldKey,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    signed: false,
+                    decimal: false,
+                  ),
+                  initialValue: (initialValue != null)
+                      ? this.widget.intInputFormatter.formatInt(initialValue)
+                      : "0",
+                  textDirection: TextDirection.ltr,
+                  textInputAction: TextInputAction.next,
+                  textAlign: TextAlign.left,
+                  // maxLength limits number to XXX,XXX,XXX,XXX to prevent overflow
+                  maxLength: 15,
+                  buildCounter:
+                      (
+                        context, {
+                        required currentLength,
+                        required isFocused,
+                        maxLength,
+                      }) => null,
+                  onChanged: this.widget.onChanged,
+                  onEditingComplete: this.widget.onEditingComplete,
+                  validator: this.validator,
+                  // Error messages that are too long will be cut off because of IntrinsicWidth.
+                  // We hide the TextFormField error message and display it below in Column instead.
+                  errorBuilder: (_, _) => SizedBox.shrink(),
+                  decoration: baseInputDecoration.copyWith(
+                    hintText: "0",
+                    // Remove default padding to make it more compact
+                    contentPadding: EdgeInsets.zero,
+                    // Ensure there's no collapse of the field when empty
+                    constraints: BoxConstraints(minWidth: minWidth),
+                  ),
+                  inputFormatters: [this.widget.intInputFormatter],
+                  style: amountTextStyle,
+                ),
+              ),
             ),
-            initialValue: (initialValue != null)
-                ? this.widget.intInputFormatter.formatInt(initialValue)
-                : "0",
-            textDirection: TextDirection.ltr,
-            textInputAction: TextInputAction.next,
-            textAlign: TextAlign.left,
-            onChanged: this.widget.onChanged,
-            onEditingComplete: this.widget.onEditingComplete,
-            validator: (str) => this.widget.validateAmountStr(str).err,
-            decoration: baseInputDecoration.copyWith(
-              hintText: "0",
-              // Remove default padding to make it more compact
-              contentPadding: EdgeInsets.zero,
-              // Ensure there's no collapse of the field when empty
-              constraints: const BoxConstraints(minWidth: Space.s700),
+            // Right bitcoin symbol (only if locale uses suffix)
+            if (showSuffix)
+              Text(
+                " ₿",
+                style: amountTextStyle.copyWith(color: LxColors.grey700),
+              ),
+          ],
+        ),
+        // Error messages that are too long will be cut off because of IntrinsicWidth.
+        // We hide the TextFormField error message above and display it here instead.
+        Padding(
+          padding: const EdgeInsets.only(top: 6.0),
+          child: Text(
+            this.errorText ?? "",
+            style: Fonts.fontUI.copyWith(
+              color: LxColors.errorText,
+              fontSize: Fonts.size100,
             ),
-            inputFormatters: [this.widget.intInputFormatter],
-            style: amountTextStyle,
+            textAlign: TextAlign.center,
           ),
         ),
-        // Right bitcoin symbol (only if locale uses suffix)
-        if (showSuffix)
-          Text(" ₿", style: amountTextStyle.copyWith(color: LxColors.grey700)),
       ],
     );
   }
