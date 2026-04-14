@@ -66,18 +66,18 @@ impl Args {
     pub fn run(self) -> Result<()> {
         use std::path::Path;
 
-        use aesm_client::AesmClient;
         use anyhow::Context;
         use enclave_runner::EnclaveBuilder;
         use lexe_enclave::enclave::Measurement;
         use run_sgx::aesm_proxy::AesmProxy;
         use sgxs_loaders::isgx;
 
-        let aesm_client = AesmClient::new();
-
+        // NOTE(phlip9): don't need (and actually never needed) an enclave init
+        // token (EINITTOKEN) provider, since we use Flexible Launch Control
+        // (FLC). sgx-psw-v2.28 also deprecates launching enclaves with launch
+        // tokens.
         let mut device = isgx::Device::new()
             .context("Failed to init SGX device")?
-            .einittoken_provider(aesm_client)
             .build();
 
         // use the passed ELF binary arg or look for an adjacent ELF binary

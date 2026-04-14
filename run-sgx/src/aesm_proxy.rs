@@ -29,7 +29,7 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 #[derive(Debug)]
 pub struct AesmProxy;
 
-// TODO(phlip9): change [`aesm_client`] to open a fresh TCP connection per req
+// TODO(phlip9): change `aesm_client` to open a fresh TCP connection per req
 
 /// A single proxied connection to the AESM unix socket.
 ///
@@ -39,7 +39,7 @@ pub struct AesmProxy;
 ///    requests. Instead, the AESM expects a new [`UnixStream`] connection for
 ///    _each_ request/response pair.
 ///
-/// 2. The [`aesm_client`] impl for enclaves uses only one [`TcpStream`] for all
+/// 2. The `aesm_client` impl for enclaves uses only one [`TcpStream`] for all
 ///    RPCs.
 ///
 /// 3. When the enclave makes a new request we open a fresh [`UnixStream`]

@@ -51,7 +51,6 @@ dependencies = [
  "protobuf",
  "protobuf-codegen",
  "sgx-isa",
- "sgxs",
  "thiserror 1.0.69",
  "unix_socket2",
  "winapi",
@@ -4103,7 +4102,6 @@ dependencies = [
 name = "run-sgx"
 version = "0.0.0"
 dependencies = [
- "aesm-client",
  "anyhow",
  "argh",
  "enclave-runner",
