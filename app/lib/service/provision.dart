@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:lexeapp/prelude.dart';
 
-/// Derived from [AppHandle}. Knows if we're currently provisioned or not.
+/// This service manages provisioning the user node.
+///
+/// Currently, at startup, the wallet operates in "offline" mode until we
+/// successfully provision for the first time in the session.
 class ProvisionService {
   ProvisionService({required AppHandle app}) : _app = app;
 
@@ -21,10 +26,15 @@ class ProvisionService {
   ValueListenable<bool> get shouldDisplayWarning => this._shouldDisplayWarning;
   final ValueNotifier<bool> _shouldDisplayWarning = ValueNotifier(false);
 
+  /// If nobody has started provisioned yet, then start provisioning.
+  /// Otherwise return immediately.
+  ///
+  /// Use this fn if you just need to (maybe) start provisioning.
   Future<void> provision() async {
     assert(!this.isDisposed);
 
-    /// Return early if we're already provisioned. We only need to provision once.
+    /// Return early if we're already provisioned. We only need to provision
+    /// once.
     if (this.isProvisioned.value) return;
 
     // Skip if we're currently syncing
@@ -41,12 +51,34 @@ class ProvisionService {
         info("node provisioned");
         this._shouldDisplayWarning.value = false;
         this._isProvisioned.value = true;
-        break;
       case Err(:final err):
         this._shouldDisplayWarning.value = true;
         error("provision: err: ${err.message}");
-        break;
     }
+  }
+
+  /// If nobody has started provisioned yet, then start provisioning.
+  /// Always waits until the first provision completes. Returns immediately if
+  /// we've already provisioned at least once this session.
+  ///
+  /// Use this fn to gate logic until after we've successfully provisioned.
+  Future<void> waitUntilProvisioned() {
+    assert(!this.isDisposed);
+    if (this.isProvisioned.value) return Future.value();
+
+    // Kick off a provision in the background if we're the first one waiting.
+    if (!this._isProvisioning.value) unawaited(this.provision());
+
+    final completer = Completer<void>();
+
+    void listener() {
+      this.isProvisioned.removeListener(listener);
+      completer.complete();
+    }
+
+    this.isProvisioned.addListener(listener);
+
+    return completer.future;
   }
 
   void wrapListener(void Function() listener) {

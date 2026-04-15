@@ -72,6 +72,10 @@ class MockTime {
     this._isAdvancing = false;
   }
 
+  /// Convenience fn to `advance(Duration(milliseconds: _))`
+  void advanceMs(int durationMs) =>
+      this.advance(Duration(milliseconds: durationMs));
+
   void _runAllMicrotasks() {
     while (this._microtasks.isNotEmpty) {
       final microtask = this._microtasks.removeFirst();

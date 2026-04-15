@@ -20,12 +20,12 @@ Future<void> main() async {
       source.add(5); // <skip>
       source.add(7); // <skip>
 
-      time.advance(const Duration(milliseconds: 1000));
+      time.advanceMs(1000);
 
       source.add(3); // -> 6
       source.add(1); // <skip>
 
-      time.advance(const Duration(milliseconds: 1000));
+      time.advanceMs(1000);
 
       await source.close();
       expect(await outFut, [18, 6]);
