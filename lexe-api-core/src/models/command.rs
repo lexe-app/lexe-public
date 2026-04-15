@@ -115,12 +115,12 @@ impl From<NodeInfoV1> for NodeInfo {
 /// Diagnostic information for debugging purposes.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DebugInfo {
-    /// Extended public keys for the on-chain wallet.
-    pub xpubs: OnchainXpubs,
-    /// Legacy xpubs for wallets created <= node-v0.9.2.
+    /// Output descriptors for the on-chain wallet.
+    pub descriptors: OnchainDescriptors,
+    /// Legacy descriptors for wallets created <= node-v0.9.2.
     /// `None` if the node doesn't have a legacy wallet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub legacy_xpubs: Option<OnchainXpubs>,
+    pub legacy_descriptors: Option<OnchainDescriptors>,
 
     /// The total # of UTXOs tracked by BDK.
     pub num_utxos: usize,
@@ -142,15 +142,26 @@ pub struct DebugInfo {
     pub pending_monitor_updates: Option<usize>,
 }
 
-/// Extended public keys for the on-chain wallet.
+/// BIP84 wpkh output descriptors for the on-chain wallet.
 ///
-/// [`Xpub`] serializes to the standard base58 string representation.
+/// Descriptor strings include origin info and checksum. Example:
+/// "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/0/*)#dwvchw0k"
+///
+/// These are copy-pasteable into other wallets like Sparrow.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct OnchainXpubs {
-    /// External (receive) keychain xpub at path `m/84h/{0,1}h/0h/0`.
-    pub external: Xpub,
-    /// Internal (change) keychain xpub at path `m/84h/{0,1}h/0h/1`.
-    pub internal: Xpub,
+pub struct OnchainDescriptors {
+    /// BIP389 multipath descriptor for both keychains:
+    /// `wpkh([fp/84'/0'/0']xpub.../<0;1>/*)#checksum`
+    pub multipath_descriptor: String,
+
+    /// External (receive) keychain descriptor.
+    pub external_descriptor: String,
+
+    /// Internal (change) keychain descriptor.
+    pub internal_descriptor: String,
+
+    /// Account-level xpub at `m/84'/{coin}'/0'` for legacy tools.
+    pub account_xpub: Xpub,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -761,25 +772,49 @@ mod test {
         roundtrip::json_value_roundtrip_proptest::<HumanBitcoinAddress>();
     }
 
-    /// Sanity check the `DebugInfo` serialization.
+    /// Sanity check the `DebugInfo` serialization against a hard-coded string.
     #[test]
     fn debug_info_serialization() {
-        let xpub_str = "tpubDC2Qwo2TFsaNC4ju8nrUJ9mqVT3eSgdmy1yPqhgkjwmke3PRXutNGRYAUo6RCHTcVQaDR3ohNU9we59brGHuEKPvH1ags2nevW5opEE9Z5Q";
-        let external = Xpub::from_str(xpub_str).unwrap();
-        let internal = Xpub::from_str(xpub_str).unwrap();
+        // Account-level xpub (from BDK tests)
+        let account_xpub = Xpub::from_str(
+            "xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA"
+        ).unwrap();
+
+        // Descriptors with real checksums (computed via miniscript)
+        let descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/<0;1>/*)#c8v4zjyh".to_owned();
+        let external_descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/0/*)#dwvchw0k".to_owned();
+        let internal_descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/1/*)#u6fe2mlw".to_owned();
 
         let debug_info = DebugInfo {
-            xpubs: OnchainXpubs { external, internal },
-            legacy_xpubs: None,
+            descriptors: OnchainDescriptors {
+                multipath_descriptor: descriptor.clone(),
+                external_descriptor: external_descriptor.clone(),
+                internal_descriptor: internal_descriptor.clone(),
+                account_xpub,
+            },
+            legacy_descriptors: None,
             num_utxos: 5,
             num_confirmed_utxos: 3,
             num_unconfirmed_utxos: 2,
             pending_monitor_updates: Some(0),
         };
 
-        // Serialize and check against expected JSON
-        let json = serde_json::to_string(&debug_info).unwrap();
-        let expected = r#"{"xpubs":{"external":"tpubDC2Qwo2TFsaNC4ju8nrUJ9mqVT3eSgdmy1yPqhgkjwmke3PRXutNGRYAUo6RCHTcVQaDR3ohNU9we59brGHuEKPvH1ags2nevW5opEE9Z5Q","internal":"tpubDC2Qwo2TFsaNC4ju8nrUJ9mqVT3eSgdmy1yPqhgkjwmke3PRXutNGRYAUo6RCHTcVQaDR3ohNU9we59brGHuEKPvH1ags2nevW5opEE9Z5Q"},"num_utxos":5,"num_confirmed_utxos":3,"num_unconfirmed_utxos":2,"pending_monitor_updates":0}"#;
+        // Serialize and check against expected JSON.
+        // NOTE: Do NOT remove this raw string check. We're sanity-checking how
+        // it looks in serialized form.
+        let json = serde_json::to_string_pretty(&debug_info).unwrap();
+        let expected = r#"{
+  "descriptors": {
+    "multipath_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/<0;1>/*)#c8v4zjyh",
+    "external_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/0/*)#dwvchw0k",
+    "internal_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/1/*)#u6fe2mlw",
+    "account_xpub": "xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA"
+  },
+  "num_utxos": 5,
+  "num_confirmed_utxos": 3,
+  "num_unconfirmed_utxos": 2,
+  "pending_monitor_updates": 0
+}"#;
         assert_eq!(json, expected);
 
         // Verify deserialization roundtrips
@@ -787,9 +822,14 @@ mod test {
         assert_eq!(back.num_utxos, 5);
         assert_eq!(back.num_confirmed_utxos, 3);
         assert_eq!(back.num_unconfirmed_utxos, 2);
-        assert_eq!(back.xpubs.external, external);
-        assert_eq!(back.xpubs.internal, internal);
-        assert!(back.legacy_xpubs.is_none());
+        assert_eq!(back.descriptors.multipath_descriptor, descriptor);
+        assert_eq!(back.descriptors.external_descriptor, external_descriptor);
+        assert_eq!(back.descriptors.internal_descriptor, internal_descriptor);
+        assert_eq!(
+            back.descriptors.account_xpub,
+            debug_info.descriptors.account_xpub
+        );
+        assert!(back.legacy_descriptors.is_none());
         assert_eq!(back.pending_monitor_updates, Some(0));
     }
 }

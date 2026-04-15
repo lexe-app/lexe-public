@@ -2737,7 +2737,6 @@ dependencies = [
  "lightning",
  "lightning-invoice",
  "lightning-transaction-sync",
- "miniscript",
  "proptest",
  "proptest-derive",
  "quick_cache",

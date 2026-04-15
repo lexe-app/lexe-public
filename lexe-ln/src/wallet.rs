@@ -55,6 +55,7 @@ use bdk_wallet::{
     coin_selection::{
         CoinSelectionAlgorithm, CoinSelectionResult, InsufficientFunds,
     },
+    miniscript,
     template::Bip84,
 };
 use bitcoin::{
@@ -63,7 +64,7 @@ use bitcoin::{
 };
 use lexe_api::{
     models::command::{
-        FeeEstimate, OnchainXpubs, PayOnchainRequest,
+        FeeEstimate, OnchainDescriptors, PayOnchainRequest,
         PreflightPayOnchainRequest, PreflightPayOnchainResponse,
     },
     types::payments::PaymentKind,
@@ -167,17 +168,16 @@ pub struct SyncStats {
     pub evicted: u32,
 }
 
-/// Derives the BIP84 external and internal keychain xpubs from a master xpriv.
+/// Derives BIP84 wpkh output descriptors from a master xpriv.
 ///
-/// Returns xpubs at paths:
-/// - External: `m/84h/{coin}h/0h/0`
-/// - Internal: `m/84h/{coin}h/0h/1`
+/// Returns three descriptors (BIP389 multipath, external, internal) and the
+/// account-level xpub at `m/84'/{coin}'/0'`.
 ///
 /// Where `coin` is 0 for mainnet, 1 for testnet/signet/regtest.
-pub fn derive_bip84_xpubs(
+pub fn derive_bip84_descriptors(
     network: Network,
     master_xprv: bitcoin::bip32::Xpriv,
-) -> OnchainXpubs {
+) -> OnchainDescriptors {
     let coin_type = match network {
         Network::Mainnet => 0,
         Network::Testnet3
@@ -185,6 +185,10 @@ pub fn derive_bip84_xpubs(
         | Network::Regtest
         | Network::Signet => 1,
     };
+
+    // Master fingerprint for descriptor origin info
+    let master_xpub = Xpub::from_priv(&SECP256K1, &master_xprv);
+    let fingerprint = master_xpub.fingerprint();
 
     // BIP84 account path: m/84h/{coin}h/0h
     let account_path = [
@@ -195,26 +199,38 @@ pub fn derive_bip84_xpubs(
     let account_xprv = master_xprv
         .derive_priv(&SECP256K1, &account_path)
         .expect("derivation should succeed");
+    let account_xpub = Xpub::from_priv(&SECP256K1, &account_xprv);
 
-    // External keychain: m/84h/{coin}h/0h/0
-    let external_xprv = account_xprv
-        .derive_priv(
-            &SECP256K1,
-            &[ChildNumber::from_normal_idx(0).expect("Checked in tests")],
-        )
-        .expect("derivation should succeed");
-    let external = Xpub::from_priv(&SECP256K1, &external_xprv);
+    // Build descriptor strings
+    let origin = format!("[{fingerprint}/84'/{coin_type}'/0']");
 
-    // Internal keychain: m/84h/{coin}h/0h/1
-    let internal_xprv = account_xprv
-        .derive_priv(
-            &SECP256K1,
-            &[ChildNumber::from_normal_idx(1).expect("Checked in tests")],
-        )
-        .expect("derivation should succeed");
-    let internal = Xpub::from_priv(&SECP256K1, &internal_xprv);
+    // BIP389 multipath: wpkh([fp/84'/coin'/0']xpub/<0;1>/*)
+    let multi_body = format!("wpkh({origin}{account_xpub}/<0;1>/*)");
+    let multi_checksum =
+        miniscript::descriptor::checksum::desc_checksum(&multi_body)
+            .expect("valid descriptor");
+    let multipath_descriptor = format!("{multi_body}#{multi_checksum}");
 
-    OnchainXpubs { external, internal }
+    // External: wpkh([fp/84'/coin'/0']xpub/0/*)
+    let ext_body = format!("wpkh({origin}{account_xpub}/0/*)");
+    let ext_checksum =
+        miniscript::descriptor::checksum::desc_checksum(&ext_body)
+            .expect("valid descriptor");
+    let external_descriptor = format!("{ext_body}#{ext_checksum}");
+
+    // Internal: wpkh([fp/84'/coin'/0']xpub/1/*)
+    let int_body = format!("wpkh({origin}{account_xpub}/1/*)");
+    let int_checksum =
+        miniscript::descriptor::checksum::desc_checksum(&int_body)
+            .expect("valid descriptor");
+    let internal_descriptor = format!("{int_body}#{int_checksum}");
+
+    OnchainDescriptors {
+        multipath_descriptor,
+        external_descriptor,
+        internal_descriptor,
+        account_xpub,
+    }
 }
 
 impl OnchainWallet {
@@ -1671,6 +1687,7 @@ mod test {
     use bdk_wallet::{
         AddressInfo,
         KeychainKind::{self, External, Internal},
+        miniscript::DescriptorPublicKey,
         template::{Bip84, DescriptorTemplate},
     };
     use bitcoin::{TxOut, hashes::Hash as _};
@@ -2665,15 +2682,11 @@ mod test {
         println!("---\n{json}\n---");
     }
 
-    /// Test that our `derive_bip84_xpubs` produces xpubs that derive the same
-    /// addresses as BDK's `Bip84` descriptor template.
-    ///
-    /// Note: BDK's descriptor stores the xpub at account level (`m/84h/0h/0h`)
-    /// with a `/{0,1}/*` suffix, while we return keychain-level xpubs
-    /// (`m/84h/0h/0h/0` and `m/84h/0h/0h/1`). We verify equivalence by checking
-    /// that addresses derived at matching indices are identical.
+    /// Test that our `derive_bip84_descriptors` produces descriptors matching
+    /// BDK's `Bip84` template, and that our account-level xpub can derive
+    /// addresses matching both descriptors.
     #[test]
-    fn derive_bip84_xpubs_matches_bdk() {
+    fn derive_bip84_descriptors_matches_bdk() {
         let cfg = Config::with_cases(100);
 
         proptest!(cfg, |(
@@ -2683,15 +2696,16 @@ mod test {
         )| {
             let master_xprv = seed.derive_bip32_master_xprv(network);
 
-            // Our implementation: keychain-level xpubs
-            let OnchainXpubs {
-                external: our_external,
-                internal: our_internal,
-            } = derive_bip84_xpubs(network, master_xprv);
+            // Our implementation
+            let OnchainDescriptors {
+                multipath_descriptor: our_multi_desc,
+                external_descriptor: our_ext_desc,
+                internal_descriptor: our_int_desc,
+                account_xpub,
+            } = derive_bip84_descriptors(network, master_xprv);
 
-            // BDK's implementation: account-level xpub with /{0,1}/* suffix
-            // This is also exactly how we use the `Bip84` template in
-            // `OnchainWallet::new`.
+            // BDK's implementation.
+            // This is also how we use `Bip84` in `OnchainWallet::new`
             let (bdk_desc_ext, _, _) =
                 Bip84(master_xprv, KeychainKind::External)
                     .build(network.to_bitcoin())
@@ -2701,30 +2715,51 @@ mod test {
                     .build(network.to_bitcoin())
                     .unwrap();
 
-            // Derive address from our keychain xpub at index `idx`
-            let our_ext_pubkey = our_external
+            // Verify external/internal descriptor strings match BDK
+            prop_assert_eq!(&our_ext_desc, &bdk_desc_ext.to_string());
+            prop_assert_eq!(&our_int_desc, &bdk_desc_int.to_string());
+
+            // Verify multipath descriptor expands to external + internal
+            // (differential fuzz against miniscript's into_single_descriptors)
+            let parsed =
+                miniscript::Descriptor::<DescriptorPublicKey>::from_str(
+                    &our_multi_desc
+                ).unwrap();
+            let expanded = parsed.into_single_descriptors().unwrap();
+            prop_assert_eq!(expanded.len(), 2);
+            prop_assert_eq!(&expanded[0].to_string(), &our_ext_desc);
+            prop_assert_eq!(&expanded[1].to_string(), &our_int_desc);
+
+            // Verify account_xpub by deriving external address at `idx`
+            let ext_xpub = account_xpub
                 .derive_pub(
                     &SECP256K1,
-                    &[ChildNumber::from_normal_idx(idx).unwrap()],
+                    &[
+                        ChildNumber::from_normal_idx(0).unwrap(),
+                        ChildNumber::from_normal_idx(idx).unwrap(),
+                    ],
                 )
                 .unwrap();
             let our_ext_addr = bitcoin::Address::p2wpkh(
-                &bitcoin::CompressedPublicKey(our_ext_pubkey.public_key),
+                &bitcoin::CompressedPublicKey(ext_xpub.public_key),
                 network.to_bitcoin(),
             );
 
-            let our_int_pubkey = our_internal
+            // Verify account_xpub by deriving internal address at `idx`
+            let int_xpub = account_xpub
                 .derive_pub(
                     &SECP256K1,
-                    &[ChildNumber::from_normal_idx(idx).unwrap()],
+                    &[
+                        ChildNumber::from_normal_idx(1).unwrap(),
+                        ChildNumber::from_normal_idx(idx).unwrap(),
+                    ],
                 )
                 .unwrap();
             let our_int_addr = bitcoin::Address::p2wpkh(
-                &bitcoin::CompressedPublicKey(our_int_pubkey.public_key),
+                &bitcoin::CompressedPublicKey(int_xpub.public_key),
                 network.to_bitcoin(),
             );
 
-            // Derive address from BDK descriptor at same index
             let bdk_ext_addr = bdk_desc_ext
                 .at_derivation_index(idx)
                 .unwrap()

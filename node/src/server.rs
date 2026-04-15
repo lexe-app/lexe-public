@@ -14,7 +14,7 @@ use axum::{
 };
 use lexe_api::{
     cli::{LspInfo, OAuthConfig},
-    models::command::{GDriveStatus, OnchainXpubs},
+    models::command::{GDriveStatus, OnchainDescriptors},
 };
 use lexe_common::{
     api::{
@@ -77,8 +77,8 @@ pub(crate) struct RouterState {
     pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,
     pub deploy_env: DeployEnv,
     pub node_pk: NodePk,
-    pub xpubs: OnchainXpubs,
-    pub legacy_xpubs: Option<OnchainXpubs>,
+    pub descriptors: OnchainDescriptors,
+    pub legacy_descriptors: Option<OnchainDescriptors>,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,

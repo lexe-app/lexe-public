@@ -109,8 +109,8 @@ pub(super) async fn debug_info(
         .sum::<usize>();
 
     LxJson(DebugInfo {
-        xpubs: state.xpubs.clone(),
-        legacy_xpubs: state.legacy_xpubs.clone(),
+        descriptors: state.descriptors.clone(),
+        legacy_descriptors: state.legacy_descriptors.clone(),
         num_utxos: utxo_counts.total,
         num_confirmed_utxos: utxo_counts.confirmed,
         num_unconfirmed_utxos: utxo_counts.unconfirmed,

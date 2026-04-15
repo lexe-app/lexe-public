@@ -443,12 +443,13 @@ impl UserNode {
         let coin_selector = LexeCoinSelector::default();
         let bip39_master_xprv = root_seed.derive_bip32_master_xprv(network);
 
-        // Compute onchain xpubs for the debug_info endpoint.
-        let xpubs = wallet::derive_bip84_xpubs(network, bip39_master_xprv);
-        let legacy_xpubs =
+        // Compute onchain descriptors for the debug_info endpoint.
+        let descriptors =
+            wallet::derive_bip84_descriptors(network, bip39_master_xprv);
+        let legacy_descriptors =
             if initial_migrations.is_applied(migrations::MARKER_LEGACY_BDK) {
                 let xprv = root_seed.derive_legacy_master_xprv(network);
-                Some(wallet::derive_bip84_xpubs(network, xprv))
+                Some(wallet::derive_bip84_descriptors(network, xprv))
             } else {
                 None
             };
@@ -748,8 +749,8 @@ impl UserNode {
             gdrive_oauth_config,
             deploy_env,
             node_pk: NodePk(node_pk),
-            xpubs,
-            legacy_xpubs,
+            descriptors,
+            legacy_descriptors,
             // --- Actors --- //
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),
