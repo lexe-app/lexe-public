@@ -40,6 +40,7 @@ import 'package:lexeapp/route/receive/state.dart'
         LnOfferInputs,
         PaymentOffer,
         PaymentOfferKind;
+import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/string_ext.dart';
@@ -70,6 +71,7 @@ class ReceivePaymentPage extends StatelessWidget {
     required this.app,
     required this.appData,
     required this.featureFlags,
+    required this.provisionService,
     required this.fiatRate,
     required this.settings,
     this.designInitialPageIdx,
@@ -79,6 +81,7 @@ class ReceivePaymentPage extends StatelessWidget {
   final AppHandle app;
   final LxAppData appData;
   final FeatureFlags featureFlags;
+  final ProvisionService provisionService;
 
   /// Updating stream of fiat rates.
   final ValueListenable<FiatRate?> fiatRate;
@@ -97,6 +100,7 @@ class ReceivePaymentPage extends StatelessWidget {
     app: this.app,
     appData: this.appData,
     featureFlags: this.featureFlags,
+    provisionService: this.provisionService,
     fiatRate: this.fiatRate,
     settings: this.settings,
     viewportWidth: MediaQuery.sizeOf(context).width,
@@ -113,6 +117,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
     required this.app,
     required this.appData,
     required this.featureFlags,
+    required this.provisionService,
     required this.fiatRate,
     required this.settings,
     required this.viewportWidth,
@@ -123,6 +128,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
   final AppHandle app;
   final LxAppData appData;
   final FeatureFlags featureFlags;
+  final ProvisionService provisionService;
   final ValueListenable<FiatRate?> fiatRate;
   final LxSettings settings;
   final double viewportWidth;
@@ -431,10 +437,15 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> doFetchBtc() async {
-    // TODO(phlip9): UI indicator that we're fetching
     final inputs = this.btcAddrInputs.value;
     final btcPaymentOffer = this.btcPaymentOffer();
     final prev = btcPaymentOffer.value;
+
+    // The user can tap on "Receive" quickly, before their node is connected
+    // and initial provision completes. Wait until then to fetch. If we've
+    // already provisioned this session then this does nothing.
+    await this.widget.provisionService.waitUntilProvisioned();
+    if (!this.mounted) return;
 
     final offer = await this.fetchBtc(inputs);
 
@@ -467,10 +478,15 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> doFetchLnInvoice() async {
-    // TODO(phlip9): UI indicator that we're fetching
     final inputs = this.lnInvoiceInputs.value;
     final lnInvoicePaymentOffer = this.lnInvoicePaymentOffer();
     final prev = lnInvoicePaymentOffer.value;
+
+    // The user can tap on "Receive" quickly, before their node is connected
+    // and initial provision completes. Wait until then to fetch. If we've
+    // already provisioned this session then this does nothing.
+    await this.widget.provisionService.waitUntilProvisioned();
+    if (!this.mounted) return;
 
     final invoice = await this.fetchLnInvoice(inputs);
 
@@ -530,10 +546,15 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> doFetchLnOffer() async {
-    // TODO(phlip9): UI indicator that we're fetching
     final inputs = this.lnOfferInputs.value;
     final lnOfferPaymentOffer = this.lnOfferPaymentOffer();
     final prev = lnOfferPaymentOffer.value;
+
+    // The user can tap on "Receive" quickly, before their node is connected
+    // and initial provision completes. Wait until then to fetch. If we've
+    // already provisioned this session then this does nothing.
+    await this.widget.provisionService.waitUntilProvisioned();
+    if (!this.mounted) return;
 
     final offer = await this.fetchLnOffer(inputs);
 

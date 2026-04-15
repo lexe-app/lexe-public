@@ -118,7 +118,8 @@ import 'package:lexeapp/route/wallet.dart'
 import 'package:lexeapp/save_file.dart' as save_file;
 import 'package:lexeapp/service/human_bitcoin_address.dart'
     show HumanBitcoinAddressService;
-import 'package:lexeapp/service/node_info.dart';
+import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
+import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/service/send_payment_service_impl.dart'
     show SendPaymentServiceImpl;
 import 'package:lexeapp/settings.dart' show LxSettings;
@@ -745,6 +746,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           app: mockApp,
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
+          provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mockApp.settingsDb()),
         ),
@@ -756,6 +758,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           app: mockApp,
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
+          provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
@@ -767,6 +770,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           app: mockAppErr,
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
+          provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
@@ -1062,14 +1066,20 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       Component(
         "App Store Screenshot 02",
         subtitle: "ReceivePaymentPage (Offer)",
-        (_) => ReceivePaymentPage(
-          app: mocks.MockAppHandleScreenshots(),
-          appData: LxAppData(mockApp.appDataDb()),
-          featureFlags: const FeatureFlags.all(),
-          fiatRate: ValueNotifier(const FiatRate(fiat: "USD", rate: 96626.76)),
-          settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
-          designInitialLightningType: PaymentOfferKind.lightningOffer,
-        ),
+        (_) {
+          final mockApp = mocks.MockAppHandleScreenshots();
+          return ReceivePaymentPage(
+            app: mockApp,
+            appData: LxAppData(mockApp.appDataDb()),
+            featureFlags: const FeatureFlags.all(),
+            provisionService: ProvisionService(app: mockApp),
+            fiatRate: ValueNotifier(
+              const FiatRate(fiat: "USD", rate: 96626.76),
+            ),
+            settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
+            designInitialLightningType: PaymentOfferKind.lightningOffer,
+          );
+        },
       ),
       Component(
         "App Store Screenshot 03",
@@ -1192,6 +1202,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           app: mockApp,
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
+          provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
         ),
@@ -1234,6 +1245,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           app: mockApp,
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
+          provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mockApp.settingsDb()),
           designInitialPageIdx: btcPageIdx,

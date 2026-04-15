@@ -131,7 +131,7 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<void> provision() =>
-      Future.delayed(const Duration(milliseconds: 1000), () {});
+      Future.delayed(const Duration(milliseconds: 500), () {});
 
   @override
   AppUserInfo walletUser() => const AppUserInfo(

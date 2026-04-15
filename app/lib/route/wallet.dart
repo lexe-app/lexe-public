@@ -396,6 +396,7 @@ class WalletPageState extends State<WalletPage> {
           app: this.widget.app,
           appData: this.widget.appData,
           featureFlags: this.widget.featureFlags,
+          provisionService: this.provisionService,
           fiatRate: this.fiatRateService.fiatRate,
           settings: this.widget.settings,
         ),
