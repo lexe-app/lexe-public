@@ -537,7 +537,7 @@ impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CreateOfferRequest {
     pub expiry_secs: Option<u32>,
-    pub amount_sats: Option<u64>,
+    pub min_amount_sats: Option<u64>,
     pub description: Option<String>,
     pub issuer: Option<String>,
 }
@@ -547,8 +547,8 @@ impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
     fn try_from(value: CreateOfferRequest) -> Result<Self, Self::Error> {
         Ok(Self {
             expiry_secs: value.expiry_secs,
-            amount: value
-                .amount_sats
+            min_amount: value
+                .min_amount_sats
                 .map(Amount::try_from_sats_u64)
                 .transpose()?,
             description: value.description,

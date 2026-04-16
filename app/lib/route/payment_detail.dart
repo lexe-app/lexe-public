@@ -547,7 +547,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final offerId = payment.offerId;
                   final offer = payment.offer;
                   final offerExpiresAt = offer?.expiresAt;
-                  final offerAmountSat = offer?.amountSats;
+                  final offerMinAmountSat = offer?.minAmountSats;
 
                   final txid = payment.txid;
                   final replacement = payment.replacement;
@@ -710,11 +710,11 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                                     ),
                                   ),
 
-                                if (offerAmountSat != null)
+                                if (offerMinAmountSat != null)
                                   InfoRow(
-                                    label: "Offer amount",
+                                    label: "Offer min. amount",
                                     value: formatSatsAmountFiatBelow(
-                                      offerAmountSat,
+                                      offerMinAmountSat,
                                       fiatRate,
                                     ),
                                   ),

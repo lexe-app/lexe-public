@@ -202,7 +202,7 @@ mod test {
         assert_eq!(lightning_uri.invoice, None);
         assert!(offer.supports_network(Network::Mainnet));
         assert_eq!(offer.description(), None);
-        assert_eq!(offer.amount(), None);
+        assert_eq!(offer.min_amount(), None);
         assert_eq!(offer.fiat_amount(), None);
         assert_eq!(
             offer.payee_node_pk().unwrap().to_string(),
@@ -216,7 +216,7 @@ mod test {
         assert_eq!(lightning_uri.invoice, None);
         assert!(offer.supports_network(Network::Mainnet));
         assert_eq!(offer.description().map(|x| x.len()), Some(401));
-        assert_eq!(offer.amount(), None);
+        assert_eq!(offer.min_amount(), None);
         assert_eq!(offer.fiat_amount(), None);
     }
 

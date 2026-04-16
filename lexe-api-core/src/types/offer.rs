@@ -172,12 +172,8 @@ impl Offer {
     }
 
     /// Returns the Bitcoin-denominated [`Amount`], if any.
-    pub fn amount(&self) -> Option<Amount> {
+    pub fn min_amount(&self) -> Option<Amount> {
         match self.0.amount()? {
-            // To unify handling across invoices and offers, we'll treat
-            // `offer_amount=None` and `offer_amount=Some(0)` as the same thing
-            // (an amount-less offer).
-            //
             // The BOLT12 spec treats `offer_amount` as the _minimum_ payment
             // amount, so `offer_amount=Some(0)` is semantically the same as
             // `offer_amount=None`.
@@ -303,10 +299,10 @@ impl TryFrom<Vec<u8>> for Offer {
 
 /// The max number of items that can be purchased in one payment with the offer.
 ///
-/// The expected amount paid for this offer is `offer.amount * quantity`,
-/// where `offer.amount` is the amount per item and `quantity` is the
-/// number of items chosen by the payer. The payer's chosen `quantity` must be
-/// in the range: `0 < quantity <= offer.max_quantity`.
+/// The expected amount paid for this offer is >= `offer.min_amount * quantity`,
+/// where `offer.min_amount` is the minimum amount per item and `quantity` is
+/// the number of items chosen by the payer. The payer's chosen `quantity` must
+/// be in the range: `0 < quantity <= offer.max_quantity`.
 ///
 /// NOTE: this is NOT related to reusable vs single-use offers.
 ///
@@ -654,7 +650,7 @@ mod test {
             NodePk::from_str("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8").unwrap(),
         );
         assert!(o.supports_network(Network::Mainnet));
-        assert_eq!(o.amount(), None);
+        assert_eq!(o.min_amount(), None);
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), None);
 
@@ -662,7 +658,7 @@ mod test {
             "lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc",
         );
         assert!(o.supports_network(Network::Mainnet));
-        assert_eq!(o.amount(), None);
+        assert_eq!(o.min_amount(), None);
         assert_eq!(o.fiat_amount(), None);
         assert_eq!(o.description(), Some("Offer by rusty's node"));
 

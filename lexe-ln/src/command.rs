@@ -970,7 +970,7 @@ pub fn hba_offer_request(username: &str) -> CreateOfferRequest {
     let description = format!("Pay to {hba}");
     CreateOfferRequest {
         expiry_secs: None,
-        amount: None,
+        min_amount: None,
         description: Some(description),
         max_quantity: None,
         issuer: Some(hba),
@@ -1015,14 +1015,11 @@ where
     //   + ~ 137B (5) hop 2: blinded pk + 51 B encrypted payload
     //   = ~ 436B blinded path overhead
 
-    if let Some(amount) = req.amount {
-        if amount == Amount::ZERO {
-            return Err(anyhow!(
-                "Offer amount can't be zero. Don't set the amount if you want \
-                 a variable-amount offer."
-            ));
+    if let Some(min_amount) = req.min_amount {
+        if min_amount == Amount::ZERO {
+            return Err(anyhow!("Offer minimum amount can't be zero."));
         }
-        builder = builder.amount_msats(amount.msat());
+        builder = builder.amount_msats(min_amount.msat());
     }
     if let Some(description) = req.description {
         builder = builder.description(description);
@@ -1422,7 +1419,7 @@ where
     };
 
     // Ensure that the to-be-paid amount >= min amount
-    if let Some(min_amount) = offer.amount()
+    if let Some(min_amount) = offer.min_amount()
         && req.amount < min_amount
     {
         return Err(anyhow!(

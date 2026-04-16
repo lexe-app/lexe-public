@@ -448,16 +448,17 @@ pub struct PreflightPayInvoiceResponse {
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateOfferRequest {
     pub expiry_secs: Option<u32>,
-    /// The `amount` we're requesting for payments using this offer.
+    /// The `min_amount` we're requesting for payments using this offer.
     ///
     /// If `None`, the offer is variable amount and the payer can choose any
     /// value.
     ///
-    /// If `Some`, the offer amount is fixed and the payer must pay exactly
-    /// this value (per item, see `max_quantity`). The offer amount must be a
-    /// non-zero value if set; if a variable amount offer is desired, don't set
-    /// an amount.
-    pub amount: Option<Amount>,
+    /// If `Some`, the offer amount is lower-bounded and the payer must pay
+    /// this value or higher (per item, see `max_quantity`). The offer amount
+    /// must be a non-zero value if set.
+    // Renamed in node-v0.9.4
+    #[serde(alias = "amount")]
+    pub min_amount: Option<Amount>,
     /// The description to be encoded into the invoice.
     ///
     /// If `None`, the `description` field inside the invoice will be an empty
@@ -468,10 +469,11 @@ pub struct CreateOfferRequest {
     ///
     /// NOTE: this is not related to single-use vs reusable offers.
     ///                                                                        
-    /// The expected amount paid for this offer is `offer.amount * quantity`,
-    /// where `offer.amount` is the value per item and `quantity` is the number
-    /// of items chosen _by the payer_. The payer's chosen `quantity` must be
-    /// in the range: `0 < quantity <= offer.max_quantity`.
+    /// The expected amount paid for this offer is `offer.min_amount *
+    /// quantity`, where `offer.min_amount` is the value per item and
+    /// `quantity` is the number of items chosen _by the payer_. The
+    /// payer's chosen `quantity` must be in the range: `0 < quantity <=
+    /// offer.max_quantity`.
     ///
     /// If `None`, defaults to `MaxQuantity::ONE`, i.e., the expected paid
     /// `amount` is just `offer.amount`.

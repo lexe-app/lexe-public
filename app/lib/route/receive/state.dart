@@ -92,15 +92,15 @@ class LnInvoiceInputs {
 /// The inputs used to generate a Lightning BOLT12 offer [PaymentOffer].
 @immutable
 class LnOfferInputs {
-  const LnOfferInputs({required this.amountSats, required this.description})
-    : assert(amountSats != 0);
+  const LnOfferInputs({required this.minAmountSats, required this.description})
+    : assert(minAmountSats != 0);
 
-  final int? amountSats;
+  final int? minAmountSats;
   final String? description;
 
   @override
   String toString() {
-    return "LnOfferInputs(amountSats: $amountSats, description: $description)";
+    return "LnOfferInputs(amountSats: $minAmountSats, description: $description)";
   }
 
   @override
@@ -108,15 +108,15 @@ class LnOfferInputs {
     return identical(this, other) ||
         (other.runtimeType == this.runtimeType &&
             other is LnOfferInputs &&
-            (identical(other.amountSats, this.amountSats) ||
-                other.amountSats == this.amountSats) &&
+            (identical(other.minAmountSats, this.minAmountSats) ||
+                other.minAmountSats == this.minAmountSats) &&
             (identical(other.description, this.description) ||
                 other.description == this.description));
   }
 
   @override
   int get hashCode =>
-      Object.hash(this.runtimeType, this.amountSats, this.description);
+      Object.hash(this.runtimeType, this.minAmountSats, this.description);
 }
 
 /// The inputs used to generate a Bitcoin address [PaymentOffer].
@@ -181,7 +181,7 @@ class PaymentOffer {
   PaymentOffer.fromOffer({required Offer offer})
     : kind = PaymentOfferKind.lightningOffer,
       code = offer.string,
-      amountSats = offer.amountSats,
+      amountSats = offer.minAmountSats,
       description = offer.description,
       expiresAt = offer.expiresAt != null
           ? DateTime.fromMillisecondsSinceEpoch(offer.expiresAt!)

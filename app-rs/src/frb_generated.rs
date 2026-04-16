@@ -1635,12 +1635,12 @@ impl SseDecode for crate::ffi::api::CreateOfferRequest {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_expirySecs = <Option<u32>>::sse_decode(deserializer);
-        let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
+        let mut var_minAmountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
         let mut var_issuer = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::CreateOfferRequest {
             expiry_secs: var_expirySecs,
-            amount_sats: var_amountSats,
+            min_amount_sats: var_minAmountSats,
             description: var_description,
             issuer: var_issuer,
         };
@@ -2103,14 +2103,16 @@ impl SseDecode for crate::ffi::types::Offer {
         let mut var_string = <String>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
         let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
-        let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
+        let mut var_minAmountSats = <Option<u64>>::sse_decode(deserializer);
+        let mut var_bip321AmountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_payee = <Option<String>>::sse_decode(deserializer);
         let mut var_payeePubkey = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::types::Offer {
             string: var_string,
             description: var_description,
             expires_at: var_expiresAt,
-            amount_sats: var_amountSats,
+            min_amount_sats: var_minAmountSats,
+            bip321_amount_sats: var_bip321AmountSats,
             payee: var_payee,
             payee_pubkey: var_payeePubkey,
         };
@@ -3497,7 +3499,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateOfferRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.expiry_secs.into_into_dart().into_dart(),
-            self.amount_sats.into_into_dart().into_dart(),
+            self.min_amount_sats.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
             self.issuer.into_into_dart().into_dart(),
         ]
@@ -3946,7 +3948,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Offer {
             self.string.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
             self.expires_at.into_into_dart().into_dart(),
-            self.amount_sats.into_into_dart().into_dart(),
+            self.min_amount_sats.into_into_dart().into_dart(),
+            self.bip321_amount_sats.into_into_dart().into_dart(),
             self.payee.into_into_dart().into_dart(),
             self.payee_pubkey.into_into_dart().into_dart(),
         ]
@@ -5120,7 +5123,7 @@ impl SseEncode for crate::ffi::api::CreateOfferRequest {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <Option<u32>>::sse_encode(self.expiry_secs, serializer);
-        <Option<u64>>::sse_encode(self.amount_sats, serializer);
+        <Option<u64>>::sse_encode(self.min_amount_sats, serializer);
         <Option<String>>::sse_encode(self.description, serializer);
         <Option<String>>::sse_encode(self.issuer, serializer);
     }
@@ -5520,7 +5523,8 @@ impl SseEncode for crate::ffi::types::Offer {
         <String>::sse_encode(self.string, serializer);
         <Option<String>>::sse_encode(self.description, serializer);
         <Option<i64>>::sse_encode(self.expires_at, serializer);
-        <Option<u64>>::sse_encode(self.amount_sats, serializer);
+        <Option<u64>>::sse_encode(self.min_amount_sats, serializer);
+        <Option<u64>>::sse_encode(self.bip321_amount_sats, serializer);
         <Option<String>>::sse_encode(self.payee, serializer);
         <Option<String>>::sse_encode(self.payee_pubkey, serializer);
     }

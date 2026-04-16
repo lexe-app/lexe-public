@@ -84,7 +84,7 @@ sealed class CreateInvoiceResponse with _$CreateInvoiceResponse {
 sealed class CreateOfferRequest with _$CreateOfferRequest {
   const factory CreateOfferRequest({
     int? expirySecs,
-    int? amountSats,
+    int? minAmountSats,
     String? description,
     String? issuer,
   }) = _CreateOfferRequest;

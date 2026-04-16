@@ -645,16 +645,23 @@ impl From<InvoiceRs> for Invoice {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Offer {
+    /// The string-encoded offer.
     pub string: String,
 
     pub description: Option<String>,
 
     pub expires_at: Option<i64>,
-    /// The amount that we'll prompt the user to pay.
+
+    /// The minimum payable amount required by the offer, if non-zero.
+    pub min_amount_sats: Option<u64>,
+
+    /// The amount encoded in the BIP321 URI from which this offer was parsed.
     ///
-    /// When paying an offer from a BIP321 URI, this uses the offer's embedded
-    /// amount if present, otherwise falls back to the URI's `amount` param.
-    pub amount_sats: Option<u64>,
+    /// We treat this as the exact amount to pay, similar to how BIP321 amounts
+    /// are used with on-chain addresses.
+    ///
+    /// If this field is less than `min_amount_sats`, we reject the offer.
+    pub bip321_amount_sats: Option<u64>,
 
     pub payee: Option<String>,
     pub payee_pubkey: Option<String>,
@@ -668,7 +675,8 @@ impl From<&OfferRs> for Offer {
             description: offer.description().map(String::from),
 
             expires_at: offer.expires_at().map(TimestampMs::to_i64),
-            amount_sats: offer.amount().map(|amt| amt.sats_u64()),
+            min_amount_sats: offer.min_amount().map(|amt| amt.sats_u64()),
+            bip321_amount_sats: None,
 
             payee: offer.payee().map(String::from),
             payee_pubkey: offer.payee_node_pk().map(|pk| pk.to_string()),
@@ -685,12 +693,8 @@ impl From<OfferRs> for Offer {
 
 impl From<OfferWithAmount> for Offer {
     fn from(value: OfferWithAmount) -> Self {
-        let bip321_amount = value.bip321_amount;
         let mut this = Offer::from(&value.offer);
-        // Offer's embedded amount takes precedence; BIP321 amount as fallback.
-        if this.amount_sats.is_none() {
-            this.amount_sats = bip321_amount.map(|amount| amount.sats_u64());
-        }
+        this.bip321_amount_sats = value.bip321_amount.map(|amt| amt.sats_u64());
         this
     }
 }

@@ -316,7 +316,8 @@ sealed class Offer with _$Offer {
     required String string,
     String? description,
     int? expiresAt,
-    int? amountSats,
+    int? minAmountSats,
+    int? bip321AmountSats,
     String? payee,
     String? payeePubkey,
   }) = _Offer;

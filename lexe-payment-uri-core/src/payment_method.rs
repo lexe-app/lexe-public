@@ -125,13 +125,6 @@ pub struct OfferWithAmount {
 }
 
 impl OfferWithAmount {
-    /// The amount that we should prompt the user with.
-    /// Returns the offer's embedded amount if present,
-    /// otherwise uses the BIP321 URI amount.
-    pub fn prompt_amount(&self) -> Option<Amount> {
-        self.offer.amount().or(self.bip321_amount)
-    }
-
     #[inline]
     pub fn supports_network(&self, network: Network) -> bool {
         self.offer.supports_network(network)

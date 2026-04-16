@@ -171,7 +171,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   /// Inputs that determine when we should fetch a new lightning offer.
   final ValueNotifier<LnOfferInputs> lnOfferInputs = ValueNotifier(
-    const LnOfferInputs(amountSats: null, description: null),
+    const LnOfferInputs(minAmountSats: null, description: null),
   );
 
   /// Inputs that determine when we should fetch a new bitcoin address.
@@ -580,7 +580,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   Future<PaymentOffer?> fetchLnOffer(LnOfferInputs inputs) async {
     final req = CreateOfferRequest(
       expirySecs: null,
-      amountSats: inputs.amountSats,
+      minAmountSats: inputs.minAmountSats,
       description: inputs.description,
     );
 
@@ -595,7 +595,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       case Err(:final err):
         // TODO(phlip9): error display
         error(
-          "ReceivePaymentPage: fetchLnOffer: failed to create offer: $err, req: req: { amountStas: ${req.amountSats}, exp: ${req.expirySecs} }",
+          "ReceivePaymentPage: fetchLnOffer: failed to create offer: $err,"
+          " req: { minAmountSats: ${req.minAmountSats}, exp: ${req.expirySecs} }",
         );
         return null;
 
@@ -609,7 +610,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     return PaymentOffer(
       kind: PaymentOfferKind.lightningOffer,
       code: offer.string,
-      amountSats: offer.amountSats,
+      amountSats: offer.minAmountSats,
       description: offer.description,
       expiresAt: (expiresAt != null)
           ? DateTime.fromMillisecondsSinceEpoch(expiresAt)
@@ -711,7 +712,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     final prevOfferInputs = this.lnOfferInputs.value;
     final currentOffer = this.lnOfferPaymentOffer().value;
     final prev = AmountDescription(
-      amountSats: prevOfferInputs.amountSats ?? currentOffer.amountSats,
+      amountSats: prevOfferInputs.minAmountSats ?? currentOffer.amountSats,
       description: prevOfferInputs.description ?? currentOffer.description,
     );
 
@@ -734,7 +735,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     // Update inputs to fetch new offer.
     final inputs = LnOfferInputs(
-      amountSats: flowResult.amountSats,
+      minAmountSats: flowResult.amountSats,
       description: flowResult.description,
     );
     this.lnOfferInputs.value = inputs;
