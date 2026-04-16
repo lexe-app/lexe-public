@@ -167,7 +167,7 @@ class SendState_NeedAmount implements SendState {
   int? canPreflightImmediately() => switch (this.paymentMethod) {
     PaymentMethod_Onchain(:final field0) => field0.amountSats,
     PaymentMethod_Invoice(:final field0) => field0.amountSats,
-    PaymentMethod_Offer(:final field0) => field0.minAmountSats,
+    PaymentMethod_Offer(:final field0) => field0.bip321AmountSats,
     PaymentMethod_LnurlPayRequest(:final field0) =>
       field0.minSendableMsat == field0.maxSendableMsat
           ? field0.minSendableMsat ~/ 1000
@@ -234,7 +234,7 @@ class SendState_NeedAmount implements SendState {
         final req = PreflightPayOfferRequest(
           cid: this.cid,
           offer: offer.string,
-          amountSats: (offer.minAmountSats == null) ? amountSats : 0,
+          amountSats: amountSats,
         );
 
         final result = await this.paymentService.preflightPayOffer(req: req);
@@ -436,9 +436,7 @@ class SendState_Preflighted implements SendState {
     final req = PayOfferRequest(
       cid: this.cid,
       offer: preflighted.offer.string,
-      amountSats: (preflighted.offer.minAmountSats == null)
-          ? preflighted.amountSats
-          : 0,
+      amountSats: preflighted.amountSats,
       note: note,
       payerNote: preflighted.payerNote,
     );

@@ -51,6 +51,11 @@ pub async fn resolve_best(
         })
         .expect("We just checked there's at least one method");
 
+    // If it's an offer, check that the amounts are consistent
+    if let PaymentMethod::Offer(offer) = &best {
+        offer.validate_amounts()?;
+    }
+
     Ok(best)
 }
 

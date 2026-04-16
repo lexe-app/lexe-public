@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use bitcoin::address::{NetworkUnchecked, NetworkValidation};
 use lexe_api_core::types::{
     invoice::Invoice, lnurl::LnurlPayRequest, offer::Offer,
@@ -125,6 +126,18 @@ pub struct OfferWithAmount {
 }
 
 impl OfferWithAmount {
+    pub fn validate_amounts(&self) -> anyhow::Result<()> {
+        match (self.offer.min_amount(), self.bip321_amount) {
+            (Some(min_amount), Some(bip321_amount))
+                if bip321_amount < min_amount =>
+                Err(anyhow!(
+                    "Receiver error: BIP 321 amount must be greater than or \
+                     equal to minimum amount encoded in offer."
+                )),
+            _ => Ok(()),
+        }
+    }
+
     #[inline]
     pub fn supports_network(&self, network: Network) -> bool {
         self.offer.supports_network(network)
