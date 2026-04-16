@@ -79,7 +79,7 @@ use crate::{
     alias::{LexeChainMonitorType, NetworkGraphType, RouterType},
     balance,
     channel::ChannelEvent,
-    close_fee, constants as ln_constants,
+    close_fee, constants,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
@@ -641,9 +641,8 @@ where
 
     let cltv_expiry = match caller {
         CreateInvoiceCaller::UserNode { .. } =>
-            ln_constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
-        CreateInvoiceCaller::Lsp =>
-            ln_constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
+            constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
+        CreateInvoiceCaller::Lsp => constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
     };
 
     // Ensure that description and description_hash are mutually
@@ -651,6 +650,15 @@ where
     if req.description.is_some() && req.description_hash.is_some() {
         return Err(anyhow!(
             "Cannot specify both description and description_hash"
+        ));
+    }
+
+    // Enforce maximum invoice expiration of one day
+    let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
+    if expiry_time > constants::MAX_INVOICE_EXPIRY {
+        return Err(anyhow!(
+            "Invoice expiration exceeds maximum duration of {}s",
+            constants::MAX_INVOICE_EXPIRY.as_secs()
         ));
     }
 
@@ -673,14 +681,6 @@ where
     let currency = Currency::from(network);
     let sha256_hash = sha256::Hash::from_slice(&hash.0)
         .expect("Should never fail with [u8;32]");
-
-    let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
-    if expiry_time > ln_constants::MAX_INVOICE_EXPIRY {
-        return Err(anyhow!(format!(
-            "expiry_secs exceeds maximum duration of {}s",
-            ln_constants::MAX_INVOICE_EXPIRY.as_secs()
-        )));
-    }
 
     let our_node_pk = channel_manager.get_our_node_id();
 
