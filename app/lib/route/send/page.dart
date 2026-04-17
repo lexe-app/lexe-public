@@ -11,6 +11,7 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         ConfirmationPriority,
         LnurlPayRequest,
+        Offer,
         PaymentKind_Invoice,
         PaymentKind_Offer,
         PaymentKind_Onchain,
@@ -467,7 +468,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   Widget? extraDetails() => switch (this.widget.sendCtx.paymentMethod) {
     PaymentMethod_Invoice() => null,
     PaymentMethod_Onchain() => null,
-    PaymentMethod_Offer() => null,
+    PaymentMethod_Offer(:final field0) => OfferPayRequestDetails(
+      request: field0,
+    ),
     PaymentMethod_LnurlPayRequest(:final field0) => LnurlPayRequestDetails(
       request: field0,
     ),
@@ -634,6 +637,28 @@ class _OptionalNotesState extends State<OptionalNotes> {
           hintText: "Optional personal note (visible to you only)",
           textInputAction: TextInputAction.next,
         ),
+      ],
+    );
+  }
+}
+
+class OfferPayRequestDetails extends StatelessWidget {
+  const OfferPayRequestDetails({super.key, required this.request});
+
+  final Offer request;
+
+  @override
+  Widget build(BuildContext context) {
+    final int? minAmount = this.request.minAmountSats;
+    final String? minAmountStr = minAmount == null
+        ? null
+        : currency_format.formatSatsAmount(minAmount, bitcoinSymbol: true);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (minAmountStr != null)
+          MetadataRow(title: "Minimum amount", value: minAmountStr),
       ],
     );
   }

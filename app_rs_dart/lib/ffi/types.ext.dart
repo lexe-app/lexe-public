@@ -120,14 +120,6 @@ extension PaymentExt on Payment {
 //
 
 extension PaymentMethodExt on PaymentMethod {
-  /// Return the payment method amount in satoshis, if any.
-  int? amountSats() => switch (this) {
-    PaymentMethod_Onchain(:final field0) => field0.amountSats,
-    PaymentMethod_Invoice(:final field0) => field0.amountSats,
-    PaymentMethod_Offer(:final field0) => field0.minAmountSats,
-    PaymentMethod_LnurlPayRequest() => null,
-  };
-
   PaymentKind kind() => switch (this) {
     PaymentMethod_Onchain() => const PaymentKind_Onchain(),
     PaymentMethod_Invoice() => const PaymentKind_Invoice(),
