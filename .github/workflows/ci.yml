@@ -81,6 +81,19 @@ jobs:
           unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
           RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p lexe-common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
 
+  # Run lints for `lexe-cli` in isolation on Windows.
+  clippy-lexe-cli-windows:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: windows-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v6
+      - uses: Swatinem/rust-cache@v2
+      - run: rustup target add x86_64-pc-windows-msvc
+      - name: clippy (Windows)
+        run: cargo clippy --target x86_64-pc-windows-msvc -p lexe-cli -- --deny=warnings
+
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
