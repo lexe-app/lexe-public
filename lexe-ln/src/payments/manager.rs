@@ -162,7 +162,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
-    ) -> (Self, [LxTask<()>; 3]) {
+    ) -> (Self, [LxTask<()>; 2]) {
         let pending = pending_payments
             .into_iter()
             // Check that payments are indeed pending before adding to hashmap
@@ -190,7 +190,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             in_flight: HashMap::new(),
         }));
 
-        let myself = Self {
+        let this = Self {
             data,
             persister,
             channel_manager,
@@ -199,16 +199,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         let payments_tasks = [
-            myself.spawn_payment_expiry_checker(shutdown.clone()),
-            myself.spawn_onchain_confs_checker(esplora, shutdown.clone()),
-            myself.spawn_onchain_recv_checker(
+            this.spawn_payment_expiry_checker(shutdown.clone()),
+            this.spawn_onchain_checker(
+                esplora,
                 wallet,
                 onchain_recv_rx,
-                shutdown,
+                shutdown.clone(),
             ),
         ];
 
-        (myself, payments_tasks)
+        (this, payments_tasks)
     }
 
     fn spawn_payment_expiry_checker(
@@ -246,70 +246,48 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         )
     }
 
-    fn spawn_onchain_confs_checker(
+    /// Spawns a task that calls `check_onchain` periodically, or when notified
+    /// by BDK sync completion.
+    ///
+    /// We only check for new / previously unknown payments after a successful
+    /// BDK sync.
+    fn spawn_onchain_checker(
         &self,
         esplora: Arc<LexeEsplora>,
-        mut shutdown: NotifyOnce,
-    ) -> LxTask<()> {
-        let payman = self.clone();
-
-        LxTask::spawn_with_span(
-            "onchain confs checker",
-            info_span!("(onchain-confs-checker)"),
-            async move {
-                let mut check_timer = tokio::time::interval_at(
-                    Instant::now() + ONCHAIN_PAYMENT_CHECK_DELAY,
-                    ONCHAIN_PAYMENT_CHECK_INTERVAL,
-                );
-                loop {
-                    tokio::select! {
-                        _ = check_timer.tick() => (),
-                        () = shutdown.recv() => break,
-                    }
-
-                    let check_result = tokio::select! {
-                        res = payman.check_onchain_confs(&esplora) => res,
-                        () = shutdown.recv() => break,
-                    };
-
-                    if let Err(e) = check_result {
-                        error!("Error checking onchain confs: {e:#}");
-                    }
-                }
-
-                info!("Onchain confs checker task shutting down");
-            },
-        )
-    }
-
-    /// Spawns a task that calls `check_onchain_receives` when notified.
-    ///
-    /// The BDK sync task holds the `onchain_recv_tx` and sends a notification
-    /// every time BDK sync completes.
-    fn spawn_onchain_recv_checker(
-        &self,
         wallet: OnchainWallet,
         mut onchain_recv_rx: notify::Receiver,
         mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
         let payman = self.clone();
         LxTask::spawn_with_span(
-            "onchain receive checker",
-            info_span!("(onchain-recv-checker)"),
+            "onchain checker",
+            info_span!("(onchain-checker)"),
             async move {
+                let mut timer = tokio::time::interval_at(
+                    Instant::now() + ONCHAIN_PAYMENT_CHECK_DELAY,
+                    ONCHAIN_PAYMENT_CHECK_INTERVAL,
+                );
                 loop {
-                    tokio::select! {
-                        () = onchain_recv_rx.recv() => (),
-                        () = shutdown.recv() => break,
-                    }
-
-                    let check_result = tokio::select! {
-                        res = payman.check_onchain_receives(&wallet) => res,
+                    // only check for new payments after BDK sync
+                    let check_new = tokio::select! {
+                        // triggered when we complete an on-chain BDK sync
+                        () = onchain_recv_rx.recv() => {
+                            timer.reset();
+                            true
+                        },
+                        // triggered periodically. don't try to look for new
+                        // onchain recvs until we complete the next sync.
+                        _ = timer.tick() => false,
                         () = shutdown.recv() => break,
                     };
 
-                    if let Err(e) = check_result {
-                        error!("Error checking onchain recvs: {e:#}");
+                    let res = tokio::select! {
+                        res = payman.check_onchain(&esplora, &wallet, check_new) => res,
+                        () = shutdown.recv() => break,
+                    };
+
+                    if let Err(e) = res {
+                        error!("Error checking onchain: {e:#}");
                     }
                 }
 
@@ -1074,10 +1052,34 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
+    /// After a BDK sync, or periodically, sync onchain state with the payment
+    /// manager.
+    ///
+    /// These used to be driven by two separate tasks, but then we would have
+    /// onchain confs potentially delayed, even though we just BDK sync'd a new
+    /// block.
+    async fn check_onchain(
+        &self,
+        esplora: &LexeEsplora,
+        wallet: &OnchainWallet,
+        check_new: bool,
+    ) -> anyhow::Result<()> {
+        // if we completed a BDK sync, check wallet for any new onchain recvs
+        if check_new {
+            self.check_onchain_recvs(wallet).await.context("recvs")?;
+        }
+
+        // query the conf status of our known, pending onchain payments, both
+        // send and recv.
+        self.check_onchain_confs(esplora).await.context("confs")?;
+
+        Ok(())
+    }
+
     /// Checks the confirmation status of our onchain payments.
     /// This function should be called regularly.
     #[instrument(skip_all, name = "(check-onchain-confs)")]
-    pub async fn check_onchain_confs(
+    async fn check_onchain_confs(
         &self,
         // TODO(max): Since these checks aren't security critical, and since
         // there may be lots of API calls, this esplora client should point to
@@ -1158,12 +1160,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// [`PaymentsManager`].
     ///
     /// This function should be called regularly.
-    #[instrument(skip_all, name = "(check-onchain-receives)")]
-    pub async fn check_onchain_receives(
+    #[instrument(skip_all, name = "(check-onchain-recvs)")]
+    async fn check_onchain_recvs(
         &self,
         wallet: &OnchainWallet,
     ) -> anyhow::Result<()> {
-        debug!("Checking for onchain receives");
+        debug!("Checking for onchain recvs");
         let mut locked_data = self.data.lock().await;
 
         // List the txids of UTXOs owned by us (from BDK's perspective).
@@ -1227,9 +1229,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         for orwm in onchain_recvs {
             self.new_payment_inner(&mut locked_data, orwm.into_enum())
                 .await
-                .context("Failed to register new onchain receive")?;
+                .context("Failed to register new onchain recv")?;
         }
-        debug!("Successfully checked for and registered new onchain receives");
+        debug!("Successfully checked for and registered new onchain recvs");
 
         // The PaymentsData lock is finally dropped here.
         Ok(())

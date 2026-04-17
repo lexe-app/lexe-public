@@ -182,7 +182,8 @@ impl OnchainSendV2 {
     }
 
     // Event sources:
-    // - `PaymentsManager::spawn_onchain_confs_checker` task
+    // - `PaymentsManager::spawn_onchain_checker` task (via
+    //   `check_onchain_confs`)
     pub(crate) fn check_onchain_conf(
         &self,
         conf_status: TxConfStatus,
@@ -336,7 +337,8 @@ pub enum OnchainReceiveStatus {
 
 impl OnchainReceiveV2 {
     // Event sources:
-    // - `PaymentsManager::spawn_onchain_recv_checker` task
+    // - `PaymentsManager::spawn_onchain_checker` task (via
+    //   `check_onchain_receives`)
     pub(crate) fn new(
         tx: Arc<bitcoin::Transaction>,
         kind: PaymentKind,
@@ -370,7 +372,8 @@ impl OnchainReceiveV2 {
     }
 
     /// Event sources:
-    /// - `PaymentsManager::spawn_onchain_confs_checker` task
+    /// - `PaymentsManager::spawn_onchain_confs_checker` task (via
+    ///   `check_onchain_confs`)
     ///
     /// Returns `Ok((None, None))` if nothing changed.
     pub(crate) fn check_onchain_conf(
