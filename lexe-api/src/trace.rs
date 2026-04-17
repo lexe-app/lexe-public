@@ -585,7 +585,7 @@ pub(crate) mod server {
             } else if status.is_server_error() && status.as_u16() == 503 {
                 // Don't spam ERRORs for 503 "Service Unavailable"s which we
                 // return when load-shedding requests. ERRORs should be serious.
-                warn!(target: TARGET, %resp_time, ?status, "Done (load shedded)");
+                warn!(target: TARGET, %resp_time, ?status, "Done (unavailable)");
             } else if status.is_server_error() {
                 error!(target: TARGET, %resp_time, ?status, "Done (server error)");
             } else {
