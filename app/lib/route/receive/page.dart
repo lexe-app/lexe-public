@@ -201,15 +201,6 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       this.selectedLightningType.value = initialLightningType;
     }
 
-    // Fetch a new lightning invoice when its inputs change.
-    this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
-
-    // Fetch a new lightning offer when its inputs change.
-    this.lnOfferInputs.addListener(this.doFetchLnOffer);
-
-    // Fetch a new btc address when certain BTC inputs change.
-    this.btcAddrInputs.addListener(this.doFetchBtc);
-
     // Kick us off by fetching an initial zero-amount invoice, offer, and btc
     // address.
 
@@ -223,12 +214,28 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       this.lnOfferPaymentOffer().value = PaymentOffer.fromOffer(
         offer: cachedOffer,
       );
+
+      // Set our ValueNotifier to the initial value, otherwise listeners
+      // won't trigger when the user clears the preset fields
+      this.lnOfferInputs.value = LnOfferInputs(
+        minAmountSats: this.lnOfferPaymentOffer().value.amountSats,
+        description: this.lnOfferPaymentOffer().value.description,
+      );
     } else {
       unawaited(this.doFetchLnOffer());
       this.widget.appData.humanBitcoinAddress.addListener(this.onHbaUpdated);
     }
 
     unawaited(this.doFetchBtc());
+
+    // Fetch a new lightning invoice when its inputs change.
+    this.lnInvoiceInputs.addListener(this.doFetchLnInvoice);
+
+    // Fetch a new lightning offer when its inputs change.
+    this.lnOfferInputs.addListener(this.doFetchLnOffer);
+
+    // Fetch a new btc address when certain BTC inputs change.
+    this.btcAddrInputs.addListener(this.doFetchBtc);
 
     // Schedule the peek hint animation if the user hasn't seen it yet.
     this.maybeSchedulePeekHint();
@@ -1409,13 +1416,23 @@ class ReceiveInvoicePaymentEditPage extends StatelessWidget {
 }
 
 class ReceiveOfferPaymentEditPage extends StatelessWidget {
-  const ReceiveOfferPaymentEditPage({super.key, required this.prev});
+  ReceiveOfferPaymentEditPage({super.key, required this.prev})
+    : clearedPrev = AmountDescription(
+        amountSats: prev.amountSats,
+        description: prev.description?.startsWith("Pay to ₿") == true
+            ? null
+            : prev.description,
+      );
   final AmountDescription prev;
+
+  // People edit the offer to change the default, so we pre-clear the
+  // description if it looks like the default
+  final AmountDescription clearedPrev;
 
   @override
   Widget build(BuildContext context) {
     return ReceivePaymentEditPage(
-      prev: this.prev,
+      prev: this.clearedPrev,
       title: "Set amount and description",
       subtitle: "Sender can pay more than this amount",
       descriptionHelper: "Description (visible to sender)",

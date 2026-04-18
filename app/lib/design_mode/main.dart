@@ -812,7 +812,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "ReceiveOfferPaymentEditPage",
-        (context) => const ReceiveOfferPaymentEditPage(
+        (context) => ReceiveOfferPaymentEditPage(
           prev: AmountDescription(amountSats: null, description: null),
         ),
       ),
