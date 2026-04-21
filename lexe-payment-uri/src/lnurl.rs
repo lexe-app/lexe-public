@@ -305,14 +305,18 @@ impl LnurlClient {
             "Invoice amount {invoice_amount} doesn't match requested {amount}"
         );
 
-        // Validate description hash
-        let description_hash = invoice
-            .description_hash()
-            .context("LNURL-pay: returned invoice must use description hash")?;
-        ensure!(
-            description_hash == &pay_req.metadata.description_hash,
-            "Invoice description hash mismatch"
-        );
+        // Lots of description hashes don't adhere to the LUDS06 spec,
+        // so we are just gonna bypass description hash validation.
+        // // Validate description hash
+        // let description_hash = invoice
+        //     .description_hash()
+        //     .context(
+        //         "LNURL-pay: returned invoice must use description hash"
+        //     )?;
+        // ensure!(
+        //     description_hash == &pay_req.metadata.description_hash,
+        //     "Invoice description hash mismatch"
+        // );
 
         debug!("Resolved LNURL-pay invoice: {invoice}");
 
