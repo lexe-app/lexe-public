@@ -498,9 +498,13 @@ pub struct PreflightPayOfferRequest {
     pub cid: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: Offer,
-    /// Specifies the amount we will pay if the offer to be paid is
-    /// amountless. This field must be [`Some`] for amountless offers.
-    pub fallback_amount: Option<Amount>,
+    /// Specifies the amount we will pay. If the offer specifies a minimum
+    /// amount, `amount` should satisfy that minimum.
+    // Renamed and made non-optional in node-v0.9.4
+    // The old `fallback_amount = None` is technically valid and incompatible
+    // but rare, due to offers not setting amounts often
+    #[serde(alias = "fallback_amount")]
+    pub amount: Amount,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -532,9 +536,13 @@ pub struct PayOfferRequest {
     pub cid: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: Offer,
-    /// Specifies the amount we will pay if the offer to be paid is
-    /// amountless. This field must be [`Some`] for amountless offers.
-    pub fallback_amount: Option<Amount>,
+    /// Specifies the amount we will pay. If the offer specifies a minimum
+    /// amount, `amount` should satisfy that minimum.
+    // Renamed and made non-optional in node-v0.9.4
+    // The old `fallback_amount = None` is technically valid and incompatible
+    // but rare, due to offers not setting amounts often
+    #[serde(alias = "fallback_amount")]
+    pub amount: Amount,
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
     pub note: Option<BoundedNote>,

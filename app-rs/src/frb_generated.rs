@@ -2483,14 +2483,13 @@ impl SseDecode for crate::ffi::api::PayOfferRequest {
         let mut var_cid =
             <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
         let mut var_offer = <String>::sse_decode(deserializer);
-        let mut var_fallbackAmountSats =
-            <Option<u64>>::sse_decode(deserializer);
+        let mut var_amountSats = <u64>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         let mut var_payerNote = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::PayOfferRequest {
             cid: var_cid,
             offer: var_offer,
-            fallback_amount_sats: var_fallbackAmountSats,
+            amount_sats: var_amountSats,
             note: var_note,
             payer_note: var_payerNote,
         };
@@ -2785,12 +2784,11 @@ impl SseDecode for crate::ffi::api::PreflightPayOfferRequest {
         let mut var_cid =
             <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
         let mut var_offer = <String>::sse_decode(deserializer);
-        let mut var_fallbackAmountSats =
-            <Option<u64>>::sse_decode(deserializer);
+        let mut var_amountSats = <u64>::sse_decode(deserializer);
         return crate::ffi::api::PreflightPayOfferRequest {
             cid: var_cid,
             offer: var_offer,
-            fallback_amount_sats: var_fallbackAmountSats,
+            amount_sats: var_amountSats,
         };
     }
 }
@@ -4096,7 +4094,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOfferRequest {
         [
             self.cid.into_into_dart().into_dart(),
             self.offer.into_into_dart().into_dart(),
-            self.fallback_amount_sats.into_into_dart().into_dart(),
+            self.amount_sats.into_into_dart().into_dart(),
             self.note.into_into_dart().into_dart(),
             self.payer_note.into_into_dart().into_dart(),
         ]
@@ -4459,7 +4457,7 @@ impl flutter_rust_bridge::IntoDart
         [
             self.cid.into_into_dart().into_dart(),
             self.offer.into_into_dart().into_dart(),
-            self.fallback_amount_sats.into_into_dart().into_dart(),
+            self.amount_sats.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5856,7 +5854,7 @@ impl SseEncode for crate::ffi::api::PayOfferRequest {
     ) {
         <crate::ffi::types::ClientPaymentId>::sse_encode(self.cid, serializer);
         <String>::sse_encode(self.offer, serializer);
-        <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
+        <u64>::sse_encode(self.amount_sats, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
         <Option<String>>::sse_encode(self.payer_note, serializer);
     }
@@ -6117,7 +6115,7 @@ impl SseEncode for crate::ffi::api::PreflightPayOfferRequest {
     ) {
         <crate::ffi::types::ClientPaymentId>::sse_encode(self.cid, serializer);
         <String>::sse_encode(self.offer, serializer);
-        <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
+        <u64>::sse_encode(self.amount_sats, serializer);
     }
 }
 

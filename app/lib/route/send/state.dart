@@ -234,7 +234,7 @@ class SendState_NeedAmount implements SendState {
         final req = PreflightPayOfferRequest(
           cid: this.cid,
           offer: offer.string,
-          fallbackAmountSats: (offer.amountSats == null) ? amountSats : null,
+          amountSats: (offer.amountSats == null) ? amountSats : 0,
         );
 
         final result = await this.paymentService.preflightPayOffer(req: req);
@@ -436,9 +436,9 @@ class SendState_Preflighted implements SendState {
     final req = PayOfferRequest(
       cid: this.cid,
       offer: preflighted.offer.string,
-      fallbackAmountSats: (preflighted.offer.amountSats == null)
+      amountSats: (preflighted.offer.amountSats == null)
           ? preflighted.amountSats
-          : null,
+          : 0,
       note: note,
       payerNote: preflighted.payerNote,
     );

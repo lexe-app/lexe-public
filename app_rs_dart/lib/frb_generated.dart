@@ -4209,7 +4209,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return PayOfferRequest(
       cid: dco_decode_client_payment_id(arr[0]),
       offer: dco_decode_String(arr[1]),
-      fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
+      amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
       note: dco_decode_opt_String(arr[3]),
       payerNote: dco_decode_opt_String(arr[4]),
     );
@@ -4418,7 +4418,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return PreflightPayOfferRequest(
       cid: dco_decode_client_payment_id(arr[0]),
       offer: dco_decode_String(arr[1]),
-      fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
+      amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
     );
   }
 
@@ -5927,15 +5927,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_cid = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
-    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
-      deserializer,
-    );
+    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
     var var_payerNote = sse_decode_opt_String(deserializer);
     return PayOfferRequest(
       cid: var_cid,
       offer: var_offer,
-      fallbackAmountSats: var_fallbackAmountSats,
+      amountSats: var_amountSats,
       note: var_note,
       payerNote: var_payerNote,
     );
@@ -6154,13 +6152,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_cid = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
-    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
-      deserializer,
-    );
+    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PreflightPayOfferRequest(
       cid: var_cid,
       offer: var_offer,
-      fallbackAmountSats: var_fallbackAmountSats,
+      amountSats: var_amountSats,
     );
   }
 
@@ -7604,7 +7600,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_client_payment_id(self.cid, serializer);
     sse_encode_String(self.offer, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_opt_String(self.note, serializer);
     sse_encode_opt_String(self.payerNote, serializer);
   }
@@ -7784,7 +7780,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_client_payment_id(self.cid, serializer);
     sse_encode_String(self.offer, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
   }
 
   @protected

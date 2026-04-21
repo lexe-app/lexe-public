@@ -1154,7 +1154,7 @@ where
     let req = PayOfferRequest {
         cid: req.cid,
         offer: req.offer,
-        fallback_amount: req.fallback_amount,
+        amount: req.amount,
         // User note not relevant for pre-flight.
         note: None,
         payer_note: None,
@@ -1290,12 +1290,18 @@ where
         }
     }
 
-    // Compute the amount; handle amountless invoices.
-    let amount = validate::pay_amount(
-        "invoices",
-        invoice.amount(),
-        req.fallback_amount,
-    )?;
+    // If `invoiced_amount` is set, `fallback_amount` shouldn't be set.
+    if invoice.amount().is_some() && req.fallback_amount.is_some() {
+        return Err(anyhow!(
+            "Only provide fallback amount for amountless invoices"
+        ));
+    }
+
+    // Resolve the amount.
+    let amount = invoice
+        .amount()
+        .or(req.fallback_amount)
+        .context("Missing fallback amount for amountless invoice")?;
 
     // Compute Lightning balances
     let channels = channel_manager.list_channels();
@@ -1414,12 +1420,19 @@ where
     } else {
         None
     };
+
+    // Ensure that the to-be-paid amount >= min amount
+    if let Some(min_amount) = offer.amount()
+        && req.amount < min_amount
+    {
+        return Err(anyhow!(
+            "Payment amount must be greater than the minimum amount \
+             ({min_amount} sats) specified by the offer."
+        ));
+    }
+
     // TODO(phlip9): actual_amount = amount * quantity
-    // TODO(phlip9): support over-paying offers? `offer_amount` is actually a
-    //               _minimum_ amount and the spec allows over-paying.
-    // Compute the amount; handle amountless offers.
-    let amount =
-        validate::pay_amount("offers", offer.amount(), req.fallback_amount)?;
+    let amount = req.amount;
 
     // Compute Lightning balances
     let channels = channel_manager.list_channels();
@@ -1501,25 +1514,6 @@ mod validate {
     use lexe_common::ln::balance::LightningBalance;
 
     use super::*;
-
-    /// Get the final amount we should pay for an invoice/offer, accounting for
-    /// amountless invoices/offers with `fallback_amount` set/unset.
-    pub(super) fn pay_amount(
-        kind: &'static str,
-        amount: Option<Amount>,
-        fallback_amount: Option<Amount>,
-    ) -> anyhow::Result<Amount> {
-        if amount.is_some() && fallback_amount.is_some() {
-            // Not a serious error, but better to be unambiguous.
-            debug_panic_release_log!(
-                "Nit: Only provide fallback amount for amountless {kind}",
-            );
-        }
-
-        amount.or(fallback_amount).with_context(|| {
-            format!("Missing fallback amount for amountless {kind}")
-        })
-    }
 
     /// Check that the user has at least one usable channel.
     pub(super) fn has_usable_channels(

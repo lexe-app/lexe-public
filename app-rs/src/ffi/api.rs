@@ -581,7 +581,7 @@ impl From<CreateOfferResponseRs> for CreateOfferResponse {
 pub struct PreflightPayOfferRequest {
     pub cid: ClientPaymentId,
     pub offer: String,
-    pub fallback_amount_sats: Option<u64>,
+    pub amount_sats: u64,
 }
 
 impl TryFrom<PreflightPayOfferRequest> for PreflightPayOfferRequestRs {
@@ -591,10 +591,7 @@ impl TryFrom<PreflightPayOfferRequest> for PreflightPayOfferRequestRs {
             cid: ClientPaymentIdRs::from(value.cid),
             offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
-            fallback_amount: value
-                .fallback_amount_sats
-                .map(Amount::try_from_sats_u64)
-                .transpose()?,
+            amount: Amount::try_from_sats_u64(value.amount_sats)?,
         })
     }
 }
@@ -623,7 +620,7 @@ impl From<PreflightPayOfferResponseRs> for PreflightPayOfferResponse {
 pub struct PayOfferRequest {
     pub cid: ClientPaymentId,
     pub offer: String,
-    pub fallback_amount_sats: Option<u64>,
+    pub amount_sats: u64,
     pub note: Option<String>,
     pub payer_note: Option<String>,
 }
@@ -635,10 +632,7 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
             cid: ClientPaymentIdRs::from(value.cid),
             offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
-            fallback_amount: value
-                .fallback_amount_sats
-                .map(Amount::try_from_sats_u64)
-                .transpose()?,
+            amount: Amount::try_from_sats_u64(value.amount_sats)?,
             note: value.note.map(validate_note).transpose()?,
             payer_note: value.payer_note.map(validate_note).transpose()?,
         })

@@ -1129,22 +1129,22 @@ String toString() {
 /// @nodoc
 mixin _$PayOfferRequest {
 
- ClientPaymentId get cid; String get offer; int? get fallbackAmountSats; String? get note; String? get payerNote;
+ ClientPaymentId get cid; String get offer; int get amountSats; String? get note; String? get payerNote;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats,note,payerNote);
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats,note,payerNote);
 
 @override
 String toString() {
-  return 'PayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats, note: $note, payerNote: $payerNote)';
+  return 'PayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats, note: $note, payerNote: $payerNote)';
 }
 
 
@@ -1158,12 +1158,12 @@ String toString() {
 
 
 class _PayOfferRequest implements PayOfferRequest {
-  const _PayOfferRequest({required this.cid, required this.offer, this.fallbackAmountSats, this.note, this.payerNote});
+  const _PayOfferRequest({required this.cid, required this.offer, required this.amountSats, this.note, this.payerNote});
   
 
 @override final  ClientPaymentId cid;
 @override final  String offer;
-@override final  int? fallbackAmountSats;
+@override final  int amountSats;
 @override final  String? note;
 @override final  String? payerNote;
 
@@ -1172,16 +1172,16 @@ class _PayOfferRequest implements PayOfferRequest {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats,note,payerNote);
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats,note,payerNote);
 
 @override
 String toString() {
-  return 'PayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats, note: $note, payerNote: $payerNote)';
+  return 'PayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats, note: $note, payerNote: $payerNote)';
 }
 
 
@@ -1680,22 +1680,22 @@ String toString() {
 /// @nodoc
 mixin _$PreflightPayOfferRequest {
 
- ClientPaymentId get cid; String get offer; int? get fallbackAmountSats;
+ ClientPaymentId get cid; String get offer; int get amountSats;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats);
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats);
 
 @override
 String toString() {
-  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats)';
+  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats)';
 }
 
 
@@ -1709,28 +1709,28 @@ String toString() {
 
 
 class _PreflightPayOfferRequest implements PreflightPayOfferRequest {
-  const _PreflightPayOfferRequest({required this.cid, required this.offer, this.fallbackAmountSats});
+  const _PreflightPayOfferRequest({required this.cid, required this.offer, required this.amountSats});
   
 
 @override final  ClientPaymentId cid;
 @override final  String offer;
-@override final  int? fallbackAmountSats;
+@override final  int amountSats;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,offer,fallbackAmountSats);
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats);
 
 @override
 String toString() {
-  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, fallbackAmountSats: $fallbackAmountSats)';
+  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats)';
 }
 
 

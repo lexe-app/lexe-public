@@ -324,10 +324,7 @@ class MockAppHandle extends AppHandle {
   }) => Future.delayed(
     const Duration(seconds: 1),
     // () => throw FfiError("Request timed out").toFfi(),
-    () => PreflightPayOfferResponse(
-      amountSats: req.fallbackAmountSats ?? 9999,
-      feesSats: 123,
-    ),
+    () => PreflightPayOfferResponse(amountSats: req.amountSats, feesSats: 123),
   );
 
   @override

@@ -203,7 +203,7 @@ sealed class PayOfferRequest with _$PayOfferRequest {
   const factory PayOfferRequest({
     required ClientPaymentId cid,
     required String offer,
-    int? fallbackAmountSats,
+    required int amountSats,
     String? note,
     String? payerNote,
   }) = _PayOfferRequest;
@@ -295,7 +295,7 @@ sealed class PreflightPayOfferRequest with _$PreflightPayOfferRequest {
   const factory PreflightPayOfferRequest({
     required ClientPaymentId cid,
     required String offer,
-    int? fallbackAmountSats,
+    required int amountSats,
   }) = _PreflightPayOfferRequest;
 }
 
