@@ -330,6 +330,7 @@ mod test {
 
     use lexe_common::{env::DeployEnv, ln::amount::Amount};
     use lexe_crypto::rng::{RngExt, ThreadFastRng};
+    use lexe_hex::hex;
     use tracing::info;
 
     use super::*;
@@ -401,5 +402,97 @@ mod test {
 
         info!("Successfully received invoice: {invoice}");
         info!("Invoice network: {:?}", invoice.network());
+    }
+
+    // ```bash
+    // $ RUST_LOG=debug \
+    //     ADDRESS="..." \
+    //     AMOUNT="..." \
+    //     COMMENT="..." \
+    //     cargo test -p lexe-payment-uri -- dump_lightning_address --nocapture --ignored
+    // ```
+    #[tokio::test]
+    #[ignore]
+    async fn dump_lightning_address() {
+        lexe_logger::init_for_testing();
+
+        // Parse ADDRESS from env
+        let ln_address = std::env::var("ADDRESS").expect("`$ADDRESS` not set");
+        println!("Lightning address: {ln_address}");
+
+        // Parse AMOUNT from env
+        let amount = std::env::var("AMOUNT")
+            .map(|s| str::parse::<u32>(&s).unwrap())
+            .ok()
+            .unwrap_or(1);
+        println!("Amount: {amount}");
+
+        // Parse COMMENT from env
+        let comment = std::env::var("COMMENT").ok();
+        if let Some(comment) = &comment {
+            println!("Comment: {comment}");
+        } else {
+            println!("No comment found.");
+        }
+
+        // Parse URI
+        let payment_uri =
+            lexe_payment_uri_core::PaymentUri::parse(&ln_address).unwrap();
+
+        let email_like = match payment_uri {
+            lexe_payment_uri_core::PaymentUri::EmailLikeAddress(email_like) =>
+                email_like,
+            other => panic!("Expected EmailLikeAddress, got: {other:?}"),
+        };
+
+        let ln_address_url = email_like.lightning_address_url;
+        println!("Lightning Address URL: {ln_address_url}");
+
+        // Make pay request
+        let lnurl_client = LnurlClient::new(DeployEnv::Prod).unwrap();
+        let pay_request = tokio::time::timeout(
+            Duration::from_secs(10),
+            lnurl_client.get_pay_request(&ln_address_url),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+        println!("Lightning Address successfully resolved into payRequest");
+
+        let callback = &pay_request.callback;
+        let min_sendable = pay_request.min_sendable;
+        let max_sendable = pay_request.max_sendable;
+        let description = &pay_request.metadata.description;
+        let comment_allowed = pay_request.comment_allowed;
+        println!("Callback URL: {callback}");
+        println!("Min amount: {min_sendable} sats");
+        println!("Max amount: {max_sendable} sats");
+        println!("Description: {description}");
+        println!("Comment allowed: {comment_allowed:?}");
+
+        // Request invoice
+        let amount = Amount::from_sats_u32(amount);
+        let comment = comment.as_deref();
+
+        println!("Requesting invoice for {amount} sats");
+        let invoice = tokio::time::timeout(
+            Duration::from_secs(10),
+            lnurl_client.resolve_pay_request(&pay_request, amount, comment),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+        let amount = invoice.amount();
+        let description_str = invoice.description_str();
+        let description_hash =
+            invoice.description_hash().map(|dh| hex::display(dh));
+        let network = invoice.network();
+        println!("Successfully received invoice: {invoice}");
+        println!("Invoice amount: {amount:?}");
+        println!("Invoice description_str: {description_str:?}");
+        println!("Invoice description_hash: {description_hash:?}");
+        println!("Invoice network: {network}");
     }
 }

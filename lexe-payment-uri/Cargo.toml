@@ -38,6 +38,7 @@ tracing = { workspace = true }
 # --- LEXE --- #
 
 lexe-api-core = { workspace = true, features = ["test-utils"] }
+lexe-hex = { workspace = true }
 lexe-logger = { workspace = true, features = ["test-utils"] }
 lexe-std = { workspace = true }
 
