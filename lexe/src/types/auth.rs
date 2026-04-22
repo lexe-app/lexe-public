@@ -71,7 +71,7 @@ impl<'a> CredentialsRef<'a> {
     /// Returns the user public key, if available.
     ///
     /// Always `Some(_)` if the credentials were created by `node-v0.8.11+`.
-    pub(crate) fn user_pk(self) -> Option<UserPk> {
+    pub fn user_pk(self) -> Option<UserPk> {
         self.to_unstable().user_pk().map(UserPk::from_unstable)
     }
 
