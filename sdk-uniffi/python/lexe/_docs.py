@@ -620,7 +620,7 @@ Example::
 _set_method_doc(LexeWallet, "provision", """\
 Ensures the wallet is provisioned to all recent trusted releases.
 
-Call every time the wallet is loaded to keep the user running
+Call every time the wallet is loaded to keep the node running
 the most up-to-date enclave software.
 
 Args:
@@ -724,7 +724,7 @@ Raises:
 """)
 
 _set_method_doc(LexeWallet, "sync_payments", """\
-Sync payments from the remote node to local storage.
+Sync payments from the user node to the local payments cache.
 
 Call periodically to keep local payment data up to date.
 
@@ -782,7 +782,7 @@ Example::
 """)
 
 _set_method_doc(LexeWallet, "clear_payments", """\
-Clear all local payment data for this wallet.
+Clear all locally cached payment data for this wallet.
 
 Clears the local payment cache only. Remote data on the node is
 not affected. Call :meth:`sync_payments` to re-populate.
@@ -795,7 +795,7 @@ _set_method_doc(LexeWallet, "wait_for_payment", """\
 Wait for a payment to reach a terminal state (completed or failed).
 
 Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 10 minutes if not specified.
+or the timeout is reached. Defaults to 600 seconds (10 minutes).
 Maximum timeout is 86,400 seconds (24 hours).
 
 Args:
@@ -940,7 +940,7 @@ Example::
 _set_method_doc(AsyncLexeWallet, "provision", """\
 Ensures the wallet is provisioned to all recent trusted releases.
 
-Call every time the wallet is loaded to keep the user running
+Call every time the wallet is loaded to keep the node running
 the most up-to-date enclave software.
 
 Args:
@@ -1044,7 +1044,7 @@ Raises:
 """)
 
 _set_method_doc(AsyncLexeWallet, "sync_payments", """\
-Sync payments from the remote node to local storage.
+Sync payments from the user node to the local payments cache.
 
 Call periodically to keep local payment data up to date.
 
@@ -1102,7 +1102,7 @@ Example::
 """)
 
 _set_method_doc(AsyncLexeWallet, "clear_payments", """\
-Clear all local payment data for this wallet.
+Clear all locally cached payment data for this wallet.
 
 Clears the local payment cache only. Remote data on the node is
 not affected. Call :meth:`sync_payments` to re-populate.
@@ -1115,7 +1115,7 @@ _set_method_doc(AsyncLexeWallet, "wait_for_payment", """\
 Wait for a payment to reach a terminal state (completed or failed).
 
 Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 10 minutes if not specified.
+or the timeout is reached. Defaults to 600 seconds (10 minutes).
 Maximum timeout is 86,400 seconds (24 hours).
 
 Args:

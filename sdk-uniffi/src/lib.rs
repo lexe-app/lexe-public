@@ -809,7 +809,7 @@ impl AsyncLexeWallet {
 
     /// Ensures the wallet is provisioned to all recent trusted releases.
     ///
-    /// Call this every time the wallet is loaded to ensure the user is running
+    /// Call this every time the wallet is loaded to ensure the node is running
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
     pub async fn provision(
@@ -922,7 +922,7 @@ impl AsyncLexeWallet {
     /// Wait for a payment to reach a terminal state (completed or failed).
     ///
     /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
     /// Maximum timeout is 86,400 seconds (24 hours).
     #[uniffi::method(default(timeout_secs = None))]
     pub async fn wait_for_payment(
@@ -938,10 +938,10 @@ impl AsyncLexeWallet {
 
     // --- DB-only methods --- //
 
-    /// Sync payments from the node to local storage.
+    /// Sync payments from the user node to the local payments cache.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
+    /// Returns an error if local persistence is disabled for this wallet.
     pub async fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
         let summary = self.inner.sync_payments().await?;
         Ok(PaymentSyncSummary {
@@ -961,7 +961,7 @@ impl AsyncLexeWallet {
     /// node before calling this method.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
+    /// Returns an error if local persistence is disabled for this wallet.
     #[uniffi::method(default(order = None, limit = None, after = None))]
     pub fn list_payments(
         &self,
@@ -989,13 +989,13 @@ impl AsyncLexeWallet {
         })
     }
 
-    /// Clear all local payment data for this wallet.
+    /// Clear all locally cached payment data for this wallet.
     ///
     /// Clears the local payment cache only. Remote data on the node is not
     /// affected. Call `sync_payments` to re-populate.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
+    /// Returns an error if local persistence is disabled for this wallet.
     pub fn clear_payments(&self) -> FfiResult<()> {
         self.inner.clear_payments()?;
         Ok(())
@@ -1147,7 +1147,7 @@ impl BlockingLexeWallet {
 
     /// Ensures the wallet is provisioned to all recent trusted releases.
     ///
-    /// Call this every time the wallet is loaded to ensure the user is running
+    /// Call this every time the wallet is loaded to ensure the node is running
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
     pub fn provision(&self, credentials: Arc<Credentials>) -> FfiResult<()> {
@@ -1253,7 +1253,7 @@ impl BlockingLexeWallet {
     /// Wait for a payment to reach a terminal state (completed or failed).
     ///
     /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
     /// Maximum timeout is 86,400 seconds (24 hours).
     #[uniffi::method(default(timeout_secs = None))]
     pub fn wait_for_payment(
@@ -1269,10 +1269,10 @@ impl BlockingLexeWallet {
 
     // --- DB-only methods --- //
 
-    /// Sync payments from the node to local storage.
+    /// Sync payments from the user node to the local payments cache.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
+    /// Returns an error if local persistence is disabled for this wallet.
     pub fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
         let summary = self.inner.sync_payments()?;
         Ok(PaymentSyncSummary {
@@ -1292,7 +1292,7 @@ impl BlockingLexeWallet {
     /// node before calling this method.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
+    /// Returns an error if local persistence is disabled for this wallet.
     #[uniffi::method(default(order = None, limit = None, after = None))]
     pub fn list_payments(
         &self,
@@ -1320,13 +1320,13 @@ impl BlockingLexeWallet {
         })
     }
 
-    /// Clear all local payment data for this wallet.
+    /// Clear all locally cached payment data for this wallet.
     ///
     /// Clears the local payment cache only. Remote data on the node is not
     /// affected. Call `sync_payments` to re-populate.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
-    /// Returns an error for wallets created with `without_db`.
+    /// Returns an error if local persistence is disabled for this wallet.
     pub fn clear_payments(&self) -> FfiResult<()> {
         self.inner.clear_payments()?;
         Ok(())

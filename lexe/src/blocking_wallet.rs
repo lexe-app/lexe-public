@@ -120,10 +120,9 @@ impl BlockingLexeWallet {
 
     // --- DB-required methods --- //
 
-    /// Sync payments from the user node to the local database.
-    /// This fetches updated payments from the node and persists them locally.
+    /// Sync payments from the user node to the local payments cache.
     ///
-    /// Returns an error if this wallet was created without local persistence.
+    /// Returns an error if local persistence is disabled for this wallet.
     pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         block_on(self.inner.sync_payments())
     }
@@ -138,7 +137,7 @@ impl BlockingLexeWallet {
     /// If needed, use [`sync_payments`] to fetch the latest data from the
     /// node before calling this method.
     ///
-    /// Returns an error if this wallet was created without local persistence.
+    /// Returns an error if local persistence is disabled for this wallet.
     ///
     /// [`sync_payments`]: Self::sync_payments
     pub fn list_payments(
@@ -151,12 +150,12 @@ impl BlockingLexeWallet {
         self.inner.list_payments(filter, order, limit, after)
     }
 
-    /// Clear all local payment data for this wallet.
+    /// Clear all locally cached payment data for this wallet.
     ///
     /// Clears the local payment cache only. Remote data on the node is not
     /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
     ///
-    /// Returns an error if this wallet was created without local persistence.
+    /// Returns an error if local persistence is disabled for this wallet.
     pub fn clear_payments(&self) -> anyhow::Result<()> {
         self.inner.clear_payments()
     }
@@ -164,7 +163,7 @@ impl BlockingLexeWallet {
     /// Wait for a payment to reach a terminal state (completed or failed).
     ///
     /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 10 minutes if not specified.
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
     /// Maximum timeout is 86,400 seconds (24 hours).
     pub fn wait_for_payment(
         &self,
@@ -177,7 +176,7 @@ impl BlockingLexeWallet {
     /// Get a reference to the
     /// [`WalletDb`](crate::unstable::wallet_db::WalletDb).
     ///
-    /// Returns [`None`] if this wallet was created without local persistence.
+    /// Returns [`None`] if local persistence is disabled for this wallet.
     #[cfg(feature = "unstable")]
     pub fn db(
         &self,
@@ -189,7 +188,7 @@ impl BlockingLexeWallet {
     /// This is the primary data source for constructing a payments
     /// list UI.
     ///
-    /// Returns [`None`] if this wallet was created without local persistence.
+    /// Returns [`None`] if local persistence is disabled for this wallet.
     #[cfg(feature = "unstable")]
     pub fn payments_db(
         &self,
@@ -251,7 +250,7 @@ impl BlockingLexeWallet {
 
     /// Ensures the wallet is provisioned to all recent trusted releases.
     /// This should be called every time the wallet is loaded, to ensure the
-    /// user is running the most up-to-date enclave software.
+    /// node is running the most up-to-date enclave software.
     ///
     /// This fetches the current enclaves from the gateway, computes which
     /// releases need to be provisioned, and provisions them.

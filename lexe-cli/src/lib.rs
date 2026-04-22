@@ -615,10 +615,8 @@ impl UpdatePaymentNoteArgs {
 
 #[derive(Parser)]
 #[command(
-    about = "Sync payments from the node to local storage",
-    long_about = "Sync payments from the user node to the local database.\n\
-        \n\
-        This fetches updated payments from the node and persists them locally.",
+    about = "Sync payments from the node to the local payments cache",
+    long_about = "Sync payments from the user node to the local payments cache.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct SyncPaymentsArgs {}
@@ -705,8 +703,8 @@ impl ListPaymentsArgs {
 
 #[derive(Parser)]
 #[command(
-    about = "Clear all local payment data for this wallet",
-    long_about = "Clear all local payment data for this wallet.\n\
+    about = "Clear all locally cached payment data for this wallet",
+    long_about = "Clear all locally cached payment data for this wallet.\n\
         \n\
         Remote data on the node is not affected. \
         Use `sync-payments` to re-populate after clearing.",
