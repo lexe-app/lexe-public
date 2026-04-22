@@ -19,7 +19,7 @@ use lexe_payment_uri::{
     lnurl::LnurlClient,
 };
 use lexe_std::backoff::Backoff;
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::{
     config::{
@@ -662,7 +662,7 @@ impl LexeWallet {
         }
 
         if enclaves_to_provision.enclaves.is_empty() {
-            info!("Already provisioned to all recent releases");
+            debug!("Already provisioned to all recent releases");
             return Ok(());
         }
 

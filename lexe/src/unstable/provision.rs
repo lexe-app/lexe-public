@@ -16,7 +16,7 @@ use lexe_enclave::enclave;
 use lexe_node_client::client::NodeClient;
 use lexe_tokio::task::LxTask;
 use serde::Deserialize;
-use tracing::{info, info_span, warn};
+use tracing::{debug, info, info_span, warn};
 
 use crate::{config::WalletEnv, types::auth::RootSeed};
 
@@ -78,14 +78,14 @@ pub(crate) async fn provision_all(
     allow_gvfs_access: bool,
     encrypted_seed: Option<Vec<u8>>,
 ) -> anyhow::Result<()> {
-    info!("Starting provisioning: {enclaves_to_provision:?}");
+    debug!("Starting provisioning: {enclaves_to_provision:?}");
 
     // Make sure the latest trusted version is provisioned before we return,
     // so that when we request a node run, Lexe runs the latest version.
     let latest = match enclaves_to_provision.pop_last() {
         Some(enclave) => enclave,
         None => {
-            info!("No enclaves to provision");
+            debug!("No enclaves to provision");
             return Ok(());
         }
     };
@@ -158,7 +158,7 @@ pub(crate) async fn provision_all(
                 }
             }
 
-            info!("Secondary provisioning complete");
+            debug!("Secondary provisioning complete");
         });
 
     // TODO(max): Ideally, we could await on this ephemeral task somewhere
