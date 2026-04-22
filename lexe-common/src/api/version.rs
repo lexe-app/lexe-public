@@ -1,6 +1,7 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, fmt};
 
 use lexe_enclave::enclave::{MachineId, Measurement};
+use lexe_std::fmt::DisplayIter;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -39,6 +40,12 @@ pub struct EnclavesToProvision {
     pub enclaves: BTreeSet<NodeEnclave>,
 }
 
+impl fmt::Display for EnclavesToProvision {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        DisplayIter(self.enclaves.iter()).fmt(f)
+    }
+}
+
 /// The machine_id, semver version and measurement of a node enclave.
 ///
 /// [`Ord`]ered by [`semver::Version`] precedence.
@@ -63,6 +70,18 @@ impl Ord for NodeEnclave {
 impl PartialOrd for NodeEnclave {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl fmt::Display for NodeEnclave {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let version = &self.version;
+        let measurement = &self.measurement;
+        let machine_id = &self.machine_id;
+        write!(
+            f,
+            "(version=node-v{version}, measurement={measurement}, machine_id={machine_id})"
+        )
     }
 }
 

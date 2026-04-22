@@ -666,10 +666,7 @@ impl LexeWallet {
             return Ok(());
         }
 
-        info!(
-            "Provisioning enclaves: {:?}",
-            enclaves_to_provision.enclaves
-        );
+        info!("Provisioning enclaves: {enclaves_to_provision}");
 
         match credentials {
             CredentialsRef::RootSeed(root_seed_ref) => {
