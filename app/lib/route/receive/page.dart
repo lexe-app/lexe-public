@@ -684,7 +684,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     );
 
     final AmountDescription? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(builder: (_) => ReceivePaymentEditPage(prev: prev)),
+      MaterialPageRoute(
+        builder: (_) => ReceiveInvoicePaymentEditPage(prev: prev),
+      ),
     );
 
     if (!this.mounted || flowResult == null || flowResult == prev) return;
@@ -717,7 +719,9 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     );
 
     final AmountDescription? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(builder: (_) => ReceivePaymentEditPage(prev: prev)),
+      MaterialPageRoute(
+        builder: (_) => ReceiveOfferPaymentEditPage(prev: prev),
+      ),
     );
 
     if (!this.mounted || flowResult == null || flowResult == prev) return;
@@ -1388,12 +1392,55 @@ class LightningToggleButton extends StatelessWidget {
 //   }
 // }
 
+class ReceiveInvoicePaymentEditPage extends StatelessWidget {
+  const ReceiveInvoicePaymentEditPage({super.key, required this.prev});
+  final AmountDescription prev;
+
+  @override
+  Widget build(BuildContext context) {
+    return ReceivePaymentEditPage(
+      prev: this.prev,
+      title: "Set amount and description",
+      subtitle: "Both amount and description are optional",
+      descriptionHelper: "Description (visible to sender)",
+      descriptionHint: "Optional description...",
+    );
+  }
+}
+
+class ReceiveOfferPaymentEditPage extends StatelessWidget {
+  const ReceiveOfferPaymentEditPage({super.key, required this.prev});
+  final AmountDescription prev;
+
+  @override
+  Widget build(BuildContext context) {
+    return ReceivePaymentEditPage(
+      prev: this.prev,
+      title: "Set amount and description",
+      subtitle: "Sender can pay more than this amount",
+      descriptionHelper: "Description (visible to sender)",
+      descriptionHint: "Optional description...",
+    );
+  }
+}
+
 /// A page for the user to set an optional amount and/or optional description on
 /// their inbound payment details.
 class ReceivePaymentEditPage extends StatefulWidget {
-  const ReceivePaymentEditPage({super.key, required this.prev});
+  const ReceivePaymentEditPage({
+    super.key,
+    required this.prev,
+    required this.title,
+    required this.subtitle,
+    required this.descriptionHelper,
+    required this.descriptionHint,
+  });
 
   final AmountDescription prev;
+  final String title;
+  final String subtitle;
+  final String descriptionHelper;
+  final String descriptionHint;
 
   @override
   State<ReceivePaymentEditPage> createState() => _ReceivePaymentEditPageState();
@@ -1442,10 +1489,8 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Set amount and description"),
-          const SubheadingText(
-            text: "Both amount and description are optional",
-          ),
+          HeadingText(text: this.widget.title),
+          SubheadingText(text: this.widget.subtitle),
           const SizedBox(height: Space.s700),
 
           // <amount> sats
@@ -1457,13 +1502,24 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
             initialValue: this.widget.prev.amountSats,
           ),
 
-          const SizedBox(height: Space.s700),
+          const SizedBox(height: Space.s600),
+
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6.0),
+            child: Text(
+              this.widget.descriptionHelper,
+              style: Fonts.fontUI.copyWith(
+                color: LxColors.grey600,
+                fontSize: Fonts.size100,
+              ),
+            ),
+          ),
 
           PaymentNoteInput(
             fieldKey: this.descriptionFieldKey,
             onSubmit: this.onConfirm,
             initialNote: this.widget.prev.description,
-            hintText: "Optional description (visible to sender)",
+            hintText: this.widget.descriptionHint,
           ),
 
           const SizedBox(height: Space.s400),

@@ -451,6 +451,25 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       return Err("Can't send more than $balanceMaxSendableStr");
     }
 
+    // Payment method-specific validation
+    switch (this.widget.sendCtx.paymentMethod) {
+      case PaymentMethod_Invoice():
+        break;
+      case PaymentMethod_Onchain():
+        break;
+      case PaymentMethod_Offer(:final field0):
+        final minAmount = field0.minAmountSats ?? 0;
+        if (amount < minAmount) {
+          final minAmountStr = currency_format.formatSatsAmount(
+            minAmount,
+            bitcoinSymbol: true,
+          );
+          return Err("Must send at least $minAmountStr");
+        }
+      case PaymentMethod_LnurlPayRequest():
+        break;
+    }
+
     return const Ok(());
   }
 
@@ -488,6 +507,14 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     PaymentMethod_LnurlPayRequest() =>
       "Optional comment (visible to recipient)",
     _ => "Optional message (visible to recipient)",
+  };
+
+  /// Initial value to prefill the PaymentAmountInput with
+  int? initialValue() => switch (this.widget.sendCtx.paymentMethod) {
+    PaymentMethod_Invoice() => null,
+    PaymentMethod_Onchain() => null,
+    PaymentMethod_Offer(:final field0) => field0.minAmountSats,
+    PaymentMethod_LnurlPayRequest() => null,
   };
 
   @override
@@ -528,6 +555,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             validate: this.validateAmount,
             allowEmpty: false,
             allowZero: false,
+            initialValue: this.initialValue(),
           ),
 
           // Description (if available)

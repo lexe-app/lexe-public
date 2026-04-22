@@ -84,7 +84,11 @@ import 'package:lexeapp/route/open_channel.dart'
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/profile.dart' show ProfilePage;
 import 'package:lexeapp/route/receive/page.dart'
-    show ReceivePaymentEditPage, ReceivePaymentPage, btcPageIdx;
+    show
+        ReceiveInvoicePaymentEditPage,
+        ReceiveOfferPaymentEditPage,
+        ReceivePaymentPage,
+        btcPageIdx;
 import 'package:lexeapp/route/receive/state.dart'
     show AmountDescription, PaymentOfferKind;
 import 'package:lexeapp/route/restore.dart'
@@ -650,14 +654,16 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             balance: mockApp.balance,
             cid: cid,
             fiatRate: mockFiatRate,
-            paymentMethod: PaymentMethod.offer(Offer(
-              string: mocks.defaultOffer.string,
-              description: mocks.defaultOffer.description,
-              expiresAt: mocks.defaultOffer.expiresAt,
-              minAmountSats: 2000,
-              payee: mocks.defaultOffer.payee,
-              payeePubkey: mocks.defaultOffer.payeePubkey,
-            )),
+            paymentMethod: PaymentMethod.offer(
+              Offer(
+                string: mocks.defaultOffer.string,
+                description: mocks.defaultOffer.description,
+                expiresAt: mocks.defaultOffer.expiresAt,
+                minAmountSats: 2000,
+                payee: mocks.defaultOffer.payee,
+                payeePubkey: mocks.defaultOffer.payeePubkey,
+              ),
+            ),
           ),
         ),
       ),
@@ -799,8 +805,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         ),
       ),
       Component(
-        "ReceivePaymentEditPage",
-        (context) => const ReceivePaymentEditPage(
+        "ReceiveInvoicePaymentEditPage",
+        (context) => const ReceiveInvoicePaymentEditPage(
+          prev: AmountDescription(amountSats: null, description: null),
+        ),
+      ),
+      Component(
+        "ReceiveOfferPaymentEditPage",
+        (context) => const ReceiveOfferPaymentEditPage(
           prev: AmountDescription(amountSats: null, description: null),
         ),
       ),

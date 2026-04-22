@@ -1066,6 +1066,7 @@ class _PaymentAmountInputState extends State<PaymentAmountInput> {
                   ),
                   initialValue: (initialValue != null)
                       ? this.widget.intInputFormatter.formatInt(initialValue)
+                      // Prefill with 0 for style; doesn't affect input UX
                       : "0",
                   textDirection: TextDirection.ltr,
                   textInputAction: TextInputAction.next,

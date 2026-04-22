@@ -100,7 +100,7 @@ class LnOfferInputs {
 
   @override
   String toString() {
-    return "LnOfferInputs(amountSats: $minAmountSats, description: $description)";
+    return "LnOfferInputs(minAmountSats: $minAmountSats, description: $description)";
   }
 
   @override
