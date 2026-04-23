@@ -678,7 +678,9 @@ pub(super) async fn update_human_bitcoin_address(
         .await
         .map_err(NodeApiError::command)?;
 
-    let offer_req = lexe_ln::command::hba_offer_request(req.username.inner());
+    let offer_req = lexe_ln::command::hba_offer_request(req.username.inner())
+        .context("Failed to build HBA offer request")
+        .map_err(NodeApiError::command)?;
     let offer =
         lexe_ln::command::create_offer(offer_req, &state.channel_manager)
             .await

@@ -447,7 +447,12 @@ pub struct PreflightPayInvoiceResponse {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateOfferRequest {
-    pub expiry_secs: Option<u32>,
+    /// The description to be encoded into the invoice.
+    ///
+    /// If `None`, the `description` field inside the invoice will be an empty
+    /// string (""), as lightning _requires_ a description to be set.
+    pub description: Option<BoundedString>,
+
     /// The `min_amount` we're requesting for payments using this offer.
     ///
     /// If `None`, the offer is variable amount and the payer can choose any
@@ -459,11 +464,10 @@ pub struct CreateOfferRequest {
     // Renamed in node-v0.9.4
     #[serde(alias = "amount")]
     pub min_amount: Option<Amount>,
-    /// The description to be encoded into the invoice.
-    ///
-    /// If `None`, the `description` field inside the invoice will be an empty
-    /// string (""), as lightning _requires_ a description to be set.
-    pub description: Option<String>,
+
+    /// An optional expiration for the offer, in seconds from now.
+    pub expiry_secs: Option<u32>,
+
     /// The max number of items that can be purchased in any one payment for
     /// the offer.
     ///
@@ -478,12 +482,13 @@ pub struct CreateOfferRequest {
     /// If `None`, defaults to `MaxQuantity::ONE`, i.e., the expected paid
     /// `amount` is just `offer.amount`.
     pub max_quantity: Option<MaxQuantity>,
+
     /// The issuer of the offer.
     ///
     /// If `Some`, offer will encode the string. Bolt12 spec expects this tring
     /// to be a domain or a `user@domain` address.
     /// If `None`, offer issuer will encode "lexe.app" as the issuer.
-    pub issuer: Option<String>,
+    pub issuer: Option<BoundedString>,
     //
     // TODO(phlip9): add a `single_use` field to the offer request? right now
     // all offers are reusable.

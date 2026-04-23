@@ -24,6 +24,7 @@ use lexe_api::{
     rest::API_REQUEST_TIMEOUT,
     types::{
         Empty,
+        bounded_string::BoundedString,
         invoice::Invoice,
         offer::{MaxQuantity, Offer},
         payments::{PaymentDirection, PaymentId, PaymentKind},
@@ -965,16 +966,18 @@ where
 /// The resulting offer will have:
 /// - Description: `"Pay to ₿{username}@lexe.app"`
 /// - Issuer: `"₿{username}@lexe.app"`
-pub fn hba_offer_request(username: &str) -> CreateOfferRequest {
-    let hba = format!("₿{username}@lexe.app");
-    let description = format!("Pay to {hba}");
-    CreateOfferRequest {
-        expiry_secs: None,
-        min_amount: None,
+pub fn hba_offer_request(username: &str) -> anyhow::Result<CreateOfferRequest> {
+    let issuer = BoundedString::new(format!("₿{username}@lexe.app"))
+        .context("Issuer too long")?;
+    let description = BoundedString::new(format!("Pay to {issuer}"))
+        .context("Description too long")?;
+    Ok(CreateOfferRequest {
         description: Some(description),
+        min_amount: None,
+        expiry_secs: None,
         max_quantity: None,
-        issuer: Some(hba),
-    }
+        issuer: Some(issuer),
+    })
 }
 
 #[instrument(skip_all, name = "(create-offer)")]
@@ -991,11 +994,15 @@ where
     //   `LexeMessageRouter::create_blinded_paths`.
     // + automatically derived offer metadata and signing keys.
     // + the given `max_quantity` (if unset, defaults to 1).
+    let issuer = req
+        .issuer
+        .map(BoundedString::into_inner)
+        .unwrap_or_else(|| "lexe.app".to_owned());
     let mut builder = channel_manager
         .create_offer_builder()
-        .map_err(|err| anyhow!("Failed to create offer builder: {err:?}"))?
+        .map_err(|e| anyhow!("Failed to create offer builder: {e:?}"))?
         .supported_quantity(req.max_quantity.unwrap_or(MaxQuantity::ONE).into())
-        .issuer(req.issuer.unwrap_or("lexe.app".to_owned()));
+        .issuer(issuer);
 
     // Set absolute expiry deadline if requested.
     if let Some(expiry_secs) = req.expiry_secs {
@@ -1022,13 +1029,14 @@ where
         builder = builder.amount_msats(min_amount.msat());
     }
     if let Some(description) = req.description {
-        builder = builder.description(description);
+        builder = builder.description(description.into_inner());
     }
 
-    let offer: Offer = builder
+    let offer = builder
         .build()
         .map(Offer)
-        .map_err(|err| anyhow!("Failed to build offer: {err:?}"))?;
+        .map_err(|e| anyhow!("Failed to build offer: {e:?}"))?;
+
     Ok(CreateOfferResponse { offer })
 }
 

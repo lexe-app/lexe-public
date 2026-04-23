@@ -551,11 +551,19 @@ impl TryFrom<CreateOfferRequest> for CreateOfferRequestRs {
                 .min_amount_sats
                 .map(Amount::try_from_sats_u64)
                 .transpose()?,
-            description: value.description,
+            description: value
+                .description
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid description")?,
             // TODO(phlip9): user settable max_quantity probably doesn't provide
             // much value in a p2p payments app.
             max_quantity: Some(MaxQuantity::ONE),
-            issuer: value.issuer,
+            issuer: value
+                .issuer
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid issuer")?,
         })
     }
 }

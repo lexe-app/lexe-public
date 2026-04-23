@@ -1282,7 +1282,8 @@ mod helpers {
                 // username into the offer
                 let username = generated_username.username;
                 let offer_req =
-                    lexe_ln::command::hba_offer_request(username.inner());
+                    lexe_ln::command::hba_offer_request(username.inner())
+                        .context("Failed to build HBA offer request (fresh)")?;
                 let offer_resp =
                     lexe_ln::command::create_offer(offer_req, &channel_manager)
                         .await
@@ -1322,8 +1323,10 @@ mod helpers {
                 if let Some(username) = hba.username {
                     info!("Migrating HBA offer to v2 format");
 
-                    let offer_req =
-                        lexe_ln::command::hba_offer_request(username.inner());
+                    let offer_req = lexe_ln::command::hba_offer_request(
+                        username.inner(),
+                    )
+                    .context("Failed to build HBA offer request (regen)")?;
                     let offer = lexe_ln::command::create_offer(
                         offer_req,
                         &channel_manager,
