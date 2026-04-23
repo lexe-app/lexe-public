@@ -11,6 +11,7 @@ use std::{fmt, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::anyhow;
 use lexe::{
+    bip39::Mnemonic,
     blocking_wallet::BlockingLexeWallet as SdkBlockingLexeWallet,
     config::WalletEnvConfig as SdkWalletEnvConfig,
     types::{
@@ -446,8 +447,7 @@ impl RootSeed {
     /// Construct a root seed from a BIP39 mnemonic string.
     #[uniffi::constructor]
     pub fn from_mnemonic(mnemonic: String) -> FfiResult<Arc<Self>> {
-        let mnemonic = mnemonic
-            .parse()
+        let mnemonic = Mnemonic::from_str(&mnemonic)
             .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
         let sdk = SdkRootSeed::from_mnemonic(mnemonic)?;
         Ok(Arc::new(Self { sdk }))
@@ -798,7 +798,7 @@ impl AsyncLexeWallet {
         let partner = partner_pk
             .as_deref()
             .map(|s| {
-                s.parse::<UserPk>()
+                UserPk::from_str(s)
                     .map_err(|e| anyhow!("Invalid partner user_pk: {e}"))
             })
             .transpose()?;
@@ -876,8 +876,7 @@ impl AsyncLexeWallet {
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
-        let invoice: InvoiceRs = invoice
-            .parse()
+        let invoice = InvoiceRs::from_str(&invoice)
             .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
         let fallback_amount = fallback_amount_sats
             .map(AmountRs::try_from_sats_u64)
