@@ -49,8 +49,8 @@ const WAIT_FOR_PAYMENT_MAX_TIMEOUT: Duration =
     Duration::from_secs(24 * 60 * 60);
 
 /// Error message returned when a DB-required method is called on a wallet
-/// created without local persistence.
-const NO_DB_ERR: &str = "This wallet was created without local persistence";
+/// with local persistence disabled.
+const NO_DB_ERR: &str = "Local persistence is disabled for this wallet";
 
 /// Top-level handle to a Lexe wallet.
 pub struct LexeWallet {
@@ -320,6 +320,11 @@ impl LexeWallet {
     }
 
     // --- DB accessors (unstable) --- //
+
+    /// Returns `true` if local persistence is enabled for this wallet.
+    pub fn persistence_enabled(&self) -> bool {
+        self.db.is_some()
+    }
 
     /// Get a reference to the [`WalletDb`].
     ///
