@@ -915,6 +915,12 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     PreflightedPayment_Offer(:final offer) => offer.description?.nonEmpty(),
   };
 
+  String? payerNote() => switch (this.widget.sendCtx.preflightedPayment) {
+    PreflightedPayment_Onchain() => null,
+    PreflightedPayment_Invoice(:final payerNote) ||
+    PreflightedPayment_Offer(:final payerNote) => payerNote,
+  };
+
   @override
   Widget build(BuildContext context) {
     final preflighted = this.widget.sendCtx.preflightedPayment;
@@ -956,6 +962,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     };
 
     final description = this.description();
+    final payerNote = this.payerNote();
 
     return Scaffold(
       appBar: AppBar(
@@ -1152,31 +1159,22 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             ],
           ),
 
-          const SizedBox(height: Space.s500),
+          const SizedBox(height: Space.s300),
 
           //
           // Description
           //
           if (description != null)
-            Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              spacing: Space.s400,
-              children: [
-                const Text("Description", style: textStyleSecondary),
-                Flexible(
-                  child: Text(
-                    description,
-                    style: textStyleSecondary.copyWith(fontSize: Fonts.size200),
-                    textAlign: TextAlign.end,
-                  ),
-                ),
-              ],
-            ),
+            MetadataRow(title: "Description", value: description),
 
-          if (this.description() != null) const SizedBox(height: Space.s500),
+          //
+          // Payer note ("Message")
+          //
+          if (payerNote != null)
+            MetadataRow(title: "Message", value: payerNote),
+
+          if (description != null || payerNote != null)
+            const SizedBox(height: Space.s450),
 
           //
           // Optional payment note input
