@@ -695,6 +695,57 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
+_set_method_doc(LexeWallet, "create_offer", """\
+Create a BOLT 12 offer to receive Lightning payments.
+
+Unlike invoices, offers are reusable: multiple payments can be made to
+it, including from multiple payers.
+
+Args:
+    description: Optional description shown to the sender when they scan
+        the offer. If provided, it must be non-empty and no longer than
+        200 chars / 512 UTF-8 bytes.
+    min_amount_sats: Optional minimum payment amount in satoshis.
+    expiration_secs: Optional expiration time in seconds from now.
+
+Returns:
+    A :class:`CreateOfferResponse` with the BOLT 12 offer string.
+
+Raises:
+    FfiError: If the node is offline or the request fails.
+
+Example::
+
+    resp = wallet.create_offer(description="Donations")
+    print(resp.offer)  # BOLT 12 offer string
+""")
+
+_set_method_doc(LexeWallet, "pay_offer", """\
+Pay a BOLT 12 offer over Lightning.
+
+Args:
+    offer: BOLT 12 offer string to pay.
+    amount_sats: Amount to pay in satoshis.
+    note: Optional private note (not visible to the receiver).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+    payer_note: Optional note visible to the receiver.
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    A :class:`PayOfferResponse` with the payment index and timestamp.
+
+Raises:
+    FfiError: If the offer is invalid or payment initiation fails.
+
+Example::
+
+    resp = wallet.pay_offer(bolt12_offer, 1000)
+    payment = wallet.wait_for_payment(resp.index)
+    print(f"Payment {payment.status}")
+""")
+
 _set_method_doc(LexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
@@ -1015,6 +1066,57 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
+_set_method_doc(AsyncLexeWallet, "create_offer", """\
+Create a BOLT 12 offer to receive Lightning payments.
+
+Unlike invoices, offers are reusable: multiple payments can be made to
+it, including from multiple payers.
+
+Args:
+    description: Optional description shown to the sender when they scan
+        the offer. If provided, it must be non-empty and no longer than
+        200 chars / 512 UTF-8 bytes.
+    min_amount_sats: Optional minimum payment amount in satoshis.
+    expiration_secs: Optional expiration time in seconds from now.
+
+Returns:
+    A :class:`CreateOfferResponse` with the BOLT 12 offer string.
+
+Raises:
+    FfiError: If the node is offline or the request fails.
+
+Example::
+
+    resp = await wallet.create_offer(description="Donations")
+    print(resp.offer)  # BOLT 12 offer string
+""")
+
+_set_method_doc(AsyncLexeWallet, "pay_offer", """\
+Pay a BOLT 12 offer over Lightning.
+
+Args:
+    offer: BOLT 12 offer string to pay.
+    amount_sats: Amount to pay in satoshis.
+    note: Optional private note (not visible to the receiver).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+    payer_note: Optional note visible to the receiver.
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    A :class:`PayOfferResponse` with the payment index and timestamp.
+
+Raises:
+    FfiError: If the offer is invalid or payment initiation fails.
+
+Example::
+
+    resp = await wallet.pay_offer(bolt12_offer, 1000)
+    payment = await wallet.wait_for_payment(resp.index)
+    print(f"Payment {payment.status}")
+""")
+
 _set_method_doc(AsyncLexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
@@ -1161,7 +1263,7 @@ Technical rail used to fulfill a payment.
 
 - **ONCHAIN** -- On-chain Bitcoin transaction.
 - **INVOICE** -- Lightning BOLT11 invoice.
-- **OFFER** -- Lightning BOLT12 offer.
+- **OFFER** -- Lightning BOLT 12 offer.
 - **SPONTANEOUS** -- Spontaneous (keysend) Lightning payment.
 - **WAIVED_FEE** -- Internal waived fee.
 - **UNKNOWN** -- Unknown rail from a newer node version.
@@ -1197,7 +1299,7 @@ Application-level kind for a payment.
 
 - **ONCHAIN** -- On-chain Bitcoin payment.
 - **INVOICE** -- Lightning BOLT11 invoice payment.
-- **OFFER** -- Lightning BOLT12 offer payment.
+- **OFFER** -- Lightning BOLT 12 offer payment.
 - **SPONTANEOUS** -- Spontaneous (keysend) Lightning payment.
 - **WAIVED_CHANNEL_FEE** -- Waived channel fee.
 - **WAIVED_LIQUIDITY_FEE** -- Waived liquidity fee.
@@ -1315,6 +1417,25 @@ Attributes:
 
 lexe.PayInvoiceResponse.__doc__ = """\
 Response from paying a Lightning invoice.
+
+Attributes:
+    index: Unique payment identifier for this payment.
+    created_at_ms: When payment was initiated (ms since UNIX epoch).
+"""
+
+# ============== #
+# --- Offers --- #
+# ============== #
+
+lexe.CreateOfferResponse.__doc__ = """\
+Response from creating a BOLT 12 offer.
+
+Attributes:
+    offer: BOLT 12 offer string.
+"""
+
+lexe.PayOfferResponse.__doc__ = """\
+Response from paying a BOLT 12 offer.
 
 Attributes:
     index: Unique payment identifier for this payment.

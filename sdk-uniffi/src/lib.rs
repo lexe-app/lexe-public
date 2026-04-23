@@ -23,10 +23,13 @@ use lexe::{
         command::{
             CreateInvoiceRequest as SdkCreateInvoiceRequest,
             CreateInvoiceResponse as SdkCreateInvoiceResponse,
+            CreateOfferRequest as SdkCreateOfferRequest,
+            CreateOfferResponse as SdkCreateOfferResponse,
             GetPaymentRequest as SdkGetPaymentRequest, NodeInfo as SdkNodeInfo,
             PayInvoiceRequest as SdkPayInvoiceRequest,
             PayInvoiceResponse as SdkPayInvoiceResponse,
-            UpdatePaymentNoteRequest,
+            PayOfferRequest as SdkPayOfferRequest,
+            PayOfferResponse as SdkPayOfferResponse, UpdatePaymentNoteRequest,
         },
         payment::Payment as SdkPayment,
     },
@@ -36,6 +39,7 @@ use lexe_api_core::{
     error::GatewayApiError as GatewayApiErrorRs,
     types::{
         invoice::Invoice as InvoiceRs,
+        offer::Offer as OfferRs,
         payments::{
             ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
@@ -892,6 +896,72 @@ impl AsyncLexeWallet {
         Ok(resp.into())
     }
 
+    /// Create a BOLT 12 offer to receive Lightning payments.
+    ///
+    /// Unlike invoices, offers are reusable: multiple payments can be made to
+    /// it, including from multiple payers.
+    ///
+    /// `description` is shown to the sender when they scan the offer. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512
+    /// UTF-8 bytes.
+    /// `min_amount_sats` is an optional minimum payment size.
+    /// `expiration_secs` is an optional expiration time in seconds from now.
+    #[uniffi::method(default(
+        description = None,
+        min_amount_sats = None,
+        expiration_secs = None,
+    ))]
+    pub async fn create_offer(
+        &self,
+        description: Option<String>,
+        min_amount_sats: Option<u64>,
+        expiration_secs: Option<u32>,
+    ) -> FfiResult<CreateOfferResponse> {
+        let min_amount = min_amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .map_err(|e| anyhow!("Invalid min_amount: {e}"))?;
+
+        let req = SdkCreateOfferRequest {
+            description,
+            min_amount,
+            expiration_secs,
+        };
+        let resp = self.inner.create_offer(req).await?;
+        Ok(resp.into())
+    }
+
+    /// Pay a BOLT 12 offer over Lightning.
+    ///
+    /// `offer` is the BOLT 12 offer string to pay.
+    /// `amount_sats` is the amount to pay in satoshis.
+    /// `note` is a private note that the receiver does not see. If provided,
+    /// it must be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
+    /// `payer_note` is a note visible to the receiver. If provided, it must
+    /// be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
+    #[uniffi::method(default(note = None, payer_note = None))]
+    pub async fn pay_offer(
+        &self,
+        offer: String,
+        amount_sats: u64,
+        note: Option<String>,
+        payer_note: Option<String>,
+    ) -> FfiResult<PayOfferResponse> {
+        let offer = OfferRs::from_str(&offer)
+            .map_err(|e| anyhow!("Invalid offer: {e}"))?;
+        let amount = AmountRs::try_from_sats_u64(amount_sats)
+            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+
+        let req = SdkPayOfferRequest {
+            offer,
+            amount,
+            note,
+            payer_note,
+        };
+        let resp = self.inner.pay_offer(req).await?;
+        Ok(resp.into())
+    }
+
     /// Get a payment by its `index` string.
     pub async fn get_payment(
         &self,
@@ -1135,7 +1205,7 @@ impl BlockingLexeWallet {
         let partner = partner_pk
             .as_deref()
             .map(|s| {
-                s.parse::<UserPk>()
+                UserPk::from_str(s)
                     .map_err(|e| anyhow!("Invalid partner user_pk: {e}"))
             })
             .transpose()?;
@@ -1209,8 +1279,7 @@ impl BlockingLexeWallet {
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
-        let invoice: InvoiceRs = invoice
-            .parse()
+        let invoice = InvoiceRs::from_str(&invoice)
             .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
         let fallback_amount = fallback_amount_sats
             .map(AmountRs::try_from_sats_u64)
@@ -1223,6 +1292,72 @@ impl BlockingLexeWallet {
             note,
         };
         let resp = self.inner.pay_invoice(req)?;
+        Ok(resp.into())
+    }
+
+    /// Create a BOLT 12 offer to receive Lightning payments.
+    ///
+    /// Unlike invoices, offers are reusable: multiple payments can be made to
+    /// it, including from multiple payers.
+    ///
+    /// `description` is shown to the sender when they scan the offer. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512
+    /// UTF-8 bytes.
+    /// `min_amount_sats` is an optional minimum payment size.
+    /// `expiration_secs` is an optional expiration time in seconds from now.
+    #[uniffi::method(default(
+        description = None,
+        min_amount_sats = None,
+        expiration_secs = None,
+    ))]
+    pub fn create_offer(
+        &self,
+        description: Option<String>,
+        min_amount_sats: Option<u64>,
+        expiration_secs: Option<u32>,
+    ) -> FfiResult<CreateOfferResponse> {
+        let min_amount = min_amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .map_err(|e| anyhow!("Invalid min_amount: {e}"))?;
+
+        let req = SdkCreateOfferRequest {
+            description,
+            min_amount,
+            expiration_secs,
+        };
+        let resp = self.inner.create_offer(req)?;
+        Ok(resp.into())
+    }
+
+    /// Pay a BOLT 12 offer over Lightning.
+    ///
+    /// `offer` is the BOLT 12 offer string to pay.
+    /// `amount_sats` is the amount to pay in satoshis.
+    /// `note` is a private note that the receiver does not see. If provided,
+    /// it must be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
+    /// `payer_note` is a note visible to the receiver. If provided, it must
+    /// be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
+    #[uniffi::method(default(note = None, payer_note = None))]
+    pub fn pay_offer(
+        &self,
+        offer: String,
+        amount_sats: u64,
+        note: Option<String>,
+        payer_note: Option<String>,
+    ) -> FfiResult<PayOfferResponse> {
+        let offer = OfferRs::from_str(&offer)
+            .map_err(|e| anyhow!("Invalid offer: {e}"))?;
+        let amount = AmountRs::try_from_sats_u64(amount_sats)
+            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+
+        let req = SdkPayOfferRequest {
+            offer,
+            amount,
+            note,
+            payer_note,
+        };
+        let resp = self.inner.pay_offer(req)?;
         Ok(resp.into())
     }
 
@@ -1755,6 +1890,43 @@ pub struct PayInvoiceResponse {
 
 impl From<SdkPayInvoiceResponse> for PayInvoiceResponse {
     fn from(resp: SdkPayInvoiceResponse) -> Self {
+        Self {
+            index: resp.index.to_string(),
+            created_at_ms: resp.created_at.to_millis(),
+        }
+    }
+}
+
+// ============== //
+// --- Offers --- //
+// ============== //
+
+/// Response from creating a BOLT 12 offer.
+#[derive(Clone, uniffi::Record)]
+pub struct CreateOfferResponse {
+    /// String-encoded BOLT 12 offer.
+    pub offer: String,
+}
+
+impl From<SdkCreateOfferResponse> for CreateOfferResponse {
+    fn from(resp: SdkCreateOfferResponse) -> Self {
+        Self {
+            offer: resp.offer.to_string(),
+        }
+    }
+}
+
+/// Response from paying a BOLT 12 offer.
+#[derive(Clone, uniffi::Record)]
+pub struct PayOfferResponse {
+    /// Unique payment identifier for this offer payment.
+    pub index: String,
+    /// When we tried to pay this offer (milliseconds since the UNIX epoch).
+    pub created_at_ms: u64,
+}
+
+impl From<SdkPayOfferResponse> for PayOfferResponse {
+    fn from(resp: SdkPayOfferResponse) -> Self {
         Self {
             index: resp.index.to_string(),
             created_at_ms: resp.created_at.to_millis(),
