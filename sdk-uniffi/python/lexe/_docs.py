@@ -659,9 +659,6 @@ Args:
         or ``None`` for a default of ``86400`` (1 day).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
-    payer_note: Optional note received from the payer out-of-band via
-        LNURL-pay that is stored with this payment. If provided, it must be
-        non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`CreateInvoiceResponse` with the invoice string and metadata.
@@ -684,9 +681,6 @@ Args:
     fallback_amount_sats: Required if the invoice has no amount encoded.
     note: Optional private note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
-    payer_note: Optional note that was sent to the receiver via LNURL-pay
-        and is visible to them. If provided, it must be non-empty and <= 200
-        chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`PayInvoiceResponse` with the payment index and timestamp.
@@ -985,9 +979,6 @@ Args:
         or ``None`` for a default of ``86400`` (1 day).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
-    payer_note: Optional note received from the payer out-of-band via
-        LNURL-pay that is stored with this payment. If provided, it must be
-        non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`CreateInvoiceResponse` with the invoice string and metadata.
@@ -1010,9 +1001,6 @@ Args:
     fallback_amount_sats: Required if the invoice has no amount encoded.
     note: Optional private note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
-    payer_note: Optional note that was sent to the receiver via LNURL-pay
-        and is visible to them. If provided, it must be non-empty and <= 200
-        chars / 512 UTF-8 bytes.
 
 Returns:
     A :class:`PayInvoiceResponse` with the payment index and timestamp.

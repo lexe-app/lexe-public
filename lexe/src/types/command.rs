@@ -113,12 +113,6 @@ pub struct CreateInvoiceRequest {
     // string (""), as lightning _requires_ a description (or description
     // hash) to be set.
     pub description: Option<String>,
-
-    /// An optional note received from the payer out-of-band via LNURL-pay
-    /// that is stored with this inbound payment. If provided, it must be
-    /// non-empty and no longer than 200 chars / 512 UTF-8 bytes.
-    #[serde(default)]
-    pub payer_note: Option<String>,
 }
 
 /// The response to a BOLT 11 invoice request.
@@ -179,14 +173,7 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
             description: req.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
-            payer_note: req
-                .payer_note
-                .map(BoundedNote::new)
-                .transpose()
-                .context(
-                    "Invalid payer_note (must be non-empty and <=200 chars / \
-                     <=512 UTF-8 bytes)",
-                )?,
+            payer_note: None,
         })
     }
 }
@@ -204,11 +191,6 @@ pub struct PayInvoiceRequest {
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
     pub note: Option<String>,
-    /// An optional note that was sent to the receiver out-of-band via
-    /// LNURL-pay that is stored with this outbound payment. Unlike `note`,
-    /// this is visible to the recipient. If provided, it must be non-empty and
-    /// no longer than 200 chars / 512 UTF-8 bytes.
-    pub payer_note: Option<String>,
 }
 
 impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
@@ -222,14 +204,7 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
                 "Invalid note (must be non-empty and <=200 chars / \
                      <=512 UTF-8 bytes)",
             )?,
-            payer_note: req
-                .payer_note
-                .map(BoundedNote::new)
-                .transpose()
-                .context(
-                    "Invalid payer_note (must be non-empty and <=200 chars / \
-                     <=512 UTF-8 bytes)",
-                )?,
+            payer_note: None,
         })
     }
 }

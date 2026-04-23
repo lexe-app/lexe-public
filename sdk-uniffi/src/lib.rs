@@ -836,21 +836,16 @@ impl AsyncLexeWallet {
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
-    /// `payer_note` is an optional note received from the payer out-of-band
-    /// via LNURL-pay and is stored with this inbound payment. If provided, it
-    /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
     #[uniffi::method(default(
         amount_sats = None,
         description = None,
         expiration_secs = None,
-        payer_note = None,
     ))]
     pub async fn create_invoice(
         &self,
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
-        payer_note: Option<String>,
     ) -> FfiResult<CreateInvoiceResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
@@ -861,7 +856,6 @@ impl AsyncLexeWallet {
             expiration_secs,
             amount,
             description,
-            payer_note,
         };
         let resp = self.inner.create_invoice(req).await?;
         Ok(resp.into())
@@ -872,21 +866,15 @@ impl AsyncLexeWallet {
     /// `note` is a private note that the receiver does not see.
     /// If provided, `note` must be non-empty and at most 200 chars / 512
     /// UTF-8 bytes.
-    /// `payer_note` is an optional note that was sent to the receiver
-    /// out-of-band via LNURL-pay and is visible to them. If provided,
-    /// `payer_note` must be non-empty and at most 200 chars / 512 UTF-8
-    /// bytes.
     #[uniffi::method(default(
         fallback_amount_sats = None,
         note = None,
-        payer_note = None,
     ))]
     pub async fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
-        payer_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice: InvoiceRs = invoice
             .parse()
@@ -900,7 +888,6 @@ impl AsyncLexeWallet {
             invoice,
             fallback_amount,
             note,
-            payer_note,
         };
         let resp = self.inner.pay_invoice(req).await?;
         Ok(resp.into())
@@ -1184,20 +1171,15 @@ impl BlockingLexeWallet {
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
-    /// `payer_note` is an optional note received from the payer out-of-band
-    /// via LNURL-pay and is stored with this inbound payment. If provided, it
-    /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
     #[uniffi::method(default(
         amount_sats = None,
         description = None,
-        payer_note = None,
     ))]
     pub fn create_invoice(
         &self,
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
-        payer_note: Option<String>,
     ) -> FfiResult<CreateInvoiceResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
@@ -1208,7 +1190,6 @@ impl BlockingLexeWallet {
             expiration_secs,
             amount,
             description,
-            payer_note,
         };
         let resp = self.inner.create_invoice(req)?;
         Ok(resp.into())
@@ -1219,21 +1200,15 @@ impl BlockingLexeWallet {
     /// `note` is a private note that the receiver does not see.
     /// If provided, `note` must be non-empty and at most 200 chars / 512
     /// UTF-8 bytes.
-    /// `payer_note` is an optional note that was sent to the receiver
-    /// out-of-band via LNURL-pay and is visible to them. If provided,
-    /// `payer_note` must be non-empty and at most 200 chars / 512 UTF-8
-    /// bytes.
     #[uniffi::method(default(
         fallback_amount_sats = None,
         note = None,
-        payer_note = None,
     ))]
     pub fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
-        payer_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice: InvoiceRs = invoice
             .parse()
@@ -1247,7 +1222,6 @@ impl BlockingLexeWallet {
             invoice,
             fallback_amount,
             note,
-            payer_note,
         };
         let resp = self.inner.pay_invoice(req)?;
         Ok(resp.into())
