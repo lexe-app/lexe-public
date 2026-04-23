@@ -5,49 +5,57 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-/// Max characters allowed in a note.
-pub const MAX_NOTE_CHARS: usize = 200;
-/// Max bytes allowed in a note.
-pub const MAX_NOTE_BYTES: usize = 512;
+use crate::types::username::USERNAME_MAX_LENGTH;
 
-/// A length-bounded note string (max 200 chars / 512 bytes).
+/// A length-bounded string (max 200 chars / 512 bytes).
 ///
 /// Used for `note` (personal) and `payer_note` (payer-provided) fields on
 /// payments. Construction validates that the string is within limits;
 /// deserialization rejects strings that exceed either limit.
 ///
 /// For untrusted external input that should be silently truncated rather than
-/// rejected, use [`BoundedNote::truncate`].
+/// rejected, use [`BoundedString::truncate`].
 #[derive(Clone, Eq, PartialEq, Hash, Serialize)]
-pub struct BoundedNote(String);
+pub struct BoundedString(String);
 
-impl BoundedNote {
-    /// Validate that a string is within note length limits.
-    fn validate(s: &str) -> Result<(), NoteTooLong> {
+// Assert that a Lexe issuer (e.g. "username@lexe.app") fits within limits.
+lexe_std::const_assert!(
+    BoundedString::MAX_CHARS >= USERNAME_MAX_LENGTH + "@lexe.app".len()
+);
+
+impl BoundedString {
+    /// Max characters allowed.
+    pub const MAX_CHARS: usize = 200;
+    /// Max bytes allowed.
+    pub const MAX_BYTES: usize = 512;
+
+    /// Validate that a string is within length limits.
+    fn validate(s: &str) -> Result<(), StringTooLong> {
         if s.is_empty() {
-            return Err(NoteTooLong::Empty);
+            return Err(StringTooLong::Empty);
         }
 
         let byte_count = s.len();
-        if byte_count > MAX_NOTE_BYTES {
-            return Err(NoteTooLong::TooManyBytes { bytes: byte_count });
+        if byte_count > Self::MAX_BYTES {
+            return Err(StringTooLong::TooManyBytes { bytes: byte_count });
         }
 
         let char_count = s.chars().count();
-        if char_count > MAX_NOTE_CHARS {
-            return Err(NoteTooLong::TooManyChars { chars: char_count });
+        if char_count > Self::MAX_CHARS {
+            return Err(StringTooLong::TooManyChars { chars: char_count });
         }
 
         Ok(())
     }
 
-    /// Constructs a note, returning [`NoteTooLong`] if it's empty or invalid.
-    pub fn new(s: String) -> Result<Self, NoteTooLong> {
+    /// Constructs a bounded string, returning [`StringTooLong`] if it's empty
+    /// or exceeds limits.
+    pub fn new(s: String) -> Result<Self, StringTooLong> {
         Self::validate(&s)?;
         Ok(Self(s))
     }
 
-    /// Silently truncate a string to fit within note limits.
+    /// Silently truncate a string to fit within limits.
     ///
     /// Truncates by character count first, then by byte count. Returns `None`
     /// if the result is empty after truncation.
@@ -55,23 +63,23 @@ impl BoundedNote {
     /// Use this for untrusted external input (e.g. inbound LNURL comments,
     /// BOLT12 payer notes) where rejecting would cause payment failures.
     pub fn truncate(mut s: String) -> Option<Self> {
-        lexe_std::string::truncate_bytes(&mut s, MAX_NOTE_BYTES);
-        lexe_std::string::truncate_chars(&mut s, MAX_NOTE_CHARS);
+        lexe_std::string::truncate_bytes(&mut s, Self::MAX_BYTES);
+        lexe_std::string::truncate_chars(&mut s, Self::MAX_CHARS);
         if s.is_empty() { None } else { Some(Self(s)) }
     }
 
-    /// Returns the note as a string slice.
+    /// Returns the string as a string slice.
     pub fn inner(&self) -> &str {
         &self.0
     }
 
-    /// Consumes the note and returns the inner string.
+    /// Consumes and returns the inner string.
     pub fn into_inner(self) -> String {
         self.0
     }
 }
 
-impl<'de> Deserialize<'de> for BoundedNote {
+impl<'de> Deserialize<'de> for BoundedString {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -81,61 +89,63 @@ impl<'de> Deserialize<'de> for BoundedNote {
     }
 }
 
-impl FromStr for BoundedNote {
-    type Err = NoteTooLong;
+impl FromStr for BoundedString {
+    type Err = StringTooLong;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::validate(s)?;
         Ok(Self(s.to_owned()))
     }
 }
 
-impl Display for BoundedNote {
+impl Display for BoundedString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.0, f)
     }
 }
 
-impl fmt::Debug for BoundedNote {
+impl fmt::Debug for BoundedString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
     }
 }
 
-impl TryFrom<String> for BoundedNote {
-    type Error = NoteTooLong;
+impl TryFrom<String> for BoundedString {
+    type Error = StringTooLong;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         Self::validate(&s)?;
         Ok(Self(s))
     }
 }
 
-/// Error returned when a note exceeds length limits.
+/// Error returned when a string exceeds length limits.
 #[derive(Debug, Eq, PartialEq)]
-pub enum NoteTooLong {
-    /// Note is empty.
+pub enum StringTooLong {
+    /// String is empty.
     Empty,
-    /// Note exceeds the character limit.
+    /// String exceeds the character limit.
     TooManyChars { chars: usize },
-    /// Note exceeds the byte limit.
+    /// String exceeds the byte limit.
     TooManyBytes { bytes: usize },
 }
 
-impl std::error::Error for NoteTooLong {}
+impl std::error::Error for StringTooLong {}
 
-impl fmt::Display for NoteTooLong {
+impl fmt::Display for StringTooLong {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let max_bytes = BoundedString::MAX_BYTES;
+        let max_chars = BoundedString::MAX_CHARS;
         match self {
             Self::Empty =>
-                f.write_str("Note is optional but cannot be an empty string."),
+                f.write_str("String is optional but cannot be empty."),
             Self::TooManyChars { chars } => write!(
                 f,
-                "Note is too long ({chars} chars). The max length is \
-                 {MAX_NOTE_CHARS} chars."
+                "String is too long ({chars} chars). The max length is \
+                 {max_chars} chars.",
             ),
             Self::TooManyBytes { bytes } => write!(
                 f,
-                "Note is too long ({bytes} bytes). The max length is \
-                 {MAX_NOTE_BYTES} bytes."
+                "String is too long ({bytes} bytes). The max length is \
+                 {max_bytes} bytes.",
             ),
         }
     }
@@ -155,7 +165,7 @@ mod arbitrary_impl {
 
     use super::*;
 
-    impl Arbitrary for BoundedNote {
+    impl Arbitrary for BoundedString {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
@@ -169,19 +179,19 @@ mod arbitrary_impl {
                 // ASCII (1 byte/char): exercises the char limit only.
                 vec(proptest::char::ranges(ASCII.into()), 1..=200).prop_map(
                     |chars| {
-                        BoundedNote::new(String::from_iter(chars)).unwrap()
+                        BoundedString::new(String::from_iter(chars)).unwrap()
                     }
                 ),
                 // CJK (3 bytes/char): exercises the byte limit path.
                 // 170 CJK chars = 510 bytes (under 512).
                 vec(proptest::char::ranges(CJK.into()), 1..=170).prop_map(
                     |chars| {
-                        BoundedNote::new(String::from_iter(chars)).unwrap()
+                        BoundedString::new(String::from_iter(chars)).unwrap()
                     }
                 ),
                 // "weird" strings (any valid UTF-8)
                 arbitrary::any_string()
-                    .prop_filter_map("empty", BoundedNote::truncate),
+                    .prop_filter_map("empty", BoundedString::truncate),
             ]
             .boxed()
         }
@@ -200,30 +210,30 @@ mod test {
     #[test]
     fn test_new_valid() {
         // Empty-ish and short
-        assert!(BoundedNote::new("a".into()).is_ok());
-        assert!(BoundedNote::new("hello world".into()).is_ok());
+        assert!(BoundedString::new("a".into()).is_ok());
+        assert!(BoundedString::new("hello world".into()).is_ok());
 
         // Exactly at char limit (200 ASCII chars = 200 bytes)
-        let at_limit = "a".repeat(MAX_NOTE_CHARS);
-        assert!(BoundedNote::new(at_limit).is_ok());
+        let at_limit = "a".repeat(BoundedString::MAX_CHARS);
+        assert!(BoundedString::new(at_limit).is_ok());
 
         // Over char limit: 512 ASCII chars = 512 bytes, but 512 > 200 chars
-        let at_byte_limit = "a".repeat(MAX_NOTE_BYTES);
-        assert!(BoundedNote::new(at_byte_limit).is_err());
+        let at_byte_limit = "a".repeat(BoundedString::MAX_BYTES);
+        assert!(BoundedString::new(at_byte_limit).is_err());
     }
 
     #[test]
     fn test_new_rejects_oversized() {
         assert_eq!(
-            BoundedNote::new(String::new()).unwrap_err(),
-            NoteTooLong::Empty,
+            BoundedString::new(String::new()).unwrap_err(),
+            StringTooLong::Empty,
         );
 
         // Over char limit
-        let too_many_chars = "a".repeat(MAX_NOTE_CHARS + 1);
+        let too_many_chars = "a".repeat(BoundedString::MAX_CHARS + 1);
         assert_eq!(
-            BoundedNote::new(too_many_chars).unwrap_err(),
-            NoteTooLong::TooManyChars { chars: 201 },
+            BoundedString::new(too_many_chars).unwrap_err(),
+            StringTooLong::TooManyChars { chars: 201 },
         );
 
         // Under char limit but over byte limit (CJK: 3 bytes each)
@@ -232,71 +242,71 @@ mod test {
         assert_eq!(over_bytes.chars().count(), 171);
         assert_eq!(over_bytes.len(), 513);
         assert_eq!(
-            BoundedNote::new(over_bytes).unwrap_err(),
-            NoteTooLong::TooManyBytes { bytes: 513 },
+            BoundedString::new(over_bytes).unwrap_err(),
+            StringTooLong::TooManyBytes { bytes: 513 },
         );
     }
 
     #[test]
     fn test_truncate() {
         // Normal case
-        let note = BoundedNote::truncate("hello".into());
-        assert_eq!(note.as_ref().map(BoundedNote::inner), Some("hello"));
+        let s = BoundedString::truncate("hello".into());
+        assert_eq!(s.as_ref().map(BoundedString::inner), Some("hello"));
 
         // Empty → None
-        assert!(BoundedNote::truncate(String::new()).is_none());
+        assert!(BoundedString::truncate(String::new()).is_none());
 
         // Over char limit: 250 ASCII chars → truncated to 200
         let long = "a".repeat(250);
-        let note = BoundedNote::truncate(long).unwrap();
-        assert_eq!(note.inner().len(), 200);
+        let s = BoundedString::truncate(long).unwrap();
+        assert_eq!(s.inner().len(), 200);
 
         // Over byte limit: 200 CJK chars = 600 bytes → truncated
         let cjk = "日".repeat(200);
-        let note = BoundedNote::truncate(cjk).unwrap();
-        assert!(note.inner().len() <= MAX_NOTE_BYTES);
-        assert!(note.inner().chars().count() <= MAX_NOTE_CHARS);
+        let s = BoundedString::truncate(cjk).unwrap();
+        assert!(s.inner().len() <= BoundedString::MAX_BYTES);
+        assert!(s.inner().chars().count() <= BoundedString::MAX_CHARS);
     }
 
     #[test]
     fn test_serde_roundtrip() {
-        // JSON string roundtrip: valid notes survive ser/de
-        let note = BoundedNote::new("test note".into()).unwrap();
-        let json = serde_json::to_string(&note).unwrap();
-        assert_eq!(json, "\"test note\"");
-        let back: BoundedNote = serde_json::from_str(&json).unwrap();
-        assert_eq!(note, back);
+        // JSON string roundtrip: valid strings survive ser/de
+        let s = BoundedString::new("test string".into()).unwrap();
+        let json = serde_json::to_string(&s).unwrap();
+        assert_eq!(json, "\"test string\"");
+        let back: BoundedString = serde_json::from_str(&json).unwrap();
+        assert_eq!(s, back);
 
         // Oversized strings are rejected on deserialization
         let oversized = format!("\"{}\"", "x".repeat(201));
-        serde_json::from_str::<BoundedNote>(&oversized).unwrap_err();
+        serde_json::from_str::<BoundedString>(&oversized).unwrap_err();
     }
 
     #[test]
     fn test_json_string_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<BoundedNote>();
+        roundtrip::json_string_roundtrip_proptest::<BoundedString>();
     }
 
     #[test]
     fn test_fromstr_display_roundtrip() {
-        let cases = ["a", "hello world", "日本語", "a note with spaces"];
+        let cases = ["a", "hello world", "日本語", "a string with spaces"];
         for input in cases {
-            let note = BoundedNote::from_str(input).unwrap();
-            assert_eq!(input, note.to_string());
+            let s = BoundedString::from_str(input).unwrap();
+            assert_eq!(input, s.to_string());
         }
     }
 
     #[test]
     fn test_fromstr_display_roundtrip_proptest() {
-        proptest!(|(b in proptest::arbitrary::any::<BoundedNote>())| {
-            let roundtripped = BoundedNote::from_str(&b.to_string()).unwrap();
+        proptest!(|(b in proptest::arbitrary::any::<BoundedString>())| {
+            let roundtripped = BoundedString::from_str(&b.to_string()).unwrap();
             prop_assert_eq!(roundtripped, b);
         });
     }
 
     #[test]
     fn test_fromstr_json_string_equiv() {
-        let strategy = proptest::arbitrary::any::<BoundedNote>().prop_filter(
+        let strategy = proptest::arbitrary::any::<BoundedString>().prop_filter(
             "json-string-safe display",
             |b| {
                 b.inner()

@@ -24,7 +24,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    bounded_note::BoundedNote,
+    bounded_string::BoundedString,
     invoice::Invoice,
     offer::{MaxQuantity, Offer},
     payments::{
@@ -352,7 +352,7 @@ pub struct UpdatePaymentNote {
     // This API should be changed to pass that instead.
     pub index: PaymentCreatedIndex,
     /// The updated note, or `None` to clear.
-    pub note: Option<BoundedNote>,
+    pub note: Option<BoundedString>,
 }
 
 // --- BOLT11 Invoice Payments --- //
@@ -381,7 +381,7 @@ pub struct CreateInvoiceRequest {
     pub description_hash: Option<[u8; 32]>,
     /// An optional note from the payer, stored with this inbound payment.
     /// For LNURL-pay, set from the LUD-12 `comment`.
-    pub payer_note: Option<BoundedNote>,
+    pub payer_note: Option<BoundedString>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -404,11 +404,11 @@ pub struct PayInvoiceRequest {
     pub fallback_amount: Option<Amount>,
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
-    pub note: Option<BoundedNote>,
+    pub note: Option<BoundedString>,
     /// An optional payer note to persist with this outbound payment. For
     /// LNURL-pay, this is the LUD-12 `comment` sent during invoice
     /// negotiation.
-    pub payer_note: Option<BoundedNote>,
+    pub payer_note: Option<BoundedString>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -547,10 +547,10 @@ pub struct PayOfferRequest {
     pub amount: Amount,
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
-    pub note: Option<BoundedNote>,
+    pub note: Option<BoundedString>,
     /// An optional note included in the BOLT12 invoice request and visible to
     /// the recipient.
-    pub payer_note: Option<BoundedNote>,
+    pub payer_note: Option<BoundedString>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -590,7 +590,7 @@ pub struct PayOnchainRequest {
     // See LexeEsplora for the conversion to the target number of blocks
     pub priority: ConfirmationPriority,
     /// An optional personal note for this payment.
-    pub note: Option<BoundedNote>,
+    pub note: Option<BoundedString>,
 }
 
 #[derive(Serialize, Deserialize)]

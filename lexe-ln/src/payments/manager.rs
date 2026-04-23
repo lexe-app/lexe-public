@@ -11,7 +11,7 @@ use either::Either;
 use lexe_api::{
     models::command::UpdatePaymentNote,
     types::{
-        bounded_note::BoundedNote,
+        bounded_string::BoundedString,
         invoice::Invoice,
         payments::{
             LnClaimId, PaymentCreatedIndex, PaymentHash, PaymentId,
@@ -584,7 +584,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .await
             .context("Could not get payment to update note")?
             .context("Payment not found")?;
-        pwm.metadata.note = update.note.map(BoundedNote::into_inner);
+        pwm.metadata.note = update.note.map(BoundedString::into_inner);
 
         // Persist
         let persisted = self

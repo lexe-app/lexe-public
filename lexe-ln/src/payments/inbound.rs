@@ -2,7 +2,7 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::types::{
-    bounded_note::BoundedNote,
+    bounded_string::BoundedString,
     invoice::Invoice,
     offer::Offer,
     payments::{
@@ -178,7 +178,7 @@ pub struct OfferClaimCtx {
     pub offer_id: OfferId,
     pub offer: Option<Arc<Offer>>,
     pub quantity: Option<NonZeroU64>,
-    pub payer_note: Option<BoundedNote>,
+    pub payer_note: Option<BoundedString>,
     // TODO(phlip9): use newtype
     pub payer_name: Option<String>,
 }
@@ -228,7 +228,7 @@ impl LnClaimCtx {
                     .invoice_request
                     .payer_note_truncated
                     .map(|s| s.0)
-                    .and_then(BoundedNote::truncate);
+                    .and_then(BoundedString::truncate);
                 // TODO(phlip9): use newtype
                 let payer_name = context
                     .invoice_request
@@ -380,11 +380,11 @@ impl InboundInvoicePaymentV2 {
         secret: PaymentSecret,
         preimage: PaymentPreimage,
         kind: PaymentKind,
-        payer_note: Option<BoundedNote>,
+        payer_note: Option<BoundedString>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
-        let payer_note = payer_note.map(BoundedNote::into_inner);
+        let payer_note = payer_note.map(BoundedString::into_inner);
 
         let invoice_amount =
             invoice.0.amount_milli_satoshis().map(Amount::from_msat);
@@ -742,7 +742,7 @@ impl InboundOfferReusablePaymentV2 {
             offer: ctx.offer,
             note: None,
             payer_name: ctx.payer_name,
-            payer_note: ctx.payer_note.map(BoundedNote::into_inner),
+            payer_note: ctx.payer_note.map(BoundedString::into_inner),
             priority: None,
             quantity: ctx.quantity,
             replacement_txid: None,

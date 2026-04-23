@@ -2,7 +2,7 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use anyhow::ensure;
 use lexe_api::types::{
-    bounded_note::BoundedNote,
+    bounded_string::BoundedString,
     invoice::Invoice,
     offer::Offer,
     payments::{
@@ -148,13 +148,13 @@ impl OutboundInvoicePaymentV2 {
         kind: PaymentKind,
         amount: Amount,
         routing_fee: Amount,
-        note: Option<BoundedNote>,
-        payer_note: Option<BoundedNote>,
+        note: Option<BoundedString>,
+        payer_note: Option<BoundedString>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
-        let note = note.map(BoundedNote::into_inner);
-        let payer_note = payer_note.map(BoundedNote::into_inner);
+        let note = note.map(BoundedString::into_inner);
+        let payer_note = payer_note.map(BoundedString::into_inner);
 
         let hash = invoice.payment_hash();
         let secret = invoice.payment_secret();
@@ -443,14 +443,14 @@ impl OutboundOfferPaymentV2 {
         amount: Amount,
         quantity: Option<NonZeroU64>,
         routing_fee: Amount,
-        note: Option<BoundedNote>,
+        note: Option<BoundedString>,
         payer_name: Option<String>,
-        payer_note: Option<BoundedNote>,
+        payer_note: Option<BoundedString>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Offer)?;
 
-        let note = note.map(BoundedNote::into_inner);
-        let payer_note = payer_note.map(BoundedNote::into_inner);
+        let note = note.map(BoundedString::into_inner);
+        let payer_note = payer_note.map(BoundedString::into_inner);
 
         let offer_id = offer.id();
         let expires_at = offer.expires_at();

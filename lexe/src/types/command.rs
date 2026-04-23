@@ -4,7 +4,7 @@ use anyhow::Context;
 use lexe_api::{
     models::command,
     types::{
-        bounded_note::BoundedNote,
+        bounded_string::BoundedString,
         invoice::Invoice,
         payments::{PaymentCreatedIndex, PaymentHash, PaymentSecret},
     },
@@ -200,7 +200,7 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
         Ok(Self {
             invoice: req.invoice,
             fallback_amount: req.fallback_amount,
-            note: req.note.map(BoundedNote::new).transpose().context(
+            note: req.note.map(BoundedString::new).transpose().context(
                 "Invalid note (must be non-empty and <=200 chars / \
                      <=512 UTF-8 bytes)",
             )?,
@@ -237,7 +237,7 @@ impl TryFrom<UpdatePaymentNoteRequest> for command::UpdatePaymentNote {
     fn try_from(sdk: UpdatePaymentNoteRequest) -> anyhow::Result<Self> {
         Ok(Self {
             index: sdk.index,
-            note: sdk.note.map(BoundedNote::new).transpose().context(
+            note: sdk.note.map(BoundedString::new).transpose().context(
                 "Invalid note (must be non-empty and <=200 chars / \
                  <=512 UTF-8 bytes)",
             )?,

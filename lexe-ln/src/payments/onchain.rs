@@ -5,7 +5,7 @@ use bitcoin::Transaction;
 use lexe_api::{
     models::command::PayOnchainRequest,
     types::{
-        bounded_note::BoundedNote,
+        bounded_string::BoundedString,
         payments::{ClientPaymentId, PaymentId, PaymentKind, PaymentRail},
     },
 };
@@ -118,7 +118,7 @@ impl OnchainSendV2 {
             priority,
             note,
         } = req;
-        let note = note.map(BoundedNote::into_inner);
+        let note = note.map(BoundedString::into_inner);
 
         let txid = Txid(tx.compute_txid());
         let os = Self {

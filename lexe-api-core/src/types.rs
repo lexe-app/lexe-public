@@ -2,8 +2,8 @@
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-/// `BoundedNote`, length-bounded string type for untrusted input.
-pub mod bounded_note;
+/// `BoundedString`, length-bounded string type for untrusted input.
+pub mod bounded_string;
 /// `Invoice`, a wrapper around LDK's BOLT11 invoice type.
 pub mod invoice;
 /// Lnurl types
@@ -18,6 +18,7 @@ pub mod ports;
 pub mod sealed_seed;
 /// `Username` newtype.
 pub mod username;
+
 /// A unique identifier for a user node lease.
 // TODO(max): Find a better home for this.
 pub type LeaseId = u32;

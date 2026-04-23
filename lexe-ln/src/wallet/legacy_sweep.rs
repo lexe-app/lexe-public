@@ -19,7 +19,7 @@ use bitcoin::bip32::Xpriv;
 use lexe_api::{
     models::command::PayOnchainRequest,
     types::{
-        bounded_note::BoundedNote,
+        bounded_string::BoundedString,
         payments::{ClientPaymentId, PaymentKind},
     },
 };
@@ -176,7 +176,7 @@ async fn sync_and_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
         // wallet, so no OnchainReceive payment will be produced.
         amount: Amount::ZERO,
         priority,
-        note: BoundedNote::new(
+        note: BoundedString::new(
             "Sweep to BIP39-compatible on-chain wallet".to_owned(),
         )
         .ok(),

@@ -33,7 +33,7 @@ use lexe_api::{
         UpdatePaymentNote as UpdatePaymentNoteRs,
     },
     types::{
-        bounded_note::BoundedNote,
+        bounded_string::BoundedString,
         invoice::Invoice as InvoiceRs,
         offer::{MaxQuantity, Offer as OfferRs},
         payments::{
@@ -270,8 +270,8 @@ impl From<FiatRatesRs> for FiatRates {
     }
 }
 
-fn validate_note(note: String) -> anyhow::Result<BoundedNote> {
-    BoundedNote::new(note).map_err(|e| anyhow!("{e}"))
+fn validate_note(note: String) -> anyhow::Result<BoundedString> {
+    BoundedString::new(note).map_err(|e| anyhow!("{e}"))
 }
 
 /// See `lexe_api::command::PayOnchainRequest`.

@@ -3,8 +3,10 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-const USERNAME_MAX_LENGTH: usize = 24;
-const USERNAME_MIN_LENGTH: usize = 1;
+/// Minimum username length.
+pub const USERNAME_MIN_LENGTH: usize = 1;
+/// Maximum username length.
+pub const USERNAME_MAX_LENGTH: usize = 24;
 
 /// A validated username.
 ///
