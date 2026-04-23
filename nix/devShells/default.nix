@@ -110,7 +110,7 @@
       # <https://docs.fastlane.tools/getting-started/ios/setup/>
       LANG = "en_US.UTF-8";
       LC_ALL = "en_US.UTF-8";
-      LEXE_XCODE_VERSION = "26.4";
+      LEXE_XCODE_VERSION = "26.4.1";
       LEXE_MACOS_SDK_VERSION = "26.4";
       LEXE_IOS_SDK_VERSION = "26.4";
     };
