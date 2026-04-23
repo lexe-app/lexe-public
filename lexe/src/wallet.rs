@@ -4,7 +4,9 @@ use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
     def::{AppBackendApi, AppNodeRunApi},
     models::command,
-    types::payments::{PaymentCreatedIndex, PaymentStatus},
+    types::payments::{
+        ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentStatus,
+    },
 };
 use lexe_common::api::{
     auth::{
@@ -29,10 +31,11 @@ use crate::{
     types::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
-            GetPaymentResponse, ListPaymentsResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PaymentSyncSummary,
-            UpdatePaymentNoteRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PaymentSyncSummary, UpdatePaymentNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -776,6 +779,51 @@ impl LexeWallet {
         };
 
         Ok(PayInvoiceResponse {
+            index,
+            created_at: resp.created_at,
+        })
+    }
+
+    /// Create a BOLT 12 offer to receive Lightning payments.
+    ///
+    /// Unlike invoices, offers are reusable: multiple payments can be made to
+    /// it, including from multiple payers.
+    #[instrument(skip_all, name = "(create-offer)")]
+    pub async fn create_offer(
+        &self,
+        req: CreateOfferRequest,
+    ) -> anyhow::Result<CreateOfferResponse> {
+        let req = req.try_into()?;
+        let resp = self
+            .node_client
+            .create_offer(req)
+            .await
+            .context("Failed to create offer")?;
+
+        Ok(CreateOfferResponse { offer: resp.offer })
+    }
+
+    /// Pay a BOLT 12 offer over Lightning.
+    #[instrument(skip_all, name = "(pay-offer)")]
+    pub async fn pay_offer(
+        &self,
+        req: PayOfferRequest,
+    ) -> anyhow::Result<PayOfferResponse> {
+        let cid = ClientPaymentId::generate();
+        let id = PaymentId::OfferSend(cid);
+        let req = req.into_unstable(cid)?;
+        let resp = self
+            .node_client
+            .pay_offer(req)
+            .await
+            .context("Failed to pay offer")?;
+
+        let index = PaymentCreatedIndex {
+            created_at: resp.created_at,
+            id,
+        };
+
+        Ok(PayOfferResponse {
             index,
             created_at: resp.created_at,
         })

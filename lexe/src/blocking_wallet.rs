@@ -18,10 +18,11 @@ use crate::{
     types::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, GetPaymentRequest,
-            GetPaymentResponse, ListPaymentsResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PaymentSyncSummary,
-            UpdatePaymentNoteRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PaymentSyncSummary, UpdatePaymentNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -328,6 +329,25 @@ impl BlockingLexeWallet {
         req: PayInvoiceRequest,
     ) -> anyhow::Result<PayInvoiceResponse> {
         block_on(self.inner.pay_invoice(req))
+    }
+
+    /// Create a BOLT 12 offer to receive Lightning payments.
+    ///
+    /// Unlike invoices, offers are reusable: multiple payments can be made to
+    /// it, including from multiple payers.
+    pub fn create_offer(
+        &self,
+        req: CreateOfferRequest,
+    ) -> anyhow::Result<CreateOfferResponse> {
+        block_on(self.inner.create_offer(req))
+    }
+
+    /// Pay a BOLT 12 offer over Lightning.
+    pub fn pay_offer(
+        &self,
+        req: PayOfferRequest,
+    ) -> anyhow::Result<PayOfferResponse> {
+        block_on(self.inner.pay_offer(req))
     }
 
     /// Get information about a payment by its created index.

@@ -31,9 +31,9 @@ pub mod command;
 /// Payment data types.
 pub mod payment;
 
-/// On-chain and Bitcoin primitives.
+/// Lightning and Bitcoin primitives.
 pub mod bitcoin {
-    pub use lexe_api::types::invoice::Invoice;
+    pub use lexe_api::types::{invoice::Invoice, offer::Offer};
     pub use lexe_common::ln::{
         amount::Amount, hashes::Txid, priority::ConfirmationPriority,
     };

@@ -6,7 +6,9 @@ use lexe_api::{
     types::{
         bounded_string::BoundedString,
         invoice::Invoice,
-        payments::{PaymentCreatedIndex, PaymentHash, PaymentSecret},
+        payments::{
+            ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentSecret,
+        },
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
@@ -14,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::{
     auth::{Measurement, NodePk, UserPk},
+    bitcoin::Offer,
     payment::Payment,
 };
 
@@ -217,6 +220,107 @@ pub struct PayInvoiceResponse {
     pub index: PaymentCreatedIndex,
     /// When we tried to pay this invoice, in milliseconds since the UNIX
     /// epoch.
+    pub created_at: TimestampMs,
+}
+
+/// A request to create a BOLT 12 offer to receive Lightning payments.
+///
+/// Unlike invoices, offers are reusable: multiple payments can be made to
+/// it, including from multiple payers.
+#[derive(Default, Serialize, Deserialize)]
+pub struct CreateOfferRequest {
+    /// An optional description to encode into the offer.
+    ///
+    /// The sender will see this description when they scan the offer.
+    ///
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub description: Option<String>,
+
+    /// An optional minimum payment size for payments to this offer.
+    /// If not set, the payer can send any amount.
+    pub min_amount: Option<Amount>,
+
+    /// An optional expiration for the offer, in seconds from now.
+    pub expiration_secs: Option<u32>,
+}
+
+impl TryFrom<CreateOfferRequest> for command::CreateOfferRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(req: CreateOfferRequest) -> anyhow::Result<Self> {
+        let description = req
+            .description
+            .map(BoundedString::new)
+            .transpose()
+            .context("Invalid description")?;
+
+        Ok(Self {
+            description,
+            min_amount: req.min_amount,
+            expiry_secs: req.expiration_secs,
+            max_quantity: None,
+            issuer: None,
+        })
+    }
+}
+
+/// The response to a BOLT 12 offer creation request.
+#[derive(Serialize, Deserialize)]
+pub struct CreateOfferResponse {
+    /// The string-encoded BOLT 12 offer.
+    pub offer: Offer,
+}
+
+/// A request to pay a BOLT 12 offer over Lightning.
+#[derive(Serialize, Deserialize)]
+pub struct PayOfferRequest {
+    /// The offer we want to pay.
+    pub offer: Offer,
+    /// The amount we will pay. If the offer specifies a minimum amount,
+    /// this value must satisfy that minimum.
+    pub amount: Amount,
+    /// An optional personal note for this payment.
+    /// The receiver will not see this note.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub note: Option<String>,
+    /// An optional note that is included in the BOLT 12 invoice request and
+    /// visible to the recipient. If provided, it must be non-empty and no
+    /// longer than 200 chars / 512 UTF-8 bytes.
+    pub payer_note: Option<String>,
+}
+
+impl PayOfferRequest {
+    /// Build a [`command::PayOfferRequest`] from this SDK request.
+    pub(crate) fn into_unstable(
+        self,
+        cid: ClientPaymentId,
+    ) -> anyhow::Result<command::PayOfferRequest> {
+        Ok(command::PayOfferRequest {
+            cid,
+            offer: self.offer,
+            amount: self.amount,
+            note: self
+                .note
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid personal note")?,
+            payer_note: self
+                .payer_note
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid payer note")?,
+        })
+    }
+}
+
+/// The response to a request to pay a BOLT 12 offer.
+#[derive(Serialize, Deserialize)]
+pub struct PayOfferResponse {
+    /// Identifier for this outbound offer payment.
+    pub index: PaymentCreatedIndex,
+    /// When we tried to pay this offer, in milliseconds since the UNIX epoch.
     pub created_at: TimestampMs,
 }
 
