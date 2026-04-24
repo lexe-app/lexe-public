@@ -40,22 +40,25 @@ const HELP_TEMPLATE: &str = "\
     about = "Lexe CLI - create and control 24/7 online Lightning wallets \
     from the command line.",
     long_about = "\
-Lexe CLI - create and control 24/7 online Lightning wallets from the command line.
+Lexe CLI - Create and control Lightning wallets from the command line.
+   Lexe wallets are self-custodial and always online to receive payments.
 
 Create a new mainnet wallet:
   $ lexe init
-  The seedphrase is saved to ~/.lexe/seedphrase.txt and auto-loaded on subsequent runs.
+  The seedphrase is saved to ~/.lexe/seedphrase.txt and auto-loaded on
+  subsequent runs. Be sure to back up your seedphrase to a safe place.
 
 Control a wallet created from the Lexe mobile app:
   Export credentials from the app (Menu > SDK clients), then set via:
     • LEXE_CLIENT_CREDENTIALS     Set in environment or .env file
     • --client-credentials        Pass directly in CLI
-    • --client-credentials-path   Provide a path to a file with client credentials
+    • --client-credentials-path   Path to file with client credentials
 
 Verify your setup:
   $ lexe node-info
 
-Precedence: CLI args > env vars > .env (loaded from current or parent directory).",
+Precedence: CLI args > env vars > .env
+  `.env` is loaded from the current or any parent directory.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct LexeArgs {
@@ -268,7 +271,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
     about = "Create a new Lexe wallet",
     long_about = "Creates a new Lexe wallet.\n\
         \n\
-        Generates a fresh seedphrase, persists it to the Lexe data dir, \
+        Generates a fresh seedphrase, persists it to the Lexe data dir, \n\
         registers a wallet with Lexe, and provisions a new user node.\n\
         \n\
         Idempotent: safe to call multiple times.",
@@ -329,9 +332,10 @@ impl InitArgs {
 #[derive(Parser)]
 #[command(
     about = "Register with Lexe and perform initial provisioning",
-    long_about = "Register with Lexe and perform initial provisioning. Requires root seed.\n\
+    long_about = "Register with Lexe and perform initial provisioning. \n\
+        Requires the root seed.\n\
         \n\
-        This command exists mostly to support specialized tooling flows. \
+        This command exists mostly to support specialized flows. \n\
         `lexe init` is usually what you want instead.\n\
         \n\
         Idempotent: safe to call even if already signed up.",
@@ -380,7 +384,7 @@ impl SignupArgs {
     about = "Provision wallet to latest enclave releases",
     long_about = "Ensure the wallet is provisioned to all recent trusted releases.\n\
         \n\
-        Should be called every time the wallet is loaded to ensure the node \
+        Should be called every time the wallet is loaded to ensure the node\n\
         is running the most up-to-date enclave software.\n\
         \n\
         Idempotent: safe to call multiple times.",
@@ -428,17 +432,25 @@ impl NodeInfoArgs {
     help_template = HELP_TEMPLATE,
 )]
 pub struct CreateInvoiceArgs {
-    /// Amount in satoshis (omit for amountless invoice)
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Amount in satoshis.\n\
+        Omit for amountless invoice."
+    )]
     amount_sats: Option<Amount>,
 
-    /// Description to encode in the invoice. The sender will see this
-    /// description when they scan the invoice.
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Description to encode in the invoice.\n\
+        Visible to sender when scanned."
+    )]
     description: Option<String>,
 
-    /// Invoice expiration in seconds. [default: 86400 = 1 day]
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Invoice expiration in seconds.\n\
+        [default: 86400 = 1 day]"
+    )]
     expiration_secs: Option<u32>,
 }
 
@@ -474,9 +486,11 @@ pub struct PayInvoiceArgs {
     /// The BOLT 11 invoice to pay
     invoice: String,
 
-    /// The amount to pay if the invoice does not encode an amount (required
-    /// for amountless invoices)
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Amount to pay if invoice has no amount.\n\
+        Required for amountless invoices."
+    )]
     fallback_amount_sats: Option<Amount>,
 
     /// Personal note (not visible to receiver, max 200 chars)
@@ -544,10 +558,11 @@ impl GetPaymentArgs {
     about = "Wait for a payment to reach a terminal state",
     long_about = "Wait for a payment to reach a terminal state (completed or failed).\n\
         \n\
-        Polls the node with exponential backoff until the payment finalizes \
+        Polls the node with exponential backoff until the payment finalizes\n\
         or the timeout is reached. Defaults to 600 seconds (10 minutes).\n\
         \n\
-        If already finalized, we still fetch the payment to ensure we have the latest metadata.",
+        If already finalized, we still fetch the payment\n\
+        to ensure we have the latest metadata.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct WaitForPaymentArgs {
@@ -646,7 +661,7 @@ impl SyncPaymentsArgs {
     about = "List payments from local storage",
     long_about = "List payments from local storage with cursor-based pagination.\n\
         \n\
-        Defaults to descending order (newest first) with a limit of 100. \
+        Defaults to descending order (newest first) with a limit of 100.\n\
         Use `sync-payments` to fetch the latest data from the node first.",
     help_template = HELP_TEMPLATE,
 )]
@@ -706,7 +721,7 @@ impl ListPaymentsArgs {
     about = "Clear all locally cached payment data for this wallet",
     long_about = "Clear all locally cached payment data for this wallet.\n\
         \n\
-        Remote data on the node is not affected. \
+        Remote data on the node is not affected.\n\
         Use `sync-payments` to re-populate after clearing.",
     help_template = HELP_TEMPLATE,
 )]
