@@ -29,44 +29,47 @@ has_local 2> /dev/null || alias local=typeset
 
 set -u
 
-APP_NAME="lexe-sidecar"
+APP_NAME="lexe-cli"
 APP_VERSION="latest"
 # Look for GitHub Enterprise-style base URL first
-if [ -n "${LEXE_SIDECAR_INSTALLER_GHE_BASE_URL:-}" ]; then
-  INSTALLER_BASE_URL="$LEXE_SIDECAR_INSTALLER_GHE_BASE_URL"
+if [ -n "${LEXE_CLI_INSTALLER_GHE_BASE_URL:-}" ]; then
+  INSTALLER_BASE_URL="$LEXE_CLI_INSTALLER_GHE_BASE_URL"
 else
-  INSTALLER_BASE_URL="${LEXE_SIDECAR_INSTALLER_GITHUB_BASE_URL:-https://github.com}"
+  INSTALLER_BASE_URL="${LEXE_CLI_INSTALLER_GITHUB_BASE_URL:-https://github.com}"
 fi
-if [ -n "${LEXE_SIDECAR_DOWNLOAD_URL:-}" ]; then
-  ARTIFACT_DOWNLOAD_URL="$LEXE_SIDECAR_DOWNLOAD_URL"
+# The artifact download URL can be overridden. If not set, it will be resolved
+# dynamically by querying the GitHub API for the latest lexe-cli release.
+if [ -n "${LEXE_CLI_DOWNLOAD_URL:-}" ]; then
+  ARTIFACT_DOWNLOAD_URL="$LEXE_CLI_DOWNLOAD_URL"
 elif [ -n "${INSTALLER_DOWNLOAD_URL:-}" ]; then
   ARTIFACT_DOWNLOAD_URL="$INSTALLER_DOWNLOAD_URL"
 else
-  ARTIFACT_DOWNLOAD_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-sidecar-sdk/releases/latest/download"
+  ARTIFACT_DOWNLOAD_URL=""
 fi
-if [ -n "${LEXE_SIDECAR_PRINT_VERBOSE:-}" ]; then
-  PRINT_VERBOSE="$LEXE_SIDECAR_PRINT_VERBOSE"
+RELEASES_BASE_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-public/releases"
+if [ -n "${LEXE_CLI_PRINT_VERBOSE:-}" ]; then
+  PRINT_VERBOSE="$LEXE_CLI_PRINT_VERBOSE"
 else
   PRINT_VERBOSE=${INSTALLER_PRINT_VERBOSE:-0}
 fi
-if [ -n "${LEXE_SIDECAR_PRINT_QUIET:-}" ]; then
-  PRINT_QUIET="$LEXE_SIDECAR_PRINT_QUIET"
+if [ -n "${LEXE_CLI_PRINT_QUIET:-}" ]; then
+  PRINT_QUIET="$LEXE_CLI_PRINT_QUIET"
 else
   PRINT_QUIET=${INSTALLER_PRINT_QUIET:-0}
 fi
-if [ -n "${LEXE_SIDECAR_NO_MODIFY_PATH:-}" ]; then
-  NO_MODIFY_PATH="$LEXE_SIDECAR_NO_MODIFY_PATH"
+if [ -n "${LEXE_CLI_NO_MODIFY_PATH:-}" ]; then
+  NO_MODIFY_PATH="$LEXE_CLI_NO_MODIFY_PATH"
 else
   NO_MODIFY_PATH=${INSTALLER_NO_MODIFY_PATH:-0}
 fi
-UNMANAGED_INSTALL="${LEXE_SIDECAR_UNMANAGED_INSTALL:-}"
+UNMANAGED_INSTALL="${LEXE_CLI_UNMANAGED_INSTALL:-}"
 if [ -n "${UNMANAGED_INSTALL}" ]; then
   NO_MODIFY_PATH=1
 fi
-AUTH_TOKEN="${LEXE_SIDECAR_GITHUB_TOKEN:-}"
+AUTH_TOKEN="${LEXE_CLI_GITHUB_TOKEN:-}"
 
 read -r RECEIPT << EORECEIPT
-{"binaries":["CARGO_DIST_BINS"],"binary_aliases":{},"cdylibs":["CARGO_DIST_DYLIBS"],"cstaticlibs":["CARGO_DIST_STATICLIBS"],"install_layout":"unspecified","install_prefix":"AXO_INSTALL_PREFIX","modify_path":true,"provider":{"source":"cargo-dist","version":"0.30.2"},"source":{"app_name":"lexe-sidecar","name":"lexe-sidecar","owner":"lexe-app","release_type":"github"},"version":"latest"}
+{"binaries":["CARGO_DIST_BINS"],"binary_aliases":{},"cdylibs":["CARGO_DIST_DYLIBS"],"cstaticlibs":["CARGO_DIST_STATICLIBS"],"install_layout":"unspecified","install_prefix":"AXO_INSTALL_PREFIX","modify_path":true,"provider":{"source":"cargo-dist","version":"0.30.2"},"source":{"app_name":"lexe-cli","name":"lexe-cli","owner":"lexe-app","release_type":"github"},"version":"latest"}
 EORECEIPT
 
 # Some Linux distributions don't set HOME
@@ -97,12 +100,12 @@ INFERRED_HOME_EXPRESSION=$(get_home_expression)
 usage() {
   # print help (this cat/EOF stuff is a "heredoc" string)
   cat << EOF
-lexe-sidecar-installer.sh
+install-cli.sh
 
-The installer for lexe-sidecar
+The installer for lexe-cli
 
 This script detects what platform you're on and fetches an appropriate archive from
-https://github.com/lexe-app/lexe-sidecar-sdk/releases/latest/download
+https://github.com/lexe-app/lexe-public/releases
 then unpacks the binaries and installs them to the first of the following locations
 
     \$XDG_BIN_HOME
@@ -112,7 +115,7 @@ then unpacks the binaries and installs them to the first of the following locati
 It will then add that dir to PATH by adding the appropriate line to your shell profiles.
 
 USAGE:
-    lexe-sidecar-installer.sh [OPTIONS]
+    install-cli.sh [OPTIONS]
 
 OPTIONS:
     -v, --verbose
@@ -125,10 +128,10 @@ OPTIONS:
             Print help information
 
 ENVIRONMENT VARIABLES:
-    LEXE_SIDECAR_INSTALL_DIR
+    LEXE_CLI_INSTALL_DIR
             Override the installation directory
 
-    LEXE_SIDECAR_NO_MODIFY_PATH
+    LEXE_CLI_NO_MODIFY_PATH
             Set to 1 to skip PATH configuration
 EOF
 }
@@ -186,6 +189,9 @@ download_binary_and_run_installer() {
     esac
   done
 
+  # Resolve the download URL for the latest lexe-cli release
+  resolve_latest_lexe_cli_tag || return 1
+
   get_architecture || return 1
   local _true_arch="$RETVAL"
   assert_nz "$_true_arch" "arch"
@@ -202,11 +208,11 @@ download_binary_and_run_installer() {
 
   # destructure selected archive info into locals
   case "$_artifact_name" in
-  "lexe-sidecar-macos-aarch64.zip")
+  "lexe-cli-macos-aarch64.zip")
     _arch="aarch64-apple-darwin"
     _zip_ext=".zip"
-    _bins="lexe-sidecar"
-    _bins_js_array='"lexe-sidecar"'
+    _bins="lexe"
+    _bins_js_array='"lexe"'
     _libs=""
     _libs_js_array=""
     _staticlibs=""
@@ -214,11 +220,11 @@ download_binary_and_run_installer() {
     _updater_name=""
     _updater_bin=""
     ;;
-  "lexe-sidecar-linux-aarch64.zip")
+  "lexe-cli-linux-aarch64.zip")
     _arch="aarch64-unknown-linux-musl"
     _zip_ext=".zip"
-    _bins="lexe-sidecar"
-    _bins_js_array='"lexe-sidecar"'
+    _bins="lexe"
+    _bins_js_array='"lexe"'
     _libs=""
     _libs_js_array=""
     _staticlibs=""
@@ -226,11 +232,11 @@ download_binary_and_run_installer() {
     _updater_name=""
     _updater_bin=""
     ;;
-  "lexe-sidecar-linux-x86_64.zip")
+  "lexe-cli-linux-x86_64.zip")
     _arch="x86_64-unknown-linux-musl"
     _zip_ext=".zip"
-    _bins="lexe-sidecar"
-    _bins_js_array='"lexe-sidecar"'
+    _bins="lexe"
+    _bins_js_array='"lexe"'
     _libs=""
     _libs_js_array=""
     _staticlibs=""
@@ -238,11 +244,11 @@ download_binary_and_run_installer() {
     _updater_name=""
     _updater_bin=""
     ;;
-  "lexe-sidecar-windows-x86_64.zip")
+  "lexe-cli-windows-x86_64.zip")
     _arch="x86_64-pc-windows-msvc"
     _zip_ext=".zip"
-    _bins="lexe-sidecar.exe"
-    _bins_js_array='"lexe-sidecar.exe"'
+    _bins="lexe.exe"
+    _bins_js_array='"lexe.exe"'
     _libs=""
     _libs_js_array=""
     _staticlibs=""
@@ -397,63 +403,63 @@ select_archive_for_arch() {
   # accepting the first one that matches, as it's the best match
   case "$_true_arch" in
   "aarch64-apple-darwin")
-    _archive="lexe-sidecar-macos-aarch64.zip"
+    _archive="lexe-cli-macos-aarch64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "aarch64-unknown-linux-gnu")
-    _archive="lexe-sidecar-linux-aarch64.zip"
+    _archive="lexe-cli-linux-aarch64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "aarch64-unknown-linux-musl-dynamic")
-    _archive="lexe-sidecar-linux-aarch64.zip"
+    _archive="lexe-cli-linux-aarch64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "aarch64-unknown-linux-musl-static")
-    _archive="lexe-sidecar-linux-aarch64.zip"
+    _archive="lexe-cli-linux-aarch64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "x86_64-pc-windows-gnu")
-    _archive="lexe-sidecar-windows-x86_64.zip"
+    _archive="lexe-cli-windows-x86_64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "x86_64-pc-windows-msvc")
-    _archive="lexe-sidecar-windows-x86_64.zip"
+    _archive="lexe-cli-windows-x86_64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "x86_64-unknown-linux-gnu")
-    _archive="lexe-sidecar-linux-x86_64.zip"
+    _archive="lexe-cli-linux-x86_64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "x86_64-unknown-linux-musl-dynamic")
-    _archive="lexe-sidecar-linux-x86_64.zip"
+    _archive="lexe-cli-linux-x86_64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
     fi
     ;;
   "x86_64-unknown-linux-musl-static")
-    _archive="lexe-sidecar-linux-x86_64.zip"
+    _archive="lexe-cli-linux-x86_64.zip"
     if [ -n "$_archive" ]; then
       echo "$_archive"
       return 0
@@ -546,8 +552,8 @@ install() {
 
   # Check the newer app-specific variable before falling back
   # to the older generic one
-  if [ -n "${LEXE_SIDECAR_INSTALL_DIR:-}" ]; then
-    _force_install_dir="$LEXE_SIDECAR_INSTALL_DIR"
+  if [ -n "${LEXE_CLI_INSTALL_DIR:-}" ]; then
+    _force_install_dir="$LEXE_CLI_INSTALL_DIR"
     _install_layout="flat"
   elif [ -n "${CARGO_DIST_FORCE_INSTALL_DIR:-}" ]; then
     _force_install_dir="$CARGO_DIST_FORCE_INSTALL_DIR"
@@ -1410,6 +1416,46 @@ downloader() {
   else
     err "Unknown downloader" # should not reach here
   fi
+}
+
+# Resolves the latest lexe-cli release tag by querying the GitHub API.
+# Sets ARTIFACT_DOWNLOAD_URL to the download URL for that release.
+# This is necessary because lexe-public hosts multiple products, so
+# "latest" might point to a different product's release.
+resolve_latest_lexe_cli_tag() {
+  if [ -n "$ARTIFACT_DOWNLOAD_URL" ]; then
+    # Already set via environment variable override
+    return 0
+  fi
+
+  say_verbose "Resolving latest lexe-cli release..."
+
+  local _api_url="https://api.github.com/repos/lexe-app/lexe-public/releases"
+  local _tmpfile
+  _tmpfile="$(mktemp)" || return 1
+
+  # Fetch releases from API
+  if ! downloader "$_api_url" "$_tmpfile"; then
+    rm -f "$_tmpfile"
+    err "Failed to fetch releases from GitHub API"
+  fi
+
+  # Find the first release with a tag starting with "lexe-cli-v"
+  # The API returns releases in reverse chronological order
+  local _tag
+  _tag=$(grep -o '"tag_name"[[:space:]]*:[[:space:]]*"lexe-cli-v[^"]*"' "$_tmpfile" |
+    head -n 1 |
+    sed 's/.*"lexe-cli-v/lexe-cli-v/' |
+    sed 's/"$//')
+
+  rm -f "$_tmpfile"
+
+  if [ -z "$_tag" ]; then
+    err "Could not find any lexe-cli releases"
+  fi
+
+  say_verbose "  found: $_tag"
+  ARTIFACT_DOWNLOAD_URL="${RELEASES_BASE_URL}/download/${_tag}"
 }
 
 verify_checksum() {
