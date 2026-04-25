@@ -3,6 +3,8 @@ use std::sync::Arc;
 use std::{collections::HashSet, num::NonZeroU64};
 
 use anyhow::Context;
+#[cfg(test)]
+use lexe_api::types::payments::{PaymentHash, PaymentPreimage};
 use lexe_api::types::{
     invoice::Invoice,
     offer::Offer,
@@ -320,8 +322,8 @@ impl PaymentV1 {
             related_ids: HashSet::new(),
             kind,
             direction: self.direction(),
-            hash: None,
-            preimage: None,
+            hash: self.payment_hash(),
+            preimage: self.preimage(),
             offer_id: self.offer_id(),
             txid: self.txid(),
             amount: self.amount(),
@@ -364,6 +366,44 @@ impl PaymentV1 {
             Self::OutboundInvoice(oip) => PaymentId::Lightning(oip.hash),
             Self::OutboundOffer(oop) => PaymentId::OfferSend(oop.cid),
             Self::OutboundSpontaneous(osp) => PaymentId::Lightning(osp.hash),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn payment_hash(&self) -> Option<PaymentHash> {
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(iip) => Some(iip.hash),
+            Self::InboundOfferReusable(iorp) =>
+                Some(iorp.preimage.compute_hash()),
+            Self::InboundSpontaneous(isp) => Some(isp.hash),
+            Self::OutboundInvoice(oip) => Some(oip.hash),
+            Self::OutboundOffer(oop) => oop.hash,
+            Self::OutboundSpontaneous(osp) => Some(osp.hash),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn preimage(&self) -> Option<PaymentPreimage> {
+        use super::{
+            InboundInvoicePaymentStatus::Completed as IipCompleted,
+            InboundOfferReusablePaymentStatus::Completed as IorpCompleted,
+            InboundSpontaneousPaymentStatus::Completed as IspCompleted,
+        };
+
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(iip) =>
+                (iip.status == IipCompleted).then_some(iip.preimage),
+            Self::InboundOfferReusable(iorp) =>
+                (iorp.status == IorpCompleted).then_some(iorp.preimage),
+            Self::InboundSpontaneous(isp) =>
+                (isp.status == IspCompleted).then_some(isp.preimage),
+            Self::OutboundInvoice(oip) => oip.preimage,
+            Self::OutboundOffer(oop) => oop.preimage,
+            Self::OutboundSpontaneous(osp) => Some(osp.preimage),
         }
     }
 
