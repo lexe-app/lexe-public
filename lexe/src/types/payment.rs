@@ -41,7 +41,7 @@ pub struct Payment {
     pub direction: PaymentDirection,
 
     /* TODO(max): Expose offer_id once we have out-of-line Offer storage.
-    /// (Offer payments only) The id of the BOLT12 offer used in this payment.
+    /// (Offer payments only) The id of the BOLT 12 offer used in this payment.
     pub offer_id: Option<OfferId>,
     */
     /// (Onchain payments only) The hex-encoded Bitcoin txid.
@@ -77,11 +77,11 @@ pub struct Payment {
     /// (Onchain send only) The address that we're sending to.
     pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
 
-    /// (Invoice payments only) The BOLT11 invoice used in this payment.
+    /// (Invoice payments only) The BOLT 11 invoice used in this payment.
     pub invoice: Option<Arc<Invoice>>,
 
     /* TODO(max): Expose offer once we have out-of-line Offer storage.
-    /// (Outbound offer payments only) The BOLT12 offer used in this payment.
+    /// (Outbound offer payments only) The BOLT 12 offer used in this payment.
     /// Until we store offers out-of-line, this is not yet available for
     /// inbound offer payments.
     pub offer: Option<Arc<Offer>>,

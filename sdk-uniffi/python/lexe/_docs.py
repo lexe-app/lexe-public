@@ -652,7 +652,7 @@ Example::
 """)
 
 _set_method_doc(LexeWallet, "create_invoice", """\
-Create a BOLT11 Lightning invoice.
+Create a BOLT 11 Lightning invoice.
 
 Args:
     expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour),
@@ -669,15 +669,15 @@ Raises:
 Example::
 
     resp = wallet.create_invoice(3600, 1000, "Coffee")
-    print(resp.invoice)      # BOLT11 invoice string
+    print(resp.invoice)      # BOLT 11 invoice string
     print(resp.amount_sats)  # 1000
 """)
 
 _set_method_doc(LexeWallet, "pay_invoice", """\
-Pay a BOLT11 Lightning invoice.
+Pay a BOLT 11 Lightning invoice.
 
 Args:
-    invoice: BOLT11 invoice string to pay.
+    invoice: BOLT 11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
     note: Optional private note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
@@ -1023,7 +1023,7 @@ Example::
 """)
 
 _set_method_doc(AsyncLexeWallet, "create_invoice", """\
-Create a BOLT11 Lightning invoice.
+Create a BOLT 11 Lightning invoice.
 
 Args:
     expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour),
@@ -1040,15 +1040,15 @@ Raises:
 Example::
 
     resp = await wallet.create_invoice(3600, 1000, "Coffee")
-    print(resp.invoice)      # BOLT11 invoice string
+    print(resp.invoice)      # BOLT 11 invoice string
     print(resp.amount_sats)  # 1000
 """)
 
 _set_method_doc(AsyncLexeWallet, "pay_invoice", """\
-Pay a BOLT11 Lightning invoice.
+Pay a BOLT 11 Lightning invoice.
 
 Args:
-    invoice: BOLT11 invoice string to pay.
+    invoice: BOLT 11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
     note: Optional private note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
@@ -1262,7 +1262,7 @@ lexe.PaymentRail.__doc__ = """\
 Technical rail used to fulfill a payment.
 
 - **ONCHAIN** -- On-chain Bitcoin transaction.
-- **INVOICE** -- Lightning BOLT11 invoice.
+- **INVOICE** -- Lightning BOLT 11 invoice.
 - **OFFER** -- Lightning BOLT 12 offer.
 - **SPONTANEOUS** -- Spontaneous (keysend) Lightning payment.
 - **WAIVED_FEE** -- Internal waived fee.
@@ -1298,7 +1298,7 @@ lexe.PaymentKind.__doc__ = """\
 Application-level kind for a payment.
 
 - **ONCHAIN** -- On-chain Bitcoin payment.
-- **INVOICE** -- Lightning BOLT11 invoice payment.
+- **INVOICE** -- Lightning BOLT 11 invoice payment.
 - **OFFER** -- Lightning BOLT 12 offer payment.
 - **SPONTANEOUS** -- Spontaneous (keysend) Lightning payment.
 - **WAIVED_CHANNEL_FEE** -- Waived channel fee.
@@ -1307,7 +1307,7 @@ Application-level kind for a payment.
 """
 
 lexe.Invoice.__doc__ = """\
-A BOLT11 Lightning invoice.
+A BOLT 11 Lightning invoice.
 
 Attributes:
     string: Full bech32-encoded invoice string.
@@ -1333,7 +1333,7 @@ Attributes:
     amount_sats: Payment amount in satoshis, if known.
     fees_sats: Fees paid in satoshis.
     note: Optional personal note attached to this payment.
-    invoice: BOLT11 invoice used for this payment, if any.
+    invoice: BOLT 11 invoice used for this payment, if any.
     txid: Hex-encoded Bitcoin txid (on-chain payments only).
     address: Bitcoin address for on-chain sends.
     expires_at_ms: Invoice/offer expiry time (ms since UNIX epoch).
@@ -1406,7 +1406,7 @@ Response from creating a Lightning invoice.
 
 Attributes:
     index: Unique payment identifier for this invoice.
-    invoice: BOLT11 invoice string.
+    invoice: BOLT 11 invoice string.
     description: Description encoded in the invoice, if provided.
     amount_sats: Amount in satoshis, if specified.
     created_at_ms: Invoice creation time (ms since UNIX epoch).
