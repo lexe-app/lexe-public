@@ -66,6 +66,15 @@ pub struct BasicPaymentV2 {
     /// The payment direction: `Inbound`, `Outbound`, or `Info`.
     pub direction: PaymentDirection,
 
+    /// (Lightning payments only) The payment preimage.
+    /// Serves as proof-of-payment for outbound payments.
+    /// For inbound payments, only populated if the payment succeeded.
+    //
+    // Added in `node-v0.9.5`. `BasicPaymentV2`s fetched from or persisted by
+    // older nodes may not have this field populated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preimage: Option<PaymentPreimage>,
+
     /// (Offer payments only) The id of the BOLT12 offer used in this payment.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer_id: Option<OfferId>,
@@ -241,7 +250,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 432);
+const_assert_mem_size!(BasicPaymentV2, 464);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -747,6 +756,7 @@ impl BasicPaymentV2 {
             related_ids: HashSet::new(),
             kind,
             direction: v1.direction,
+            preimage: None,
             offer_id: v1.offer_id,
             txid: v1.txid,
             amount: v1.amount,

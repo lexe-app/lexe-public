@@ -320,6 +320,7 @@ impl PaymentV1 {
             related_ids: HashSet::new(),
             kind,
             direction: self.direction(),
+            preimage: None,
             offer_id: self.offer_id(),
             txid: self.txid(),
             amount: self.amount(),
