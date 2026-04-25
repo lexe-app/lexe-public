@@ -1431,69 +1431,94 @@ resolve_latest_lexe_cli_tag() {
 
   say_verbose "Resolving latest lexe-cli release..."
 
-  local _api_url="https://api.github.com/repos/lexe-app/lexe-public/releases?per_page=100"
   local _tmpfile
   _tmpfile="$(mktemp)" || return 1
 
-  # Fetch releases from API
-  if ! downloader "$_api_url" "$_tmpfile"; then
-    rm -f "$_tmpfile"
-    err "Failed to fetch releases from GitHub API"
-  fi
-
   # Find the first non-draft, non-prerelease "lexe-cli-v*" release. The API
-  # returns releases in reverse chronological order.
+  # returns releases in reverse chronological order, but the result is
+  # paginated, so keep fetching pages until we find the tag or run out of
+  # releases.
+  local _api_url
+  local _page=1
   local _tag
-  _tag=$(
-    awk '
-      function flush_release() {
-        tag_match = match(release, /"tag_name"[[:space:]]*:[[:space:]]*"lexe-cli-v[^"]*"/)
-        if (!tag_match) { release = ""; return }
-        if (release !~ /"draft"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
-        if (release !~ /"prerelease"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
+  _tag=""
+  while [ -z "$_tag" ]; do
+    if [ "$_page" -gt 50 ]; then
+      rm -f "$_tmpfile"
+      err "Could not find any lexe-cli releases in the first 50 pages"
+    fi
 
-        tag = substr(release, RSTART, RLENGTH)
-        sub(/^.*"lexe-cli-v/, "lexe-cli-v", tag)
-        sub(/"$/, "", tag)
-        found = 1
-        print tag
-        exit
-      }
+    _api_url="https://api.github.com/repos/lexe-app/lexe-public/releases?per_page=30&page=${_page}"
 
-      {
-        for (i = 1; i <= length($0); i++) {
-          c = substr($0, i, 1)
+    # Fetch a single page of releases from the API.
+    if ! downloader "$_api_url" "$_tmpfile"; then
+      rm -f "$_tmpfile"
+      err "Failed to fetch releases from GitHub API"
+    fi
 
-          if (in_string) {
-            if (escape) {
-              escape = 0
-            } else if (c == "\\") {
-              escape = 1
-            } else if (c == "\"") {
-              in_string = 0
-            }
-          } else if (c == "\"") {
-            in_string = 1
-          } else if (c == "{") {
-            if (depth == 0) release = ""
-            depth++
-          }
+    # Horrible, awful HACK to parse json w/o jq
+    _tag=$(
+      awk '
+        function flush_release() {
+          saw_release = 1
+          tag_match = match(release, /"tag_name"[[:space:]]*:[[:space:]]*"lexe-cli-v[^"]*"/)
+          if (!tag_match) { release = ""; return }
+          if (release !~ /"draft"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
+          if (release !~ /"prerelease"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
 
-          if (depth > 0) release = release c
-
-          if (!in_string && c == "}") {
-            depth--
-            if (depth == 0) flush_release()
-          }
+          tag = substr(release, RSTART, RLENGTH)
+          sub(/^.*"lexe-cli-v/, "lexe-cli-v", tag)
+          sub(/"$/, "", tag)
+          found = 1
+          print tag
+          exit
         }
-        if (depth > 0) release = release "\n"
-      }
 
-      END {
-        if (!found) exit 1
-      }
-    ' "$_tmpfile"
-  )
+        {
+          for (i = 1; i <= length($0); i++) {
+            c = substr($0, i, 1)
+
+            if (in_string) {
+              if (escape) {
+                escape = 0
+              } else if (c == "\\") {
+                escape = 1
+              } else if (c == "\"") {
+                in_string = 0
+              }
+            } else if (c == "\"") {
+              in_string = 1
+            } else if (c == "{") {
+              if (depth == 0) release = ""
+              depth++
+            }
+
+            if (depth > 0) release = release c
+
+            if (!in_string && c == "}") {
+              depth--
+              if (depth == 0) flush_release()
+            }
+          }
+          if (depth > 0) release = release "\n"
+        }
+
+        END {
+          if (found) exit 0
+          if (saw_release) print "__LEXE_CLI_NEXT_PAGE__"
+          else print "__LEXE_CLI_NO_RELEASES__"
+        }
+      ' "$_tmpfile"
+    )
+
+    if [ "$_tag" = "__LEXE_CLI_NEXT_PAGE__" ]; then
+      _tag=""
+      _page=$((_page + 1))
+    elif [ "$_tag" = "__LEXE_CLI_NO_RELEASES__" ]; then
+      _tag=""
+      break
+    fi
+  done
 
   rm -f "$_tmpfile"
 
