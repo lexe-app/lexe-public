@@ -40,6 +40,9 @@ pub struct Payment {
     /// The payment direction: `"inbound"`, `"outbound"`, or `"info"`.
     pub direction: PaymentDirection,
 
+    /// (Lightning payments only) The payment hash.
+    pub hash: Option<PaymentHash>,
+
     /// (Lightning payments only) The payment preimage. Serves as
     /// proof-of-payment for outbound payments. For inbound payments, only
     /// populated if the payment succeeded.
@@ -169,7 +172,7 @@ impl From<BasicPaymentV2> for Payment {
             related_ids: _,
             kind,
             direction,
-            hash: _,
+            hash,
             preimage,
             offer_id: _,
             txid,
@@ -200,6 +203,7 @@ impl From<BasicPaymentV2> for Payment {
             rail: kind.rail(),
             kind,
             direction,
+            hash,
             preimage,
             txid,
             amount,

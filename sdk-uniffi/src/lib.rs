@@ -1739,6 +1739,8 @@ pub struct Payment {
     pub kind: PaymentKind,
     /// Payment direction: inbound, outbound, or info.
     pub direction: PaymentDirection,
+    /// Hex-encoded payment hash (Lightning payments only).
+    pub hash: Option<String>,
     /// Hex-encoded payment preimage (Lightning payments only).
     /// Proof-of-payment for outbound; only present for successful inbound.
     pub preimage: Option<String>,
@@ -1779,6 +1781,7 @@ impl From<SdkPayment> for Payment {
             rail,
             kind,
             direction,
+            hash,
             preimage,
             txid,
             amount,
@@ -1805,6 +1808,7 @@ impl From<SdkPayment> for Payment {
             rail: rail.into(),
             kind: kind.into(),
             direction: direction.into(),
+            hash: hash.map(|h| h.to_hex()),
             preimage: preimage.map(|p| p.to_hex()),
             status: status.into(),
             status_msg,
