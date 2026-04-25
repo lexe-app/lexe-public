@@ -12,10 +12,11 @@ use lexe::{
         auth::{
             ClientCredentials, Credentials, CredentialsRef, RootSeed, UserPk,
         },
-        bitcoin::{Amount, Invoice},
+        bitcoin::{Amount, Invoice, Offer},
         command::{
-            CreateInvoiceRequest, GetPaymentRequest, PayInvoiceRequest,
-            PaymentSyncSummary, UpdatePaymentNoteRequest,
+            CreateInvoiceRequest, CreateOfferRequest, GetPaymentRequest,
+            PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
+            UpdatePaymentNoteRequest,
         },
         payment::{Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus},
     },
@@ -132,6 +133,8 @@ pub enum LexeCommand {
     NodeInfo(NodeInfoArgs),
     CreateInvoice(CreateInvoiceArgs),
     PayInvoice(PayInvoiceArgs),
+    CreateOffer(CreateOfferArgs),
+    PayOffer(PayOfferArgs),
     GetPayment(GetPaymentArgs),
     WaitForPayment(WaitForPaymentArgs),
     UpdatePaymentNote(UpdatePaymentNoteArgs),
@@ -255,6 +258,8 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::NodeInfo(a) => a.run(&wallet).await,
         LexeCommand::CreateInvoice(a) => a.run(&wallet).await,
         LexeCommand::PayInvoice(a) => a.run(&wallet).await,
+        LexeCommand::CreateOffer(a) => a.run(&wallet).await,
+        LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
         LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
         LexeCommand::UpdatePaymentNote(a) => a.run(&wallet).await,
@@ -512,6 +517,105 @@ impl PayInvoiceArgs {
             // Provide some successful confirmation for CLI users;
             // stdout only prints the `PayInvoiceResponse` with no status.
             info!("Invoice paid!");
+        })?;
+
+        // Sync payments to persist the new payment locally.
+        if wallet.persistence_enabled() {
+            wallet
+                .sync_payments()
+                .await
+                .context("Payment sync failed")?;
+        }
+
+        helpers::print_json_pretty(&resp)
+    }
+}
+
+// --- `create-offer` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Create a BOLT 12 offer to receive Lightning payments",
+    long_about = "Create a BOLT 12 offer to receive Lightning payments.\n\
+        \n\
+        Unlike invoices, offers are reusable: multiple payments can be\n\
+        made to it, including from multiple payers.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct CreateOfferArgs {
+    #[arg(
+        long,
+        help = "Description shown to payers when they scan the offer.\n\
+            Maximum length: 512 UTF-8 bytes."
+    )]
+    description: Option<String>,
+
+    #[arg(
+        long,
+        help = "Minimum payment amount in satoshis.\n\
+            If not set, the payer can send any amount."
+    )]
+    min_amount_sats: Option<Amount>,
+
+    /// Offer expiration in seconds from now
+    #[arg(long)]
+    expiration_secs: Option<u32>,
+}
+
+impl CreateOfferArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = CreateOfferRequest {
+            description: self.description,
+            min_amount: self.min_amount_sats,
+            expiration_secs: self.expiration_secs,
+        };
+        let resp = wallet.create_offer(req).await?;
+
+        helpers::print_json_pretty(&resp)
+    }
+}
+
+// --- `pay-offer` --- //
+
+#[derive(Parser)]
+#[command(about = "Pay a BOLT 12 offer over Lightning", help_template = HELP_TEMPLATE)]
+pub struct PayOfferArgs {
+    /// The BOLT 12 offer to pay
+    offer: String,
+
+    #[arg(
+        long,
+        help = "The amount to pay in satoshis.\n\
+            Must satisfy the offer's minimum amount if set."
+    )]
+    amount_sats: Amount,
+
+    #[arg(
+        long,
+        help = "Personal note stored locally, not visible to receiver.\n\
+            Maximum length: 512 UTF-8 bytes."
+    )]
+    note: Option<String>,
+
+    /// Note sent to the receiver with the payment.
+    ///
+    /// Maximum length: 512 UTF-8 bytes.
+    #[arg(long)]
+    payer_note: Option<String>,
+}
+
+impl PayOfferArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let offer = Offer::from_str(&self.offer).context("Invalid offer")?;
+
+        let req = PayOfferRequest {
+            offer,
+            amount: self.amount_sats,
+            note: self.note,
+            payer_note: self.payer_note,
+        };
+        let resp = wallet.pay_offer(req).await.inspect(|_| {
+            info!("Offer paid!");
         })?;
 
         // Sync payments to persist the new payment locally.
