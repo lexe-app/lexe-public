@@ -11,7 +11,7 @@ use lexe_api::types::{
     offer::Offer,
     payments::{
         BasicPaymentV2, OfferId, PaymentDirection, PaymentId, PaymentKind,
-        PaymentRail, PaymentStatus,
+        PaymentPreimage, PaymentRail, PaymentStatus,
     },
 };
 #[cfg(test)]
@@ -536,6 +536,35 @@ impl PaymentV2 {
             Self::OutboundInvoice(oip) => PaymentId::Lightning(oip.hash),
             Self::OutboundOffer(oop) => PaymentId::OfferSend(oop.client_id),
             Self::OutboundSpontaneous(osp) => PaymentId::Lightning(osp.hash),
+        }
+    }
+
+    /// Returns the payment preimage if available.
+    ///
+    /// For outbound payments, returns the preimage if the payment completed
+    /// (the preimage serves as proof-of-payment).
+    ///
+    /// For inbound payments, the preimage is only returned if the payment
+    /// succeeded. Since the preimage is often used as a proof-of-payment, we
+    /// don't want to accidentally give someone a proof-of-payment for a payment
+    /// that never succeeded.
+    pub fn preimage(&self) -> Option<PaymentPreimage> {
+        use InboundInvoicePaymentStatus::Completed as IipCompleted;
+        use InboundOfferReusablePaymentStatus::Completed as IorpCompleted;
+        use InboundSpontaneousPaymentStatus::Completed as IspCompleted;
+
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(iip) =>
+                (iip.status == IipCompleted).then_some(iip.preimage),
+            Self::InboundOfferReusable(iorp) =>
+                (iorp.status == IorpCompleted).then_some(iorp.preimage),
+            Self::InboundSpontaneous(isp) =>
+                (isp.status == IspCompleted).then_some(isp.preimage),
+            Self::OutboundInvoice(oip) => oip.preimage,
+            Self::OutboundOffer(oop) => oop.preimage,
+            Self::OutboundSpontaneous(osp) => Some(osp.preimage),
         }
     }
 
