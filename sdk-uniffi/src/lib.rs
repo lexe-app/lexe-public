@@ -50,6 +50,7 @@ use lexe_api_core::{
     },
 };
 use lexe_common::{
+    ByteArray,
     env::DeployEnv as DeployEnvRs,
     ln::{
         amount::Amount as AmountRs, network::Network as NetworkRs,
@@ -1738,6 +1739,9 @@ pub struct Payment {
     pub kind: PaymentKind,
     /// Payment direction: inbound, outbound, or info.
     pub direction: PaymentDirection,
+    /// Hex-encoded payment preimage (Lightning payments only).
+    /// Proof-of-payment for outbound; only present for successful inbound.
+    pub preimage: Option<String>,
     /// Payment status.
     pub status: PaymentStatus,
     /// Human-readable payment status message.
@@ -1775,6 +1779,7 @@ impl From<SdkPayment> for Payment {
             rail,
             kind,
             direction,
+            preimage,
             txid,
             amount,
             fees,
@@ -1800,6 +1805,7 @@ impl From<SdkPayment> for Payment {
             rail: rail.into(),
             kind: kind.into(),
             direction: direction.into(),
+            preimage: preimage.map(|p| p.to_hex()),
             status: status.into(),
             status_msg,
             amount_sats: amount.map(|a| a.sats_u64()),

@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 mod reexports {
     pub use lexe_api::types::payments::{
         ClientPaymentId, LnClaimId, PaymentCreatedIndex, PaymentDirection,
-        PaymentHash, PaymentId, PaymentKind, PaymentRail, PaymentSecret,
-        PaymentStatus, PaymentUpdatedIndex,
+        PaymentHash, PaymentId, PaymentKind, PaymentPreimage, PaymentRail,
+        PaymentSecret, PaymentStatus, PaymentUpdatedIndex,
     };
 }
 pub use reexports::*;
@@ -39,6 +39,11 @@ pub struct Payment {
 
     /// The payment direction: `"inbound"`, `"outbound"`, or `"info"`.
     pub direction: PaymentDirection,
+
+    /// (Lightning payments only) The payment preimage. Serves as
+    /// proof-of-payment for outbound payments. For inbound payments, only
+    /// populated if the payment succeeded.
+    pub preimage: Option<PaymentPreimage>,
 
     /* TODO(max): Expose offer_id once we have out-of-line Offer storage.
     /// (Offer payments only) The id of the BOLT 12 offer used in this payment.
@@ -164,7 +169,7 @@ impl From<BasicPaymentV2> for Payment {
             related_ids: _,
             kind,
             direction,
-            preimage: _,
+            preimage,
             offer_id: _,
             txid,
             amount,
@@ -194,6 +199,7 @@ impl From<BasicPaymentV2> for Payment {
             rail: kind.rail(),
             kind,
             direction,
+            preimage,
             txid,
             amount,
             fees: fee,
