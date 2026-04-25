@@ -10,8 +10,8 @@ use lexe_api::types::{
     invoice::Invoice,
     offer::Offer,
     payments::{
-        BasicPaymentV2, OfferId, PaymentDirection, PaymentId, PaymentKind,
-        PaymentPreimage, PaymentRail, PaymentStatus,
+        BasicPaymentV2, OfferId, PaymentDirection, PaymentHash, PaymentId,
+        PaymentKind, PaymentPreimage, PaymentRail, PaymentStatus,
     },
 };
 #[cfg(test)]
@@ -538,6 +538,26 @@ impl PaymentV2 {
             Self::OutboundInvoice(oip) => PaymentId::Lightning(oip.hash),
             Self::OutboundOffer(oop) => PaymentId::OfferSend(oop.client_id),
             Self::OutboundSpontaneous(osp) => PaymentId::Lightning(osp.hash),
+        }
+    }
+
+    /// Returns the payment hash for Lightning payments, `None` for onchain.
+    //
+    // We can't just extract the hash from the `PaymentId` because some
+    // Lightning payment types don't use the payment hash as their id
+    // (e.g. `InboundOfferReusable`, and eventually `InboundSpontaneous`).
+    pub fn payment_hash(&self) -> Option<PaymentHash> {
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(iip) => Some(iip.hash),
+            // TODO(max): Why doesn't `InboundOfferReusable` store the hash?
+            Self::InboundOfferReusable(iorp) =>
+                Some(iorp.preimage.compute_hash()),
+            Self::InboundSpontaneous(isp) => Some(isp.hash),
+            Self::OutboundInvoice(oip) => Some(oip.hash),
+            Self::OutboundOffer(oop) => oop.hash,
+            Self::OutboundSpontaneous(osp) => Some(osp.hash),
         }
     }
 

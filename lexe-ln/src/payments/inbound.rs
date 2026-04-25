@@ -655,6 +655,8 @@ impl InboundInvoicePaymentV2 {
 // support externally generated offers (e.g. dumb shopify plugin generates an
 // offer without letting the node know).
 //
+// TODO(max): Why are we not storing the payment hash?
+//
 // Added in `node-v0.7.8`
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InboundOfferReusablePaymentV2 {
