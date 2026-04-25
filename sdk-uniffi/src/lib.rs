@@ -1744,6 +1744,8 @@ pub struct Payment {
     /// Hex-encoded payment preimage (Lightning payments only).
     /// Proof-of-payment for outbound; only present for successful inbound.
     pub preimage: Option<String>,
+    /// Hex-encoded BOLT12 offer id (offer payments only).
+    pub offer_id: Option<String>,
     /// Payment status.
     pub status: PaymentStatus,
     /// Human-readable payment status message.
@@ -1783,6 +1785,7 @@ impl From<SdkPayment> for Payment {
             direction,
             hash,
             preimage,
+            offer_id,
             txid,
             amount,
             fees,
@@ -1810,6 +1813,7 @@ impl From<SdkPayment> for Payment {
             direction: direction.into(),
             hash: hash.map(|h| h.to_hex()),
             preimage: preimage.map(|p| p.to_hex()),
+            offer_id: offer_id.map(|o| o.to_hex()),
             status: status.into(),
             status_msg,
             amount_sats: amount.map(|a| a.sats_u64()),

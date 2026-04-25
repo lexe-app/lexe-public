@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
 mod reexports {
     pub use lexe_api::types::payments::{
-        ClientPaymentId, LnClaimId, PaymentCreatedIndex, PaymentDirection,
-        PaymentHash, PaymentId, PaymentKind, PaymentPreimage, PaymentRail,
-        PaymentSecret, PaymentStatus, PaymentUpdatedIndex,
+        ClientPaymentId, LnClaimId, OfferId, PaymentCreatedIndex,
+        PaymentDirection, PaymentHash, PaymentId, PaymentKind, PaymentPreimage,
+        PaymentRail, PaymentSecret, PaymentStatus, PaymentUpdatedIndex,
     };
 }
 pub use reexports::*;
@@ -48,10 +48,9 @@ pub struct Payment {
     /// populated if the payment succeeded.
     pub preimage: Option<PaymentPreimage>,
 
-    /* TODO(max): Expose offer_id once we have out-of-line Offer storage.
-    /// (Offer payments only) The id of the BOLT 12 offer used in this payment.
+    /// (Offer payments only) The id of the BOLT12 offer used in this payment.
     pub offer_id: Option<OfferId>,
-    */
+
     /// (Onchain payments only) The hex-encoded Bitcoin txid.
     pub txid: Option<Txid>,
 
@@ -174,7 +173,7 @@ impl From<BasicPaymentV2> for Payment {
             direction,
             hash,
             preimage,
-            offer_id: _,
+            offer_id,
             txid,
             amount,
             fee,
@@ -205,6 +204,7 @@ impl From<BasicPaymentV2> for Payment {
             direction,
             hash,
             preimage,
+            offer_id,
             txid,
             amount,
             fees: fee,
