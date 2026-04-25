@@ -1334,9 +1334,11 @@ Attributes:
     fees_sats: Fees paid in satoshis.
     note: Optional personal note attached to this payment.
     invoice: BOLT 11 invoice used for this payment, if any.
-    txid: Hex-encoded Bitcoin txid (on-chain payments only).
+    hash: Hex-encoded payment hash (Lightning payments only).
     preimage: Hex-encoded payment preimage (Lightning payments only).
         Proof-of-payment for outbound; only present for successful inbound.
+    offer_id: Hex-encoded BOLT12 offer id (offer payments only).
+    txid: Hex-encoded Bitcoin txid (on-chain payments only).
     address: Bitcoin address for on-chain sends.
     expires_at_ms: Invoice/offer expiry time (ms since UNIX epoch).
     finalized_at_ms: When this payment finalized (ms since UNIX epoch).
