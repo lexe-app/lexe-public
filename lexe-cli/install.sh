@@ -145,6 +145,7 @@ download_binary_and_run_installer() {
   need_cmd rm
   need_cmd tar
   need_cmd grep
+  need_cmd awk
   need_cmd cat
 
   for arg in "$@"; do
@@ -1430,7 +1431,7 @@ resolve_latest_lexe_cli_tag() {
 
   say_verbose "Resolving latest lexe-cli release..."
 
-  local _api_url="https://api.github.com/repos/lexe-app/lexe-public/releases"
+  local _api_url="https://api.github.com/repos/lexe-app/lexe-public/releases?per_page=100"
   local _tmpfile
   _tmpfile="$(mktemp)" || return 1
 
@@ -1440,13 +1441,59 @@ resolve_latest_lexe_cli_tag() {
     err "Failed to fetch releases from GitHub API"
   fi
 
-  # Find the first release with a tag starting with "lexe-cli-v"
-  # The API returns releases in reverse chronological order
+  # Find the first non-draft, non-prerelease "lexe-cli-v*" release. The API
+  # returns releases in reverse chronological order.
   local _tag
-  _tag=$(grep -o '"tag_name"[[:space:]]*:[[:space:]]*"lexe-cli-v[^"]*"' "$_tmpfile" |
-    head -n 1 |
-    sed 's/.*"lexe-cli-v/lexe-cli-v/' |
-    sed 's/"$//')
+  _tag=$(
+    awk '
+      function flush_release() {
+        tag_match = match(release, /"tag_name"[[:space:]]*:[[:space:]]*"lexe-cli-v[^"]*"/)
+        if (!tag_match) { release = ""; return }
+        if (release !~ /"draft"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
+        if (release !~ /"prerelease"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
+
+        tag = substr(release, RSTART, RLENGTH)
+        sub(/^.*"lexe-cli-v/, "lexe-cli-v", tag)
+        sub(/"$/, "", tag)
+        found = 1
+        print tag
+        exit
+      }
+
+      {
+        for (i = 1; i <= length($0); i++) {
+          c = substr($0, i, 1)
+
+          if (in_string) {
+            if (escape) {
+              escape = 0
+            } else if (c == "\\") {
+              escape = 1
+            } else if (c == "\"") {
+              in_string = 0
+            }
+          } else if (c == "\"") {
+            in_string = 1
+          } else if (c == "{") {
+            if (depth == 0) release = ""
+            depth++
+          }
+
+          if (depth > 0) release = release c
+
+          if (!in_string && c == "}") {
+            depth--
+            if (depth == 0) flush_release()
+          }
+        }
+        if (depth > 0) release = release "\n"
+      }
+
+      END {
+        if (!found) exit 1
+      }
+    ' "$_tmpfile"
+  )
 
   rm -f "$_tmpfile"
 
