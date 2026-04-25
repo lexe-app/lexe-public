@@ -350,6 +350,7 @@ impl PaymentWithMetadata<PaymentV2> {
         updated_at: TimestampMs,
     ) -> BasicPaymentV2 {
         let id = self.payment.id();
+        let hash = self.payment.payment_hash();
         let preimage = self.payment.preimage();
         let offer_id = self.payment.offer_id();
         let txid = self.payment.txid();
@@ -380,6 +381,7 @@ impl PaymentWithMetadata<PaymentV2> {
             related_ids,
             kind,
             direction,
+            hash,
             preimage,
             offer_id,
             txid,

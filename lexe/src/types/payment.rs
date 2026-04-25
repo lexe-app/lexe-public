@@ -169,6 +169,7 @@ impl From<BasicPaymentV2> for Payment {
             related_ids: _,
             kind,
             direction,
+            hash: _,
             preimage,
             offer_id: _,
             txid,
