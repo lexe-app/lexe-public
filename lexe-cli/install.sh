@@ -100,7 +100,7 @@ INFERRED_HOME_EXPRESSION=$(get_home_expression)
 usage() {
   # print help (this cat/EOF stuff is a "heredoc" string)
   cat << EOF
-install-cli.sh
+install.sh
 
 The installer for lexe-cli
 
@@ -115,7 +115,7 @@ then unpacks the binaries and installs them to the first of the following locati
 It will then add that dir to PATH by adding the appropriate line to your shell profiles.
 
 USAGE:
-    install-cli.sh [OPTIONS]
+    install.sh [OPTIONS]
 
 OPTIONS:
     -v, --verbose
