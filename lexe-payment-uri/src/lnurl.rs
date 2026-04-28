@@ -127,7 +127,7 @@ use lexe_payment_uri_core::{
 use lexe_std::Apply;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 use serde::Deserialize;
-use tracing::debug;
+use tracing::{debug, warn};
 
 /// Timeout for LNURL HTTP requests.
 // TODO(max): const_assert! that this timeout is shorter than the timeout on the
@@ -321,14 +321,34 @@ impl LnurlClient {
         let min_sendable = Amount::from_msat(min_sendable_msat);
         let max_sendable = Amount::from_msat(max_sendable_msat);
 
-        ensure!(
-            min_sendable > Amount::ZERO,
-            "LNURL-pay minSendable must be positive, got {min_sendable}"
-        );
+        // `minSendable` is technically not allowed to be 0, but if they set it
+        // to 0, it's pretty clear the receiver intends to allow anything, so
+        // just clamp it up to 1 msat.
+        let min_sendable = if min_sendable == Amount::ZERO {
+            warn!(%http_url, "Receiver set min_sendable to 0");
+            Amount::from_msat(1)
+        } else {
+            min_sendable
+        };
+
+        // Alby exposes Lightning Addresses with underlying LNURLs that have
+        // `maxSendable` set to 0, which makes no sense.
+        //
+        // Instead of preventing payment due to the receiver's configuration
+        // error, just set `maxSendable` to the total Bitcoin supply.
+        // If the payment fails later, that's OK - other wallets would too.
+        // Just don't be the one wallet that fails to pay due to a technicality.
+        let max_sendable = if max_sendable == Amount::ZERO {
+            warn!(%http_url, "Receiver set max_sendable to 0");
+            Amount::MAX_BITCOIN_SUPPLY
+        } else {
+            max_sendable
+        };
+
         ensure!(
             min_sendable <= max_sendable,
-            "LNURL-pay has invalid amount range: \
-             min {min_sendable} > max {max_sendable}"
+            "Receiver's LNURL-pay request provided an invalid amount range: \
+             min {min_sendable} sats > max {max_sendable} sats"
         );
 
         let metadata = LnurlPayRequestMetadata::from_raw_string(metadata)?;
@@ -444,8 +464,11 @@ impl LnurlClient {
             "Invoice amount {invoice_amount} doesn't match requested {amount}"
         );
 
-        // Lots of description hashes don't adhere to the LUDS06 spec,
-        // so we are just gonna bypass description hash validation.
+        // Wallet of Satoshi's Spark wallet and some other wallets don't adhere
+        // to LUD06. The description hash is supposed to serve as a proof of
+        // payment somehow, but if the receiver doesn't support it, we should
+        // still let the sender pay.
+        //
         // // Validate description hash
         // let description_hash = invoice
         //     .description_hash()
