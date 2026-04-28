@@ -787,9 +787,16 @@ mod anonymize {
         // TODO(max): Whitelist (don't pop off) custodial nodes like Strike or
         // Coinbase, as their anonymity set is all of their users.
         let receiver_hop = path.hops.pop();
-        if receiver_hop.is_none() {
-            debug_panic_release_log!("Path should always have at >= 1 hop!");
-            return None;
+
+        // Hold on to the path amount (last hop `fee_msat`). We need to restore
+        // this on the last hop of the anonymized path in order to update the
+        // LSP scorer accurately.
+        let path_amount_msat = match receiver_hop {
+            Some(h) => h.fee_msat,
+            None => {
+                debug_panic_release_log!("Path should always have >= 1 hop!");
+                return None;
+            }
         };
 
         // Pop off hops and increase our search depth until we either reach the
@@ -798,7 +805,7 @@ mod anonymize {
         let mut anonymity_set =
             HashSet::<NodeId>::with_capacity(MIN_ANONYMITY_SET_SIZE);
         let mut depth = 1;
-        while let Some(departure_hop) = path.hops.last()
+        while let Some(departure_hop) = path.hops.last_mut()
             && depth <= MAX_DEPTH
         {
             let departure_node_id = NodeId::from_pubkey(&departure_hop.pubkey);
@@ -815,6 +822,10 @@ mod anonymize {
                     anonymity_set = %anonymity_set.len(),
                     "Anonymized path: termination depth={depth}"
                 );
+
+                // Restore the original path amount in the last hop `fee_msat`.
+                departure_hop.fee_msat = path_amount_msat;
+
                 return Some(path);
             }
 
