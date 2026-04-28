@@ -187,7 +187,7 @@ impl NodeLspApi for NodeLspClient {
 
     async fn payment_path(&self, event: &Event) -> Result<Empty, LspApiError> {
         let lsp = &self.lsp_url;
-        let url = format!("{lsp}/node/v1/payment_path");
+        let url = format!("{lsp}/node/v2/payment_path");
         let req = self.rest.serialize_ldk_writeable(POST, url, event);
         self.rest.send(req).await
     }

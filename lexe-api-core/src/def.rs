@@ -1093,13 +1093,15 @@ pub trait NodeLspApi {
     /// Introduced in node-v0.6.17 and lsp-v0.6.33.
     async fn get_prob_scorer(&self) -> Result<Bytes, LspApiError>;
 
-    /// POST /node/v1/payment_path [`Bytes`] (LDK-serialized [`Event`])
+    /// POST /node/v2/payment_path [`Bytes`] (LDK-serialized [`Event`])
     ///                         -> [`Empty`]
     ///
     /// Sends an anonymized successful or failed payment path to the LSP to
     /// update Lexe's shared network graph and improve payment reliability.
     ///
-    /// Introduced in node-v0.6.17 and lsp-v0.6.33.
+    /// Originally introduced in node-v0.6.17 and lsp-v0.6.33. All node-v0.9.5
+    /// and older have a subtle bug in how they anonymize payment paths, so
+    /// we now ignore all payment path feedback from <=node-v0.9.5
     async fn payment_path(&self, event: &Event) -> Result<Empty, LspApiError>;
 }
 
