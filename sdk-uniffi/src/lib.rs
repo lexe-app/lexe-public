@@ -20,7 +20,10 @@ use lexe::{
             CredentialsRef as SdkCredentialsRef, RootSeed as SdkRootSeed,
             UserPk,
         },
+        bitcoin::PaymentMethod,
         command::{
+            AnalyzeRequest as SdkAnalyzeRequest,
+            AnalyzeResponse as SdkAnalyzeResponse,
             CreateInvoiceRequest as SdkCreateInvoiceRequest,
             CreateInvoiceResponse as SdkCreateInvoiceResponse,
             CreateOfferRequest as SdkCreateOfferRequest,
@@ -29,7 +32,9 @@ use lexe::{
             PayInvoiceRequest as SdkPayInvoiceRequest,
             PayInvoiceResponse as SdkPayInvoiceResponse,
             PayOfferRequest as SdkPayOfferRequest,
-            PayOfferResponse as SdkPayOfferResponse, UpdatePaymentNoteRequest,
+            PayOfferResponse as SdkPayOfferResponse,
+            PayRequest as SdkPayRequest, PayResponse as SdkPayResponse,
+            PayableDetails as SdkPayableDetails, UpdatePaymentNoteRequest,
         },
         payment::Payment as SdkPayment,
     },
@@ -836,6 +841,80 @@ impl AsyncLexeWallet {
         Ok(info.into())
     }
 
+    /// Analyze a string encoding a Lightning/Bitcoin payment method.
+    ///
+    /// Returns a list of payment methods found (as `AnalyzeResponse`), sorted
+    /// from most to least recommended. Each `PayableDetails` entry includes the
+    /// payable string, method type ("invoice", "offer", "onchain", or "lnurl"),
+    /// amount constraints, description, and expiration.
+    ///
+    /// Supported payment methods:
+    /// - BOLT11 invoice
+    /// - BOLT12 offer
+    /// - Bitcoin address
+    /// - Lightning address
+    /// - LNURL
+    ///
+    /// Supported encodings:
+    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - Lightning URI: `lightning:ln...`
+    /// - BOLT11 invoice: `lnbc1...`
+    /// - BOLT12 offer: `lno1...`
+    /// - Onchain bitcoin address: `bc1...`
+    /// - Lightning address: `satoshi@lexe.app`
+    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    ///
+    /// `payable` is the string to analyze.
+    #[uniffi::method]
+    pub async fn analyze(&self, payable: String) -> FfiResult<AnalyzeResponse> {
+        let req = SdkAnalyzeRequest { payable };
+        let resp = self.inner.analyze(req).await?;
+        Ok(resp.into())
+    }
+
+    /// Pay a string encoding a Lightning/Bitcoin payment method.
+    ///
+    /// If multiple payment methods are encoded, the best recommended one is
+    /// chosen. For fine-grained control, use `analyze` first, then call
+    /// `pay_invoice`, `pay_offer`, etc.
+    ///
+    /// Supported payment methods:
+    /// - BOLT11 invoice
+    /// - BOLT12 offer
+    /// - Bitcoin address
+    /// - Lightning address
+    /// - LNURL
+    ///
+    /// Supported encodings:
+    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - Lightning URI: `lightning:ln...`
+    /// - BOLT11 invoice: `lnbc1...`
+    /// - BOLT12 offer: `lno1...`
+    /// - Onchain bitcoin address: `bc1...`
+    /// - Lightning address: `satoshi@lexe.app`
+    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    ///
+    /// `payable` is the string to pay.
+    /// `amount_sats` is required when the payable has no encoded amount. If
+    /// both specify an amount, they must match. For LNURL payables, the
+    /// amount must be within the receiver's [min_amount, max_amount] range.
+    #[uniffi::method(default( amount_sats = None ))]
+    pub async fn pay(
+        &self,
+        payable: String,
+        amount_sats: Option<u64>,
+    ) -> FfiResult<PayResponse> {
+        let amount = amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+        let req = SdkPayRequest { payable, amount };
+        let resp = self.inner.pay(req).await?;
+        Ok(resp.into())
+    }
+
     /// Create a BOLT11 invoice.
     /// `expiration_secs` is the optional invoice expiry, in seconds;
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
@@ -1236,6 +1315,80 @@ impl BlockingLexeWallet {
         Ok(info.into())
     }
 
+    /// Analyze a string encoding a Lightning/Bitcoin payment method.
+    ///
+    /// Returns a list of payment methods found (as `AnalyzeResponse`), sorted
+    /// from most to least recommended. Each `PayableDetails` entry includes the
+    /// payable string, method type ("invoice", "offer", "onchain", or "lnurl"),
+    /// amount constraints, description, and expiration.
+    ///
+    /// Supported payment methods:
+    /// - BOLT11 invoice
+    /// - BOLT12 offer
+    /// - Bitcoin address
+    /// - Lightning address
+    /// - LNURL
+    ///
+    /// Supported encodings:
+    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - Lightning URI: `lightning:ln...`
+    /// - BOLT11 invoice: `lnbc1...`
+    /// - BOLT12 offer: `lno1...`
+    /// - Onchain bitcoin address: `bc1...`
+    /// - Lightning address: `satoshi@lexe.app`
+    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    ///
+    /// `payable` is the string to analyze.
+    #[uniffi::method]
+    pub fn analyze(&self, payable: String) -> FfiResult<AnalyzeResponse> {
+        let req = SdkAnalyzeRequest { payable };
+        let resp = self.inner.analyze(req)?;
+        Ok(resp.into())
+    }
+
+    /// Pay a string encoding a Lightning/Bitcoin payment method.
+    ///
+    /// If multiple payment methods are encoded, the best recommended one is
+    /// chosen. For fine-grained control, use `analyze` first, then call
+    /// `pay_invoice`, `pay_offer`, etc.
+    ///
+    /// Supported payment methods:
+    /// - BOLT11 invoice
+    /// - BOLT12 offer
+    /// - Bitcoin address
+    /// - Lightning address
+    /// - LNURL
+    ///
+    /// Supported encodings:
+    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - Lightning URI: `lightning:ln...`
+    /// - BOLT11 invoice: `lnbc1...`
+    /// - BOLT12 offer: `lno1...`
+    /// - Onchain bitcoin address: `bc1...`
+    /// - Lightning address: `satoshi@lexe.app`
+    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    ///
+    /// `payable` is the string to pay.
+    /// `amount_sats` is required when the payable has no encoded amount. If
+    /// both specify an amount, they must match. For LNURL payables, the
+    /// amount must be within the receiver's [min_amount, max_amount] range.
+    #[uniffi::method(default( amount_sats = None ))]
+    pub fn pay(
+        &self,
+        payable: String,
+        amount_sats: Option<u64>,
+    ) -> FfiResult<PayResponse> {
+        let amount = amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+        let req = SdkPayRequest { payable, amount };
+        let resp = self.inner.pay(req)?;
+        Ok(resp.into())
+    }
+
     /// Create a BOLT11 invoice.
     /// `expiration_secs` is the optional invoice expiry, in seconds;
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
@@ -1244,6 +1397,7 @@ impl BlockingLexeWallet {
     #[uniffi::method(default(
         amount_sats = None,
         description = None,
+        expiration_secs = None,
     ))]
     pub fn create_invoice(
         &self,
@@ -1850,6 +2004,100 @@ pub struct ListPaymentsResponse {
     /// Cursor for fetching the next page. `None` when there are no more
     /// results. Pass this as the `after` argument to get the next page.
     pub next_index: Option<String>,
+}
+
+// =================== //
+// --- Pay/Analyze --- //
+// =================== //
+
+/// Describes basic information for a payable string.
+#[derive(Clone, uniffi::Record)]
+pub struct PayableDetails {
+    /// String encoding of the payable.
+    pub payable: String,
+
+    /// Type of method of payment encoded:
+    /// "invoice", "lnurl", "offer", "onchain".
+    pub method: String,
+
+    /// Description encoded in the payable, if any.
+    pub description: Option<String>,
+
+    /// Amount encoded in the payable, in satoshis (if any).
+    ///
+    /// If no amount, the payer should specify an amount to pay.
+    ///
+    /// Won't be supplied if min_amount or max_amount are specified.
+    pub amount_sats: Option<u64>,
+    /// The minimum amount that can be paid to the payable.
+    ///
+    /// Won't be supplied if amount is specified.
+    pub min_amount_sats: Option<u64>,
+    /// Maximum amount that can be paid to the payable.
+    ///
+    /// Won't be supplied if amount is specified.
+    pub max_amount_sats: Option<u64>,
+
+    /// Payable expiration time (milliseconds since the UNIX epoch).
+    pub expires_at_ms: Option<u64>,
+}
+
+impl From<SdkPayableDetails> for PayableDetails {
+    fn from(resp: SdkPayableDetails) -> Self {
+        let method = match resp.method {
+            PaymentMethod::Onchain(_) => "onchain",
+            PaymentMethod::Invoice(_) => "invoice",
+            PaymentMethod::Offer(_) => "offer",
+            PaymentMethod::LnurlPayRequest(_) => "lnurl",
+        }
+        .to_owned();
+        Self {
+            payable: resp.payable,
+            method,
+            description: resp.description,
+            amount_sats: resp.amount.map(|a| a.sats_u64()),
+            min_amount_sats: resp.min_amount.map(|a| a.sats_u64()),
+            max_amount_sats: resp.max_amount.map(|a| a.sats_u64()),
+            expires_at_ms: resp.expires_at.map(|t| t.to_millis()),
+        }
+    }
+}
+
+/// Response from analyzing a payable string.
+#[derive(Clone, uniffi::Record)]
+pub struct AnalyzeResponse {
+    /// Valid payment routes encoded in the analyzed string, sorted from most
+    /// to least recommended.
+    pub payables: Vec<PayableDetails>,
+}
+
+impl From<SdkAnalyzeResponse> for AnalyzeResponse {
+    fn from(resp: SdkAnalyzeResponse) -> Self {
+        let payables = resp
+            .payables
+            .into_iter()
+            .map(PayableDetails::from)
+            .collect();
+        Self { payables }
+    }
+}
+
+/// Response from paying a payable string.
+#[derive(Clone, uniffi::Record)]
+pub struct PayResponse {
+    /// Unique payment identifier for this payment.
+    pub index: String,
+    /// When we tried to pay this payable (milliseconds since the UNIX epoch).
+    pub created_at_ms: u64,
+}
+
+impl From<SdkPayResponse> for PayResponse {
+    fn from(resp: SdkPayResponse) -> Self {
+        Self {
+            index: resp.index.to_string(),
+            created_at_ms: resp.created_at.to_millis(),
+        }
+    }
 }
 
 // ================ //

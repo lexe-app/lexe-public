@@ -651,6 +651,97 @@ Example::
     print(f"Channels: {info.num_usable_channels}/{info.num_channels}")
 """)
 
+_set_method_doc(LexeWallet, "analyze", """\
+Analyze a string which encodes payment methods and return details about
+each method found.
+
+Supported payment methods:
+
+- BOLT11 invoice
+- BOLT12 offer
+- Bitcoin address
+- Lightning address
+- LNURL
+
+Supported encodings:
+
+- BIP321 URI: ``bitcoin:bc1...``
+- Lightning URI: ``lightning:ln...``
+- BOLT11 invoice: ``lnbc1...``
+- BOLT12 offer: ``lno1...``
+- Onchain bitcoin address: ``bc1...``
+- Lightning address: ``satoshi@lexe.app``
+- Human bitcoin address: ``₿satoshi@lexe.app``
+- LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+
+Args:
+    payable: The string-encoded payment method.
+
+Returns:
+    A :class:`AnalyzeResponse` containing a list of :class:`PayableDetails`
+    describing each parsed payment method. This list is sorted from most
+    recommended to least recommended payment method.
+
+Raises:
+    FfiError: If no valid payment methods were found.
+
+Example::
+
+    resp = wallet.analyze("satoshi@lexe.app")
+    details = resp.payables[0]
+    print(details.payable)         # "satoshi@lexe.app"
+    print(details.method)          # "lnurl"
+    print(details.min_amount_sats) # minimum payable amount
+    print(details.max_amount_sats) # maximum payable amount
+""")
+
+_set_method_doc(LexeWallet, "pay", """\
+Pay any string which encodes a Lightning/Bitcoin payment method.
+
+If there are multiple encoded payment methods, the best recommended one is
+chosen. For fine-grained control, use :meth:`analyze` first, then call the
+specific pay method (:meth:`pay_invoice`, :meth:`pay_offer`, etc.).
+
+Supported payment methods:
+
+- BOLT11 invoice
+- BOLT12 offer
+- Bitcoin address
+- Lightning address
+- LNURL
+
+Supported encodings:
+
+- BIP321 URI: ``bitcoin:bc1...``
+- Lightning URI: ``lightning:ln...``
+- BOLT11 invoice: ``lnbc1...``
+- BOLT12 offer: ``lno1...``
+- Onchain bitcoin address: ``bc1...``
+- Lightning address: ``satoshi@lexe.app``
+- Human bitcoin address: ``₿satoshi@lexe.app``
+- LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+
+Args:
+    payable: The string to pay.
+    amount_sats: Amount in satoshis to pay. Required if the payable has no
+        encoded amount. If both the payable and ``amount_sats`` specify an
+        amount, they must match. For LNURL payables, the amount must fall
+        within the receiver's minimum and maximum range.
+
+Returns:
+    A :class:`PayResponse` with the payment index and timestamp.
+
+Raises:
+    FfiError: If the payable string is invalid, the amount is missing or
+        out of range, or payment initiation fails.
+
+Example::
+
+    resp = wallet.pay("satoshi@lexe.app", amount_sats=1000)
+    payment = wallet.wait_for_payment(resp.index)
+    print(f"Payment {payment.status}")
+""")
+
 _set_method_doc(LexeWallet, "create_invoice", """\
 Create a BOLT 11 Lightning invoice.
 
@@ -1020,6 +1111,97 @@ Example::
     info = await wallet.node_info()
     print(f"Balance: {info.balance_sats} sats")
     print(f"Channels: {info.num_usable_channels}/{info.num_channels}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "analyze", """\
+Analyze a string which encodes payment methods and return details about
+each method found.
+
+Supported payment methods:
+
+- BOLT11 invoice
+- BOLT12 offer
+- Bitcoin address
+- Lightning address
+- LNURL
+
+Supported encodings:
+
+- BIP321 URI: ``bitcoin:bc1...``
+- Lightning URI: ``lightning:ln...``
+- BOLT11 invoice: ``lnbc1...``
+- BOLT12 offer: ``lno1...``
+- Onchain bitcoin address: ``bc1...``
+- Lightning address: ``satoshi@lexe.app``
+- Human bitcoin address: ``₿satoshi@lexe.app``
+- LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+
+Args:
+    payable: The string-encoded payment method.
+
+Returns:
+    A :class:`AnalyzeResponse` containing a list of :class:`PayableDetails`
+    describing each parsed payment method. This list is sorted from most
+    recommended to least recommended payment method.
+
+Raises:
+    FfiError: If no valid payment methods were found.
+
+Example::
+
+    resp = await wallet.analyze("satoshi@lexe.app")
+    details = resp.payables[0]
+    print(details.payable)         # "satoshi@lexe.app"
+    print(details.method)          # "lnurl"
+    print(details.min_amount_sats) # minimum payable amount
+    print(details.max_amount_sats) # maximum payable amount
+""")
+
+_set_method_doc(AsyncLexeWallet, "pay", """\
+Pay any string which encodes a Lightning/Bitcoin payment method.
+
+If there are multiple encoded payment methods, the best recommended one is
+chosen. For fine-grained control, use :meth:`analyze` first, then call the
+specific pay method (:meth:`pay_invoice`, :meth:`pay_offer`, etc.).
+
+Supported payment methods:
+
+- BOLT11 invoice
+- BOLT12 offer
+- Bitcoin address
+- Lightning address
+- LNURL
+
+Supported encodings:
+
+- BIP321 URI: ``bitcoin:bc1...``
+- Lightning URI: ``lightning:ln...``
+- BOLT11 invoice: ``lnbc1...``
+- BOLT12 offer: ``lno1...``
+- Onchain bitcoin address: ``bc1...``
+- Lightning address: ``satoshi@lexe.app``
+- Human bitcoin address: ``₿satoshi@lexe.app``
+- LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+
+Args:
+    payable: The string to pay.
+    amount_sats: Amount in satoshis to pay. Required if the payable has no
+        encoded amount. If both the payable and ``amount_sats`` specify an
+        amount, they must match. For LNURL payables, the amount must fall
+        within the receiver's minimum and maximum range.
+
+Returns:
+    A :class:`PayResponse` with the payment index and timestamp.
+
+Raises:
+    FfiError: If the payable string is invalid, the amount is missing or
+        out of range, or payment initiation fails.
+
+Example::
+
+    resp = await wallet.pay("satoshi@lexe.app", amount_sats=1000)
+    payment = await wallet.wait_for_payment(resp.index)
+    print(f"Payment {payment.status}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "create_invoice", """\
@@ -1399,6 +1581,44 @@ Attributes:
     payments: Payments in the requested page.
     next_index: Cursor for fetching the next page, or ``None``
         if there are no more results.
+"""
+
+# ======================= #
+# --- Pay / Analyze   --- #
+# ======================= #
+
+lexe.PayableDetails.__doc__ = """\
+A parsed payment method returned by :meth:`LexeWallet.analyze`.
+
+Attributes:
+    payable: The string encoding of this payment method.
+    method: The type of payment method: ``"invoice"``, ``"lnurl"``,
+        ``"offer"``, or ``"onchain"``.
+    description: Description encoded in the payable, if any.
+    amount_sats: Amount in satoshis encoded in the payable, if any.
+        ``None`` if the payer must specify an amount, or if
+        ``min_amount_sats`` / ``max_amount_sats`` are set instead.
+    min_amount_sats: Minimum payable amount in satoshis, if any.
+        ``None`` if ``amount_sats`` is set.
+    max_amount_sats: Maximum payable amount in satoshis, if any.
+        ``None`` if ``amount_sats`` is set.
+    expires_at_ms: Payable expiration time (ms since UNIX epoch), if any.
+"""
+
+lexe.AnalyzeResponse.__doc__ = """\
+Response from :meth:`LexeWallet.analyze`.
+
+Attributes:
+    payables: Valid payment routes encoded in the analyzed string, ordered
+        from most recommended to least recommended.
+"""
+
+lexe.PayResponse.__doc__ = """\
+Response from :meth:`LexeWallet.pay`.
+
+Attributes:
+    index: Unique payment identifier for this payment.
+    created_at_ms: When payment was initiated (ms since UNIX epoch).
 """
 
 # ================ #

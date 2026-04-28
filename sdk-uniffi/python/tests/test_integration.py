@@ -309,6 +309,155 @@ def test_create_and_pay_invoice(prefunded_wallets):
         f"{payer_payment.amount_sats}, expected {test_invoice_amount_sats}"
     )
 
+@pytest.mark.integration
+def test_create_and_pay_offer(prefunded_wallets):
+    """Test creating and paying offers between two pre-funded wallets."""
+    # Test constants
+    poll_timeout_secs = 120
+    test_offer_min_amount_sats = 1000
+    test_offer_expiration_secs = 3600
+    test_pay_amount_sats = test_offer_min_amount_sats + 200
+
+    if prefunded_wallets is None:
+        pytest.skip("Requires pre-funded wallets from Rust smoketest")
+
+    if len(prefunded_wallets["wallets"]) < 2:
+        pytest.skip("Requires at least 2 pre-funded wallets")
+
+    gateway_url = prefunded_wallets["gateway_url"]
+
+    # Load pre-funded wallets
+    wallet1 = load_prefunded_wallet(
+        prefunded_wallets["wallets"][0],
+        gateway_url,
+    )
+    wallet2 = load_prefunded_wallet(
+        prefunded_wallets["wallets"][1],
+        gateway_url,
+    )
+
+    # Verify wallets have Lightning balance
+    info1 = wallet1.node_info()
+    info2 = wallet2.node_info()
+    assert info1.lightning_balance_sats > 0, \
+        "Wallet 1 has no Lightning balance: " \
+        f"{info1.lightning_balance_sats}"
+    assert info2.lightning_balance_sats > 0, \
+        "Wallet 2 has no Lightning balance: " \
+        f"{info2.lightning_balance_sats}"
+
+    # Create offer on wallet2
+    create_resp = wallet2.create_offer(
+        expiration_secs=test_offer_expiration_secs,
+        min_amount_sats=test_offer_min_amount_sats,
+        description="Test payment from Python SDK",
+    )
+
+    assert create_resp.offer != ""
+
+    # Pay offer from wallet1
+    pay_resp = wallet1.pay_offer(
+        create_resp.offer,
+        amount_sats=test_pay_amount_sats,
+        note="Paying test offer from Python SDK",
+    )
+    assert pay_resp.index != ""
+    assert pay_resp.created_at_ms > 0
+
+    # Wait for payment to complete using SDK polling method
+    payer_payment = wallet1.wait_for_payment(
+        index=pay_resp.index,
+        timeout_secs=poll_timeout_secs,
+    )
+
+    assert payer_payment.status == lexe.PaymentStatus.COMPLETED, \
+        f"Payment status is {payer_payment.status}, expected COMPLETED"
+    assert payer_payment.amount_sats == test_pay_amount_sats, (
+        "Payment amount is "
+        f"{payer_payment.amount_sats}, expected {test_pay_amount_sats}"
+    )
+
+@pytest.mark.integration
+def test_pay(prefunded_wallets):
+    """Test paying between two pre-funded wallets using pay."""
+    # Test constants
+    poll_timeout_secs = 120
+    test_invoice_amount_sats = 1000
+    test_invoice_expiration_secs = 3600
+    test_offer_min_amount_sats = 1000
+    test_offer_expiration_secs = 3600
+    test_pay_offer_amount_sats = test_offer_min_amount_sats + 100
+
+    if prefunded_wallets is None:
+        pytest.skip("Requires pre-funded wallets from Rust smoketest")
+
+    if len(prefunded_wallets["wallets"]) < 2:
+        pytest.skip("Requires at least 2 pre-funded wallets")
+
+    gateway_url = prefunded_wallets["gateway_url"]
+
+    # Load pre-funded wallets
+    wallet1 = load_prefunded_wallet(
+        prefunded_wallets["wallets"][0],
+        gateway_url,
+    )
+    wallet2 = load_prefunded_wallet(
+        prefunded_wallets["wallets"][1],
+        gateway_url,
+    )
+
+    # Verify wallets have Lightning balance
+    info1 = wallet1.node_info()
+    info2 = wallet2.node_info()
+    assert info1.lightning_balance_sats > 0, \
+        "Wallet 1 has no Lightning balance: " \
+        f"{info1.lightning_balance_sats}"
+    assert info2.lightning_balance_sats > 0, \
+        "Wallet 2 has no Lightning balance: " \
+        f"{info2.lightning_balance_sats}"
+
+    # Create offer on wallet1
+    offer_resp = wallet1.create_offer(
+        expiration_secs=test_offer_expiration_secs,
+        min_amount_sats=test_offer_min_amount_sats,
+        description="Test offer from Python SDK",
+    )
+    # Create invoice on wallet2
+    invoice_resp = wallet2.create_invoice(
+        expiration_secs=test_invoice_expiration_secs,
+        amount_sats=test_invoice_amount_sats,
+        description="Test invoice from Python SDK",
+    )
+
+    # Pay wallet2's invoice from wallet1
+    w1_pay_resp = wallet1.pay(invoice_resp.invoice)
+    w1_payer_payment = wallet1.wait_for_payment(
+        index=w1_pay_resp.index,
+        timeout_secs=poll_timeout_secs,
+    )
+    assert w1_payer_payment.status == lexe.PaymentStatus.COMPLETED, \
+        f"Payment status is {w1_payer_payment.status}, expected COMPLETED"
+    assert w1_payer_payment.amount_sats == test_invoice_amount_sats, (
+        "Payment amount is "
+        f"{w1_payer_payment.amount_sats}, expected {test_invoice_amount_sats}"
+    )
+
+    # Pay wallet1's offer from wallet2
+    w2_pay_resp = wallet2.pay(
+        offer_resp.offer,
+        amount_sats=test_pay_offer_amount_sats
+    )
+    # Wait for payment to complete using SDK polling method
+    w2_payer_payment = wallet2.wait_for_payment(
+        index=w2_pay_resp.index,
+        timeout_secs=poll_timeout_secs,
+    )
+    assert w2_payer_payment.status == lexe.PaymentStatus.COMPLETED, \
+        f"Payment status is {w2_payer_payment.status}, expected COMPLETED"
+    assert w2_payer_payment.amount_sats == test_pay_offer_amount_sats, (
+        "Payment amount is "
+        f"{w2_payer_payment.amount_sats}, expected {test_pay_offer_amount_sats}"
+    )
 
 # --- Error case tests --- #
 
