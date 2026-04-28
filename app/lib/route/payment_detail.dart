@@ -507,7 +507,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
-      maxChildSize: 0.6,
+      maxChildSize: 0.9,
       minChildSize: 0.0,
       expand: false,
       shouldCloseOnMinExtent: true,
