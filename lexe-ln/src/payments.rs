@@ -670,13 +670,33 @@ impl PaymentV2 {
         }
     }
 
-    /// The amount of this payment.
+    /// The amount of this payment, exclusive of fees.
     ///
-    /// - If this is a completed inbound invoice payment, we return the amount
-    ///   we received.
-    /// - If this is a pending or failed inbound inbound invoice payment, we
-    ///   return the amount encoded in our invoice, which may be null.
+    /// - For completed inbound payments, returns the amount we actually
+    ///   received, after any receiver fees, partner fees, and channel fees.
+    /// - For pending or failed inbound invoice payments, falls back to the
+    ///   invoiced amount (which may be null for amountless invoices).
     /// - For all other payment types, an amount is always returned.
+    //
+    // Rationale:
+    //
+    // - We want the payments list +/- amounts to 'balance out' to the main
+    //   balance displayed in the wallet.
+    // - Exported payments are easier to integrate into accounting systems when
+    //   the "amount" is *exclusive* of fees.
+    // - A `total()` getter is available for internal types; the "total" is
+    //   serialized for SDK consumers so they don't need to do arithmetic.
+    //
+    // Examples:
+    //
+    // - Receive: A merchant list items $100 and encodes $100 in their invoices.
+    //   Their payment processor charges 1%.
+    //   - Payments list: Entries of "+$99"
+    //   - Details: $100 ("total") - $1 ("fees") = $99 ("amount received")
+    // - Send: A consumer buys an item with a listed price of $100 and pays a
+    //   sender fee of 0.5%.
+    //   - Payments list: Entries of "-$100.5"
+    //   - Details: $100 ("amount") + $0.5 ("fees") = $100.5 ("total")
     pub fn amount(&self) -> Option<Amount> {
         match self {
             Self::OnchainSend(OnchainSendV2 { amount, .. }) => Some(*amount),
