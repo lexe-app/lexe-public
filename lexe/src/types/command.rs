@@ -12,6 +12,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
+use lexe_payment_uri::PaymentMethod;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
@@ -98,6 +99,78 @@ impl From<command::NodeInfo> for NodeInfo {
     }
 }
 
+/// A request to analyze the contents of a payable Lightning/Bitcoin string.
+/// Reveals all payment methods encoded in the string, and gives payment-related
+/// details on each. See [`PayableDetails`] for more info.
+pub struct AnalyzeRequest {
+    /// The payable Lightning/Bitcoin string we will analyze.
+    pub payable: String,
+}
+
+/// Describes basic information for a payable string.
+pub struct PayableDetails {
+    /// The payable string encoding the payment method.
+    pub payable: String,
+    /// The deserialized payment method.
+    pub method: PaymentMethod,
+
+    /// The description encoded in the `payable`, if any.
+    pub description: Option<String>,
+
+    /// The amount that should be paid to the `payable`; if `None`, the payer
+    /// should specify an amount to pay.
+    ///
+    /// This will be `None` if `min_amount` or `max_amount` are specified.
+    pub amount: Option<Amount>,
+    /// The minimum amount that can be paid to the `payable`.
+    ///
+    /// This will be `None` if `amount` is specified.
+    pub min_amount: Option<Amount>,
+    /// The maximum amount that can be paid to the `payable`.
+    ///
+    /// This will be `None` if `amount` is specified.
+    pub max_amount: Option<Amount>,
+
+    /// The payable expiration time, in milliseconds since the UNIX epoch.
+    pub expires_at: Option<TimestampMs>,
+}
+
+/// The response to a string analysis request.
+pub struct AnalyzeResponse {
+    // TODO: kind: PaymentUri
+    /// The valid payment routes encoded in the analyzed string, ordered
+    /// by most recommended payment route first, and least recommended payment
+    /// route last.
+    pub payables: Vec<PayableDetails>,
+}
+
+/// A catch-all request to pay a string which encodes any of the
+/// following payment methods in a variety of formats (BIP353, LNURL, etc...):
+///   - BOLT11 Invoice
+///   - BOLT12 Offer
+///   - Bitcoin Address
+///   - Lightning Address
+///   - LNURL
+///
+/// If there exist multiple encoded payment methods, the best recommended
+/// payment method will be chosen.
+pub struct PayRequest {
+    /// The string we will use to make a payment.
+    pub payable: String,
+
+    /// The amount we will attempt to pay.
+    /// If the payable specifies an amount, this field is optional.
+    pub amount: Option<Amount>,
+}
+
+/// The response to a general pay request.
+pub struct PayResponse {
+    /// Identifier for this outbound payment.
+    pub index: PaymentCreatedIndex,
+    /// When we tried to pay, in milliseconds since the UNIX epoch.
+    pub created_at: TimestampMs,
+}
+
 /// A request to create a BOLT 11 invoice.
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
@@ -123,12 +196,12 @@ pub struct CreateInvoiceRequest {
 pub struct CreateInvoiceResponse {
     /// Identifier for this inbound invoice payment.
     pub index: PaymentCreatedIndex,
-    /// The string-encoded BOLT 11 invoice.
+    /// The BOLT 11 invoice.
     pub invoice: Invoice,
     /// The description encoded in the invoice, if one was provided.
     pub description: Option<String>,
     /// The amount encoded in the invoice, if there was one.
-    /// Returning `null` means we created an amountless invoice.
+    /// Returning `None` means we created an amountless invoice.
     pub amount: Option<Amount>,
     /// The invoice creation time, in milliseconds since the UNIX epoch.
     pub created_at: TimestampMs,
@@ -268,7 +341,7 @@ impl TryFrom<CreateOfferRequest> for command::CreateOfferRequest {
 /// The response to a BOLT 12 offer creation request.
 #[derive(Serialize, Deserialize)]
 pub struct CreateOfferResponse {
-    /// The string-encoded BOLT 12 offer.
+    /// The BOLT 12 offer.
     pub offer: Offer,
 }
 

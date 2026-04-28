@@ -7,6 +7,8 @@ pub mod bip353;
 /// LNURL-pay and Lightning Address resolution.
 pub mod lnurl;
 
+pub use std::cmp;
+
 use anyhow::{Context, anyhow, ensure};
 use lexe_common::ln::network::Network;
 pub use lexe_payment_uri_core::*;
@@ -27,29 +29,22 @@ pub async fn resolve_best(
 ) -> anyhow::Result<PaymentMethod> {
     // A single scanned/opened PaymentUri can contain multiple different payment
     // methods (e.g., a LN BOLT11 invoice + an onchain fallback address).
-    let mut payment_methods =
-        resolve_payment_methods(bip353_client, lnurl_client, payment_uri)
-            .await
-            .context("Failed to resolve payment URI into payment methods")?;
-
-    // Filter out all methods that aren't valid for our current network
-    // (e.g., ignore all testnet addresses when we're cfg'd for mainnet).
-    payment_methods.retain(|method| method.supports_network(network));
-    ensure!(
-        !payment_methods.is_empty(),
-        "Payment code is not valid for {network}"
-    );
+    let payment_methods = resolve_payment_methods(
+        bip353_client,
+        lnurl_client,
+        network,
+        payment_uri,
+    )
+    .await
+    .context("Failed to resolve payment URI into payment methods")?;
 
     // Pick the most preferable payment method.
-    let best = payment_methods
-        .into_iter()
-        .max_by_key(|x| match x {
-            PaymentMethod::Invoice(_) => 40,
-            PaymentMethod::Offer(_) => 30,
-            PaymentMethod::LnurlPayRequest(_) => 20,
-            PaymentMethod::Onchain(o) => 10 + o.relative_priority(),
-        })
-        .expect("We just checked there's at least one method");
+    let best = payment_methods.into_iter().next().ok_or_else(|| {
+        anyhow!(
+            // Shouldn't be reachable, but just in case.
+            "Failed to resolve payment URI into payment methods"
+        )
+    })?;
 
     // If it's an offer, check that the amounts are consistent
     if let PaymentMethod::Offer(offer) = &best {
@@ -60,12 +55,15 @@ pub async fn resolve_best(
 }
 
 /// Resolve the [`PaymentUri`] into its component [`PaymentMethod`]s.
-async fn resolve_payment_methods(
+/// Filter by network validity and sort by highest priority method first.
+/// Ensures at least one result.
+pub async fn resolve_payment_methods(
     bip353_client: &bip353::Bip353Client,
     lnurl_client: &lnurl::LnurlClient,
+    network: Network,
     payment_uri: PaymentUri,
 ) -> anyhow::Result<Vec<PaymentMethod>> {
-    let payment_methods = match payment_uri {
+    let mut payment_methods = match payment_uri {
         PaymentUri::Bip321Uri(bip321) => bip321.flatten(),
 
         PaymentUri::LightningUri(lnuri) => lnuri.flatten(),
@@ -137,6 +135,21 @@ async fn resolve_payment_methods(
             vec![PaymentMethod::LnurlPayRequest(pay_request)]
         }
     };
+    ensure!(
+        !payment_methods.is_empty(),
+        "Failed to resolve payment methods"
+    );
+
+    // Filter out all methods that aren't valid for our current network
+    // (e.g., ignore all testnet addresses when we're cfg'd for mainnet).
+    payment_methods.retain(|method| method.supports_network(network));
+    ensure!(
+        !payment_methods.is_empty(),
+        "Payment code is not valid for {network}"
+    );
+
+    // Sort payment methods by relative priority; highest priority first
+    payment_methods.sort_unstable_by_key(|m| cmp::Reverse(m.priority()));
 
     Ok(payment_methods)
 }

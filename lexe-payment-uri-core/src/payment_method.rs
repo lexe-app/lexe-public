@@ -46,6 +46,17 @@ impl PaymentMethod {
             Self::LnurlPayRequest(_) => true,
         }
     }
+
+    /// For use with `sort_by_key`, `max_by_key`, etc.
+    /// Payment methods with a higher priority should be preferred over others.
+    pub fn priority(&self) -> usize {
+        match self {
+            PaymentMethod::Invoice(_) => 40,
+            PaymentMethod::Offer(_) => 30,
+            PaymentMethod::LnurlPayRequest(_) => 20,
+            PaymentMethod::Onchain(o) => 10 + o.relative_priority(),
+        }
+    }
 }
 
 /// An onchain payment method, usually parsed from a standalone BTC address or
@@ -79,7 +90,7 @@ impl Onchain {
     }
 
     /// Returns the relative priority for this onchain address. Higher = better.
-    pub fn relative_priority(&self) -> usize {
+    pub(crate) fn relative_priority(&self) -> usize {
         use bitcoin::AddressType::*;
         let address_type =
             match self.address.assume_checked_ref().address_type() {

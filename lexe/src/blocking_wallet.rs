@@ -18,11 +18,12 @@ use crate::{
     types::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
-            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PaymentSyncSummary, UpdatePaymentNoteRequest,
+            AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
+            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+            GetPaymentRequest, GetPaymentResponse, ListPaymentsResponse,
+            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            PayOfferResponse, PayRequest, PayResponse, PaymentSyncSummary,
+            UpdatePaymentNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -313,6 +314,75 @@ impl BlockingLexeWallet {
     /// Get information about this Lexe node, including balance and channels.
     pub fn node_info(&self) -> anyhow::Result<NodeInfo> {
         block_on(self.inner.node_info())
+    }
+
+    /// Get information about a string encoding a Lightning/Bitcoin payment
+    /// method, including:
+    /// - `payable`: The payable string encoding the payment method.
+    /// - `method`: The [`PaymentMethod`] struct encapsulating information
+    ///   specific to the payment method (e.g. payment hash, metadata, etc...)
+    /// - `amount`/`min_amount`/`max_amount`: The amount constraints requested
+    ///   by the receiver.
+    ///
+    /// See [`PayableDetails`] for all fields.
+    ///
+    /// The following payment methods are supported:
+    ///   - BOLT11 invoice
+    ///   - BOLT12 offer
+    ///   - Bitcoin address
+    ///   - Lightning address
+    ///   - LNURL
+    ///
+    /// The following encodings are supported:
+    ///   - Bip321 URI: `bitcoin:bc1...`
+    ///   - Lightning URI: `lightning:ln...`
+    ///   - BOLT11 invoice: `lnbc1...`
+    ///   - BOLT12 offer: `lno1...`
+    ///   - Onchain bitcoin address: `bc1...`
+    ///   - Human bitcoin address: `₿satoshi@lexe.app`
+    ///   - Lightning address: `satoshi@lexe.app`
+    ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    ///
+    /// [`PaymentMethod`]: lexe_payment_uri::PaymentMethod
+    /// [`PayableDetails`]: crate::types::command::PayableDetails
+    // Sync these doc comments with `pay`
+    pub fn analyze(
+        &self,
+        req: AnalyzeRequest,
+    ) -> anyhow::Result<AnalyzeResponse> {
+        block_on(self.inner.analyze(req))
+    }
+
+    /// Pay a string encoding a Lightning/Bitcoin payment method.
+    ///
+    /// If there exist multiple encoded payment methods, the best recommended
+    /// payment method will be chosen.
+    ///
+    /// For fine tune control over how to pay, consider first using
+    /// [`analyze`](Self::analyze) to resolve the contents of the
+    /// payable string, then invoking the specific `pay` function for the
+    /// payment method of choice: [`pay_invoice`](Self::pay_invoice),
+    /// [`pay_offer`](Self::pay_offer), etc.
+    ///
+    /// The following payment methods are supported:
+    ///   - BOLT11 invoice
+    ///   - BOLT12 offer
+    ///   - Bitcoin address
+    ///   - Lightning address
+    ///   - LNURL
+    ///
+    /// The following encodings are supported:
+    ///   - Bip321 URI: `bitcoin:bc1...`
+    ///   - Lightning URI: `lightning:ln...`
+    ///   - BOLT11 invoice: `lnbc1...`
+    ///   - BOLT12 offer: `lno1...`
+    ///   - Onchain bitcoin address: `bc1...`
+    ///   - Human bitcoin address: `₿satoshi@lexe.app`
+    ///   - Lightning address: `satoshi@lexe.app`
+    ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    // Sync these doc comments with `analyze`
+    pub fn pay(&self, req: PayRequest) -> anyhow::Result<PayResponse> {
+        block_on(self.inner.pay(req))
     }
 
     /// Create a BOLT 11 invoice to receive a Lightning payment.

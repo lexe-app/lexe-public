@@ -8,17 +8,23 @@ use lexe_api::{
         ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentStatus,
     },
 };
-use lexe_common::api::{
-    auth::{
-        UserSignupRequestWire, UserSignupRequestWireV1, UserSignupRequestWireV2,
+use lexe_common::{
+    api::{
+        auth::{
+            UserSignupRequestWire, UserSignupRequestWireV1,
+            UserSignupRequestWireV2,
+        },
+        user::NodePkProof,
     },
-    user::NodePkProof,
+    ln::priority::ConfirmationPriority,
 };
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
+    self, PaymentMethod, PaymentUri,
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
+    resolve_payment_methods,
 };
 use lexe_std::backoff::Backoff;
 use tracing::{debug, info, instrument};
@@ -31,10 +37,11 @@ use crate::{
     types::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
-            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
+            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+            GetPaymentRequest, GetPaymentResponse, ListPaymentsResponse,
+            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            PayOfferResponse, PayRequest, PayResponse, PayableDetails,
             PaymentSyncSummary, UpdatePaymentNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
@@ -739,6 +746,313 @@ impl LexeWallet {
             .await
             .map(NodeInfo::from)
             .context("Failed to get node info")
+    }
+
+    /// Get information about a string encoding a Lightning/Bitcoin payment
+    /// method, including:
+    /// - `payable`: The payable string encoding the payment method.
+    /// - `method`: The [`PaymentMethod`] struct encapsulating information
+    ///   specific to the payment method (e.g. payment hash, metadata, etc...)
+    /// - `amount`/`min_amount`/`max_amount`: The amount constraints requested
+    ///   by the receiver.
+    ///
+    /// See [`PayableDetails`] for all fields.
+    ///
+    /// The following payment methods are supported:
+    ///   - BOLT11 invoice
+    ///   - BOLT12 offer
+    ///   - Bitcoin address
+    ///   - Lightning address
+    ///   - LNURL
+    ///
+    /// The following encodings are supported:
+    ///   - Bip321 URI: `bitcoin:bc1...`
+    ///   - Lightning URI: `lightning:ln...`
+    ///   - BOLT11 invoice: `lnbc1...`
+    ///   - BOLT12 offer: `lno1...`
+    ///   - Onchain bitcoin address: `bc1...`
+    ///   - Human bitcoin address: `₿satoshi@lexe.app`
+    ///   - Lightning address: `satoshi@lexe.app`
+    ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    // Sync these doc comments with `pay`
+    #[instrument(skip_all, name = "(analyze)")]
+    pub async fn analyze(
+        &self,
+        req: AnalyzeRequest,
+    ) -> anyhow::Result<AnalyzeResponse> {
+        let network = self.user_config().env_config.wallet_env.network;
+        let payment_uri = PaymentUri::parse(&req.payable)?;
+        let payment_methods = resolve_payment_methods(
+            &self.bip353_client,
+            &self.lnurl_client,
+            network,
+            payment_uri,
+        )
+        .await
+        .context("Failed to resolve payment methods.")?;
+
+        let payables = payment_methods
+            .into_iter()
+            .map(|method| {
+                match &method {
+                    PaymentMethod::Onchain(onchain) => {
+                        // We already checked network validity earlier
+                        let payable =
+                            onchain.address.assume_checked_ref().to_string();
+                        let description = onchain.message.to_owned();
+                        let amount = onchain.amount;
+                        let min_amount = None;
+                        let max_amount = None;
+                        let expires_at = None;
+
+                        PayableDetails {
+                            payable,
+                            method,
+                            description,
+                            amount,
+                            min_amount,
+                            max_amount,
+                            expires_at,
+                        }
+                    }
+                    PaymentMethod::Invoice(invoice) => {
+                        let payable = invoice.to_string();
+                        let description =
+                            invoice.description_str().map(str::to_owned);
+                        let amount = invoice.amount();
+                        let min_amount = None;
+                        let max_amount = None;
+                        let expires_at = invoice.expires_at().ok();
+
+                        PayableDetails {
+                            payable,
+                            method,
+                            description,
+                            amount,
+                            min_amount,
+                            max_amount,
+                            expires_at,
+                        }
+                    }
+                    PaymentMethod::Offer(offer_with_amount) => {
+                        let offer = &offer_with_amount.offer;
+
+                        let payable = offer.to_string();
+                        let description =
+                            offer.description().map(str::to_owned);
+                        let amount = offer_with_amount.bip321_amount;
+                        let min_amount = amount
+                            .is_none()
+                            .then_some(offer.min_amount())
+                            .flatten();
+                        let max_amount = None;
+                        let expires_at = offer.expires_at();
+
+                        PayableDetails {
+                            payable,
+                            method,
+                            description,
+                            amount,
+                            min_amount,
+                            max_amount,
+                            expires_at,
+                        }
+                    }
+                    PaymentMethod::LnurlPayRequest(lnurl) => {
+                        let payable = req.payable.to_owned();
+                        let description =
+                            lnurl.metadata.long_description.to_owned().or_else(
+                                || Some(lnurl.metadata.description.to_owned()),
+                            );
+                        let amount = None;
+                        let min_amount = Some(lnurl.min_sendable);
+                        let max_amount = Some(lnurl.max_sendable);
+                        let expires_at = None;
+
+                        PayableDetails {
+                            payable,
+                            method,
+                            description,
+                            amount,
+                            min_amount,
+                            max_amount,
+                            expires_at,
+                        }
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Ok(AnalyzeResponse { payables })
+    }
+
+    /// Pay a string encoding a Lightning/Bitcoin payment method.
+    ///
+    /// If there exist multiple encoded payment methods, the best recommended
+    /// payment method will be chosen.
+    ///
+    /// For fine tune control over how to pay, consider first using
+    /// [`analyze`](Self::analyze) to resolve the contents of the
+    /// payable string, then invoking the specific `pay` function for the
+    /// payment method of choice: [`pay_invoice`](Self::pay_invoice),
+    /// [`pay_offer`](Self::pay_offer), etc.
+    ///
+    /// The following payment methods are supported:
+    ///   - BOLT11 invoice
+    ///   - BOLT12 offer
+    ///   - Bitcoin address
+    ///   - Lightning address
+    ///   - LNURL
+    ///
+    /// The following encodings are supported:
+    ///   - Bip321 URI: `bitcoin:bc1...`
+    ///   - Lightning URI: `lightning:ln...`
+    ///   - BOLT11 invoice: `lnbc1...`
+    ///   - BOLT12 offer: `lno1...`
+    ///   - Onchain bitcoin address: `bc1...`
+    ///   - Human bitcoin address: `₿satoshi@lexe.app`
+    ///   - Lightning address: `satoshi@lexe.app`
+    ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    // Sync these doc comments with `analyze`
+    #[instrument(skip_all, name = "(pay)")]
+    pub async fn pay(&self, req: PayRequest) -> anyhow::Result<PayResponse> {
+        let payable = req.payable;
+
+        // Parse the string
+        let payment_uri = PaymentUri::parse(&payable)
+            .context("Failed to parse payable string")?;
+
+        // Resolve into best payment method
+        let bip353_client = &self.bip353_client;
+        let lnurl_client = &self.lnurl_client;
+        let network = self.user_config().env_config.wallet_env.network;
+        let best_method = lexe_payment_uri::resolve_best(
+            bip353_client,
+            lnurl_client,
+            network,
+            payment_uri,
+        )
+        .await?;
+
+        // Create and send the appropriate request
+        let (index, created_at) = match best_method {
+            PaymentMethod::Invoice(invoice) => {
+                let fallback_amount = match (invoice.amount(), req.amount) {
+                    (Some(amt), Some(given)) if amt != given =>
+                        return Err(anyhow!(
+                            "Given amount ({given} sats) doesn't match invoice \
+                             amount ({amt} sats)"
+                        )),
+                    (Some(_), _) => None,
+                    (None, Some(amt)) => Some(amt),
+                    (None, None) =>
+                        return Err(anyhow!(
+                            "A payment amount must be provided for amountless \
+                             invoices"
+                        )),
+                };
+                let req = PayInvoiceRequest {
+                    invoice,
+                    fallback_amount,
+                    note: None,
+                };
+                let PayInvoiceResponse { index, created_at } =
+                    self.pay_invoice(req).await?;
+                (index, created_at)
+            }
+            PaymentMethod::LnurlPayRequest(pay_req) => {
+                let amount = req.amount.ok_or_else(|| {
+                    anyhow!(
+                        "A payment amount must be provided for LNURL payments"
+                    )
+                })?;
+                let min_sendable = pay_req.min_sendable;
+                let max_sendable = pay_req.max_sendable;
+                ensure!(
+                    min_sendable <= amount,
+                    "Given amount ({amount} sats) should be higher than the \
+                     receiver's requested minimum amount: {min_sendable} sats"
+                );
+                ensure!(
+                    amount <= max_sendable,
+                    "Given amount ({amount} sats) should be lower than the \
+                     receiver's requested maximum amount: {max_sendable} sats"
+                );
+                let invoice = lnurl_client
+                    .resolve_pay_request(&pay_req, amount, None)
+                    .await?;
+                let req = PayInvoiceRequest {
+                    invoice,
+                    fallback_amount: None,
+                    note: None,
+                };
+                let PayInvoiceResponse { index, created_at } =
+                    self.pay_invoice(req).await?;
+                (index, created_at)
+            }
+            PaymentMethod::Offer(offer) => {
+                let amount = match (offer.bip321_amount, req.amount) {
+                    (Some(amt), Some(given)) if amt != given =>
+                        return Err(anyhow!(
+                            "Given amount ({given} sats) doesn't match bip321 \
+                             amount ({amt} sats)"
+                        )),
+                    (Some(amt), _) | (None, Some(amt)) => amt,
+                    (None, None) =>
+                        return Err(anyhow!(
+                            "A payment amount must be provided for offers \
+                             without a bip321-specified amount"
+                        )),
+                };
+                if let Some(min_amount) = offer.offer.min_amount() {
+                    ensure!(
+                        min_amount <= amount,
+                        "Given amount ({amount} sats) should be higher than the \
+                        receiver's requested minimum amount: {min_amount} sats"
+                    );
+                }
+                let req = PayOfferRequest {
+                    offer: offer.offer,
+                    amount,
+                    note: None,
+                    payer_note: None,
+                };
+                let PayOfferResponse { index, created_at } =
+                    self.pay_offer(req).await?;
+                (index, created_at)
+            }
+            PaymentMethod::Onchain(onchain) => {
+                let cid = ClientPaymentId::generate();
+                let address = onchain.address;
+                let amount =
+                    onchain.amount.or(req.amount).ok_or_else(|| {
+                        anyhow!(
+                            "A payment amount must be provided for on-chain \
+                         methods that don't suggest an amount"
+                        )
+                    })?;
+                let req = command::PayOnchainRequest {
+                    cid,
+                    address,
+                    amount,
+                    priority: ConfirmationPriority::Normal,
+                    note: None,
+                };
+                let resp = self
+                    .node_client
+                    .pay_onchain(req)
+                    .await
+                    .context("Failed to pay on-chain")?;
+
+                let id = PaymentId::OnchainSend(cid);
+                let created_at = resp.created_at;
+                let index = PaymentCreatedIndex { created_at, id };
+
+                (index, created_at)
+            }
+        };
+
+        Ok(PayResponse { index, created_at })
     }
 
     /// Create a BOLT 11 invoice to receive a Lightning payment.
