@@ -323,8 +323,11 @@ pub struct InboundInvoicePaymentV2 {
     /// The amount encoded in our invoice, if there was one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_amount: Option<Amount>,
-    /// The amount that we actually received. May be greater than the invoice
-    /// amount. Populated iff we received a [`PaymentClaimable`] event.
+    /// The amount that we actually received. This is usually less than
+    /// `invoice_amount` due to skimmed fees, but it may also be greater than
+    /// the `invoice_amount` due to payer overpayment.
+    ///
+    /// Populated iff we received a [`PaymentClaimable`] event.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recvd_amount: Option<Amount>,
     /// The amount that was skimmed off of this payment as an extra fee taken
@@ -519,13 +522,14 @@ impl InboundInvoicePaymentV2 {
             return Err(ClaimableError::FailBackHtlcsTheirFault);
         }
 
-        // TODO(phlip9): charge the user for LSP fees on inbound as a skimmed
-        // amount, but only up to the expected fee rate and no more.
-        if let Some(invoice_amount) = self.invoice_amount
-            && amount < invoice_amount
-        {
-            warn!("Requested {invoice_amount} but claiming {amount}");
-        }
+        // TODO(phlip9): Validate that the skimmed fee is within reasonable
+        // maximum bounds for:
+        //
+        // - a receiver fee (~0.5%) that may change slightly over time
+        // - the partner fee (base + ppm) from the CreateInvoiceRequest
+        // - potential future JIT channel fees
+        //
+        // so that we reject skimmed fees which are absurdly high.
 
         // TODO(max): In the future, check for on-chain fees here
 
@@ -576,15 +580,6 @@ impl InboundInvoicePaymentV2 {
                 );
             }
         }
-
-        // TODO(phlip9): don't accept underpaying payments
-        if let Some(invoice_amount) = self.invoice_amount
-            && amount < invoice_amount
-        {
-            warn!("Requested {invoice_amount} but claimed {amount}");
-        }
-
-        // TODO(max): In the future, check for on-chain fees here
 
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
@@ -671,7 +666,7 @@ pub struct InboundOfferReusablePaymentV2 {
 
     pub kind: PaymentKind,
 
-    /// The amount we received for this payment.
+    /// The amount we actually received (after skimmed fees).
     pub amount: Amount,
 
     /// The amount that was skimmed off of this payment as an extra fee taken
@@ -864,7 +859,7 @@ pub struct InboundSpontaneousPaymentV2 {
 
     pub kind: PaymentKind,
 
-    /// The amount received in this payment.
+    /// The amount we actually received (after skimmed fees).
     pub amount: Amount,
 
     /// The amount that was skimmed off of this payment as an extra fee taken
