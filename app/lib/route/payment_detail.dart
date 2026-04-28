@@ -554,7 +554,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
 
                   final amountSats = payment.amountSats;
                   final feesSats = payment.feesSats;
-                  final invoiceAmountSat = invoice?.amountSats;
+                  final totalSats = payment.totalSats;
 
                   final createdAt = DateTime.fromMillisecondsSinceEpoch(
                     payment.createdAt,
@@ -689,37 +689,53 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       // TODO(phlip9): deemphasize fiat amount below
                       ValueListenableBuilder(
                         valueListenable: this.fiatRate,
-                        builder: (_context, fiatRate, child) =>
-                            PaymentDetailInfoCard(
-                              children: [
-                                if (amountSats != null)
-                                  InfoRow(
-                                    label: "Amount $directionLabel",
-                                    value: formatSatsAmountFiatBelow(
-                                      amountSats,
-                                      fiatRate,
-                                    ),
-                                  ),
+                        builder: (_context, fiatRate, child) {
+                          // Order differently based on payment direction:
+                          //
+                          // - Sends: Amount sent + fees = total
+                          // - Receives: Payer sent - fees = you received
+                          // - Waived fees: Only show "Amount waived".
+                          //
+                          // Rationale: The literal "bottom line" should
+                          // show the net change to our balance.
+                          final int? firstRowValue;
+                          final String? firstRowLabel;
+                          final int? lastRowValue;
+                          final String lastRowLabel;
+                          final bool showFees;
+                          if (direction == PaymentDirection.outbound) {
+                            firstRowLabel = "Amount $directionLabel";
+                            firstRowValue = amountSats;
+                            lastRowLabel = "Total";
+                            lastRowValue = totalSats;
+                            showFees = true;
+                          } else if (direction == PaymentDirection.inbound) {
+                            firstRowLabel = "Payer sent";
+                            firstRowValue = totalSats;
+                            lastRowLabel = "You received";
+                            lastRowValue = amountSats;
+                            showFees = true;
+                          } else {
+                            // Waived fees: only show "Amount waived".
+                            firstRowLabel = null;
+                            firstRowValue = null;
+                            lastRowLabel = "Amount $directionLabel";
+                            lastRowValue = amountSats;
+                            showFees = false;
+                          }
 
-                                if (invoiceAmountSat != null)
-                                  InfoRow(
-                                    label: "Invoiced amount",
-                                    value: formatSatsAmountFiatBelow(
-                                      invoiceAmountSat,
-                                      fiatRate,
-                                    ),
+                          return PaymentDetailInfoCard(
+                            children: [
+                              if (firstRowValue != null &&
+                                  firstRowLabel != null)
+                                InfoRow(
+                                  label: firstRowLabel,
+                                  value: formatSatsAmountFiatBelow(
+                                    firstRowValue,
+                                    fiatRate,
                                   ),
-
-                                if (offerMinAmountSat != null)
-                                  InfoRow(
-                                    label: "Offer min. amount",
-                                    value: formatSatsAmountFiatBelow(
-                                      offerMinAmountSat,
-                                      fiatRate,
-                                    ),
-                                  ),
-
-                                // TODO(phlip9): breakdown fees
+                                ),
+                              if (showFees)
                                 InfoRow(
                                   label: "Fees",
                                   value: formatSatsAmountFiatBelow(
@@ -727,8 +743,17 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                                     fiatRate,
                                   ),
                                 ),
-                              ],
-                            ),
+                              if (lastRowValue != null)
+                                InfoRow(
+                                  label: lastRowLabel,
+                                  value: formatSatsAmountFiatBelow(
+                                    lastRowValue,
+                                    fiatRate,
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
 
                       // Low-level stuff
@@ -753,11 +778,14 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                           if (invoice != null)
                             InfoRow(label: "Invoice", value: invoice.string),
 
-                          // the offer id (each offer has a unique id)
+                          // Offer metadata
                           if (offerId != null)
                             InfoRow(label: "Offer id", value: offerId),
-
-                          // the full offer
+                          if (offerMinAmountSat != null)
+                            InfoRow(
+                              label: "Offer minimum amount",
+                              value: "$offerMinAmountSat sats",
+                            ),
                           if (offer != null)
                             InfoRow(label: "Offer", value: offer.string),
                         ],

@@ -28,6 +28,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         Offer,
         Onchain,
         Payment,
+        PaymentDirection,
+        PaymentKind_Invoice,
         PaymentMethod,
         PaymentStatus,
         RootSeed,
@@ -215,7 +217,27 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     unawaited(
       Future.delayed(const Duration(seconds: 4), () {
         final p = notifier.value;
+
+        // For inbound LN invoice payments, simulate the transition from
+        // pending (showing invoice amount) to completed (showing received
+        // amount after receiver fees).
+        final int? completedAmountSats;
+        final int completedFeesSats;
+        if (p.kind is PaymentKind_Invoice &&
+            p.direction == PaymentDirection.inbound &&
+            p.invoice?.amountSats != null) {
+          final invoiceAmount = p.invoice!.amountSats!;
+          // Simulate 0.5% receiver fee
+          completedFeesSats = (invoiceAmount * 0.005).round();
+          completedAmountSats = invoiceAmount - completedFeesSats;
+        } else {
+          completedAmountSats = p.amountSats;
+          completedFeesSats = p.feesSats;
+        }
+
         notifier.value = p.copyWith(
+          amountSats: completedAmountSats,
+          feesSats: completedFeesSats,
           status: PaymentStatus.completed,
           statusStr: "completed",
           finalizedAt: DateTime.now().millisecondsSinceEpoch,
@@ -819,7 +841,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "PaymentDetailPage",
-        subtitle: "btc failed outbound",
+        subtitle: "Onchain outbound (failed)",
         (context) => PaymentDetailPageInner(
           app: mockApp,
           payment: ValueNotifier(mocks.dummyOnchainOutboundFailed01),
@@ -831,7 +853,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "PaymentDetailPage",
-        subtitle: "btc completed inbound",
+        subtitle: "Onchain inbound (completed)",
         (context) => PaymentDetailPageInner(
           app: mockApp,
           payment: ValueNotifier(mocks.dummyOnchainInboundCompleted01),
@@ -843,11 +865,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "PaymentDetailPage",
-        subtitle: "ln invoice pending inbound",
+        subtitle: "LN invoice inbound (pending -> complete)",
         (context) => PaymentDetailPageInner(
           app: mockApp,
           payment: this.makeCompletingPayment(
-            mocks.dummyInvoiceInboundPending01,
+            mocks.dummyLnInvoiceInboundPendingToComplete,
           ),
           paymentDateUpdates: this.paymentDateUpdates,
           fiatRate: this.makeFiatRateStream(),
@@ -857,7 +879,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "PaymentDetailPage",
-        subtitle: "ln offer completed outbound",
+        subtitle: "LN offer outbound (completed)",
         (context) => PaymentDetailPageInner(
           app: mockApp,
           payment: ValueNotifier(mocks.dummyOfferOutboundPayment01),
@@ -869,10 +891,22 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "PaymentDetailPage",
-        subtitle: "ln offer completed inbound",
+        subtitle: "LN offer inbound (completed)",
         (context) => PaymentDetailPageInner(
           app: mockApp,
           payment: ValueNotifier(mocks.dummyOfferInboundPayment01),
+          paymentDateUpdates: this.paymentDateUpdates,
+          fiatRate: this.makeFiatRateStream(),
+          isSyncing: ValueNotifier(false),
+          triggerRefresh: () {},
+        ),
+      ),
+      Component(
+        "PaymentDetailPage",
+        subtitle: "Waived channel fee",
+        (context) => PaymentDetailPageInner(
+          app: mockApp,
+          payment: ValueNotifier(mocks.dummyWaivedChannelFee01),
           paymentDateUpdates: this.paymentDateUpdates,
           fiatRate: this.makeFiatRateStream(),
           isSyncing: ValueNotifier(false),

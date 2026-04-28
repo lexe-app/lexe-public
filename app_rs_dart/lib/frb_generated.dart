@@ -4533,17 +4533,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ShortPayment dco_decode_short_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return ShortPayment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
       direction: dco_decode_payment_direction(arr[2]),
       amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
-      status: dco_decode_payment_status(arr[4]),
-      description: dco_decode_opt_String(arr[5]),
-      note: dco_decode_opt_String(arr[6]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[7]),
+      feesSats: dco_decode_CastedPrimitive_u_64(arr[4]),
+      status: dco_decode_payment_status(arr[5]),
+      description: dco_decode_opt_String(arr[6]),
+      note: dco_decode_opt_String(arr[7]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[8]),
     );
   }
 
@@ -6273,6 +6274,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_kind = sse_decode_payment_kind(deserializer);
     var var_direction = sse_decode_payment_direction(deserializer);
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_status = sse_decode_payment_status(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
@@ -6282,6 +6284,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       kind: var_kind,
       direction: var_direction,
       amountSats: var_amountSats,
+      feesSats: var_feesSats,
       status: var_status,
       description: var_description,
       note: var_note,
@@ -7875,6 +7878,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_payment_kind(self.kind, serializer);
     sse_encode_payment_direction(self.direction, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
     sse_encode_payment_status(self.status, serializer);
     sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.note, serializer);

@@ -66,6 +66,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_Offer,
         PaymentKind_Onchain,
         PaymentKind_Spontaneous,
+        PaymentKind_WaivedChannelFee,
         PaymentMethod,
         PaymentMethod_Invoice,
         PaymentMethod_LnurlPayRequest,
@@ -246,7 +247,7 @@ class MockAppHandle extends AppHandle {
         .add(Duration(seconds: req.expirySecs))
         .millisecondsSinceEpoch;
 
-    final dummy = dummyInvoiceInboundPending01.invoice!;
+    final dummy = dummyLnInvoiceInboundPendingToComplete.invoice!;
 
     return Future.delayed(
       const Duration(milliseconds: 1000),
@@ -521,7 +522,7 @@ class MockAppHandle extends AppHandle {
       final createdAt = now.millisecondsSinceEpoch;
       final expiresAt = now.add(Duration(seconds: 3600)).millisecondsSinceEpoch;
 
-      final dummy = dummyInvoiceInboundPending01.invoice!;
+      final dummy = dummyLnInvoiceInboundPendingToComplete.invoice!;
 
       return PaymentMethod_Invoice(
         Invoice(
@@ -548,7 +549,7 @@ class MockAppHandle extends AppHandle {
     final createdAt = now.millisecondsSinceEpoch;
     final expiresAt = now.add(Duration(seconds: 3600)).millisecondsSinceEpoch;
 
-    final dummy = dummyInvoiceInboundPending01.invoice!;
+    final dummy = dummyLnInvoiceInboundPendingToComplete.invoice!;
 
     return Invoice(
       string: dummy.string,
@@ -782,7 +783,7 @@ class MockAppHandleScreenshots extends MockAppHandle {
         .add(Duration(seconds: req.expirySecs))
         .millisecondsSinceEpoch;
 
-    final dummy = dummyInvoiceInboundPending01.invoice!;
+    final dummy = dummyLnInvoiceInboundPendingToComplete.invoice!;
 
     return Future.value(
       CreateInvoiceResponse(
@@ -1295,7 +1296,8 @@ const Payment dummyInvoiceOutboundCompleted02 = Payment(
   finalizedAt: 1686744445000,
 );
 
-const Payment dummyInvoiceInboundPending01 = Payment(
+/// LN invoice inbound payment that starts pending and completes.
+const Payment dummyLnInvoiceInboundPendingToComplete = Payment(
   index: PaymentCreatedIndex(
     field0:
         "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb",
@@ -1308,12 +1310,12 @@ const Payment dummyInvoiceInboundPending01 = Payment(
     description: "some note the invoice creator set",
     createdAt: 1687140001000,
     expiresAt: 1687150001000,
-    amountSats: 469350,
+    amountSats: 471700,
     payeePubkey:
         "772c84ef57fe5bb5573f714bdcbdba49d0020c7a5fabb2f53d090684a6d0ec082ee2f633d8398b2dd0bade4b2fd2fc78ec881b1296e4834b48c0e73c9edbc774",
   ),
-  amountSats: 469350,
-  feesSats: 2350,
+  amountSats: 471700,
+  feesSats: 0,
   status: PaymentStatus.pending,
   statusStr: "claiming",
   note:
@@ -1491,7 +1493,7 @@ const Payment dummyOfferOutboundPayment01 = Payment(
         "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrc2p4zx7mnpw35k7m3q2pskwegwq35rl86qzr7sz0sztfk2ex9hfmq35agpv450kw90sx3ewxhzmcq5324qrl89gv02s54q862yje5mzjagzvvqs5ptwk9x5txt0rgecmsll7qyy2lurdjpcqerqvp0pvxu088jng3v560f94t4ajw6jltszfgh8flzm33w3gpqa6ajuwcqx0wqwsv40gp7rs2e2ywggmx5kjj4xdeq6ph62u7z7j2p8cvntcgyqxwywv86uyuu59033z6tzgsr8gme5g5q9gahnxul2fg44zen05t7w7mr23jqwr2t4hnvqmgpkzydskfzu66cqqec0uw2q0wmqknc2v6t53rpgkv5v9nu05k2w5k4a3kf942q9jgp0gqrrqwyc58k443qt9gfd3mzfmt452dksqc9d7cdls8v7dwlma2yq9275y6lrk4ctdeh0gwjkrtx9j9ncaxnryqzex9cvtpm8nvckhdhr889m4xhx04f5dqvl3d2mq0aex6ynnq4rlz7dsjqtqnrllw3vykzhtw3yrmsdp5kc6tsgpkx27r99eshquqkyypwq633sgq2xqayayzn3t76e49av3ecvdgtnvlst33ctpyg4mu5eps",
     description: "Donation Page",
     expiresAt: null,
-    minAmountSats: null,
+    minAmountSats: 1000,
     payee: "philip@lexe.app",
     payeePubkey: null,
   ),
@@ -1515,8 +1517,8 @@ const Payment dummyOfferInboundPayment01 = Payment(
   offerId: "e492e1d9c1919d0f37547abcb05f80ce31dcb0b70dff7433f0a0ebdc1cba8539",
   // NOTE: inbound offer payments currently don't have the `offer` field set
   offer: null,
-  amountSats: 59690,
-  feesSats: 0,
+  amountSats: 59700,
+  feesSats: 300,
   status: PaymentStatus.completed,
   statusStr: "completed",
   note: null,
@@ -1528,12 +1530,29 @@ const Payment dummyOfferInboundPayment01 = Payment(
   finalizedAt: 1748999075000,
 );
 
+/// Waived channel fee payment (info direction).
+const Payment dummyWaivedChannelFee01 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001749100000000-wf_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  ),
+  kind: PaymentKind_WaivedChannelFee(),
+  direction: PaymentDirection.info,
+  amountSats: 2500,
+  feesSats: 0,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  note: null,
+  createdAt: 1749100000000,
+  finalizedAt: 1749100001000,
+);
+
 // Default set of sample payments
 List<Payment> defaultDummyPayments = [
   dummyOnchainInboundPending01,
   dummyOnchainInboundCompleted01,
   dummyOnchainOutboundFailed01,
-  dummyInvoiceInboundPending01,
+  dummyLnInvoiceInboundPendingToComplete,
   dummyInvoiceInboundPending02,
   dummyInvoiceInboundCompleted01,
   dummyInvoiceInboundFailed01,

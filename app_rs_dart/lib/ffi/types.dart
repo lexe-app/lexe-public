@@ -337,7 +337,7 @@ sealed class Onchain with _$Onchain {
 }
 
 /// The complete payment info, used in the payment detail page. Mirrors the
-/// [`BasicPaymentV1Rs`] type.
+/// [`BasicPaymentV2Rs`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -479,6 +479,7 @@ sealed class ShortPayment with _$ShortPayment {
     required PaymentKind kind,
     required PaymentDirection direction,
     int? amountSats,
+    required int feesSats,
     required PaymentStatus status,
     String? description,
     String? note,

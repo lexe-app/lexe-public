@@ -377,7 +377,9 @@ pub struct ShortPayment {
 
     pub direction: PaymentDirection,
 
+    /// The payment amount, exclusive of fees.
     pub amount_sats: Option<u64>,
+    pub fees_sats: u64,
 
     pub status: PaymentStatus,
 
@@ -409,6 +411,7 @@ impl From<&BasicPaymentV1Rs> for ShortPayment {
             direction: PaymentDirection::from(payment.direction),
 
             amount_sats: payment.amount.map(|amt| amt.sats_u64()),
+            fees_sats: payment.fees.sats_u64(),
 
             status: PaymentStatus::from(payment.status),
 
@@ -430,6 +433,7 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
             direction: PaymentDirection::from(payment.direction),
 
             amount_sats: payment.amount.map(|amt| amt.sats_u64()),
+            fees_sats: payment.fee.sats_u64(),
 
             status: PaymentStatus::from(payment.status),
 
@@ -442,7 +446,7 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
 }
 
 /// The complete payment info, used in the payment detail page. Mirrors the
-/// [`BasicPaymentV1Rs`] type.
+/// [`BasicPaymentV2Rs`] type.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Payment {
@@ -459,6 +463,7 @@ pub struct Payment {
     pub txid: Option<String>,
     pub replacement: Option<String>,
 
+    /// The payment amount, exclusive of fees.
     pub amount_sats: Option<u64>,
     pub fees_sats: u64,
 

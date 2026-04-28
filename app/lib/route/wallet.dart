@@ -2333,8 +2333,16 @@ class PaymentsListEntry extends StatelessWidget {
     final status = this.payment.status;
     final direction = this.payment.direction;
     final kind = this.payment.kind;
-    final amountSats = this.payment.amountSats;
     final note = this.payment.noteOrDescription;
+
+    // For receives, show amount received (excludes fees).
+    // For sends, show total (amount sent + fees).
+    // In theory, their sends + receives should add up to their wallet balance.
+    final displaySats = switch (direction) {
+      PaymentDirection.inbound => this.payment.amountSats,
+      PaymentDirection.outbound => this.payment.totalSats,
+      PaymentDirection.info => this.payment.amountSats,
+    };
 
     final leadingIcon = PaymentListIcon(
       kind: BalanceKind.fromPaymentKind(kind),
@@ -2388,9 +2396,9 @@ class PaymentsListEntry extends StatelessWidget {
       (_, PaymentDirection.outbound) => LxColors.fgSecondary,
     };
 
-    final String amountSatsStr = (amountSats != null)
+    final String amountSatsStr = (displaySats != null)
         ? currency_format.formatSatsAmount(
-            amountSats,
+            displaySats,
             direction: direction,
             bitcoinSymbol: true,
           )

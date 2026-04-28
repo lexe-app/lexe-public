@@ -46,11 +46,16 @@ extension PaymentCreatedIndexExt on PaymentCreatedIndex {
 //
 
 extension PaymentExt on Payment {
+  /// The total payment amount, inclusive of fees (`amount + fee`).
+  int? get totalSats =>
+      this.amountSats != null ? this.amountSats! + this.feesSats : null;
+
   ShortPayment intoShort() => ShortPayment(
     index: this.index,
     kind: this.kind,
     direction: this.direction,
     amountSats: this.amountSats,
+    feesSats: this.feesSats,
     status: this.status,
     description: this.description,
     note: this.note,
@@ -145,6 +150,10 @@ extension PaymentKindExt on PaymentKind {
 //
 
 extension ShortPaymentExt on ShortPayment {
+  /// The total payment amount, inclusive of fees (`amount + fee`).
+  int? get totalSats =>
+      this.amountSats != null ? this.amountSats! + this.feesSats : null;
+
   /// Returns the user's note or invoice/offer description, preferring note.
   String? get noteOrDescription {
     final n = this.note;
