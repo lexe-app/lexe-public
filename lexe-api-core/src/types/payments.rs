@@ -794,6 +794,11 @@ impl BasicPaymentV2 {
         self.id
     }
 
+    /// The total amount of this payment, inclusive of fees.
+    pub fn total(&self) -> Option<Amount> {
+        self.amount.map(|amt| amt + self.fee)
+    }
+
     #[inline]
     pub fn is_pending(&self) -> bool {
         use PaymentStatus::*;

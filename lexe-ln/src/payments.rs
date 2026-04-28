@@ -786,6 +786,11 @@ impl PaymentV2 {
     //     }
     // }
 
+    /// The total amount of this payment, inclusive of fees.
+    pub fn total(&self) -> Option<Amount> {
+        self.amount().map(|amount| amount + self.fee())
+    }
+
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {
         match self {
