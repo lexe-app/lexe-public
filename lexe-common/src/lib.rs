@@ -36,6 +36,8 @@ pub mod ln;
 pub mod net;
 /// `OrEnvExt` utility trait.
 pub mod or_env;
+/// `Ppm` - parts per million newtype for proportional fee rates.
+pub mod ppm;
 /// Types related to `releases.json`.
 pub mod releases;
 /// Random number generation.
