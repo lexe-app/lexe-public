@@ -106,6 +106,7 @@ async fn handle_make_invoice(
 
     let response = lexe_ln::command::create_invoice(
         create_inv_req,
+        &state.user_pk,
         &state.channel_manager,
         &state.keys_manager,
         &state.payments_manager,

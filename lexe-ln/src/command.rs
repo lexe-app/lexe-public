@@ -629,6 +629,7 @@ pub async fn resync(
 #[instrument(skip_all, name = "(create-invoice)")]
 pub async fn create_invoice<CM, PS>(
     req: CreateInvoiceRequest,
+    user_pk: &UserPk,
     channel_manager: &CM,
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -775,7 +776,12 @@ where
     let kind = PaymentKind::Invoice;
 
     let partner_fee = match req.partner_pk {
-        Some(user_pk) => {
+        Some(partner_pk) => {
+            ensure!(
+                partner_pk != *user_pk,
+                "Cannot set your own node as the partner public key"
+            );
+
             // TODO(max): Remove once LSP can charge for amounts other than this
             ensure!(
                 req.partner_prop_fee == Some(Ppm::new(5000)),
@@ -795,7 +801,7 @@ where
             let revshare = dec!(0.2);
 
             let pff = PartnerFeeFields {
-                user_pk,
+                user_pk: partner_pk,
                 prop_fee: req.partner_prop_fee,
                 base_fee: req.partner_base_fee,
                 revshare: Some(revshare),

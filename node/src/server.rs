@@ -205,6 +205,7 @@ mod shared {
         };
         lexe_ln::command::create_invoice(
             req,
+            &state.user_pk,
             &state.channel_manager,
             &state.keys_manager,
             &state.payments_manager,
