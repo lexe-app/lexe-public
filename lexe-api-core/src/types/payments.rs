@@ -371,7 +371,7 @@ pub struct DbPaymentV2 {
     pub fee: Option<Amount>,
     // Conceptually, this struct is flattened when inserted into the DB
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub partner_fee: Option<PartnerFeeFields>,
+    pub partner: Option<PartnerFeeFields>,
     pub status: Cow<'static, str>,
     #[serde(with = "base64_or_bytes")]
     pub data: Vec<u8>,
@@ -989,7 +989,7 @@ impl DbPaymentV2 {
             fee: None,
             status: Cow::Owned(v1.status),
             data: v1.data,
-            partner_fee: None,
+            partner: None,
             version: 1,
             created_at: v1.created_at,
             updated_at,
@@ -1008,7 +1008,7 @@ impl PartialEq<DbPaymentV2> for DbPaymentV1 {
             && other.direction.is_none()
             && other.amount.is_none()
             && other.fee.is_none()
-            && other.partner_fee.is_none()
+            && other.partner.is_none()
     }
 }
 #[cfg(any(test, feature = "test-utils"))]
@@ -1022,7 +1022,7 @@ impl PartialEq<DbPaymentV1> for DbPaymentV2 {
             && self.direction.is_none()
             && self.amount.is_none()
             && self.fee.is_none()
-            && self.partner_fee.is_none()
+            && self.partner.is_none()
     }
 }
 

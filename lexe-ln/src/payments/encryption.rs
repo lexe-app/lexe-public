@@ -176,7 +176,7 @@ fn encrypt_payment_v1(
         direction: Some(Cow::Borrowed(payment.direction().as_str())),
         amount: payment.amount(),
         fee: Some(payment.fees()),
-        partner_fee: None,
+        partner: None,
         status: Cow::Borrowed(payment.status().as_str()),
         data,
         version: 1,
@@ -209,7 +209,7 @@ fn encrypt_payment_v2(
         direction: Some(Cow::Borrowed(payment.direction().as_str())),
         amount: payment.amount(),
         fee: Some(payment.fee()),
-        partner_fee: payment.partner_fee(),
+        partner: payment.partner(),
         status: Cow::Borrowed(payment.status().as_str()),
         data,
         version: 2,
@@ -230,7 +230,7 @@ fn decrypt_payment_v1(
         direction,
         amount,
         fee,
-        partner_fee: _,
+        partner: _,
         status: db_status,
         data,
         version,
@@ -305,7 +305,7 @@ fn decrypt_payment_v2(
         direction,
         amount,
         fee,
-        partner_fee,
+        partner,
         status: db_status,
         data,
         version,
@@ -366,9 +366,9 @@ fn decrypt_payment_v2(
         payment.fee(),
     );
     ensure!(
-        payment.partner_fee() == partner_fee,
-        "partner_fee mismatch: db={partner_fee:?}, payment={:?}",
-        payment.partner_fee(),
+        payment.partner() == partner,
+        "partner_fee mismatch: db={partner:?}, payment={:?}",
+        payment.partner(),
     );
 
     Ok(payment)
