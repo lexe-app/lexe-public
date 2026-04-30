@@ -1505,28 +1505,36 @@ Information about a payment.
 
 Attributes:
     index: Unique payment identifier (``<created_at_ms>-<payment_id>``).
-    created_at_ms: When payment was created (ms since UNIX epoch).
-    updated_at_ms: When payment was last updated (ms since UNIX epoch).
-    rail: Technical rail used to fulfill this payment.
+    rail: Technical rail used: onchain, invoice, offer, spontaneous, etc.
     kind: Application-level payment kind.
-    direction: Payment direction (inbound, outbound, or info).
-    status: Payment status.
-    status_msg: Human-readable payment status message.
-    amount_sats: Payment amount in satoshis, if known.
-    fees_sats: Fees paid in satoshis.
-    note: Optional personal note attached to this payment.
-    invoice: BOLT 11 invoice used for this payment, if any.
-    hash: Hex-encoded payment hash (Lightning payments only).
-    preimage: Hex-encoded payment preimage (Lightning payments only).
-        Proof-of-payment for outbound; only present for successful inbound.
-    offer_id: Hex-encoded BOLT12 offer id (offer payments only).
-    txid: Hex-encoded Bitcoin txid (on-chain payments only).
-    address: Bitcoin address for on-chain sends.
-    expires_at_ms: Invoice/offer expiry time (ms since UNIX epoch).
-    finalized_at_ms: When this payment finalized (ms since UNIX epoch).
-    payer_name: Payer's self-reported name (offer payments).
-    payer_note: Payer's provided note (offer payments).
-    priority: Confirmation priority for on-chain sends.
+    direction: Payment direction: inbound, outbound, or info.
+    hash: (Lightning only) Hex-encoded payment hash.
+    preimage: (Lightning only) Hex-encoded payment preimage. Serves as
+        proof-of-payment for outbound. For inbound, only present if
+        the payment succeeded.
+    offer_id: (Offer payments only) Hex-encoded BOLT12 offer id.
+    txid: (Onchain only) Hex-encoded Bitcoin txid.
+    amount_sats: Payment amount in satoshis. For completed inbound invoice
+        payments, this is the amount received. For pending/failed inbound
+        invoice payments, this is the invoice amount (may be ``None``).
+        For all other payment types, an amount is always present.
+    fees_sats: Fees for this payment in satoshis.
+    status: Payment status: pending, completed, or failed.
+    status_msg: Human-readable status message, customized per payment type
+        (e.g. "invoice generated", "timed out").
+    address: (Onchain send only) The address we're sending to.
+    invoice: (Invoice payments only) The BOLT 11 invoice.
+    note: Optional personal note attached to this payment. Can always be
+        added or modified after the payment exists.
+    payer_name: (Offer payments only) Payer's self-reported name.
+    payer_note: (Offer/LNURL-pay payments) Payer-provided note.
+    priority: (Onchain send only) Confirmation priority used.
+    expires_at_ms: Invoice or offer expiry time (ms since UNIX epoch),
+        or ``None`` if not applicable.
+    finalized_at_ms: When this payment finalized (ms since UNIX epoch),
+        or ``None`` if still pending.
+    created_at_ms: When this payment was created (ms since UNIX epoch).
+    updated_at_ms: When this payment was last updated (ms since UNIX epoch).
 """
 
 lexe.ClientPaymentId.__doc__ = """\
