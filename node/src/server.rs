@@ -10,11 +10,17 @@ use std::sync::{Arc, RwLock};
 
 use axum::{
     Router,
+    extract::State,
     routing::{get, post, put},
 };
 use lexe_api::{
     cli::{LspInfo, OAuthConfig},
-    models::command::{GDriveStatus, OnchainDescriptors},
+    error::NodeApiError,
+    models::command::{
+        CreateInvoiceRequest, CreateInvoiceResponse, GDriveStatus,
+        OnchainDescriptors,
+    },
+    server::LxJson,
 };
 use lexe_common::{
     api::{
@@ -28,6 +34,7 @@ use lexe_enclave::enclave::Measurement;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     channel::ChannelEvent,
+    command::CreateInvoiceCaller,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     sync::BdkSyncRequest,
@@ -51,6 +58,7 @@ use crate::{
     peer_manager::NodePeerManager,
     persister::NodePersister,
     runner::UserRunnerCommand,
+    user_cache::UserCache,
 };
 
 /// Handlers for commands that can only be initiated by the app.
@@ -79,6 +87,7 @@ pub(crate) struct RouterState {
     pub node_pk: NodePk,
     pub descriptors: OnchainDescriptors,
     pub legacy_descriptors: Option<OnchainDescriptors>,
+    pub user_cache: Arc<UserCache>,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,
@@ -185,14 +194,6 @@ pub(crate) fn lexe_router(state: Arc<RouterState>) -> Router<()> {
 }
 
 mod shared {
-    use axum::extract::State;
-    use lexe_api::{
-        error::NodeApiError,
-        models::command::{CreateInvoiceRequest, CreateInvoiceResponse},
-        server::LxJson,
-    };
-    use lexe_ln::command::CreateInvoiceCaller;
-
     use super::*;
 
     pub(super) async fn create_invoice(
@@ -202,7 +203,9 @@ mod shared {
         let caller = CreateInvoiceCaller::UserNode {
             lsp_info: state.lsp_info.clone(),
             intercept_scids: state.intercept_scids.clone(),
+            user_exists_fn: state.user_cache.user_exists_fn(),
         };
+
         lexe_ln::command::create_invoice(
             req,
             &state.user_pk,

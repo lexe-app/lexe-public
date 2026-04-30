@@ -3260,6 +3260,7 @@ dependencies = [
  "nostr",
  "proptest",
  "proptest-derive",
+ "quick_cache",
  "ref-cast",
  "secrecy",
  "semver",

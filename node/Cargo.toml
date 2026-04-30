@@ -77,6 +77,7 @@ lightning = { workspace = true }
 lightning-transaction-sync = { workspace = true }
 lru = { workspace = true }
 nostr = { workspace = true }
+quick_cache = { workspace = true }
 ref-cast = { workspace = true }
 secrecy = { workspace = true }
 semver = { workspace = true, features = ["serde"] }

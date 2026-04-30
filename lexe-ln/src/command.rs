@@ -1,6 +1,11 @@
 use std::{
-    collections::HashMap, convert::Infallible, num::NonZeroU64, ops::Deref,
-    sync::RwLock, time::Duration,
+    collections::HashMap,
+    convert::Infallible,
+    num::NonZeroU64,
+    ops::Deref,
+    pin::Pin,
+    sync::{Arc, RwLock},
+    time::Duration,
 };
 
 use anyhow::{Context, anyhow, bail, ensure};
@@ -116,6 +121,13 @@ use crate::{
 // Issue: https://github.com/lightningdevkit/rust-lightning/issues/3685
 pub const MAX_INTERCEPT_HINTS: usize = 1;
 
+/// Async closure that checks whether a user with the given [`UserPk`] exists.
+pub type UserExistsFn = Arc<
+    dyn Fn(UserPk) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>>
+        + Send
+        + Sync,
+>;
+
 /// Specifies whether it is the user node or the LSP calling the
 /// [`create_invoice`] fn. There are some differences between how the user node
 /// and LSP generate invoices which this tiny enum makes clearer.
@@ -130,6 +142,8 @@ pub enum CreateInvoiceCaller {
     UserNode {
         lsp_info: LspInfo,
         intercept_scids: Vec<Scid>,
+        /// Async closure to check whether a given [`UserPk`] exists.
+        user_exists_fn: UserExistsFn,
     },
     Lsp,
 }
@@ -725,6 +739,13 @@ where
         );
     }
 
+    // Extract user_exists_fn before consuming caller in the match.
+    let user_exists_fn = match &caller {
+        CreateInvoiceCaller::UserNode { user_exists_fn, .. } =>
+            Some(user_exists_fn.clone()),
+        CreateInvoiceCaller::Lsp => None,
+    };
+
     // Construct the route hint(s).
     let route_hints = match caller {
         // If the LSP is calling create_invoice, include no hints and let
@@ -738,6 +759,7 @@ where
         CreateInvoiceCaller::UserNode {
             lsp_info,
             intercept_scids,
+            ..
         } => {
             let channels = channel_manager.list_channels();
 
@@ -781,6 +803,17 @@ where
                 partner_pk != *user_pk,
                 "Cannot set your own node as the partner public key"
             );
+
+            // Ensure the partner_pk points to a real Lexe user.
+            if let Some(user_exists_fn) = &user_exists_fn {
+                let user_exists = user_exists_fn(partner_pk)
+                    .await
+                    .context("Couldn't check if partner_pk exists")?;
+                ensure!(
+                    user_exists,
+                    "No partner exists with the given partner_pk"
+                );
+            }
 
             // TODO(max): Remove once LSP can charge for amounts other than this
             ensure!(

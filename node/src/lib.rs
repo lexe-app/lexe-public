@@ -46,6 +46,8 @@ mod run;
 mod runner;
 /// Node's API server used while running.
 mod server;
+/// Caches whether users exist.
+mod user_cache;
 
 pub(crate) fn version() -> semver::Version {
     let version_str = DEV_VERSION.unwrap_or(SEMVER_VERSION);
