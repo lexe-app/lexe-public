@@ -176,6 +176,7 @@ fn encrypt_payment_v1(
         direction: Some(Cow::Borrowed(payment.direction().as_str())),
         amount: payment.amount(),
         fee: Some(payment.fees()),
+        partner_fee: None,
         status: Cow::Borrowed(payment.status().as_str()),
         data,
         version: 1,
@@ -208,6 +209,8 @@ fn encrypt_payment_v2(
         direction: Some(Cow::Borrowed(payment.direction().as_str())),
         amount: payment.amount(),
         fee: Some(payment.fee()),
+        // TODO(max): Get from PaymentV2
+        partner_fee: None,
         status: Cow::Borrowed(payment.status().as_str()),
         data,
         version: 2,
@@ -228,6 +231,7 @@ fn decrypt_payment_v1(
         direction,
         amount,
         fee,
+        partner_fee: _,
         status: db_status,
         data,
         version,
@@ -302,6 +306,8 @@ fn decrypt_payment_v2(
         direction,
         amount,
         fee,
+        // TODO(max): Check against PaymentV2 value when partner_fee is added
+        partner_fee: _,
         status: db_status,
         data,
         version,
