@@ -250,6 +250,10 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
             payer_note: None,
+            // TODO(max): Wire through partner fee fields from Rust SDK
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         })
     }
 }

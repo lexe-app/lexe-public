@@ -1708,6 +1708,11 @@ impl Display for PaymentId {
 // --- impl PartnerFeeFields --- //
 
 impl PartnerFeeFields {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        ensure!(self.prop_fee.is_some(), "partner_prop_fee must be set");
+        Ok(())
+    }
+
     /// `total_fee` := `base_fee` + `prop_fee` * `payment_value`
     pub fn total_fee(&self, payment_value: Amount) -> Amount {
         self.base_fee.unwrap_or(Amount::ZERO)

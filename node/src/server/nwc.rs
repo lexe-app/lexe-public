@@ -94,6 +94,9 @@ async fn handle_make_invoice(
         description: params.description,
         description_hash,
         payer_note: None,
+        partner_pk: None,
+        partner_prop_fee: None,
+        partner_base_fee: None,
     };
 
     let caller = CreateInvoiceCaller::UserNode {

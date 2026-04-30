@@ -15,6 +15,7 @@ use lexe_common::{
         priority::ConfirmationPriority,
         route::LxRoute,
     },
+    ppm::Ppm,
     time::TimestampMs,
 };
 use lexe_enclave::enclave::Measurement;
@@ -360,7 +361,10 @@ pub struct UpdatePaymentNote {
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
+
+    /// The amount to encode into the invoice.
     pub amount: Option<Amount>,
+
     /// The description to be encoded into the invoice.
     ///
     /// If `None`, the `description` field inside the invoice will be an empty
@@ -369,6 +373,7 @@ pub struct CreateInvoiceRequest {
     /// NOTE: If both `description` and `description_hash` are set, node will
     /// return an error.
     pub description: Option<String>,
+
     /// A 256-bit hash. Commonly a hash of a long description.
     ///
     /// This field is used to associate description longer than 639 bytes to
@@ -379,9 +384,35 @@ pub struct CreateInvoiceRequest {
     /// NOTE: If both `description` and `description_hash` are set, node will
     /// return an error.
     pub description_hash: Option<[u8; 32]>,
+
     /// An optional note from the payer, stored with this inbound payment.
     /// For LNURL-pay, set from the LUD-12 `comment`.
     pub payer_note: Option<BoundedString>,
+
+    /// The partner's user_pk, if the partner is setting the fee for this
+    /// payment instead of using Lexe's default fees.
+    ///
+    /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
+    /// to take effect.
+    // Added in `node-v0.9.6`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner_pk: Option<UserPk>,
+
+    /// The partner-chosen proportional fee to charge on this payment.
+    /// If `partner_pk` is set, this must be set to [`Some`].
+    ///
+    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE_PPM`)
+    /// Maximum: 500,000 ppm (50%)
+    // Added in `node-v0.9.6`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner_prop_fee: Option<Ppm>,
+
+    /// The partner-chosen base fee to charge on this payment.
+    ///
+    /// If this is set, the invoice `amount` must also be set.
+    // Added in `node-v0.9.6`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner_base_fee: Option<Amount>,
 }
 
 #[derive(Serialize, Deserialize)]

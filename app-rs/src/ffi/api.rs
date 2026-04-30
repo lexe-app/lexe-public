@@ -402,6 +402,9 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
             description: value.description,
             description_hash: None,
             payer_note: None,
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         })
     }
 }

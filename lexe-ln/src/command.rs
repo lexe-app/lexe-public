@@ -27,7 +27,9 @@ use lexe_api::{
         bounded_string::BoundedString,
         invoice::Invoice,
         offer::{MaxQuantity, Offer},
-        payments::{PaymentDirection, PaymentId, PaymentKind},
+        payments::{
+            PartnerFeeFields, PaymentDirection, PaymentId, PaymentKind,
+        },
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
 };
@@ -40,13 +42,14 @@ use lexe_common::{
         },
         user::{NodePk, Scid, UserPk},
     },
-    debug_panic_release_log,
+    debug_panic_release_log, dec,
     ln::{
         amount::Amount,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
         network::Network,
         route::LxRoute,
     },
+    ppm::Ppm,
     time::TimestampMs,
 };
 use lexe_crypto::{ed25519, rng::SysRng};
@@ -771,8 +774,39 @@ where
 
     let kind = PaymentKind::Invoice;
 
-    // TODO(max): Wire through partner fee fields
-    let partner_fee = None;
+    let partner_fee = match req.partner_pk {
+        Some(user_pk) => {
+            // TODO(max): Remove once LSP can charge for amounts other than this
+            ensure!(
+                req.partner_prop_fee == Some(Ppm::new(5000)),
+                "Currently, the only supported partner fee is 0.5% (5000 ppm)."
+            );
+
+            // TODO(max): Remove once LSP can charge for base fees as well
+            ensure!(
+                req.partner_base_fee.is_none(),
+                "Partner-chosen base fees are not supported yet. Coming soon!"
+            );
+
+            // For now, hard code a Tier 1 partner revshare of 20% which matches
+            // our receiver fee of 0.5%.
+            // TODO(max): Pass in the revshare schedule to the meganode so that
+            // we can compute the revshare based on the prop and base fees.
+            let revshare = dec!(0.2);
+
+            let pff = PartnerFeeFields {
+                user_pk,
+                prop_fee: req.partner_prop_fee,
+                base_fee: req.partner_base_fee,
+                revshare: Some(revshare),
+            };
+            pff.validate()?;
+
+            Some(pff)
+        }
+        None => None,
+    };
+
     let iipwm = InboundInvoicePaymentV2::new(
         invoice.clone(),
         hash.into(),
