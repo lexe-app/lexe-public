@@ -1917,7 +1917,20 @@ pub struct Payment {
     pub amount_sats: Option<u64>,
 
     /// The fees for this payment, in satoshis.
+    ///
+    /// If `partner_pk` is set, this means that the partner, not Lexe,
+    /// determined the fee for this payment.
     pub fees_sats: u64,
+
+    /// Hex-encoded partner user_pk, if the fees for this payment were set by
+    /// a Lexe partner, instead of using Lexe's default fees.
+    pub partner_pk: Option<String>,
+
+    /// The proportional fee set by the partner, in parts per million (ppm).
+    pub partner_prop_fee_ppm: Option<u32>,
+
+    /// The base fee set by the partner, in satoshis.
+    pub partner_base_fee_sats: Option<u64>,
 
     /// The status of this payment: "pending", "completed", or "failed".
     pub status: PaymentStatus,
@@ -1979,10 +1992,9 @@ impl From<SdkPayment> for Payment {
             txid,
             amount,
             fees,
-            // TODO(max): Add partner fees fields to UniFFI
-            partner_pk: _,
-            partner_prop_fee: _,
-            partner_base_fee: _,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
             status,
             status_msg,
             address,
@@ -2009,6 +2021,9 @@ impl From<SdkPayment> for Payment {
             txid: txid.map(|t| t.to_string()),
             amount_sats: amount.map(|a| a.sats_u64()),
             fees_sats: fees.sats_u64(),
+            partner_pk: partner_pk.map(|pk| pk.to_hex()),
+            partner_prop_fee_ppm: partner_prop_fee.map(|p| p.to_u32()),
+            partner_base_fee_sats: partner_base_fee.map(|a| a.sats_u64()),
             status: status.into(),
             status_msg,
             address: address

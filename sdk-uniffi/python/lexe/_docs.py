@@ -1518,7 +1518,13 @@ Attributes:
         payments, this is the amount received. For pending/failed inbound
         invoice payments, this is the invoice amount (may be ``None``).
         For all other payment types, an amount is always present.
-    fees_sats: Fees for this payment in satoshis.
+    fees_sats: Fees for this payment in satoshis. If ``partner_pk`` is set,
+        the partner (not Lexe) determined the fee.
+    partner_pk: Hex-encoded partner user_pk, if the fees for this payment
+        were set by a Lexe partner instead of using Lexe's default fees.
+    partner_prop_fee_ppm: The proportional fee set by the partner, in parts
+        per million (ppm).
+    partner_base_fee_sats: The base fee set by the partner, in satoshis.
     status: Payment status: pending, completed, or failed.
     status_msg: Human-readable status message, customized per payment type
         (e.g. "invoice generated", "timed out").
