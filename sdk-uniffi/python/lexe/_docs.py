@@ -750,6 +750,12 @@ Args:
         or ``None`` for a default of ``86400`` (1 day).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
+        Must be set for partner fee fields to take effect.
+    partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm).
+        Must be set if ``partner_pk`` is set. Min: 5000, Max: 500000 (50%).
+    partner_base_fee_sats: Partner base fee in satoshis. If set,
+        ``amount_sats`` must also be set.
 
 Returns:
     A :class:`CreateInvoiceResponse` with the invoice string and metadata.
@@ -1212,6 +1218,12 @@ Args:
         or ``None`` for a default of ``86400`` (1 day).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
+        Must be set for partner fee fields to take effect.
+    partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm).
+        Must be set if ``partner_pk`` is set. Min: 5000, Max: 500000 (50%).
+    partner_base_fee_sats: Partner base fee in satoshis. If set,
+        ``amount_sats`` must also be set.
 
 Returns:
     A :class:`CreateInvoiceResponse` with the invoice string and metadata.
