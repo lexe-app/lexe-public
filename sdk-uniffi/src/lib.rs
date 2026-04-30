@@ -9,7 +9,7 @@
 
 use std::{fmt, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use lexe::{
     bip39::Mnemonic,
     blocking_wallet::BlockingLexeWallet as SdkBlockingLexeWallet,
@@ -37,6 +37,7 @@ use lexe::{
             PayableDetails as SdkPayableDetails, UpdatePaymentNoteRequest,
         },
         payment::Payment as SdkPayment,
+        util::Ppm,
     },
     wallet::LexeWallet as SdkLexeWallet,
 };
@@ -807,11 +808,9 @@ impl AsyncLexeWallet {
     ) -> FfiResult<()> {
         let partner = partner_pk
             .as_deref()
-            .map(|s| {
-                UserPk::from_str(s)
-                    .map_err(|e| anyhow!("Invalid partner user_pk: {e}"))
-            })
-            .transpose()?;
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner user_pk")?;
 
         self.inner.signup(root_seed.as_sdk(), partner).await?;
         Ok(())
@@ -920,30 +919,54 @@ impl AsyncLexeWallet {
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
+    /// in order for the other partner fee fields to take effect.
+    /// `partner_prop_fee_ppm` is the partner proportional fee in ppm; must be
+    /// set if `partner_pk` is set.
+    /// `partner_base_fee_sats` is the partner base fee in satoshis. If this is
+    /// set, the invoice `amount_sats` must also be set.
     #[uniffi::method(default(
         amount_sats = None,
         description = None,
         expiration_secs = None,
+        partner_pk = None,
+        partner_prop_fee_ppm = None,
+        partner_base_fee_sats = None,
     ))]
     pub async fn create_invoice(
         &self,
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
+        partner_pk: Option<String>,
+        partner_prop_fee_ppm: Option<i32>,
+        partner_base_fee_sats: Option<u64>,
     ) -> FfiResult<CreateInvoiceResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+            .context("Invalid amount")?;
+
+        let partner_pk = partner_pk
+            .as_deref()
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner_pk")?;
+
+        let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
+
+        let partner_base_fee = partner_base_fee_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .context("Invalid partner_base_fee")?;
 
         let req = SdkCreateInvoiceRequest {
             expiration_secs,
             amount,
             description,
-            // TODO(max): Wire through partner fee fields from UniFFI
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         };
         let resp = self.inner.create_invoice(req).await?;
         Ok(resp.into())
@@ -964,12 +987,12 @@ impl AsyncLexeWallet {
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
-        let invoice = InvoiceRs::from_str(&invoice)
-            .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
+        let invoice =
+            InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow!("Invalid fallback amount: {e}"))?;
+            .context("Invalid fallback amount")?;
 
         let req = SdkPayInvoiceRequest {
             invoice,
@@ -1004,7 +1027,7 @@ impl AsyncLexeWallet {
         let min_amount = min_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow!("Invalid min_amount: {e}"))?;
+            .context("Invalid min_amount")?;
 
         let req = SdkCreateOfferRequest {
             description,
@@ -1031,10 +1054,9 @@ impl AsyncLexeWallet {
         note: Option<String>,
         payer_note: Option<String>,
     ) -> FfiResult<PayOfferResponse> {
-        let offer = OfferRs::from_str(&offer)
-            .map_err(|e| anyhow!("Invalid offer: {e}"))?;
+        let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
-            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+            .context("Invalid amount")?;
 
         let req = SdkPayOfferRequest {
             offer,
@@ -1288,11 +1310,9 @@ impl BlockingLexeWallet {
     ) -> FfiResult<()> {
         let partner = partner_pk
             .as_deref()
-            .map(|s| {
-                UserPk::from_str(s)
-                    .map_err(|e| anyhow!("Invalid partner user_pk: {e}"))
-            })
-            .transpose()?;
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner user_pk")?;
 
         self.inner.signup(root_seed.as_sdk(), partner)?;
         Ok(())
@@ -1398,30 +1418,54 @@ impl BlockingLexeWallet {
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
+    /// in order for the other partner fee fields to take effect.
+    /// `partner_prop_fee_ppm` is the partner proportional fee in ppm; must be
+    /// set if `partner_pk` is set.
+    /// `partner_base_fee_sats` is the partner base fee in satoshis. If this is
+    /// set, the invoice `amount_sats` must also be set.
     #[uniffi::method(default(
+        expiration_secs = None,
         amount_sats = None,
         description = None,
-        expiration_secs = None,
+        partner_pk = None,
+        partner_prop_fee_ppm = None,
+        partner_base_fee_sats = None,
     ))]
     pub fn create_invoice(
         &self,
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
+        partner_pk: Option<String>,
+        partner_prop_fee_ppm: Option<i32>,
+        partner_base_fee_sats: Option<u64>,
     ) -> FfiResult<CreateInvoiceResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+            .context("Invalid amount")?;
+
+        let partner_pk = partner_pk
+            .as_deref()
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner_pk")?;
+
+        let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
+
+        let partner_base_fee = partner_base_fee_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .context("Invalid partner_base_fee")?;
 
         let req = SdkCreateInvoiceRequest {
             expiration_secs,
             amount,
             description,
-            // TODO(max): Wire through partner fee fields from UniFFI
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         };
         let resp = self.inner.create_invoice(req)?;
         Ok(resp.into())
@@ -1442,12 +1486,12 @@ impl BlockingLexeWallet {
         fallback_amount_sats: Option<u64>,
         note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
-        let invoice = InvoiceRs::from_str(&invoice)
-            .map_err(|e| anyhow!("Invalid invoice: {e}"))?;
+        let invoice =
+            InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow!("Invalid fallback amount: {e}"))?;
+            .context("Invalid fallback amount")?;
 
         let req = SdkPayInvoiceRequest {
             invoice,
@@ -1482,7 +1526,7 @@ impl BlockingLexeWallet {
         let min_amount = min_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
-            .map_err(|e| anyhow!("Invalid min_amount: {e}"))?;
+            .context("Invalid min_amount")?;
 
         let req = SdkCreateOfferRequest {
             description,
@@ -1509,10 +1553,9 @@ impl BlockingLexeWallet {
         note: Option<String>,
         payer_note: Option<String>,
     ) -> FfiResult<PayOfferResponse> {
-        let offer = OfferRs::from_str(&offer)
-            .map_err(|e| anyhow!("Invalid offer: {e}"))?;
+        let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
-            .map_err(|e| anyhow!("Invalid amount: {e}"))?;
+            .context("Invalid amount")?;
 
         let req = SdkPayOfferRequest {
             offer,
