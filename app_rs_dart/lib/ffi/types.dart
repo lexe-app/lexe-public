@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
@@ -338,7 +338,6 @@ sealed class Onchain with _$Onchain {
 
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPaymentV2Rs`] type.
-///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Payment with _$Payment {
@@ -349,6 +348,8 @@ sealed class Payment with _$Payment {
     Invoice? invoice,
     String? offerId,
     Offer? offer,
+    String? preimage,
+    String? hash,
     String? txid,
     String? replacement,
     int? amountSats,

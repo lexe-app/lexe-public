@@ -2562,6 +2562,8 @@ impl SseDecode for crate::ffi::types::Payment {
         let mut var_offerId = <Option<String>>::sse_decode(deserializer);
         let mut var_offer =
             <Option<crate::ffi::types::Offer>>::sse_decode(deserializer);
+        let mut var_preimage = <Option<String>>::sse_decode(deserializer);
+        let mut var_hash = <Option<String>>::sse_decode(deserializer);
         let mut var_txid = <Option<String>>::sse_decode(deserializer);
         let mut var_replacement = <Option<String>>::sse_decode(deserializer);
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
@@ -2582,6 +2584,8 @@ impl SseDecode for crate::ffi::types::Payment {
             invoice: var_invoice,
             offer_id: var_offerId,
             offer: var_offer,
+            preimage: var_preimage,
+            hash: var_hash,
             txid: var_txid,
             replacement: var_replacement,
             amount_sats: var_amountSats,
@@ -4191,6 +4195,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
             self.invoice.into_into_dart().into_dart(),
             self.offer_id.into_into_dart().into_dart(),
             self.offer.into_into_dart().into_dart(),
+            self.preimage.into_into_dart().into_dart(),
+            self.hash.into_into_dart().into_dart(),
             self.txid.into_into_dart().into_dart(),
             self.replacement.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
@@ -5932,6 +5938,8 @@ impl SseEncode for crate::ffi::types::Payment {
         );
         <Option<String>>::sse_encode(self.offer_id, serializer);
         <Option<crate::ffi::types::Offer>>::sse_encode(self.offer, serializer);
+        <Option<String>>::sse_encode(self.preimage, serializer);
+        <Option<String>>::sse_encode(self.hash, serializer);
         <Option<String>>::sse_encode(self.txid, serializer);
         <Option<String>>::sse_encode(self.replacement, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);

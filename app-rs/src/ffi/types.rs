@@ -18,18 +18,17 @@ use lexe_api::{
         },
         offer::Offer as OfferRs,
         payments::{
-            BasicPaymentV1 as BasicPaymentV1Rs,
             BasicPaymentV2 as BasicPaymentV2Rs,
             ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
-            PaymentKind as PaymentKindRs, PaymentRail as PaymentRailRs,
-            PaymentStatus as PaymentStatusRs,
+            PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
         },
         username::Username as UsernameRs,
     },
 };
 use lexe_common::{
+    ByteArray,
     api::{
         auth::Scope as ScopeRs,
         revocable_clients::RevocableClient as RevocableClientRs,
@@ -390,41 +389,6 @@ pub struct ShortPayment {
     pub created_at: i64,
 }
 
-impl From<&BasicPaymentV1Rs> for ShortPayment {
-    fn from(payment: &BasicPaymentV1Rs) -> Self {
-        // V1 payments don't have kind; derive from rail
-        let kind = match &payment.rail {
-            PaymentRailRs::Onchain => PaymentKind::Onchain,
-            PaymentRailRs::Invoice => PaymentKind::Invoice,
-            PaymentRailRs::Offer => PaymentKind::Offer,
-            PaymentRailRs::Spontaneous => PaymentKind::Spontaneous,
-            // V1 doesn't have an unknown variant
-            PaymentRailRs::Unknown(_) => unreachable!(),
-            // These rails don't exist in v1
-            PaymentRailRs::WaivedFee => unreachable!(),
-        };
-
-        Self {
-            index: PaymentCreatedIndex::from(*payment.index()),
-
-            kind,
-
-            direction: PaymentDirection::from(payment.direction),
-
-            amount_sats: payment.amount.map(|amt| amt.sats_u64()),
-            fees_sats: payment.fees.sats_u64(),
-
-            status: PaymentStatus::from(payment.status),
-
-            description: payment.description().map(String::from),
-            note: payment.note.as_deref().map(String::from),
-            payer_note: None, // V1 payments don't have payer_note
-
-            created_at: payment.created_at().to_i64(),
-        }
-    }
-}
-
 impl From<&BasicPaymentV2Rs> for ShortPayment {
     fn from(payment: &BasicPaymentV2Rs) -> Self {
         Self {
@@ -450,7 +414,6 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
 
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPaymentV2Rs`] type.
-///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Payment {
     pub index: PaymentCreatedIndex,
@@ -462,6 +425,9 @@ pub struct Payment {
 
     pub offer_id: Option<String>,
     pub offer: Option<Offer>,
+
+    pub preimage: Option<String>,
+    pub hash: Option<String>,
 
     pub txid: Option<String>,
     pub replacement: Option<String>,
@@ -483,52 +449,6 @@ pub struct Payment {
     pub finalized_at: Option<i64>,
 }
 
-impl From<&BasicPaymentV1Rs> for Payment {
-    fn from(payment: &BasicPaymentV1Rs) -> Self {
-        // V1 payments don't have kind; derive from rail
-        let kind = match &payment.rail {
-            PaymentRailRs::Onchain => PaymentKind::Onchain,
-            PaymentRailRs::Invoice => PaymentKind::Invoice,
-            PaymentRailRs::Offer => PaymentKind::Offer,
-            PaymentRailRs::Spontaneous => PaymentKind::Spontaneous,
-            // V1 doesn't have an unknown variant
-            PaymentRailRs::Unknown(_) => unreachable!(),
-            // These rails don't exist in v1
-            PaymentRailRs::WaivedFee => unreachable!(),
-        };
-
-        Self {
-            index: PaymentCreatedIndex::from(*payment.index()),
-
-            kind,
-            direction: PaymentDirection::from(payment.direction),
-
-            invoice: payment.invoice.as_deref().map(Invoice::from),
-
-            offer_id: payment.offer_id.map(|id| id.to_string()),
-            offer: payment.offer.as_deref().map(Offer::from),
-
-            txid: payment.txid.map(|txid| txid.to_string()),
-            replacement: payment.replacement.map(|txid| txid.to_string()),
-
-            amount_sats: payment.amount.map(|amt| amt.sats_u64()),
-            fees_sats: payment.fees.sats_u64(),
-
-            status: PaymentStatus::from(payment.status),
-            status_str: payment.status_str.clone(),
-
-            description: payment.description().map(String::from),
-            note: payment.note.as_deref().map(String::from),
-
-            payer_name: None,
-            payer_note: None,
-
-            created_at: payment.created_at().to_i64(),
-            finalized_at: payment.finalized_at.map(|t| t.to_i64()),
-        }
-    }
-}
-
 impl From<&BasicPaymentV2Rs> for Payment {
     fn from(payment: &BasicPaymentV2Rs) -> Self {
         Self {
@@ -541,6 +461,9 @@ impl From<&BasicPaymentV2Rs> for Payment {
 
             offer_id: payment.offer_id.map(|id| id.to_string()),
             offer: payment.offer.as_deref().map(Offer::from),
+
+            preimage: payment.preimage.map(|pi| pi.to_hex()),
+            hash: payment.hash.map(|h| h.to_string()),
 
             txid: payment.txid.map(|txid| txid.to_string()),
             replacement: payment.replacement_txid.map(|txid| txid.to_string()),

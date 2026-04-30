@@ -4256,8 +4256,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Payment dco_decode_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 18)
-      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    if (arr.length != 20)
+      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
     return Payment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
@@ -4265,18 +4265,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       invoice: dco_decode_opt_box_autoadd_invoice(arr[3]),
       offerId: dco_decode_opt_String(arr[4]),
       offer: dco_decode_opt_box_autoadd_offer(arr[5]),
-      txid: dco_decode_opt_String(arr[6]),
-      replacement: dco_decode_opt_String(arr[7]),
-      amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[8]),
-      feesSats: dco_decode_CastedPrimitive_u_64(arr[9]),
-      status: dco_decode_payment_status(arr[10]),
-      statusStr: dco_decode_String(arr[11]),
-      description: dco_decode_opt_String(arr[12]),
-      note: dco_decode_opt_String(arr[13]),
-      payerName: dco_decode_opt_String(arr[14]),
-      payerNote: dco_decode_opt_String(arr[15]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[16]),
-      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[17]),
+      preimage: dco_decode_opt_String(arr[6]),
+      hash: dco_decode_opt_String(arr[7]),
+      txid: dco_decode_opt_String(arr[8]),
+      replacement: dco_decode_opt_String(arr[9]),
+      amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[10]),
+      feesSats: dco_decode_CastedPrimitive_u_64(arr[11]),
+      status: dco_decode_payment_status(arr[12]),
+      statusStr: dco_decode_String(arr[13]),
+      description: dco_decode_opt_String(arr[14]),
+      note: dco_decode_opt_String(arr[15]),
+      payerName: dco_decode_opt_String(arr[16]),
+      payerNote: dco_decode_opt_String(arr[17]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[18]),
+      finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[19]),
     );
   }
 
@@ -5991,6 +5993,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_invoice = sse_decode_opt_box_autoadd_invoice(deserializer);
     var var_offerId = sse_decode_opt_String(deserializer);
     var var_offer = sse_decode_opt_box_autoadd_offer(deserializer);
+    var var_preimage = sse_decode_opt_String(deserializer);
+    var var_hash = sse_decode_opt_String(deserializer);
     var var_txid = sse_decode_opt_String(deserializer);
     var var_replacement = sse_decode_opt_String(deserializer);
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
@@ -6010,6 +6014,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       invoice: var_invoice,
       offerId: var_offerId,
       offer: var_offer,
+      preimage: var_preimage,
+      hash: var_hash,
       txid: var_txid,
       replacement: var_replacement,
       amountSats: var_amountSats,
@@ -7658,6 +7664,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_box_autoadd_invoice(self.invoice, serializer);
     sse_encode_opt_String(self.offerId, serializer);
     sse_encode_opt_box_autoadd_offer(self.offer, serializer);
+    sse_encode_opt_String(self.preimage, serializer);
+    sse_encode_opt_String(self.hash, serializer);
     sse_encode_opt_String(self.txid, serializer);
     sse_encode_opt_String(self.replacement, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);

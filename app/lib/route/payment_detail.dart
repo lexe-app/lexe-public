@@ -549,6 +549,9 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final offerExpiresAt = offer?.expiresAt;
                   final offerMinAmountSat = offer?.minAmountSats;
 
+                  final preimage = payment.preimage;
+                  final hash = payment.hash;
+
                   final txid = payment.txid;
                   final replacement = payment.replacement;
 
@@ -590,14 +593,6 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                         label: "Client payment id",
                         value: this.paymentIdxBody(),
                       ),
-                    (PaymentKind_Invoice(), _) => InfoRow(
-                      label: "Payment hash",
-                      value: this.paymentIdxBody(),
-                    ),
-                    (PaymentKind_Spontaneous(), _) => InfoRow(
-                      label: "Payment hash",
-                      value: this.paymentIdxBody(),
-                    ),
                     (PaymentKind_Offer(), PaymentDirection.inbound) => InfoRow(
                       label: "Offer claim id",
                       value: this.paymentIdxBody(),
@@ -606,6 +601,9 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       label: "Client payment id",
                       value: this.paymentIdxBody(),
                     ),
+                    // Invoices use hash, but it's displayed independently
+                    (PaymentKind_Invoice(), _) ||
+                    (PaymentKind_Spontaneous(), _) ||
                     // Waived fee payments don't have a meaningful payment ID.
                     (PaymentKind_WaivedChannelFee(), _) ||
                     (PaymentKind_WaivedLiquidityFee(), _) => null,
@@ -617,6 +615,13 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       _,
                     ) => InfoRow(label: "Unknown", value: "???"),
                   };
+
+                  final InfoRow? hashRow = (hash != null)
+                      ? InfoRow(label: "Payment hash", value: hash)
+                      : null;
+                  final InfoRow? preimageRow = (preimage != null)
+                      ? InfoRow(label: "Payment preimage", value: preimage)
+                      : null;
 
                   // Show on-chain txid's with link to mempool.space
                   final InfoRow? txidRow = (txid != null)
@@ -761,6 +766,11 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                         children: [
                           // the payment ID
                           if (paymentIdRow != null) paymentIdRow,
+
+                          // the LN hash
+                          if (hashRow != null) hashRow,
+                          // the LN preimage
+                          if (preimageRow != null) preimageRow,
 
                           // Txid
                           if (txidRow != null) txidRow,
