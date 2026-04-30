@@ -6,9 +6,12 @@ use bitcoin::address::NetworkUnchecked;
 use lexe_api::types::{invoice::Invoice, payments::BasicPaymentV2};
 use lexe_common::{
     ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
+    ppm::Ppm,
     time::TimestampMs,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::types::auth::UserPk;
 
 /// Re-exports that are part of the SDK's public API.
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
@@ -65,14 +68,19 @@ pub struct Payment {
 
     /// The fees for this payment.
     ///
-    /// - For outbound Lightning payments, these are the routing fees. If the
-    ///   payment is not completed, this value is an estimation only. This
-    ///   value reflects the actual fees paid if and only if the payment
-    ///   completes.
-    /// - For inbound Lightning payments, the routing fees are not paid by us
-    ///   (the recipient), but if a JIT channel open was required to facilitate
-    ///   this payment, then the on-chain fee is reflected here.
+    /// - If `partner_pk` is set, this means that the partner, not Lexe,
+    ///   determined the fee for this payment.
     pub fees: Amount,
+
+    /// The partner's user_pk, if the fees for this payment were set by a Lexe
+    /// partner, instead of using Lexe's default fees.
+    pub partner_pk: Option<UserPk>,
+
+    /// The proportional fee set by the partner.
+    pub partner_prop_fee: Option<Ppm>,
+
+    /// The base fee set by the partner.
+    pub partner_base_fee: Option<Amount>,
 
     /// The status of this payment: ["pending", "completed", "failed"].
     pub status: PaymentStatus,
@@ -177,10 +185,9 @@ impl From<BasicPaymentV2> for Payment {
             txid,
             amount,
             fee,
-            // TODO(max): Expose in Rust SDK
-            partner_pk: _,
-            partner_prop_fee: _,
-            partner_base_fee: _,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
             status,
             status_str,
             address,
@@ -212,6 +219,9 @@ impl From<BasicPaymentV2> for Payment {
             txid,
             amount,
             fees: fee,
+            partner_pk: partner_pk.map(UserPk::from_unstable),
+            partner_prop_fee,
+            partner_base_fee,
             status,
             status_msg: status_str,
             address,

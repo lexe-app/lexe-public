@@ -1943,6 +1943,10 @@ impl From<SdkPayment> for Payment {
             txid,
             amount,
             fees,
+            // TODO(max): Add partner fees fields to UniFFI
+            partner_pk: _,
+            partner_prop_fee: _,
+            partner_base_fee: _,
             status,
             status_msg,
             address,

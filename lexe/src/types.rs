@@ -46,5 +46,5 @@ pub mod bitcoin {
 
 /// General-purpose utilities.
 pub mod util {
-    pub use lexe_common::time::TimestampMs;
+    pub use lexe_common::{ppm::Ppm, time::TimestampMs};
 }
