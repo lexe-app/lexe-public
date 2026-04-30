@@ -10,14 +10,17 @@ use lexe_api::types::{
     invoice::Invoice,
     offer::Offer,
     payments::{
-        BasicPaymentV2, OfferId, PaymentDirection, PaymentHash, PaymentId,
-        PaymentKind, PaymentPreimage, PaymentRail, PaymentStatus,
+        BasicPaymentV2, OfferId, PartnerFeeFields, PaymentDirection,
+        PaymentHash, PaymentId, PaymentKind, PaymentPreimage, PaymentRail,
+        PaymentStatus,
     },
 };
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
+    api::user::UserPk,
     ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
+    ppm::Ppm,
     time::TimestampMs,
 };
 use lexe_std::const_assert_mem_size;
@@ -785,6 +788,35 @@ impl PaymentV2 {
     //         Self::OutboundSpontaneous(_) => None,
     //     }
     // }
+
+    /// The partner fee fields, if set.
+    pub fn partner_fee(&self) -> Option<PartnerFeeFields> {
+        match self {
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
+            Self::InboundInvoice(iip) => iip.partner_fee,
+            Self::InboundOfferReusable(_) => None,
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(_) => None,
+            Self::OutboundOffer(_) => None,
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
+    /// The partner's user_pk, if set.
+    pub fn partner_pk(&self) -> Option<UserPk> {
+        self.partner_fee().map(|pff| pff.user_pk)
+    }
+
+    /// The partner's proportional fee, if set.
+    pub fn partner_prop_fee(&self) -> Option<Ppm> {
+        self.partner_fee().and_then(|pff| pff.prop_fee)
+    }
+
+    /// The partner's base fee, if set.
+    pub fn partner_base_fee(&self) -> Option<Amount> {
+        self.partner_fee().and_then(|pff| pff.base_fee)
+    }
 
     /// The total amount of this payment, inclusive of fees.
     pub fn total(&self) -> Option<Amount> {

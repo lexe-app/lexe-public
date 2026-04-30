@@ -209,8 +209,7 @@ fn encrypt_payment_v2(
         direction: Some(Cow::Borrowed(payment.direction().as_str())),
         amount: payment.amount(),
         fee: Some(payment.fee()),
-        // TODO(max): Get from PaymentV2
-        partner_fee: None,
+        partner_fee: payment.partner_fee(),
         status: Cow::Borrowed(payment.status().as_str()),
         data,
         version: 2,
@@ -306,8 +305,7 @@ fn decrypt_payment_v2(
         direction,
         amount,
         fee,
-        // TODO(max): Check against PaymentV2 value when partner_fee is added
-        partner_fee: _,
+        partner_fee,
         status: db_status,
         data,
         version,
@@ -366,6 +364,11 @@ fn decrypt_payment_v2(
         payment.fee() == db_fee,
         "fee mismatch: db={db_fee:?}, payment={:?}",
         payment.fee(),
+    );
+    ensure!(
+        payment.partner_fee() == partner_fee,
+        "partner_fee mismatch: db={partner_fee:?}, payment={:?}",
+        payment.partner_fee(),
     );
 
     Ok(payment)
