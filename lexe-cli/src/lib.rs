@@ -465,6 +465,10 @@ impl CreateInvoiceArgs {
             expiration_secs: self.expiration_secs,
             amount: self.amount_sats,
             description: self.description,
+            // TODO(max): Wire through partner fee fields from CLI
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let resp = wallet
             .create_invoice(req)

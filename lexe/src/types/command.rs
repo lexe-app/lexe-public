@@ -11,7 +11,7 @@ use lexe_api::{
         },
     },
 };
-use lexe_common::{ln::amount::Amount, time::TimestampMs};
+use lexe_common::{ln::amount::Amount, ppm::Ppm, time::TimestampMs};
 use lexe_payment_uri::PaymentMethod;
 use serde::{Deserialize, Serialize};
 
@@ -189,6 +189,31 @@ pub struct CreateInvoiceRequest {
     // string (""), as lightning _requires_ a description (or description
     // hash) to be set.
     pub description: Option<String>,
+
+    /// The partner's user_pk, if the partner is setting the fee for this
+    /// payment instead of using Lexe's default fees.
+    ///
+    /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
+    /// to take effect.
+    // Added in `node-v0.9.6`
+    #[serde(default)]
+    pub partner_pk: Option<UserPk>,
+
+    /// The partner-chosen proportional fee to charge on this payment.
+    /// If `partner_pk` is set, this must be set to [`Some`].
+    ///
+    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE_PPM`)
+    /// Maximum: 500,000 ppm (50%)
+    // Added in `node-v0.9.6`
+    #[serde(default)]
+    pub partner_prop_fee: Option<Ppm>,
+
+    /// The partner-chosen base fee to charge on this payment.
+    ///
+    /// If this is set, the invoice `amount` must also be set.
+    // Added in `node-v0.9.6`
+    #[serde(default)]
+    pub partner_base_fee: Option<Amount>,
 }
 
 /// The response to a BOLT 11 invoice request.
@@ -250,10 +275,9 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
             payer_note: None,
-            // TODO(max): Wire through partner fee fields from Rust SDK
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk: req.partner_pk.map(|pk| pk.unstable()),
+            partner_prop_fee: req.partner_prop_fee,
+            partner_base_fee: req.partner_base_fee,
         })
     }
 }

@@ -940,6 +940,10 @@ impl AsyncLexeWallet {
             expiration_secs,
             amount,
             description,
+            // TODO(max): Wire through partner fee fields from UniFFI
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let resp = self.inner.create_invoice(req).await?;
         Ok(resp.into())
@@ -1414,6 +1418,10 @@ impl BlockingLexeWallet {
             expiration_secs,
             amount,
             description,
+            // TODO(max): Wire through partner fee fields from UniFFI
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let resp = self.inner.create_invoice(req)?;
         Ok(resp.into())
