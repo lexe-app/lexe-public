@@ -19,6 +19,7 @@ use lexe::{
             UpdatePaymentNoteRequest,
         },
         payment::{Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus},
+        util::Ppm,
     },
     wallet::LexeWallet,
 };
@@ -446,7 +447,7 @@ pub struct CreateInvoiceArgs {
 
     #[arg(
         long,
-        help = "Description to encode in the invoice.\n\
+        help = "Description to encode in invoice.\n\
         Visible to sender when scanned."
     )]
     description: Option<String>,
@@ -457,6 +458,32 @@ pub struct CreateInvoiceArgs {
         [default: 86400 = 1 day]"
     )]
     expiration_secs: Option<u32>,
+
+    #[arg(
+        long,
+        help = "Partner user_pk for\n\
+        partner-set fees. Required for\n\
+        partner_prop_fee and\n\
+        partner_base_fee to take effect."
+    )]
+    partner_pk: Option<UserPk>,
+
+    #[arg(
+        long,
+        help = "Partner proportional fee in ppm.\n\
+        Required if partner_pk is set.\n\
+        Min: 5000 (0.5%),\n\
+        Max: 500000 (50%)"
+    )]
+    partner_prop_fee: Option<Ppm>,
+
+    #[arg(
+        long,
+        help = "Partner base fee in satoshis.\n\
+        Requires amount_sats\n\
+        to also be set."
+    )]
+    partner_base_fee: Option<Amount>,
 }
 
 impl CreateInvoiceArgs {
@@ -465,10 +492,9 @@ impl CreateInvoiceArgs {
             expiration_secs: self.expiration_secs,
             amount: self.amount_sats,
             description: self.description,
-            // TODO(max): Wire through partner fee fields from CLI
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk: self.partner_pk,
+            partner_prop_fee: self.partner_prop_fee,
+            partner_base_fee: self.partner_base_fee,
         };
         let resp = wallet
             .create_invoice(req)
