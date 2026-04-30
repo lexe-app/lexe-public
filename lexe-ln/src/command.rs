@@ -771,6 +771,8 @@ where
 
     let kind = PaymentKind::Invoice;
 
+    // TODO(max): Wire through partner fee fields
+    let partner_fee = None;
     let iipwm = InboundInvoicePaymentV2::new(
         invoice.clone(),
         hash.into(),
@@ -778,6 +780,7 @@ where
         preimage.into(),
         kind,
         req.payer_note,
+        partner_fee,
     )
     .context("Failed to create payment")?;
     let pwm = iipwm.into_enum();

@@ -6,8 +6,8 @@ use lexe_api::types::{
     invoice::Invoice,
     offer::Offer,
     payments::{
-        LnClaimId, OfferId, PaymentHash, PaymentId, PaymentKind,
-        PaymentPreimage, PaymentRail, PaymentSecret,
+        LnClaimId, OfferId, PartnerFeeFields, PaymentHash, PaymentId,
+        PaymentKind, PaymentPreimage, PaymentRail, PaymentSecret,
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
@@ -334,6 +334,7 @@ pub struct InboundInvoicePaymentV2 {
     /// by our channel counterparty. Populated during [`PaymentClaimable`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skimmed_fee: Option<Amount>,
+
     /* TODO(max): Implement JIT channel fees
     /// The portion of the skimmed amount that was used to cover the on-chain
     /// fees incurred by a JIT channel opened to receive this payment.
@@ -341,6 +342,11 @@ pub struct InboundInvoicePaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
     */
+    /// Optional partner fees.
+    // Added in node-v0.9.6
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner_fee: Option<PartnerFeeFields>,
+
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
 
@@ -384,6 +390,7 @@ impl InboundInvoicePaymentV2 {
         preimage: PaymentPreimage,
         kind: PaymentKind,
         payer_note: Option<BoundedString>,
+        partner_fee: Option<PartnerFeeFields>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
@@ -402,6 +409,7 @@ impl InboundInvoicePaymentV2 {
             recvd_amount: None,
             skimmed_fee: None,
             // channel_fee: None,
+            partner_fee,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
             created_at: None,
             expires_at,
@@ -1027,6 +1035,7 @@ mod arbitrary_impl {
     use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
+        option,
         prelude::Just,
         prop_oneof,
         strategy::{BoxedStrategy, Strategy},
@@ -1053,6 +1062,7 @@ mod arbitrary_impl {
             let recvd_amount = any::<Amount>();
             let skimmed_fee = any::<Amount>();
             let status = any_with::<InboundInvoicePaymentStatus>(pending_only);
+            let partner_fee = option::of(any::<PartnerFeeFields>());
             let maybe_created_at = any::<Option<TimestampMs>>();
             let created_at_fallback = any::<TimestampMs>();
             let finalized_after = arbitrary::any_duration();
@@ -1064,6 +1074,7 @@ mod arbitrary_impl {
                 recvd_amount,
                 skimmed_fee,
                 status,
+                partner_fee,
                 maybe_created_at,
                 created_at_fallback,
                 finalized_after,
@@ -1112,6 +1123,7 @@ mod arbitrary_impl {
                     recvd_amount,
                     skimmed_fee,
                     // channel_fee: None,
+                    partner_fee,
                     status,
                     created_at,
                     expires_at,
@@ -1126,6 +1138,7 @@ mod arbitrary_impl {
                 recvd_amount,
                 skimmed_fee,
                 status,
+                partner_fee,
                 maybe_created_at,
                 created_at_fallback,
                 finalized_after,

@@ -153,7 +153,7 @@ pub enum PaymentV2 {
 }
 
 // Debug the size_of `PaymentV2`
-const_assert_mem_size!(PaymentV2, 264);
+const_assert_mem_size!(PaymentV2, 344);
 
 /// Optional payment metadata associated with a [`PaymentV2`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
