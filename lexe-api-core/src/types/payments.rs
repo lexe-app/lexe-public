@@ -18,18 +18,26 @@ use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
+    api::user::UserPk,
     debug_panic_release_log,
     ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
+    ppm::Ppm,
     time::TimestampMs,
 };
 use lexe_crypto::rng::{RngCore, ThreadFastRng};
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
 #[cfg(any(test, feature = "test-utils"))]
-use proptest::{prelude::Just, strategy::Strategy, strategy::Union};
+use proptest::{
+    option,
+    prelude::Just,
+    prop_oneof,
+    strategy::{BoxedStrategy, Strategy, Union},
+};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 #[cfg(test)]
@@ -687,6 +695,55 @@ pub struct OfferId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+
+/// Information about the partner fees for a specific payment.
+///
+/// The total fee is calculated as:
+///
+///   `total_fee` (sats) = `base_fee` + `prop_fee` * `payment_value`
+///
+/// Where `payment_value` is the "sticker price" of the payment:
+///
+/// - Receives: `payment_value` := `recvd_amount` + `skimmed_fee`
+/// - Sends: `payment_value` := `amount_sent`
+///
+/// The partner's revshare tier is determined by `total_fee / payment_value`,
+/// which is converted to a concrete partner revshare proportion based on the
+/// revshare schedule here: <https://docs.lexe.tech/partner-fees/>
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PartnerFeeFields {
+    /// The user_pk of the partner setting this fee.
+    pub user_pk: UserPk,
+
+    /// The partner-chosen proportional fee.
+    /// Values of [`None`] are currently not allowed.
+    ///
+    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE_PPM`)
+    /// Maximum: 500,000 ppm (50%)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prop_fee: Option<Ppm>,
+
+    /// The partner-chosen base fee.
+    ///
+    /// This base fee can be set for outbound payments or inbound invoice
+    /// payments *with encoded payment amounts*. Due to technical reasons, base
+    /// fees cannot be set on amountless inbound invoices.
+    //
+    // The technical reason: <https://discord.com/channels/915026692102316113/978829624635195422/1499199445185593364>
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_fee: Option<Amount>,
+
+    /// The partner's proportion of the total fee, expressed as a decimal.
+    ///
+    /// Example: `0.8` represents an 80% partner share of `total_fee`.
+    ///
+    /// Currently, only four values are allowed: `[0.2, 0.5, 0.7, 0.8]`,
+    /// but different revshare tiers may be adopted in the future.
+    ///
+    /// For inbound payments, this is populated during `PaymentClaimable`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revshare: Option<Decimal>,
+}
 
 // --- impl BasicPaymentV2 --- //
 
@@ -1626,6 +1683,56 @@ impl Display for PaymentId {
             Self::Lightning(hash) => write!(f, "{prefix}_{hash}"),
             Self::OnchainRecv(txid) => write!(f, "{prefix}_{txid}"),
             Self::OnchainSend(cid) => write!(f, "{prefix}_{cid}"),
+        }
+    }
+}
+
+// --- impl PartnerFeeFields --- //
+
+impl PartnerFeeFields {
+    /// `total_fee` := `base_fee` + `prop_fee` * `payment_value`
+    pub fn total_fee(&self, payment_value: Amount) -> Amount {
+        self.base_fee.unwrap_or(Amount::ZERO)
+            + self.prop_fee.unwrap_or(Ppm::ZERO) * payment_value
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+mod partner_fee_arbitrary_impl {
+    use lexe_common::dec;
+    use proptest::arbitrary::{Arbitrary, any};
+
+    use super::*;
+
+    impl Arbitrary for PartnerFeeFields {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            use proptest::strategy::Strategy;
+
+            let user_pk = any::<UserPk>();
+            // 5000 ppm (0.5%) to 500_000 ppm (50%)
+            let prop_fee = option::of((5_000i32..=500_000).prop_map(Ppm::new));
+            // 0 to 10_000 sats
+            let base_fee =
+                option::of((0u32..=10_000).prop_map(Amount::from_sats_u32));
+            // Revshare tiers: [0.2, 0.5, 0.7, 0.8]
+            let revshare = option::of(prop_oneof![
+                Just(dec!(0.2)),
+                Just(dec!(0.5)),
+                Just(dec!(0.7)),
+                Just(dec!(0.8)),
+            ]);
+
+            (user_pk, prop_fee, base_fee, revshare)
+                .prop_map(|(user_pk, prop_fee, base_fee, revshare)| Self {
+                    user_pk,
+                    prop_fee,
+                    base_fee,
+                    revshare,
+                })
+                .boxed()
         }
     }
 }
