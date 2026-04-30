@@ -1881,51 +1881,87 @@ pub struct Payment {
     /// Unique payment identifier, ordered by `created_at_ms`.
     /// Format: `<created_at_ms>-<payment_id>`.
     pub index: String,
-    /// Timestamp when payment was created (milliseconds since the UNIX
-    /// epoch).
-    pub created_at_ms: u64,
-    /// Timestamp when payment was last updated (milliseconds since the UNIX
-    /// epoch).
-    pub updated_at_ms: u64,
-    /// Technical rail used to fulfill this payment.
+
+    /// The technical 'rail' used to fulfill a payment:
+    /// 'onchain', 'invoice', 'offer', 'spontaneous', 'waived_fee', etc.
     pub rail: PaymentRail,
+
     /// Application-level payment kind.
     pub kind: PaymentKind,
-    /// Payment direction: inbound, outbound, or info.
+
+    /// The payment direction: `"inbound"`, `"outbound"`, or `"info"`.
     pub direction: PaymentDirection,
-    /// Hex-encoded payment hash (Lightning payments only).
+
+    /// (Lightning payments only) Hex-encoded payment hash.
     pub hash: Option<String>,
-    /// Hex-encoded payment preimage (Lightning payments only).
-    /// Proof-of-payment for outbound; only present for successful inbound.
+
+    /// (Lightning payments only) Hex-encoded payment preimage. Serves as
+    /// proof-of-payment for outbound payments. For inbound payments, only
+    /// populated if the payment succeeded.
     pub preimage: Option<String>,
-    /// Hex-encoded BOLT12 offer id (offer payments only).
+
+    /// (Offer payments only) Hex-encoded id of the BOLT12 offer used in this
+    /// payment.
     pub offer_id: Option<String>,
-    /// Payment status.
-    pub status: PaymentStatus,
-    /// Human-readable payment status message.
-    pub status_msg: String,
-    /// Payment amount in satoshis, if known.
-    pub amount_sats: Option<u64>,
-    /// Fees paid in satoshis.
-    pub fees_sats: u64,
-    /// Optional personal note attached to this payment.
-    pub note: Option<String>,
-    /// BOLT11 invoice used for this payment, if any.
-    pub invoice: Option<Invoice>,
-    /// Hex-encoded Bitcoin txid (on-chain payments only).
+
+    /// (Onchain payments only) Hex-encoded Bitcoin txid.
     pub txid: Option<String>,
-    /// Bitcoin address for on-chain sends.
+
+    /// The amount of this payment, in satoshis.
+    ///
+    /// - If this is a completed inbound invoice payment, this is the amount we
+    ///   received.
+    /// - If this is a pending or failed inbound invoice payment, this is the
+    ///   amount encoded in our invoice, which may be null.
+    /// - For all other payment types, an amount is always included.
+    pub amount_sats: Option<u64>,
+
+    /// The fees for this payment, in satoshis.
+    pub fees_sats: u64,
+
+    /// The status of this payment: "pending", "completed", or "failed".
+    pub status: PaymentStatus,
+
+    /// The payment status as a human-readable message. These strings are
+    /// customized per payment type, e.g. "invoice generated", "timed out".
+    pub status_msg: String,
+
+    /// (Onchain send only) The address that we're sending to.
     pub address: Option<String>,
-    /// Invoice or offer expiry time (milliseconds since the UNIX epoch).
-    pub expires_at_ms: Option<u64>,
-    /// When this payment finalized (milliseconds since the UNIX epoch).
-    pub finalized_at_ms: Option<u64>,
-    /// (Offer payments) Payer's self-reported name.
+
+    /// (Invoice payments only) The BOLT 11 invoice used in this payment.
+    pub invoice: Option<Invoice>,
+
+    /// An optional personal note which a user can attach to any payment.
+    /// A note can always be added or modified when a payment already exists,
+    /// but this may not always be possible at creation time.
+    pub note: Option<String>,
+
+    /// (Offer payments only) The payer's self-reported human-readable name.
     pub payer_name: Option<String>,
-    /// (Offer payments) Payer's provided note.
+
+    /// (Offer payments, LNURL-pay invoices) A payer-provided note for this
+    /// payment.
     pub payer_note: Option<String>,
-    /// (On-chain sends) Confirmation priority for this payment.
+
+    /// (Onchain send only) The confirmation priority used for this payment.
     pub priority: Option<ConfirmationPriority>,
+
+    /// The invoice or offer expiry time, in milliseconds since the UNIX epoch.
+    /// `None` otherwise, or if the timestamp overflows.
+    pub expires_at_ms: Option<u64>,
+
+    /// If this payment is finalized, meaning it is "completed" or "failed",
+    /// this is the time it was finalized, in milliseconds since the UNIX
+    /// epoch.
+    pub finalized_at_ms: Option<u64>,
+
+    /// When this payment was created, in milliseconds since the UNIX epoch.
+    pub created_at_ms: u64,
+
+    /// When this payment was last updated, in milliseconds since the UNIX
+    /// epoch.
+    pub updated_at_ms: u64,
 }
 
 impl From<SdkPayment> for Payment {
@@ -1964,29 +2000,29 @@ impl From<SdkPayment> for Payment {
 
         Self {
             index: index.to_string(),
-            created_at_ms: created_at.to_millis(),
-            updated_at_ms: updated_at.to_millis(),
             rail: rail.into(),
             kind: kind.into(),
             direction: direction.into(),
             hash: hash.map(|h| h.to_hex()),
             preimage: preimage.map(|p| p.to_hex()),
             offer_id: offer_id.map(|o| o.to_hex()),
-            status: status.into(),
-            status_msg,
+            txid: txid.map(|t| t.to_string()),
             amount_sats: amount.map(|a| a.sats_u64()),
             fees_sats: fees.sats_u64(),
-            note,
-            invoice: invoice.as_ref().map(Invoice::from),
-            txid: txid.map(|t| t.to_string()),
+            status: status.into(),
+            status_msg,
             address: address
                 .as_ref()
                 .map(|a| a.assume_checked_ref().to_string()),
-            expires_at_ms: expires_at.map(|t| t.to_millis()),
-            finalized_at_ms: finalized_at.map(|t| t.to_millis()),
+            invoice: invoice.as_ref().map(Invoice::from),
+            note,
             payer_name,
             payer_note,
             priority: priority.map(Into::into),
+            expires_at_ms: expires_at.map(|t| t.to_millis()),
+            finalized_at_ms: finalized_at.map(|t| t.to_millis()),
+            created_at_ms: created_at.to_millis(),
+            updated_at_ms: updated_at.to_millis(),
         }
     }
 }
