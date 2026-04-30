@@ -365,61 +365,6 @@ fn default_version() -> i16 {
     1
 }
 
-impl DbPaymentV2 {
-    pub fn from_v1(v1: DbPaymentV1, updated_at: i64) -> Self {
-        Self {
-            id: v1.id,
-            kind: None,
-            direction: None,
-            amount: None,
-            fee: None,
-            status: Cow::Owned(v1.status),
-            data: v1.data,
-            version: 1,
-            created_at: v1.created_at,
-            updated_at,
-        }
-    }
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl PartialEq<DbPaymentV2> for DbPaymentV1 {
-    fn eq(&self, other: &DbPaymentV2) -> bool {
-        self.id == other.id
-            && self.status == other.status
-            && self.data == other.data
-            && self.created_at == other.created_at
-            && other.kind.is_none()
-            && other.direction.is_none()
-            && other.amount.is_none()
-            && other.fee.is_none()
-    }
-}
-#[cfg(any(test, feature = "test-utils"))]
-impl PartialEq<DbPaymentV1> for DbPaymentV2 {
-    fn eq(&self, other: &DbPaymentV1) -> bool {
-        self.id == other.id
-            && self.status == other.status
-            && self.data == other.data
-            && self.created_at == other.created_at
-            && self.kind.is_none()
-            && self.direction.is_none()
-            && self.amount.is_none()
-            && self.fee.is_none()
-    }
-}
-
-impl From<DbPaymentV2> for DbPaymentV1 {
-    fn from(v2: DbPaymentV2) -> Self {
-        Self {
-            id: v2.id,
-            status: v2.status.into_owned(),
-            data: v2.data,
-            created_at: v2.created_at,
-        }
-    }
-}
-
 /// An upgradeable version of [`Option<DbPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MaybeDbPaymentV2 {
@@ -957,6 +902,63 @@ impl From<BasicPaymentV2> for BasicPaymentV1 {
 impl PartialOrd for BasicPaymentV1 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.index.partial_cmp(&other.index)
+    }
+}
+
+// --- impl DbPaymentV2 / DbPaymentV1 --- //
+
+impl DbPaymentV2 {
+    pub fn from_v1(v1: DbPaymentV1, updated_at: i64) -> Self {
+        Self {
+            id: v1.id,
+            kind: None,
+            direction: None,
+            amount: None,
+            fee: None,
+            status: Cow::Owned(v1.status),
+            data: v1.data,
+            version: 1,
+            created_at: v1.created_at,
+            updated_at,
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+impl PartialEq<DbPaymentV2> for DbPaymentV1 {
+    fn eq(&self, other: &DbPaymentV2) -> bool {
+        self.id == other.id
+            && self.status == other.status
+            && self.data == other.data
+            && self.created_at == other.created_at
+            && other.kind.is_none()
+            && other.direction.is_none()
+            && other.amount.is_none()
+            && other.fee.is_none()
+    }
+}
+#[cfg(any(test, feature = "test-utils"))]
+impl PartialEq<DbPaymentV1> for DbPaymentV2 {
+    fn eq(&self, other: &DbPaymentV1) -> bool {
+        self.id == other.id
+            && self.status == other.status
+            && self.data == other.data
+            && self.created_at == other.created_at
+            && self.kind.is_none()
+            && self.direction.is_none()
+            && self.amount.is_none()
+            && self.fee.is_none()
+    }
+}
+
+impl From<DbPaymentV2> for DbPaymentV1 {
+    fn from(v2: DbPaymentV2) -> Self {
+        Self {
+            id: v2.id,
+            status: v2.status.into_owned(),
+            data: v2.data,
+            created_at: v2.created_at,
+        }
     }
 }
 
