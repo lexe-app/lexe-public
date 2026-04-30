@@ -177,6 +177,10 @@ impl From<BasicPaymentV2> for Payment {
             txid,
             amount,
             fee,
+            // TODO(max): Expose in Rust SDK
+            partner_pk: _,
+            partner_prop_fee: _,
+            partner_base_fee: _,
             status,
             status_str,
             address,

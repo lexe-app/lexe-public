@@ -117,13 +117,6 @@ pub struct BasicPaymentV2 {
     /// The fees for this payment.
     ///
     /// Use this whenever you need a singular value to display.
-    ///
-    /// - For outbound Lightning payments, these are the routing fees. If the
-    ///   payment is not completed, this value is an estimation only. Iff the
-    ///   payment completes, this value reflects actual fees paid.
-    /// - For inbound Lightning payments, this is the skimmed fee, which may
-    ///   also cover the on-chain fees incurred by a JIT channel open.
-    /// - For on-chain sends, this is the on-chain fee paid in the spending tx.
     // Renamed in node-v0.8.10.
     // Can be removed only after *all* payments have migrated to payments v2.
     #[serde(rename = "fees", alias = "fee")]
@@ -136,6 +129,22 @@ pub struct BasicPaymentV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_fee: Option<Amount>,
     */
+    /// The partner's user_pk, if the fees for this payment were set by a Lexe
+    /// partner, instead of using Lexe's default fees.
+    // Added in `node-v0.9.6`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner_pk: Option<UserPk>,
+
+    /// The proportional fee set by the partner.
+    // Added in `node-v0.9.6`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner_prop_fee: Option<Ppm>,
+
+    /// The base fee set by the partner.
+    // Added in `node-v0.9.6`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner_base_fee: Option<Amount>,
+
     // --- Status --- //
     ///
     /// General payment status: pending, completed, or failed.
@@ -265,7 +274,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 496);
+const_assert_mem_size!(BasicPaymentV2, 560);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -775,6 +784,9 @@ impl BasicPaymentV2 {
             amount: v1.amount,
             fee: v1.fees,
             // channel_fee: None,
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
             status: v1.status,
             status_str: v1.status_str,
             address: None,
