@@ -1558,6 +1558,7 @@ List<Payment> defaultDummyPayments = [
   dummyInvoiceInboundFailed01,
   dummyOnchainOutboundCompleted01,
   dummyOfferOutboundPayment01,
+  dummyOfferInboundPayment01,
 ].sortedBy((payment) => payment.index.field0);
 
 //

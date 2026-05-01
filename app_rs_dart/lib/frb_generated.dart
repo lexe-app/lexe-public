@@ -4533,8 +4533,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ShortPayment dco_decode_short_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ShortPayment(
       index: dco_decode_payment_created_index(arr[0]),
       kind: dco_decode_payment_kind(arr[1]),
@@ -4544,7 +4544,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       status: dco_decode_payment_status(arr[5]),
       description: dco_decode_opt_String(arr[6]),
       note: dco_decode_opt_String(arr[7]),
-      createdAt: dco_decode_CastedPrimitive_i_64(arr[8]),
+      payerNote: dco_decode_opt_String(arr[8]),
+      createdAt: dco_decode_CastedPrimitive_i_64(arr[9]),
     );
   }
 
@@ -6278,6 +6279,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_status = sse_decode_payment_status(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
+    var var_payerNote = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     return ShortPayment(
       index: var_index,
@@ -6288,6 +6290,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       status: var_status,
       description: var_description,
       note: var_note,
+      payerNote: var_payerNote,
       createdAt: var_createdAt,
     );
   }
@@ -7882,6 +7885,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_payment_status(self.status, serializer);
     sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.note, serializer);
+    sse_encode_opt_String(self.payerNote, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
   }
 

@@ -59,6 +59,7 @@ extension PaymentExt on Payment {
     status: this.status,
     description: this.description,
     note: this.note,
+    payerNote: this.payerNote,
     createdAt: this.createdAt,
   );
 
@@ -112,11 +113,14 @@ extension PaymentExt on Payment {
       this.direction == PaymentDirection.inbound &&
       (this.amountSats == null || this.noteOrDescription == null);
 
-  /// Returns the user's note or invoice/offer description, preferring note.
+  /// Returns the user's note, invoice/offer description, or payer note.
+  /// Precedence: note > description > payerNote.
   String? get noteOrDescription {
     final n = this.note;
     if (n != null && n.isNotEmpty) return n;
-    return this.description;
+    final d = this.description;
+    if (d != null && d.isNotEmpty) return d;
+    return this.payerNote;
   }
 }
 
@@ -154,10 +158,13 @@ extension ShortPaymentExt on ShortPayment {
   int? get totalSats =>
       this.amountSats != null ? this.amountSats! + this.feesSats : null;
 
-  /// Returns the user's note or invoice/offer description, preferring note.
+  /// Returns the user's note, invoice/offer description, or payer note.
+  /// Precedence: note > description > payerNote.
   String? get noteOrDescription {
     final n = this.note;
     if (n != null && n.isNotEmpty) return n;
-    return this.description;
+    final d = this.description;
+    if (d != null && d.isNotEmpty) return d;
+    return this.payerNote;
   }
 }

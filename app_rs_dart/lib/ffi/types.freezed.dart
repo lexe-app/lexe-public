@@ -1065,22 +1065,22 @@ String toString() {
 /// @nodoc
 mixin _$ShortPayment {
 
- PaymentCreatedIndex get index; PaymentKind get kind; PaymentDirection get direction; int? get amountSats; int get feesSats; PaymentStatus get status; String? get description; String? get note; int get createdAt;
+ PaymentCreatedIndex get index; PaymentKind get kind; PaymentDirection get direction; int? get amountSats; int get feesSats; PaymentStatus get status; String? get description; String? get note; String? get payerNote; int get createdAt;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShortPayment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.status, status) || other.status == status)&&(identical(other.description, description) || other.description == description)&&(identical(other.note, note) || other.note == note)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShortPayment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.status, status) || other.status == status)&&(identical(other.description, description) || other.description == description)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,kind,direction,amountSats,feesSats,status,description,note,createdAt);
+int get hashCode => Object.hash(runtimeType,index,kind,direction,amountSats,feesSats,status,description,note,payerNote,createdAt);
 
 @override
 String toString() {
-  return 'ShortPayment(index: $index, kind: $kind, direction: $direction, amountSats: $amountSats, feesSats: $feesSats, status: $status, description: $description, note: $note, createdAt: $createdAt)';
+  return 'ShortPayment(index: $index, kind: $kind, direction: $direction, amountSats: $amountSats, feesSats: $feesSats, status: $status, description: $description, note: $note, payerNote: $payerNote, createdAt: $createdAt)';
 }
 
 
@@ -1094,7 +1094,7 @@ String toString() {
 
 
 class _ShortPayment implements ShortPayment {
-  const _ShortPayment({required this.index, required this.kind, required this.direction, this.amountSats, required this.feesSats, required this.status, this.description, this.note, required this.createdAt});
+  const _ShortPayment({required this.index, required this.kind, required this.direction, this.amountSats, required this.feesSats, required this.status, this.description, this.note, this.payerNote, required this.createdAt});
   
 
 @override final  PaymentCreatedIndex index;
@@ -1105,6 +1105,7 @@ class _ShortPayment implements ShortPayment {
 @override final  PaymentStatus status;
 @override final  String? description;
 @override final  String? note;
+@override final  String? payerNote;
 @override final  int createdAt;
 
 
@@ -1112,16 +1113,16 @@ class _ShortPayment implements ShortPayment {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShortPayment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.status, status) || other.status == status)&&(identical(other.description, description) || other.description == description)&&(identical(other.note, note) || other.note == note)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShortPayment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.status, status) || other.status == status)&&(identical(other.description, description) || other.description == description)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,kind,direction,amountSats,feesSats,status,description,note,createdAt);
+int get hashCode => Object.hash(runtimeType,index,kind,direction,amountSats,feesSats,status,description,note,payerNote,createdAt);
 
 @override
 String toString() {
-  return 'ShortPayment(index: $index, kind: $kind, direction: $direction, amountSats: $amountSats, feesSats: $feesSats, status: $status, description: $description, note: $note, createdAt: $createdAt)';
+  return 'ShortPayment(index: $index, kind: $kind, direction: $direction, amountSats: $amountSats, feesSats: $feesSats, status: $status, description: $description, note: $note, payerNote: $payerNote, createdAt: $createdAt)';
 }
 
 

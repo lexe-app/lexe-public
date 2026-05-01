@@ -385,6 +385,7 @@ pub struct ShortPayment {
 
     pub description: Option<String>,
     pub note: Option<String>,
+    pub payer_note: Option<String>,
 
     pub created_at: i64,
 }
@@ -417,6 +418,7 @@ impl From<&BasicPaymentV1Rs> for ShortPayment {
 
             description: payment.description().map(String::from),
             note: payment.note.as_deref().map(String::from),
+            payer_note: None, // V1 payments don't have payer_note
 
             created_at: payment.created_at().to_i64(),
         }
@@ -439,6 +441,7 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
 
             description: payment.description().map(String::from),
             note: payment.note.as_deref().map(String::from),
+            payer_note: payment.payer_note.clone(),
 
             created_at: payment.created_at().to_i64(),
         }

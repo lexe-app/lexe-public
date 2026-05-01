@@ -483,6 +483,7 @@ sealed class ShortPayment with _$ShortPayment {
     required PaymentStatus status,
     String? description,
     String? note,
+    String? payerNote,
     required int createdAt,
   }) = _ShortPayment;
 }
