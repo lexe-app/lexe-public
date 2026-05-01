@@ -437,8 +437,8 @@ impl LexeWallet {
             "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
         );
 
-        let initial_wait_ms = 1_000;
-        let max_wait_ms = 5 * 60 * 1_000;
+        let initial_wait_ms = 250;
+        let max_wait_ms = 4_000;
         let start = tokio::time::Instant::now();
         let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
 
