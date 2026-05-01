@@ -652,27 +652,31 @@ Example::
 """)
 
 _set_method_doc(LexeWallet, "analyze", """\
-Analyze a string which encodes payment methods and return details about
-each method found.
+Analyze a Bitcoin or Lightning payment string.
 
-Supported payment methods:
-
-- BOLT11 invoice
-- BOLT12 offer
-- Bitcoin address
-- Lightning address
-- LNURL
+Returns a list of payment methods found (as ``AnalyzeResponse``), sorted
+from most to least recommended. Each ``PayableDetails`` entry includes the
+payable string, method type (``"invoice"``, ``"offer"``, ``"onchain"``, or
+``"lnurl"``), amount constraints, description, and expiration.
 
 Supported encodings:
 
-- BIP321 URI: ``bitcoin:bc1...``
+- BIP 321 URI: ``bitcoin:bc1...``
 - Lightning URI: ``lightning:ln...``
-- BOLT11 invoice: ``lnbc1...``
-- BOLT12 offer: ``lno1...``
+- BOLT 11 invoice: ``lnbc1...``
+- BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Lightning address: ``satoshi@lexe.app``
-- Human bitcoin address: ``₿satoshi@lexe.app``
+- Human Bitcoin Address: ``₿satoshi@lexe.app``
+- Lightning Address: ``satoshi@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+
+Within the encodings, the following payment methods are supported:
+
+- BOLT 11 invoice
+- BOLT 12 offer
+- Bitcoin address
+- Lightning Address
+- LNURL
 
 Args:
     payable: The string-encoded payment method.
@@ -696,29 +700,21 @@ Example::
 """)
 
 _set_method_doc(LexeWallet, "pay", """\
-Pay any string which encodes a Lightning/Bitcoin payment method.
+Pay any string which encodes a Bitcoin or Lightning payment method.
 
 If there are multiple encoded payment methods, the best recommended one is
-chosen. For fine-grained control, use :meth:`analyze` first, then call the
+chosen. For finer control, use :meth:`analyze` first, then call the
 specific pay method (:meth:`pay_invoice`, :meth:`pay_offer`, etc.).
-
-Supported payment methods:
-
-- BOLT11 invoice
-- BOLT12 offer
-- Bitcoin address
-- Lightning address
-- LNURL
 
 Supported encodings:
 
-- BIP321 URI: ``bitcoin:bc1...``
+- BIP 321 URI: ``bitcoin:bc1...``
 - Lightning URI: ``lightning:ln...``
-- BOLT11 invoice: ``lnbc1...``
-- BOLT12 offer: ``lno1...``
+- BOLT 11 invoice: ``lnbc1...``
+- BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Lightning address: ``satoshi@lexe.app``
-- Human bitcoin address: ``₿satoshi@lexe.app``
+- Human Bitcoin Address: ``₿satoshi@lexe.app``
+- Lightning Address: ``satoshi@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
 
 Args:
@@ -1120,27 +1116,31 @@ Example::
 """)
 
 _set_method_doc(AsyncLexeWallet, "analyze", """\
-Analyze a string which encodes payment methods and return details about
-each method found.
+Analyze a Bitcoin or Lightning payment string.
 
-Supported payment methods:
-
-- BOLT11 invoice
-- BOLT12 offer
-- Bitcoin address
-- Lightning address
-- LNURL
+Returns a list of payment methods found (as ``AnalyzeResponse``), sorted
+from most to least recommended. Each ``PayableDetails`` entry includes the
+payable string, method type (``"invoice"``, ``"offer"``, ``"onchain"``, or
+``"lnurl"``), amount constraints, description, and expiration.
 
 Supported encodings:
 
-- BIP321 URI: ``bitcoin:bc1...``
+- BIP 321 URI: ``bitcoin:bc1...``
 - Lightning URI: ``lightning:ln...``
-- BOLT11 invoice: ``lnbc1...``
-- BOLT12 offer: ``lno1...``
+- BOLT 11 invoice: ``lnbc1...``
+- BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Lightning address: ``satoshi@lexe.app``
-- Human bitcoin address: ``₿satoshi@lexe.app``
+- Human Bitcoin Address: ``₿satoshi@lexe.app``
+- Lightning Address: ``satoshi@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+
+Within the encodings, the following payment methods are supported:
+
+- BOLT 11 invoice
+- BOLT 12 offer
+- Bitcoin address
+- Lightning Address
+- LNURL
 
 Args:
     payable: The string-encoded payment method.
@@ -1164,29 +1164,21 @@ Example::
 """)
 
 _set_method_doc(AsyncLexeWallet, "pay", """\
-Pay any string which encodes a Lightning/Bitcoin payment method.
+Pay any string which encodes a Bitcoin or Lightning payment method.
 
 If there are multiple encoded payment methods, the best recommended one is
-chosen. For fine-grained control, use :meth:`analyze` first, then call the
+chosen. For finer control, use :meth:`analyze` first, then call the
 specific pay method (:meth:`pay_invoice`, :meth:`pay_offer`, etc.).
-
-Supported payment methods:
-
-- BOLT11 invoice
-- BOLT12 offer
-- Bitcoin address
-- Lightning address
-- LNURL
 
 Supported encodings:
 
-- BIP321 URI: ``bitcoin:bc1...``
+- BIP 321 URI: ``bitcoin:bc1...``
 - Lightning URI: ``lightning:ln...``
-- BOLT11 invoice: ``lnbc1...``
-- BOLT12 offer: ``lno1...``
+- BOLT 11 invoice: ``lnbc1...``
+- BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Lightning address: ``satoshi@lexe.app``
-- Human bitcoin address: ``₿satoshi@lexe.app``
+- Human Bitcoin Address: ``₿satoshi@lexe.app``
+- Lightning Address: ``satoshi@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
 
 Args:
@@ -1609,17 +1601,17 @@ Attributes:
         if there are no more results.
 """
 
-# ======================= #
-# --- Pay / Analyze   --- #
-# ======================= #
+# ===================== #
+# --- Pay / Analyze --- #
+# ===================== #
 
 lexe.PayableDetails.__doc__ = """\
-A parsed payment method returned by :meth:`LexeWallet.analyze`.
+A parsed payment method returned from analyzing a payable string.
 
 Attributes:
     payable: The string encoding of this payment method.
-    method: The type of payment method: ``"invoice"``, ``"lnurl"``,
-        ``"offer"``, or ``"onchain"``.
+    method: The type of payment method: ``"invoice"``, ``"offer"``,
+        ``"onchain"``, or ``"lnurl"``.
     description: Description encoded in the payable, if any.
     amount_sats: Amount in satoshis encoded in the payable, if any.
         ``None`` if the payer must specify an amount, or if
@@ -1632,7 +1624,7 @@ Attributes:
 """
 
 lexe.AnalyzeResponse.__doc__ = """\
-Response from :meth:`LexeWallet.analyze`.
+Response from analyzing a payable string.
 
 Attributes:
     payables: Valid payment routes encoded in the analyzed string, ordered
@@ -1640,7 +1632,7 @@ Attributes:
 """
 
 lexe.PayResponse.__doc__ = """\
-Response from :meth:`LexeWallet.pay`.
+Response from paying a payable string.
 
 Attributes:
     index: Unique payment identifier for this payment.

@@ -840,29 +840,29 @@ impl AsyncLexeWallet {
         Ok(info.into())
     }
 
-    /// Analyze a string encoding a Lightning/Bitcoin payment method.
+    /// Analyze a Bitcoin or Lightning payment string.
     ///
     /// Returns a list of payment methods found (as `AnalyzeResponse`), sorted
     /// from most to least recommended. Each `PayableDetails` entry includes the
     /// payable string, method type ("invoice", "offer", "onchain", or "lnurl"),
     /// amount constraints, description, and expiration.
     ///
-    /// Supported payment methods:
-    /// - BOLT11 invoice
-    /// - BOLT12 offer
-    /// - Bitcoin address
-    /// - Lightning address
-    /// - LNURL
-    ///
     /// Supported encodings:
-    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - BIP 321 URI: `bitcoin:bc1...`
     /// - Lightning URI: `lightning:ln...`
-    /// - BOLT11 invoice: `lnbc1...`
-    /// - BOLT12 offer: `lno1...`
+    /// - BOLT 11 invoice: `lnbc1...`
+    /// - BOLT 12 offer: `lno1...`
     /// - Onchain bitcoin address: `bc1...`
-    /// - Lightning address: `satoshi@lexe.app`
-    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - Human Bitcoin Address: `₿satoshi@lexe.app`
+    /// - Lightning Address: `satoshi@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    ///
+    /// Within the encodings, the following payment methods are supported:
+    /// - BOLT 11 invoice
+    /// - BOLT 12 offer
+    /// - Bitcoin address
+    /// - Lightning Address
+    /// - LNURL
     ///
     /// `payable` is the string to analyze.
     #[uniffi::method]
@@ -872,27 +872,20 @@ impl AsyncLexeWallet {
         Ok(resp.into())
     }
 
-    /// Pay a string encoding a Lightning/Bitcoin payment method.
+    /// Pay any string which encodes a Bitcoin or Lightning payment method.
     ///
     /// If multiple payment methods are encoded, the best recommended one is
-    /// chosen. For fine-grained control, use `analyze` first, then call
+    /// chosen. For finer control, use `analyze` first, then call
     /// `pay_invoice`, `pay_offer`, etc.
     ///
-    /// Supported payment methods:
-    /// - BOLT11 invoice
-    /// - BOLT12 offer
-    /// - Bitcoin address
-    /// - Lightning address
-    /// - LNURL
-    ///
     /// Supported encodings:
-    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - BIP 321 URI: `bitcoin:bc1...`
     /// - Lightning URI: `lightning:ln...`
-    /// - BOLT11 invoice: `lnbc1...`
-    /// - BOLT12 offer: `lno1...`
+    /// - BOLT 11 invoice: `lnbc1...`
+    /// - BOLT 12 offer: `lno1...`
     /// - Onchain bitcoin address: `bc1...`
-    /// - Lightning address: `satoshi@lexe.app`
-    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - Human Bitcoin Address: `₿satoshi@lexe.app`
+    /// - Lightning Address: `satoshi@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
     ///
     /// `payable` is the string to pay.
@@ -1339,29 +1332,29 @@ impl BlockingLexeWallet {
         Ok(info.into())
     }
 
-    /// Analyze a string encoding a Lightning/Bitcoin payment method.
+    /// Analyze a Bitcoin or Lightning payment string.
     ///
     /// Returns a list of payment methods found (as `AnalyzeResponse`), sorted
     /// from most to least recommended. Each `PayableDetails` entry includes the
     /// payable string, method type ("invoice", "offer", "onchain", or "lnurl"),
     /// amount constraints, description, and expiration.
     ///
-    /// Supported payment methods:
-    /// - BOLT11 invoice
-    /// - BOLT12 offer
-    /// - Bitcoin address
-    /// - Lightning address
-    /// - LNURL
-    ///
     /// Supported encodings:
-    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - BIP 321 URI: `bitcoin:bc1...`
     /// - Lightning URI: `lightning:ln...`
-    /// - BOLT11 invoice: `lnbc1...`
-    /// - BOLT12 offer: `lno1...`
+    /// - BOLT 11 invoice: `lnbc1...`
+    /// - BOLT 12 offer: `lno1...`
     /// - Onchain bitcoin address: `bc1...`
-    /// - Lightning address: `satoshi@lexe.app`
-    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - Human Bitcoin Address: `₿satoshi@lexe.app`
+    /// - Lightning Address: `satoshi@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    ///
+    /// Within the encodings, the following payment methods are supported:
+    /// - BOLT 11 invoice
+    /// - BOLT 12 offer
+    /// - Bitcoin address
+    /// - Lightning Address
+    /// - LNURL
     ///
     /// `payable` is the string to analyze.
     #[uniffi::method]
@@ -1371,27 +1364,20 @@ impl BlockingLexeWallet {
         Ok(resp.into())
     }
 
-    /// Pay a string encoding a Lightning/Bitcoin payment method.
+    /// Pay any string which encodes a Bitcoin or Lightning payment method.
     ///
     /// If multiple payment methods are encoded, the best recommended one is
-    /// chosen. For fine-grained control, use `analyze` first, then call
+    /// chosen. For finer control, use `analyze` first, then call
     /// `pay_invoice`, `pay_offer`, etc.
     ///
-    /// Supported payment methods:
-    /// - BOLT11 invoice
-    /// - BOLT12 offer
-    /// - Bitcoin address
-    /// - Lightning address
-    /// - LNURL
-    ///
     /// Supported encodings:
-    /// - BIP321 URI: `bitcoin:bc1...`
+    /// - BIP 321 URI: `bitcoin:bc1...`
     /// - Lightning URI: `lightning:ln...`
-    /// - BOLT11 invoice: `lnbc1...`
-    /// - BOLT12 offer: `lno1...`
+    /// - BOLT 11 invoice: `lnbc1...`
+    /// - BOLT 12 offer: `lno1...`
     /// - Onchain bitcoin address: `bc1...`
-    /// - Lightning address: `satoshi@lexe.app`
-    /// - Human bitcoin address: `₿satoshi@lexe.app`
+    /// - Human Bitcoin Address: `₿satoshi@lexe.app`
+    /// - Lightning Address: `satoshi@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
     ///
     /// `payable` is the string to pay.
