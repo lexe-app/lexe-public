@@ -723,6 +723,8 @@ Args:
         encoded amount. If both the payable and ``amount_sats`` specify an
         amount, they must match. For LNURL payables, the amount must fall
         within the receiver's minimum and maximum range.
+    payer_note: Optional message to the recipient (BOLT12 offers, LNURL).
+    note: Optional personal note (not visible to recipient).
 
 Returns:
     A :class:`PayResponse` with the payment index and timestamp.
@@ -1187,6 +1189,8 @@ Args:
         encoded amount. If both the payable and ``amount_sats`` specify an
         amount, they must match. For LNURL payables, the amount must fall
         within the receiver's minimum and maximum range.
+    payer_note: Optional message to the recipient (BOLT12 offers, LNURL).
+    note: Optional personal note (not visible to recipient).
 
 Returns:
     A :class:`PayResponse` with the payment index and timestamp.
