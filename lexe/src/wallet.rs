@@ -748,8 +748,7 @@ impl LexeWallet {
             .context("Failed to get node info")
     }
 
-    /// Get information about a string encoding a Lightning/Bitcoin payment
-    /// method, including:
+    /// Get information about a Bitcoin or Lightning payment string, including:
     /// - `payable`: The payable string encoding the payment method.
     /// - `method`: The [`PaymentMethod`] struct encapsulating information
     ///   specific to the payment method (e.g. payment hash, metadata, etc...)
@@ -758,23 +757,23 @@ impl LexeWallet {
     ///
     /// See [`PayableDetails`] for all fields.
     ///
-    /// The following payment methods are supported:
-    ///   - BOLT11 invoice
-    ///   - BOLT12 offer
-    ///   - Bitcoin address
-    ///   - Lightning address
-    ///   - LNURL
-    ///
     /// The following encodings are supported:
-    ///   - Bip321 URI: `bitcoin:bc1...`
+    ///   - BIP 321 URI: `bitcoin:bc1...`
     ///   - Lightning URI: `lightning:ln...`
-    ///   - BOLT11 invoice: `lnbc1...`
-    ///   - BOLT12 offer: `lno1...`
+    ///   - BOLT 11 invoice: `lnbc1...`
+    ///   - BOLT 12 offer: `lno1...`
     ///   - Onchain bitcoin address: `bc1...`
-    ///   - Human bitcoin address: `₿satoshi@lexe.app`
-    ///   - Lightning address: `satoshi@lexe.app`
+    ///   - Human Bitcoin Address: `₿satoshi@lexe.app`
+    ///   - Lightning Address: `satoshi@lexe.app`
     ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
-    // Sync these doc comments with `pay`
+    ///
+    /// Within the encodings, the following payment methods are supported:
+    ///   - BOLT 11 invoice
+    ///   - BOLT 12 offer
+    ///   - Bitcoin address
+    ///   - Lightning Address
+    ///   - LNURL
+    // Sync the encodings list with `pay`
     #[instrument(skip_all, name = "(analyze)")]
     pub async fn analyze(
         &self,
@@ -886,34 +885,29 @@ impl LexeWallet {
         Ok(AnalyzeResponse { payables })
     }
 
-    /// Pay a string encoding a Lightning/Bitcoin payment method.
+    /// Pay any string which encodes a Bitcoin or Lightning payment method.
     ///
-    /// If there exist multiple encoded payment methods, the best recommended
+    /// If there exist multiple encoded payment methods, one best recommended
     /// payment method will be chosen.
     ///
-    /// For fine tune control over how to pay, consider first using
+    /// For finer control over how to pay, consider first using
     /// [`analyze`](Self::analyze) to resolve the contents of the
     /// payable string, then invoking the specific `pay` function for the
     /// payment method of choice: [`pay_invoice`](Self::pay_invoice),
     /// [`pay_offer`](Self::pay_offer), etc.
     ///
-    /// The following payment methods are supported:
-    ///   - BOLT11 invoice
-    ///   - BOLT12 offer
-    ///   - Bitcoin address
-    ///   - Lightning address
-    ///   - LNURL
-    ///
     /// The following encodings are supported:
-    ///   - Bip321 URI: `bitcoin:bc1...`
+    ///   - BIP 321 URI: `bitcoin:bc1...`
     ///   - Lightning URI: `lightning:ln...`
-    ///   - BOLT11 invoice: `lnbc1...`
-    ///   - BOLT12 offer: `lno1...`
+    ///   - BOLT 11 invoice: `lnbc1...`
+    ///   - BOLT 12 offer: `lno1...`
     ///   - Onchain bitcoin address: `bc1...`
-    ///   - Human bitcoin address: `₿satoshi@lexe.app`
-    ///   - Lightning address: `satoshi@lexe.app`
+    ///   - Human Bitcoin Address: `₿satoshi@lexe.app`
+    ///   - Lightning Address: `satoshi@lexe.app`
     ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
-    // Sync these doc comments with `analyze`
+    ///
+    /// See [`PaymentMethod`] for more details on supported payment methods.
+    // Sync the encodings list with `analyze`
     #[instrument(skip_all, name = "(pay)")]
     pub async fn pay(&self, req: PayRequest) -> anyhow::Result<PayResponse> {
         let payable = req.payable;
@@ -961,11 +955,9 @@ impl LexeWallet {
                 (index, created_at)
             }
             PaymentMethod::LnurlPayRequest(pay_req) => {
-                let amount = req.amount.ok_or_else(|| {
-                    anyhow!(
-                        "A payment amount must be provided for LNURL payments"
-                    )
-                })?;
+                let amount = req.amount.context(
+                    "A payment amount must be provided for LNURL payments",
+                )?;
                 let min_sendable = pay_req.min_sendable;
                 let max_sendable = pay_req.max_sendable;
                 ensure!(
@@ -1008,7 +1000,7 @@ impl LexeWallet {
                     ensure!(
                         min_amount <= amount,
                         "Given amount ({amount} sats) should be higher than the \
-                        receiver's requested minimum amount: {min_amount} sats"
+                         receiver's requested minimum amount: {min_amount} sats"
                     );
                 }
                 let req = PayOfferRequest {
@@ -1022,15 +1014,22 @@ impl LexeWallet {
                 (index, created_at)
             }
             PaymentMethod::Onchain(onchain) => {
+                let amount = match (onchain.amount, req.amount) {
+                    (Some(amt), Some(given)) if amt != given =>
+                        return Err(anyhow!(
+                            "Given amount ({given} sats) doesn't match bip321 \
+                             amount ({amt} sats)"
+                        )),
+                    (Some(amt), _) | (None, Some(amt)) => amt,
+                    (None, None) =>
+                        return Err(anyhow!(
+                            "A payment amount must be provided for on-chain \
+                             methods that don't suggest an amount"
+                        )),
+                };
+
                 let cid = ClientPaymentId::generate();
                 let address = onchain.address;
-                let amount =
-                    onchain.amount.or(req.amount).ok_or_else(|| {
-                        anyhow!(
-                            "A payment amount must be provided for on-chain \
-                         methods that don't suggest an amount"
-                        )
-                    })?;
                 let req = command::PayOnchainRequest {
                     cid,
                     address,

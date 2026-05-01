@@ -99,11 +99,11 @@ impl From<command::NodeInfo> for NodeInfo {
     }
 }
 
-/// A request to analyze the contents of a payable Lightning/Bitcoin string.
+/// A request to analyze the contents of a Bitcoin or Lightning payment string.
 /// Reveals all payment methods encoded in the string, and gives payment-related
 /// details on each. See [`PayableDetails`] for more info.
 pub struct AnalyzeRequest {
-    /// The payable Lightning/Bitcoin string we will analyze.
+    /// The Bitcoin or Lightning payment string to analyze.
     pub payable: String,
 }
 
@@ -144,18 +144,24 @@ pub struct AnalyzeResponse {
     pub payables: Vec<PayableDetails>,
 }
 
-/// A catch-all request to pay a string which encodes any of the
-/// following payment methods in a variety of formats (BIP353, LNURL, etc...):
-///   - BOLT11 Invoice
-///   - BOLT12 Offer
-///   - Bitcoin Address
-///   - Lightning Address
-///   - LNURL
+/// A catch-all request to pay a Bitcoin or Lightning payment string.
+///
+/// The following encodings are supported:
+///   - BIP 321 URI: `bitcoin:bc1...`
+///   - Lightning URI: `lightning:ln...`
+///   - BOLT 11 invoice: `lnbc1...`
+///   - BOLT 12 offer: `lno1...`
+///   - Onchain bitcoin address: `bc1...`
+///   - Human Bitcoin Address: `₿satoshi@lexe.app`
+///   - Lightning Address: `satoshi@lexe.app`
+///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+///
+/// See [`PaymentMethod`] for more details on supported payment methods.
 ///
 /// If there exist multiple encoded payment methods, the best recommended
 /// payment method will be chosen.
 pub struct PayRequest {
-    /// The string we will use to make a payment.
+    /// The string we will pay.
     pub payable: String,
 
     /// The amount we will attempt to pay.
