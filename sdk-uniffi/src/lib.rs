@@ -902,7 +902,13 @@ impl AsyncLexeWallet {
             .map(AmountRs::try_from_sats_u64)
             .transpose()
             .map_err(|e| anyhow!("Invalid amount: {e}"))?;
-        let req = SdkPayRequest { payable, amount };
+        // TODO(ai): Expose note and payer_note
+        let req = SdkPayRequest {
+            payable,
+            amount,
+            note: None,
+            payer_note: None,
+        };
         let resp = self.inner.pay(req).await?;
         Ok(resp.into())
     }
@@ -1394,7 +1400,13 @@ impl BlockingLexeWallet {
             .map(AmountRs::try_from_sats_u64)
             .transpose()
             .map_err(|e| anyhow!("Invalid amount: {e}"))?;
-        let req = SdkPayRequest { payable, amount };
+        // TODO(ai): Expose note and payer_note
+        let req = SdkPayRequest {
+            payable,
+            amount,
+            note: None,
+            payer_note: None,
+        };
         let resp = self.inner.pay(req)?;
         Ok(resp.into())
     }

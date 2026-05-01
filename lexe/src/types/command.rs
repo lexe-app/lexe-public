@@ -167,6 +167,27 @@ pub struct PayRequest {
     /// The amount we will attempt to pay.
     /// If the payable specifies an amount, this field is optional.
     pub amount: Option<Amount>,
+
+    /// An optional message to send to the recipient, supported if sending to:
+    ///
+    /// - BOLT 12 offers
+    /// - Human Bitcoin Addresses which point to an offer
+    /// - LNURL recipients whose wallets accept LUD-12 comments
+    /// - Lightning Addresses to a wallet that accepts LUD-12 comments
+    ///
+    /// If the payable doesn't support payer notes; this note will be ignored.
+    ///
+    /// If provided, it must be non-empty and no longer than 200 chars / 512
+    /// UTF-8 bytes.
+    pub payer_note: Option<String>,
+
+    /// An optional personal note for this payment.
+    ///
+    /// The receiver will not see this note.
+    ///
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub note: Option<String>,
 }
 
 /// The response to a general pay request.

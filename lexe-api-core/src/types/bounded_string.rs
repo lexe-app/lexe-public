@@ -1,5 +1,6 @@
 use std::{
     fmt::{self, Display},
+    ops::Deref,
     str::FromStr,
 };
 
@@ -100,6 +101,13 @@ impl FromStr for BoundedString {
 impl Display for BoundedString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.0, f)
+    }
+}
+
+impl Deref for BoundedString {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

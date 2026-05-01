@@ -4,8 +4,11 @@ use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
     def::{AppBackendApi, AppNodeRunApi},
     models::command,
-    types::payments::{
-        ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentStatus,
+    types::{
+        bounded_string::BoundedString,
+        payments::{
+            ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentStatus,
+        },
     },
 };
 use lexe_common::{
@@ -27,7 +30,7 @@ use lexe_payment_uri::{
     resolve_payment_methods,
 };
 use lexe_std::backoff::Backoff;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 
 use crate::{
     config::{
@@ -912,6 +915,18 @@ impl LexeWallet {
     pub async fn pay(&self, req: PayRequest) -> anyhow::Result<PayResponse> {
         let payable = req.payable;
 
+        // Validate note fields against Lexe's limits before any resolution
+        let note = req
+            .note
+            .map(BoundedString::new)
+            .transpose()
+            .context("Invalid personal note")?;
+        let payer_note = req
+            .payer_note
+            .map(BoundedString::new)
+            .transpose()
+            .context("Invalid payer note")?;
+
         // Parse the string
         let payment_uri = PaymentUri::parse(&payable)
             .context("Failed to parse payable string")?;
@@ -945,21 +960,36 @@ impl LexeWallet {
                              invoices"
                         )),
                 };
-                let req = PayInvoiceRequest {
+                if payer_note.is_some() {
+                    warn!(
+                        "BOLT 11 invoices do not support payer notes. \
+                         The recipient will not see your message."
+                    );
+                }
+                let id = invoice.payment_id();
+                let pay_req = command::PayInvoiceRequest {
                     invoice,
                     fallback_amount,
-                    note: None,
+                    note,
+                    payer_note,
                 };
-                let PayInvoiceResponse { index, created_at } =
-                    self.pay_invoice(req).await?;
-                (index, created_at)
+                let resp = self
+                    .node_client
+                    .pay_invoice(pay_req)
+                    .await
+                    .context("Failed to pay invoice")?;
+                let index = PaymentCreatedIndex {
+                    created_at: resp.created_at,
+                    id,
+                };
+                (index, resp.created_at)
             }
-            PaymentMethod::LnurlPayRequest(pay_req) => {
+            PaymentMethod::LnurlPayRequest(lnurl_req) => {
                 let amount = req.amount.context(
                     "A payment amount must be provided for LNURL payments",
                 )?;
-                let min_sendable = pay_req.min_sendable;
-                let max_sendable = pay_req.max_sendable;
+                let min_sendable = lnurl_req.min_sendable;
+                let max_sendable = lnurl_req.max_sendable;
                 ensure!(
                     min_sendable <= amount,
                     "Given amount ({amount} sats) should be higher than the \
@@ -970,17 +1000,76 @@ impl LexeWallet {
                     "Given amount ({amount} sats) should be lower than the \
                      receiver's requested maximum amount: {max_sendable} sats"
                 );
+
+                // LUD-12: Truncate payer_note to recipient's limit if needed.
+                let truncated_comment = match (
+                    payer_note.map(BoundedString::into_inner),
+                    lnurl_req.comment_allowed,
+                ) {
+                    // No message intended; skip.
+                    (None, _) => None,
+                    // Message intended but recipient doesn't allow comments.
+                    // Just log a warning; `pay` should be permissive.
+                    (Some(_), None) => {
+                        warn!(
+                            "Recipient doesn't support LUD-12 comments; \
+                             the recipient will not see your message."
+                        );
+                        None
+                    }
+                    // Message intended and recipient allows comments; ensure
+                    // the comment respects the receiver's specified limit.
+                    (Some(mut payer_note), Some(max_len)) => {
+                        let original_len = payer_note.chars().count();
+                        let receiver_limit = usize::from(max_len);
+
+                        lexe_std::string::truncate_chars(
+                            &mut payer_note,
+                            receiver_limit,
+                        );
+
+                        let truncated = BoundedString::new(payer_note).expect(
+                            "payer_note was checked above and truncation can \
+                             only make it shorter, so the truncated string is \
+                             still within bounds.",
+                        );
+
+                        if original_len > receiver_limit {
+                            warn!(
+                                "Message truncated to {receiver_limit} \
+                                 character limit specified by recipient: \
+                                 \"{truncated}\""
+                            );
+                        }
+
+                        Some(truncated)
+                    }
+                };
+
                 let invoice = lnurl_client
-                    .resolve_pay_request(&pay_req, amount, None)
+                    .resolve_pay_request(
+                        &lnurl_req,
+                        amount,
+                        truncated_comment.as_deref(),
+                    )
                     .await?;
-                let req = PayInvoiceRequest {
+                let id = invoice.payment_id();
+                let pay_req = command::PayInvoiceRequest {
                     invoice,
                     fallback_amount: None,
-                    note: None,
+                    note,
+                    payer_note: truncated_comment,
                 };
-                let PayInvoiceResponse { index, created_at } =
-                    self.pay_invoice(req).await?;
-                (index, created_at)
+                let resp = self
+                    .node_client
+                    .pay_invoice(pay_req)
+                    .await
+                    .context("Failed to pay invoice")?;
+                let index = PaymentCreatedIndex {
+                    created_at: resp.created_at,
+                    id,
+                };
+                (index, resp.created_at)
             }
             PaymentMethod::Offer(offer) => {
                 let amount = match (offer.bip321_amount, req.amount) {
@@ -1003,17 +1092,23 @@ impl LexeWallet {
                          receiver's requested minimum amount: {min_amount} sats"
                     );
                 }
-                let req = PayOfferRequest {
+                let pay_req = PayOfferRequest {
                     offer: offer.offer,
                     amount,
-                    note: None,
-                    payer_note: None,
+                    note: note.map(BoundedString::into_inner),
+                    payer_note: payer_note.map(BoundedString::into_inner),
                 };
                 let PayOfferResponse { index, created_at } =
-                    self.pay_offer(req).await?;
+                    self.pay_offer(pay_req).await?;
                 (index, created_at)
             }
             PaymentMethod::Onchain(onchain) => {
+                if payer_note.is_some() {
+                    warn!(
+                        "On-chain payments do not support payer notes. \
+                         The recipient will not see your message."
+                    );
+                }
                 let amount = match (onchain.amount, req.amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(
@@ -1027,19 +1122,18 @@ impl LexeWallet {
                              methods that don't suggest an amount"
                         )),
                 };
-
                 let cid = ClientPaymentId::generate();
                 let address = onchain.address;
-                let req = command::PayOnchainRequest {
+                let pay_req = command::PayOnchainRequest {
                     cid,
                     address,
                     amount,
                     priority: ConfirmationPriority::Normal,
-                    note: None,
+                    note,
                 };
                 let resp = self
                     .node_client
-                    .pay_onchain(req)
+                    .pay_onchain(pay_req)
                     .await
                     .context("Failed to pay on-chain")?;
 
