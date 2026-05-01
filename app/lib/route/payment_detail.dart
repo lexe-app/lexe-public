@@ -300,7 +300,7 @@ class PaymentDetailPageInner extends StatelessWidget {
           final payerName = payment.payerName?.nonEmpty();
           final payerNote = payment.payerNote?.nonEmpty();
           final payerNoteLabel = switch (direction) {
-            PaymentDirection.inbound => "Payer note",
+            PaymentDirection.inbound => "Message from sender",
             PaymentDirection.outbound => "Message to recipient",
             PaymentDirection.info => "Payer note",
           };

@@ -73,7 +73,7 @@ void main() {
     );
 
     expect(find.text("From"), findsOneWidget);
-    expect(find.text("Payer note"), findsOneWidget);
+    expect(find.text("Message from sender"), findsOneWidget);
     expect(find.text("Message to recipient"), findsNothing);
     expect(find.text("satoshi@bitcoin.org"), findsOneWidget);
     expect(find.textContaining("Thanks for the coffee!"), findsOneWidget);
@@ -106,7 +106,7 @@ void main() {
     await tester.pumpWidget(buildPaymentDetail(payment));
 
     expect(find.text("From"), findsOneWidget);
-    expect(find.text("Payer note"), findsOneWidget);
+    expect(find.text("Message from sender"), findsOneWidget);
     expect(find.text("Message to recipient"), findsNothing);
     expect(find.text("satoshi@bitcoin.org"), findsOneWidget);
     expect(find.text("Thanks for the coffee!"), findsOneWidget);
