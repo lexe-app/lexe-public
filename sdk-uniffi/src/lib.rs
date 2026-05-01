@@ -892,22 +892,29 @@ impl AsyncLexeWallet {
     /// `amount_sats` is required when the payable has no encoded amount. If
     /// both specify an amount, they must match. For LNURL payables, the
     /// amount must be within the receiver's [min_amount, max_amount] range.
-    #[uniffi::method(default( amount_sats = None ))]
+    /// `payer_note` is an optional message to the recipient (BOLT12, LNURL).
+    /// `note` is an optional personal note (not visible to recipient).
+    #[uniffi::method(default(
+        amount_sats = None,
+        payer_note = None,
+        note = None,
+    ))]
     pub async fn pay(
         &self,
         payable: String,
         amount_sats: Option<u64>,
+        payer_note: Option<String>,
+        note: Option<String>,
     ) -> FfiResult<PayResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
             .map_err(|e| anyhow!("Invalid amount: {e}"))?;
-        // TODO(ai): Expose note and payer_note
         let req = SdkPayRequest {
             payable,
             amount,
-            note: None,
-            payer_note: None,
+            payer_note,
+            note,
         };
         let resp = self.inner.pay(req).await?;
         Ok(resp.into())
@@ -1390,22 +1397,29 @@ impl BlockingLexeWallet {
     /// `amount_sats` is required when the payable has no encoded amount. If
     /// both specify an amount, they must match. For LNURL payables, the
     /// amount must be within the receiver's [min_amount, max_amount] range.
-    #[uniffi::method(default( amount_sats = None ))]
+    /// `payer_note` is an optional message to the recipient (BOLT12, LNURL).
+    /// `note` is an optional personal note (not visible to recipient).
+    #[uniffi::method(default(
+        amount_sats = None,
+        payer_note = None,
+        note = None,
+    ))]
     pub fn pay(
         &self,
         payable: String,
         amount_sats: Option<u64>,
+        payer_note: Option<String>,
+        note: Option<String>,
     ) -> FfiResult<PayResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
             .map_err(|e| anyhow!("Invalid amount: {e}"))?;
-        // TODO(ai): Expose note and payer_note
         let req = SdkPayRequest {
             payable,
             amount,
-            note: None,
-            payer_note: None,
+            payer_note,
+            note,
         };
         let resp = self.inner.pay(req)?;
         Ok(resp.into())
