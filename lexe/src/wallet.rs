@@ -6,6 +6,7 @@ use lexe_api::{
     models::command,
     types::{
         bounded_string::BoundedString,
+        lnurl::LnurlPayRequest,
         payments::{
             ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentStatus,
         },
@@ -24,7 +25,7 @@ use lexe_common::{
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
-    self, PaymentMethod, PaymentUri,
+    self, Bip321Uri, OfferWithAmount, Onchain, PaymentMethod, PaymentUri,
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
     resolve_payment_methods,
@@ -798,11 +799,33 @@ impl LexeWallet {
             .map(|method| {
                 match &method {
                     PaymentMethod::Onchain(onchain) => {
-                        // We already checked network validity earlier
-                        let payable =
-                            onchain.address.assume_checked_ref().to_string();
+                        let Onchain {
+                            address,
+                            amount,
+                            label,
+                            message,
+                        } = onchain;
+
+                        let amount = *amount;
+                        let payable = if amount.is_some()
+                            || label.is_some()
+                            || message.is_some()
+                        {
+                            let bip_321_uri = Bip321Uri {
+                                onchain: vec![onchain.address.clone()],
+                                amount,
+                                label: onchain.label.clone(),
+                                message: onchain.message.clone(),
+                                offer: None,
+                                invoice: None,
+                            };
+                            bip_321_uri.to_string()
+                        } else {
+                            // We already checked network validity earlier
+                            address.assume_checked_ref().to_string()
+                        };
+
                         let description = onchain.message.to_owned();
-                        let amount = onchain.amount;
                         let min_amount = None;
                         let max_amount = None;
                         let expires_at = None;
@@ -837,12 +860,29 @@ impl LexeWallet {
                         }
                     }
                     PaymentMethod::Offer(offer_with_amount) => {
-                        let offer = &offer_with_amount.offer;
+                        let OfferWithAmount {
+                            offer,
+                            bip321_amount,
+                        } = offer_with_amount;
 
-                        let payable = offer.to_string();
+                        let payable = match bip321_amount {
+                            None => offer.to_string(),
+                            Some(amount) => {
+                                let bip_321_uri = Bip321Uri {
+                                    onchain: vec![],
+                                    amount: Some(*amount),
+                                    label: None,
+                                    message: None,
+                                    offer: Some(offer.clone()),
+                                    invoice: None,
+                                };
+                                bip_321_uri.to_string()
+                            }
+                        };
+
                         let description =
                             offer.description().map(str::to_owned);
-                        let amount = offer_with_amount.bip321_amount;
+                        let amount = *bip321_amount;
                         let min_amount = amount
                             .is_none()
                             .then_some(offer.min_amount())
@@ -861,14 +901,22 @@ impl LexeWallet {
                         }
                     }
                     PaymentMethod::LnurlPayRequest(lnurl) => {
+                        let LnurlPayRequest {
+                            callback: _,
+                            min_sendable,
+                            max_sendable,
+                            metadata,
+                            comment_allowed: _,
+                        } = lnurl;
+
                         let payable = req.payable.to_owned();
                         let description =
-                            lnurl.metadata.long_description.to_owned().or_else(
+                            metadata.long_description.to_owned().or_else(
                                 || Some(lnurl.metadata.description.to_owned()),
                             );
                         let amount = None;
-                        let min_amount = Some(lnurl.min_sendable);
-                        let max_amount = Some(lnurl.max_sendable);
+                        let min_amount = Some(*min_sendable);
+                        let max_amount = Some(*max_sendable);
                         let expires_at = None;
 
                         PayableDetails {
