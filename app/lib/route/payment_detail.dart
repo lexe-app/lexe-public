@@ -1179,7 +1179,7 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
             Padding(
               padding: const EdgeInsets.only(left: bodyPadding),
               child: const Text(
-                "Payment note",
+                "Personal note",
                 style: TextStyle(
                   fontSize: Fonts.size200,
                   color: LxColors.fgTertiary,
