@@ -1,6 +1,6 @@
 import 'dart:async' show unawaited;
 
-import 'package:app_rs_dart/ffi/api.dart' show FiatRate, UpdatePaymentNote;
+import 'package:app_rs_dart/ffi/api.dart' show FiatRate, UpdatePersonalNote;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -298,14 +298,14 @@ class PaymentDetailPageInner extends StatelessWidget {
               ? payment.description?.nonEmpty()
               : null;
           final payerName = payment.payerName?.nonEmpty();
-          final payerNote = payment.payerNote?.nonEmpty();
-          final payerNoteLabel = switch (direction) {
+          final message = payment.message?.nonEmpty();
+          final messageLabel = switch (direction) {
             PaymentDirection.inbound => "Message from sender",
             PaymentDirection.outbound => "Message to recipient",
-            PaymentDirection.info => "Payer note",
+            PaymentDirection.info => "Message",
           };
 
-          final initialNote = payment.note?.nonEmpty();
+          final initialNote = payment.personalNote?.nonEmpty();
 
           return ScrollableSinglePageBody(
             padding: pagePaddingInsets,
@@ -405,8 +405,8 @@ class PaymentDetailPageInner extends StatelessWidget {
                       ),
                     ),
 
-                  // Recipient metadata provided by the payment protocol.
-                  if (payerNote != null)
+                  // Message provided by the payment protocol.
+                  if (message != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         bodyPadding,
@@ -415,8 +415,8 @@ class PaymentDetailPageInner extends StatelessWidget {
                         Space.s400,
                       ),
                       child: PaymentDetailLabeledCard(
-                        label: payerNoteLabel,
-                        content: payerNote,
+                        label: messageLabel,
+                        content: message,
                         maxLines: 3,
                       ),
                     ),
@@ -1153,12 +1153,12 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
     this.isSubmitting.value = true;
     this.submitError.value = null;
 
-    final req = UpdatePaymentNote(
+    final req = UpdatePersonalNote(
       index: this.widget.paymentCreatedIndex,
-      note: this.fieldKey.currentState!.value?.nonEmpty(),
+      personalNote: this.fieldKey.currentState!.value?.nonEmpty(),
     );
     final result = await Result.tryFfiAsync(
-      () async => this.widget.app.updatePaymentNote(req: req),
+      () async => this.widget.app.updatePersonalNote(req: req),
     );
 
     if (!this.mounted) return;

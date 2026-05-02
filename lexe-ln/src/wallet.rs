@@ -1802,7 +1802,7 @@ mod test {
                 address,
                 amount,
                 priority: ConfirmationPriority::Normal,
-                note: None,
+                personal_note: None,
             };
             let oswm = self
                 .wallet
@@ -2181,7 +2181,7 @@ mod test {
             address,
             amount: sat!(9_000),
             priority: ConfirmationPriority::Normal,
-            note: None,
+            personal_note: None,
         };
         let oswm = h.wallet.create_onchain_send(req, h.network).unwrap();
         let tx = &oswm.payment.tx;

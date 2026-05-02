@@ -180,8 +180,8 @@ sealed class PayInvoiceRequest with _$PayInvoiceRequest {
   const factory PayInvoiceRequest({
     required String invoice,
     int? fallbackAmountSats,
-    String? note,
-    String? payerNote,
+    String? message,
+    String? personalNote,
   }) = _PayInvoiceRequest;
 }
 
@@ -204,8 +204,8 @@ sealed class PayOfferRequest with _$PayOfferRequest {
     required ClientPaymentId cid,
     required String offer,
     required int amountSats,
-    String? note,
-    String? payerNote,
+    String? message,
+    String? personalNote,
   }) = _PayOfferRequest;
 }
 
@@ -228,7 +228,7 @@ sealed class PayOnchainRequest with _$PayOnchainRequest {
     required String address,
     required int amountSats,
     required ConfirmationPriority priority,
-    String? note,
+    String? personalNote,
   }) = _PayOnchainRequest;
 }
 
@@ -342,13 +342,13 @@ sealed class UpdateClientRequest with _$UpdateClientRequest {
       _UpdateClientRequest;
 }
 
-/// See `lexe_common::api::user::UpdatePaymentNote`.
+/// See `lexe_common::api::user::UpdatePersonalNote`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
-sealed class UpdatePaymentNote with _$UpdatePaymentNote {
-  const factory UpdatePaymentNote({
+sealed class UpdatePersonalNote with _$UpdatePersonalNote {
+  const factory UpdatePersonalNote({
     required PaymentCreatedIndex index,
-    String? note,
-  }) = _UpdatePaymentNote;
+    String? personalNote,
+  }) = _UpdatePersonalNote;
 }

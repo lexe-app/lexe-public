@@ -177,10 +177,9 @@ pub struct OfferClaimCtx {
     pub claim_id: LnClaimId,
     pub offer_id: OfferId,
     pub offer: Option<Arc<Offer>>,
-    pub quantity: Option<NonZeroU64>,
-    pub payer_note: Option<BoundedString>,
-    // TODO(phlip9): use newtype
     pub payer_name: Option<String>,
+    pub message: Option<BoundedString>,
+    pub quantity: Option<NonZeroU64>,
 }
 
 impl LnClaimCtx {
@@ -222,26 +221,26 @@ impl LnClaimCtx {
                 let offer_id = OfferId::from(context.offer_id);
                 let quantity =
                     context.invoice_request.quantity.and_then(NonZeroU64::new);
-                // LDK truncates to PAYER_NOTE_LIMIT (512 B); we also enforce
-                // our 200-char limit.
-                let payer_note = context
-                    .invoice_request
-                    .payer_note_truncated
-                    .map(|s| s.0)
-                    .and_then(BoundedString::truncate);
                 // TODO(phlip9): use newtype
                 let payer_name = context
                     .invoice_request
                     .human_readable_name
                     .map(|hrn| format!("{}@{}", hrn.user(), hrn.domain()));
+                // LDK truncates to PAYER_NOTE_LIMIT (512 B); we also enforce
+                // our 200-char limit.
+                let message = context
+                    .invoice_request
+                    .payer_note_truncated
+                    .map(|s| s.0)
+                    .and_then(BoundedString::truncate);
                 Ok(Self::Bolt12Offer(OfferClaimCtx {
                     preimage,
                     claim_id,
                     offer_id,
                     offer: offer.map(Arc::new),
-                    quantity,
-                    payer_note,
                     payer_name,
+                    message,
+                    quantity,
                 }))
             }
             // TODO(phlip9): BOLT12 refunds
@@ -389,12 +388,12 @@ impl InboundInvoicePaymentV2 {
         secret: PaymentSecret,
         preimage: PaymentPreimage,
         kind: PaymentKind,
-        payer_note: Option<BoundedString>,
+        message: Option<BoundedString>,
         partner_fee: Option<PartnerFeeFields>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
-        let payer_note = payer_note.map(BoundedString::into_inner);
+        let message = message.map(BoundedString::into_inner);
 
         let invoice_amount =
             invoice.0.amount_milli_satoshis().map(Amount::from_msat);
@@ -422,9 +421,9 @@ impl InboundInvoicePaymentV2 {
             address: None,
             invoice: Some(Arc::new(invoice)),
             offer: None,
-            note: None,
             payer_name: None,
-            payer_note,
+            message,
+            personal_note: None,
             priority: None,
             quantity: None,
             replacement_txid: None,
@@ -745,9 +744,9 @@ impl InboundOfferReusablePaymentV2 {
             address: None,
             invoice: None,
             offer: ctx.offer,
-            note: None,
             payer_name: ctx.payer_name,
-            payer_note: ctx.payer_note.map(BoundedString::into_inner),
+            message: ctx.message.map(BoundedString::into_inner),
+            personal_note: None,
             priority: None,
             quantity: ctx.quantity,
             replacement_txid: None,

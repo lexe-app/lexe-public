@@ -93,7 +93,7 @@ use crate::{
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             ResyncRequest, SetupGDrive, UpdateHumanBitcoinAddress,
-            UpdatePaymentNote, VecPaymentId,
+            UpdatePersonalNote, VecPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -397,10 +397,10 @@ pub trait AppNodeRunApi {
         req: GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError>;
 
-    /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`Empty`]
-    async fn update_payment_note(
+    /// PUT /app/payments/note [`UpdatePersonalNote`] -> [`Empty`]
+    async fn update_personal_note(
         &self,
-        req: UpdatePaymentNote,
+        req: UpdatePersonalNote,
     ) -> Result<Empty, NodeApiError>;
 
     /// Lists all revocable clients.

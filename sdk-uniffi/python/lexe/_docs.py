@@ -723,8 +723,8 @@ Args:
         encoded amount. If both the payable and ``amount_sats`` specify an
         amount, they must match. For LNURL payables, the amount must fall
         within the receiver's minimum and maximum range.
-    payer_note: Optional message to the recipient (BOLT12 offers, LNURL).
-    note: Optional personal note (not visible to recipient).
+    message: Optional message to the recipient (BOLT12 offers, LNURL).
+    personal_note: Optional personal note (not visible to recipient).
 
 Returns:
     A :class:`PayResponse` with the payment index and timestamp.
@@ -774,7 +774,7 @@ Pay a BOLT 11 Lightning invoice.
 Args:
     invoice: BOLT 11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
-    note: Optional private note (not visible to the receiver).
+    personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
@@ -821,10 +821,10 @@ Pay a BOLT 12 offer over Lightning.
 Args:
     offer: BOLT 12 offer string to pay.
     amount_sats: Amount to pay in satoshis.
-    note: Optional private note (not visible to the receiver).
+    message: Optional message visible to the receiver.
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
-    payer_note: Optional note visible to the receiver.
+    personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
 
@@ -855,14 +855,14 @@ Raises:
     FfiError: If the index is malformed or the request fails.
 """)
 
-_set_method_doc(LexeWallet, "update_payment_note", """\
+_set_method_doc(LexeWallet, "update_personal_note", """\
 Update a payment's personal note.
 
 Call :meth:`sync_payments` first so the payment exists locally.
 
 Args:
     index: Payment index string.
-    note: New note text, or ``None`` to clear.
+    personal_note: New personal note text, or ``None`` to clear.
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Raises:
@@ -1189,8 +1189,8 @@ Args:
         encoded amount. If both the payable and ``amount_sats`` specify an
         amount, they must match. For LNURL payables, the amount must fall
         within the receiver's minimum and maximum range.
-    payer_note: Optional message to the recipient (BOLT12 offers, LNURL).
-    note: Optional personal note (not visible to recipient).
+    message: Optional message to the recipient (BOLT12 offers, LNURL).
+    personal_note: Optional personal note (not visible to recipient).
 
 Returns:
     A :class:`PayResponse` with the payment index and timestamp.
@@ -1240,7 +1240,7 @@ Pay a BOLT 11 Lightning invoice.
 Args:
     invoice: BOLT 11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
-    note: Optional private note (not visible to the receiver).
+    personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
@@ -1287,10 +1287,10 @@ Pay a BOLT 12 offer over Lightning.
 Args:
     offer: BOLT 12 offer string to pay.
     amount_sats: Amount to pay in satoshis.
-    note: Optional private note (not visible to the receiver).
+    message: Optional message visible to the receiver.
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
-    payer_note: Optional note visible to the receiver.
+    personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
 
@@ -1321,14 +1321,14 @@ Raises:
     FfiError: If the index is malformed or the request fails.
 """)
 
-_set_method_doc(AsyncLexeWallet, "update_payment_note", """\
+_set_method_doc(AsyncLexeWallet, "update_personal_note", """\
 Update a payment's personal note.
 
 Call :meth:`sync_payments` first so the payment exists locally.
 
 Args:
     index: Payment index string.
-    note: New note text, or ``None`` to clear.
+    personal_note: New personal note text, or ``None`` to clear.
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Raises:
@@ -1538,10 +1538,10 @@ Attributes:
         (e.g. "invoice generated", "timed out").
     address: (Onchain send only) The address we're sending to.
     invoice: (Invoice payments only) The BOLT 11 invoice.
-    note: Optional personal note attached to this payment. Can always be
-        added or modified after the payment exists.
     payer_name: (Offer payments only) Payer's self-reported name.
-    payer_note: (Offer/LNURL-pay payments) Payer-provided note.
+    message: (Offer/LNURL-pay payments) Payer-provided message.
+    personal_note: Optional personal note attached to this payment. Can always
+        be added or modified after the payment exists.
     priority: (Onchain send only) Confirmation priority used.
     expires_at_ms: Invoice or offer expiry time (ms since UNIX epoch),
         or ``None`` if not applicable.

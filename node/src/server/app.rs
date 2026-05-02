@@ -20,7 +20,7 @@ use lexe_api::{
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            SetupGDrive, UpdateHumanBitcoinAddress, UpdatePaymentNote,
+            SetupGDrive, UpdateHumanBitcoinAddress, UpdatePersonalNote,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
@@ -472,13 +472,13 @@ pub(super) async fn get_payment_by_id(
     Ok(LxJson(MaybeBasicPaymentV2 { maybe_payment }))
 }
 
-pub(super) async fn update_payment_note(
+pub(super) async fn update_personal_note(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<UpdatePaymentNote>,
+    LxJson(req): LxJson<UpdatePersonalNote>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
     state
         .payments_manager
-        .update_payment_note(req)
+        .update_personal_note(req)
         .await
         .map_err(NodeApiError::command)?;
 

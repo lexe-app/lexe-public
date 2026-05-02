@@ -357,9 +357,9 @@ sealed class Payment with _$Payment {
     required PaymentStatus status,
     required String statusStr,
     String? description,
-    String? note,
     String? payerName,
-    String? payerNote,
+    String? message,
+    String? personalNote,
     required int createdAt,
     int? finalizedAt,
   }) = _Payment;
@@ -483,8 +483,8 @@ sealed class ShortPayment with _$ShortPayment {
     required int feesSats,
     required PaymentStatus status,
     String? description,
-    String? note,
-    String? payerNote,
+    String? message,
+    String? personalNote,
     required int createdAt,
   }) = _ShortPayment;
 }

@@ -16,7 +16,7 @@ use lexe::{
         command::{
             CreateInvoiceRequest, CreateOfferRequest, GetPaymentRequest,
             PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
-            UpdatePaymentNoteRequest,
+            UpdatePersonalNoteRequest,
         },
         payment::{Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus},
         util::Ppm,
@@ -138,7 +138,7 @@ pub enum LexeCommand {
     PayOffer(PayOfferArgs),
     GetPayment(GetPaymentArgs),
     WaitForPayment(WaitForPaymentArgs),
-    UpdatePaymentNote(UpdatePaymentNoteArgs),
+    UpdatePersonalNote(UpdatePersonalNoteArgs),
     SyncPayments(SyncPaymentsArgs),
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
@@ -263,7 +263,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
         LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
-        LexeCommand::UpdatePaymentNote(a) => a.run(&wallet).await,
+        LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
@@ -530,7 +530,7 @@ pub struct PayInvoiceArgs {
 
     /// Personal note (not visible to receiver, max 200 chars)
     #[arg(long)]
-    note: Option<String>,
+    personal_note: Option<String>,
 }
 
 impl PayInvoiceArgs {
@@ -541,7 +541,7 @@ impl PayInvoiceArgs {
         let req = PayInvoiceRequest {
             invoice,
             fallback_amount: self.fallback_amount_sats,
-            note: self.note,
+            personal_note: self.personal_note,
         };
         let resp = wallet.pay_invoice(req).await.inspect(|_| {
             // Provide some successful confirmation for CLI users;
@@ -620,18 +620,18 @@ pub struct PayOfferArgs {
     )]
     amount_sats: Amount,
 
+    /// Note sent to the receiver with the payment.
+    ///
+    /// Maximum length: 512 UTF-8 bytes.
+    #[arg(long)]
+    message: Option<String>,
+
     #[arg(
         long,
         help = "Personal note stored locally, not visible to receiver.\n\
             Maximum length: 512 UTF-8 bytes."
     )]
-    note: Option<String>,
-
-    /// Note sent to the receiver with the payment.
-    ///
-    /// Maximum length: 512 UTF-8 bytes.
-    #[arg(long)]
-    payer_note: Option<String>,
+    personal_note: Option<String>,
 }
 
 impl PayOfferArgs {
@@ -641,8 +641,8 @@ impl PayOfferArgs {
         let req = PayOfferRequest {
             offer,
             amount: self.amount_sats,
-            note: self.note,
-            payer_note: self.payer_note,
+            message: self.message,
+            personal_note: self.personal_note,
         };
         let resp = wallet.pay_offer(req).await.inspect(|_| {
             info!("Offer paid!");
@@ -726,7 +726,7 @@ impl WaitForPaymentArgs {
     }
 }
 
-// --- `update-payment-note` --- //
+// --- `update-personal-note` --- //
 
 #[derive(Parser)]
 #[command(
@@ -736,26 +736,26 @@ impl WaitForPaymentArgs {
         The note is stored on the user node and is not visible to the counterparty.",
     help_template = HELP_TEMPLATE,
 )]
-pub struct UpdatePaymentNoteArgs {
+pub struct UpdatePersonalNoteArgs {
     /// The payment index
     index: PaymentCreatedIndex,
 
-    /// The new note (omit to clear, max 200 chars)
+    /// The new personal note (omit to clear, max 200 chars)
     #[arg(long)]
-    note: Option<String>,
+    personal_note: Option<String>,
 }
 
-impl UpdatePaymentNoteArgs {
+impl UpdatePersonalNoteArgs {
     async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
-        let req = UpdatePaymentNoteRequest {
+        let req = UpdatePersonalNoteRequest {
             index: self.index,
-            note: self.note,
+            personal_note: self.personal_note,
         };
         wallet
-            .update_payment_note(req)
+            .update_personal_note(req)
             .await
-            .context("Failed to update payment note")?;
-        println!("Payment note updated");
+            .context("Failed to update personal note")?;
+        println!("Personal note updated");
         Ok(())
     }
 }

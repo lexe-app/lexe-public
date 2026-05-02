@@ -208,15 +208,6 @@ pub struct PaymentMetadata {
 
     // --- Notes and sender/receiver identifiers --- //
     // -
-    /// The payment note, private to the user.
-    // Suppress useless unicode gibberish in tests.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
-    #[cfg_attr(
-        test,
-        proptest(strategy = "option::of(Just(String::from(\"note\")))")
-    )]
-    pub note: Option<String>,
-
     /// (Inbound offer reusable only)
     /// The payer's self-reported human-readable name.
     #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
@@ -226,14 +217,27 @@ pub struct PaymentMetadata {
     )]
     pub payer_name: Option<String>,
 
-    /// A payer-provided note for this payment. Set for BOLT12 offers
+    /// A payer-provided message for this payment. Set for BOLT12 offers
     /// (LDK truncates to PAYER_NOTE_LIMIT) and LNURL-pay (LUD-12 comment).
     #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
     #[cfg_attr(
         test,
         proptest(strategy = "option::of(Just(String::from(\"payer note\")))")
     )]
-    pub payer_note: Option<String>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "payer_note", alias = "message")]
+    pub message: Option<String>,
+
+    /// Optional personal note, private to the user.
+    // Suppress useless unicode gibberish in tests.
+    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[cfg_attr(
+        test,
+        proptest(strategy = "option::of(Just(String::from(\"note\")))")
+    )]
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<String>,
 
     // --- Other --- //
     // -
@@ -274,11 +278,11 @@ pub(crate) struct PaymentMetadataUpdate {
     pub offer: Option<Option<Arc<Offer>>>,
 
     // --- Notes and sender/receiver identifiers --- //
-    pub note: Option<Option<String>>,
-
     pub payer_name: Option<Option<String>>,
 
-    pub payer_note: Option<Option<String>>,
+    pub message: Option<Option<String>>,
+
+    pub personal_note: Option<Option<String>>,
 
     // --- Other --- //
     pub priority: Option<Option<ConfirmationPriority>>,
@@ -372,9 +376,10 @@ impl PaymentWithMetadata<PaymentV2> {
         let address = self.metadata.address;
         let invoice = self.metadata.invoice;
         let offer = self.metadata.offer;
-        let note = self.metadata.note;
         let payer_name = self.metadata.payer_name;
-        let payer_note = self.metadata.payer_note;
+        let message = self.metadata.message;
+        let personal_note = self.metadata.personal_note;
+
         let priority = self.metadata.priority;
         let quantity = self.metadata.quantity;
         let replacement_txid = self.metadata.replacement_txid;
@@ -400,9 +405,9 @@ impl PaymentWithMetadata<PaymentV2> {
             invoice,
             offer,
             tx,
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority,
             quantity,
             replacement_txid,
@@ -425,9 +430,9 @@ impl PaymentMetadata {
             address: None,
             invoice: None,
             offer: None,
-            note: None,
             payer_name: None,
-            payer_note: None,
+            message: None,
+            personal_note: None,
             priority: None,
             quantity: None,
             replacement_txid: None,
@@ -445,9 +450,9 @@ impl PaymentMetadata {
             address,
             invoice,
             offer,
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority,
             quantity,
             replacement_txid,
@@ -457,9 +462,9 @@ impl PaymentMetadata {
             && address.is_none()
             && invoice.is_none()
             && offer.is_none()
-            && note.is_none()
             && payer_name.is_none()
-            && payer_note.is_none()
+            && message.is_none()
+            && personal_note.is_none()
             && priority.is_none()
             && quantity.is_none()
             && replacement_txid.is_none()
@@ -477,9 +482,9 @@ impl PaymentMetadata {
             address,
             invoice,
             offer,
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority,
             quantity,
             replacement_txid,
@@ -489,9 +494,9 @@ impl PaymentMetadata {
         self.address = address.unwrap_or(self.address);
         self.invoice = invoice.unwrap_or(self.invoice);
         self.offer = offer.unwrap_or(self.offer);
-        self.note = note.unwrap_or(self.note);
         self.payer_name = payer_name.unwrap_or(self.payer_name);
-        self.payer_note = payer_note.unwrap_or(self.payer_note);
+        self.message = message.unwrap_or(self.message);
+        self.personal_note = personal_note.unwrap_or(self.personal_note);
         self.priority = priority.unwrap_or(self.priority);
         self.quantity = quantity.unwrap_or(self.quantity);
         self.replacement_txid =
@@ -511,9 +516,9 @@ impl PaymentMetadataUpdate {
             address,
             invoice,
             offer,
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority,
             quantity,
             replacement_txid,
@@ -523,9 +528,9 @@ impl PaymentMetadataUpdate {
             && address.is_none()
             && invoice.is_none()
             && offer.is_none()
-            && note.is_none()
             && payer_name.is_none()
-            && payer_note.is_none()
+            && message.is_none()
+            && personal_note.is_none()
             && priority.is_none()
             && quantity.is_none()
             && replacement_txid.is_none()

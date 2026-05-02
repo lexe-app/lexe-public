@@ -424,12 +424,12 @@ impl<F: Ffs> PaymentsDb<F> {
         ffs.write(&filename, &data)
     }
 
-    /// Update the note on an existing payment in this [`PaymentsDb`].
+    /// Update the personal note on an existing payment in this [`PaymentsDb`].
     /// This does NOT actually update the note on the user node, hence why this
     /// is not a public API.
-    pub(crate) fn update_payment_note(
+    pub(crate) fn update_personal_note(
         &self,
-        req: command::UpdatePaymentNote,
+        req: command::UpdatePersonalNote,
     ) -> anyhow::Result<()> {
         let mut state = self.state.write().unwrap();
 
@@ -437,7 +437,7 @@ impl<F: Ffs> PaymentsDb<F> {
             .get_mut_payment_by_created_index(&req.index)
             .context("Updating non-existent payment")?;
 
-        payment.note = req.note.map(|n| n.into_inner());
+        payment.personal_note = req.personal_note.map(|n| n.into_inner());
 
         Self::write_payment(&self.ffs, payment)
             .context("Failed to write payment to local db")?;

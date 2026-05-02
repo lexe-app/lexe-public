@@ -167,7 +167,7 @@ def test_list_payments():
 
 
 @pytest.mark.integration
-def test_update_payment_note():
+def test_update_personal_note():
     """Test updating a payment note."""
     with tempfile.TemporaryDirectory() as temp_dir:
         config = create_dev_config()
@@ -188,15 +188,15 @@ def test_update_payment_note():
         wallet.sync_payments()
 
         # Update the payment note
-        wallet.update_payment_note(
+        wallet.update_personal_note(
             index=create_resp.index,
-            note="Updated note for test payment"
+            personal_note="Updated note for test payment"
         )
 
         # Verify the note was updated
         payment = wallet.get_payment(create_resp.index)
         assert payment is not None
-        assert payment.note == "Updated note for test payment"
+        assert payment.personal_note == "Updated note for test payment"
 
 
 @pytest.mark.integration
@@ -291,7 +291,7 @@ def test_create_and_pay_invoice(prefunded_wallets):
     # Pay invoice from wallet1
     pay_resp = wallet1.pay_invoice(
         create_resp.invoice,
-        note="Paying test invoice from Python SDK",
+        personal_note="Paying test invoice from Python SDK",
     )
     assert pay_resp.index != ""
     assert pay_resp.created_at_ms > 0
@@ -359,7 +359,7 @@ def test_create_and_pay_offer(prefunded_wallets):
     pay_resp = wallet1.pay_offer(
         create_resp.offer,
         amount_sats=test_pay_amount_sats,
-        note="Paying test offer from Python SDK",
+        message="Paying test offer from Python SDK",
     )
     assert pay_resp.index != ""
     assert pay_resp.created_at_ms > 0

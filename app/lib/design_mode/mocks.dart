@@ -38,7 +38,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         UpdateClientRequest,
-        UpdatePaymentNote;
+        UpdatePersonalNote;
 import 'package:app_rs_dart/ffi/app.dart'
     show App, AppHandle, WritebackDbRsSettingsRs;
 import 'package:app_rs_dart/ffi/app_data.dart'
@@ -451,7 +451,7 @@ class MockAppHandle extends AppHandle {
       this.payments.where((payment) => payment.isFinalizedNotJunk()).length;
 
   @override
-  Future<void> updatePaymentNote({required UpdatePaymentNote req}) =>
+  Future<void> updatePersonalNote({required UpdatePersonalNote req}) =>
       Future.delayed(const Duration(milliseconds: 1000), () => ());
 
   @override
@@ -1068,7 +1068,7 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
       feesSats: 0,
       status: PaymentStatus.completed,
       statusStr: "completed",
-      note: "Initial Lexe deposit",
+      personalNote: "Initial Lexe deposit",
       createdAt: depositCreatedAt,
       finalizedAt: depositCreatedAt + const Duration(minutes: 2).inMilliseconds,
       replacement: null,
@@ -1096,7 +1096,7 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
       feesSats: 0,
       status: PaymentStatus.completed,
       statusStr: "completed",
-      note: "stacker.news",
+      personalNote: "stacker.news",
       createdAt: stackerNewsCreatedAt,
       finalizedAt:
           stackerNewsCreatedAt + const Duration(minutes: 2).inMilliseconds,
@@ -1123,7 +1123,7 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
       feesSats: 0,
       status: PaymentStatus.completed,
       statusStr: "completed",
-      note: "Lunch at Cecilia's",
+      personalNote: "Lunch at Cecilia's",
       createdAt: lunchCreatedAt,
       finalizedAt: lunchCreatedAt + const Duration(minutes: 2).inMilliseconds,
     ),
@@ -1152,7 +1152,7 @@ const Payment dummyOnchainInboundPending01 = Payment(
   feesSats: 0,
   status: PaymentStatus.pending,
   statusStr: "partially confirmed (1-5 confirmations)",
-  note: "On-chain top up",
+  personalNote: "On-chain top up",
   createdAt: 1687309696000,
   finalizedAt: null,
   replacement: null,
@@ -1170,7 +1170,7 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
   feesSats: 0,
   status: PaymentStatus.completed,
   statusStr: "fully confirmed (6+ confirmations)",
-  note: "Initial deposit to Lexe",
+  personalNote: "Initial deposit to Lexe",
   createdAt: 1670090492000,
   finalizedAt: 1670090502000,
   replacement: null,
@@ -1188,7 +1188,7 @@ const Payment dummyOnchainInboundCompleted02 = Payment(
   feesSats: 0,
   status: PaymentStatus.completed,
   statusStr: "fully confirmed (6+ confirmations)",
-  note: "Exchange → Lexe wallet",
+  personalNote: "Exchange → Lexe wallet",
   createdAt: 1739386001000,
   finalizedAt: 1739386501000,
   replacement: null,
@@ -1206,7 +1206,7 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
   feesSats: 2881,
   status: PaymentStatus.completed,
   statusStr: "fully confirmed (6+ confirmations)",
-  note: "Funding exchange",
+  personalNote: "Funding exchange",
   createdAt: 1687385080000,
   finalizedAt: 1687385380000,
 );
@@ -1223,7 +1223,7 @@ const Payment dummyOnchainOutboundFailed01 = Payment(
   feesSats: 5433,
   status: PaymentStatus.failed,
   statusStr: "dropped from mempool",
-  note: "Sweep from Muun",
+  personalNote: "Sweep from Muun",
   createdAt: 1671818392000,
   finalizedAt: 1671918392000,
   replacement: null,
@@ -1240,7 +1240,7 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
   feesSats: 615,
   status: PaymentStatus.pending,
   statusStr: "pending",
-  note: "😎⚡️🚀😩",
+  personalNote: "😎⚡️🚀😩",
   createdAt: 1686938392000,
 );
 
@@ -1265,7 +1265,7 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
   feesSats: 150,
   status: PaymentStatus.pending,
   statusStr: "pending",
-  note: null,
+  personalNote: null,
   createdAt: 1686744442000,
 );
 
@@ -1291,7 +1291,7 @@ const Payment dummyInvoiceOutboundCompleted02 = Payment(
   feesSats: 28,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: null,
+  personalNote: null,
   createdAt: 1686744442000,
   finalizedAt: 1686744445000,
 );
@@ -1318,7 +1318,7 @@ const Payment dummyLnInvoiceInboundPendingToComplete = Payment(
   feesSats: 0,
   status: PaymentStatus.pending,
   statusStr: "claiming",
-  note:
+  personalNote:
       "To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them.",
   createdAt: 1687140003000,
 );
@@ -1345,7 +1345,7 @@ const Payment dummyInvoiceInboundPending02 = Payment(
   feesSats: 0,
   status: PaymentStatus.pending,
   statusStr: "claiming",
-  note: null,
+  personalNote: null,
   createdAt: 1714432815000,
 );
 
@@ -1370,7 +1370,7 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
   feesSats: 0,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: null,
+  personalNote: null,
   createdAt: 1687100002000,
   finalizedAt: 1687100005000,
 );
@@ -1396,7 +1396,7 @@ const Payment dummyInvoiceInboundCompleted02 = Payment(
   feesSats: 300,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: "Lunch at Celia's",
+  personalNote: "Lunch at Celia's",
   createdAt: 1739490952000,
   finalizedAt: 1739490955000,
 );
@@ -1423,7 +1423,7 @@ const Payment dummyInvoiceInboundCompleted03 = Payment(
   feesSats: 0,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: "Initial Lightning deposit",
+  personalNote: "Initial Lightning deposit",
   createdAt: 1740000000000,
   finalizedAt: 1740000003000,
 );
@@ -1450,7 +1450,7 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
   feesSats: 0,
   status: PaymentStatus.failed,
   statusStr: "expired",
-  note: null,
+  personalNote: null,
   createdAt: 1700222815000,
 );
 
@@ -1475,7 +1475,7 @@ const Payment dummyInvoiceOutboundCompleted01 = Payment(
   feesSats: 0,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: "stacker.news",
+  personalNote: "stacker.news",
   createdAt: 1739487454000,
   finalizedAt: 1739487458000,
 );
@@ -1501,8 +1501,8 @@ const Payment dummyOfferOutboundPayment01 = Payment(
   feesSats: 122,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: "Donation",
-  payerNote: "Thanks for building this project.",
+  message: "Thanks for building this project.",
+  personalNote: "Donation",
   createdAt: 1748993362000,
   finalizedAt: 1748993364000,
 );
@@ -1521,11 +1521,11 @@ const Payment dummyOfferInboundPayment01 = Payment(
   feesSats: 300,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: null,
   payerName: "satoshi@bitcoin.org",
-  payerNote:
+  message:
       "Thanks for the coffee! Great to meet you at the conference. "
       "Looking forward to collaborating on the project.",
+  personalNote: null,
   createdAt: 1748999074000,
   finalizedAt: 1748999075000,
 );
@@ -1542,7 +1542,7 @@ const Payment dummyWaivedChannelFee01 = Payment(
   feesSats: 0,
   status: PaymentStatus.completed,
   statusStr: "completed",
-  note: null,
+  personalNote: null,
   createdAt: 1749100000000,
   finalizedAt: 1749100001000,
 );

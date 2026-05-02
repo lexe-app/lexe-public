@@ -275,10 +275,10 @@ class AppHandle {
     username: username,
   );
 
-  Future<void> updatePaymentNote({required UpdatePaymentNote req}) => AppRs
+  Future<void> updatePersonalNote({required UpdatePersonalNote req}) => AppRs
       .instance
       .api
-      .crateFfiAppAppHandleUpdatePaymentNote(that: this, req: req);
+      .crateFfiAppAppHandleUpdatePersonalNote(that: this, req: req);
 
   /// flutter_rust_bridge:sync
   AppUserInfo walletUser() =>

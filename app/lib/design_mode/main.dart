@@ -785,7 +785,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   feesSats: (0.0095 * amountSats).truncate(),
                 ),
                 amountSats: amountSats,
-                payerNote: "You grind my beans just right",
+                message: "You grind my beans just right",
               );
             })(),
           ),

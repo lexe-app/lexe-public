@@ -267,7 +267,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   UpdateClientRequest dco_decode_box_autoadd_update_client_request(dynamic raw);
 
   @protected
-  UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw);
+  UpdatePersonalNote dco_decode_box_autoadd_update_personal_note(dynamic raw);
 
   @protected
   Username dco_decode_box_autoadd_username(dynamic raw);
@@ -590,7 +590,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   UpdateClientRequest dco_decode_update_client_request(dynamic raw);
 
   @protected
-  UpdatePaymentNote dco_decode_update_payment_note(dynamic raw);
+  UpdatePersonalNote dco_decode_update_personal_note(dynamic raw);
 
   @protected
   UserChannelId dco_decode_user_channel_id(dynamic raw);
@@ -848,7 +848,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
+  UpdatePersonalNote sse_decode_box_autoadd_update_personal_note(
     SseDeserializer deserializer,
   );
 
@@ -1237,7 +1237,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  UpdatePaymentNote sse_decode_update_payment_note(
+  UpdatePersonalNote sse_decode_update_personal_note(
     SseDeserializer deserializer,
   );
 
@@ -1550,8 +1550,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_update_payment_note(
-    UpdatePaymentNote self,
+  void sse_encode_box_autoadd_update_personal_note(
+    UpdatePersonalNote self,
     SseSerializer serializer,
   );
 
@@ -2021,8 +2021,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
-  void sse_encode_update_payment_note(
-    UpdatePaymentNote self,
+  void sse_encode_update_personal_note(
+    UpdatePersonalNote self,
     SseSerializer serializer,
   );
 

@@ -347,13 +347,15 @@ pub struct PaymentCreatedIndexes {
 
 /// A request to update the personal note on a payment. Pass `None` to clear.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct UpdatePaymentNote {
-    /// The index of the payment whose note should be updated.
+pub struct UpdatePersonalNote {
+    /// The index of the payment whose personal note should be updated.
     // TODO(max): The server side only needs the `PaymentId`.
     // This API should be changed to pass that instead.
     pub index: PaymentCreatedIndex,
     /// The updated note, or `None` to clear.
-    pub note: Option<BoundedString>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<BoundedString>,
 }
 
 // --- BOLT11 Invoice Payments --- //
@@ -385,9 +387,11 @@ pub struct CreateInvoiceRequest {
     /// return an error.
     pub description_hash: Option<[u8; 32]>,
 
-    /// An optional note from the payer, stored with this inbound payment.
+    /// An optional message from the payer, stored with this inbound payment.
     /// For LNURL-pay, set from the LUD-12 `comment`.
-    pub payer_note: Option<BoundedString>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "payer_note", alias = "message")]
+    pub message: Option<BoundedString>,
 
     /// The partner's user_pk, if the partner is setting the fee for this
     /// payment instead of using Lexe's default fees.
@@ -433,13 +437,17 @@ pub struct PayInvoiceRequest {
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be [`Some`] for amountless invoices.
     pub fallback_amount: Option<Amount>,
-    /// An optional personal note for this payment, useful if the
-    /// receiver-provided description is insufficient.
-    pub note: Option<BoundedString>,
-    /// An optional payer note to persist with this outbound payment. For
+    /// An optional message to persist with this outbound payment. For
     /// LNURL-pay, this is the LUD-12 `comment` sent during invoice
     /// negotiation.
-    pub payer_note: Option<BoundedString>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "payer_note", alias = "message")]
+    pub message: Option<BoundedString>,
+    /// An optional personal note for this payment, useful if the
+    /// receiver-provided description is insufficient.
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<BoundedString>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -581,12 +589,16 @@ pub struct PayOfferRequest {
     // but rare, due to offers not setting amounts often
     #[serde(alias = "fallback_amount")]
     pub amount: Amount,
+    /// An optional BOLT 12 `payer_note` included with the invoice request and
+    /// visible to the recipient.
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "payer_note", alias = "message")]
+    pub message: Option<BoundedString>,
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
-    pub note: Option<BoundedString>,
-    /// An optional note included in the BOLT12 invoice request and visible to
-    /// the recipient.
-    pub payer_note: Option<BoundedString>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<BoundedString>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -626,7 +638,9 @@ pub struct PayOnchainRequest {
     // See LexeEsplora for the conversion to the target number of blocks
     pub priority: ConfirmationPriority,
     /// An optional personal note for this payment.
-    pub note: Option<BoundedString>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<BoundedString>,
 }
 
 #[derive(Serialize, Deserialize)]

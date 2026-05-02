@@ -852,7 +852,7 @@ where
         secret.into(),
         preimage.into(),
         kind,
-        req.payer_note,
+        req.message,
         partner_fee,
     )
     .context("Failed to create payment")?;
@@ -1016,9 +1016,9 @@ where
     let req = PayInvoiceRequest {
         invoice: req.invoice,
         fallback_amount: req.fallback_amount,
+        message: None,
         // User note not relevant for pre-flight.
-        note: None,
-        payer_note: None,
+        personal_note: None,
     };
     let preflight = preflight_pay_invoice_inner(
         req,
@@ -1150,10 +1150,10 @@ where
     )
     .await?;
 
-    let payer_note = oopwm.metadata.payer_note.clone();
     // TODO(max): We should call chan_man.pay_for_offer_from_human_readable_name
     // below if the offer was resolved via BIP353.
     let _payer_name = &oopwm.metadata.payer_name;
+    let message = oopwm.metadata.message.clone();
 
     let id = oopwm.payment.id();
 
@@ -1170,7 +1170,7 @@ where
 
     let params = OptionalOfferPaymentParams {
         route_params_config: routing_context.route_params_config(),
-        payer_note,
+        payer_note: message,
         retry_strategy: OUTBOUND_PAYMENT_RETRY_STRATEGY,
     };
 
@@ -1236,9 +1236,9 @@ where
         cid: req.cid,
         offer: req.offer,
         amount: req.amount,
+        message: None,
         // User note not relevant for pre-flight.
-        note: None,
-        payer_note: None,
+        personal_note: None,
     };
     let PreflightedPayOffer {
         oopwm,
@@ -1434,8 +1434,8 @@ where
         kind,
         amount,
         fees,
-        req.note,
-        req.payer_note,
+        req.message,
+        req.personal_note,
     )
     .context("Failed to create payment")?;
 
@@ -1577,9 +1577,9 @@ where
         amount,
         quantity,
         routing_fee,
-        req.note,
         payer_name,
-        req.payer_note,
+        req.message,
+        req.personal_note,
     )
     .context("Failed to create payment")?;
 

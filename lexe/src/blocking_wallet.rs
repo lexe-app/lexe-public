@@ -23,7 +23,7 @@ use crate::{
             GetPaymentRequest, GetPaymentResponse, ListPaymentsResponse,
             NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
             PayOfferResponse, PayRequest, PayResponse, PaymentSyncSummary,
-            UpdatePaymentNoteRequest,
+            UpdatePersonalNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -427,11 +427,11 @@ impl BlockingLexeWallet {
     /// Update the personal note on an existing payment.
     /// The note is stored on the user node and is not visible to the
     /// counterparty.
-    pub fn update_payment_note(
+    pub fn update_personal_note(
         &self,
-        req: UpdatePaymentNoteRequest,
+        req: UpdatePersonalNoteRequest,
     ) -> anyhow::Result<()> {
-        block_on(self.inner.update_payment_note(req))
+        block_on(self.inner.update_personal_note(req))
     }
 }
 

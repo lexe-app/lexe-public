@@ -1006,22 +1006,22 @@ String toString() {
 /// @nodoc
 mixin _$PayInvoiceRequest {
 
- String get invoice; int? get fallbackAmountSats; String? get note; String? get payerNote;
+ String get invoice; int? get fallbackAmountSats; String? get message; String? get personalNote;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,note,payerNote);
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote);
 
 @override
 String toString() {
-  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, note: $note, payerNote: $payerNote)';
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote)';
 }
 
 
@@ -1035,29 +1035,29 @@ String toString() {
 
 
 class _PayInvoiceRequest implements PayInvoiceRequest {
-  const _PayInvoiceRequest({required this.invoice, this.fallbackAmountSats, this.note, this.payerNote});
+  const _PayInvoiceRequest({required this.invoice, this.fallbackAmountSats, this.message, this.personalNote});
   
 
 @override final  String invoice;
 @override final  int? fallbackAmountSats;
-@override final  String? note;
-@override final  String? payerNote;
+@override final  String? message;
+@override final  String? personalNote;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,note,payerNote);
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote);
 
 @override
 String toString() {
-  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, note: $note, payerNote: $payerNote)';
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote)';
 }
 
 
@@ -1129,22 +1129,22 @@ String toString() {
 /// @nodoc
 mixin _$PayOfferRequest {
 
- ClientPaymentId get cid; String get offer; int get amountSats; String? get note; String? get payerNote;
+ ClientPaymentId get cid; String get offer; int get amountSats; String? get message; String? get personalNote;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,offer,amountSats,note,payerNote);
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats,message,personalNote);
 
 @override
 String toString() {
-  return 'PayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats, note: $note, payerNote: $payerNote)';
+  return 'PayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats, message: $message, personalNote: $personalNote)';
 }
 
 
@@ -1158,30 +1158,30 @@ String toString() {
 
 
 class _PayOfferRequest implements PayOfferRequest {
-  const _PayOfferRequest({required this.cid, required this.offer, required this.amountSats, this.note, this.payerNote});
+  const _PayOfferRequest({required this.cid, required this.offer, required this.amountSats, this.message, this.personalNote});
   
 
 @override final  ClientPaymentId cid;
 @override final  String offer;
 @override final  int amountSats;
-@override final  String? note;
-@override final  String? payerNote;
+@override final  String? message;
+@override final  String? personalNote;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.note, note) || other.note == note)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,offer,amountSats,note,payerNote);
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats,message,personalNote);
 
 @override
 String toString() {
-  return 'PayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats, note: $note, payerNote: $payerNote)';
+  return 'PayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats, message: $message, personalNote: $personalNote)';
 }
 
 
@@ -1253,22 +1253,22 @@ String toString() {
 /// @nodoc
 mixin _$PayOnchainRequest {
 
- ClientPaymentId get cid; String get address; int get amountSats; ConfirmationPriority get priority; String? get note;
+ ClientPaymentId get cid; String get address; int get amountSats; ConfirmationPriority get priority; String? get personalNote;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,address,amountSats,priority,note);
+int get hashCode => Object.hash(runtimeType,cid,address,amountSats,priority,personalNote);
 
 @override
 String toString() {
-  return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, note: $note)';
+  return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, personalNote: $personalNote)';
 }
 
 
@@ -1282,30 +1282,30 @@ String toString() {
 
 
 class _PayOnchainRequest implements PayOnchainRequest {
-  const _PayOnchainRequest({required this.cid, required this.address, required this.amountSats, required this.priority, this.note});
+  const _PayOnchainRequest({required this.cid, required this.address, required this.amountSats, required this.priority, this.personalNote});
   
 
 @override final  ClientPaymentId cid;
 @override final  String address;
 @override final  int amountSats;
 @override final  ConfirmationPriority priority;
-@override final  String? note;
+@override final  String? personalNote;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,cid,address,amountSats,priority,note);
+int get hashCode => Object.hash(runtimeType,cid,address,amountSats,priority,personalNote);
 
 @override
 String toString() {
-  return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, note: $note)';
+  return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, personalNote: $personalNote)';
 }
 
 
@@ -1985,24 +1985,24 @@ String toString() {
 
 
 /// @nodoc
-mixin _$UpdatePaymentNote {
+mixin _$UpdatePersonalNote {
 
- PaymentCreatedIndex get index; String? get note;
+ PaymentCreatedIndex get index; String? get personalNote;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdatePaymentNote&&(identical(other.index, index) || other.index == index)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdatePersonalNote&&(identical(other.index, index) || other.index == index)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,note);
+int get hashCode => Object.hash(runtimeType,index,personalNote);
 
 @override
 String toString() {
-  return 'UpdatePaymentNote(index: $index, note: $note)';
+  return 'UpdatePersonalNote(index: $index, personalNote: $personalNote)';
 }
 
 
@@ -2015,28 +2015,28 @@ String toString() {
 /// @nodoc
 
 
-class _UpdatePaymentNote implements UpdatePaymentNote {
-  const _UpdatePaymentNote({required this.index, this.note});
+class _UpdatePersonalNote implements UpdatePersonalNote {
+  const _UpdatePersonalNote({required this.index, this.personalNote});
   
 
 @override final  PaymentCreatedIndex index;
-@override final  String? note;
+@override final  String? personalNote;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdatePaymentNote&&(identical(other.index, index) || other.index == index)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdatePersonalNote&&(identical(other.index, index) || other.index == index)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,note);
+int get hashCode => Object.hash(runtimeType,index,personalNote);
 
 @override
 String toString() {
-  return 'UpdatePaymentNote(index: $index, note: $note)';
+  return 'UpdatePersonalNote(index: $index, personalNote: $personalNote)';
 }
 
 

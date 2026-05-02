@@ -383,8 +383,8 @@ pub struct ShortPayment {
     pub status: PaymentStatus,
 
     pub description: Option<String>,
-    pub note: Option<String>,
-    pub payer_note: Option<String>,
+    pub message: Option<String>,
+    pub personal_note: Option<String>,
 
     pub created_at: i64,
 }
@@ -404,8 +404,8 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
             status: PaymentStatus::from(payment.status),
 
             description: payment.description().map(String::from),
-            note: payment.note.as_deref().map(String::from),
-            payer_note: payment.payer_note.clone(),
+            message: payment.message.clone(),
+            personal_note: payment.personal_note.as_deref().map(String::from),
 
             created_at: payment.created_at().to_i64(),
         }
@@ -440,10 +440,9 @@ pub struct Payment {
     pub status_str: String,
 
     pub description: Option<String>,
-    pub note: Option<String>,
-
     pub payer_name: Option<String>,
-    pub payer_note: Option<String>,
+    pub message: Option<String>,
+    pub personal_note: Option<String>,
 
     pub created_at: i64,
     pub finalized_at: Option<i64>,
@@ -475,10 +474,9 @@ impl From<&BasicPaymentV2Rs> for Payment {
             status_str: payment.status_str.clone(),
 
             description: payment.description().map(String::from),
-            note: payment.note.as_deref().map(String::from),
-
             payer_name: payment.payer_name.clone(),
-            payer_note: payment.payer_note.clone(),
+            message: payment.message.clone(),
+            personal_note: payment.personal_note.as_deref().map(String::from),
 
             created_at: payment.created_at.to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),

@@ -229,17 +229,17 @@ mod node {
             cid,
             offer: req.offer,
             amount: req.amount,
-            note: req
-                .note
+            message: req
+                .message
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid message")
+                .map_err(SdkApiError::command)?,
+            personal_note: req
+                .personal_note
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid personal note")
-                .map_err(SdkApiError::command)?,
-            payer_note: req
-                .payer_note
-                .map(BoundedString::new)
-                .transpose()
-                .context("Invalid payer note")
                 .map_err(SdkApiError::command)?,
         };
 

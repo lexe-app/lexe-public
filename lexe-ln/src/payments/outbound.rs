@@ -148,13 +148,13 @@ impl OutboundInvoicePaymentV2 {
         kind: PaymentKind,
         amount: Amount,
         routing_fee: Amount,
-        note: Option<BoundedString>,
-        payer_note: Option<BoundedString>,
+        message: Option<BoundedString>,
+        personal_note: Option<BoundedString>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
-        let note = note.map(BoundedString::into_inner);
-        let payer_note = payer_note.map(BoundedString::into_inner);
+        let message = message.map(BoundedString::into_inner);
+        let personal_note = personal_note.map(BoundedString::into_inner);
 
         let hash = invoice.payment_hash();
         let secret = invoice.payment_secret();
@@ -179,9 +179,9 @@ impl OutboundInvoicePaymentV2 {
             address: None,
             invoice: Some(Arc::new(invoice)),
             offer: None,
-            note,
             payer_name: None,
-            payer_note,
+            message,
+            personal_note,
             priority: None,
             quantity: None,
             replacement_txid: None,
@@ -443,14 +443,14 @@ impl OutboundOfferPaymentV2 {
         amount: Amount,
         quantity: Option<NonZeroU64>,
         routing_fee: Amount,
-        note: Option<BoundedString>,
         payer_name: Option<String>,
-        payer_note: Option<BoundedString>,
+        message: Option<BoundedString>,
+        personal_note: Option<BoundedString>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Offer)?;
 
-        let note = note.map(BoundedString::into_inner);
-        let payer_note = payer_note.map(BoundedString::into_inner);
+        let message = message.map(BoundedString::into_inner);
+        let personal_note = personal_note.map(BoundedString::into_inner);
 
         let offer_id = offer.id();
         let expires_at = offer.expires_at();
@@ -475,9 +475,9 @@ impl OutboundOfferPaymentV2 {
             address: None,
             invoice: None,
             offer: Some(Arc::new(offer)),
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority: None,
             quantity,
             replacement_txid: None,

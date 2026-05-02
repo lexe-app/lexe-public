@@ -105,17 +105,17 @@ pub struct Payment {
     /// Always [`Some`] for on-chain sends and receives.
     pub tx: Option<Arc<bitcoin::Transaction>>,
 
-    /// An optional personal note which a user can attach to any payment.
-    /// A note can always be added or modified when a payment already exists,
-    /// but this may not always be possible at creation time.
-    pub note: Option<String>,
-
     /// (Offer payments only) The payer's self-reported human-readable name.
     pub payer_name: Option<String>,
 
     /// (Offer payments, LNURL-pay invoices) A payer-provided note for this
     /// payment.
-    pub payer_note: Option<String>,
+    pub message: Option<String>,
+
+    /// An optional personal note which a user can attach to any payment.
+    /// A personal note can always be added or modified when a payment already
+    /// exists, but this may not always be possible at creation time.
+    pub personal_note: Option<String>,
 
     /// (Onchain send only) The confirmation priority used for this payment.
     pub priority: Option<ConfirmationPriority>,
@@ -194,9 +194,9 @@ impl From<BasicPaymentV2> for Payment {
             invoice,
             offer: _,
             tx,
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority,
             quantity: _,
             replacement_txid: _,
@@ -227,9 +227,9 @@ impl From<BasicPaymentV2> for Payment {
             address,
             invoice,
             tx,
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority,
             expires_at,
             finalized_at,

@@ -29,7 +29,7 @@ Widget buildPaymentDetail(Payment payment) {
 Payment _paymentWithPayerFields(
   Payment base, {
   String? payerName,
-  String? payerNote,
+  String? message,
 }) {
   return Payment(
     index: base.index,
@@ -45,9 +45,9 @@ Payment _paymentWithPayerFields(
     status: base.status,
     statusStr: base.statusStr,
     description: base.description,
-    note: base.note,
     payerName: payerName ?? base.payerName,
-    payerNote: payerNote ?? base.payerNote,
+    message: message ?? base.message,
+    personalNote: base.personalNote,
     createdAt: base.createdAt,
     finalizedAt: base.finalizedAt,
   );
@@ -84,7 +84,7 @@ void main() {
   ) async {
     final payment = _paymentWithPayerFields(
       mocks.dummyInvoiceOutboundCompleted01,
-      payerNote: "Thanks for the lunch!",
+      message: "Thanks for the lunch!",
     );
 
     await tester.pumpWidget(buildPaymentDetail(payment));
@@ -100,7 +100,7 @@ void main() {
     final payment = _paymentWithPayerFields(
       mocks.dummyInvoiceInboundCompleted01,
       payerName: "satoshi@bitcoin.org",
-      payerNote: "Thanks for the coffee!",
+      message: "Thanks for the coffee!",
     );
 
     await tester.pumpWidget(buildPaymentDetail(payment));

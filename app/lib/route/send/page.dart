@@ -351,8 +351,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
-  final GlobalKey<FormFieldState<String>> payerNoteFieldKey = GlobalKey();
-  final GlobalKey<FormFieldState<String>> noteFieldKey = GlobalKey();
+  final GlobalKey<FormFieldState<String>> messageFieldKey = GlobalKey();
+  final GlobalKey<FormFieldState<String>> personalNoteFieldKey = GlobalKey();
 
   @override
   void dispose() {
@@ -385,17 +385,18 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     // done.
     this.estimatingFee.value = true;
 
-    // Get the payer note if the user entered one.
-    final payerNote = this.payerNoteFieldKey.currentState?.value?.nonEmpty();
+    // Get the message to send to the recipient, if the user entered one.
+    final message = this.messageFieldKey.currentState?.value?.nonEmpty();
 
     // Get a personal note if the user entered one.
-    final note = this.noteFieldKey.currentState?.value?.nonEmpty();
+    final personalNote = this.personalNoteFieldKey.currentState?.value
+        ?.nonEmpty();
 
     // Preflight the payment. That means we're checking, on the node itself,
     // for enough balance, if there's a route, fees, etc...
     final result = await this.widget.sendCtx.preflight(
       amountSats,
-      payerNote: payerNote,
+      message: message,
     );
 
     if (!this.mounted) return;
@@ -423,8 +424,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(
           MaterialPageRoute(
-            builder: (_) =>
-                SendPaymentConfirmPage(sendCtx: nextSendCtx, initialNote: note),
+            builder: (_) => SendPaymentConfirmPage(
+              sendCtx: nextSendCtx,
+              initialNote: personalNote,
+            ),
           ),
         );
 
@@ -495,14 +498,14 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     ),
   };
 
-  /// Max payer note length if the recipient supports it.
-  int? maxPayerNoteLen() => switch (this.widget.sendCtx.paymentMethod) {
+  /// Max message length if the recipient supports it.
+  int? maxMessageLen() => switch (this.widget.sendCtx.paymentMethod) {
     PaymentMethod_Offer() => MAX_OFFER_PAYMENT_NOTE_CHARS,
     PaymentMethod_LnurlPayRequest(:final field0) => field0.commentAllowed,
     _ => null,
   };
 
-  String payerNoteHintText() => switch (this.widget.sendCtx.paymentMethod) {
+  String messageHintText() => switch (this.widget.sendCtx.paymentMethod) {
     PaymentMethod_Offer() => "Optional message (visible to recipient)",
     PaymentMethod_LnurlPayRequest() =>
       "Optional comment (visible to recipient)",
@@ -528,8 +531,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     );
 
     final description = this.description();
-    final maxPayerNoteLen = this.maxPayerNoteLen();
-    final showOptionalNotesSection = maxPayerNoteLen != null;
+    final maxMessageLen = this.maxMessageLen();
+    final showOptionalNotesSection = maxMessageLen != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -567,11 +570,11 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
           if (showOptionalNotesSection)
             OptionalNotes(
-              maxPayerNoteLen: maxPayerNoteLen,
-              noteFieldKey: this.noteFieldKey,
+              maxMessageLen: maxMessageLen,
+              personalNoteFieldKey: this.personalNoteFieldKey,
               onSubmit: this.onNext,
-              payerNoteFieldKey: this.payerNoteFieldKey,
-              payerNoteHintText: this.payerNoteHintText(),
+              messageFieldKey: this.messageFieldKey,
+              messageHintText: this.messageHintText(),
             ),
 
           // Error fetching fee estimate
@@ -603,30 +606,30 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 class OptionalNotes extends StatefulWidget {
   const OptionalNotes({
     super.key,
-    required this.maxPayerNoteLen,
-    required this.noteFieldKey,
+    required this.maxMessageLen,
+    required this.messageFieldKey,
+    required this.messageHintText,
     required this.onSubmit,
-    required this.payerNoteFieldKey,
-    required this.payerNoteHintText,
+    required this.personalNoteFieldKey,
   });
 
-  final int? maxPayerNoteLen;
-  final GlobalKey<FormFieldState<String>> noteFieldKey;
+  final int? maxMessageLen;
+  final GlobalKey<FormFieldState<String>> messageFieldKey;
+  final String messageHintText;
   final VoidCallback onSubmit;
-  final GlobalKey<FormFieldState<String>> payerNoteFieldKey;
-  final String payerNoteHintText;
+  final GlobalKey<FormFieldState<String>> personalNoteFieldKey;
 
   @override
   State<OptionalNotes> createState() => _OptionalNotesState();
 }
 
 class _OptionalNotesState extends State<OptionalNotes> {
-  final FocusNode payerNoteFocusNode = FocusNode();
+  final FocusNode messageFocusNode = FocusNode();
   final FocusNode personalNoteFocusNode = FocusNode();
 
   @override
   void dispose() {
-    this.payerNoteFocusNode.dispose();
+    this.messageFocusNode.dispose();
     this.personalNoteFocusNode.dispose();
     super.dispose();
   }
@@ -646,12 +649,12 @@ class _OptionalNotesState extends State<OptionalNotes> {
         ),
         const SizedBox(height: Space.s200),
 
-        if (this.widget.maxPayerNoteLen case final maxLen? when maxLen > 0) ...[
+        if (this.widget.maxMessageLen case final maxLen? when maxLen > 0) ...[
           PaymentNoteInput(
-            fieldKey: this.widget.payerNoteFieldKey,
-            focusNode: this.payerNoteFocusNode,
+            fieldKey: this.widget.messageFieldKey,
+            focusNode: this.messageFocusNode,
             onSubmit: this.focusPersonalNote,
-            hintText: this.widget.payerNoteHintText,
+            hintText: this.widget.messageHintText,
             maxLength: maxLen,
             textInputAction: TextInputAction.next,
           ),
@@ -659,7 +662,7 @@ class _OptionalNotesState extends State<OptionalNotes> {
         ],
 
         PaymentNoteInput(
-          fieldKey: this.widget.noteFieldKey,
+          fieldKey: this.widget.personalNoteFieldKey,
           focusNode: this.personalNoteFocusNode,
           onSubmit: this.widget.onSubmit,
           hintText: "Optional personal note (visible to you only)",
@@ -788,7 +791,7 @@ class SendPaymentConfirmPage extends StatefulWidget {
 }
 
 class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
-  final GlobalKey<FormFieldState<String>> noteFieldKey = GlobalKey();
+  final GlobalKey<FormFieldState<String>> personalNoteFieldKey = GlobalKey();
 
   final ValueNotifier<ErrorMessage?> sendError = ValueNotifier(null);
   final ValueNotifier<bool> isSending = ValueNotifier(false);
@@ -827,7 +830,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
     // Actually start the payment
     final FfiResult<SendFlowResult> result = await this.widget.sendCtx.pay(
-      this.note(),
+      this.personalNote(),
       this.confPriority.value,
     );
 
@@ -903,8 +906,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       offer.payee ?? offer.payeePubkey?.ellipsizeMid() ?? "(private node)",
   };
 
-  /// The current (non-empty) note field contents, if any.
-  String? note() => this.noteFieldKey.currentState?.value?.nonEmpty();
+  /// The current (non-empty) personal note field contents, if any.
+  String? personalNote() =>
+      this.personalNoteFieldKey.currentState?.value?.nonEmpty();
 
   /// The payment request's first non-empty description-like field.
   String? description() => switch (this.widget.sendCtx.preflightedPayment) {
@@ -915,10 +919,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     PreflightedPayment_Offer(:final offer) => offer.description?.nonEmpty(),
   };
 
-  String? payerNote() => switch (this.widget.sendCtx.preflightedPayment) {
+  String? message() => switch (this.widget.sendCtx.preflightedPayment) {
     PreflightedPayment_Onchain() => null,
-    PreflightedPayment_Invoice(:final payerNote) ||
-    PreflightedPayment_Offer(:final payerNote) => payerNote,
+    PreflightedPayment_Invoice(:final message) ||
+    PreflightedPayment_Offer(:final message) => message,
   };
 
   @override
@@ -962,7 +966,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     };
 
     final description = this.description();
-    final payerNote = this.payerNote();
+    final message = this.message();
 
     return Scaffold(
       appBar: AppBar(
@@ -1168,12 +1172,11 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             MetadataRow(title: "Description", value: description),
 
           //
-          // Payer note ("Message")
+          // Message to recipient
           //
-          if (payerNote != null)
-            MetadataRow(title: "Message", value: payerNote),
+          if (message != null) MetadataRow(title: "Message", value: message),
 
-          if (description != null || payerNote != null)
+          if (description != null || message != null)
             const SizedBox(height: Space.s450),
 
           //
@@ -1182,7 +1185,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           ValueListenableBuilder(
             valueListenable: this.isSending,
             builder: (context, isSending, widget) => PaymentNoteInput(
-              fieldKey: this.noteFieldKey,
+              fieldKey: this.personalNoteFieldKey,
               onSubmit: this.onConfirm,
               isEnabled: !isSending,
               initialNote: this.widget.initialNote,

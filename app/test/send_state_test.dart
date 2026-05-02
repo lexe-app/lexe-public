@@ -314,13 +314,13 @@ void main() {
         paymentMethod: const PaymentMethod.offer(offer),
       );
 
-      final result = await state.preflight(3000, payerNote: 'payer note');
+      final result = await state.preflight(3000, message: 'payer note');
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendState_Preflighted>());
       final preflighted =
           result.ok!.preflightedPayment as PreflightedPayment_Offer;
-      expect(preflighted.payerNote, 'payer note');
+      expect(preflighted.message, 'payer note');
       expect(mockService.calls, ['preflightPayOffer($testOffer)']);
     });
 
@@ -388,7 +388,7 @@ void main() {
       final state = _createPreflightedOffer(
         mockService,
         fiatRate,
-        payerNote: 'payer note',
+        message: 'payer note',
       );
 
       final result = await state.pay('Offer payment', null);
@@ -396,8 +396,8 @@ void main() {
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
       expect(mockService.calls.first, startsWith('payOffer('));
-      expect(mockService.lastPayOfferRequest?.note, 'Offer payment');
-      expect(mockService.lastPayOfferRequest?.payerNote, 'payer note');
+      expect(mockService.lastPayOfferRequest?.personalNote, 'Offer payment');
+      expect(mockService.lastPayOfferRequest?.message, 'payer note');
     });
 
     test('pay returns error on failure', () async {
@@ -524,7 +524,7 @@ SendState_Preflighted _createPreflightedInvoice(
 SendState_Preflighted _createPreflightedOffer(
   MockSendPaymentService mockService,
   ValueNotifier<FiatRate?> fiatRate, {
-  required String? payerNote,
+  required String? message,
 }) {
   return SendState_Preflighted(
     paymentService: mockService,
@@ -536,7 +536,7 @@ SendState_Preflighted _createPreflightedOffer(
       offer: Offer(string: testOffer),
       amountSats: 3000,
       preflight: PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
-      payerNote: payerNote,
+      message: message,
     ),
   );
 }

@@ -176,7 +176,7 @@ async fn sync_and_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
         // wallet, so no OnchainReceive payment will be produced.
         amount: Amount::ZERO,
         priority,
-        note: BoundedString::new(
+        personal_note: BoundedString::new(
             "Sweep to BIP39-compatible on-chain wallet".to_owned(),
         )
         .ok(),

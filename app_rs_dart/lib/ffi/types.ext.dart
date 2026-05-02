@@ -58,8 +58,8 @@ extension PaymentExt on Payment {
     feesSats: this.feesSats,
     status: this.status,
     description: this.description,
-    note: this.note,
-    payerNote: this.payerNote,
+    message: this.message,
+    personalNote: this.personalNote,
     createdAt: this.createdAt,
   );
 
@@ -77,7 +77,9 @@ extension PaymentExt on Payment {
     PaymentStatus? status,
     String? statusStr,
     String? description,
-    String? note,
+    String? payerName,
+    String? message,
+    String? personalNote,
     int? createdAt,
     int? finalizedAt,
   }) => Payment(
@@ -94,7 +96,9 @@ extension PaymentExt on Payment {
     status: status ?? this.status,
     statusStr: statusStr ?? this.statusStr,
     description: description ?? this.description,
-    note: note ?? this.note,
+    payerName: payerName ?? this.payerName,
+    message: message ?? this.message,
+    personalNote: personalNote ?? this.personalNote,
     createdAt: createdAt ?? this.createdAt,
     finalizedAt: finalizedAt ?? this.finalizedAt,
   );
@@ -113,14 +117,14 @@ extension PaymentExt on Payment {
       this.direction == PaymentDirection.inbound &&
       (this.amountSats == null || this.noteOrDescription == null);
 
-  /// Returns the user's note, invoice/offer description, or payer note.
-  /// Precedence: note > description > payerNote.
+  /// Returns the user's personal note, invoice/offer description, or message.
+  /// Precedence: personalNote > description > message.
   String? get noteOrDescription {
-    final n = this.note;
+    final n = this.personalNote;
     if (n != null && n.isNotEmpty) return n;
     final d = this.description;
     if (d != null && d.isNotEmpty) return d;
-    return this.payerNote;
+    return this.message;
   }
 }
 
@@ -158,13 +162,13 @@ extension ShortPaymentExt on ShortPayment {
   int? get totalSats =>
       this.amountSats != null ? this.amountSats! + this.feesSats : null;
 
-  /// Returns the user's note, invoice/offer description, or payer note.
-  /// Precedence: note > description > payerNote.
+  /// Returns the user's personal note, invoice/offer description, or message.
+  /// Precedence: personalNote > description > message.
   String? get noteOrDescription {
-    final n = this.note;
+    final n = this.personalNote;
     if (n != null && n.isNotEmpty) return n;
     final d = this.description;
     if (d != null && d.isNotEmpty) return d;
-    return this.payerNote;
+    return this.message;
   }
 }

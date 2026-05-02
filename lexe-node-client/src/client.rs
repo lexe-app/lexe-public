@@ -37,7 +37,7 @@ use lexe_api::{
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             PreflightPayOfferRequest, PreflightPayOfferResponse,
             PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            SetupGDrive, UpdatePaymentNote,
+            SetupGDrive, UpdatePersonalNote,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -776,9 +776,9 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn update_payment_note(
+    async fn update_personal_note(
         &self,
-        req: UpdatePaymentNote,
+        req: UpdatePersonalNote,
     ) -> Result<Empty, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;

@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1855442256;
+  int get rustContentHash => 108705469;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -284,9 +284,9 @@ abstract class AppRsApi extends BaseApi {
     required Username username,
   });
 
-  Future<void> crateFfiAppAppHandleUpdatePaymentNote({
+  Future<void> crateFfiAppAppHandleUpdatePersonalNote({
     required AppHandle that,
-    required UpdatePaymentNote req,
+    required UpdatePersonalNote req,
   });
 
   AppUserInfo crateFfiAppAppHandleWalletUser({required AppHandle that});
@@ -2001,16 +2001,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<void> crateFfiAppAppHandleUpdatePaymentNote({
+  Future<void> crateFfiAppAppHandleUpdatePersonalNote({
     required AppHandle that,
-    required UpdatePaymentNote req,
+    required UpdatePersonalNote req,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_update_payment_note(req, serializer);
+          sse_encode_box_autoadd_update_personal_note(req, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2022,16 +2022,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateFfiAppAppHandleUpdatePaymentNoteConstMeta,
+        constMeta: kCrateFfiAppAppHandleUpdatePersonalNoteConstMeta,
         argValues: [that, req],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateFfiAppAppHandleUpdatePaymentNoteConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandleUpdatePersonalNoteConstMeta =>
       const TaskConstMeta(
-        debugName: "app_handle_update_payment_note",
+        debugName: "app_handle_update_personal_note",
         argNames: ["that", "req"],
       );
 
@@ -3575,9 +3575,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  UpdatePaymentNote dco_decode_box_autoadd_update_payment_note(dynamic raw) {
+  UpdatePersonalNote dco_decode_box_autoadd_update_personal_note(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_update_payment_note(raw);
+    return dco_decode_update_personal_note(raw);
   }
 
   @protected
@@ -4187,8 +4187,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return PayInvoiceRequest(
       invoice: dco_decode_String(arr[0]),
       fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
-      note: dco_decode_opt_String(arr[2]),
-      payerNote: dco_decode_opt_String(arr[3]),
+      message: dco_decode_opt_String(arr[2]),
+      personalNote: dco_decode_opt_String(arr[3]),
     );
   }
 
@@ -4211,8 +4211,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       cid: dco_decode_client_payment_id(arr[0]),
       offer: dco_decode_String(arr[1]),
       amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
-      note: dco_decode_opt_String(arr[3]),
-      payerNote: dco_decode_opt_String(arr[4]),
+      message: dco_decode_opt_String(arr[3]),
+      personalNote: dco_decode_opt_String(arr[4]),
     );
   }
 
@@ -4236,7 +4236,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       address: dco_decode_String(arr[1]),
       amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
       priority: dco_decode_confirmation_priority(arr[3]),
-      note: dco_decode_opt_String(arr[4]),
+      personalNote: dco_decode_opt_String(arr[4]),
     );
   }
 
@@ -4274,9 +4274,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       status: dco_decode_payment_status(arr[12]),
       statusStr: dco_decode_String(arr[13]),
       description: dco_decode_opt_String(arr[14]),
-      note: dco_decode_opt_String(arr[15]),
-      payerName: dco_decode_opt_String(arr[16]),
-      payerNote: dco_decode_opt_String(arr[17]),
+      payerName: dco_decode_opt_String(arr[15]),
+      message: dco_decode_opt_String(arr[16]),
+      personalNote: dco_decode_opt_String(arr[17]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[18]),
       finalizedAt: dco_decode_opt_CastedPrimitive_i_64(arr[19]),
     );
@@ -4545,8 +4545,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       feesSats: dco_decode_CastedPrimitive_u_64(arr[4]),
       status: dco_decode_payment_status(arr[5]),
       description: dco_decode_opt_String(arr[6]),
-      note: dco_decode_opt_String(arr[7]),
-      payerNote: dco_decode_opt_String(arr[8]),
+      message: dco_decode_opt_String(arr[7]),
+      personalNote: dco_decode_opt_String(arr[8]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[9]),
     );
   }
@@ -4606,14 +4606,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  UpdatePaymentNote dco_decode_update_payment_note(dynamic raw) {
+  UpdatePersonalNote dco_decode_update_personal_note(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return UpdatePaymentNote(
+    return UpdatePersonalNote(
       index: dco_decode_payment_created_index(arr[0]),
-      note: dco_decode_opt_String(arr[1]),
+      personalNote: dco_decode_opt_String(arr[1]),
     );
   }
 
@@ -5129,11 +5129,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  UpdatePaymentNote sse_decode_box_autoadd_update_payment_note(
+  UpdatePersonalNote sse_decode_box_autoadd_update_personal_note(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_update_payment_note(deserializer));
+    return (sse_decode_update_personal_note(deserializer));
   }
 
   @protected
@@ -5912,13 +5912,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
       deserializer,
     );
-    var var_note = sse_decode_opt_String(deserializer);
-    var var_payerNote = sse_decode_opt_String(deserializer);
+    var var_message = sse_decode_opt_String(deserializer);
+    var var_personalNote = sse_decode_opt_String(deserializer);
     return PayInvoiceRequest(
       invoice: var_invoice,
       fallbackAmountSats: var_fallbackAmountSats,
-      note: var_note,
-      payerNote: var_payerNote,
+      message: var_message,
+      personalNote: var_personalNote,
     );
   }
 
@@ -5937,14 +5937,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_cid = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_note = sse_decode_opt_String(deserializer);
-    var var_payerNote = sse_decode_opt_String(deserializer);
+    var var_message = sse_decode_opt_String(deserializer);
+    var var_personalNote = sse_decode_opt_String(deserializer);
     return PayOfferRequest(
       cid: var_cid,
       offer: var_offer,
       amountSats: var_amountSats,
-      note: var_note,
-      payerNote: var_payerNote,
+      message: var_message,
+      personalNote: var_personalNote,
     );
   }
 
@@ -5964,13 +5964,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_address = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_priority = sse_decode_confirmation_priority(deserializer);
-    var var_note = sse_decode_opt_String(deserializer);
+    var var_personalNote = sse_decode_opt_String(deserializer);
     return PayOnchainRequest(
       cid: var_cid,
       address: var_address,
       amountSats: var_amountSats,
       priority: var_priority,
-      note: var_note,
+      personalNote: var_personalNote,
     );
   }
 
@@ -6002,9 +6002,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_status = sse_decode_payment_status(deserializer);
     var var_statusStr = sse_decode_String(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
-    var var_note = sse_decode_opt_String(deserializer);
     var var_payerName = sse_decode_opt_String(deserializer);
-    var var_payerNote = sse_decode_opt_String(deserializer);
+    var var_message = sse_decode_opt_String(deserializer);
+    var var_personalNote = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_finalizedAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     return Payment(
@@ -6023,9 +6023,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       status: var_status,
       statusStr: var_statusStr,
       description: var_description,
-      note: var_note,
       payerName: var_payerName,
-      payerNote: var_payerNote,
+      message: var_message,
+      personalNote: var_personalNote,
       createdAt: var_createdAt,
       finalizedAt: var_finalizedAt,
     );
@@ -6284,8 +6284,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_status = sse_decode_payment_status(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
-    var var_note = sse_decode_opt_String(deserializer);
-    var var_payerNote = sse_decode_opt_String(deserializer);
+    var var_message = sse_decode_opt_String(deserializer);
+    var var_personalNote = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     return ShortPayment(
       index: var_index,
@@ -6295,8 +6295,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       feesSats: var_feesSats,
       status: var_status,
       description: var_description,
-      note: var_note,
-      payerNote: var_payerNote,
+      message: var_message,
+      personalNote: var_personalNote,
       createdAt: var_createdAt,
     );
   }
@@ -6355,13 +6355,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  UpdatePaymentNote sse_decode_update_payment_note(
+  UpdatePersonalNote sse_decode_update_personal_note(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_created_index(deserializer);
-    var var_note = sse_decode_opt_String(deserializer);
-    return UpdatePaymentNote(index: var_index, note: var_note);
+    var var_personalNote = sse_decode_opt_String(deserializer);
+    return UpdatePersonalNote(index: var_index, personalNote: var_personalNote);
   }
 
   @protected
@@ -6912,12 +6912,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_update_payment_note(
-    UpdatePaymentNote self,
+  void sse_encode_box_autoadd_update_personal_note(
+    UpdatePersonalNote self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_update_payment_note(self, serializer);
+    sse_encode_update_personal_note(self, serializer);
   }
 
   @protected
@@ -7597,8 +7597,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.invoice, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
-    sse_encode_opt_String(self.note, serializer);
-    sse_encode_opt_String(self.payerNote, serializer);
+    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.personalNote, serializer);
   }
 
   @protected
@@ -7619,8 +7619,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_client_payment_id(self.cid, serializer);
     sse_encode_String(self.offer, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
-    sse_encode_opt_String(self.note, serializer);
-    sse_encode_opt_String(self.payerNote, serializer);
+    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.personalNote, serializer);
   }
 
   @protected
@@ -7642,7 +7642,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.address, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_confirmation_priority(self.priority, serializer);
-    sse_encode_opt_String(self.note, serializer);
+    sse_encode_opt_String(self.personalNote, serializer);
   }
 
   @protected
@@ -7673,9 +7673,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_payment_status(self.status, serializer);
     sse_encode_String(self.statusStr, serializer);
     sse_encode_opt_String(self.description, serializer);
-    sse_encode_opt_String(self.note, serializer);
     sse_encode_opt_String(self.payerName, serializer);
-    sse_encode_opt_String(self.payerNote, serializer);
+    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.personalNote, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
     sse_encode_opt_CastedPrimitive_i_64(self.finalizedAt, serializer);
   }
@@ -7892,8 +7892,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
     sse_encode_payment_status(self.status, serializer);
     sse_encode_opt_String(self.description, serializer);
-    sse_encode_opt_String(self.note, serializer);
-    sse_encode_opt_String(self.payerNote, serializer);
+    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.personalNote, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
   }
 
@@ -7949,13 +7949,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_update_payment_note(
-    UpdatePaymentNote self,
+  void sse_encode_update_personal_note(
+    UpdatePersonalNote self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_created_index(self.index, serializer);
-    sse_encode_opt_String(self.note, serializer);
+    sse_encode_opt_String(self.personalNote, serializer);
   }
 
   @protected

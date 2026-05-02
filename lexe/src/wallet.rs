@@ -45,7 +45,7 @@ use crate::{
             GetPaymentRequest, GetPaymentResponse, ListPaymentsResponse,
             NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
             PayOfferResponse, PayRequest, PayResponse, PayableDetails,
-            PaymentSyncSummary, UpdatePaymentNoteRequest,
+            PaymentSyncSummary, UpdatePersonalNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -916,16 +916,16 @@ impl LexeWallet {
         let payable = req.payable;
 
         // Validate note fields against Lexe's limits before any resolution
-        let note = req
-            .note
+        let message = req
+            .message
+            .map(BoundedString::new)
+            .transpose()
+            .context("Invalid message")?;
+        let personal_note = req
+            .personal_note
             .map(BoundedString::new)
             .transpose()
             .context("Invalid personal note")?;
-        let payer_note = req
-            .payer_note
-            .map(BoundedString::new)
-            .transpose()
-            .context("Invalid payer note")?;
 
         // Parse the string
         let payment_uri = PaymentUri::parse(&payable)
@@ -960,9 +960,9 @@ impl LexeWallet {
                              invoices"
                         )),
                 };
-                if payer_note.is_some() {
+                if message.is_some() {
                     warn!(
-                        "BOLT 11 invoices do not support payer notes. \
+                        "BOLT 11 invoices do not support messages. \
                          The recipient will not see your message."
                     );
                 }
@@ -970,8 +970,8 @@ impl LexeWallet {
                 let pay_req = command::PayInvoiceRequest {
                     invoice,
                     fallback_amount,
-                    note,
-                    payer_note,
+                    message,
+                    personal_note,
                 };
                 let resp = self
                     .node_client
@@ -1001,9 +1001,9 @@ impl LexeWallet {
                      receiver's requested maximum amount: {max_sendable} sats"
                 );
 
-                // LUD-12: Truncate payer_note to recipient's limit if needed.
+                // LUD-12: Truncate message to recipient's limit if needed.
                 let truncated_comment = match (
-                    payer_note.map(BoundedString::into_inner),
+                    message.map(BoundedString::into_inner),
                     lnurl_req.comment_allowed,
                 ) {
                     // No message intended; skip.
@@ -1019,17 +1019,17 @@ impl LexeWallet {
                     }
                     // Message intended and recipient allows comments; ensure
                     // the comment respects the receiver's specified limit.
-                    (Some(mut payer_note), Some(max_len)) => {
-                        let original_len = payer_note.chars().count();
+                    (Some(mut comment), Some(max_len)) => {
+                        let original_len = comment.chars().count();
                         let receiver_limit = usize::from(max_len);
 
                         lexe_std::string::truncate_chars(
-                            &mut payer_note,
+                            &mut comment,
                             receiver_limit,
                         );
 
-                        let truncated = BoundedString::new(payer_note).expect(
-                            "payer_note was checked above and truncation can \
+                        let truncated = BoundedString::new(comment).expect(
+                            "comment was checked above and truncation can \
                              only make it shorter, so the truncated string is \
                              still within bounds.",
                         );
@@ -1057,8 +1057,8 @@ impl LexeWallet {
                 let pay_req = command::PayInvoiceRequest {
                     invoice,
                     fallback_amount: None,
-                    note,
-                    payer_note: truncated_comment,
+                    message: truncated_comment,
+                    personal_note,
                 };
                 let resp = self
                     .node_client
@@ -1095,17 +1095,17 @@ impl LexeWallet {
                 let pay_req = PayOfferRequest {
                     offer: offer.offer,
                     amount,
-                    note: note.map(BoundedString::into_inner),
-                    payer_note: payer_note.map(BoundedString::into_inner),
+                    message: message.map(BoundedString::into_inner),
+                    personal_note: personal_note.map(BoundedString::into_inner),
                 };
                 let PayOfferResponse { index, created_at } =
                     self.pay_offer(pay_req).await?;
                 (index, created_at)
             }
             PaymentMethod::Onchain(onchain) => {
-                if payer_note.is_some() {
+                if message.is_some() {
                     warn!(
-                        "On-chain payments do not support payer notes. \
+                        "On-chain payments do not support messages. \
                          The recipient will not see your message."
                     );
                 }
@@ -1129,7 +1129,7 @@ impl LexeWallet {
                     address,
                     amount,
                     priority: ConfirmationPriority::Normal,
-                    note,
+                    personal_note,
                 };
                 let resp = self
                     .node_client
@@ -1257,22 +1257,22 @@ impl LexeWallet {
     /// Update the personal note on an existing payment.
     /// The note is stored on the user node and is not visible to the
     /// counterparty.
-    #[instrument(skip_all, name = "(update-payment-note)")]
-    pub async fn update_payment_note(
+    #[instrument(skip_all, name = "(update-personal-note)")]
+    pub async fn update_personal_note(
         &self,
-        req: UpdatePaymentNoteRequest,
+        req: UpdatePersonalNoteRequest,
     ) -> anyhow::Result<()> {
-        let req: command::UpdatePaymentNote = req.try_into()?;
+        let req: command::UpdatePersonalNote = req.try_into()?;
 
         // Update remote store first
         self.node_client
-            .update_payment_note(req.clone())
+            .update_personal_note(req.clone())
             .await
-            .context("Failed to update payment note on user node")?;
+            .context("Failed to update personal note on user node")?;
 
         // Success. If persistence is enabled, update the local payments store.
         if let Some(db) = &self.db {
-            db.payments_db().update_payment_note(req)?;
+            db.payments_db().update_personal_note(req)?;
         }
 
         Ok(())

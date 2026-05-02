@@ -285,7 +285,7 @@ impl From<PaymentV1> for BasicPaymentV1 {
             fees: p.fees(),
             status: p.status(),
             status_str: p.status_str().to_owned(),
-            note: p.note().map(|s| s.to_owned()),
+            note: p.personal_note().map(|s| s.to_owned()),
             finalized_at: p.finalized_at(),
         }
     }
@@ -338,9 +338,9 @@ impl PaymentV1 {
             invoice: self.invoice(),
             offer: self.offer(),
             tx: self.tx(),
-            note: self.note().map(|s| s.to_owned()),
             payer_name: self.payer_name().map(|s| s.to_owned()),
-            payer_note: self.payer_note().map(|s| s.to_owned()),
+            message: self.payer_note().map(|s| s.to_owned()),
+            personal_note: self.personal_note().map(|s| s.to_owned()),
             priority: self.priority(),
             quantity: self.quantity(),
             replacement_txid: self.replacement(),
@@ -720,8 +720,8 @@ impl PaymentV1 {
         }
     }
 
-    /// Get the payment note.
-    pub fn note(&self) -> Option<&str> {
+    /// Get the personal note.
+    pub fn personal_note(&self) -> Option<&str> {
         match self {
             Self::OnchainSend(OnchainSendV1 { note, .. }) => note,
             Self::OnchainReceive(OnchainReceiveV1 { note, .. }) => note,

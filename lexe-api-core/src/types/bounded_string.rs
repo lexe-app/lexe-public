@@ -10,7 +10,7 @@ use crate::types::username::USERNAME_MAX_LENGTH;
 
 /// A length-bounded string (max 200 chars / 512 bytes).
 ///
-/// Used for `note` (personal) and `payer_note` (payer-provided) fields on
+/// Used for `message` (payer-provided) and `personal_note` fields on
 /// payments. Construction validates that the string is within limits;
 /// deserialization rejects strings that exceed either limit.
 ///

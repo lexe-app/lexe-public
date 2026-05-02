@@ -30,7 +30,7 @@ use lexe_api::{
         PreflightPayOfferResponse as PreflightPayOfferResponseRs,
         PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
         PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
-        UpdatePaymentNote as UpdatePaymentNoteRs,
+        UpdatePersonalNote as UpdatePersonalNoteRs,
     },
     types::{
         bounded_string::BoundedString,
@@ -282,7 +282,7 @@ pub struct PayOnchainRequest {
     pub address: String,
     pub amount_sats: u64,
     pub priority: ConfirmationPriority,
-    pub note: Option<String>,
+    pub personal_note: Option<String>,
 }
 
 impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
@@ -298,7 +298,7 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
             address,
             amount,
             priority: req.priority.into(),
-            note: req.note.map(validate_note).transpose()?,
+            personal_note: req.personal_note.map(validate_note).transpose()?,
         })
     }
 }
@@ -401,7 +401,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
                 .transpose()?,
             description: value.description,
             description_hash: None,
-            payer_note: None,
+            message: None,
             partner_pk: None,
             partner_prop_fee: None,
             partner_base_fee: None,
@@ -430,8 +430,8 @@ impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
 pub struct PayInvoiceRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
-    pub note: Option<String>,
-    pub payer_note: Option<String>,
+    pub message: Option<String>,
+    pub personal_note: Option<String>,
 }
 
 impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
@@ -454,8 +454,11 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
         Ok(Self {
             invoice,
             fallback_amount,
-            note: value.note.map(validate_note).transpose()?,
-            payer_note: value.payer_note.map(validate_note).transpose()?,
+            message: value.message.map(validate_note).transpose()?,
+            personal_note: value
+                .personal_note
+                .map(validate_note)
+                .transpose()?,
         })
     }
 }
@@ -632,8 +635,8 @@ pub struct PayOfferRequest {
     pub cid: ClientPaymentId,
     pub offer: String,
     pub amount_sats: u64,
-    pub note: Option<String>,
-    pub payer_note: Option<String>,
+    pub message: Option<String>,
+    pub personal_note: Option<String>,
 }
 
 impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
@@ -644,8 +647,11 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
             offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
             amount: Amount::try_from_sats_u64(value.amount_sats)?,
-            note: value.note.map(validate_note).transpose()?,
-            payer_note: value.payer_note.map(validate_note).transpose()?,
+            message: value.message.map(validate_note).transpose()?,
+            personal_note: value
+                .personal_note
+                .map(validate_note)
+                .transpose()?,
         })
     }
 }
@@ -674,20 +680,23 @@ impl PayOfferResponse {
     }
 }
 
-/// See `lexe_common::api::user::UpdatePaymentNote`.
+/// See `lexe_common::api::user::UpdatePersonalNote`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct UpdatePaymentNote {
+pub struct UpdatePersonalNote {
     pub index: PaymentCreatedIndex,
-    pub note: Option<String>,
+    pub personal_note: Option<String>,
 }
 
-impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
+impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRs {
     type Error = anyhow::Error;
-    fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
+    fn try_from(value: UpdatePersonalNote) -> Result<Self, Self::Error> {
         Ok(Self {
             index: PaymentCreatedIndexRs::try_from(value.index)?,
-            note: value.note.map(validate_note).transpose()?,
+            personal_note: value
+                .personal_note
+                .map(validate_note)
+                .transpose()?,
         })
     }
 }

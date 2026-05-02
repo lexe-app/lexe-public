@@ -175,11 +175,11 @@ pub struct PayRequest {
     /// - LNURL recipients whose wallets accept LUD-12 comments
     /// - Lightning Addresses to a wallet that accepts LUD-12 comments
     ///
-    /// If the payable doesn't support payer notes; this note will be ignored.
+    /// If the payable doesn't support messages, this will be ignored.
     ///
     /// If provided, it must be non-empty and no longer than 200 chars / 512
     /// UTF-8 bytes.
-    pub payer_note: Option<String>,
+    pub message: Option<String>,
 
     /// An optional personal note for this payment.
     ///
@@ -187,7 +187,7 @@ pub struct PayRequest {
     ///
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
-    pub note: Option<String>,
+    pub personal_note: Option<String>,
 }
 
 /// The response to a general pay request.
@@ -301,7 +301,7 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
             description: req.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
-            payer_note: None,
+            message: None,
             partner_pk: req.partner_pk.map(|pk| pk.unstable()),
             partner_prop_fee: req.partner_prop_fee,
             partner_base_fee: req.partner_base_fee,
@@ -321,7 +321,7 @@ pub struct PayInvoiceRequest {
     /// The receiver will not see this note.
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
-    pub note: Option<String>,
+    pub personal_note: Option<String>,
 }
 
 impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
@@ -331,12 +331,12 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
         Ok(Self {
             invoice: req.invoice,
             fallback_amount: req.fallback_amount,
-            note: req
-                .note
+            message: None,
+            personal_note: req
+                .personal_note
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid personal note")?,
-            payer_note: None,
         })
     }
 }
@@ -408,15 +408,15 @@ pub struct PayOfferRequest {
     /// The amount we will pay. If the offer specifies a minimum amount,
     /// this value must satisfy that minimum.
     pub amount: Amount,
+    /// An optional message (sent as a BOLT 12 `payer_note`) included with the
+    /// invoice request and visible to the recipient. If provided, it must be
+    /// non-empty and no longer than 200 chars / 512 UTF-8 bytes.
+    pub message: Option<String>,
     /// An optional personal note for this payment.
     /// The receiver will not see this note.
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
-    pub note: Option<String>,
-    /// An optional note that is included in the BOLT 12 invoice request and
-    /// visible to the recipient. If provided, it must be non-empty and no
-    /// longer than 200 chars / 512 UTF-8 bytes.
-    pub payer_note: Option<String>,
+    pub personal_note: Option<String>,
 }
 
 impl PayOfferRequest {
@@ -429,16 +429,16 @@ impl PayOfferRequest {
             cid,
             offer: self.offer,
             amount: self.amount,
-            note: self
-                .note
+            message: self
+                .message
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid message")?,
+            personal_note: self
+                .personal_note
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid personal note")?,
-            payer_note: self
-                .payer_note
-                .map(BoundedString::new)
-                .transpose()
-                .context("Invalid payer note")?,
         })
     }
 }
@@ -455,23 +455,25 @@ pub struct PayOfferResponse {
 /// A request to update the personal note on an existing payment.
 /// Pass `None` to clear the note.
 #[derive(Serialize, Deserialize)]
-pub struct UpdatePaymentNoteRequest {
+pub struct UpdatePersonalNoteRequest {
     /// Identifier for the payment to be updated.
     pub index: PaymentCreatedIndex,
     /// The updated note, or `None` to clear.
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
-    pub note: Option<String>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<String>,
 }
 
-impl TryFrom<UpdatePaymentNoteRequest> for command::UpdatePaymentNote {
+impl TryFrom<UpdatePersonalNoteRequest> for command::UpdatePersonalNote {
     type Error = anyhow::Error;
 
-    fn try_from(sdk: UpdatePaymentNoteRequest) -> anyhow::Result<Self> {
+    fn try_from(sdk: UpdatePersonalNoteRequest) -> anyhow::Result<Self> {
         Ok(Self {
             index: sdk.index,
-            note: sdk
-                .note
+            personal_note: sdk
+                .personal_note
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid note")?,

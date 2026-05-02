@@ -9,7 +9,7 @@ use lexe_api::{
         PayOfferRequest as PayOfferRequestRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
-        UpdatePaymentNote as UpdatePaymentNoteRs,
+        UpdatePersonalNote as UpdatePersonalNoteRs,
     },
     types::{
         Empty,
@@ -44,7 +44,7 @@ use crate::ffi::{
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdateClientRequest, UpdatePaymentNote,
+        PreflightPayOnchainResponse, UpdateClientRequest, UpdatePersonalNote,
     },
     app_data::AppDataDb,
     settings::SettingsDb,
@@ -500,16 +500,16 @@ impl AppHandle {
         self.inner.payments_db().num_finalized_not_junk()
     }
 
-    #[instrument(skip_all, name = "(update-payment-note)")]
-    pub async fn update_payment_note(
+    #[instrument(skip_all, name = "(update-personal-note)")]
+    pub async fn update_personal_note(
         &self,
-        req: UpdatePaymentNote,
+        req: UpdatePersonalNote,
     ) -> anyhow::Result<()> {
-        let req = UpdatePaymentNoteRs::try_from(req)?;
+        let req = UpdatePersonalNoteRs::try_from(req)?;
 
         self.inner
             .node_client()?
-            .update_payment_note(req)
+            .update_personal_note(req)
             .await
             .map(|Empty {}| ())
             .map_err(anyhow::Error::new)

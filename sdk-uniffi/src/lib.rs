@@ -34,7 +34,7 @@ use lexe::{
             PayOfferRequest as SdkPayOfferRequest,
             PayOfferResponse as SdkPayOfferResponse,
             PayRequest as SdkPayRequest, PayResponse as SdkPayResponse,
-            PayableDetails as SdkPayableDetails, UpdatePaymentNoteRequest,
+            PayableDetails as SdkPayableDetails, UpdatePersonalNoteRequest,
         },
         payment::Payment as SdkPayment,
         util::Ppm,
@@ -892,19 +892,19 @@ impl AsyncLexeWallet {
     /// `amount_sats` is required when the payable has no encoded amount. If
     /// both specify an amount, they must match. For LNURL payables, the
     /// amount must be within the receiver's [min_amount, max_amount] range.
-    /// `payer_note` is an optional message to the recipient (BOLT12, LNURL).
-    /// `note` is an optional personal note (not visible to recipient).
+    /// `message` is an optional message to the recipient (BOLT12, LNURL).
+    /// `personal_note` is an optional personal note (not visible to recipient).
     #[uniffi::method(default(
         amount_sats = None,
-        payer_note = None,
-        note = None,
+        message = None,
+        personal_note = None,
     ))]
     pub async fn pay(
         &self,
         payable: String,
         amount_sats: Option<u64>,
-        payer_note: Option<String>,
-        note: Option<String>,
+        message: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<PayResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
@@ -913,8 +913,8 @@ impl AsyncLexeWallet {
         let req = SdkPayRequest {
             payable,
             amount,
-            payer_note,
-            note,
+            message,
+            personal_note,
         };
         let resp = self.inner.pay(req).await?;
         Ok(resp.into())
@@ -980,18 +980,18 @@ impl AsyncLexeWallet {
 
     /// Pay a BOLT11 invoice.
     /// `fallback_amount_sats` is required if the invoice is amountless.
-    /// `note` is a private note that the receiver does not see.
-    /// If provided, `note` must be non-empty and at most 200 chars / 512
-    /// UTF-8 bytes.
+    /// `personal_note` is a private note that the receiver does not see.
+    /// If provided, `personal_note` must be non-empty and at most 200 chars /
+    /// 512 UTF-8 bytes.
     #[uniffi::method(default(
         fallback_amount_sats = None,
-        note = None,
+        personal_note = None,
     ))]
     pub async fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
-        note: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice =
             InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
@@ -1003,7 +1003,7 @@ impl AsyncLexeWallet {
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
-            note,
+            personal_note,
         };
         let resp = self.inner.pay_invoice(req).await?;
         Ok(resp.into())
@@ -1048,17 +1048,18 @@ impl AsyncLexeWallet {
     ///
     /// `offer` is the BOLT 12 offer string to pay.
     /// `amount_sats` is the amount to pay in satoshis.
-    /// `note` is a private note that the receiver does not see. If provided,
-    /// it must be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
-    /// `payer_note` is a note visible to the receiver. If provided, it must
+    /// `message` is a note visible to the receiver. If provided, it must
     /// be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
-    #[uniffi::method(default(note = None, payer_note = None))]
+    /// `personal_note` is a private note that the receiver does not see. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
+    /// bytes.
+    #[uniffi::method(default(message = None, personal_note = None))]
     pub async fn pay_offer(
         &self,
         offer: String,
         amount_sats: u64,
-        note: Option<String>,
-        payer_note: Option<String>,
+        message: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<PayOfferResponse> {
         let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
@@ -1067,8 +1068,8 @@ impl AsyncLexeWallet {
         let req = SdkPayOfferRequest {
             offer,
             amount,
-            note,
-            payer_note,
+            message,
+            personal_note,
         };
         let resp = self.inner.pay_offer(req).await?;
         Ok(resp.into())
@@ -1085,18 +1086,21 @@ impl AsyncLexeWallet {
         Ok(resp.payment.map(Into::into))
     }
 
-    /// Update a payment's note.
+    /// Update a payment's personal note.
     /// Call `sync_payments` first so the payment exists locally.
-    /// If `note` is `Some`, it must be non-empty and at most 200 chars /
-    /// 512 UTF-8 bytes.
-    pub async fn update_payment_note(
+    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
+    /// / 512 UTF-8 bytes.
+    pub async fn update_personal_note(
         &self,
         index: String,
-        note: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = UpdatePaymentNoteRequest { index, note };
-        self.inner.update_payment_note(req).await?;
+        let req = UpdatePersonalNoteRequest {
+            index,
+            personal_note,
+        };
+        self.inner.update_personal_note(req).await?;
         Ok(())
     }
 
@@ -1397,19 +1401,19 @@ impl BlockingLexeWallet {
     /// `amount_sats` is required when the payable has no encoded amount. If
     /// both specify an amount, they must match. For LNURL payables, the
     /// amount must be within the receiver's [min_amount, max_amount] range.
-    /// `payer_note` is an optional message to the recipient (BOLT12, LNURL).
-    /// `note` is an optional personal note (not visible to recipient).
+    /// `message` is an optional message to the recipient (BOLT12, LNURL).
+    /// `personal_note` is an optional personal note (not visible to recipient).
     #[uniffi::method(default(
         amount_sats = None,
-        payer_note = None,
-        note = None,
+        message = None,
+        personal_note = None,
     ))]
     pub fn pay(
         &self,
         payable: String,
         amount_sats: Option<u64>,
-        payer_note: Option<String>,
-        note: Option<String>,
+        message: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<PayResponse> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
@@ -1418,8 +1422,8 @@ impl BlockingLexeWallet {
         let req = SdkPayRequest {
             payable,
             amount,
-            payer_note,
-            note,
+            message,
+            personal_note,
         };
         let resp = self.inner.pay(req)?;
         Ok(resp.into())
@@ -1485,18 +1489,18 @@ impl BlockingLexeWallet {
 
     /// Pay a BOLT11 invoice.
     /// `fallback_amount_sats` is required if the invoice is amountless.
-    /// `note` is a private note that the receiver does not see.
-    /// If provided, `note` must be non-empty and at most 200 chars / 512
-    /// UTF-8 bytes.
+    /// `personal_note` is a private note that the receiver does not see.
+    /// If provided, `personal_note` must be non-empty and at most 200 chars /
+    /// 512 UTF-8 bytes.
     #[uniffi::method(default(
         fallback_amount_sats = None,
-        note = None,
+        personal_note = None,
     ))]
     pub fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
-        note: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<PayInvoiceResponse> {
         let invoice =
             InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
@@ -1508,7 +1512,7 @@ impl BlockingLexeWallet {
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
-            note,
+            personal_note,
         };
         let resp = self.inner.pay_invoice(req)?;
         Ok(resp.into())
@@ -1553,17 +1557,18 @@ impl BlockingLexeWallet {
     ///
     /// `offer` is the BOLT 12 offer string to pay.
     /// `amount_sats` is the amount to pay in satoshis.
-    /// `note` is a private note that the receiver does not see. If provided,
-    /// it must be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
-    /// `payer_note` is a note visible to the receiver. If provided, it must
+    /// `message` is a note visible to the receiver. If provided, it must
     /// be non-empty and no longer than 200 chars / 512 UTF-8 bytes.
-    #[uniffi::method(default(note = None, payer_note = None))]
+    /// `personal_note` is a private note that the receiver does not see. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
+    /// bytes.
+    #[uniffi::method(default(message = None, personal_note = None))]
     pub fn pay_offer(
         &self,
         offer: String,
         amount_sats: u64,
-        note: Option<String>,
-        payer_note: Option<String>,
+        message: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<PayOfferResponse> {
         let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
@@ -1572,8 +1577,8 @@ impl BlockingLexeWallet {
         let req = SdkPayOfferRequest {
             offer,
             amount,
-            note,
-            payer_note,
+            message,
+            personal_note,
         };
         let resp = self.inner.pay_offer(req)?;
         Ok(resp.into())
@@ -1589,16 +1594,19 @@ impl BlockingLexeWallet {
 
     /// Update a payment's note.
     /// Call `sync_payments` first so the payment exists locally.
-    /// If `note` is `Some`, it must be non-empty and at most 200 chars /
-    /// 512 UTF-8 bytes.
-    pub fn update_payment_note(
+    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
+    /// / 512 UTF-8 bytes.
+    pub fn update_personal_note(
         &self,
         index: String,
-        note: Option<String>,
+        personal_note: Option<String>,
     ) -> FfiResult<()> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = UpdatePaymentNoteRequest { index, note };
-        self.inner.update_payment_note(req)?;
+        let req = UpdatePersonalNoteRequest {
+            index,
+            personal_note,
+        };
+        self.inner.update_personal_note(req)?;
         Ok(())
     }
 
@@ -2008,17 +2016,17 @@ pub struct Payment {
     /// (Invoice payments only) The BOLT 11 invoice used in this payment.
     pub invoice: Option<Invoice>,
 
-    /// An optional personal note which a user can attach to any payment.
-    /// A note can always be added or modified when a payment already exists,
-    /// but this may not always be possible at creation time.
-    pub note: Option<String>,
-
     /// (Offer payments only) The payer's self-reported human-readable name.
     pub payer_name: Option<String>,
 
-    /// (Offer payments, LNURL-pay invoices) A payer-provided note for this
+    /// (Offer payments, LNURL-pay invoices) A payer-provided message for this
     /// payment.
-    pub payer_note: Option<String>,
+    pub message: Option<String>,
+
+    /// An optional personal note which a user can attach to any payment.
+    /// A personal note can always be added or modified when a payment already
+    /// exists, but this may not always be possible at creation time.
+    pub personal_note: Option<String>,
 
     /// (Onchain send only) The confirmation priority used for this payment.
     pub priority: Option<ConfirmationPriority>,
@@ -2063,9 +2071,9 @@ impl From<SdkPayment> for Payment {
             address,
             invoice,
             tx: _,
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority,
             expires_at,
             finalized_at,
@@ -2093,9 +2101,9 @@ impl From<SdkPayment> for Payment {
                 .as_ref()
                 .map(|a| a.assume_checked_ref().to_string()),
             invoice: invoice.as_ref().map(Invoice::from),
-            note,
             payer_name,
-            payer_note,
+            message,
+            personal_note,
             priority: priority.map(Into::into),
             expires_at_ms: expires_at.map(|t| t.to_millis()),
             finalized_at_ms: finalized_at.map(|t| t.to_millis()),

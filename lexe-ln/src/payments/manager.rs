@@ -9,7 +9,7 @@ use anyhow::{Context, anyhow, bail, ensure};
 use bdk_wallet::KeychainKind;
 use either::Either;
 use lexe_api::{
-    models::command::UpdatePaymentNote,
+    models::command::UpdatePersonalNote,
     types::{
         bounded_string::BoundedString,
         invoice::Invoice,
@@ -559,10 +559,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     }
 
     /// Attempt to update the personal note on a payment.
-    #[instrument(skip_all, name = "(update-payment-note)")]
-    pub async fn update_payment_note(
+    #[instrument(skip_all, name = "(update-personal-note)")]
+    pub async fn update_personal_note(
         &self,
-        update: UpdatePaymentNote,
+        update: UpdatePersonalNote,
     ) -> anyhow::Result<()> {
         let id = update.index.id;
         info!(%id, "Updating payment note");
@@ -570,7 +570,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // TODO(max): During the payments v2 logic migration, we have to hold
         // the lock for consistency. Once we move to payments v2 persistence,
-        // this method should not exist; the `update_payment_note` API handler
+        // this method should not exist; the `update_personal_note` API handler
         // should call into the `PaymentMetadataManager` which manages all
         // payment metadata reads/writes.
         //
@@ -584,7 +584,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .await
             .context("Could not get payment to update note")?
             .context("Payment not found")?;
-        pwm.metadata.note = update.note.map(BoundedString::into_inner);
+        pwm.metadata.personal_note =
+            update.personal_note.map(BoundedString::into_inner);
 
         // Persist
         let persisted = self
@@ -1929,9 +1930,9 @@ mod test {
                 claim_id: iorp.claim_id,
                 offer_id: iorp.offer_id,
                 offer: None,
-                quantity: None,
-                payer_note: None,
                 payer_name: None,
+                message: None,
+                quantity: None,
             });
 
             // NOTE: New payment duplicate check moved to manager/DB layer.

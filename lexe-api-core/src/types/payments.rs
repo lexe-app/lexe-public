@@ -191,6 +191,25 @@ pub struct BasicPaymentV2 {
 
     // --- Notes and sender/receiver identifiers --- //
     ///
+    /// (Offer payments only) The payer's self-reported human-readable name.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payer_name: Option<String>,
+
+    /// (Offer payments, LNURL-pay invoices) A payer-provided message for this
+    /// payment.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "payer_note", alias = "message")]
+    pub message: Option<String>,
+
     /// An optional personal note which a user can attach to any payment. A
     /// note can always be added or modified when a payment already exists,
     /// but this may not always be possible at creation time. These
@@ -219,24 +238,9 @@ pub struct BasicPaymentV2 {
         proptest(strategy = "arbitrary::any_option_string()")
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
-
-    /// (Offer payments only) The payer's self-reported human-readable name.
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_option_simple_string()")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payer_name: Option<String>,
-
-    /// (Offer payments, LNURL-pay invoices) A payer-provided note for this
-    /// payment.
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_option_simple_string()")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payer_note: Option<String>,
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<String>,
 
     // --- Other --- //
     ///
@@ -793,9 +797,9 @@ impl BasicPaymentV2 {
             invoice: v1.invoice,
             offer: v1.offer,
             tx: None,
-            note: v1.note,
             payer_name: None,
-            payer_note: None,
+            message: None,
+            personal_note: v1.note,
             priority: None,
             quantity: None,
             replacement_txid: v1.replacement,
@@ -859,9 +863,10 @@ impl BasicPaymentV2 {
     /// Returns the user's note or invoice description, prefering note over
     /// description.
     pub fn note_or_description(&self) -> Option<&str> {
-        let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
+        let maybe_personal_note =
+            self.personal_note.as_deref().filter(|s| !s.is_empty());
 
-        maybe_note.or_else(|| self.description())
+        maybe_personal_note.or_else(|| self.description())
     }
 
     /// Returns the invoice or offer description if present.
@@ -965,7 +970,7 @@ impl From<BasicPaymentV2> for BasicPaymentV1 {
             fees: v2.fee,
             status: v2.status,
             status_str: v2.status_str,
-            note: v2.note,
+            note: v2.personal_note,
             finalized_at: v2.finalized_at,
         }
     }

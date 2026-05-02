@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1855442256;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 108705469;
 
 // Section: executor
 
@@ -760,19 +760,19 @@ let api_username = <crate::ffi::types::Username>::sse_decode(&mut deserializer);
                     })().await)
                 } })
 }
-fn wire__crate__ffi__app__app_handle_update_payment_note_impl(
+fn wire__crate__ffi__app__app_handle_update_personal_note_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_update_payment_note", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_update_personal_note", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::api::UpdatePaymentNote>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::UpdatePersonalNote>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::update_payment_note(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::update_personal_note(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -2455,13 +2455,13 @@ impl SseDecode for crate::ffi::api::PayInvoiceRequest {
         let mut var_invoice = <String>::sse_decode(deserializer);
         let mut var_fallbackAmountSats =
             <Option<u64>>::sse_decode(deserializer);
-        let mut var_note = <Option<String>>::sse_decode(deserializer);
-        let mut var_payerNote = <Option<String>>::sse_decode(deserializer);
+        let mut var_message = <Option<String>>::sse_decode(deserializer);
+        let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::PayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
-            note: var_note,
-            payer_note: var_payerNote,
+            message: var_message,
+            personal_note: var_personalNote,
         };
     }
 }
@@ -2486,14 +2486,14 @@ impl SseDecode for crate::ffi::api::PayOfferRequest {
             <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
         let mut var_offer = <String>::sse_decode(deserializer);
         let mut var_amountSats = <u64>::sse_decode(deserializer);
-        let mut var_note = <Option<String>>::sse_decode(deserializer);
-        let mut var_payerNote = <Option<String>>::sse_decode(deserializer);
+        let mut var_message = <Option<String>>::sse_decode(deserializer);
+        let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::PayOfferRequest {
             cid: var_cid,
             offer: var_offer,
             amount_sats: var_amountSats,
-            note: var_note,
-            payer_note: var_payerNote,
+            message: var_message,
+            personal_note: var_personalNote,
         };
     }
 }
@@ -2520,13 +2520,13 @@ impl SseDecode for crate::ffi::api::PayOnchainRequest {
         let mut var_amountSats = <u64>::sse_decode(deserializer);
         let mut var_priority =
             <crate::ffi::types::ConfirmationPriority>::sse_decode(deserializer);
-        let mut var_note = <Option<String>>::sse_decode(deserializer);
+        let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::api::PayOnchainRequest {
             cid: var_cid,
             address: var_address,
             amount_sats: var_amountSats,
             priority: var_priority,
-            note: var_note,
+            personal_note: var_personalNote,
         };
     }
 }
@@ -2572,9 +2572,9 @@ impl SseDecode for crate::ffi::types::Payment {
             <crate::ffi::types::PaymentStatus>::sse_decode(deserializer);
         let mut var_statusStr = <String>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
-        let mut var_note = <Option<String>>::sse_decode(deserializer);
         let mut var_payerName = <Option<String>>::sse_decode(deserializer);
-        let mut var_payerNote = <Option<String>>::sse_decode(deserializer);
+        let mut var_message = <Option<String>>::sse_decode(deserializer);
+        let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_finalizedAt = <Option<i64>>::sse_decode(deserializer);
         return crate::ffi::types::Payment {
@@ -2593,9 +2593,9 @@ impl SseDecode for crate::ffi::types::Payment {
             status: var_status,
             status_str: var_statusStr,
             description: var_description,
-            note: var_note,
             payer_name: var_payerName,
-            payer_note: var_payerNote,
+            message: var_message,
+            personal_note: var_personalNote,
             created_at: var_createdAt,
             finalized_at: var_finalizedAt,
         };
@@ -2951,8 +2951,8 @@ impl SseDecode for crate::ffi::types::ShortPayment {
         let mut var_status =
             <crate::ffi::types::PaymentStatus>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
-        let mut var_note = <Option<String>>::sse_decode(deserializer);
-        let mut var_payerNote = <Option<String>>::sse_decode(deserializer);
+        let mut var_message = <Option<String>>::sse_decode(deserializer);
+        let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         return crate::ffi::types::ShortPayment {
             index: var_index,
@@ -2962,8 +2962,8 @@ impl SseDecode for crate::ffi::types::ShortPayment {
             fees_sats: var_feesSats,
             status: var_status,
             description: var_description,
-            note: var_note,
-            payer_note: var_payerNote,
+            message: var_message,
+            personal_note: var_personalNote,
             created_at: var_createdAt,
         };
     }
@@ -3047,17 +3047,17 @@ impl SseDecode for crate::ffi::api::UpdateClientRequest {
     }
 }
 
-impl SseDecode for crate::ffi::api::UpdatePaymentNote {
+impl SseDecode for crate::ffi::api::UpdatePersonalNote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_index =
             <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
-        let mut var_note = <Option<String>>::sse_decode(deserializer);
-        return crate::ffi::api::UpdatePaymentNote {
+        let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
+        return crate::ffi::api::UpdatePersonalNote {
             index: var_index,
-            note: var_note,
+            personal_note: var_personalNote,
         };
     }
 }
@@ -3151,7 +3151,7 @@ fn pde_ffi_dispatcher_primary_impl(
 45 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
 46 => wire__crate__ffi__app__app_handle_update_client_impl(port, ptr, rust_vec_len, data_len),
 47 => wire__crate__ffi__app__app_handle_update_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
-48 => wire__crate__ffi__app__app_handle_update_payment_note_impl(port, ptr, rust_vec_len, data_len),
+48 => wire__crate__ffi__app__app_handle_update_personal_note_impl(port, ptr, rust_vec_len, data_len),
 51 => wire__crate__ffi__types__config_validate_impl(port, ptr, rust_vec_len, data_len),
 56 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
 58 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
@@ -4065,8 +4065,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayInvoiceRequest {
         [
             self.invoice.into_into_dart().into_dart(),
             self.fallback_amount_sats.into_into_dart().into_dart(),
-            self.note.into_into_dart().into_dart(),
-            self.payer_note.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.personal_note.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4106,8 +4106,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOfferRequest {
             self.cid.into_into_dart().into_dart(),
             self.offer.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
-            self.note.into_into_dart().into_dart(),
-            self.payer_note.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.personal_note.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4148,7 +4148,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOnchainRequest {
             self.address.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
             self.priority.into_into_dart().into_dart(),
-            self.note.into_into_dart().into_dart(),
+            self.personal_note.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4204,9 +4204,9 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
             self.status.into_into_dart().into_dart(),
             self.status_str.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
-            self.note.into_into_dart().into_dart(),
             self.payer_name.into_into_dart().into_dart(),
-            self.payer_note.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.personal_note.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.finalized_at.into_into_dart().into_dart(),
         ]
@@ -4692,8 +4692,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::ShortPayment {
             self.fees_sats.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
-            self.note.into_into_dart().into_dart(),
-            self.payer_note.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.personal_note.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4732,23 +4732,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::UpdateClientRequest>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::api::UpdatePaymentNote {
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::UpdatePersonalNote {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.index.into_into_dart().into_dart(),
-            self.note.into_into_dart().into_dart(),
+            self.personal_note.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::UpdatePaymentNote
+    for crate::ffi::api::UpdatePersonalNote
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::UpdatePaymentNote>
-    for crate::ffi::api::UpdatePaymentNote
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::UpdatePersonalNote>
+    for crate::ffi::api::UpdatePersonalNote
 {
-    fn into_into_dart(self) -> crate::ffi::api::UpdatePaymentNote {
+    fn into_into_dart(self) -> crate::ffi::api::UpdatePersonalNote {
         self
     }
 }
@@ -5845,8 +5845,8 @@ impl SseEncode for crate::ffi::api::PayInvoiceRequest {
     ) {
         <String>::sse_encode(self.invoice, serializer);
         <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
-        <Option<String>>::sse_encode(self.note, serializer);
-        <Option<String>>::sse_encode(self.payer_note, serializer);
+        <Option<String>>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.personal_note, serializer);
     }
 }
 
@@ -5871,8 +5871,8 @@ impl SseEncode for crate::ffi::api::PayOfferRequest {
         <crate::ffi::types::ClientPaymentId>::sse_encode(self.cid, serializer);
         <String>::sse_encode(self.offer, serializer);
         <u64>::sse_encode(self.amount_sats, serializer);
-        <Option<String>>::sse_encode(self.note, serializer);
-        <Option<String>>::sse_encode(self.payer_note, serializer);
+        <Option<String>>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.personal_note, serializer);
     }
 }
 
@@ -5901,7 +5901,7 @@ impl SseEncode for crate::ffi::api::PayOnchainRequest {
             self.priority,
             serializer,
         );
-        <Option<String>>::sse_encode(self.note, serializer);
+        <Option<String>>::sse_encode(self.personal_note, serializer);
     }
 }
 
@@ -5947,9 +5947,9 @@ impl SseEncode for crate::ffi::types::Payment {
         <crate::ffi::types::PaymentStatus>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.status_str, serializer);
         <Option<String>>::sse_encode(self.description, serializer);
-        <Option<String>>::sse_encode(self.note, serializer);
         <Option<String>>::sse_encode(self.payer_name, serializer);
-        <Option<String>>::sse_encode(self.payer_note, serializer);
+        <Option<String>>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.personal_note, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <Option<i64>>::sse_encode(self.finalized_at, serializer);
     }
@@ -6271,8 +6271,8 @@ impl SseEncode for crate::ffi::types::ShortPayment {
         <u64>::sse_encode(self.fees_sats, serializer);
         <crate::ffi::types::PaymentStatus>::sse_encode(self.status, serializer);
         <Option<String>>::sse_encode(self.description, serializer);
-        <Option<String>>::sse_encode(self.note, serializer);
-        <Option<String>>::sse_encode(self.payer_note, serializer);
+        <Option<String>>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.personal_note, serializer);
         <i64>::sse_encode(self.created_at, serializer);
     }
 }
@@ -6369,7 +6369,7 @@ impl SseEncode for crate::ffi::api::UpdateClientRequest {
     }
 }
 
-impl SseEncode for crate::ffi::api::UpdatePaymentNote {
+impl SseEncode for crate::ffi::api::UpdatePersonalNote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -6378,7 +6378,7 @@ impl SseEncode for crate::ffi::api::UpdatePaymentNote {
         <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
             self.index, serializer,
         );
-        <Option<String>>::sse_encode(self.note, serializer);
+        <Option<String>>::sse_encode(self.personal_note, serializer);
     }
 }
 

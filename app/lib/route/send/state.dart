@@ -175,10 +175,10 @@ class SendState_NeedAmount implements SendState {
   };
 
   /// Using the current [PaymentMethod], preflight the payment with the given
-  /// amount. An optional [payerNote] can be sent to the recipient.
+  /// amount. An optional [message] can be sent to the recipient.
   Future<FfiResult<SendState_Preflighted>> preflight(
     final int amountSats, {
-    final String? payerNote,
+    final String? message,
   }) async {
     final paymentMethod = this.paymentMethod;
 
@@ -245,7 +245,7 @@ class SendState_NeedAmount implements SendState {
               offer: offer,
               amountSats: amountSats,
               preflight: ok,
-              payerNote: payerNote,
+              message: message,
             );
           case Err(:final err):
             return Err(err);
@@ -256,7 +256,7 @@ class SendState_NeedAmount implements SendState {
         final result = await this.paymentService.resolveLnurlPayRequest(
           req: lnurlPayRequest,
           amountMsats: amountSats * 1000,
-          comment: payerNote,
+          comment: message,
         );
 
         final Invoice invoice;
@@ -282,7 +282,7 @@ class SendState_NeedAmount implements SendState {
               invoice: invoice,
               amountSats: amountSats,
               preflight: ok,
-              payerNote: payerNote,
+              message: message,
               sendTo:
                   lnurlPayRequest.metadata.email ??
                   lnurlPayRequest.metadata.identifier,
@@ -328,7 +328,7 @@ class SendState_Preflighted implements SendState {
 
   /// The user is now confirming/sending this payment
   Future<FfiResult<SendFlowResult>> pay(
-    final String? note,
+    final String? personalNote,
     // Only used for Onchain
     final ConfirmationPriority? confPriority,
   ) async {
@@ -336,17 +336,23 @@ class SendState_Preflighted implements SendState {
     return switch (preflighted) {
       PreflightedPayment_Onchain() => await this.payOnchain(
         preflighted,
-        note,
+        personalNote,
         confPriority!,
       ),
-      PreflightedPayment_Invoice() => await this.payInvoice(preflighted, note),
-      PreflightedPayment_Offer() => await this.payOffer(preflighted, note),
+      PreflightedPayment_Invoice() => await this.payInvoice(
+        preflighted,
+        personalNote,
+      ),
+      PreflightedPayment_Offer() => await this.payOffer(
+        preflighted,
+        personalNote,
+      ),
     };
   }
 
   Future<FfiResult<SendFlowResult>> payOnchain(
     final PreflightedPayment_Onchain preflighted,
-    final String? note,
+    final String? personalNote,
     final ConfirmationPriority confPriority,
   ) async {
     final req = PayOnchainRequest(
@@ -354,7 +360,7 @@ class SendState_Preflighted implements SendState {
       address: preflighted.onchain.address,
       amountSats: preflighted.amountSats,
       priority: confPriority,
-      note: note,
+      personalNote: personalNote,
     );
 
     final preflight = preflighted.preflight;
@@ -373,7 +379,7 @@ class SendState_Preflighted implements SendState {
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
-          note: note,
+          personalNote: personalNote,
 
           // Choose some reasonable values until we can get these from the
           // response.
@@ -391,15 +397,15 @@ class SendState_Preflighted implements SendState {
 
   Future<FfiResult<SendFlowResult>> payInvoice(
     final PreflightedPayment_Invoice preflighted,
-    final String? note,
+    final String? personalNote,
   ) async {
     final req = PayInvoiceRequest(
       invoice: preflighted.invoice.string,
       fallbackAmountSats: (preflighted.invoice.amountSats == null)
           ? preflighted.amountSats
           : null,
-      note: note,
-      payerNote: preflighted.payerNote,
+      message: preflighted.message,
+      personalNote: personalNote,
     );
 
     final res = await this.paymentService.payInvoice(req: req);
@@ -413,7 +419,7 @@ class SendState_Preflighted implements SendState {
           statusStr: "syncing from node",
           invoice: preflighted.invoice,
           description: preflighted.invoice.description,
-          note: note,
+          personalNote: personalNote,
 
           // Choose some reasonable values until we can get these from the
           // response.
@@ -431,14 +437,14 @@ class SendState_Preflighted implements SendState {
 
   Future<FfiResult<SendFlowResult>> payOffer(
     final PreflightedPayment_Offer preflighted,
-    final String? note,
+    final String? personalNote,
   ) async {
     final req = PayOfferRequest(
       cid: this.cid,
       offer: preflighted.offer.string,
       amountSats: preflighted.amountSats,
-      note: note,
-      payerNote: preflighted.payerNote,
+      message: preflighted.message,
+      personalNote: personalNote,
     );
 
     final res = await this.paymentService.payOffer(req: req);
@@ -452,8 +458,8 @@ class SendState_Preflighted implements SendState {
           statusStr: "syncing from node",
           offer: preflighted.offer,
           description: preflighted.offer.description,
-          note: note,
-          payerNote: preflighted.payerNote,
+          message: preflighted.message,
+          personalNote: personalNote,
 
           // Choose some reasonable values until we can get these from the
           // response.
@@ -487,7 +493,7 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
     required this.invoice,
     required this.amountSats,
     required this.preflight,
-    this.payerNote,
+    this.message,
     this.sendTo,
   });
 
@@ -495,8 +501,8 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
   final int amountSats;
   final PreflightPayInvoiceResponse preflight;
 
-  /// Message sent to the recipient, stored locally as the note.
-  final String? payerNote;
+  /// Message sent to the recipient.
+  final String? message;
   final String? sendTo;
 
   @override
@@ -524,13 +530,13 @@ class PreflightedPayment_Offer implements PreflightedPayment {
     required this.offer,
     required this.amountSats,
     required this.preflight,
-    required this.payerNote,
+    required this.message,
   });
 
   final Offer offer;
   final int amountSats;
   final PreflightPayOfferResponse preflight;
-  final String? payerNote;
+  final String? message;
 
   @override
   PaymentKind kind() => const PaymentKind_Offer();

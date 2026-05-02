@@ -116,9 +116,9 @@ impl OnchainSendV2 {
             address,
             amount,
             priority,
-            note,
+            personal_note,
         } = req;
-        let note = note.map(BoundedString::into_inner);
+        let personal_note = personal_note.map(BoundedString::into_inner);
 
         let txid = Txid(tx.compute_txid());
         let os = Self {
@@ -139,9 +139,9 @@ impl OnchainSendV2 {
             address: Some(Arc::new(address)),
             invoice: None,
             offer: None,
-            note,
             payer_name: None,
-            payer_note: None,
+            message: None,
+            personal_note,
             priority: Some(priority),
             quantity: None,
             replacement_txid: None,

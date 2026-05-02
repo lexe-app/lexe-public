@@ -93,7 +93,7 @@ async fn handle_make_invoice(
         amount: Some(amount),
         description: params.description,
         description_hash,
-        payer_note: None,
+        message: None,
         partner_pk: None,
         partner_prop_fee: None,
         partner_base_fee: None,
