@@ -414,6 +414,11 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
 
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPaymentV2Rs`] type.
+///
+/// NOTE: If adding a new field here, also update:
+/// - `PaymentExt.copyWith` in `public/app_rs_dart/lib/ffi/types.ext.dart`
+/// - `paymentAllFields` in `public/app/test/payment_ext_test.dart`
+///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct Payment {
     pub index: PaymentCreatedIndex,
