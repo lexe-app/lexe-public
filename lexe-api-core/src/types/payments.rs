@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    cmp::Ordering,
     collections::HashSet,
     convert::Infallible,
     fmt::{self, Display},
@@ -906,52 +905,6 @@ impl BasicPaymentV2 {
 
 // --- impl BasicPaymentV1 --- //
 
-impl BasicPaymentV1 {
-    pub fn index(&self) -> &PaymentCreatedIndex {
-        &self.index
-    }
-    pub fn created_at(&self) -> TimestampMs {
-        self.index.created_at
-    }
-    pub fn payment_id(&self) -> PaymentId {
-        self.index.id
-    }
-    pub fn is_pending(&self) -> bool {
-        use PaymentStatus::*;
-        match self.status {
-            Pending => true,
-            Completed | Failed => false,
-        }
-    }
-    pub fn is_finalized(&self) -> bool {
-        !self.is_pending()
-    }
-    pub fn is_pending_not_junk(&self) -> bool {
-        self.is_pending() && !self.is_junk()
-    }
-    pub fn is_finalized_not_junk(&self) -> bool {
-        self.is_finalized() && !self.is_junk()
-    }
-    pub fn is_junk(&self) -> bool {
-        self.status != PaymentStatus::Completed
-            && self.rail == PaymentRail::Invoice
-            && self.direction == PaymentDirection::Inbound
-            && (self.amount.is_none() || self.note_or_description().is_none())
-    }
-    pub fn note_or_description(&self) -> Option<&str> {
-        let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
-        maybe_note.or_else(|| self.description())
-    }
-
-    /// Returns the invoice or offer description if present.
-    pub fn description(&self) -> Option<&str> {
-        self.invoice
-            .as_deref()
-            .and_then(Invoice::description_str)
-            .or_else(|| self.offer.as_deref().and_then(Offer::description))
-    }
-}
-
 impl From<BasicPaymentV2> for BasicPaymentV1 {
     fn from(v2: BasicPaymentV2) -> Self {
         Self {
@@ -973,12 +926,6 @@ impl From<BasicPaymentV2> for BasicPaymentV1 {
             note: v2.personal_note,
             finalized_at: v2.finalized_at,
         }
-    }
-}
-
-impl PartialOrd for BasicPaymentV1 {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.index.partial_cmp(&other.index)
     }
 }
 
@@ -1767,7 +1714,7 @@ mod partner_fee_arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use std::fs;
+    use std::{cmp::Ordering, fs};
 
     use lexe_common::test_utils::{arbitrary, roundtrip, snapshot};
     use lexe_crypto::rng::FastRng;
