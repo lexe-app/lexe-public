@@ -2616,12 +2616,14 @@ name = "lexe-cli"
 version = "0.1.10"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap",
  "dotenvy",
  "lexe",
  "lexe-common",
  "serde",
  "serde_json",
+ "textwrap",
  "tokio",
  "tracing",
 ]

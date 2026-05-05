@@ -191,6 +191,7 @@ pub struct PayRequest {
 }
 
 /// The response to a general pay request.
+#[derive(Serialize)]
 pub struct PayResponse {
     /// Identifier for this outbound payment.
     pub index: PaymentCreatedIndex,

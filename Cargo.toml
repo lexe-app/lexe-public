@@ -227,6 +227,8 @@ serde_with = { version = "3", default-features = false, features = ["macros"] }
 strum = { version = "0.26", features = ["derive"] }
 # Temporary files and directories
 tempfile = "3"
+# Text wrapping and indentation
+textwrap = { version = "0.16", default-features = false }
 # Easy error definition
 thiserror = "2"
 # Datetime library used by rcgen. Should match rcgen's `time` version

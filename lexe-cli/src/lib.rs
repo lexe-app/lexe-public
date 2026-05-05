@@ -4,6 +4,7 @@
 use std::{borrow::Cow, path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
+use chrono::DateTime;
 use clap::{Parser, Subcommand, ValueEnum};
 use lexe::{
     bip39::Mnemonic,
@@ -12,10 +13,11 @@ use lexe::{
         auth::{
             ClientCredentials, Credentials, CredentialsRef, RootSeed, UserPk,
         },
-        bitcoin::{Amount, Invoice, Offer},
+        bitcoin::{Amount, Invoice, Offer, PaymentMethod},
         command::{
-            CreateInvoiceRequest, CreateOfferRequest, GetPaymentRequest,
-            PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
+            AnalyzeRequest, CreateInvoiceRequest, CreateOfferRequest,
+            GetPaymentRequest, PayInvoiceRequest, PayOfferRequest, PayRequest,
+            PayResponse, PayableDetails, PaymentSyncSummary,
             UpdatePersonalNoteRequest,
         },
         payment::{Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus},
@@ -25,7 +27,10 @@ use lexe::{
 };
 use lexe_common::or_env::OrEnvExt;
 use serde::Serialize;
+use textwrap::wrap;
 use tracing::{info, warn};
+
+use crate::helpers::timestamp_ms_pretty;
 
 // --- Top-level args and command enum --- //
 
@@ -132,6 +137,8 @@ pub enum LexeCommand {
     Signup(SignupArgs),
     Provision(ProvisionArgs),
     NodeInfo(NodeInfoArgs),
+    Analyze(AnalyzeArgs),
+    Pay(PayArgs),
     CreateInvoice(CreateInvoiceArgs),
     PayInvoice(PayInvoiceArgs),
     CreateOffer(CreateOfferArgs),
@@ -257,6 +264,8 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::Signup(a) => a.run(&wallet, &credentials).await,
         LexeCommand::Provision(a) => a.run(&wallet, &credentials).await,
         LexeCommand::NodeInfo(a) => a.run(&wallet).await,
+        LexeCommand::Analyze(a) => a.run(&wallet).await,
+        LexeCommand::Pay(a) => a.run(&wallet).await,
         LexeCommand::CreateInvoice(a) => a.run(&wallet).await,
         LexeCommand::PayInvoice(a) => a.run(&wallet).await,
         LexeCommand::CreateOffer(a) => a.run(&wallet).await,
@@ -427,6 +436,232 @@ impl NodeInfoArgs {
             .await
             .context("Failed to get node info")?;
         helpers::print_json_pretty(&info)
+    }
+}
+
+// --- `analyze` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get information about a Bitcoin or Lightning payment string",
+    long_about = r#"
+Get information about a Bitcoin or Lightning payment string and its
+constituent payment methods (if any). Returned information includes the
+type of payment method used (invoice, offer, onchain, lnurl) and the amount
+constraints requested by the receiver.
+
+Also provides the specific payment string <payable> that can be used
+to pay via the associated payment method using
+  $ lexe pay <payable>
+  
+Payment methods are returned in order of most to least recommended."#,
+    help_template = HELP_TEMPLATE,
+)]
+pub struct AnalyzeArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+
+    /// The Bitcoin or Lightning payment string to analyze.
+    payable: String,
+}
+
+impl AnalyzeArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        /// Indent size to use in output formatting.
+        const TAB: &str = "    "; // 4
+        /// Text width to use for wrapping.
+        const TEXT_WIDTH: usize = 80;
+
+        let req = AnalyzeRequest {
+            payable: self.payable,
+        };
+        let resp = wallet.analyze(req).await?;
+
+        // JSON response
+        if self.json {
+            let mut json_payables = vec![];
+            for p in resp.payables {
+                let method = match p.method {
+                    PaymentMethod::Onchain(_) => "onchain",
+                    PaymentMethod::Invoice(_) => "invoice",
+                    PaymentMethod::Offer(_) => "offer",
+                    PaymentMethod::LnurlPayRequest(_) => "lnurl",
+                };
+                let json_payable = serde_json::json!({
+                    "payable": p.payable,
+                    "method": method,
+                    "description": p.description,
+                    "amount": p.amount,
+                    "min_amount": p.min_amount,
+                    "max_amount": p.max_amount,
+                    "expires_at": p.expires_at
+                });
+                json_payables.push(json_payable);
+            }
+            let json_resp = serde_json::json!({ "payables": json_payables });
+
+            return helpers::print_json_pretty(&json_resp);
+        }
+
+        // Human-readable response
+
+        let plural = if resp.payables.len() > 1 {
+            "s, from most to least recommended"
+        } else {
+            ""
+        };
+        println!("Found payable{plural}:");
+
+        // Output list formatting options
+        let list_bullet = format!("{TAB}- ");
+        let subsequent_indent = format!("{TAB}{TAB}");
+        let list_style_options = textwrap::Options::new(TEXT_WIDTH)
+            .initial_indent(&list_bullet)
+            .subsequent_indent(&subsequent_indent);
+
+        let mut recommended_hint = " (recommended)";
+        for payable_details in resp.payables.into_iter() {
+            let PayableDetails {
+                payable,
+                description,
+                method,
+                amount,
+                min_amount,
+                max_amount,
+                expires_at,
+            } = payable_details;
+            let method_name = match method {
+                PaymentMethod::Onchain(_) => "On-chain address",
+                PaymentMethod::Invoice(_) => "BOLT11 invoice",
+                PaymentMethod::Offer(_) => "BOLT12 offer",
+                PaymentMethod::LnurlPayRequest(_) => "Lightning Address",
+            };
+            let details_list: [Option<String>; 5] = [
+                description.map(|d| format!("description: {d}")),
+                amount.map(|a| format!("amount: {a} sats")),
+                min_amount.map(|a| format!("minimum amount: {a} sats")),
+                max_amount.map(|a| format!("maximum amount: {a} sats")),
+                expires_at.and_then(|t| {
+                    // If conversion fails, time was too large, so just omit
+                    timestamp_ms_pretty(t)
+                        .ok()
+                        .map(|s| format!("expiration date: {s}"))
+                }),
+            ];
+            let amount_hint = if amount.is_none() {
+                "--amount-sats <amount_sats>"
+            } else {
+                ""
+            };
+
+            println!("\n[ {method_name} ]{recommended_hint}");
+            for line in details_list.into_iter().flatten() {
+                let styled_line = wrap(&line, &list_style_options).join("\n");
+                println!("{styled_line}");
+            }
+            println!("\n{TAB}To pay this, run:");
+            // Don't wrap this to keep it copy/paste-able
+            println!("{TAB}$ lexe pay \"{payable}\" {amount_hint}");
+
+            recommended_hint = "";
+        }
+
+        anyhow::Ok(())
+    }
+}
+
+// --- `pay` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Pay a Bitcoin or Lightning payment string",
+    long_about = r#"
+Pay any string which encodes a Bitcoin or Lightning payment method.
+
+If there exist multiple encoded payment methods, one best recommended
+payment method will be chosen.
+
+For finer control over how to pay, consider first using
+  $ lexe analyze
+to resolve the contents of the payable string, then invoking the specific
+pay command for the payment method of choice:
+  $ lexe pay-offer ...
+  $ lexe pay-invoice ...
+etc."#,
+    help_template = HELP_TEMPLATE
+)]
+pub struct PayArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+
+    /// The string to be paid.
+    pub payable: String,
+
+    #[arg(
+        long,
+        help = "Amount in satoshis.\n\
+        Optional for payable string with encoded amounts."
+    )]
+    pub amount_sats: Option<Amount>,
+
+    #[arg(
+        long,
+        help = "Personal note stored locally, not visible to receiver.\n\
+        Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    personal_note: Option<String>,
+
+    #[arg(
+        long,
+        help = "Message sent to the receiver with the payment.\n\
+        \n\
+        Supported only if sending to BOLT 12 offers, HBAs pointing to offers,\n\
+        LNURL recipients whose wallets accept LUD-12 comments, and Lightning\n\
+        Addresses of wallets that accept LUD-12 comments.\n\
+        \n\
+        If the payable doesn't support payer notes, this note will be ignored.\n\
+        \n\
+        Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    message: Option<String>,
+}
+
+impl PayArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = PayRequest {
+            payable: self.payable,
+            amount: self.amount_sats,
+            message: self.message,
+            personal_note: self.personal_note,
+        };
+        let resp = wallet.pay(req).await?;
+
+        // Sync payments to persist the new payment locally.
+        if wallet.persistence_enabled() {
+            wallet
+                .sync_payments()
+                .await
+                .context("Payment sync failed")?;
+        }
+
+        // JSON response
+        if self.json {
+            info!("Sent payment!");
+            return helpers::print_json_pretty(&resp);
+        }
+
+        // Human-readable response
+        let PayResponse {
+            index,
+            created_at: _,
+        } = resp;
+        println!("Sent payment!");
+        // Don't wrap this to keep it copy/paste-able
+        println!("index: {index}");
+
+        anyhow::Ok(())
     }
 }
 
@@ -873,6 +1108,8 @@ impl ClearPaymentsArgs {
 
 /// Credential resolution and output formatting.
 mod helpers {
+    use lexe_common::time::TimestampMs;
+
     use super::*;
 
     /// Print a value as pretty JSON to stdout.
@@ -881,6 +1118,21 @@ mod helpers {
             .context("Failed to serialize to JSON")?;
         println!("{json}");
         Ok(())
+    }
+
+    /// Convert a [`TimestampMs`] to a formatted string
+    /// Loses millisecond precision (only displays up to seconds)
+    /// If conversion fails, timestamp was too big
+    pub fn timestamp_ms_pretty(
+        timestamp: TimestampMs,
+    ) -> anyhow::Result<String> {
+        i64::try_from(timestamp.to_millis())
+            .ok()
+            .and_then(DateTime::from_timestamp_millis)
+            .map(|dt| dt.with_timezone(&chrono::Local))
+            // 2026 December 01 22:49:32 UTC-08:30
+            .map(|dt| dt.format("%Y %B %d %T UTC%:z").to_string())
+            .context("Failed to convert timestamp to display string")
     }
 
     /// Resolve credentials from the provided args or the seedphrase file.

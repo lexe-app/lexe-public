@@ -8,6 +8,7 @@ version = "0.1.10"
 [[bin]]
 name = "lexe"
 path = "src/main.rs"
+doc = false
 
 [dependencies]
 
@@ -32,8 +33,10 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = [
     "std", "derive", "env", "error-context", "help", "usage",
 ] }
+chrono = { workspace = true }
 dotenvy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+textwrap = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
 tracing = { workspace = true }
