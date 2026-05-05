@@ -4335,7 +4335,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-sidecar"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "argh",
