@@ -163,7 +163,7 @@ class _EditHumanBitcoinAddressPageState
           const HeadingText(text: "Update your username"),
           const SubheadingText(
             text:
-                "Receive money into your wallet instantly with only your Human Bitcoin address.",
+                "Receive money into your wallet instantly with only your Human Bitcoin Address.",
           ),
           const SizedBox(height: Space.s600),
 
@@ -260,7 +260,7 @@ class HbaSuccessPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Human Bitcoin address",
+                  "Human Bitcoin Address",
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
                     color: LxColors.grey600,
