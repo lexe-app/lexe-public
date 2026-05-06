@@ -189,6 +189,7 @@ pub(super) async fn open_channel(
 
     // Open the channel and wait for `ChannelPending`.
     let is_jit_channel = false;
+    let push_amount = None;
     lexe_ln::command::open_channel(
         channel_manager,
         channel_events_bus,
@@ -199,6 +200,7 @@ pub(super) async fn open_channel(
         lsp_node_pk,
         (*state.config).clone(),
         is_jit_channel,
+        push_amount,
     )
     .await
     .context("Failed to open channel")

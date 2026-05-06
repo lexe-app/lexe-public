@@ -172,7 +172,7 @@ async fn do_handle_event(
         Event::OpenChannelRequest {
             temporary_channel_id,
             counterparty_node_id,
-            funding_satoshis: _,
+            funding_satoshis,
             channel_negotiation_type,
             channel_type: _,
             is_announced: _,
@@ -180,13 +180,23 @@ async fn do_handle_event(
         } => {
             let handle_open_channel_request = || {
                 // TODO(phlip9): support splicing/dual-funded channels
-                match channel_negotiation_type {
-                    InboundChannelFunds::PushMsat(_) => (),
-                    InboundChannelFunds::DualFunded =>
-                        return Err(anyhow!(
-                            "We don't support dual-funded channels yet"
-                        )),
+                if matches!(
+                    channel_negotiation_type,
+                    InboundChannelFunds::DualFunded
+                ) {
+                    return Err(anyhow!(
+                        "We don't support dual-funded channels yet"
+                    ));
                 }
+
+                // For sole- LSP-funded channels, the LSP may push money
+                // directly to the user node on channel open.
+                let lsp_pushed = match channel_negotiation_type {
+                    InboundChannelFunds::PushMsat(m) => Amount::from_msat(m),
+                    // Dual-funded channels don't allow starting with funds
+                    // pushed to the other side, so always `push_msat=0`.
+                    InboundChannelFunds::DualFunded => Amount::ZERO,
+                };
 
                 // Only accept inbound channels from Lexe's LSP
                 let counterparty_node_pk = NodePk(counterparty_node_id);
@@ -216,7 +226,12 @@ async fn do_handle_event(
                         user_channel_id,
                         channel_config_override,
                     )
-                    .inspect(|_| info!("Accepted zeroconf channel from LSP"))
+                    .inspect(|_| {
+                        info!(
+                            value = funding_satoshis, %lsp_pushed,
+                            "Accepted 0conf channel from LSP",
+                        )
+                    })
                     .map_err(|e| anyhow!("accept inbound 0conf: {e:?}"))?;
 
                 Ok::<(), anyhow::Error>(())

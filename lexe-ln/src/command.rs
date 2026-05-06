@@ -306,6 +306,7 @@ pub async fn open_channel<CM, PS, F>(
     counterparty_node_pk: &NodePk,
     user_config: UserConfig,
     is_jit_channel: bool,
+    push_amount: Option<Amount>,
 ) -> anyhow::Result<OpenChannelResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -314,7 +315,7 @@ where
 {
     info!(
         %counterparty_node_pk, %user_channel_id,
-        %channel_value, %is_jit_channel,
+        %channel_value, ?push_amount, %is_jit_channel,
         "Opening channel"
     );
 
@@ -383,7 +384,7 @@ where
     let mut channel_events_rx = channel_events_bus.subscribe();
 
     // Tell LDK to start the open channel process.
-    let push_msat = 0; // No need for this yet
+    let push_msat = push_amount.map(|a| a.msat()).unwrap_or(0);
     let temp_channel_id =
         ChannelId::from(user_channel_id.derive_temporary_channel_id());
     channel_manager
