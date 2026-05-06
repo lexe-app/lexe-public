@@ -7,7 +7,6 @@ use anyhow::{Context, anyhow, ensure};
 use chrono::DateTime;
 use clap::{Parser, Subcommand, ValueEnum};
 use lexe::{
-    bip39::Mnemonic,
     config::{Network, WalletEnvConfig},
     types::{
         auth::{
@@ -1186,7 +1185,7 @@ mod helpers {
             let seed = RootSeed::from_str(&s).context("Invalid root seed")?;
             (Credentials::from(seed), direct_from_cli_or_env)
         } else if let Some(path) = &root_seed_path {
-            let seed = read_root_seed_file(path)?;
+            let seed = RootSeed::read_from_path_either(path.as_path())?;
             let source = Cow::Owned(path.display().to_string());
             (Credentials::from(seed), source)
         } else {
@@ -1224,25 +1223,5 @@ mod helpers {
         // info!("Lexe pubkey (user_pk): {user_pk}");
 
         Ok(credentials)
-    }
-
-    /// Read a root seed from a file containing either hex or mnemonic.
-    fn read_root_seed_file(path: &PathBuf) -> anyhow::Result<RootSeed> {
-        let contents = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-        let contents = contents.trim();
-
-        // Try hex first (64 hex chars = 32 bytes).
-        if contents.len() == 64
-            && contents.chars().all(|c| c.is_ascii_hexdigit())
-        {
-            return RootSeed::from_hex(contents)
-                .context("Failed to parse root seed hex");
-        }
-
-        // Fall back to mnemonic.
-        let mnemonic = Mnemonic::from_str(contents)
-            .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
-        RootSeed::from_mnemonic(mnemonic).context("Failed to parse mnemonic")
     }
 }

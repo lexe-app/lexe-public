@@ -75,14 +75,26 @@ impl<'a> CredentialsRef<'a> {
         self.to_unstable().user_pk().map(UserPk::from_unstable)
     }
 
-    /// Convert to the inner [`UnstableCredentialsRef`] used by
-    /// `lexe-node-client`.
-    pub(crate) fn to_unstable(self) -> UnstableCredentialsRef<'a> {
-        match self {
-            Self::RootSeed(root_seed) =>
-                UnstableCredentialsRef::RootSeed(root_seed.unstable()),
-            Self::ClientCredentials(cc) =>
-                UnstableCredentialsRef::ClientCredentials(cc.unstable()),
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Convert to the inner [`UnstableCredentialsRef`].
+            pub fn to_unstable(self) -> UnstableCredentialsRef<'a> {
+                match self {
+                    Self::RootSeed(root_seed) =>
+                        UnstableCredentialsRef::RootSeed(root_seed.unstable()),
+                    Self::ClientCredentials(cc) =>
+                        UnstableCredentialsRef::ClientCredentials(cc.unstable()),
+                }
+            }
+        } else {
+            pub(crate) fn to_unstable(self) -> UnstableCredentialsRef<'a> {
+                match self {
+                    Self::RootSeed(root_seed) =>
+                        UnstableCredentialsRef::RootSeed(root_seed.unstable()),
+                    Self::ClientCredentials(cc) =>
+                        UnstableCredentialsRef::ClientCredentials(cc.unstable()),
+                }
+            }
         }
     }
 }
@@ -245,6 +257,35 @@ impl RootSeed {
         UnstableRootSeed::password_decrypt(password, encrypted).map(Self)
     }
 
+    // --- Unstable functions --- //
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Read a root seed from a file containing either hex or mnemonic.
+            pub fn read_from_path_either(path: &Path) -> anyhow::Result<RootSeed> {
+                // Pull import here to avoid unused import & unused function
+                // based on cfg branch
+                use anyhow::anyhow;
+                let contents = std::fs::read_to_string(path)
+                    .with_context(|| format!("Failed to read {}", path.display()))?;
+                let contents = contents.trim();
+
+                // Try hex first (64 hex chars = 32 bytes).
+                if contents.len() == 64
+                    && contents.chars().all(|c| c.is_ascii_hexdigit())
+                {
+                    return RootSeed::from_hex(contents)
+                        .context("Failed to parse root seed hex");
+                }
+
+                // Fall back to mnemonic.
+                let mnemonic = Mnemonic::from_str(contents)
+                    .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
+                RootSeed::from_mnemonic(mnemonic).context("Failed to parse mnemonic")
+            }
+        }
+    }
+
     // --- Internal Escape Hatches --- //
 
     cfg_if::cfg_if! {
@@ -331,9 +372,18 @@ impl ClientCredentials {
         self.unstable().to_base64_blob()
     }
 
-    /// Access the inner [`UnstableClientCredentials`].
-    pub(crate) fn unstable(&self) -> &UnstableClientCredentials {
-        &self.0
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Access the inner [`UnstableClientCredentials`].
+            pub fn unstable(&self) -> &UnstableClientCredentials {
+                &self.0
+            }
+        } else {
+            /// Access the inner [`UnstableClientCredentials`].
+            pub(crate) fn unstable(&self) -> &UnstableClientCredentials {
+                &self.0
+            }
+        }
     }
 }
 

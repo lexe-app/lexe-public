@@ -2,7 +2,7 @@
 
 use std::{fmt, str::FromStr, sync::Arc};
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use base64::Engine;
 use lexe_api::auth::BearerAuthenticator;
 use lexe_common::{
@@ -14,15 +14,22 @@ use lexe_common::{
     env::DeployEnv,
     root_seed::RootSeed,
 };
+#[cfg(any(test, feature = "test-utils"))]
+use lexe_crypto::rng::FastRng;
 use lexe_crypto::{ed25519, rng::Crng};
+#[cfg(any(test, feature = "test-utils"))]
+use lexe_tls::shared_seed::certs::{
+    EphemeralIssuingCaCert, RevocableClientCert, RevocableIssuingCaCert,
+};
 use lexe_tls::{
     rustls, shared_seed,
     types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
 };
 #[cfg(any(test, feature = "test-utils"))]
-use proptest::{prelude::any, strategy::Strategy};
-#[cfg(any(test, feature = "test-utils"))]
-use proptest_derive::Arbitrary;
+use proptest::{
+    prelude::{Arbitrary, any},
+    strategy::{BoxedStrategy, Strategy},
+};
 use serde::{Deserialize, Serialize};
 
 /// Credentials used to authenticate with a Lexe user node.
@@ -48,16 +55,16 @@ pub enum CredentialsRef<'a> {
 /// Encoded as a base64 JSON blob for easy transport (e.g. via env var or
 /// config file).
 #[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary, Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq))]
 pub struct ClientCredentials {
     /// The user public key.
     ///
     /// Always `Some(_)` if the credentials were created by `node-v0.8.11+`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "any::<UserPk>().prop_map(Some)")
-    )]
+    // #[cfg_attr(
+    //     any(test, feature = "test-utils"),
+    //     proptest(strategy = "any::<UserPk>().prop_map(Some)")
+    // )]
     pub user_pk: Option<UserPk>,
     /// The base64 encoded long-lived connect token.
     pub lexe_auth_token: BearerAuthToken,
@@ -232,7 +239,65 @@ impl ClientCredentials {
             .context("String is not valid base64")?;
         let string =
             String::from_utf8(bytes).context("String is not valid UTF-8")?;
-        serde_json::from_str(&string).context("Failed to deserialize")
+        let cc = serde_json::from_str::<ClientCredentials>(&string)
+            .context("Failed to deserialize")?;
+
+        // Check that the deserialized ClientCredentials are well formed;
+        // ensure that private and public keys are consistent.
+        let rev_client_keypair = ed25519::KeyPair::deserialize_pkcs8_der(
+            cc.rev_client_key_der.as_bytes(),
+        )
+        .map_err(|_| anyhow!("Client key is invalid or corrupted"))?;
+        if rev_client_keypair.public_key() != &cc.client_pk {
+            return Err(anyhow!("Client key does not match client public key"));
+        }
+
+        Ok(cc)
+    }
+}
+
+/// Arbitrary ClientCredentials should be self-consistent
+#[cfg(any(test, feature = "test-utils"))]
+impl Arbitrary for ClientCredentials {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<ClientCredentials>;
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        let root_seed = any::<RootSeed>();
+        let rng = any::<FastRng>();
+        let auth_token = any::<BearerAuthToken>();
+        let has_user_pk = any::<bool>();
+
+        (root_seed, rng, auth_token, has_user_pk)
+            .prop_map(|(root_seed, mut rng, auth_token, has_user_pk)| {
+                // Derive intermediaries
+                let eph_ca_cert =
+                    EphemeralIssuingCaCert::from_root_seed(&root_seed);
+                let rev_ca_cert =
+                    RevocableIssuingCaCert::from_root_seed(&root_seed);
+                let rev_client_cert =
+                    RevocableClientCert::generate_from_rng(&mut rng);
+
+                // Derive fields
+                let user_pk = has_user_pk.then(|| root_seed.derive_user_pk());
+                let lexe_auth_token = auth_token;
+                let client_pk = rev_client_cert.public_key().to_owned();
+                let rev_client_key_der = rev_client_cert.serialize_key_der();
+                let rev_client_cert_der = rev_client_cert
+                    .serialize_der_ca_signed(&rev_ca_cert)
+                    .unwrap();
+                let eph_ca_cert_der =
+                    eph_ca_cert.serialize_der_self_signed().unwrap();
+
+                ClientCredentials {
+                    user_pk,
+                    lexe_auth_token,
+                    client_pk,
+                    rev_client_key_der,
+                    rev_client_cert_der,
+                    eph_ca_cert_der,
+                }
+            })
+            .boxed()
     }
 }
 
@@ -246,7 +311,7 @@ mod test {
     };
     use lexe_crypto::rng::FastRng;
     use lexe_tls::shared_seed::certs::{
-        EphemeralIssuingCaCert, RevocableClientCert, RevocableIssuingCaCert,
+        EphemeralIssuingCaCert, RevocableIssuingCaCert,
     };
     use proptest::{prelude::any, prop_assert_eq, proptest};
 

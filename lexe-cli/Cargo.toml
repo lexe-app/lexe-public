@@ -16,7 +16,7 @@ doc = false
 
 # NOTE: Try not to enable the `lexe` crate's `unstable` feature. If you really
 # need to do so, maybe that functionality should be exposed in the Rust SDK?
-lexe = { workspace = true }
+lexe = { workspace = true, features = ["unstable"] }
 lexe-common = { workspace = true }
 
 # --- WORKSPACE --- #
