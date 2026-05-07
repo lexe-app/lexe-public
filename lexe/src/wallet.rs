@@ -20,7 +20,7 @@ use lexe_common::{
         },
         user::NodePkProof,
     },
-    ln::priority::ConfirmationPriority,
+    ln::{amount::Amount, priority::ConfirmationPriority},
 };
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
@@ -959,16 +959,19 @@ impl LexeWallet {
     // Sync the encodings list with `analyze`
     #[instrument(skip_all, name = "(pay)")]
     pub async fn pay(&self, req: PayRequest) -> anyhow::Result<PayResponse> {
-        let payable = req.payable;
+        let PayRequest {
+            payable,
+            amount,
+            message,
+            personal_note,
+        } = req;
 
         // Validate note fields against Lexe's limits before any resolution
-        let message = req
-            .message
+        let message = message
             .map(BoundedString::new)
             .transpose()
             .context("Invalid message")?;
-        let personal_note = req
-            .personal_note
+        let personal_note = personal_note
             .map(BoundedString::new)
             .transpose()
             .context("Invalid personal note")?;
@@ -976,6 +979,19 @@ impl LexeWallet {
         // Parse the string
         let payment_uri = PaymentUri::parse(&payable)
             .context("Failed to parse payable string")?;
+
+        // Error messages tied to the method can appear unrelated to the og URI;
+        // "I analyzed LNURL, why is it talking about BOLT11 invoice?"
+        let uri_err_context = match &payment_uri {
+            PaymentUri::Bip321Uri(_) => "Failed to pay BIP321 URL",
+            PaymentUri::LightningUri(_) => "Failed to pay Lightning URI",
+            PaymentUri::Invoice(_) => "Failed to pay invoice",
+            PaymentUri::Offer(_) => "Failed to pay offer",
+            PaymentUri::Address(_) => "Failed to pay onchain address",
+            PaymentUri::EmailLikeAddress(_) =>
+                "Failed to pay HBA or Lightning Address",
+            PaymentUri::Lnurl(_) => "Failed to pay LNURL",
+        };
 
         // Resolve into best payment method
         let bip353_client = &self.bip353_client;
@@ -990,9 +1006,21 @@ impl LexeWallet {
         .await?;
 
         // Create and send the appropriate request
+        self.pay_inner(best_method, amount, message, personal_note)
+            .await
+            .context(uri_err_context)
+    }
+
+    async fn pay_inner(
+        &self,
+        best_method: PaymentMethod,
+        amount: Option<Amount>,
+        message: Option<BoundedString>,
+        personal_note: Option<BoundedString>,
+    ) -> anyhow::Result<PayResponse> {
         let (index, created_at) = match best_method {
             PaymentMethod::Invoice(invoice) => {
-                let fallback_amount = match (invoice.amount(), req.amount) {
+                let fallback_amount = match (invoice.amount(), amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(
                             "Given amount ({given} sats) doesn't match invoice \
@@ -1031,7 +1059,7 @@ impl LexeWallet {
                 (index, resp.created_at)
             }
             PaymentMethod::LnurlPayRequest(lnurl_req) => {
-                let amount = req.amount.context(
+                let amount = amount.context(
                     "A payment amount must be provided for LNURL payments",
                 )?;
                 let min_sendable = lnurl_req.min_sendable;
@@ -1092,7 +1120,8 @@ impl LexeWallet {
                     }
                 };
 
-                let invoice = lnurl_client
+                let invoice = self
+                    .lnurl_client
                     .resolve_pay_request(
                         &lnurl_req,
                         amount,
@@ -1118,7 +1147,7 @@ impl LexeWallet {
                 (index, resp.created_at)
             }
             PaymentMethod::Offer(offer) => {
-                let amount = match (offer.bip321_amount, req.amount) {
+                let amount = match (offer.bip321_amount, amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(
                             "Given amount ({given} sats) doesn't match bip321 \
@@ -1155,7 +1184,7 @@ impl LexeWallet {
                          The recipient will not see your message."
                     );
                 }
-                let amount = match (onchain.amount, req.amount) {
+                let amount = match (onchain.amount, amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(
                             "Given amount ({given} sats) doesn't match bip321 \
