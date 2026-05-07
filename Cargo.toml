@@ -124,7 +124,7 @@ axum = { version = "0.8", default-features = false, features = [
 # Make sure this tracks `bitcoin`'s version.
 base64 = "0.21"
 # Binary canonical serialization format
-bcs = "0.1"
+bcs = "0.2"
 # BDK (Bitcoin Dev Kit) libraries
 bdk_wallet = { version = "2", default-features = false, features = ["std"] }
 bdk_chain = { version = "0.23", default-features = false, features = ["std"] }
