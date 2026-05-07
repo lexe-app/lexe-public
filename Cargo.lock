@@ -4354,6 +4354,7 @@ dependencies = [
  "lexe-std",
  "lexe-tls-core",
  "lexe-tokio",
+ "percent-encoding",
  "quick_cache",
  "reqwest",
  "serde",

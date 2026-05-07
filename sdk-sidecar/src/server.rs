@@ -6,73 +6,80 @@ use std::{
 use anyhow::Context;
 use axum::{
     Router,
-    extract::{FromRequestParts, State},
+    extract::State,
     routing::{get, post},
 };
-use lexe::types::{
-    command::{
-        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse, NodeInfo,
-        PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-        PayOfferResponse,
+use lexe::{
+    config::WalletEnvConfig,
+    types::{
+        auth::Credentials,
+        command::{
+            AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+            GetPaymentResponse, NodeInfo, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayRequest as SdkPayRequest, PayResponse,
+            PayableDetails as SdkPayableDetails,
+        },
+        payment::Payment,
     },
-    payment::Payment,
+    wallet::LexeWallet,
 };
 use lexe_api::{
-    def::AppNodeRunApi,
     error::{SdkApiError, SdkErrorKind},
-    models::command::{
-        CreateInvoiceResponse as InternalCreateInvoiceResponse,
-        CreateOfferRequest as InternalCreateOfferRequest,
-        PayOfferRequest as InternalPayOfferRequest, PaymentIdStruct,
-    },
     server::{LxJson, extract::LxQuery},
-    types::{
-        bounded_string::BoundedString,
-        payments::{ClientPaymentId, PaymentCreatedIndex, PaymentId},
-    },
+    types::payments::PaymentCreatedIndex,
 };
-use lexe_common::env::DeployEnv;
 use lexe_crypto::ed25519;
-use lexe_node_client::{client::NodeClient, credentials::Credentials};
 use quick_cache::unsync;
 use tokio::sync::mpsc;
-use tracing::{instrument, warn};
+use tracing::{debug, instrument, warn};
 
 use crate::{
-    api::HealthCheckResponse,
-    extract::{CredentialsExtractor, NodeClientExtractor},
+    api::{AnalyzeResponse, HealthCheckResponse, PayRequest, PayableDetails},
+    extract::{
+        CredentialsExtractor, LexeWalletAndCredentialsExtractor,
+        LexeWalletExtractor,
+    },
     webhook::TrackRequest,
 };
 
 const CLIENT_CACHE_CAPACITY: usize = 64;
+/// A percent encoding set intended for use in HTTP query parameters.
+const HTTP_PERCENT_ENCODE_SET: percent_encoding::AsciiSet =
+    percent_encoding::NON_ALPHANUMERIC
+        .remove(b'-')
+        .remove(b'.')
+        .remove(b'_')
+        .remove(b'~');
 
 pub(crate) struct RouterState {
-    /// The default [`NodeClient`] and [`Credentials`] from env/CLI.
+    pub sidecar_url: String,
+    /// The default [`LexeWallet`] and [`Credentials`] from env/CLI.
     /// Used when no per-request credentials are provided.
-    pub default: Option<(NodeClient, Arc<Credentials>)>,
-    /// Caches `NodeClient`s by their `client_pk`.
-    pub client_cache: Mutex<unsync::Cache<ed25519::PublicKey, NodeClient>>,
-    pub deploy_env: DeployEnv,
-    pub gateway_url: Cow<'static, str>,
+    pub default: Option<(Arc<LexeWallet>, Arc<Credentials>)>,
+    /// Caches `LexeWallet`s by their `client_pk`.
+    // TODO(nicole): find a not-unstable key for wallets
+    pub wallet_cache: Mutex<unsync::Cache<ed25519::PublicKey, Arc<LexeWallet>>>,
+    pub wallet_env_config: WalletEnvConfig,
     /// Channel to send track requests to the webhook sender.
     pub webhook_tx: Option<mpsc::Sender<TrackRequest>>,
 }
 
 impl RouterState {
     pub fn new(
-        default: Option<(NodeClient, Arc<Credentials>)>,
-        deploy_env: DeployEnv,
-        gateway_url: Cow<'static, str>,
+        sidecar_url: String,
+        default: Option<(Arc<LexeWallet>, Arc<Credentials>)>,
+        wallet_env_config: WalletEnvConfig,
         webhook_tx: Option<mpsc::Sender<TrackRequest>>,
     ) -> Self {
-        let client_cache =
+        let wallet_cache =
             Mutex::new(unsync::Cache::new(CLIENT_CACHE_CAPACITY));
         Self {
+            sidecar_url,
             default,
-            client_cache,
-            deploy_env,
-            gateway_url,
+            wallet_cache,
+            wallet_env_config,
             webhook_tx,
         }
     }
@@ -86,6 +93,8 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         // v2
         .route("/v2/health", get(sidecar::health))
         .route("/v2/node/node_info", get(node::node_info))
+        .route("/v2/node/analyze", get(node::analyze))
+        .route("/v2/node/pay", post(node::pay))
         .route("/v2/node/create_invoice", post(node::create_invoice))
         .route("/v2/node/pay_invoice", post(node::pay_invoice))
         .route("/v2/node/create_offer", post(node::create_offer))
@@ -106,14 +115,10 @@ mod sidecar {
     #[instrument(skip_all, name = "(health)")]
     pub(crate) async fn health(
         state: State<Arc<RouterState>>,
-        mut parts: http::request::Parts,
+        CredentialsExtractor(maybe_credentials): CredentialsExtractor,
     ) -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
-        let maybe_credentials =
-            CredentialsExtractor::from_request_parts(&mut parts, &state)
-                .await?;
-
         let has_default = state.default.is_some();
-        let has_request_credentials = maybe_credentials.0.is_some();
+        let has_request_credentials = maybe_credentials.is_some();
 
         let status = if has_default || has_request_credentials {
             Cow::from("ok")
@@ -136,134 +141,186 @@ mod node {
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
         State(_): State<Arc<RouterState>>,
-        NodeClientExtractor { node_client, .. }: NodeClientExtractor,
+        LexeWalletExtractor(wallet): LexeWalletExtractor,
     ) -> Result<LxJson<NodeInfo>, SdkApiError> {
-        let info = node_client
-            .node_info()
-            .await
-            .map_err(SdkApiError::command)?;
-        Ok(LxJson(NodeInfo::from(info)))
+        let info = wallet.node_info().await.map_err(SdkApiError::command)?;
+        Ok(LxJson(info))
+    }
+
+    #[instrument(skip_all, name = "(analyze)")]
+    pub(crate) async fn analyze(
+        State(state): State<Arc<RouterState>>,
+        LexeWalletExtractor(wallet): LexeWalletExtractor,
+        LxQuery(req): LxQuery<AnalyzeRequest>,
+    ) -> Result<LxJson<AnalyzeResponse>, SdkApiError> {
+        let resp = wallet.analyze(req).await.map_err(SdkApiError::command)?;
+        let payables = resp
+            .payables
+            .into_iter()
+            .map(|details| {
+                let SdkPayableDetails {
+                    payable,
+                    method,
+                    description,
+                    amount,
+                    min_amount,
+                    max_amount,
+                    expires_at,
+                } = details;
+
+                // Construct callback
+                let sidecar_url = &state.sidecar_url;
+                let encoded = percent_encoding::utf8_percent_encode(
+                    &payable,
+                    &HTTP_PERCENT_ENCODE_SET,
+                );
+                let callback =
+                    format!("{sidecar_url}/v2/node/pay?payable={encoded}");
+
+                // Translate method
+                let kind = method.kind().to_string();
+
+                PayableDetails {
+                    callback,
+                    kind,
+                    payable,
+                    description,
+                    amount,
+                    min_amount,
+                    max_amount,
+                    expires_at,
+                }
+            })
+            .collect();
+
+        Ok(LxJson(AnalyzeResponse { payables }))
+    }
+
+    #[instrument(skip_all, name = "(pay)")]
+    pub(crate) async fn pay(
+        State(_): State<Arc<RouterState>>,
+        LxQuery(params): LxQuery<PayRequest>,
+        LexeWalletExtractor(wallet): LexeWalletExtractor,
+        LxJson(req): LxJson<Option<PayRequest>>,
+    ) -> Result<LxJson<PayResponse>, SdkApiError> {
+        // Ensure that query params and request body don't conflict
+        let merged = if let Some(pay_req) = req {
+            pay_req
+                .merge_no_dups(params)
+                .with_context(|| {
+                    "Pay request argument can be passed via the body or \
+                         through query parameters, but not both"
+                })
+                .map_err(SdkApiError::command)?
+        } else {
+            params
+        };
+
+        // Ensure we have a payable to pay
+        let payable = merged.payable.ok_or_else(|| {
+            SdkApiError::command(
+                "A payable string must be specified via the request body or \
+                 query parameters",
+            )
+        })?;
+
+        debug!(
+            ?payable,
+            ?merged.amount,
+            ?merged.message,
+            ?merged.personal_note,
+            "Merged pay request"
+        );
+
+        let req = SdkPayRequest {
+            payable,
+            amount: merged.amount,
+            message: merged.message,
+            personal_note: merged.personal_note,
+        };
+
+        let resp = wallet.pay(req).await.map_err(SdkApiError::command)?;
+
+        Ok(LxJson(resp))
     }
 
     #[instrument(skip_all, name = "(create-invoice)")]
     pub(crate) async fn create_invoice(
         State(state): State<Arc<RouterState>>,
-        NodeClientExtractor {
-            node_client,
+        LexeWalletAndCredentialsExtractor {
+            wallet,
             credentials,
-        }: NodeClientExtractor,
+        }: LexeWalletAndCredentialsExtractor,
         LxJson(req): LxJson<CreateInvoiceRequest>,
     ) -> Result<LxJson<CreateInvoiceResponse>, SdkApiError> {
-        let req = req.try_into().map_err(SdkApiError::command)?;
-        let InternalCreateInvoiceResponse {
-            invoice,
-            created_index: maybe_index,
-        } = node_client
+        let resp = wallet
             .create_invoice(req)
             .await
             .map_err(SdkApiError::command)?;
 
-        let index = maybe_index
-            .ok_or("Node out-of-date. Upgrade to node-v0.8.10 or later.")
-            .map_err(SdkApiError::command)?;
+        try_track_payment(&state, &wallet, credentials, resp.index);
 
-        try_track_payment(&state, &node_client, credentials, index);
-
-        Ok(LxJson(CreateInvoiceResponse::new(index, invoice)))
+        Ok(LxJson(resp))
     }
 
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub(crate) async fn pay_invoice(
         State(state): State<Arc<RouterState>>,
-        NodeClientExtractor {
-            node_client,
+        LexeWalletAndCredentialsExtractor {
+            wallet,
             credentials,
-        }: NodeClientExtractor,
+        }: LexeWalletAndCredentialsExtractor,
         LxJson(req): LxJson<PayInvoiceRequest>,
     ) -> Result<LxJson<PayInvoiceResponse>, SdkApiError> {
-        let id = req.invoice.payment_id();
-        let req = req.try_into().map_err(SdkApiError::command)?;
-        let created_at = node_client
+        let resp = wallet
             .pay_invoice(req)
             .await
-            .map_err(SdkApiError::command)?
-            .created_at;
+            .map_err(SdkApiError::command)?;
 
-        let index = PaymentCreatedIndex { id, created_at };
-        try_track_payment(&state, &node_client, credentials, index);
+        try_track_payment(&state, &wallet, credentials, resp.index);
 
-        Ok(LxJson(PayInvoiceResponse { index, created_at }))
+        Ok(LxJson(resp))
     }
 
     #[instrument(skip_all, name = "(create-offer)")]
     pub(crate) async fn create_offer(
         State(_): State<Arc<RouterState>>,
-        NodeClientExtractor { node_client, .. }: NodeClientExtractor,
+        LexeWalletExtractor(wallet): LexeWalletExtractor,
         LxJson(req): LxJson<CreateOfferRequest>,
     ) -> Result<LxJson<CreateOfferResponse>, SdkApiError> {
-        let req = InternalCreateOfferRequest::try_from(req)
-            .map_err(SdkApiError::command)?;
-        let resp = node_client
+        let resp = wallet
             .create_offer(req)
             .await
             .map_err(SdkApiError::command)?;
 
-        Ok(LxJson(CreateOfferResponse { offer: resp.offer }))
+        Ok(LxJson(resp))
     }
 
     #[instrument(skip_all, name = "(pay-offer)")]
     pub(crate) async fn pay_offer(
         State(state): State<Arc<RouterState>>,
-        NodeClientExtractor {
-            node_client,
+        LexeWalletAndCredentialsExtractor {
+            wallet,
             credentials,
-        }: NodeClientExtractor,
+        }: LexeWalletAndCredentialsExtractor,
         LxJson(req): LxJson<PayOfferRequest>,
     ) -> Result<LxJson<PayOfferResponse>, SdkApiError> {
-        let cid = ClientPaymentId::generate();
-        let id = PaymentId::OfferSend(cid);
+        let resp = wallet.pay_offer(req).await.map_err(SdkApiError::command)?;
 
-        // TODO(max): This boilerplate won't be needed once sdk-sidecar depends
-        // on `lexe` directly.
-        let internal_req = InternalPayOfferRequest {
-            cid,
-            offer: req.offer,
-            amount: req.amount,
-            message: req
-                .message
-                .map(BoundedString::new)
-                .transpose()
-                .context("Invalid message")
-                .map_err(SdkApiError::command)?,
-            personal_note: req
-                .personal_note
-                .map(BoundedString::new)
-                .transpose()
-                .context("Invalid personal note")
-                .map_err(SdkApiError::command)?,
-        };
+        try_track_payment(&state, &wallet, credentials, resp.index);
 
-        let created_at = node_client
-            .pay_offer(internal_req)
-            .await
-            .map_err(SdkApiError::command)?
-            .created_at;
-
-        let index = PaymentCreatedIndex { id, created_at };
-        try_track_payment(&state, &node_client, credentials, index);
-
-        Ok(LxJson(PayOfferResponse { index, created_at }))
+        Ok(LxJson(resp))
     }
 
     /// Legacy: Returns `{ "payment": null }` if not found.
     #[instrument(skip_all, name = "(get-payment-v1)")]
     pub(crate) async fn get_payment_v1(
         state: State<Arc<RouterState>>,
-        node_client: NodeClientExtractor,
+        wallet: LexeWalletExtractor,
         req: LxQuery<GetPaymentRequest>,
     ) -> Result<LxJson<GetPaymentResponse>, SdkApiError> {
         // Wraps the v2 logic to return `{ "payment": null }` if not found.
-        match get_payment(state, node_client, req).await {
+        match get_payment(state, wallet, req).await {
             Ok(LxJson(payment)) => Ok(LxJson(GetPaymentResponse {
                 payment: Some(payment),
             })),
@@ -286,23 +343,17 @@ mod node {
     #[instrument(skip_all, name = "(get-payment)")]
     pub(crate) async fn get_payment(
         State(_): State<Arc<RouterState>>,
-        NodeClientExtractor { node_client, .. }: NodeClientExtractor,
+        LexeWalletExtractor(wallet): LexeWalletExtractor,
         LxQuery(req): LxQuery<GetPaymentRequest>,
     ) -> Result<LxJson<Payment>, SdkApiError> {
-        let id = req.index.id;
-
-        let maybe_basic_payment = node_client
-            .get_payment_by_id(PaymentIdStruct { id })
+        let resp = wallet
+            .get_payment(req)
             .await
-            .map_err(SdkApiError::command)?
-            .maybe_payment;
-
-        let basic_payment = match maybe_basic_payment {
-            Some(p) => p,
-            None => return Err(SdkApiError::not_found("Payment not found")),
-        };
-
-        Ok(LxJson(Payment::from(basic_payment)))
+            .map_err(SdkApiError::command)?;
+        let payment = resp
+            .payment
+            .ok_or_else(|| SdkApiError::not_found("Payment not found"))?;
+        Ok(LxJson(payment))
     }
 
     /// Try to track a payment for webhook notifications.
@@ -310,13 +361,13 @@ mod node {
     /// No-op if webhooks are not configured.
     fn try_track_payment(
         state: &RouterState,
-        node_client: &NodeClient,
+        wallet: &LexeWallet,
         credentials: Arc<Credentials>,
         index: PaymentCreatedIndex,
     ) {
         let Some(tx) = &state.webhook_tx else { return };
 
-        let Some(user_pk) = node_client.user_pk() else {
+        let Some(user_pk) = wallet.node_client().user_pk() else {
             warn!(
                 "Webhook tracking unavailable: credentials created \
                  before node-v0.8.11 do not include user_pk"

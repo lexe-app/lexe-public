@@ -3,11 +3,8 @@
 use std::{env, net::SocketAddr, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
-use lexe_common::{
-    env::DeployEnv, ln::network::Network, or_env::OrEnvExt as _,
-    root_seed::RootSeed,
-};
-use lexe_node_client::credentials::ClientCredentials;
+use lexe::types::auth::{ClientCredentials, RootSeed};
+use lexe_common::{ln::network::Network, or_env::OrEnvExt as _};
 use tracing::{debug, info, warn};
 
 /// Lexe sidecar SDK CLI args
@@ -70,13 +67,14 @@ pub struct SidecarArgs {
     #[argh(option)]
     pub listen_addr: Option<SocketAddr>,
 
-    /// the target deploy environment. one of: `prod`, `staging`, `dev`.
-    /// (default=`prod`, env=`DEPLOY_ENVIRONMENT`)
-    #[argh(option, hidden_help)] // hide option until we support staging
-    pub deploy_env: Option<DeployEnv>,
+    /// the URL that clients use to connect to the sidecar;
+    /// used to construct the callback in `/analyze`
+    /// (default=http://<listen_addr>, env=`LEXE_SIDECAR_URL`)
+    #[argh(option)]
+    pub sidecar_url: Option<String>,
 
     /// the Bitcoin network to use. one of `mainnet`, `testnet3`, `regtest`.
-    /// (default=`mainnet`, env=`NETWORK`)
+    /// (default=`mainnet`, env=`LEXE_NETWORK`)
     #[argh(option, hidden_help)] // hide option until we support staging
     pub network: Option<Network>,
 
@@ -119,8 +117,8 @@ impl SidecarArgs {
         )?;
 
         self.listen_addr.or_env_mut("LISTEN_ADDR")?;
-        self.deploy_env.or_env_mut("DEPLOY_ENVIRONMENT")?;
-        self.network.or_env_mut("NETWORK")?;
+        self.sidecar_url.or_env_mut("LEXE_SIDECAR_URL")?;
+        self.network.or_env_mut("LEXE_NETWORK")?;
         self.webhook_url.or_env_mut("LEXE_WEBHOOK_URL")?;
         self.data_dir.or_env_mut("LEXE_DATA_DIR")?;
         Ok(())
@@ -185,7 +183,7 @@ impl SidecarArgs {
             }
             (Some(client_credentials), None) => {
                 info!(
-                    client_pk = %client_credentials.client_pk,
+                    client_pk = %client_credentials.unstable().client_pk,
                     "Client credentials already loaded"
                 );
                 Ok(())
@@ -193,7 +191,7 @@ impl SidecarArgs {
             (None, Some(path)) => {
                 let s = fs_ext::read_to_string(&path)?;
                 let client_credentials = ClientCredentials::from_str(s.trim())?;
-                let client_pk = &client_credentials.client_pk;
+                let client_pk = &client_credentials.unstable().client_pk;
                 info!(?path, %client_pk, "Client credentials loaded from path");
                 self.client_credentials = Some(client_credentials);
                 Ok(())

@@ -102,6 +102,7 @@ impl From<command::NodeInfo> for NodeInfo {
 /// A request to analyze the contents of a Bitcoin or Lightning payment string.
 /// Reveals all payment methods encoded in the string, and gives payment-related
 /// details on each. See [`PayableDetails`] for more info.
+#[derive(Serialize, Deserialize)]
 pub struct AnalyzeRequest {
     /// The Bitcoin or Lightning payment string to analyze.
     pub payable: String,
@@ -160,6 +161,7 @@ pub struct PayableDetails {
 ///
 /// If there exist multiple encoded payment methods, the best recommended
 /// payment method will be chosen.
+#[derive(Serialize, Deserialize)]
 pub struct PayRequest {
     /// The string we will pay.
     pub payable: String,
@@ -191,7 +193,7 @@ pub struct PayRequest {
 }
 
 /// The response to a general pay request.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PayResponse {
     /// Identifier for this outbound payment.
     pub index: PaymentCreatedIndex,

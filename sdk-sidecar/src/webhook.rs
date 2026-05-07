@@ -12,7 +12,10 @@ use std::{
     time::Duration,
 };
 
-use lexe::types::payment::Payment;
+use lexe::types::{
+    auth::{ClientCredentials, Credentials},
+    payment::Payment,
+};
 use lexe_api::{
     def::AppNodeRunApi,
     models::command::GetUpdatedPayments,
@@ -23,10 +26,7 @@ use lexe_api::{
 };
 use lexe_common::{api::user::UserPk, env::DeployEnv};
 use lexe_crypto::rng::SysRng;
-use lexe_node_client::{
-    client::{GatewayClient, NodeClient},
-    credentials::{ClientCredentials, Credentials},
-};
+use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_std::{Apply, backoff};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use reqwest::Url;
@@ -195,7 +195,9 @@ impl WebhookSender {
 
                 // Update the credentials to the latest given in case the
                 // user has rotated to a different client credential.
-                if state.inner.credentials.client_pk != client_creds.client_pk {
+                if state.inner.credentials.unstable().client_pk
+                    != client_creds.unstable().client_pk
+                {
                     state.inner.credentials = client_creds;
                     state.node_client = node_client;
                 }
@@ -408,8 +410,7 @@ impl WebhookSender {
 
         // Rebuild NodeClients from persisted credentials
         for (user_pk, persisted) in state.users {
-            let credentials =
-                Credentials::ClientCredentials(persisted.credentials.clone());
+            let credentials = Credentials::from(persisted.credentials.clone());
             let (client_creds, node_client) = match Self::build_node_client(
                 &credentials,
                 deploy_env,
@@ -457,7 +458,7 @@ impl WebhookSender {
             true, // use_sgx
             deploy_env,
             gateway_client,
-            credentials.as_ref(),
+            credentials.as_ref().to_unstable(),
         )?;
 
         Ok((client_creds.clone(), node_client))

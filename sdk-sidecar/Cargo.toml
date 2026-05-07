@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 # --- LEXE --- #
 
-lexe = { workspace = true }
+lexe = { workspace = true, features = ["unstable"] }
 lexe-api = { workspace = true }
 lexe-common = { workspace = true }
 lexe-crypto = { workspace = true }
@@ -33,6 +33,7 @@ axum = { workspace = true }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
+percent-encoding = { workspace = true }
 quick_cache = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

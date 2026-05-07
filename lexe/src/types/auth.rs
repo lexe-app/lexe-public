@@ -355,6 +355,7 @@ impl TryFrom<Mnemonic> for RootSeed {
 ///
 /// These are useful when you want node access without exposing the user's
 /// [`RootSeed`], which is irrevocable.
+#[cfg_attr(feature = "unstable", derive(Serialize, Deserialize))]
 #[derive(Clone)]
 pub struct ClientCredentials(UnstableClientCredentials);
 

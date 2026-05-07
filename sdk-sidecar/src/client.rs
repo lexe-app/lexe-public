@@ -1,9 +1,9 @@
 use lexe::types::{
     command::{
-        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse, NodeInfo,
-        PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-        PayOfferResponse,
+        AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+        GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferRequest, PayOfferResponse, PayResponse,
     },
     payment::Payment,
 };
@@ -13,7 +13,10 @@ use lexe_api::{
     types::Empty,
 };
 
-use crate::{api::HealthCheckResponse, def::UserSidecarApi};
+use crate::{
+    api::{AnalyzeResponse, HealthCheckResponse, PayRequest},
+    def::UserSidecarApi,
+};
 
 // TODO(max): Test all of these methods in smoketests.
 
@@ -51,6 +54,23 @@ impl UserSidecarApi for SidecarClient {
     async fn node_info(&self) -> Result<NodeInfo, SdkApiError> {
         let url = format!("{base}/v2/node/node_info", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn analyze(
+        &self,
+        req: &AnalyzeRequest,
+    ) -> Result<AnalyzeResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/analyze");
+        let http_req = self.rest.get(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn pay(&self, req: &PayRequest) -> Result<PayResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/pay");
+        let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 

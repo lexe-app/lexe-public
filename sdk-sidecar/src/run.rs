@@ -9,13 +9,11 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use lexe_api::server::LayerConfig;
-use lexe_common::{env::DeployEnv, ln::network::Network};
-use lexe_crypto::rng::SysRng;
-use lexe_node_client::{
-    client::{GatewayClient, NodeClient},
-    credentials::Credentials,
+use lexe::{
+    config::WalletEnvConfig, types::auth::Credentials, wallet::LexeWallet,
 };
+use lexe_api::server::{LayerConfig, build_server_url};
+use lexe_common::{env::DeployEnv, ln::network::Network};
 use lexe_tokio::{
     notify_once::NotifyOnce,
     task::{self, LxTask},
@@ -71,36 +69,28 @@ impl Sidecar {
             }
         };
 
-        let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
-        let deploy_env = args.deploy_env.unwrap_or(DeployEnv::Prod);
         let network = args.network.unwrap_or(Network::Mainnet);
-        info!(%deploy_env, %network);
-
+        let use_sgx = matches!(env::var("SGX").as_deref(), Ok("true"));
         let dev_gateway_url = env::var("DEV_GATEWAY_URL").ok().map(Cow::Owned);
-        let gateway_url = deploy_env.gateway_url(dev_gateway_url);
+        let wallet_env_config = match network {
+            Network::Mainnet => WalletEnvConfig::mainnet(),
+            Network::Regtest =>
+                WalletEnvConfig::regtest(use_sgx, dev_gateway_url.clone()),
+            Network::Testnet3 => WalletEnvConfig::testnet3(),
+            Network::Signet | Network::Testnet4 =>
+                return Err(anyhow!("{network} network is not supported.")),
+        };
 
         // Create the default node client if default credentials were provided.
         let default = match maybe_credentials {
             Some(credentials) => {
-                let gateway_client = GatewayClient::new(
-                    deploy_env,
-                    gateway_url.clone(),
-                    crate::USER_AGENT,
-                )
-                .context("Failed to create gateway client")?;
-
-                // does nothing b/c we don't provision
-                let use_sgx = true;
-                let node_client = NodeClient::new(
-                    &mut SysRng::new(),
-                    use_sgx,
-                    deploy_env,
-                    gateway_client,
+                let wallet = LexeWallet::without_db(
+                    wallet_env_config.clone(),
                     credentials.as_ref(),
                 )
-                .context("Failed to create node client")?;
+                .context("Failed to create wallet")?;
 
-                Some((node_client, Arc::new(credentials)))
+                Some((Arc::new(wallet), Arc::new(credentials)))
             }
             None => None,
         };
@@ -116,6 +106,8 @@ impl Sidecar {
             .context("Invalid webhook URL")?;
 
         // Create WebhookSender if webhook URL is configured
+        let deploy_env = wallet_env_config.wallet_env.deploy_env;
+        let gateway_url = deploy_env.gateway_url(dev_gateway_url);
         let webhook_tx = match webhook_url {
             Some(url) => {
                 let sidecar_dir =
@@ -124,7 +116,7 @@ impl Sidecar {
                     url,
                     sidecar_dir,
                     deploy_env,
-                    gateway_url: gateway_url.clone(),
+                    gateway_url,
                     shutdown: shutdown.clone(),
                 };
                 let (sender, tx) = WebhookSender::new(config);
@@ -134,13 +126,18 @@ impl Sidecar {
             None => None,
         };
 
+        let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
+        let maybe_tls_and_dns = None;
+        let maybe_dns = maybe_tls_and_dns.as_ref().map(|(_, dns)| *dns);
+        let sidecar_url = args
+            .sidecar_url
+            .unwrap_or_else(|| build_server_url(listen_addr, maybe_dns));
         let router_state = Arc::new(server::RouterState::new(
+            sidecar_url,
             default,
-            deploy_env,
-            gateway_url,
+            wallet_env_config,
             webhook_tx,
         ));
-        let maybe_tls_and_dns = None;
         const SERVER_SPAN_NAME: &str = "(server)";
         let (server_task, sidecar_url) = lexe_api::server::spawn_server_task(
             listen_addr,

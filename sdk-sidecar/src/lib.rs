@@ -181,5 +181,4 @@ mod webhook;
 pub use lexe;
 // Reexport types from internal crates that appear in the sidecar's public
 // API.
-pub use lexe_node_client::credentials::ClientCredentials;
 pub use lexe_tokio::notify_once::NotifyOnce;

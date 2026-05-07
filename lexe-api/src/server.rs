@@ -53,7 +53,7 @@ use axum::{
     Router, ServiceExt as AxumServiceExt,
     error_handling::HandleErrorLayer,
     extract::{
-        DefaultBodyLimit, FromRequest,
+        DefaultBodyLimit, FromRequest, OptionalFromRequest,
         rejection::{
             BytesRejection, JsonRejection, PathRejection, QueryRejection,
         },
@@ -499,9 +499,23 @@ impl<T: DeserializeOwned, S: Send + Sync> FromRequest<S> for LxJson<T> {
         state: &S,
     ) -> Result<Self, Self::Rejection> {
         // `axum::Json`'s from_request impl is fine but its rejection is not
-        axum::Json::from_request(req, state)
+        <axum::Json<T> as FromRequest<S>>::from_request(req, state)
             .await
             .map(|axum::Json(t)| Self(t))
+            .map_err(LxRejection::from)
+    }
+}
+
+impl<T: DeserializeOwned, S: Send + Sync> OptionalFromRequest<S> for LxJson<T> {
+    type Rejection = LxRejection;
+
+    async fn from_request(
+        req: http::Request<axum::body::Body>,
+        state: &S,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        <axum::Json<T> as OptionalFromRequest<S>>::from_request(req, state)
+            .await
+            .map(|opt| opt.map(|axum::Json(t)| Self(t)))
             .map_err(LxRejection::from)
     }
 }
