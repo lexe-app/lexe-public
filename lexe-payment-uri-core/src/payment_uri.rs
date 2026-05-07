@@ -102,35 +102,51 @@ impl PaymentUri {
         //     "lightning:lnbc1pvjlue..." or
         //     "lightning:lno1pqps7..." or ...
         if let Ok(uri) = Uri::parse(s) {
-            // ex: "bitcoin:bc1qfj..."
+            // "bitcoin:" with BIP 321 URI: "bitcoin:bc1qfj..."
             if Bip321Uri::matches_uri_scheme(uri.scheme) {
                 return Ok(Self::Bip321Uri(Bip321Uri::parse_uri(uri)));
             }
 
-            // ex: "lnurlp://domain.com/path"
+            // LNURL-Pay: "lnurlp://domain.com/path"
             if Lnurl::matches_lud17_uri_scheme(uri.scheme)?.is_some() {
                 return Lnurl::parse_lud17_uri(uri)
                     .map(Lnurl::into_owned)
                     .map(Self::Lnurl);
             }
 
-            // ex: "https://service.com?lightning=lnurl1dp68g..."
+            // LNURL as HTTP query param:
+            // "https://service.com?lightning=lnurl1dp68g..."
             if let Some(bech32) = Lnurl::matches_http_with_bech32_param(&uri) {
                 return Ok(Self::Lnurl(Lnurl::parse_bech32(&bech32)?));
             }
 
-            // ex: "lightning:lnurl1dp68g..."
+            // "lightning:" with bech32 LNURL: "lightning:lnurl1dp68g..."
             if let Some(bech32) =
                 Lnurl::matches_lightning_with_bech32_body(&uri)
             {
                 return Ok(Self::Lnurl(Lnurl::parse_bech32(&bech32)?));
             }
 
-            // NOTE: Goes *after* `Lnurl::matches_lightning_with_bech32_body`,
-            //       otherwise we'd never parse "lightning:lnurl1dp68g..."
+            // "lightning:" with Lightning Address or Human Bitcoin Address:
+            // - "lightning:chat+tag@bitcorn.io"
+            // - "lightning:₿max@lexe.app"
+            // - "lightning:%E2%82%BFmax@lexe.app"
+            if let Some((username, domain)) =
+                EmailLikeAddress::matches_lightning_uri(&uri)
+            {
+                return EmailLikeAddress::parse_from_parts(username, domain)
+                    .map(EmailLikeAddress::into_owned)
+                    .map(Self::EmailLikeAddress);
+            }
+
+            // "lightning:" with invoice or offer:
+            // - "lightning:lnbc1pvjlue..."
+            // - "lightning:lno1pqps7..."
             //
-            // ex: "lightning:lnbc1pvjlue..." or
-            //     "lightning:lno1pqps7..."
+            // NOTE: Must go *after* the other `lightning:`-matching clauses
+            //       above, since `LightningUri` matches *any* `lightning:`
+            //       scheme and would otherwise swallow LNURL bech32 bodies and
+            //       email-like addresses, producing an empty `LightningUri`.
             if LightningUri::matches_uri_scheme(uri.scheme) {
                 return Ok(Self::LightningUri(LightningUri::parse_uri(uri)));
             }
