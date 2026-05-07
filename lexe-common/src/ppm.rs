@@ -19,23 +19,28 @@
 //!
 //! ### Defining constants
 //!
-//! Use [`Ppm::new`](crate::ppm::Ppm::new) for compile-time validated constants:
+//! Use the [`ppm!`] macro for convenient compile-time validated constants:
 //!
 //! ```
-//! # use lexe_common::ppm::Ppm;
-//! const MY_FEE_RATE: Ppm = Ppm::new(3000); // 0.3%
+//! # use lexe_common::{ppm, ppm::Ppm};
+//! # use rust_decimal::Decimal;
+//! const A_FEE_RATE_PPM: Ppm = ppm!(3000); // 0.3%
+//! const B_FEE_RATE_PPM: Ppm = ppm!(0.3%); // 0.3%
+//! const C_FEE_RATE_DEC: Decimal = ppm!(3000).to_decimal(); // 0.3%
 //! ```
 //!
-//! ### Converting to a decimal rate
+//! ### Converting to a decimal rate or percentage
 //!
 //! [`Ppm::to_decimal`](crate::ppm::Ppm::to_decimal) returns a
-//! [`Decimal`](rust_decimal::Decimal) rate:
+//! [`Decimal`](rust_decimal::Decimal) rate, while
+//! [`Ppm::to_percent`](crate::ppm::Ppm::to_percent) returns a percentage:
 //!
 //! ```
-//! # use lexe_common::ppm::Ppm;
+//! # use lexe_common::{ppm, ppm::Ppm};
 //! # use lexe_common::dec;
-//! let rate = Ppm::new(5000).to_decimal(); // 0.5%
-//! assert_eq!(rate, dec!(0.005));
+//! let ppm = ppm!(5000);
+//! assert_eq!(ppm.to_decimal(), dec!(0.005));
+//! assert_eq!(ppm.to_percent(), dec!(0.5));
 //! ```
 
 use std::{fmt, ops::Mul, str::FromStr};
@@ -45,6 +50,24 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::{dec, ln::amount::Amount};
+
+/// A convenient, const-friendly way to build a [`Ppm`] from a ppm literal
+/// or percent literal.
+///
+/// Ex: `ppm!(1230)` -> `Ppm::new(1230)`
+/// Ex: `ppm!(0.123%)` -> `Ppm::new(1230)`
+#[macro_export]
+macro_rules! ppm {
+    ($whole:tt . $frac:tt %) => {
+        const { $crate::ppm::Ppm::const_from_percent($crate::dec!($whole . $frac)) }
+    };
+    ($whole:tt %) => {
+        const { $crate::ppm::Ppm::const_from_percent($crate::dec!($whole)) }
+    };
+    ($amount:expr) => {
+        const { $crate::ppm::Ppm::new($amount) }
+    }
+}
 
 /// Errors that can occur when constructing a [`Ppm`].
 #[derive(Debug, thiserror::Error)]
@@ -84,6 +107,84 @@ impl Ppm {
         Self(value)
     }
 
+    /// Construct a [`Ppm`] from a [`Decimal`] percentage value.
+    ///
+    /// # Panics
+    ///
+    /// Panics at compile time (in const context) or runtime if `pct` is
+    /// outside the valid range `[0.0000, 100.0000]`, or if it is not exactly
+    /// representable as a whole PPM value (e.g., `0.00001%`).
+    #[doc(hidden)]
+    pub const fn const_from_percent(pct: Decimal) -> Self {
+        // `scale + 2` == "move the decimal left 2 places" == `pct / 100.0`
+        let lo = pct.mantissa() as u32;
+        let mid = 0;
+        let hi = 0;
+        Self::const_from_decimal(Decimal::from_parts(
+            lo,
+            mid,
+            hi,
+            false,
+            pct.scale() + 2,
+        ))
+    }
+
+    /// Construct a [`Ppm`] from a [`Decimal`] value.
+    ///
+    /// # Panics
+    ///
+    /// Panics at compile time (in const context) or runtime if `dec` is
+    /// outside the valid range `[0.000000, 1.000000]` and is not exactly
+    /// representable as a PPM (e.g., `0.0000001` requires too much precision).
+    #[doc(hidden)]
+    const fn const_from_decimal(dec: Decimal) -> Self {
+        let scale = dec.scale();
+        // If scale <= 6, then `dec` has <= 6 digits after the decimal point
+        if scale <= 6 {
+            let exp = 6 - scale;
+            let base = 10_i128.pow(exp);
+            let ppm = dec.mantissa() * base;
+            Ppm::new(ppm as i32)
+        } else {
+            // `dec` has >6 digits after the decimal point (though the extra
+            // digits may be `0`)
+            let exp = scale - 6;
+            let base = 10_i128.pow(exp);
+            let mantissa = dec.mantissa();
+
+            // If there is a remainder, then `dec` has extra non-zero digits
+            // and so requires too much precision for a whole PPM repr
+            assert!(mantissa % base == 0);
+
+            let ppm = mantissa / base;
+            Ppm::new(ppm as i32)
+        }
+    }
+
+    /// Construct a [`Ppm`] from a [`Decimal`] value.
+    ///
+    /// The decimal is multiplied by 1_000_000 and rounded to the nearest
+    /// integer. For example, `0.005` (0.5%) becomes 5000 ppm.
+    ///
+    /// Returns an error if the input is negative or exceeds `1.0`.
+    pub fn try_from_decimal(rate: Decimal) -> Result<Self, Error> {
+        use rust_decimal::prelude::ToPrimitive;
+
+        let ppm_dec = (rate * dec!(1_000_000)).round();
+        let ppm_i32 = ppm_dec.to_i32().ok_or(Error::TooLarge)?;
+        Self::try_from_inner(ppm_i32)
+    }
+
+    /// Construct a [`Ppm`] from a [`Decimal`] percentage value.
+    ///
+    /// The decimal is multiplied by 10_000 and rounded to the nearest
+    /// integer. For example, `0.5` (0.5%) becomes 5000 ppm.
+    ///
+    /// Returns an error if the input is negative or exceeds `100.0` (100%).
+    pub fn try_from_percent(pct: Decimal) -> Result<Self, Error> {
+        Self::try_from_decimal(pct / dec!(100))
+    }
+
     /// Returns the ppm value as an `i32`.
     #[inline]
     pub const fn to_i32(self) -> i32 {
@@ -100,8 +201,28 @@ impl Ppm {
     ///
     /// For example, 5000 ppm becomes `0.005` (0.5%).
     #[inline]
-    pub fn to_decimal(self) -> Decimal {
-        Decimal::from(self.0) / dec!(1_000_000)
+    pub const fn to_decimal(self) -> Decimal {
+        // This is `Decimal::from(self.0) / dec!(1_000_000)` but works in a
+        // `const` context.
+        let lo = self.to_u32();
+        let mid = 0;
+        let hi = 0;
+        let negative = false;
+        let scale = 6;
+        Decimal::from_parts(lo, mid, hi, negative, scale)
+    }
+
+    /// Returns the ppm value as a [`Decimal`] percentage (ppm / 10_000).
+    ///
+    /// For example, 5000 ppm becomes `0.5` (0.5%).
+    #[inline]
+    pub const fn to_percent(self) -> Decimal {
+        let lo = self.to_u32();
+        let mid = 0;
+        let hi = 0;
+        let negative = false;
+        let scale = 4;
+        Decimal::from_parts(lo, mid, hi, negative, scale)
     }
 
     /// Checks bounds, returning [`Self`] if the value is valid.
@@ -253,6 +374,7 @@ mod test {
     use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
 
     use super::*;
+    use crate::ppm;
 
     #[test]
     fn const_construction() {
@@ -265,6 +387,26 @@ mod test {
     }
 
     #[test]
+    fn macros() {
+        assert_eq!(ppm!(0), Ppm::ZERO);
+        assert_eq!(ppm!(1230), Ppm::new(1230));
+        assert_eq!(ppm!(1_000_000), Ppm::new(1_000_000));
+
+        assert_eq!(ppm!(0%), Ppm::ZERO);
+        assert_eq!(ppm!(0.0%), Ppm::ZERO);
+        assert_eq!(ppm!(0.123%), Ppm::new(1230));
+        assert_eq!(ppm!(0.1230%), Ppm::new(1230));
+        assert_eq!(ppm!(0.12300%), Ppm::new(1230));
+        assert_eq!(ppm!(0.3%), Ppm::new(3000));
+        assert_eq!(ppm!(1%), Ppm::new(10_000));
+        assert_eq!(ppm!(1.0%), Ppm::new(10_000));
+        assert_eq!(ppm!(50%), Ppm::new(500_000));
+        assert_eq!(ppm!(100%), Ppm::MAX);
+        assert_eq!(ppm!(100.0%), Ppm::MAX);
+        assert_eq!(ppm!(0.0001%), Ppm::new(1));
+    }
+
+    #[test]
     fn to_decimal() {
         assert_eq!(Ppm::ZERO.to_decimal(), dec!(0));
         assert_eq!(Ppm::new(1).to_decimal(), dec!(0.000001));
@@ -272,6 +414,17 @@ mod test {
         assert_eq!(Ppm::new(10_000).to_decimal(), dec!(0.01));
         assert_eq!(Ppm::new(100_000).to_decimal(), dec!(0.1));
         assert_eq!(Ppm::MAX.to_decimal(), dec!(1));
+    }
+
+    #[test]
+    fn to_percent() {
+        assert_eq!(Ppm::ZERO.to_percent(), dec!(0));
+        assert_eq!(Ppm::new(1).to_percent(), dec!(0.0001));
+        assert_eq!(Ppm::new(1000).to_percent(), dec!(0.1));
+        assert_eq!(Ppm::new(3000).to_percent(), dec!(0.3));
+        assert_eq!(Ppm::new(10_000).to_percent(), dec!(1));
+        assert_eq!(Ppm::new(100_000).to_percent(), dec!(10));
+        assert_eq!(Ppm::MAX.to_percent(), dec!(100));
     }
 
     #[test]
@@ -384,8 +537,26 @@ mod test {
             prop_assert!(dec <= Decimal::ONE);
 
             // Roundtrip: Ppm -> Decimal -> Ppm
-            let roundtrip = Ppm::try_from(dec).unwrap();
-            prop_assert_eq!(ppm, roundtrip);
+            prop_assert_eq!(ppm, Ppm::try_from(dec).unwrap());
+            prop_assert_eq!(ppm, Ppm::try_from_decimal(dec).unwrap());
+            prop_assert_eq!(ppm, Ppm::const_from_decimal(dec));
+        });
+    }
+
+    #[test]
+    fn proptest_percent_roundtrip() {
+        proptest!(|(ppm in any::<Ppm>())| {
+            let pct = ppm.to_percent();
+
+            // Percent is in [0, 100]
+            prop_assert!(pct >= Decimal::ZERO);
+            prop_assert!(pct <= dec!(100));
+
+            // Roundtrip: Ppm -> percent -> Ppm
+            prop_assert_eq!(ppm, Ppm::try_from_percent(pct).unwrap());
+            prop_assert_eq!(ppm, Ppm::const_from_percent(pct));
+
+            prop_assert_eq!(pct, ppm.to_decimal() * dec!(100.0));
         });
     }
 }
