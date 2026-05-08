@@ -1012,7 +1012,7 @@ final class LxIcons {
   /// Docs icon (book)
   static const IconData docs = Symbols.menu_book_rounded;
 
-  /// Code symbol (SDK client)
+  /// Code symbol (client credentials)
   static const IconData sdk = Symbols.code_rounded;
 
   static const IconData warning = Symbols.warning_rounded;

@@ -589,7 +589,7 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
-  /// Called when "SDK client credentials" is pressed in the menu drawer.
+  /// Called when "Client credentials" is pressed in the menu drawer.
   void onClientsMenuPressed() {
     Navigator.of(this.context).push(
       MaterialPageRoute(
@@ -1271,7 +1271,7 @@ class WalletDrawer extends StatelessWidget {
                   onTap: this.onNodeInfoMenuPressed,
                 ),
                 DrawerListItem(
-                  title: "SDK clients",
+                  title: "Client credentials",
                   icon: LxIcons.sdk,
                   onTap: this.onClientsMenuPressed,
                 ),

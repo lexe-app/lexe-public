@@ -463,7 +463,8 @@ class MockAppHandle extends AppHandle {
       client: RevocableClient(
         pubkey:
             "7088af1fc12ab04ad6dd165bc3a3c5eb3062b411a2f55a166b0e400b390fe4db",
-        createdAt: 1747011336000,
+        createdAt: 1778155200000,
+        label: "bitcoinrouter.ai",
         scope: Scope.nodeConnect,
       ),
       credentials:
@@ -476,14 +477,14 @@ class MockAppHandle extends AppHandle {
     const Duration(milliseconds: 1000),
     () => <RevocableClient>[
       const RevocableClient(
-        createdAt: 1747095626000,
-        label: "SDK client 1",
+        createdAt: 1777939200000,
+        label: "bitcoinrouter.ai",
         pubkey:
             "d6f34a82bf64b68a28b2f0934d715271580afebc29a4b37bfd355999705f43ff",
         scope: Scope.nodeConnect,
       ),
       const RevocableClient(
-        createdAt: 1746095626000,
+        createdAt: 1775952000000,
         label: null,
         pubkey:
             "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",

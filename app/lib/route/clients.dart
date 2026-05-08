@@ -28,7 +28,7 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/clients.dart' show ClientsService;
 import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
 
-/// This page lets users add, edit, and revoke SDK client credentials.
+/// This page lets users add, edit, and revoke client credentials.
 class ClientsPage extends StatefulWidget {
   const ClientsPage({super.key, required this.app});
 
@@ -91,7 +91,7 @@ class _ClientsPageState extends State<ClientsPage> {
       context: this.context,
       future: fut,
       errorBuilder: (context, err) => AlertDialog(
-        title: const Text("Failed to revoke client"),
+        title: const Text("Failed to revoke client credentials"),
         content: Text(err.message),
         scrollable: true,
         actions: [
@@ -134,10 +134,10 @@ class _ClientsPageState extends State<ClientsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HeadingText(text: "Manage SDK clients"),
+                HeadingText(text: "Manage client credentials"),
                 SubheadingText(
                   text:
-                      "Add, edit, and revoke clients that can control your Lexe node with the Lexe SDK",
+                      "Create or revoke client credentials which have control over your Lexe wallet.",
                 ),
                 SizedBox(height: Space.s500),
               ],
@@ -154,7 +154,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   padding: const EdgeInsets.symmetric(vertical: Space.s500),
                   child: ErrorMessageSection(
                     ErrorMessage(
-                      title: "Failed to fetch clients",
+                      title: "Failed to fetch client credentials",
                       message: err.message,
                     ),
                   ),
@@ -184,7 +184,7 @@ class _ClientsPageState extends State<ClientsPage> {
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
           child: LxFilledButton.strong(
-            label: const Text("Create new client"),
+            label: const Text("Create credentials"),
             icon: const Icon(LxIcons.add),
             onTap: this.onCreatePressed,
           ),
@@ -222,9 +222,11 @@ class ClientListEntry extends StatelessWidget {
     final subtitle = "created: $createdAt\npublic key: ${client.pubkey}";
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: (label != null)
-          ? Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)
-          : null,
+      title: Text(
+        label ?? "(no label)",
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: IconButton(
         icon: const Icon(LxIcons.delete, weight: LxIcons.weightMedium),
@@ -282,7 +284,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
       case Err(:final err):
         error("create-client: error: ${err.message}");
         this.errorMessage.value = ErrorMessage(
-          title: "Failed to create client",
+          title: "Failed to create client credentials",
           message: err.message,
         );
     }
@@ -297,10 +299,10 @@ class _CreateClientPageState extends State<CreateClientPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Create new client"),
+          const HeadingText(text: "Create new credentials"),
           const SubheadingText(
             text:
-                "This client is tied to your Lexe node and can be used to send and receive payments with the Lexe SDK.",
+                "These credentials grant control over your Lexe wallet. Anyone holding them can send and receive payments.",
           ),
           const SizedBox(height: Space.s600),
 
