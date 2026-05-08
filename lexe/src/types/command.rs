@@ -107,6 +107,15 @@ pub struct AnalyzeRequest {
     pub payable: String,
 }
 
+/// The response to a string analysis request.
+pub struct AnalyzeResponse {
+    // TODO: kind: PaymentUri
+    /// The valid payment routes encoded in the analyzed string, ordered
+    /// by most recommended payment route first, and least recommended payment
+    /// route last.
+    pub payables: Vec<PayableDetails>,
+}
+
 /// Describes basic information for a payable string.
 pub struct PayableDetails {
     /// The payable string encoding the payment method.
@@ -133,15 +142,6 @@ pub struct PayableDetails {
 
     /// The payable expiration time, in milliseconds since the UNIX epoch.
     pub expires_at: Option<TimestampMs>,
-}
-
-/// The response to a string analysis request.
-pub struct AnalyzeResponse {
-    // TODO: kind: PaymentUri
-    /// The valid payment routes encoded in the analyzed string, ordered
-    /// by most recommended payment route first, and least recommended payment
-    /// route last.
-    pub payables: Vec<PayableDetails>,
 }
 
 /// A catch-all request to pay a Bitcoin or Lightning payment string.
