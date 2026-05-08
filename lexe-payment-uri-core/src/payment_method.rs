@@ -38,6 +38,15 @@ impl PaymentMethod {
         matches!(self, Self::Offer(_))
     }
 
+    pub fn kind(&self) -> &'static str {
+        match self {
+            PaymentMethod::Onchain(_) => "onchain",
+            PaymentMethod::Invoice(_) => "invoice",
+            PaymentMethod::Offer(_) => "offer",
+            PaymentMethod::LnurlPayRequest(_) => "lnurl",
+        }
+    }
+
     pub fn supports_network(&self, network: Network) -> bool {
         match self {
             Self::Onchain(o) => o.supports_network(network),

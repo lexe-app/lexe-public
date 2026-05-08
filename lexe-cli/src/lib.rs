@@ -482,12 +482,7 @@ impl AnalyzeArgs {
         if self.json {
             let mut json_payables = vec![];
             for p in resp.payables {
-                let method = match p.method {
-                    PaymentMethod::Onchain(_) => "onchain",
-                    PaymentMethod::Invoice(_) => "invoice",
-                    PaymentMethod::Offer(_) => "offer",
-                    PaymentMethod::LnurlPayRequest(_) => "lnurl",
-                };
+                let method = p.method.kind();
                 let json_payable = serde_json::json!({
                     "payable": p.payable,
                     "method": method,

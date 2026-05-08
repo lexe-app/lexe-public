@@ -20,7 +20,6 @@ use lexe::{
             CredentialsRef as SdkCredentialsRef, RootSeed as SdkRootSeed,
             UserPk,
         },
-        bitcoin::PaymentMethod,
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
             AnalyzeResponse as SdkAnalyzeResponse,
@@ -2170,16 +2169,9 @@ pub struct PayableDetails {
 
 impl From<SdkPayableDetails> for PayableDetails {
     fn from(resp: SdkPayableDetails) -> Self {
-        let method = match resp.method {
-            PaymentMethod::Onchain(_) => "onchain",
-            PaymentMethod::Invoice(_) => "invoice",
-            PaymentMethod::Offer(_) => "offer",
-            PaymentMethod::LnurlPayRequest(_) => "lnurl",
-        }
-        .to_owned();
         Self {
             payable: resp.payable,
-            method,
+            method: resp.method.kind().to_owned(),
             description: resp.description,
             amount_sats: resp.amount.map(|a| a.sats_u64()),
             min_amount_sats: resp.min_amount.map(|a| a.sats_u64()),
