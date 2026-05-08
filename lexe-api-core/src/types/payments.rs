@@ -733,7 +733,7 @@ pub struct PartnerFeeFields {
     /// The partner-chosen proportional fee.
     /// Values of [`None`] are currently not allowed.
     ///
-    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE_PPM`)
+    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE`)
     /// Maximum: 500,000 ppm (50%)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prop_fee: Option<Ppm>,

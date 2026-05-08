@@ -166,7 +166,7 @@ const fn channel_handshake_config() -> ChannelHandshakeConfig {
         commit_upfront_shutdown_pubkey: false,
         // See docs on the const
         their_channel_reserve_proportional_millionths:
-            constants::LSP_RESERVE_PROP_PPM,
+            constants::LSP_RESERVE_PROPORTION.to_u32(),
     }
 }
 

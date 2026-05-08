@@ -5,8 +5,8 @@ use anyhow::Context;
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::user::NodePk,
-    dec,
     ln::{addr::LxSocketAddress, amount::Amount},
+    ppm::Ppm,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -65,11 +65,11 @@ pub struct LspInfo {
     /// - For inbound payments, this fee is encoded in the invoice route hints
     ///   (as part of the `RoutingFees` struct)
     /// - Also used to estimate how much can be sent to another Lexe user.
-    pub lsp_usernode_prop_fee_ppm: u32,
+    pub lsp_usernode_prop_fee_ppm: Ppm,
 
     // -- LSP -> External fees -- //
     /// LSP's configured prop fee for forwarding over LSP -> External channels.
-    pub lsp_external_prop_fee_ppm: u32,
+    pub lsp_external_prop_fee_ppm: Ppm,
     /// LSP's configured base fee for forwarding over LSP -> External channels.
     pub lsp_external_base_fee_msat: u32,
 
@@ -116,17 +116,11 @@ impl LspInfo {
     pub fn lsp_fees(&self) -> LspFees {
         let lsp_usernode_base_fee =
             Amount::from_msat(u64::from(self.lsp_usernode_base_fee_msat));
-        let lsp_usernode_prop_fee =
-            Decimal::from(self.lsp_usernode_prop_fee_ppm)
-                .checked_div(dec!(1_000_000))
-                .expect("Can't overflow because divisor is > 1");
+        let lsp_usernode_prop_fee = self.lsp_usernode_prop_fee_ppm.to_decimal();
 
         let lsp_external_base_fee =
             Amount::from_msat(u64::from(self.lsp_external_base_fee_msat));
-        let lsp_external_prop_fee =
-            Decimal::from(self.lsp_external_prop_fee_ppm)
-                .checked_div(dec!(1_000_000))
-                .expect("Can't overflow because divisor is > 1");
+        let lsp_external_prop_fee = self.lsp_external_prop_fee_ppm.to_decimal();
 
         LspFees {
             lsp_usernode_base_fee,
@@ -141,7 +135,7 @@ impl LspInfo {
     pub fn dummy() -> Self {
         use std::net::Ipv6Addr;
 
-        use lexe_common::root_seed::RootSeed;
+        use lexe_common::{ppm, root_seed::RootSeed};
         use lexe_crypto::rng::FastRng;
 
         let mut rng = FastRng::from_u64(20230216);
@@ -155,9 +149,9 @@ impl LspInfo {
             node_pk,
             private_p2p_addr: addr,
             lsp_usernode_base_fee_msat: 0,
-            lsp_usernode_prop_fee_ppm: 4250,
+            lsp_usernode_prop_fee_ppm: ppm!(0.425%),
             lsp_external_base_fee_msat: 0,
-            lsp_external_prop_fee_ppm: 750,
+            lsp_external_prop_fee_ppm: ppm!(0.075%),
             cltv_expiry_delta: 72,
             htlc_minimum_msat: 1,
             htlc_maximum_msat: u64::MAX,

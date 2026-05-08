@@ -5,6 +5,8 @@ use lexe_api::cli::LspFees;
 use lexe_common::{
     dec,
     ln::{amount::Amount, balance::LightningBalance},
+    ppm,
+    ppm::Ppm,
 };
 use lexe_std::Apply;
 use lightning::ln::channel_state::ChannelDetails;
@@ -15,7 +17,7 @@ use crate::{alias::LexeChainMonitorType, traits::LexePersister};
 
 /// An estimate (in millionths) of the total proportional fees a Lexe user will
 /// pay when making an outbound Lightning payment to an unspecified receiver.
-pub const EST_OUTBOUND_TOTAL_PROP_FEE_PPM: u32 = 5000;
+pub const EST_OUTBOUND_TOTAL_PROP_FEE: Ppm = ppm!(0.50%);
 
 /// An estimate of the total base fees a Lexe user will pay when making an
 /// outbound Lightning payment over one shart of a MPP (or simply one path) to
@@ -31,8 +33,7 @@ pub fn all_channel_balances<PS: LexePersister>(
     channels: &[ChannelDetails],
     lsp_fees: LspFees,
 ) -> (LightningBalance, usize) {
-    let est_total_prop_feerate =
-        Decimal::from(EST_OUTBOUND_TOTAL_PROP_FEE_PPM) / dec!(1_000_000);
+    let est_total_prop_feerate = EST_OUTBOUND_TOTAL_PROP_FEE.to_decimal();
     let est_shard_base_fee =
         Amount::from_sats_u32(EST_OUTBOUND_SHARD_BASE_FEE_SAT);
 

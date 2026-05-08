@@ -296,6 +296,7 @@ impl From<Ppm> for u64 {
 impl TryFrom<i32> for Ppm {
     type Error = Error;
 
+    #[inline]
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         Self::try_from_inner(value)
     }
@@ -313,18 +314,9 @@ impl TryFrom<u32> for Ppm {
 impl TryFrom<Decimal> for Ppm {
     type Error = Error;
 
-    /// Construct a [`Ppm`] from a [`Decimal`] rate.
-    ///
-    /// The decimal is multiplied by 1_000_000 and rounded to the nearest
-    /// integer. For example, `0.005` (0.5%) becomes 5000 ppm.
-    ///
-    /// Returns an error if the result is negative or exceeds 1_000_000.
+    #[inline]
     fn try_from(rate: Decimal) -> Result<Self, Self::Error> {
-        use rust_decimal::prelude::ToPrimitive;
-
-        let ppm_dec = (rate * dec!(1_000_000)).round();
-        let ppm_i32 = ppm_dec.to_i32().ok_or(Error::TooLarge)?;
-        Self::try_from_inner(ppm_i32)
+        Self::try_from_decimal(rate)
     }
 }
 

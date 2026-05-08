@@ -232,7 +232,7 @@ pub struct CreateInvoiceRequest {
     /// The partner-chosen proportional fee to charge on this payment.
     /// If `partner_pk` is set, this must be set to [`Some`].
     ///
-    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE_PPM`)
+    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE`)
     /// Maximum: 500,000 ppm (50%)
     // Added in `node-v0.9.6`
     #[serde(default)]

@@ -273,8 +273,8 @@ mod tests {
     use bitcoin::secp256k1::PublicKey;
     use lexe_api::cli::LspInfo;
     use lexe_common::{
-        api::user::NodePk, ln::addr::LxSocketAddress, rng::FastRngDerefHack,
-        secp256k1_ctx::SECP256K1,
+        api::user::NodePk, ln::addr::LxSocketAddress, ppm,
+        rng::FastRngDerefHack, secp256k1_ctx::SECP256K1,
     };
     use lightning::{
         blinded_path::message::OffersContext,
@@ -492,8 +492,8 @@ mod tests {
             private_p2p_addr: LxSocketAddress::from_str("127.0.0.1:9735")
                 .unwrap(),
             lsp_usernode_base_fee_msat: 1000,
-            lsp_usernode_prop_fee_ppm: 100,
-            lsp_external_prop_fee_ppm: 200,
+            lsp_usernode_prop_fee_ppm: ppm!(100),
+            lsp_external_prop_fee_ppm: ppm!(200),
             lsp_external_base_fee_msat: 2000,
             cltv_expiry_delta: 144,
             htlc_minimum_msat: 1000,
