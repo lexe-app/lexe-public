@@ -10,6 +10,7 @@ pub mod lnurl;
 pub use std::cmp;
 
 use anyhow::{Context, anyhow, ensure};
+use futures::future;
 use lexe_common::ln::network::Network;
 pub use lexe_payment_uri_core::*;
 
@@ -63,81 +64,34 @@ pub async fn resolve_payment_methods(
     network: Network,
     payment_uri: PaymentUri,
 ) -> anyhow::Result<Vec<PaymentMethod>> {
-    let mut payment_methods = match payment_uri {
-        PaymentUri::Bip321Uri(bip321) => bip321.flatten(),
+    // Split the URI into its directly-known methods and any pieces that
+    // require further resolution.
+    let (mut payment_methods, resolvables) = payment_uri.flatten();
 
-        PaymentUri::LightningUri(lnuri) => lnuri.flatten(),
-
-        PaymentUri::Invoice(invoice) =>
-            lexe_payment_uri_core::helpers::flatten_invoice(invoice),
-
-        PaymentUri::Offer(offer) => vec![PaymentMethod::Offer(
-            OfferWithAmount::no_bip321_amount(offer),
-        )],
-
-        PaymentUri::Address(address) =>
-            vec![PaymentMethod::Onchain(Onchain::from(address))],
-
-        PaymentUri::EmailLikeAddress(email_like) => {
-            let mut methods = Vec::with_capacity(3);
-            let mut errors = Vec::with_capacity(2);
-
-            // Try resolving BIP353 if this is a valid BIP353 address.
-            if let Some(bip353_fqdn) = email_like.bip353_fqdn {
-                let bip353_result = bip353_client
-                    .resolve_bip353_fqdn(bip353_fqdn)
-                    .await
-                    .context("Failed to resolve BIP353 address");
-                match bip353_result {
-                    Ok(bip353_methods) => {
-                        // Early return if we found any non-onchain methods,
-                        // as we can pay those immediately.
-                        // NOTE: Revisit if/when we support paying via ecash?
-                        if bip353_methods.iter().any(|m| !m.is_onchain()) {
-                            return Ok(bip353_methods);
-                        } else {
-                            methods.extend(bip353_methods);
-                        }
-                    }
-                    Err(e) => errors.push(format!("{e:#}")),
-                }
-            }
-
-            // Always try resolving Lightning Address
-            let ln_address_result = lnurl_client
-                .get_pay_request(&email_like.lightning_address_url)
-                .await
-                .context("Failed to resolve Lightning Address url");
-            match ln_address_result {
-                Ok(pay_request) =>
-                    methods.push(PaymentMethod::LnurlPayRequest(pay_request)),
-                Err(e) => errors.push(format!("{e:#}")),
-            }
-
-            // Consider it a success if we resolved at least one method, since
-            // receivers may support only one of BIP353 or Lightning Address.
-            // Otherwise, return a combined error.
-            if !methods.is_empty() {
-                methods
-            } else {
-                debug_assert!(!errors.is_empty());
-                let joined_errs = errors.join("; ");
-                return Err(anyhow!("{joined_errs}"));
-            }
+    // Resolve all `Resolvable`s and merge their methods in.
+    // Error if *every* resolution fails AND we have no direct methods.
+    let resolve_futs = resolvables.into_iter().map(|resolvable| async move {
+        match resolvable {
+            Resolvable::EmailLike(addr) =>
+                resolve::email_like(bip353_client, lnurl_client, addr).await,
+            Resolvable::Lnurl(lnurl) =>
+                resolve::lnurl(lnurl_client, lnurl).await,
         }
+    });
+    let resolve_results = future::join_all(resolve_futs).await;
 
-        PaymentUri::Lnurl(lnurl) => {
-            let pay_request = lnurl_client
-                .get_pay_request(&lnurl.http_url)
-                .await
-                .context("Failed to resolve LNURL-pay url")?;
-
-            vec![PaymentMethod::LnurlPayRequest(pay_request)]
+    let mut resolve_errors = Vec::new();
+    for result in resolve_results {
+        match result {
+            Ok(methods) => payment_methods.extend(methods),
+            Err(e) => resolve_errors.push(format!("{e:#}")),
         }
-    };
+    }
+
     ensure!(
         !payment_methods.is_empty(),
-        "Failed to resolve payment methods"
+        "Failed to resolve payment methods: {}",
+        resolve_errors.join("; "),
     );
 
     // Filter out all methods that aren't valid for our current network
@@ -152,6 +106,76 @@ pub async fn resolve_payment_methods(
     payment_methods.sort_unstable_by_key(|m| cmp::Reverse(m.priority()));
 
     Ok(payment_methods)
+}
+
+/// Helpers to resolve every [`Resolvable`] variant.
+mod resolve {
+    use super::*;
+
+    /// Resolve an [`EmailLikeAddress`] (BIP353 / Lightning Address) into a
+    /// list of [`PaymentMethod`]s.
+    pub(super) async fn email_like(
+        bip353_client: &bip353::Bip353Client,
+        lnurl_client: &lnurl::LnurlClient,
+        email_like: EmailLikeAddress<'static>,
+    ) -> anyhow::Result<Vec<PaymentMethod>> {
+        let mut methods = Vec::with_capacity(3);
+        let mut errors = Vec::with_capacity(2);
+
+        // Try resolving BIP353 if this is a valid BIP353 address.
+        if let Some(bip353_fqdn) = email_like.bip353_fqdn {
+            let bip353_result = bip353_client
+                .resolve_bip353_fqdn(bip353_fqdn)
+                .await
+                .context("Failed to resolve BIP353 address");
+            match bip353_result {
+                Ok(bip353_methods) => {
+                    // Early return if we found any non-onchain methods,
+                    // as we can pay those immediately.
+                    // NOTE: Revisit if/when we support paying via ecash?
+                    if bip353_methods.iter().any(|m| !m.is_onchain()) {
+                        return Ok(bip353_methods);
+                    } else {
+                        methods.extend(bip353_methods);
+                    }
+                }
+                Err(e) => errors.push(format!("{e:#}")),
+            }
+        }
+
+        // Always try resolving Lightning Address
+        let ln_address_result = lnurl_client
+            .get_pay_request(&email_like.lightning_address_url)
+            .await
+            .context("Failed to resolve Lightning Address url");
+        match ln_address_result {
+            Ok(pay_request) =>
+                methods.push(PaymentMethod::LnurlPayRequest(pay_request)),
+            Err(e) => errors.push(format!("{e:#}")),
+        }
+
+        // Consider it a success if we resolved at least one method, since
+        // receivers may support only one of BIP353 or Lightning Address.
+        // Otherwise, return a combined error.
+        if !methods.is_empty() {
+            Ok(methods)
+        } else {
+            debug_assert!(!errors.is_empty());
+            Err(anyhow!("{}", errors.join("; ")))
+        }
+    }
+
+    /// Resolve an [`Lnurl`] into a single LNURL-pay [`PaymentMethod`].
+    pub(super) async fn lnurl(
+        lnurl_client: &lnurl::LnurlClient,
+        lnurl: Lnurl<'static>,
+    ) -> anyhow::Result<Vec<PaymentMethod>> {
+        let pay_request = lnurl_client
+            .get_pay_request(&lnurl.http_url)
+            .await
+            .context("Failed to resolve LNURL-pay url")?;
+        Ok(vec![PaymentMethod::LnurlPayRequest(pay_request)])
+    }
 }
 
 #[cfg(test)]

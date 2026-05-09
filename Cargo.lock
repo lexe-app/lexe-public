@@ -2813,6 +2813,7 @@ dependencies = [
  "base64 0.21.7",
  "bitcoin",
  "dnssec-prover",
+ "futures",
  "lexe-api-core",
  "lexe-common",
  "lexe-crypto",

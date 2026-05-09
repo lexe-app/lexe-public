@@ -11,6 +11,8 @@ use proptest::strategy::Strategy;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
+use crate::{email_like::EmailLikeAddress, lnurl::Lnurl};
+
 /// A single "payment method" -- each kind here should correspond with a single
 /// linear payment flow for a user, where there are no other alternate methods.
 ///
@@ -23,6 +25,19 @@ pub enum PaymentMethod {
     Invoice(Invoice),
     Offer(OfferWithAmount),
     LnurlPayRequest(LnurlPayRequest),
+}
+
+/// "Almost" a payment method: a piece of payment data that requires further
+/// resolution before it becomes a [`PaymentMethod`].
+///
+/// Produced by `flatten()` on the various URI types, then consumed by the
+/// async resolver in the `lexe-payment-uri` crate.
+#[derive(Debug)]
+pub enum Resolvable {
+    /// A Lightning Address or BIP353 address.
+    EmailLike(EmailLikeAddress<'static>),
+    /// An LNURL-pay endpoint.
+    Lnurl(Lnurl<'static>),
 }
 
 impl PaymentMethod {

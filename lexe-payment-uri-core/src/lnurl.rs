@@ -398,16 +398,23 @@ mod arbitrary_impl {
     use super::*;
 
     impl<'a> Arbitrary for Lnurl<'a> {
-        type Parameters = ();
+        /// If `Some(s)`, generated LNURLs are coerced to scheme `s`.
+        /// If `None`, the scheme is chosen randomly.
+        type Parameters = Option<LnurlScheme>;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(scheme_override: Self::Parameters) -> Self::Strategy {
             (any::<LnurlScheme>(), any_https_url())
-                .prop_map(|(mut scheme, url)| {
-                    // If we generate HttpOnion with a non-.onion URL, coerce to
-                    // Https to avoid invalid combinations. We only generate
-                    // regular https:// URLs, but we want to keep HttpOnion in
-                    // the enum for future-proofing.
+                .prop_map(move |(mut scheme, url)| {
+                    // Apply the optional override first.
+                    if let Some(r#override) = scheme_override {
+                        scheme = r#override;
+                    }
+
+                    // Then coerce HttpOnion with a non-.onion URL to Https to
+                    // avoid invalid combinations. We only generate regular
+                    // https:// URLs, but we want to keep HttpOnion in the enum
+                    // for future-proofing.
                     if scheme == LnurlScheme::HttpOnion {
                         scheme = LnurlScheme::Https;
                     }

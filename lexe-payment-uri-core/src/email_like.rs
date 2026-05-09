@@ -42,7 +42,7 @@
 
 use std::{borrow::Cow, fmt};
 
-use crate::{Error, uri::Uri};
+use crate::Error;
 
 /// Maximum DNS name length in text form (excluding trailing dot), per
 /// [RFC 2181 §11](https://www.rfc-editor.org/rfc/rfc2181#section-11).
@@ -109,23 +109,6 @@ impl<'a> EmailLikeAddress<'a> {
     /// parsed as such. If so, returns the trimmed username and domain parts.
     pub(crate) fn matches(s: &str) -> Option<(&str, &str)> {
         s.split_once('@')
-    }
-
-    /// Check for a `lightning:` URI whose body looks like an email address.
-    /// Returns the username and domain parts if it matches.
-    ///
-    /// Examples:
-    /// - `lightning:chat+tag@bitcorn.io`
-    /// - `lightning:₿max@lexe.app`
-    /// - `lightning:%E2%82%BFmax@lexe.app`
-    pub(crate) fn matches_lightning_uri<'uri>(
-        uri: &'uri Uri<'_>,
-    ) -> Option<(&'uri str, &'uri str)> {
-        if !uri.scheme.eq_ignore_ascii_case("lightning") {
-            return None;
-        }
-
-        Self::matches(&uri.body)
     }
 
     /// Parses an email-like address.
@@ -690,7 +673,7 @@ mod test {
     use proptest::prelude::{prop_assert_eq, proptest};
 
     use super::*;
-    use crate::PaymentUri;
+    use crate::{LightningUri, PaymentUri};
 
     /// Asserts that a parse error contains a specific message.
     fn assert_error_msg(
@@ -784,14 +767,15 @@ mod test {
         }
 
         // Hardcoded `lightning:` URIs must parse via `PaymentUri::parse` as
-        // the `EmailLikeAddress` variant.
+        // a `LightningUri` whose body is an `EmailLikeAddress`.
         for (input, expected_prefix, expected_bip353, expected_tag) in
             lightning_cases
         {
             let addr = match PaymentUri::parse(input).unwrap() {
-                PaymentUri::EmailLikeAddress(addr) => addr,
+                PaymentUri::LightningUri(LightningUri::EmailLike(addr)) => addr,
                 other => panic!(
-                    "Expected EmailLikeAddress for {input}, got: {other:?}"
+                    "Expected LightningUri::EmailLike for {input},
+                     got: {other:?}"
                 ),
             };
             assert_fields(
@@ -804,17 +788,19 @@ mod test {
         }
 
         // Generated `lightning:`-prefixed versions of every bare case must
-        // also parse via `PaymentUri::parse` as the `EmailLikeAddress`
-        // variant. Auto-extends as new bare cases get added.
+        // also parse via `PaymentUri::parse` as a `LightningUri` whose body
+        // is an `EmailLikeAddress`. Auto-extends as new bare cases get added.
         for (input, expected_prefix, expected_bip353, expected_tag) in
             generated_cases
         {
             let addr = match PaymentUri::parse(&input).unwrap() {
-                PaymentUri::EmailLikeAddress(addr) => addr,
+                PaymentUri::LightningUri(LightningUri::EmailLike(addr)) => addr,
                 other => panic!(
-                    "Expected EmailLikeAddress for {input}, got: {other:?}"
+                    "Expected LightningUri::EmailLike for {input}, \
+                     got: {other:?}"
                 ),
             };
+
             assert_fields(
                 &addr,
                 &input,

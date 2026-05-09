@@ -814,8 +814,7 @@ impl LexeWallet {
                                 amount,
                                 label: onchain.label.clone(),
                                 message: onchain.message.clone(),
-                                offer: None,
-                                invoice: None,
+                                ..Default::default()
                             };
                             bip_321_uri.to_string()
                         } else {
@@ -867,12 +866,9 @@ impl LexeWallet {
                             None => offer.to_string(),
                             Some(amount) => {
                                 let bip_321_uri = Bip321Uri {
-                                    onchain: vec![],
                                     amount: Some(*amount),
-                                    label: None,
-                                    message: None,
                                     offer: Some(offer.clone()),
-                                    invoice: None,
+                                    ..Default::default()
                                 };
                                 bip_321_uri.to_string()
                             }

@@ -10,7 +10,7 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 
 use crate::{
-    Error, OfferWithAmount, Onchain, PaymentMethod,
+    Error, OfferWithAmount, Onchain, PaymentMethod, Resolvable,
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
@@ -36,7 +36,7 @@ pub enum PaymentUri {
     ///
     /// ex: "bitcoin:bc1qfj..."
     ///     "bitcoin:?lno=lno1pqps7..."
-    Bip321Uri(Bip321Uri),
+    Bip321Uri(Box<Bip321Uri>),
 
     /// A Lightning URI, containing a BOLT11 invoice or BOLT12 offer.
     ///
@@ -100,11 +100,22 @@ impl PaymentUri {
         //
         // ex: "bitcoin:bc1qfj..." or
         //     "lightning:lnbc1pvjlue..." or
-        //     "lightning:lno1pqps7..." or ...
+        //     "https://service.com?lightning=lnurl1dp68g..." or ...
         if let Ok(uri) = Uri::parse(s) {
             // "bitcoin:" with BIP 321 URI: "bitcoin:bc1qfj..."
             if Bip321Uri::matches_uri_scheme(uri.scheme) {
-                return Ok(Self::Bip321Uri(Bip321Uri::parse_uri(uri)));
+                return Ok(Self::Bip321Uri(Box::new(Bip321Uri::parse_uri(
+                    uri,
+                ))));
+            }
+
+            // ex: "lightning:lnbc1pvjlue..." (BOLT11) or
+            //     "lightning:lno1pqps7..." (BOLT12) or
+            //     "lightning:lnurl1dp68g..." (bech32 LNURL) or
+            //     "lightning:satoshi@lexe.app" (Lightning Address) or
+            //     "lightning:₿max@lexe.app" (BIP353)
+            if LightningUri::matches_uri_scheme(uri.scheme) {
+                return LightningUri::parse_uri(uri).map(Self::LightningUri);
             }
 
             // LNURL-Pay: "lnurlp://domain.com/path"
@@ -118,37 +129,6 @@ impl PaymentUri {
             // "https://service.com?lightning=lnurl1dp68g..."
             if let Some(bech32) = Lnurl::matches_http_with_bech32_param(&uri) {
                 return Ok(Self::Lnurl(Lnurl::parse_bech32(&bech32)?));
-            }
-
-            // "lightning:" with bech32 LNURL: "lightning:lnurl1dp68g..."
-            if let Some(bech32) =
-                Lnurl::matches_lightning_with_bech32_body(&uri)
-            {
-                return Ok(Self::Lnurl(Lnurl::parse_bech32(&bech32)?));
-            }
-
-            // "lightning:" with Lightning Address or Human Bitcoin Address:
-            // - "lightning:chat+tag@bitcorn.io"
-            // - "lightning:₿max@lexe.app"
-            // - "lightning:%E2%82%BFmax@lexe.app"
-            if let Some((username, domain)) =
-                EmailLikeAddress::matches_lightning_uri(&uri)
-            {
-                return EmailLikeAddress::parse_from_parts(username, domain)
-                    .map(EmailLikeAddress::into_owned)
-                    .map(Self::EmailLikeAddress);
-            }
-
-            // "lightning:" with invoice or offer:
-            // - "lightning:lnbc1pvjlue..."
-            // - "lightning:lno1pqps7..."
-            //
-            // NOTE: Must go *after* the other `lightning:`-matching clauses
-            //       above, since `LightningUri` matches *any* `lightning:`
-            //       scheme and would otherwise swallow LNURL bech32 bodies and
-            //       email-like addresses, producing an empty `LightningUri`.
-            if LightningUri::matches_uri_scheme(uri.scheme) {
-                return Ok(Self::LightningUri(LightningUri::parse_uri(uri)));
             }
 
             return Err(Error::InvalidPaymentUri(Cow::from(
@@ -202,25 +182,30 @@ impl PaymentUri {
         )))
     }
 
-    /// If this [`PaymentUri`] does not require any further resolution,
-    /// (e.g. it is not BIP353, Lightning Address, or LNURL),
-    /// "flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
-    /// Returns `None` if the URI requires further resolution.
-    pub fn flatten(self) -> Option<Vec<PaymentMethod>> {
+    /// "Flatten" the [`PaymentUri`] into its directly-known [`PaymentMethod`]s
+    /// and any [`Resolvable`]s requiring further resolution.
+    pub fn flatten(self) -> (Vec<PaymentMethod>, Vec<Resolvable>) {
         match self {
-            PaymentUri::Bip321Uri(bip321) => Some(bip321.flatten()),
-            PaymentUri::LightningUri(lnuri) => Some(lnuri.flatten()),
-            PaymentUri::Invoice(invoice) =>
-                Some(helpers::flatten_invoice(invoice)),
-            PaymentUri::Offer(offer) => Some(vec![PaymentMethod::Offer(
-                OfferWithAmount::no_bip321_amount(offer),
-            )]),
-            PaymentUri::Address(address) =>
-                Some(vec![PaymentMethod::Onchain(Onchain::from(address))]),
-
-            // Requires further resolution
-            PaymentUri::EmailLikeAddress(_) => None,
-            PaymentUri::Lnurl(_) => None,
+            Self::Bip321Uri(bip321) => (*bip321).flatten(),
+            Self::LightningUri(lnuri) => {
+                let (methods, resolvable) = lnuri.flatten();
+                (methods, resolvable.into_iter().collect())
+            }
+            Self::Invoice(invoice) =>
+                (helpers::flatten_invoice(invoice), Vec::new()),
+            Self::Offer(offer) => (
+                vec![PaymentMethod::Offer(OfferWithAmount::no_bip321_amount(
+                    offer,
+                ))],
+                Vec::new(),
+            ),
+            Self::Address(address) => (
+                vec![PaymentMethod::Onchain(Onchain::from(address))],
+                Vec::new(),
+            ),
+            Self::EmailLikeAddress(addr) =>
+                (Vec::new(), vec![Resolvable::EmailLike(addr)]),
+            Self::Lnurl(lnurl) => (Vec::new(), vec![Resolvable::Lnurl(lnurl)]),
         }
     }
 }

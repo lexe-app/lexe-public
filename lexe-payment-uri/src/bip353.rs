@@ -49,7 +49,7 @@ use dnssec_prover::{
 };
 pub use lexe_payment_uri_core::*;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
-use tracing::debug;
+use tracing::{debug, warn};
 
 /// DNS-over-HTTPS (DOH) endpoint for Google's public DNS resolver.
 /// Recommended: The client only trusts Google's root CAs.
@@ -148,8 +148,16 @@ impl Bip353Client {
                 .context("Couldn't get payment URI from DNSSEC proof")?;
         debug!("Resolved BIP353 address: {bip321_uri}");
 
-        // Convert the BIP-321 URI to payment methods.
-        let payment_methods = bip321_uri.flatten();
+        // BIP353 records shouldn't nest resolution targets; ignore any so
+        // the payment can still proceed via directly-known methods.
+        let (payment_methods, resolvables) = bip321_uri.flatten();
+        if !resolvables.is_empty() {
+            warn!(
+                "BIP353 record contained {resolvables_len} nested resolution \
+                 target(s); ignoring",
+                resolvables_len = resolvables.len(),
+            );
+        }
 
         ensure!(
             !payment_methods.is_empty(),
@@ -514,8 +522,9 @@ mod test {
                 .unwrap();
         debug!("Resolved BIP353 address: {bip321_uri}");
 
-        // Convert to payment methods
-        let payment_methods = bip321_uri.flatten();
+        // Convert to payment methods (BIP353 records shouldn't recurse).
+        let (payment_methods, resolvables) = bip321_uri.flatten();
+        assert!(resolvables.is_empty());
 
         // All should be compatible w/ `network`
         assert!(payment_methods.iter().all(|m| m.supports_network(network)));

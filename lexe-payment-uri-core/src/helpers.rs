@@ -3,18 +3,15 @@ use lexe_api_core::types::invoice::Invoice;
 
 use crate::payment_method::{Onchain, PaymentMethod};
 
-/// "Flatten" an [`Invoice`] into its "component" [`PaymentMethod`]s.
+/// "Flatten" an [`Invoice`] into its component [`PaymentMethod`]s.
+///
+/// BOLT11 invoices can embed one or more onchain fallback addresses (the
+/// `f` field), so a single invoice may resolve to the invoice itself *plus*
+/// an [`Onchain`] entry for each fallback.
 pub fn flatten_invoice(invoice: Invoice) -> Vec<PaymentMethod> {
-    let mut out = Vec::with_capacity(1);
-    flatten_invoice_into(invoice, &mut out);
-    out
-}
-
-/// "Flatten" an [`Invoice`] into its "component" [`PaymentMethod`]s,
-/// pushing them into an existing `Vec`.
-pub fn flatten_invoice_into(invoice: Invoice, out: &mut Vec<PaymentMethod>) {
     let onchain_fallback_addrs = invoice.onchain_fallbacks();
-    out.reserve(1 + onchain_fallback_addrs.len());
+
+    let mut methods = Vec::with_capacity(1 + onchain_fallback_addrs.len());
 
     // BOLT11 invoices may include onchain fallback addresses.
     if !onchain_fallback_addrs.is_empty() {
@@ -23,7 +20,7 @@ pub fn flatten_invoice_into(invoice: Invoice, out: &mut Vec<PaymentMethod>) {
 
         for addr in onchain_fallback_addrs {
             let address = addr.into_unchecked();
-            out.push(PaymentMethod::Onchain(Onchain {
+            methods.push(PaymentMethod::Onchain(Onchain {
                 address,
                 amount,
                 label: None,
@@ -32,7 +29,9 @@ pub fn flatten_invoice_into(invoice: Invoice, out: &mut Vec<PaymentMethod>) {
         }
     }
 
-    out.push(PaymentMethod::Invoice(invoice));
+    methods.push(PaymentMethod::Invoice(invoice));
+
+    methods
 }
 
 pub(crate) trait AddressExt {

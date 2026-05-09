@@ -9,19 +9,15 @@ use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
-#[cfg(test)]
-use lexe_common::ln::amount;
 use lexe_common::ln::amount::Amount;
-#[cfg(test)]
-use proptest::strategy::Strategy;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
 
 use crate::{
     Error,
+    email_like::EmailLikeAddress,
     helpers::AddressExt,
-    payment_method::{OfferWithAmount, Onchain, PaymentMethod},
+    lnurl::Lnurl,
+    payment_method::{OfferWithAmount, Onchain, PaymentMethod, Resolvable},
     uri::{Uri, UriParam},
 };
 
@@ -49,25 +45,43 @@ use crate::{
 /// bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?somethingyoudontunderstand=50&somethingelseyoudontget=999
 /// ```
 #[derive(Debug, Default)]
-#[cfg_attr(test, derive(Arbitrary, Eq, PartialEq))]
+#[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Bip321Uri {
-    #[cfg_attr(
-        test,
-        proptest(strategy = "arbitrary_impl::arb_bip321_addrs()")
-    )]
+    /// Onchain address(es). The URI body may hold an address, and additional
+    /// addresses come from BIP321 `?bc=` / `?tb=` / `?bcrt=` params.
     pub onchain: Vec<bitcoin::Address<NetworkUnchecked>>,
 
+    /// BOLT11 invoice, carried in a legacy `?lightning=<bolt11>` param.
+    //
     // TODO(phlip9): support multiple invoices?
     pub invoice: Option<Invoice>,
 
+    /// BOLT12 offer, carried in `?lno=` (BIP321), `?b12=` (legacy), or
+    /// `?lightning=<bolt12>` (as showcased on bitcoinqr.dev).
+    //
     // TODO(phlip9): support multiple offers?
     pub offer: Option<Offer>,
 
+    /// An email-like Lightning Address or BIP353 address.
+    ///
+    /// Carried in the URI body only (e.g. `bitcoin:satoshi@lexe.app`),
+    /// matching [Phoenix's precedent]. The `?lightning=` parameter is a
+    /// legacy slot historically used only for BOLT11 invoices, so we don't
+    /// look for an email-like address there.
+    ///
+    /// When serialized, the email-like address takes the body slot, preempting
+    /// any legacy P2PKH/P2SH `onchain` addresses (which also require the
+    /// body). Other onchain address kinds still render as `?bc=` / `?tb=`
+    /// / `?bcrt=` query params.
+    ///
+    /// [Phoenix's precedent]: https://github.com/ACINQ/phoenix/commit/5a22661288b3eb9c6ccc9ac1ed00380d015b1411
+    pub email_like: Option<EmailLikeAddress<'static>>,
+
+    /// A bech32-encoded LNURL carried in a `?lightning=` (legacy)
+    /// or `?lnurl=` query parameter.
+    pub lnurl: Option<Lnurl<'static>>,
+
     /// On-chain amount
-    #[cfg_attr(
-        test,
-        proptest(strategy = "amount::arb::sats_amount().prop_map(Some)")
-    )]
     pub amount: Option<Amount>,
 
     /// On-chain label / vendor
@@ -81,13 +95,6 @@ pub struct Bip321Uri {
 
 impl Bip321Uri {
     const URI_SCHEME: &'static str = "bitcoin";
-
-    /// Returns true if there are any usable payment methods in this URI.
-    pub fn any_usable(&self) -> bool {
-        !self.onchain.is_empty()
-            || self.invoice.is_some()
-            || self.offer.is_some()
-    }
 
     pub(crate) fn matches_uri_scheme(scheme: &str) -> bool {
         // Use `eq_ignore_ascii_case` as it's technically in-spec for the scheme
@@ -111,14 +118,7 @@ impl Bip321Uri {
     pub(crate) fn parse_uri(uri: Uri) -> Self {
         debug_assert!(Self::matches_uri_scheme(uri.scheme));
 
-        let mut out = Self {
-            onchain: Vec::new(),
-            invoice: None,
-            offer: None,
-            amount: None,
-            label: None,
-            message: None,
-        };
+        let mut out = Self::default();
 
         // Skip the `Onchain` method if we see any unrecognized `req-`
         // parameters, as per the spec. However, we're going to partially ignore
@@ -127,9 +127,11 @@ impl Bip321Uri {
         // issue regardless, since `req-` params aren't used much in practice.
         let mut skip_onchain = false;
 
-        // Parse "bitcoin:{address}" from URI body
+        // Try parsing on-chain address or email-like address from body
         if let Ok(address) = bitcoin::Address::from_str(&uri.body) {
             out.onchain.push(address);
+        } else if let Ok(addr) = EmailLikeAddress::parse(&uri.body) {
+            out.email_like = Some(addr.into_owned());
         }
 
         // Parse URI parameters
@@ -139,6 +141,9 @@ impl Bip321Uri {
             let key = param.key_parsed();
 
             if key.is("lightning") {
+                // `?lightning=` is a legacy slot historically used only for
+                // invoices and offers (as showcased on bitcoinqr.dev).
+                // Thus, we don't look for an email-like address here.
                 if out.invoice.is_none()
                     && let Ok(invoice) = Invoice::from_str(&param.value)
                 {
@@ -148,14 +153,25 @@ impl Bip321Uri {
                 if out.offer.is_none()
                     && let Ok(offer) = Offer::from_str(&param.value)
                 {
-                    // bitcoinqr.dev showcases an offer inside a
-                    // `lightning` parameter
                     out.offer = Some(offer);
+                    continue;
+                }
+                if out.lnurl.is_none()
+                    && Lnurl::matches_bech32_hrp_prefix(&param.value)
+                    && let Ok(lnurl) = Lnurl::parse_bech32(&param.value)
+                {
+                    out.lnurl = Some(lnurl);
                     continue;
                 }
             } else if key.is("lno") || /* legacy */ key.is("b12") {
                 if out.offer.is_none() {
                     out.offer = Offer::from_str(&param.value).ok();
+                }
+            } else if key.is("lnurl") {
+                if out.lnurl.is_none()
+                    && Lnurl::matches_bech32_hrp_prefix(&param.value)
+                {
+                    out.lnurl = Lnurl::parse_bech32(&param.value).ok();
                 }
             } else if key.is("bc") {
                 if let Ok(address) = bitcoin::Address::from_str(&param.value)
@@ -218,23 +234,36 @@ impl Bip321Uri {
             params: Vec::new(),
         };
 
-        // If the first addr is supported in the URI body, use it as the body.
-        let onchain = match self.onchain.split_first() {
-            Some((address, rest)) if address.is_supported_in_uri_body() => {
-                out.body = Cow::Owned(address.assume_checked_ref().to_string());
-                rest
+        // Lightning-first: Put an HBA / Lightning Address in the URI body if we
+        // have one, otherwise place a body-friendly on-chain address in there
+        // (some address types are body-only, so this is the only way to keep
+        // them in the URI)
+        let remaining_onchain;
+        match &self.email_like {
+            Some(email_like) => {
+                out.body = Cow::Owned(email_like.to_string());
+                remaining_onchain = self.onchain.as_slice()
             }
-            _ => self.onchain.as_slice(),
+            None => match self.onchain.split_first() {
+                Some((address, rest)) if address.is_supported_in_uri_body() => {
+                    out.body =
+                        Cow::Owned(address.assume_checked_ref().to_string());
+                    remaining_onchain = rest
+                }
+                _ => {
+                    remaining_onchain = self.onchain.as_slice();
+                }
+            },
         };
 
         // Add all remaining onchain addresses as URI params
-        for address in onchain {
+        for address in remaining_onchain {
             use bitcoin::Network;
 
             // P2PKH and P2SH addresses don't have an HRP and so can't go in
-            // the URI query params.
+            // the URI query params. If the body slot was claimed by an HBA,
+            // the legacy address is silently dropped.
             if !address.is_supported_in_uri_query_param() {
-                debug_assert!(false, "Should have been placed in URI body");
                 continue;
             }
 
@@ -304,16 +333,20 @@ impl Bip321Uri {
         out
     }
 
-    /// "Flatten" the [`Bip321Uri`] into its component [`PaymentMethod`]s.
-    pub fn flatten(self) -> Vec<PaymentMethod> {
-        let mut out = Vec::with_capacity(
+    /// "Flatten" the [`Bip321Uri`] into its directly-known [`PaymentMethod`]s
+    /// and any [`Resolvable`]s requiring further resolution.
+    pub fn flatten(self) -> (Vec<PaymentMethod>, Vec<Resolvable>) {
+        let mut methods = Vec::with_capacity(
             self.onchain.len()
                 + self.invoice.is_some() as usize
                 + self.offer.is_some() as usize,
         );
+        let mut resolvables = Vec::with_capacity(
+            self.email_like.is_some() as usize + self.lnurl.is_some() as usize,
+        );
 
         for address in self.onchain {
-            out.push(PaymentMethod::Onchain(Onchain {
+            methods.push(PaymentMethod::Onchain(Onchain {
                 address,
                 amount: self.amount,
                 label: self.label.clone(),
@@ -322,17 +355,46 @@ impl Bip321Uri {
         }
 
         if let Some(invoice) = self.invoice {
-            out.push(PaymentMethod::Invoice(invoice));
+            methods.push(PaymentMethod::Invoice(invoice));
         }
 
         if let Some(offer) = self.offer {
-            out.push(PaymentMethod::Offer(OfferWithAmount {
+            methods.push(PaymentMethod::Offer(OfferWithAmount {
                 offer,
                 bip321_amount: self.amount,
             }));
         }
 
-        out
+        if let Some(addr) = self.email_like {
+            resolvables.push(Resolvable::EmailLike(addr));
+        }
+
+        if let Some(lnurl) = self.lnurl {
+            resolvables.push(Resolvable::Lnurl(lnurl));
+        }
+
+        (methods, resolvables)
+    }
+
+    /// Returns true if there are any usable payment methods in this URI.
+    #[cfg(test)]
+    pub fn any_usable(&self) -> bool {
+        // Destructure to force a compilation error if new fields are added
+        let Self {
+            onchain,
+            invoice,
+            offer,
+            email_like,
+            lnurl,
+            amount: _,
+            label: _,
+            message: _,
+        } = self;
+        !onchain.is_empty()
+            || invoice.is_some()
+            || offer.is_some()
+            || email_like.is_some()
+            || lnurl.is_some()
     }
 }
 
@@ -344,16 +406,87 @@ impl fmt::Display for Bip321Uri {
 
 #[cfg(test)]
 mod arbitrary_impl {
-    use bitcoin::address::NetworkUnchecked;
-    use lexe_common::test_utils::arbitrary::any_mainnet_addr_unchecked;
-    use proptest::strategy::Strategy;
+    use lexe_common::{
+        ln::amount, test_utils::arbitrary::any_mainnet_addr_unchecked,
+    };
+    use proptest::{
+        arbitrary::{Arbitrary, any, any_with},
+        option,
+        strategy::{BoxedStrategy, Strategy},
+    };
 
-    use crate::helpers::AddressExt;
+    use super::*;
+    use crate::lnurl::LnurlScheme;
+
+    impl Arbitrary for Bip321Uri {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: ()) -> Self::Strategy {
+            // `Bip321Uri` only carries bech32-encoded LNURLs, and
+            // `parse_bech32` only ever yields `LnurlScheme::Https`. Force
+            // generation to match so the proptest roundtrips cleanly.
+            let scheme_override = Some(LnurlScheme::Https);
+            let arb_https_lnurl =
+                option::of(any_with::<Lnurl<'static>>(scheme_override));
+
+            (
+                arb_bip321_addrs(),
+                any::<Option<Invoice>>(),
+                any::<Option<Offer>>(),
+                any::<Option<EmailLikeAddress<'static>>>(),
+                arb_https_lnurl,
+                amount::arb::sats_amount().prop_map(Some),
+                any::<Option<String>>(),
+                any::<Option<String>>(),
+            )
+                .prop_map(
+                    |(
+                        onchain,
+                        invoice,
+                        offer,
+                        email_like,
+                        lnurl,
+                        amount,
+                        label,
+                        message,
+                    )| {
+                        let mut out = Self {
+                            onchain,
+                            invoice,
+                            offer,
+                            email_like,
+                            lnurl,
+                            amount,
+                            label,
+                            message,
+                        };
+
+                        // The URI body holds either an onchain address or an
+                        // email-like address - never both. Drop email_like
+                        // when onchain is non-empty.
+                        if !out.onchain.is_empty() {
+                            out.email_like = None;
+                        }
+
+                        // Invoice and LNURL both serialize as `lightning=`,
+                        // so an invoice takes precedence and the LNURL would
+                        // be lost on roundtrip. Drop LNURL in that case.
+                        if out.invoice.is_some() {
+                            out.lnurl = None;
+                        }
+
+                        out
+                    },
+                )
+                .boxed()
+        }
+    }
 
     // Generate a list of BIP321 address to go in a [`Bip321Uri`]. To support
     // roundtripping, we filter out any P2PKH or P2SH addresses that aren't in
     // the first position.
-    pub(crate) fn arb_bip321_addrs()
+    fn arb_bip321_addrs()
     -> impl Strategy<Value = Vec<bitcoin::Address<NetworkUnchecked>>> {
         proptest::collection::vec(any_mainnet_addr_unchecked(), 0..3).prop_map(
             |addrs| {
@@ -501,6 +634,72 @@ mod test {
         ));
         assert_eq!(actual1, expected);
         assert_eq!(actual2, expected);
+    }
+
+    #[test]
+    fn test_bip321_uri_email_like_body() {
+        // Phoenix-style HBA in body
+        let parsed = Bip321Uri::parse("bitcoin:foobar@acinq.co").unwrap();
+        let email_like = parsed.email_like.as_ref().unwrap();
+        assert_eq!(email_like.username.as_ref(), "foobar");
+        assert_eq!(email_like.domain.as_ref(), "acinq.co");
+        assert!(parsed.onchain.is_empty());
+        assert_eq!(parsed.to_string(), "bitcoin:foobar@acinq.co");
+
+        // BIP353-style ₿ prefix
+        let parsed = Bip321Uri::parse("bitcoin:₿alice@lexe.app").unwrap();
+        let email_like = parsed.email_like.as_ref().unwrap();
+        assert!(email_like.bip353_prefix);
+        assert_eq!(email_like.username.as_ref(), "alice");
+        assert_eq!(parsed.to_string(), "bitcoin:₿alice@lexe.app");
+
+        // email-like with `+tag` + amount/label query params
+        let parsed = Bip321Uri::parse(
+            "bitcoin:satoshi+coffee@lexe.app?amount=0.001&label=tip",
+        )
+        .unwrap();
+        let email_like = parsed.email_like.as_ref().unwrap();
+        assert_eq!(email_like.username.as_ref(), "satoshi");
+        assert_eq!(email_like.tag.as_deref(), Some("coffee"));
+        assert_eq!(parsed.amount, Some(Amount::from_sats_u32(10_0000)));
+        assert_eq!(parsed.label.as_deref(), Some("tip"));
+        assert_eq!(
+            parsed.to_string(),
+            "bitcoin:satoshi+coffee@lexe.app?amount=0.001&label=tip",
+        );
+
+        // Manually constructed
+        let addr = EmailLikeAddress::parse("foo@example.com")
+            .unwrap()
+            .into_owned();
+        let uri = Bip321Uri {
+            email_like: Some(addr),
+            ..Bip321Uri::default()
+        };
+        assert_eq!(uri.to_string(), "bitcoin:foo@example.com");
+    }
+
+    #[test]
+    fn test_bip321_uri_lnurl_param() {
+        let bech32 = "lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns";
+
+        // bitcoin:?lightning=lnurl1...
+        let parsed = Bip321Uri::parse(&format!(
+            "bitcoin:bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh?lightning={bech32}"
+        ))
+        .unwrap();
+        let lnurl = parsed.lnurl.as_ref().unwrap();
+        assert!(lnurl.http_url.starts_with("https://"));
+        assert!(parsed.invoice.is_none());
+        assert!(parsed.offer.is_none());
+
+        // Display renders the LNURL via `lightning=`
+        let lnurl = Lnurl::parse_bech32(bech32).unwrap();
+        let uri = Bip321Uri {
+            lnurl: Some(lnurl),
+            ..Bip321Uri::default()
+        };
+        assert_eq!(uri.to_string(), format!("bitcoin:?lightning={bech32}"));
     }
 
     // roundtrip: Bip321Uri -> String -> Bip321Uri

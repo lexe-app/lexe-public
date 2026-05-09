@@ -27,6 +27,7 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 bitcoin = { workspace = true }
 dnssec-prover = { workspace = true, features = ["std", "tokio", "validation"] }
+futures = { workspace = true }
 percent-encoding = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true }
