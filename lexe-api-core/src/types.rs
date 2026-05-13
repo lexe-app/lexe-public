@@ -10,6 +10,8 @@ pub mod invoice;
 pub mod lnurl;
 /// `Offer`, a wrapper around LDK's BOLT12 offer type.
 pub mod offer;
+/// Partners metadata, partner revshare schedules, other partner-related types.
+pub mod partners;
 /// Payments types and newtypes.
 pub mod payments;
 /// `Port`, `Ports`, `RunPorts`, etc, used in the Runner.

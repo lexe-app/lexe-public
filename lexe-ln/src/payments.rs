@@ -802,7 +802,7 @@ impl PaymentV2 {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
-            Self::InboundInvoice(iip) => iip.partner_fee,
+            Self::InboundInvoice(iip) => iip.partner_fee.clone(),
             Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(_) => None,

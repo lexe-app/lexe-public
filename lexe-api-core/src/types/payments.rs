@@ -725,7 +725,7 @@ pub struct LnClaimId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 /// The partner's revshare tier is determined by `total_fee / payment_value`,
 /// which is converted to a concrete partner revshare proportion based on the
 /// revshare schedule here: <https://docs.lexe.tech/partner-fees/>
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PartnerFeeFields {
     /// The user_pk of the partner setting this fee.
     pub user_pk: UserPk,
@@ -1663,12 +1663,6 @@ impl PartnerFeeFields {
     pub fn validate(&self) -> anyhow::Result<()> {
         ensure!(self.prop_fee.is_some(), "partner_prop_fee must be set");
         Ok(())
-    }
-
-    /// `total_fee` := `base_fee` + `prop_fee` * `payment_value`
-    pub fn total_fee(&self, payment_value: Amount) -> Amount {
-        self.base_fee.unwrap_or(Amount::ZERO)
-            + self.prop_fee.unwrap_or(Ppm::ZERO) * payment_value
     }
 }
 
