@@ -32,6 +32,7 @@ use lexe_api::{
         bounded_string::BoundedString,
         invoice::Invoice,
         offer::{MaxQuantity, Offer},
+        partners::PartnersInfo,
         payments::{
             PartnerFeeFields, PaymentDirection, PaymentId, PaymentKind,
         },
@@ -47,7 +48,7 @@ use lexe_common::{
         },
         user::{NodePk, Scid, UserPk},
     },
-    debug_panic_release_log, dec,
+    debug_panic_release_log,
     ln::{
         amount::Amount,
         channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
@@ -131,8 +132,7 @@ pub type UserExistsFn = Arc<
 /// Specifies whether it is the user node or the LSP calling the
 /// [`create_invoice`] fn. There are some differences between how the user node
 /// and LSP generate invoices which this tiny enum makes clearer.
-#[derive(Clone)]
-pub enum CreateInvoiceCaller {
+pub enum CreateInvoiceCaller<'a> {
     /// When a user node calls [`create_invoice`], it must provide an
     /// [`LspInfo`], which is required for generating a [`RouteHintHop`] for
     /// receiving a payment (possibly while offline, or over a JIT channel)
@@ -140,10 +140,11 @@ pub enum CreateInvoiceCaller {
     ///
     /// [`RouteHintHop`]: lightning::routing::router::RouteHintHop
     UserNode {
-        lsp_info: LspInfo,
-        intercept_scids: Vec<Scid>,
+        lsp_info: &'a LspInfo,
+        intercept_scids: &'a [Scid],
         /// Async closure to check whether a given [`UserPk`] exists.
-        user_exists_fn: UserExistsFn,
+        user_exists_fn: &'a UserExistsFn,
+        partners: &'a PartnersInfo,
     },
     Lsp,
 }
@@ -648,7 +649,7 @@ pub async fn create_invoice<CM, PS>(
     channel_manager: &CM,
     keys_manager: &LexeKeysManager,
     payments_manager: &PaymentsManager<CM, PS>,
-    caller: CreateInvoiceCaller,
+    caller: CreateInvoiceCaller<'_>,
     network: Network,
 ) -> anyhow::Result<CreateInvoiceResponse>
 where
@@ -740,15 +741,8 @@ where
         );
     }
 
-    // Extract user_exists_fn before consuming caller in the match.
-    let user_exists_fn = match &caller {
-        CreateInvoiceCaller::UserNode { user_exists_fn, .. } =>
-            Some(user_exists_fn.clone()),
-        CreateInvoiceCaller::Lsp => None,
-    };
-
     // Construct the route hint(s).
-    let route_hints = match caller {
+    let route_hints = match &caller {
         // If the LSP is calling create_invoice, include no hints and let
         // the sender route to us by looking at the lightning network graph.
         CreateInvoiceCaller::Lsp => Vec::new(),
@@ -773,7 +767,7 @@ where
 
             // Build the last hop hint for the payer to route with.
             let last_hop_hint =
-                LastHopHint::new(&lsp_info, *intercept_scid, &channels);
+                LastHopHint::new(lsp_info, *intercept_scid, &channels);
             last_hop_hint.invoice_route_hints()
         }
     };
@@ -796,57 +790,42 @@ where
         .map(Invoice)
         .context("Invoice was semantically incorrect")?;
 
-    let kind = PaymentKind::Invoice;
-
-    let partner_fee = match req.partner_pk {
-        Some(partner_pk) => {
-            ensure!(
-                partner_pk != *user_pk,
-                "Cannot set your own node as the partner public key"
-            );
-
-            // Ensure the partner_pk points to a real Lexe user.
-            if let Some(user_exists_fn) = &user_exists_fn {
-                let user_exists = user_exists_fn(partner_pk)
-                    .await
-                    .context("Couldn't check if partner_pk exists")?;
-                ensure!(
-                    user_exists,
-                    "No partner exists with the given partner_pk"
-                );
-            }
-
-            // TODO(max): Remove once LSP can charge for amounts other than this
-            ensure!(
-                req.partner_prop_fee == Some(Ppm::new(5000)),
-                "Currently, the only supported partner fee is 0.5% (5000 ppm)."
-            );
-
-            // TODO(max): Remove once LSP can charge for base fees as well
-            ensure!(
-                req.partner_base_fee.is_none(),
-                "Partner-chosen base fees are not supported yet. Coming soon!"
-            );
-
-            // For now, hard code a Tier 1 partner revshare of 20% which matches
-            // our receiver fee of 0.5%.
-            // TODO(max): Pass in the revshare schedule to the meganode so that
-            // we can compute the revshare based on the prop and base fees.
-            let revshare = dec!(0.2);
-
-            let pff = PartnerFeeFields {
-                user_pk: partner_pk,
-                prop_fee: req.partner_prop_fee,
-                base_fee: req.partner_base_fee,
-                revshare: Some(revshare),
-            };
-            pff.validate()?;
-
-            Some(pff)
+    // If a partner is setting the payment fee, validate and compute their
+    // revshare.
+    let partner_fee = match (&req.partner_pk, &caller) {
+        (
+            Some(partner_pk),
+            CreateInvoiceCaller::UserNode {
+                user_exists_fn,
+                partners,
+                ..
+            },
+        ) => {
+            let partner_fee = validate::partner_fee(
+                user_exists_fn,
+                partners,
+                *amount,
+                user_pk,
+                partner_pk,
+                req.partner_prop_fee,
+                req.partner_base_fee,
+            )
+            .await?;
+            Some(partner_fee)
         }
-        None => None,
+        (Some(_), CreateInvoiceCaller::Lsp) =>
+            bail!("partner fees unsupported"),
+        (None, _) => {
+            ensure!(
+                req.partner_prop_fee.is_none()
+                    && req.partner_base_fee.is_none(),
+                "You must include a `partner_pk` in order to set partner fees"
+            );
+            None
+        }
     };
 
+    let kind = PaymentKind::Invoice;
     let iipwm = InboundInvoicePaymentV2::new(
         invoice.clone(),
         hash.into(),
@@ -1591,8 +1570,9 @@ where
     })
 }
 
-/// Payments preflight validation helpers.
+/// Payments validation helpers.
 mod validate {
+    use lexe_api::types::partners::{PartnersInfo, RevshareSchedule};
     use lexe_common::ln::balance::LightningBalance;
 
     use super::*;
@@ -1752,6 +1732,91 @@ mod validate {
         // TODO(max): Don't log for privacy; instead, expose in app.
         info!("Preflighted route: {lx_route}");
         Ok((route, lx_route))
+    }
+
+    /// Validate a partner's requested payment prop fee. Compute their revshare
+    /// of the payment fee according to the current [`RevshareSchedule`].
+    pub(super) async fn partner_fee(
+        user_exists_fn: &UserExistsFn,
+        partners: &PartnersInfo,
+        amount: Option<Amount>,
+        user_pk: &UserPk,
+        partner_pk: &UserPk,
+        partner_prop_fee: Option<Ppm>,
+        partner_base_fee: Option<Amount>,
+    ) -> anyhow::Result<PartnerFeeFields> {
+        ensure!(
+            partner_pk != user_pk,
+            "Cannot set your own node as the partner public key"
+        );
+
+        // Ensure the partner_pk points to a real Lexe user.
+        //
+        // TODO(phlip9): A client credential should be tied to a single partner.
+        // Here we could cross-check with the partner_pk registered with the
+        // credential at creation time. Requires URI-redirect/QR-scan credential
+        // request flow make this usable.
+        let user_exists = user_exists_fn(*partner_pk)
+            .await
+            .context("Couldn't check if partner_pk exists")?;
+        ensure!(user_exists, "No partner exists with the given partner_pk");
+
+        // Compute the total prop fee on the payment
+        // `total_partner_fee := partner_prop_fee + partner_base_fee / amount`
+        let total_partner_fee = match amount {
+            // Let's be defensive and avoid div-by-zero
+            Some(amount) if amount != Amount::ZERO => {
+                let partner_prop_fee = partner_prop_fee.unwrap_or(Ppm::ZERO);
+                let partner_base_fee = partner_base_fee.unwrap_or(Amount::ZERO);
+                let total_partner_fee = partner_prop_fee.to_decimal()
+                    + (partner_base_fee.sats() / amount.sats());
+                Ppm::try_from(total_partner_fee).map_err(|_| {
+                    anyhow!(
+                        "Total partner fee ({total_partner_fee}) exceeds >100% \
+                         of the payment value"
+                    )
+                })?
+            }
+            _ => {
+                // From a Lightning protocol standpoint, it's difficult to
+                // for us to charge a per-payment base fee on inbound payments.
+                // Since a payment may be composed of multiple HTLCs and the LSP
+                // can't see the sender-intended amount nor determine what retry
+                // the HTLCs are associated with, it's non-trivial for the LSP
+                // to reliably correlate all successful HTLCs in a payment in
+                // order to charge a single base fee.
+                ensure!(
+                    partner_base_fee.is_none(),
+                    "To include a partner_base_fee you must specify an amount \
+                     to receive"
+                );
+                partner_prop_fee.unwrap_or(Ppm::ZERO)
+            }
+        };
+
+        // TODO(phlip9): support dynamic per-tier revshare. Partners would have
+        // an associated by-partner/by-volume/by-promo/by-plan tier that
+        // determines which revshare schedule they use.
+        let schedule_name = RevshareSchedule::DEFAULT_NAME;
+
+        // Lookup the partner's revshare from the corresponding partner
+        // revshare schedule.
+        let revshare = partners
+            .revshare_for_partner_fee(schedule_name, total_partner_fee)
+            .map_err(|err| anyhow!("{err}, total prop fee: {total_partner_fee} ppm"))?
+            .with_context(|| anyhow!(
+                "Failed to find revshare schedule with name: {schedule_name}"
+            ))?;
+
+        let pff = PartnerFeeFields {
+            user_pk: *partner_pk,
+            prop_fee: partner_prop_fee,
+            base_fee: partner_base_fee,
+            revshare: Some(revshare.to_decimal()),
+        };
+        pff.validate()?;
+
+        Ok(pff)
     }
 }
 
@@ -1932,6 +1997,8 @@ pub async fn update_revocable_client(
 
 #[cfg(test)]
 mod test {
+    use futures::{FutureExt, future};
+    use lexe_common::{ppm, sat};
     use proptest::proptest;
 
     use super::*;
@@ -1979,5 +2046,73 @@ mod test {
                 result.unwrap();
             }
         });
+    }
+
+    #[test]
+    fn test_validate_partner_fee() {
+        let user_exists_fn: UserExistsFn =
+            Arc::new(|_| future::ready(Ok(true)).boxed());
+        let partners = PartnersInfo::current();
+        let user_pk = UserPk::from_u64(123);
+        let partner_pk = UserPk::from_u64(456);
+        let test =
+            |amount, prop_fee, base_fee| -> anyhow::Result<PartnerFeeFields> {
+                futures::executor::block_on(validate::partner_fee(
+                    &user_exists_fn,
+                    &partners,
+                    amount,
+                    &user_pk,
+                    &partner_pk,
+                    prop_fee,
+                    base_fee,
+                ))
+            };
+
+        // ERR: partner_pk set but no fees set
+        test(Some(sat!(120_000)), None, None).unwrap_err();
+        test(None, None, None).unwrap_err();
+
+        // ERR: base fee with amount=None
+        test(None, Some(ppm!(0.50%)), Some(sat!(50))).unwrap_err();
+
+        // ERR: base fee only
+        test(Some(sat!(120_000)), None, Some(sat!(10_000))).unwrap_err();
+
+        // ERR: total fee too small
+        test(Some(sat!(120_000)), Some(ppm!(0.49%)), None).unwrap_err();
+        test(Some(sat!(120_000)), Some(ppm!(0.25%)), Some(sat!(100)))
+            .unwrap_err();
+        test(None, Some(ppm!(0.01%)), None).unwrap_err();
+        test(None, Some(ppm!(0.49%)), None).unwrap_err();
+
+        // ERR: total fee too large
+        test(Some(sat!(120_000)), Some(ppm!(50.0%)), None).unwrap_err();
+        test(None, Some(ppm!(50.0%)), None).unwrap_err();
+        test(None, Some(ppm!(99.0%)), None).unwrap_err();
+        test(Some(sat!(120_000)), Some(ppm!(1.0%)), Some(sat!(59_000)))
+            .unwrap_err();
+
+        // OK:
+        assert_eq!(
+            test(None, Some(ppm!(0.5%)), None).unwrap(),
+            PartnerFeeFields {
+                user_pk: partner_pk,
+                prop_fee: Some(ppm!(0.5%)),
+                base_fee: None,
+                revshare: Some(ppm!(20.0%).to_decimal()),
+            }
+        );
+
+        // OK:
+        assert_eq!(
+            test(Some(sat!(120_000)), Some(ppm!(0.5%)), Some(sat!(1_200)))
+                .unwrap(),
+            PartnerFeeFields {
+                user_pk: partner_pk,
+                prop_fee: Some(ppm!(0.5%)),
+                base_fee: Some(sat!(1_200)),
+                revshare: Some(ppm!(50.0%).to_decimal()),
+            }
+        );
     }
 }

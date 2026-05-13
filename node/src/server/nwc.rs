@@ -99,10 +99,12 @@ async fn handle_make_invoice(
         partner_base_fee: None,
     };
 
+    let user_exists_fn = state.user_cache.user_exists_fn();
     let caller = CreateInvoiceCaller::UserNode {
-        lsp_info: state.lsp_info.clone(),
-        intercept_scids: state.intercept_scids.clone(),
-        user_exists_fn: state.user_cache.user_exists_fn(),
+        lsp_info: &state.lsp_info,
+        intercept_scids: &state.intercept_scids,
+        user_exists_fn: &user_exists_fn,
+        partners: &state.partners,
     };
 
     let response = lexe_ln::command::create_invoice(

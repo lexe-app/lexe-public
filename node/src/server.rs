@@ -89,7 +89,6 @@ pub(crate) struct RouterState {
     pub descriptors: OnchainDescriptors,
     pub legacy_descriptors: Option<OnchainDescriptors>,
     pub user_cache: Arc<UserCache>,
-    #[allow(dead_code)] // TODO(phlip9): remove
     pub partners: Arc<PartnersInfo>,
 
     // --- Actors --- //
@@ -203,10 +202,12 @@ mod shared {
         State(state): State<Arc<RouterState>>,
         LxJson(req): LxJson<CreateInvoiceRequest>,
     ) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
+        let user_exists_fn = state.user_cache.user_exists_fn();
         let caller = CreateInvoiceCaller::UserNode {
-            lsp_info: state.lsp_info.clone(),
-            intercept_scids: state.intercept_scids.clone(),
-            user_exists_fn: state.user_cache.user_exists_fn(),
+            lsp_info: &state.lsp_info,
+            intercept_scids: &state.intercept_scids,
+            user_exists_fn: &user_exists_fn,
+            partners: &state.partners,
         };
 
         lexe_ln::command::create_invoice(
