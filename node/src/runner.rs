@@ -803,6 +803,7 @@ mod helpers {
             user_inactivity_secs,
             usernode_buffer_slots: _,
             usernode_memory: _,
+            partners: _,
         } = mega_args;
 
         RunArgs {

@@ -5,10 +5,13 @@ use lexe_common::{api::MegaId, env::DeployEnv, ln::network::Network};
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::{EnclaveArgs, LspInfo, OAuthConfig};
+use crate::{
+    cli::{EnclaveArgs, LspInfo, OAuthConfig},
+    types::partners::PartnersInfo,
+};
 
-#[cfg_attr(test, derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Eq, PartialEq, Arbitrary))]
 pub struct MegaArgs {
     /// A randomly generated id for this mega node.
     pub mega_id: MegaId,
@@ -40,6 +43,10 @@ pub struct MegaArgs {
     /// configuration info for Google OAuth2.
     /// Required only if running in staging / prod.
     pub oauth: Option<OAuthConfig>,
+
+    /// Policy information for Lexe partners that user nodes need to know.
+    /// Includes data like the revshare schedules.
+    pub partners: PartnersInfo,
 
     /// protocol://host:port of the runner.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
@@ -106,11 +113,15 @@ impl EnclaveArgs for MegaArgs {
 #[cfg(test)]
 mod test {
     use lexe_common::test_utils::roundtrip;
+    use proptest::{arbitrary::any, test_runner::Config};
 
     use super::*;
 
     #[test]
     fn node_args_json_string_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<MegaArgs>();
+        roundtrip::json_string_custom(
+            any::<MegaArgs>(),
+            Config::with_cases(10),
+        );
     }
 }

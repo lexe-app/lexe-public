@@ -21,6 +21,7 @@ use lexe_api::{
         OnchainDescriptors,
     },
     server::LxJson,
+    types::partners::PartnersInfo,
 };
 use lexe_common::{
     api::{
@@ -88,6 +89,8 @@ pub(crate) struct RouterState {
     pub descriptors: OnchainDescriptors,
     pub legacy_descriptors: Option<OnchainDescriptors>,
     pub user_cache: Arc<UserCache>,
+    #[allow(dead_code)] // TODO(phlip9): remove
+    pub partners: Arc<PartnersInfo>,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,

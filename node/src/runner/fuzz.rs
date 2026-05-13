@@ -227,7 +227,10 @@ impl UserRunnerFuzzer {
 }
 
 mod helpers {
-    use lexe_api::cli::{LspInfo, node::MegaArgs};
+    use lexe_api::{
+        cli::{LspInfo, node::MegaArgs},
+        types::partners::PartnersInfo,
+    };
     use lexe_common::{
         api::user::UserPk, env::DeployEnv, ln::network::Network,
         time::TimestampMs,
@@ -259,6 +262,7 @@ mod helpers {
             // 200 MiB DEFAULT_MEGANODE_MEMORY_OVERHEAD
             memory_overhead: 200 * (1 << 20),
             oauth: None,
+            partners: PartnersInfo::current(),
             runner_url: String::new(),
             rust_backtrace: None,
             rust_log: None,

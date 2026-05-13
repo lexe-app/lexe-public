@@ -9,7 +9,7 @@ use lexe_api::{
     cli::OAuthConfig,
     def::NodeLspApi,
     error::MegaApiError,
-    types::{LeaseId, ports::RunPorts},
+    types::{LeaseId, partners::PartnersInfo, ports::RunPorts},
 };
 use lexe_common::{constants, env::DeployEnv, ln::network::Network};
 use lexe_crypto::rng::Crng;
@@ -70,6 +70,9 @@ pub(crate) struct MegaContext {
     pub measurement: enclave::Measurement,
     /// The Lightning Network graph for routing.
     pub network_graph: Arc<NetworkGraphType>,
+    /// Policy information for Lexe partners that user nodes need to know.
+    /// Includes data like the revshare schedules.
+    pub partners: Arc<PartnersInfo>,
     /// The runner API client for user nodes.
     /// NOTE: This uses NodeMode::Run so should not be used for provisioning.
     pub runner_api: Arc<RunnerClient>,
@@ -100,6 +103,7 @@ impl MegaContext {
         lsp_url: String,
         runner_url: String,
         gdrive_oauth_config: Option<OAuthConfig>,
+        partners: PartnersInfo,
         usernode_sync_timeout_secs: Option<u64>,
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
@@ -210,6 +214,8 @@ impl MegaContext {
             .map(Duration::from_secs)
             .unwrap_or(constants::DEFAULT_USERNODE_SYNC_TIMEOUT);
 
+        let partners = Arc::new(partners);
+
         let context = Self {
             backend_api,
             config,
@@ -221,6 +227,7 @@ impl MegaContext {
             machine_id,
             measurement,
             network_graph,
+            partners,
             runner_api,
             runner_tx,
             scorer,
@@ -310,6 +317,8 @@ impl MegaContext {
         // Create a dummy runner_tx channel
         let (runner_tx, _runner_rx) = mpsc::channel(16);
 
+        let partners = Arc::new(PartnersInfo::current());
+
         Self {
             backend_api,
             config,
@@ -321,6 +330,7 @@ impl MegaContext {
             machine_id,
             measurement,
             network_graph,
+            partners,
             runner_api,
             runner_tx,
             scorer,

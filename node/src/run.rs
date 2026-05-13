@@ -105,7 +105,9 @@ const MIN_INTERCEPT_SCIDS: usize = 1;
 const_assert!(MIN_INTERCEPT_SCIDS <= lexe_ln::command::MAX_INTERCEPT_HINTS);
 
 /// Run a user node
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+#[allow(dead_code)] // TODO(phlip9): most of these fields are unused?
 pub(crate) struct RunArgs {
     /// protocol://host:port of the backend.
     pub backend_url: String,
@@ -229,6 +231,7 @@ impl UserNode {
             untrusted_deploy_env,
             untrusted_network,
             version,
+            partners,
         } = mega_ctxt.clone();
 
         // Get user_pk
@@ -753,6 +756,8 @@ impl UserNode {
             descriptors,
             legacy_descriptors,
             user_cache: Arc::new(UserCache::new(backend_api.clone())),
+            partners,
+
             // --- Actors --- //
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),
