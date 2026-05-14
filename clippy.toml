@@ -29,7 +29,7 @@ disallowed-methods = [
     { path = "sea_orm_migration::prelude::ColumnDef::binary_len", reason = "Use `.binary()` for consistency. See crate docs." },
     { path = "sea_orm_migration::prelude::ColumnDef::var_binary", reason = "Use `.binary()` for consistency. See crate docs." },
     { path = "sea_orm_migration::prelude::ColumnDef::blob",       reason = "Use `.binary()` for consistency. See crate docs." },
-    { path = "sea_orm_migration::prelude::ColumnDef::decimal", reason = "Use `decimal_len(DECIMAL_PRECISION, DECIMAL_SCALE)`" },
+    { path = "sea_orm_migration::prelude::ColumnDef::decimal", reason = "Use `decimal_len(AMOUNT_PRECISION, AMOUNT_SCALE)`" },
 ]
 disallowed-types = [
     # Ban implementors of axum::extract::FromRequest[Parts] bc their rejections are incompatible.
