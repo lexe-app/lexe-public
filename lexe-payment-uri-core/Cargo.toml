@@ -24,6 +24,7 @@ lexe-crypto = { workspace = true }
 anyhow = { workspace = true }
 bech32 = { workspace = true }
 bitcoin = { workspace = true }
+cfg-if = { workspace = true }
 percent-encoding = { workspace = true }
 rust_decimal = { workspace = true }
 serde = { workspace = true }

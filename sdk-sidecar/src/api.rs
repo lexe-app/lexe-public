@@ -21,8 +21,9 @@ pub struct AnalyzeResponse {
 }
 
 /// Mirrors [`lexe::types::command::PayableDetails`],
-/// but instead includes a sidecar-specific callback
-/// and a simple string for the method
+/// but instead includes a sidecar-specific callback,
+/// a `kind` field to indicate the method, and specific
+/// fields for each payable type
 #[derive(Serialize, Deserialize)]
 pub struct PayableDetails {
     pub callback: String,
@@ -30,7 +31,15 @@ pub struct PayableDetails {
     /// Used in lieu of `method: PaymentMethod`
     pub kind: String,
 
-    pub payable: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invoice: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lnurl: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub onchain: Option<String>,
+
     pub description: Option<String>,
     pub amount: Option<Amount>,
     pub min_amount: Option<Amount>,

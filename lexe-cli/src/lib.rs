@@ -486,10 +486,20 @@ impl AnalyzeArgs {
         if self.json {
             let mut json_payables = vec![];
             for p in resp.payables {
-                let method = p.method.kind();
+                let kind = p.method.kind();
+                let command = format!("lexe pay {}", p.payable);
+                let method_string = match &p.method {
+                    PaymentMethod::Invoice(inv) => inv.to_string(),
+                    PaymentMethod::Offer(off) => off.offer.to_string(),
+                    PaymentMethod::LnurlPayRequest(_) => p.payable,
+                    PaymentMethod::Onchain(onch) =>
+                        onch.address.assume_checked_ref().to_string(),
+                };
+
                 let json_payable = serde_json::json!({
-                    "payable": p.payable,
-                    "method": method,
+                    "command": command,
+                    kind: method_string,
+                    "kind": kind,
                     "description": p.description,
                     "amount": p.amount,
                     "min_amount": p.min_amount,
@@ -536,6 +546,15 @@ impl AnalyzeArgs {
                 PaymentMethod::Offer(_) => "BOLT12 offer",
                 PaymentMethod::LnurlPayRequest(_) => "Lightning Address",
             };
+            let kind = method.kind();
+            let method_string = match &method {
+                PaymentMethod::Invoice(inv) => &inv.to_string(),
+                PaymentMethod::Offer(off) => &off.offer.to_string(),
+                PaymentMethod::LnurlPayRequest(_) => &payable,
+                PaymentMethod::Onchain(onch) =>
+                    &onch.address.assume_checked_ref().to_string(),
+            };
+
             let details_list: [Option<String>; 5] = [
                 description.map(|d| format!("description: {d}")),
                 amount.map(|a| format!("amount: {a} sats")),
@@ -555,6 +574,8 @@ impl AnalyzeArgs {
             };
 
             println!("\n[ {method_name} ]{recommended_hint}");
+            // Don't wrap this to keep it copy-paste-able
+            println!("{list_bullet}{kind}: {method_string}");
             for line in details_list.into_iter().flatten() {
                 let styled_line = wrap(&line, &list_style_options).join("\n");
                 println!("{styled_line}");

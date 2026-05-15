@@ -13,6 +13,7 @@ use lexe::{
     config::WalletEnvConfig,
     types::{
         auth::Credentials,
+        bitcoin::PaymentMethod,
         command::{
             AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
@@ -118,7 +119,7 @@ mod sidecar {
 mod node {
     use lexe::types::command::GetUpdatedPaymentsResponse;
 
-use super::*;
+    use super::*;
 
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
@@ -162,10 +163,29 @@ use super::*;
                 // Translate method
                 let kind = method.kind().to_string();
 
+                // Get method-specific string
+                let mut invoice = None;
+                let mut offer = None;
+                let mut lnurl = None;
+                let mut onchain = None;
+                match method {
+                    PaymentMethod::Invoice(inv) =>
+                        invoice = Some(inv.to_string()),
+                    PaymentMethod::Offer(off) =>
+                        offer = Some(off.offer.to_string()),
+                    PaymentMethod::LnurlPayRequest(_) => lnurl = Some(payable),
+                    PaymentMethod::Onchain(onch) =>
+                        onchain =
+                            Some(onch.address.assume_checked_ref().to_string()),
+                }
+
                 PayableDetails {
                     callback,
                     kind,
-                    payable,
+                    invoice,
+                    offer,
+                    lnurl,
+                    onchain,
                     description,
                     amount,
                     min_amount,
