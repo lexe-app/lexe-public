@@ -16,9 +16,9 @@ use lexe::{
         command::{
             AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-            GetPaymentResponse, NodeInfo, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayRequest as SdkPayRequest, PayResponse,
+            GetPaymentResponse, GetUpdatedPaymentsRequest, NodeInfo,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            PayOfferResponse, PayRequest as SdkPayRequest, PayResponse,
             PayableDetails as SdkPayableDetails,
         },
         payment::Payment,
@@ -30,21 +30,17 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::payments::PaymentCreatedIndex,
 };
-use lexe_crypto::ed25519;
-use quick_cache::unsync;
 use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
 
 use crate::{
     api::{AnalyzeResponse, HealthCheckResponse, PayRequest, PayableDetails},
     extract::{
-        CredentialsExtractor, LexeWalletAndCredentialsExtractor,
-        LexeWalletExtractor,
+        CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
     },
-    webhook::TrackRequest,
+    webhook::{TrackRequest, WalletCache},
 };
 
-const CLIENT_CACHE_CAPACITY: usize = 64;
 /// A percent encoding set intended for use in HTTP query parameters.
 const HTTP_PERCENT_ENCODE_SET: percent_encoding::AsciiSet =
     percent_encoding::NON_ALPHANUMERIC
@@ -58,31 +54,11 @@ pub(crate) struct RouterState {
     /// The default [`LexeWallet`] and [`Credentials`] from env/CLI.
     /// Used when no per-request credentials are provided.
     pub default: Option<(Arc<LexeWallet>, Arc<Credentials>)>,
-    /// Caches `LexeWallet`s by their `client_pk`.
-    // TODO(nicole): find a not-unstable key for wallets
-    pub wallet_cache: Mutex<unsync::Cache<ed25519::PublicKey, Arc<LexeWallet>>>,
+    /// Shared cache of [`LexeWallet`]s
+    pub wallet_cache: Arc<Mutex<WalletCache>>,
     pub wallet_env_config: WalletEnvConfig,
     /// Channel to send track requests to the webhook sender.
     pub webhook_tx: Option<mpsc::Sender<TrackRequest>>,
-}
-
-impl RouterState {
-    pub fn new(
-        sidecar_url: String,
-        default: Option<(Arc<LexeWallet>, Arc<Credentials>)>,
-        wallet_env_config: WalletEnvConfig,
-        webhook_tx: Option<mpsc::Sender<TrackRequest>>,
-    ) -> Self {
-        let wallet_cache =
-            Mutex::new(unsync::Cache::new(CLIENT_CACHE_CAPACITY));
-        Self {
-            sidecar_url,
-            default,
-            wallet_cache,
-            wallet_env_config,
-            webhook_tx,
-        }
-    }
 }
 
 pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
@@ -100,6 +76,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/create_offer", post(node::create_offer))
         .route("/v2/node/pay_offer", post(node::pay_offer))
         .route("/v2/node/payment", get(node::get_payment))
+        .route("/v2/node/updated_payments", get(node::get_updated_payments))
         // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
         .route("/v1/node/node_info", get(node::node_info))
@@ -123,11 +100,14 @@ mod sidecar {
         let status = if has_default || has_request_credentials {
             Cow::from("ok")
         } else {
-            // TODO(max): Mention root seed options later if desired.
             Cow::from(
                 "warning: No client credentials configured. \
-                 Set LEXE_CLIENT_CREDENTIALS in env or pass credentials \
-                 per-request via the Authorization header.",
+                 Credentials must be set per-request via the Authorization \
+                 header. Alternatively, one of the following flags can be set:
+                 \t--client-credentials / $LEXE_CLIENT_CREDENTIALS\n\
+                 \t--client-credentials-path / $LEXE_CLIENT_CREDENTIALS_PATH\n\
+                 \t--root-seed / $LEXE_ROOT_SEED\n\
+                 \t--root-seed-path / $LEXE_ROOT_SEED_PATH",
             )
         };
 
@@ -136,12 +116,14 @@ mod sidecar {
 }
 
 mod node {
-    use super::*;
+    use lexe::types::command::GetUpdatedPaymentsResponse;
+
+use super::*;
 
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(
         State(_): State<Arc<RouterState>>,
-        LexeWalletExtractor(wallet): LexeWalletExtractor,
+        WalletExtractor(wallet): WalletExtractor,
     ) -> Result<LxJson<NodeInfo>, SdkApiError> {
         let info = wallet.node_info().await.map_err(SdkApiError::command)?;
         Ok(LxJson(info))
@@ -150,7 +132,7 @@ mod node {
     #[instrument(skip_all, name = "(analyze)")]
     pub(crate) async fn analyze(
         State(state): State<Arc<RouterState>>,
-        LexeWalletExtractor(wallet): LexeWalletExtractor,
+        WalletExtractor(wallet): WalletExtractor,
         LxQuery(req): LxQuery<AnalyzeRequest>,
     ) -> Result<LxJson<AnalyzeResponse>, SdkApiError> {
         let resp = wallet.analyze(req).await.map_err(SdkApiError::command)?;
@@ -198,9 +180,12 @@ mod node {
 
     #[instrument(skip_all, name = "(pay)")]
     pub(crate) async fn pay(
-        State(_): State<Arc<RouterState>>,
+        State(state): State<Arc<RouterState>>,
         LxQuery(params): LxQuery<PayRequest>,
-        LexeWalletExtractor(wallet): LexeWalletExtractor,
+        WalletAndCredentialsExtractor {
+            wallet,
+            credentials,
+        }: WalletAndCredentialsExtractor,
         LxJson(req): LxJson<Option<PayRequest>>,
     ) -> Result<LxJson<PayResponse>, SdkApiError> {
         // Ensure that query params and request body don't conflict
@@ -241,16 +226,18 @@ mod node {
 
         let resp = wallet.pay(req).await.map_err(SdkApiError::command)?;
 
+        helpers::try_track_payment(&state, credentials, resp.index);
+
         Ok(LxJson(resp))
     }
 
     #[instrument(skip_all, name = "(create-invoice)")]
     pub(crate) async fn create_invoice(
         State(state): State<Arc<RouterState>>,
-        LexeWalletAndCredentialsExtractor {
+        WalletAndCredentialsExtractor {
             wallet,
             credentials,
-        }: LexeWalletAndCredentialsExtractor,
+        }: WalletAndCredentialsExtractor,
         LxJson(req): LxJson<CreateInvoiceRequest>,
     ) -> Result<LxJson<CreateInvoiceResponse>, SdkApiError> {
         let resp = wallet
@@ -258,7 +245,7 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
 
-        try_track_payment(&state, &wallet, credentials, resp.index);
+        helpers::try_track_payment(&state, credentials, resp.index);
 
         Ok(LxJson(resp))
     }
@@ -266,10 +253,10 @@ mod node {
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub(crate) async fn pay_invoice(
         State(state): State<Arc<RouterState>>,
-        LexeWalletAndCredentialsExtractor {
+        WalletAndCredentialsExtractor {
             wallet,
             credentials,
-        }: LexeWalletAndCredentialsExtractor,
+        }: WalletAndCredentialsExtractor,
         LxJson(req): LxJson<PayInvoiceRequest>,
     ) -> Result<LxJson<PayInvoiceResponse>, SdkApiError> {
         let resp = wallet
@@ -277,7 +264,7 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
 
-        try_track_payment(&state, &wallet, credentials, resp.index);
+        helpers::try_track_payment(&state, credentials, resp.index);
 
         Ok(LxJson(resp))
     }
@@ -285,7 +272,7 @@ mod node {
     #[instrument(skip_all, name = "(create-offer)")]
     pub(crate) async fn create_offer(
         State(_): State<Arc<RouterState>>,
-        LexeWalletExtractor(wallet): LexeWalletExtractor,
+        WalletExtractor(wallet): WalletExtractor,
         LxJson(req): LxJson<CreateOfferRequest>,
     ) -> Result<LxJson<CreateOfferResponse>, SdkApiError> {
         let resp = wallet
@@ -299,15 +286,15 @@ mod node {
     #[instrument(skip_all, name = "(pay-offer)")]
     pub(crate) async fn pay_offer(
         State(state): State<Arc<RouterState>>,
-        LexeWalletAndCredentialsExtractor {
+        WalletAndCredentialsExtractor {
             wallet,
             credentials,
-        }: LexeWalletAndCredentialsExtractor,
+        }: WalletAndCredentialsExtractor,
         LxJson(req): LxJson<PayOfferRequest>,
     ) -> Result<LxJson<PayOfferResponse>, SdkApiError> {
         let resp = wallet.pay_offer(req).await.map_err(SdkApiError::command)?;
 
-        try_track_payment(&state, &wallet, credentials, resp.index);
+        helpers::try_track_payment(&state, credentials, resp.index);
 
         Ok(LxJson(resp))
     }
@@ -316,7 +303,7 @@ mod node {
     #[instrument(skip_all, name = "(get-payment-v1)")]
     pub(crate) async fn get_payment_v1(
         state: State<Arc<RouterState>>,
-        wallet: LexeWalletExtractor,
+        wallet: WalletExtractor,
         req: LxQuery<GetPaymentRequest>,
     ) -> Result<LxJson<GetPaymentResponse>, SdkApiError> {
         // Wraps the v2 logic to return `{ "payment": null }` if not found.
@@ -343,7 +330,7 @@ mod node {
     #[instrument(skip_all, name = "(get-payment)")]
     pub(crate) async fn get_payment(
         State(_): State<Arc<RouterState>>,
-        LexeWalletExtractor(wallet): LexeWalletExtractor,
+        WalletExtractor(wallet): WalletExtractor,
         LxQuery(req): LxQuery<GetPaymentRequest>,
     ) -> Result<LxJson<Payment>, SdkApiError> {
         let resp = wallet
@@ -356,28 +343,36 @@ mod node {
         Ok(LxJson(payment))
     }
 
+    #[instrument(skip_all, name = "(get-updated-payments)")]
+    pub(crate) async fn get_updated_payments(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxQuery(req): LxQuery<GetUpdatedPaymentsRequest>,
+    ) -> Result<LxJson<GetUpdatedPaymentsResponse>, SdkApiError> {
+        let resp = wallet
+            .get_updated_payments(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+}
+
+mod helpers {
+    use super::*;
+    use crate::webhook::CredentialsOrDefault;
+
     /// Try to track a payment for webhook notifications.
     ///
     /// No-op if webhooks are not configured.
-    fn try_track_payment(
+    pub(super) fn try_track_payment(
         state: &RouterState,
-        wallet: &LexeWallet,
         credentials: Arc<Credentials>,
         index: PaymentCreatedIndex,
     ) {
         let Some(tx) = &state.webhook_tx else { return };
 
-        let Some(user_pk) = wallet.node_client().user_pk() else {
-            warn!(
-                "Webhook tracking unavailable: credentials created \
-                 before node-v0.8.11 do not include user_pk"
-            );
-            return;
-        };
-
         let req = TrackRequest {
-            user_pk,
-            credentials,
+            creds_or_default: CredentialsOrDefault::from(&*credentials),
             payment_created_index: index,
         };
 

@@ -10,8 +10,9 @@
 use lexe::types::command::{
     AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
     CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-    GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
-    PayOfferRequest, PayOfferResponse, PayResponse,
+    GetPaymentResponse, GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+    NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+    PayOfferResponse, PayResponse,
 };
 use lexe_api::error::SdkApiError;
 #[cfg(doc)]
@@ -89,4 +90,16 @@ pub trait UserSidecarApi {
         &self,
         req: &GetPaymentRequest,
     ) -> Result<GetPaymentResponse, SdkApiError>;
+
+    /// Get a batch of payments in ascending `updated_at` order, starting
+    /// from a given `updated_at` index.
+    ///
+    /// `start_index` is the cursor at which the results should start,
+    /// exclusive. If `None`, the least recently updated payments will be
+    /// returned first. `limit` caps the number of payments returned
+    /// (max 100, default 50).
+    async fn get_updated_payments(
+        &self,
+        req: &GetUpdatedPaymentsRequest,
+    ) -> Result<GetUpdatedPaymentsResponse, SdkApiError>;
 }

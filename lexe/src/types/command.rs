@@ -8,11 +8,13 @@ use lexe_api::{
         invoice::Invoice,
         payments::{
             ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentSecret,
+            PaymentUpdatedIndex,
         },
     },
 };
-use lexe_common::{ln::amount::Amount, ppm::Ppm, time::TimestampMs};
+use lexe_common::{constants, ln::amount::Amount, ppm::Ppm, time::TimestampMs};
 use lexe_payment_uri::PaymentMethod;
+use lexe_std::const_assert_usize_eq;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
@@ -496,6 +498,41 @@ pub struct GetPaymentRequest {
 pub struct GetPaymentResponse {
     /// Information about this payment, if it exists.
     pub payment: Option<Payment>,
+}
+
+/// Get a batch of payments in ascending `updated_at` order, starting from
+/// a given `updated_at` index.
+///
+/// Useful for tailing / syncing payment updates as they occur and merging them
+/// into a local payments store.
+#[derive(Serialize, Deserialize)]
+pub struct GetUpdatedPaymentsRequest {
+    /// The cursor at which the results should start, exclusive.
+    ///
+    /// Payments that were last updated earlier than or equal to this will not
+    /// be returned.
+    ///
+    /// If `None`, the least recently updated payments will be returned first.
+    pub start_index: Option<PaymentUpdatedIndex>,
+    /// The maximum number of payments that can be returned.
+    ///
+    /// Maximum value: 100. Defaults to 50 if not set.
+    pub limit: Option<u16>,
+}
+
+// If either of these break, update the docs above.
+const_assert_usize_eq!(constants::MAX_PAYMENTS_BATCH_SIZE as usize, 100);
+const_assert_usize_eq!(constants::DEFAULT_PAYMENTS_BATCH_SIZE as usize, 50);
+
+/// A response to a [`GetUpdatedPaymentsRequest`].
+#[derive(Serialize, Deserialize)]
+pub struct GetUpdatedPaymentsResponse {
+    /// The updated payments, in ascending [`PaymentUpdatedIndex`] order.
+    pub payments: Vec<Payment>,
+    /// The `updated_at` index of the last payment in the returned batch.
+    ///
+    /// To continue syncing, pass this as `start_index` in the next request.
+    pub updated_index: Option<PaymentUpdatedIndex>,
 }
 
 /// Response from listing payments.

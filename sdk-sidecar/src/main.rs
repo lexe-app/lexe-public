@@ -6,7 +6,17 @@ fn main() -> anyhow::Result<()> {
     lexe_logger::init();
 
     let mut args = SidecarArgs::from_cli();
-    args.or_env_mut()?;
+    args.other_or_env_mut()?;
+
+    // Check for CLI credentials args
+    let from_cli = args.client_credentials.is_some()
+        || args.client_credentials_path.is_some()
+        || args.root_seed.is_some()
+        || args.root_seed_path.is_some();
+    // If no CLI credentials args, populate from env
+    if !from_cli {
+        args.credentials_or_env_mut()?;
+    }
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()

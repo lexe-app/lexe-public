@@ -60,12 +60,12 @@ impl FromRequestParts<Arc<RouterState>> for CredentialsExtractor {
 /// the default credentials. Errors if no credentials are provided and no
 /// default wallet exists.
 // Logic should be synced with [`LexeWalletExtractor`]
-pub(crate) struct LexeWalletAndCredentialsExtractor {
+pub(crate) struct WalletAndCredentialsExtractor {
     pub wallet: Arc<LexeWallet>,
     pub credentials: Arc<Credentials>,
 }
 
-impl FromRequestParts<Arc<RouterState>> for LexeWalletAndCredentialsExtractor {
+impl FromRequestParts<Arc<RouterState>> for WalletAndCredentialsExtractor {
     type Rejection = SdkApiError;
 
     async fn from_request_parts(
@@ -81,7 +81,7 @@ impl FromRequestParts<Arc<RouterState>> for LexeWalletAndCredentialsExtractor {
 
             // Check cache or create new
             let wallet = match locked_cache.get(&client_pk) {
-                Some(c) => c.clone(),
+                Some(cached_wallet) => cached_wallet.clone(),
                 None => {
                     let credentials_ref =
                         CredentialsRef::from(&client_credentials);
@@ -135,9 +135,9 @@ impl FromRequestParts<Arc<RouterState>> for LexeWalletAndCredentialsExtractor {
 /// wallet configured at startup. Errors if no credentials are provided and no
 /// default wallet exists.
 // Logic should be synced with [`LexeWalletAndCredentialsExtractor`]
-pub(crate) struct LexeWalletExtractor(pub Arc<LexeWallet>);
+pub(crate) struct WalletExtractor(pub Arc<LexeWallet>);
 
-impl FromRequestParts<Arc<RouterState>> for LexeWalletExtractor {
+impl FromRequestParts<Arc<RouterState>> for WalletExtractor {
     type Rejection = SdkApiError;
 
     async fn from_request_parts(
@@ -145,7 +145,7 @@ impl FromRequestParts<Arc<RouterState>> for LexeWalletExtractor {
         state: &Arc<RouterState>,
     ) -> Result<Self, Self::Rejection> {
         let extractor =
-            LexeWalletAndCredentialsExtractor::from_request_parts(parts, state)
+            WalletAndCredentialsExtractor::from_request_parts(parts, state)
                 .await?;
 
         Ok(Self(extractor.wallet))

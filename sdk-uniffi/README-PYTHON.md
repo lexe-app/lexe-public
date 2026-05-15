@@ -66,7 +66,7 @@ wallet.provision(creds)
 payment = wallet.pay_invoice(
     invoice="lnbc...",
     fallback_amount_sats=None,
-    note="Paying for coffee",
+    personal_note="Paying for coffee",
 )
 payment = wallet.wait_for_payment(index=payment.index, timeout_secs=15)
 print(f"Payment: {payment.status}")

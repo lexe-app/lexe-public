@@ -2,8 +2,9 @@ use lexe::types::{
     command::{
         AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-        GetPaymentResponse, NodeInfo, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayResponse,
+        GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, NodeInfo, PayInvoiceRequest,
+        PayInvoiceResponse, PayOfferRequest, PayOfferResponse, PayResponse,
     },
     payment::Payment,
 };
@@ -137,5 +138,15 @@ impl UserSidecarApi for SidecarClient {
                     Ok(GetPaymentResponse { payment: None }),
                 _ => Err(error),
             })
+    }
+
+    async fn get_updated_payments(
+        &self,
+        req: &GetUpdatedPaymentsRequest,
+    ) -> Result<GetUpdatedPaymentsResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/updated_payments");
+        let http_req = self.rest.get(url, req);
+        self.rest.send(http_req).await
     }
 }

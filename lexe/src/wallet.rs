@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Duration};
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
     def::{AppBackendApi, AppNodeRunApi},
-    models::command,
+    models::command::{self, GetUpdatedPayments},
     types::{
         bounded_string::BoundedString,
         lnurl::LnurlPayRequest,
@@ -43,8 +43,9 @@ use crate::{
         command::{
             AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetPaymentRequest, GetPaymentResponse, ListPaymentsResponse,
-            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
             PayOfferResponse, PayRequest, PayResponse, PayableDetails,
             PaymentSyncSummary, UpdatePersonalNoteRequest,
         },
@@ -1323,6 +1324,33 @@ impl LexeWallet {
             .map(Into::into);
 
         Ok(GetPaymentResponse { payment })
+    }
+
+    /// Get a batch of payments in ascending `updated_at` order, starting from
+    /// a given `updated_at` index.
+    ///
+    /// Useful for tailing / syncing payment updates as they occur and merging
+    /// them into a local payments store.
+    #[instrument(skip_all, name = "(get-updated-payments)")]
+    pub async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPaymentsRequest,
+    ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
+        let req = GetUpdatedPayments {
+            start_index: req.start_index,
+            limit: req.limit,
+        };
+        let resp = self
+            .node_client
+            .get_updated_payments(req)
+            .await
+            .context("Failed to get updated payments")?;
+        let updated_index = resp.payments.last().map(|p| p.updated_index());
+        let payments = resp.payments.into_iter().map(Payment::from).collect();
+        Ok(GetUpdatedPaymentsResponse {
+            payments,
+            updated_index,
+        })
     }
 
     /// Update the personal note on an existing payment.

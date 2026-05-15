@@ -15,11 +15,14 @@ use lexe::{
         bitcoin::{Amount, Invoice, Offer, PaymentMethod},
         command::{
             AnalyzeRequest, CreateInvoiceRequest, CreateOfferRequest,
-            GetPaymentRequest, PayInvoiceRequest, PayOfferRequest, PayRequest,
-            PayResponse, PayableDetails, PaymentSyncSummary,
-            UpdatePersonalNoteRequest,
+            GetPaymentRequest, GetUpdatedPaymentsRequest, PayInvoiceRequest,
+            PayOfferRequest, PayRequest, PayResponse, PayableDetails,
+            PaymentSyncSummary, UpdatePersonalNoteRequest,
         },
-        payment::{Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus},
+        payment::{
+            Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
+            PaymentUpdatedIndex,
+        },
         util::Ppm,
     },
     wallet::LexeWallet,
@@ -143,6 +146,7 @@ pub enum LexeCommand {
     CreateOffer(CreateOfferArgs),
     PayOffer(PayOfferArgs),
     GetPayment(GetPaymentArgs),
+    GetUpdatedPayments(GetUpdatedPaymentsArgs),
     WaitForPayment(WaitForPaymentArgs),
     UpdatePersonalNote(UpdatePersonalNoteArgs),
     SyncPayments(SyncPaymentsArgs),
@@ -270,6 +274,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::CreateOffer(a) => a.run(&wallet).await,
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
+        LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
         LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
         LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
@@ -757,8 +762,11 @@ pub struct PayInvoiceArgs {
     )]
     fallback_amount_sats: Option<Amount>,
 
-    /// Personal note (not visible to receiver, max 200 chars)
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Personal note stored locally, not visible to receiver.\n\
+        Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
     personal_note: Option<String>,
 }
 
@@ -837,7 +845,12 @@ impl CreateOfferArgs {
 // --- `pay-offer` --- //
 
 #[derive(Parser)]
-#[command(about = "Pay a BOLT 12 offer over Lightning", help_template = HELP_TEMPLATE)]
+#[command(
+    about = "Pay a BOLT 12 offer over Lightning",
+    help_template = HELP_TEMPLATE,
+    // We must set this otherwise help text width exceeds 80 chars
+    next_line_help = true,
+)]
 pub struct PayOfferArgs {
     /// The BOLT 12 offer to pay
     offer: String,
@@ -849,16 +862,18 @@ pub struct PayOfferArgs {
     )]
     amount_sats: Amount,
 
-    /// Note sent to the receiver with the payment.
-    ///
-    /// Maximum length: 512 UTF-8 bytes.
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Message sent to the receiver with the payment.\n\
+            \n\
+            Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
     message: Option<String>,
 
     #[arg(
         long,
         help = "Personal note stored locally, not visible to receiver.\n\
-            Maximum length: 512 UTF-8 bytes."
+            Maximum length: 200 chars / 512 UTF-8 bytes."
     )]
     personal_note: Option<String>,
 }
@@ -910,6 +925,49 @@ impl GetPaymentArgs {
             .get_payment(GetPaymentRequest { index: self.index })
             .await
             .context("Failed to get payment")?;
+        helpers::print_json_pretty(&resp)
+    }
+}
+
+// --- `get-updated-payments` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get payments which were updated past a specified index",
+    long_about = "Get payments which were updated past a specified index.\n\
+        \n\
+        Fetches updated payments directly from the user node \
+        (not from local storage).",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetUpdatedPaymentsArgs {
+    #[arg(
+        long,
+        help = "The cursor at which the results should start, exclusive.\n\
+        If given, payments that were last updated earlier than or\n\
+        equal to this will not be returned. If omitted, the least\n\
+        recently updated payments will be returned first."
+    )]
+    start_index: Option<PaymentUpdatedIndex>,
+
+    #[arg(
+        long,
+        help = "Maximum number of updated payments to return.\n\
+        Maximum value: 100. Defaults to 50 if not set."
+    )]
+    limit: Option<u16>,
+}
+
+impl GetUpdatedPaymentsArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = GetUpdatedPaymentsRequest {
+            start_index: self.start_index,
+            limit: self.limit,
+        };
+        let resp = wallet
+            .get_updated_payments(req)
+            .await
+            .context("Failed to get updated payments")?;
         helpers::print_json_pretty(&resp)
     }
 }
@@ -969,8 +1027,11 @@ pub struct UpdatePersonalNoteArgs {
     /// The payment index
     index: PaymentCreatedIndex,
 
-    /// The new personal note (omit to clear, max 200 chars)
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "The new personal note. Omit to clear.\n\
+        Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
     personal_note: Option<String>,
 }
 
@@ -1133,6 +1194,11 @@ mod helpers {
     ///
     /// At most one credential source may be specified. If none is provided,
     /// falls back to the seedphrase file in the data directory.
+    //
+    // NOTE: Keep in sync with `resolve_credentials` in
+    //       `public/sdk-sidecar/src/run.rs`.
+    // NOTE: `credentials_from_cli` isn't included in the sidecar due to the
+    //       sidecar's CLI and library being separate
     pub fn resolve_credentials(
         env_config: &WalletEnvConfig,
         lexe_data_dir: &Option<PathBuf>,

@@ -27,8 +27,10 @@ use lexe::{
             CreateInvoiceResponse as SdkCreateInvoiceResponse,
             CreateOfferRequest as SdkCreateOfferRequest,
             CreateOfferResponse as SdkCreateOfferResponse,
-            GetPaymentRequest as SdkGetPaymentRequest, NodeInfo as SdkNodeInfo,
-            PayInvoiceRequest as SdkPayInvoiceRequest,
+            GetPaymentRequest as SdkGetPaymentRequest,
+            GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse as SdkGetUpdatedPaymentsResponse,
+            NodeInfo as SdkNodeInfo, PayInvoiceRequest as SdkPayInvoiceRequest,
             PayInvoiceResponse as SdkPayInvoiceResponse,
             PayOfferRequest as SdkPayOfferRequest,
             PayOfferResponse as SdkPayOfferResponse,
@@ -51,6 +53,7 @@ use lexe_api_core::{
             PaymentDirection as PaymentDirectionRs,
             PaymentKind as PaymentKindRs, PaymentRail as PaymentRailRs,
             PaymentStatus as PaymentStatusRs,
+            PaymentUpdatedIndex as PaymentUpdatedIndexRs,
         },
     },
 };
@@ -1085,6 +1088,27 @@ impl AsyncLexeWallet {
         Ok(resp.payment.map(Into::into))
     }
 
+    /// Get a batch of payments in ascending `updated_at` order, starting
+    /// from a given `updated_at` index.
+    ///
+    /// `start_index` is the cursor at which the results should start,
+    /// exclusive. If `None`, the least recently updated payments will be
+    /// returned first. `limit` caps the number of payments returned
+    /// (max 100, default 50).
+    #[uniffi::method(default(start_index = None, limit = None))]
+    pub async fn get_updated_payments(
+        &self,
+        start_index: Option<String>,
+        limit: Option<u16>,
+    ) -> FfiResult<GetUpdatedPaymentsResponse> {
+        let start_index = start_index
+            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
+            .transpose()?;
+        let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
+        let resp = self.inner.get_updated_payments(req).await?;
+        Ok(GetUpdatedPaymentsResponse::from(resp))
+    }
+
     /// Update a payment's personal note.
     /// Call `sync_payments` first so the payment exists locally.
     /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
@@ -1589,6 +1613,27 @@ impl BlockingLexeWallet {
         let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req)?;
         Ok(resp.payment.map(Into::into))
+    }
+
+    /// Get a batch of payments in ascending `updated_at` order, starting
+    /// from a given `updated_at` index.
+    ///
+    /// `start_index` is the cursor at which the results should start,
+    /// exclusive. If `None`, the least recently updated payments will be
+    /// returned first. `limit` caps the number of payments returned
+    /// (max 100, default 50).
+    #[uniffi::method(default(start_index = None, limit = None))]
+    pub fn get_updated_payments(
+        &self,
+        start_index: Option<String>,
+        limit: Option<u16>,
+    ) -> FfiResult<GetUpdatedPaymentsResponse> {
+        let start_index = start_index
+            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
+            .transpose()?;
+        let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
+        let resp = self.inner.get_updated_payments(req)?;
+        Ok(GetUpdatedPaymentsResponse::from(resp))
     }
 
     /// Update a payment's note.
@@ -2129,6 +2174,24 @@ pub struct ListPaymentsResponse {
     /// Cursor for fetching the next page. `None` when there are no more
     /// results. Pass this as the `after` argument to get the next page.
     pub next_index: Option<String>,
+}
+
+/// Response from getting updated payments.
+#[derive(Clone, uniffi::Record)]
+pub struct GetUpdatedPaymentsResponse {
+    /// The updated payments which were fetched.
+    pub payments: Vec<Payment>,
+    /// Cursor for fetching the next page of updated payments.
+    pub updated_index: Option<String>,
+}
+
+impl From<SdkGetUpdatedPaymentsResponse> for GetUpdatedPaymentsResponse {
+    fn from(resp: SdkGetUpdatedPaymentsResponse) -> Self {
+        Self {
+            payments: resp.payments.into_iter().map(Payment::from).collect(),
+            updated_index: resp.updated_index.map(|idx| idx.to_string()),
+        }
+    }
 }
 
 // =================== //

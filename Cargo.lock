@@ -2836,6 +2836,7 @@ dependencies = [
  "anyhow",
  "bech32",
  "bitcoin",
+ "cfg-if 1.0.4",
  "lexe-api-core",
  "lexe-common",
  "lexe-crypto",
@@ -4359,6 +4360,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serde_with",
  "tokio",
  "tracing",
 ]

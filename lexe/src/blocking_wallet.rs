@@ -20,8 +20,9 @@ use crate::{
         command::{
             AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetPaymentRequest, GetPaymentResponse, ListPaymentsResponse,
-            NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
             PayOfferResponse, PayRequest, PayResponse, PaymentSyncSummary,
             UpdatePersonalNoteRequest,
         },
@@ -422,6 +423,18 @@ impl BlockingLexeWallet {
         req: GetPaymentRequest,
     ) -> anyhow::Result<GetPaymentResponse> {
         block_on(self.inner.get_payment(req))
+    }
+
+    /// Get a batch of payments in ascending `updated_at` order, starting from
+    /// a given `updated_at` index.
+    ///
+    /// Useful for tailing / syncing payment updates as they occur and merging
+    /// them into a local payments store.
+    pub fn get_updated_payments(
+        &self,
+        req: GetUpdatedPaymentsRequest,
+    ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
+        block_on(self.inner.get_updated_payments(req))
     }
 
     /// Update the personal note on an existing payment.

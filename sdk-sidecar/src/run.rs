@@ -2,15 +2,17 @@ use std::{
     borrow::Cow,
     env,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, ensure};
 use lexe::{
-    config::WalletEnvConfig, types::auth::Credentials, wallet::LexeWallet,
+    config::WalletEnvConfig,
+    types::auth::{ClientCredentials, Credentials, RootSeed},
+    wallet::LexeWallet,
 };
 use lexe_api::server::{LayerConfig, build_server_url};
 use lexe_common::{env::DeployEnv, ln::network::Network};
@@ -18,18 +20,16 @@ use lexe_tokio::{
     notify_once::NotifyOnce,
     task::{self, LxTask},
 };
+use quick_cache::unsync;
 use tracing::{info, info_span, instrument};
 
-use crate::{
-    cli::SidecarArgs,
-    server,
-    webhook::{WebhookSender, WebhookSenderConfig},
-};
+use crate::{cli::SidecarArgs, server, webhook::WebhookSender};
 
 /// `127.0.0.1:5393` We use IPv4 because it's more approachable to newbie devs.
 /// The docs note that IPv6 is still supported.
 const DEFAULT_LISTEN_ADDR: SocketAddr =
     SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 5393));
+const WALLET_CACHE_CAPACITY: usize = 64;
 
 pub struct Sidecar {
     deploy_env: DeployEnv,
@@ -42,32 +42,8 @@ pub struct Sidecar {
 impl Sidecar {
     /// Initialize the [`Sidecar`]
     #[instrument(skip_all, name = "(sidecar)")]
-    pub fn init(mut args: SidecarArgs) -> anyhow::Result<Self> {
-        // Load credentials from files into args if necessary.
-        args.load()?;
-
+    pub fn init(args: SidecarArgs) -> anyhow::Result<Self> {
         let mut static_tasks = Vec::with_capacity(1);
-
-        // Check user-provided default credentials
-        let maybe_credentials = match (args.root_seed, args.client_credentials)
-        {
-            (Some(root_seed), None) => Some(Credentials::from(root_seed)),
-            (None, Some(client_credentials)) =>
-                Some(Credentials::from(client_credentials)),
-            (Some(_), Some(_)) =>
-                return Err(anyhow!(
-                    "Can only provide one of: `--root-seed` or `--client-credentials`"
-                )),
-            // TODO(phlip9): mention root seed options here when we unhide them
-            (None, None) => {
-                info!(
-                    "No credentials configured. \
-                     Set credentials via env (LEXE_CLIENT_CREDENTIALS) \
-                     or per-request via the Authorization header."
-                );
-                None
-            }
-        };
 
         let network = args.network.unwrap_or(Network::Mainnet);
         let use_sgx = matches!(env::var("SGX").as_deref(), Ok("true"));
@@ -81,7 +57,20 @@ impl Sidecar {
                 return Err(anyhow!("{network} network is not supported.")),
         };
 
-        // Create the default node client if default credentials were provided.
+        // Get the data dir from args with fallback to the Lexe default
+        let data_dir =
+            args.data_dir.map_or_else(lexe::default_lexe_data_dir, Ok)?;
+
+        let maybe_credentials = resolve_credentials(
+            &wallet_env_config,
+            data_dir.as_path(),
+            args.client_credentials,
+            args.client_credentials_path,
+            args.root_seed,
+            args.root_seed_path,
+        )?;
+
+        // Create the default wallet if default credentials were provided.
         let default = match maybe_credentials {
             Some(credentials) => {
                 let wallet = LexeWallet::without_db(
@@ -95,9 +84,6 @@ impl Sidecar {
             None => None,
         };
 
-        // Spawn HTTP server
-        let shutdown = NotifyOnce::new();
-
         // Parse webhook URL if provided
         let webhook_url = args
             .webhook_url
@@ -106,38 +92,41 @@ impl Sidecar {
             .context("Invalid webhook URL")?;
 
         // Create WebhookSender if webhook URL is configured
-        let deploy_env = wallet_env_config.wallet_env.deploy_env;
-        let gateway_url = deploy_env.gateway_url(dev_gateway_url);
+        let shutdown = NotifyOnce::new();
+        let wallet_cache =
+            Arc::new(Mutex::new(unsync::Cache::new(WALLET_CACHE_CAPACITY)));
         let webhook_tx = match webhook_url {
             Some(url) => {
-                let sidecar_dir =
-                    resolve_data_dir(args.data_dir).join("sidecar");
-                let config = WebhookSenderConfig {
-                    url,
+                let sidecar_dir = data_dir.join("sidecar");
+                let (sender, tx) = WebhookSender::new(
+                    default.as_ref().map(|(w, _)| w.clone()),
+                    shutdown.clone(),
                     sidecar_dir,
-                    deploy_env,
-                    gateway_url,
-                    shutdown: shutdown.clone(),
-                };
-                let (sender, tx) = WebhookSender::new(config);
+                    url,
+                    wallet_cache.clone(),
+                    wallet_env_config.clone(),
+                );
                 static_tasks.push(sender.spawn());
                 Some(tx)
             }
             None => None,
         };
 
+        // Spawn HTTP server
         let listen_addr = args.listen_addr.unwrap_or(DEFAULT_LISTEN_ADDR);
         let maybe_tls_and_dns = None;
         let maybe_dns = maybe_tls_and_dns.as_ref().map(|(_, dns)| *dns);
         let sidecar_url = args
             .sidecar_url
             .unwrap_or_else(|| build_server_url(listen_addr, maybe_dns));
-        let router_state = Arc::new(server::RouterState::new(
+        let deploy_env = wallet_env_config.wallet_env.deploy_env;
+        let router_state = Arc::new(server::RouterState {
             sidecar_url,
             default,
+            wallet_cache,
             wallet_env_config,
             webhook_tx,
-        ));
+        });
         const SERVER_SPAN_NAME: &str = "(server)";
         let (server_task, sidecar_url) = lexe_api::server::spawn_server_task(
             listen_addr,
@@ -226,7 +215,92 @@ impl Sidecar {
     }
 }
 
-/// Resolve data directory, defaulting to `.lexe` in current directory.
-fn resolve_data_dir(data_dir: Option<PathBuf>) -> PathBuf {
-    data_dir.unwrap_or_else(|| PathBuf::from(".lexe"))
+/// Resolve credentials from the provided args or the seedphrase file.
+///
+/// At most one credential source may be specified. If none is provided,
+/// falls back to the seedphrase file in the data directory. Returns `None`
+/// if no credentials are configured.
+//
+// NOTE: Keep in sync with `resolve_credentials` in
+//       `public/lexe-cli/src/lib.rs`.
+fn resolve_credentials(
+    env_config: &WalletEnvConfig,
+    data_dir: &Path,
+    client_credentials: Option<ClientCredentials>,
+    client_credentials_path: Option<PathBuf>,
+    root_seed: Option<RootSeed>,
+    root_seed_path: Option<PathBuf>,
+) -> anyhow::Result<Option<Credentials>> {
+    // Count how many credential sources were provided.
+    let num_sources = [
+        client_credentials.is_some(),
+        client_credentials_path.is_some(),
+        root_seed.is_some(),
+        root_seed_path.is_some(),
+    ]
+    .into_iter()
+    .filter(|&b| b)
+    .count();
+    ensure!(
+        num_sources <= 1,
+        "Multiple credential sources specified. Provide only one of:\n\
+         \t--client-credentials / $LEXE_CLIENT_CREDENTIALS\n\
+         \t--client-credentials-path / $LEXE_CLIENT_CREDENTIALS_PATH\n\
+         \t--root-seed / $LEXE_ROOT_SEED\n\
+         \t--root-seed-path / $LEXE_ROOT_SEED_PATH"
+    );
+
+    // Get the provided source
+    let source_if_direct = Cow::Borrowed("args");
+    let (maybe_creds, source) = if let Some(cc) = client_credentials {
+        (Some(Credentials::from(cc)), source_if_direct)
+    } else if let Some(path) = &client_credentials_path {
+        let contents = std::fs::read_to_string(path).with_context(|| {
+            format!("Failed to read '{}' as path", path.display())
+        })?;
+        let cc = ClientCredentials::from_string(contents.trim()).context(
+            format!(
+                "Failed to parse client credentials from '{}'",
+                path.display()
+            ),
+        )?;
+        let source = Cow::Owned(path.display().to_string());
+        (Some(Credentials::from(cc)), source)
+    } else if let Some(seed) = root_seed {
+        (Some(Credentials::from(seed)), source_if_direct)
+    } else if let Some(path) = &root_seed_path {
+        let seed = RootSeed::read_from_path_either(path.as_path())?;
+        let source = Cow::Owned(path.display().to_string());
+        (Some(Credentials::from(seed)), source)
+    } else {
+        // Try to get credentials from a locally persisted wallet
+        let seed_path = env_config.wallet_env.seedphrase_path(data_dir);
+        let root_seed = RootSeed::read_from_path(&seed_path)?;
+        let source = Cow::Owned(seed_path.display().to_string());
+        (root_seed.map(Credentials::from), source)
+    };
+
+    // Log the source of credentials
+    let creds_kind =
+        maybe_creds.as_ref().map(|credentials| match credentials {
+            Credentials::ClientCredentials(_) => "client credentials",
+            Credentials::RootSeed(_) => "root seed",
+        });
+    if let Some(kind) = creds_kind {
+        info!("Using {kind} from {source}.");
+    } else {
+        // TODO(nicole): mention locally persisted wallet via lexe_data_dir
+        //               once sidecar has a way to init that?
+        info!(
+            "No client credentials configured. \
+             Credentials must be set per-request via the Authorization \
+             header. Alternatively, one of the following flags can be set:
+             \t--client-credentials / $LEXE_CLIENT_CREDENTIALS\n\
+             \t--client-credentials-path / $LEXE_CLIENT_CREDENTIALS_PATH\n\
+             \t--root-seed / $LEXE_ROOT_SEED\n\
+             \t--root-seed-path / $LEXE_ROOT_SEED_PATH",
+        );
+    }
+
+    Ok(maybe_creds)
 }

@@ -855,6 +855,37 @@ Raises:
     FfiError: If the index is malformed or the request fails.
 """)
 
+_set_method_doc(LexeWallet, "get_updated_payments", """\
+Get a batch of payments in ascending ``updated_at`` order, starting from
+a given ``updated_at`` index.
+
+Useful for tailing / syncing payment updates as they occur. Fetches directly
+from the user node (does not read from or write to the local payments cache).
+
+Args:
+    start_index: The cursor at which the results should start, exclusive.
+        If ``None``, the least recently updated payments will be returned
+        first.
+    limit: Maximum number of payments to return. Max 100, defaults to 50.
+
+Returns:
+    A :class:`GetUpdatedPaymentsResponse` with the updated payments and
+    an ``updated_index`` cursor for fetching the next page.
+
+Raises:
+    FfiError: If ``start_index`` is malformed or the request fails.
+
+Example::
+
+    resp = wallet.get_updated_payments()
+    for p in resp.payments:
+        print(f"{p.index}: {p.status}")
+
+    # Next page
+    if resp.updated_index is not None:
+        resp = wallet.get_updated_payments(start_index=resp.updated_index)
+""")
+
 _set_method_doc(LexeWallet, "update_personal_note", """\
 Update a payment's personal note.
 
@@ -1321,6 +1352,37 @@ Raises:
     FfiError: If the index is malformed or the request fails.
 """)
 
+_set_method_doc(AsyncLexeWallet, "get_updated_payments", """\
+Get a batch of payments in ascending ``updated_at`` order, starting from
+a given ``updated_at`` index.
+
+Useful for tailing / syncing payment updates as they occur. Fetches directly
+from the user node (does not read from or write to the local payments cache).
+
+Args:
+    start_index: The cursor at which the results should start, exclusive.
+        If ``None``, the least recently updated payments will be returned
+        first.
+    limit: Maximum number of payments to return. Max 100, defaults to 50.
+
+Returns:
+    A :class:`GetUpdatedPaymentsResponse` with the updated payments and
+    an ``updated_index`` cursor for fetching the next page.
+
+Raises:
+    FfiError: If ``start_index`` is malformed or the request fails.
+
+Example::
+
+    resp = await wallet.get_updated_payments()
+    for p in resp.payments:
+        print(f"{p.index}: {p.status}")
+
+    # Next page
+    if resp.updated_index is not None:
+        resp = await wallet.get_updated_payments(start_index=resp.updated_index)
+""")
+
 _set_method_doc(AsyncLexeWallet, "update_personal_note", """\
 Update a payment's personal note.
 
@@ -1603,6 +1665,16 @@ Attributes:
     payments: Payments in the requested page.
     next_index: Cursor for fetching the next page, or ``None``
         if there are no more results.
+"""
+
+lexe.GetUpdatedPaymentsResponse.__doc__ = """\
+Response from :meth:`LexeWallet.get_updated_payments`.
+
+Attributes:
+    payments: Updated payments in ascending ``updated_at`` order.
+    updated_index: The ``updated_at`` index of the last payment in the
+        batch. Pass as ``start_index`` on the next call to continue
+        paginating. ``None`` if the batch is empty.
 """
 
 # ===================== #

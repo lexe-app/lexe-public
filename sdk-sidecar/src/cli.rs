@@ -1,11 +1,9 @@
 //! SDK sidecar CLI
 
-use std::{env, net::SocketAddr, path::PathBuf, str::FromStr};
+use std::{net::SocketAddr, path::PathBuf};
 
-use anyhow::anyhow;
 use lexe::types::auth::{ClientCredentials, RootSeed};
 use lexe_common::{ln::network::Network, or_env::OrEnvExt as _};
-use tracing::{debug, info, warn};
 
 /// Lexe sidecar SDK CLI args
 #[derive(Default, argh::FromArgs)]
@@ -50,16 +48,14 @@ pub struct SidecarArgs {
     #[argh(option)]
     pub client_credentials_path: Option<PathBuf>,
 
-    /// lexe user root seed.
+    /// lexe user root seed, as a 64-character hex string.
     /// (env=`LEXE_ROOT_SEED`)
-    // TODO(phlip9): take a pass at CLI error messages after we unhide
-    #[argh(option, hidden_help)] // hide option for now
+    #[argh(option)]
     pub root_seed: Option<RootSeed>,
 
-    /// path to Lexe user root seed.
+    /// path to a file containing the root seed (hex or mnemonic).
     /// (env=`LEXE_ROOT_SEED_PATH`)
-    // TODO(phlip9): take a pass at CLI error messages after we unhide
-    #[argh(option, hidden_help)] // hide option for now
+    #[argh(option)]
     pub root_seed_path: Option<PathBuf>,
 
     /// the `<ip-address>:<port>` to listen on.
@@ -85,7 +81,7 @@ pub struct SidecarArgs {
     pub webhook_url: Option<String>,
 
     /// data directory for persisted state.
-    /// (default=`$CWD/.lexe`, env=`LEXE_DATA_DIR`)
+    /// (default=`$HOME/.lexe`, env=`LEXE_DATA_DIR`)
     #[argh(option)]
     pub data_dir: Option<PathBuf>,
 }
@@ -97,25 +93,17 @@ impl SidecarArgs {
         argh::from_env::<Self>()
     }
 
-    /// Populates any unset (i.e. `None`) args from env, if available.
+    /// Populates any unset args from env, if available.
     /// Does not overwrite any fields which are already set.
     pub fn or_env_mut(&mut self) -> anyhow::Result<()> {
-        self.client_credentials
-            .or_env_mut("LEXE_CLIENT_CREDENTIALS")?;
-        self.client_credentials_path
-            .or_env_mut("LEXE_CLIENT_CREDENTIALS_PATH")?;
-        // TODO(a-mpch): Remove legacy ROOT_SEED* env fallback.
-        Self::or_env_mut_with_deprecated(
-            &mut self.root_seed,
-            "LEXE_ROOT_SEED",
-            "ROOT_SEED",
-        )?;
-        Self::or_env_mut_with_deprecated(
-            &mut self.root_seed_path,
-            "LEXE_ROOT_SEED_PATH",
-            "ROOT_SEED_PATH",
-        )?;
+        self.other_or_env_mut()?;
+        self.credentials_or_env_mut()?;
+        Ok(())
+    }
 
+    /// Populates any unset non-credentials args from env, if available.
+    /// Does not overwrite any fields which are already set.
+    pub fn other_or_env_mut(&mut self) -> anyhow::Result<()> {
         self.listen_addr.or_env_mut("LISTEN_ADDR")?;
         self.sidecar_url.or_env_mut("LEXE_SIDECAR_URL")?;
         self.network.or_env_mut("LEXE_NETWORK")?;
@@ -124,116 +112,15 @@ impl SidecarArgs {
         Ok(())
     }
 
-    fn or_env_mut_with_deprecated<T>(
-        option: &mut Option<T>,
-        primary_env: &'static str,
-        deprecated_env: &'static str,
-    ) -> anyhow::Result<()>
-    where
-        T: FromStr,
-        T::Err: Into<anyhow::Error>,
-    {
-        option.or_env_mut(primary_env)?;
-
-        let has_primary = env::var_os(primary_env).is_some();
-        let has_deprecated = env::var_os(deprecated_env).is_some();
-
-        if has_primary && has_deprecated {
-            warn!(
-                "Both `${primary_env}` and deprecated `${deprecated_env}` are \
-                 set; using `${primary_env}`"
-            );
-            return Ok(());
-        }
-
-        if option.is_none() {
-            option.or_env_mut(deprecated_env)?;
-            if has_deprecated {
-                warn!(
-                    "`${deprecated_env}` is deprecated; use `${primary_env}` \
-                     instead"
-                );
-            }
-        }
-
+    /// Populates any unset credentials args from env, if available.
+    /// Does not overwrite any fields which are already set.
+    pub fn credentials_or_env_mut(&mut self) -> anyhow::Result<()> {
+        self.client_credentials
+            .or_env_mut("LEXE_CLIENT_CREDENTIALS")?;
+        self.client_credentials_path
+            .or_env_mut("LEXE_CLIENT_CREDENTIALS_PATH")?;
+        self.root_seed.or_env_mut("LEXE_ROOT_SEED")?;
+        self.root_seed_path.or_env_mut("LEXE_ROOT_SEED_PATH")?;
         Ok(())
-    }
-
-    /// If any of the `--*-path` options are set, load the corresponding values
-    /// from those file paths into the args struct.
-    pub fn load(&mut self) -> anyhow::Result<()> {
-        self.load_client_credentials()?;
-        self.load_root_seed()?;
-        Ok(())
-    }
-
-    pub(crate) fn load_client_credentials(&mut self) -> anyhow::Result<()> {
-        match (
-            self.client_credentials.as_ref(),
-            self.client_credentials_path.take(),
-        ) {
-            (Some(_), Some(_)) => Err(anyhow!(
-                "Only one of `--client-credentials`/`$LEXE_CLIENT_CREDENTIALS` \
-                 or `--client-credentials-path`/`$LEXE_CLIENT_CREDENTIALS_PATH` \
-                 must be specified"
-            )),
-            (None, None) => {
-                debug!("No client credentials found");
-                Ok(())
-            }
-            (Some(client_credentials), None) => {
-                info!(
-                    client_pk = %client_credentials.unstable().client_pk,
-                    "Client credentials already loaded"
-                );
-                Ok(())
-            }
-            (None, Some(path)) => {
-                let s = fs_ext::read_to_string(&path)?;
-                let client_credentials = ClientCredentials::from_str(s.trim())?;
-                let client_pk = &client_credentials.unstable().client_pk;
-                info!(?path, %client_pk, "Client credentials loaded from path");
-                self.client_credentials = Some(client_credentials);
-                Ok(())
-            }
-        }
-    }
-
-    pub(crate) fn load_root_seed(&mut self) -> anyhow::Result<()> {
-        match (self.root_seed.as_ref(), self.root_seed_path.take()) {
-            (Some(_), Some(_)) => Err(anyhow!(
-                "Only one of `--root-seed`/`$LEXE_ROOT_SEED` or \
-                 `--root-seed-path`/`$LEXE_ROOT_SEED_PATH` must be specified"
-            )),
-            (None, None) => {
-                debug!("No root seed found");
-                Ok(())
-            }
-            (Some(root_seed), None) => {
-                let user_pk = root_seed.derive_user_pk();
-                info!(%user_pk, "Root seed already loaded");
-                Ok(())
-            }
-            (None, Some(path)) => {
-                let root_seed_hex = fs_ext::read_to_string(&path)?;
-                let root_seed = RootSeed::from_str(root_seed_hex.trim())?;
-                let user_pk = root_seed.derive_user_pk();
-                info!(?path, %user_pk, "Root seed loaded from path");
-                self.root_seed = Some(root_seed);
-                Ok(())
-            }
-        }
-    }
-}
-
-pub(crate) mod fs_ext {
-    use std::{fs, path::Path};
-
-    use anyhow::Context;
-
-    pub(crate) fn read_to_string(path: &Path) -> anyhow::Result<String> {
-        fs::read_to_string(path).with_context(|| {
-            format!("Failed to read file `{}`", path.display())
-        })
     }
 }

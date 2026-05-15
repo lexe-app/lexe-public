@@ -586,7 +586,7 @@ pub enum PaymentStatus {
 //
 // String-serialized ordering is equivalent to the unserialized ordering,
 // since created_at is zero-padded to 19 digits.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentCreatedIndex {
