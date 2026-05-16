@@ -16,7 +16,6 @@ use crate::{
     Error,
     email_like::EmailLikeAddress,
     helpers::AddressExt,
-    lnurl::Lnurl,
     payment_method::{OfferWithAmount, Onchain, PaymentMethod, Resolvable},
     uri::{Uri, UriParam},
 };
@@ -76,10 +75,6 @@ pub struct Bip321Uri {
     ///
     /// [Phoenix's precedent]: https://github.com/ACINQ/phoenix/commit/5a22661288b3eb9c6ccc9ac1ed00380d015b1411
     pub email_like: Option<EmailLikeAddress<'static>>,
-
-    /// A bech32-encoded LNURL carried in a `?lightning=` (legacy)
-    /// or `?lnurl=` query parameter.
-    pub lnurl: Option<Lnurl<'static>>,
 
     /// On-chain amount
     pub amount: Option<Amount>,
@@ -156,22 +151,9 @@ impl Bip321Uri {
                     out.offer = Some(offer);
                     continue;
                 }
-                if out.lnurl.is_none()
-                    && Lnurl::matches_bech32_hrp_prefix(&param.value)
-                    && let Ok(lnurl) = Lnurl::parse_bech32(&param.value)
-                {
-                    out.lnurl = Some(lnurl);
-                    continue;
-                }
             } else if key.is("lno") || /* legacy */ key.is("b12") {
                 if out.offer.is_none() {
                     out.offer = Offer::from_str(&param.value).ok();
-                }
-            } else if key.is("lnurl") {
-                if out.lnurl.is_none()
-                    && Lnurl::matches_bech32_hrp_prefix(&param.value)
-                {
-                    out.lnurl = Lnurl::parse_bech32(&param.value).ok();
                 }
             } else if key.is("bc") {
                 if let Ok(address) = bitcoin::Address::from_str(&param.value)
@@ -341,9 +323,8 @@ impl Bip321Uri {
                 + self.invoice.is_some() as usize
                 + self.offer.is_some() as usize,
         );
-        let mut resolvables = Vec::with_capacity(
-            self.email_like.is_some() as usize + self.lnurl.is_some() as usize,
-        );
+        let mut resolvables =
+            Vec::with_capacity(self.email_like.is_some() as usize);
 
         for address in self.onchain {
             methods.push(PaymentMethod::Onchain(Onchain {
@@ -369,10 +350,6 @@ impl Bip321Uri {
             resolvables.push(Resolvable::EmailLike(addr));
         }
 
-        if let Some(lnurl) = self.lnurl {
-            resolvables.push(Resolvable::Lnurl(lnurl));
-        }
-
         (methods, resolvables)
     }
 
@@ -385,7 +362,6 @@ impl Bip321Uri {
             invoice,
             offer,
             email_like,
-            lnurl,
             amount: _,
             label: _,
             message: _,
@@ -394,7 +370,6 @@ impl Bip321Uri {
             || invoice.is_some()
             || offer.is_some()
             || email_like.is_some()
-            || lnurl.is_some()
     }
 }
 
@@ -410,32 +385,22 @@ mod arbitrary_impl {
         ln::amount, test_utils::arbitrary::any_mainnet_addr_unchecked,
     };
     use proptest::{
-        arbitrary::{Arbitrary, any, any_with},
-        option,
+        arbitrary::{Arbitrary, any},
         strategy::{BoxedStrategy, Strategy},
     };
 
     use super::*;
-    use crate::lnurl::LnurlScheme;
 
     impl Arbitrary for Bip321Uri {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: ()) -> Self::Strategy {
-            // `Bip321Uri` only carries bech32-encoded LNURLs, and
-            // `parse_bech32` only ever yields `LnurlScheme::Https`. Force
-            // generation to match so the proptest roundtrips cleanly.
-            let scheme_override = Some(LnurlScheme::Https);
-            let arb_https_lnurl =
-                option::of(any_with::<Lnurl<'static>>(scheme_override));
-
             (
                 arb_bip321_addrs(),
                 any::<Option<Invoice>>(),
                 any::<Option<Offer>>(),
                 any::<Option<EmailLikeAddress<'static>>>(),
-                arb_https_lnurl,
                 amount::arb::sats_amount().prop_map(Some),
                 any::<Option<String>>(),
                 any::<Option<String>>(),
@@ -446,7 +411,6 @@ mod arbitrary_impl {
                         invoice,
                         offer,
                         email_like,
-                        lnurl,
                         amount,
                         label,
                         message,
@@ -456,7 +420,6 @@ mod arbitrary_impl {
                             invoice,
                             offer,
                             email_like,
-                            lnurl,
                             amount,
                             label,
                             message,
@@ -467,13 +430,6 @@ mod arbitrary_impl {
                         // when onchain is non-empty.
                         if !out.onchain.is_empty() {
                             out.email_like = None;
-                        }
-
-                        // Invoice and LNURL both serialize as `lightning=`,
-                        // so an invoice takes precedence and the LNURL would
-                        // be lost on roundtrip. Drop LNURL in that case.
-                        if out.invoice.is_some() {
-                            out.lnurl = None;
                         }
 
                         out
@@ -677,29 +633,6 @@ mod test {
             ..Bip321Uri::default()
         };
         assert_eq!(uri.to_string(), "bitcoin:foo@example.com");
-    }
-
-    #[test]
-    fn test_bip321_uri_lnurl_param() {
-        let bech32 = "lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns";
-
-        // bitcoin:?lightning=lnurl1...
-        let parsed = Bip321Uri::parse(&format!(
-            "bitcoin:bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh?lightning={bech32}"
-        ))
-        .unwrap();
-        let lnurl = parsed.lnurl.as_ref().unwrap();
-        assert!(lnurl.http_url.starts_with("https://"));
-        assert!(parsed.invoice.is_none());
-        assert!(parsed.offer.is_none());
-
-        // Display renders the LNURL via `lightning=`
-        let lnurl = Lnurl::parse_bech32(bech32).unwrap();
-        let uri = Bip321Uri {
-            lnurl: Some(lnurl),
-            ..Bip321Uri::default()
-        };
-        assert_eq!(uri.to_string(), format!("bitcoin:?lightning={bech32}"));
     }
 
     // roundtrip: Bip321Uri -> String -> Bip321Uri
