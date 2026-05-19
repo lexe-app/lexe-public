@@ -65,11 +65,23 @@ pub struct LspInfo {
     /// - For inbound payments, this fee is encoded in the invoice route hints
     ///   (as part of the `RoutingFees` struct)
     /// - Also used to estimate how much can be sent to another Lexe user.
-    pub lsp_usernode_prop_fee_ppm: Ppm,
+    //
+    // node-v0.9.7: Renamed to `lsp_usernode_prop_fee`
+    #[serde(
+        rename = "lsp_usernode_prop_fee_ppm",
+        alias = "lsp_usernode_prop_fee"
+    )]
+    pub lsp_usernode_prop_fee: Ppm,
 
     // -- LSP -> External fees -- //
     /// LSP's configured prop fee for forwarding over LSP -> External channels.
-    pub lsp_external_prop_fee_ppm: Ppm,
+    //
+    // node-v0.9.7: Renamed to `lsp_external_prop_fee`
+    #[serde(
+        rename = "lsp_external_prop_fee_ppm",
+        alias = "lsp_external_prop_fee"
+    )]
+    pub lsp_external_prop_fee: Ppm,
     /// LSP's configured base fee for forwarding over LSP -> External channels.
     pub lsp_external_base_fee_msat: u32,
 
@@ -116,11 +128,11 @@ impl LspInfo {
     pub fn lsp_fees(&self) -> LspFees {
         let lsp_usernode_base_fee =
             Amount::from_msat(u64::from(self.lsp_usernode_base_fee_msat));
-        let lsp_usernode_prop_fee = self.lsp_usernode_prop_fee_ppm.to_decimal();
+        let lsp_usernode_prop_fee = self.lsp_usernode_prop_fee.to_decimal();
 
         let lsp_external_base_fee =
             Amount::from_msat(u64::from(self.lsp_external_base_fee_msat));
-        let lsp_external_prop_fee = self.lsp_external_prop_fee_ppm.to_decimal();
+        let lsp_external_prop_fee = self.lsp_external_prop_fee.to_decimal();
 
         LspFees {
             lsp_usernode_base_fee,
@@ -149,9 +161,9 @@ impl LspInfo {
             node_pk,
             private_p2p_addr: addr,
             lsp_usernode_base_fee_msat: 0,
-            lsp_usernode_prop_fee_ppm: ppm!(0.425%),
+            lsp_usernode_prop_fee: ppm!(0.425%),
             lsp_external_base_fee_msat: 0,
-            lsp_external_prop_fee_ppm: ppm!(0.075%),
+            lsp_external_prop_fee: ppm!(0.075%),
             cltv_expiry_delta: 72,
             htlc_minimum_msat: 1,
             htlc_maximum_msat: u64::MAX,

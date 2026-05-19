@@ -234,7 +234,7 @@ impl<'a> LastHopHint<'a> {
             lsp_info,
             intercept_scid: scid,
             base_fee_msat: lsp_info.lsp_usernode_base_fee_msat,
-            prop_fee_ppm: lsp_info.lsp_usernode_prop_fee_ppm.to_u32(),
+            prop_fee_ppm: lsp_info.lsp_usernode_prop_fee.to_u32(),
             htlc_minimum_msat: lsp_info.htlc_minimum_msat,
             htlc_maximum_msat: lsp_info.htlc_maximum_msat,
             cltv_expiry_delta: lsp_info.cltv_expiry_delta,
