@@ -79,7 +79,7 @@
 //!
 //! This article describes symmetric security bounds nicely.
 
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use lexe_std::array;
 use ref_cast::RefCast;
@@ -148,13 +148,13 @@ struct DecryptKey(aead::OpeningKey<ZeroNonce>);
 struct ZeroNonce(Option<aead::Nonce>);
 
 #[derive(Clone, Debug)]
-pub struct DecryptError;
+pub struct DecryptError(Cow<'static, str>);
 
 impl std::error::Error for DecryptError {}
 
 impl fmt::Display for DecryptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("decrypt error: ciphertext or metadata may be corrupted")
+        write!(f, "Decrypt error: {}", self.0)
     }
 }
 
@@ -251,7 +251,9 @@ impl AesMasterKey {
 
         const MIN_DATA_LEN: usize = encrypted_len(0 /* plaintext len */);
         if data.len() < MIN_DATA_LEN {
-            return Err(DecryptError);
+            return Err(DecryptError(Cow::Borrowed(
+                "ciphertext too short to contain version, key_id, and tag",
+            )));
         }
 
         // parse out version and key_id w/o advancing `data`
@@ -266,7 +268,9 @@ impl AesMasterKey {
         };
 
         if version != 0 {
-            return Err(DecryptError);
+            return Err(DecryptError(Cow::Owned(format!(
+                "unsupported version: {version}"
+            ))));
         }
         let key_id = KeyId::from_ref(key_id);
         let decrypt_key = self.derive_decrypt_key(key_id);
@@ -331,7 +335,8 @@ impl DecryptKey {
         let plaintext_ref = self
             .0
             .open_within(aad, data, ciphertext_and_tag_offset..)
-            .map_err(|_| DecryptError)?;
+            .map_err(|_| "AEAD open failed: ciphertext, tag, or AAD corrupted")
+            .map_err(|msg| DecryptError(Cow::Borrowed(msg)))?;
         let plaintext_len = plaintext_ref.len();
 
         // decrypting happens in-place. set the length of the now decrypted
