@@ -150,7 +150,14 @@ impl Args {
 }
 
 fn find_app_rs_dir() -> Option<PathBuf> {
-    let candidates = ["app-rs/Cargo.toml", "public/app-rs/Cargo.toml"];
+    let candidates = [
+        // cwd = public/
+        "app-rs/Cargo.toml",
+        // cwd = repo root
+        "public/app-rs/Cargo.toml",
+        // cwd = public/app/ (recipe runs inside the app submodule)
+        "../app-rs/Cargo.toml",
+    ];
     for candidate in candidates {
         let path = Path::new(candidate);
         if path.is_file() {

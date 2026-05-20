@@ -26,7 +26,7 @@ pub mod db;
 /// The flutter/rust FFI bindings.
 #[cfg(feature = "flutter")]
 pub(crate) mod ffi;
-/// Flutter/rust ffi bindings generated from `ffi` by `just app-rs-codegen`.
+/// Flutter/rust ffi bindings generated from `ffi` by `just app rs-codegen`.
 #[cfg(feature = "flutter")]
 pub(crate) mod frb_generated;
 /// Pipe `tracing` log messages from native Rust to Dart.

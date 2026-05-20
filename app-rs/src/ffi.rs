@@ -5,7 +5,7 @@
 //! If you update any sources in this directory, make sure to run:
 //!
 //! ```bash
-//! $ just app-rs-codegen
+//! $ just app rs-codegen
 //! # (alias)
 //! $ j acg
 //! ```
