@@ -1,4 +1,3 @@
-use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{RefCast, time::TimestampMs};

@@ -59,7 +59,7 @@ pub trait ByteArray<const N: usize>: Copy + Debug + Eq + Hash + Sized {
 #[macro_export]
 macro_rules! impl_byte_array {
     ($type:ty, $n:expr) => {
-        impl ByteArray<$n> for $type {
+        impl $crate::ByteArray<$n> for $type {
             fn from_array(array: [u8; $n]) -> Self {
                 Self(array)
             }
@@ -71,13 +71,13 @@ macro_rules! impl_byte_array {
             }
         }
 
-        impl AsRef<[u8]> for $type {
+        impl std::convert::AsRef<[u8]> for $type {
             fn as_ref(&self) -> &[u8] {
                 self.0.as_slice()
             }
         }
 
-        impl AsRef<[u8; $n]> for $type {
+        impl std::convert::AsRef<[u8; $n]> for $type {
             fn as_ref(&self) -> &[u8; $n] {
                 &self.0
             }
@@ -96,7 +96,7 @@ macro_rules! impl_fromstr_fromhex {
         impl std::str::FromStr for $type {
             type Err = $crate::lexe_hex::hex::DecodeError;
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                <Self as ByteArray<$n>>::from_hex(s)
+                $crate::ByteArray::<$n>::from_hex(s)
             }
         }
         impl $crate::lexe_hex::hex::FromHex for $type {
@@ -126,13 +126,13 @@ macro_rules! impl_debug_display_as_hex {
                     f,
                     "{}(\"{}\")",
                     stringify!($type),
-                    self.as_hex_display()
+                    $crate::ByteArray::as_hex_display(self)
                 )
             }
         }
         impl std::fmt::Display for $type {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                Self::fmt_as_hex(self, f)
+                $crate::ByteArray::fmt_as_hex(self, f)
             }
         }
     };
