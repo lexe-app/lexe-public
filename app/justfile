@@ -228,7 +228,7 @@ android-bundle-permissions:
 # (/just/release-app-android.sh) passes a repo-root-relative path.
 
 [no-cd]
-android-bundle-version path="public/app/build/app/outputs/bundle/prodRelease/app-prod-release.aab":
+android-bundle-version path:
     #!/usr/bin/env bash
     set -euo pipefail
     [[ ! -f "{{ path }}" ]] && exit 0
@@ -243,7 +243,7 @@ android-bundle-version path="public/app/build/app/outputs/bundle/prodRelease/app
 
 # read the embedded git revision from the built .aab bundle
 [no-cd]
-android-bundle-git-rev path="public/app/build/app/outputs/bundle/prodRelease/app-prod-release.aab":
+android-bundle-git-rev path:
     #!/usr/bin/env bash
     set -euo pipefail
     [[ ! -f "{{ path }}" ]] && exit 0
@@ -253,9 +253,9 @@ android-bundle-git-rev path="public/app/build/app/outputs/bundle/prodRelease/app
 # build android app and check 16KiB page-size compatibility
 android-test-16kb-page-sizes *args:
     just build-prod-android {{ args }}
-    just android-lint-16kb-page-sizes
+    just android-lint-16kb-page-sizes build/app/outputs/bundle/prodRelease/app-prod-release.aab
 
-android-lint-16kb-page-sizes path="build/app/outputs/bundle/prodRelease/app-prod-release.aab":
+android-lint-16kb-page-sizes path:
     ./just/android-lint-16kb-page-sizes.sh "{{ path }}"
 
 # --- ios build & inspect --- #
@@ -270,7 +270,7 @@ build-prod-ios *args:
 # (/just/release-app-ios.sh) passes a repo-root-relative path.
 
 [no-cd]
-ios-bundle-version path="public/app/build/ios/ipa/Lexe.ipa":
+ios-bundle-version path:
     #!/usr/bin/env bash
     set -euo pipefail
     [[ ! -f "{{ path }}" ]] && exit 0
@@ -283,7 +283,7 @@ ios-bundle-version path="public/app/build/ios/ipa/Lexe.ipa":
 
 # read the embedded git revision from the built .ipa bundle
 [no-cd]
-ios-bundle-git-rev path="public/app/build/ios/ipa/Lexe.ipa":
+ios-bundle-git-rev path:
     #!/usr/bin/env bash
     set -euo pipefail
     [[ ! -f "{{ path }}" ]] && exit 0
