@@ -30,6 +30,8 @@ pub const CLIENT_400_BAD_REQUEST: StatusCode = StatusCode::BAD_REQUEST;
 pub const CLIENT_401_UNAUTHORIZED: StatusCode = StatusCode::UNAUTHORIZED;
 pub const CLIENT_404_NOT_FOUND: StatusCode = StatusCode::NOT_FOUND;
 pub const CLIENT_409_CONFLICT: StatusCode = StatusCode::CONFLICT;
+pub const CLIENT_426_UPGRADE_REQUIRED: StatusCode =
+    StatusCode::UPGRADE_REQUIRED;
 pub const SERVER_500_INTERNAL_SERVER_ERROR: StatusCode =
     StatusCode::INTERNAL_SERVER_ERROR;
 pub const SERVER_502_BAD_GATEWAY: StatusCode = StatusCode::BAD_GATEWAY;
@@ -600,6 +602,8 @@ api_error_kind! {
         BatchSizeOverLimit = 108,
         /// Resource is not updatable
         NotUpdatable = 109,
+        /// Client is too old to handle the response; upgrade required
+        ClientUpgradeRequired = 110,
     }
 }
 
@@ -628,6 +632,7 @@ impl ToHttpStatus for BackendErrorKind {
             InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
             BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
             NotUpdatable => CLIENT_400_BAD_REQUEST,
+            ClientUpgradeRequired => CLIENT_426_UPGRADE_REQUIRED,
         }
     }
 }
@@ -1235,6 +1240,16 @@ impl BackendApiError {
 
     pub fn conversion(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::Conversion;
+        let msg = format!("{error:#}");
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn client_upgrade_required(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::ClientUpgradeRequired;
         let msg = format!("{error:#}");
         Self {
             kind,
