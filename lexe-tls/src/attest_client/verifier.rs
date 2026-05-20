@@ -770,31 +770,38 @@ fn rustls_err(s: impl Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::include_str;
+    use std::fs;
 
     use super::*;
 
-    // These two consts can be regenerated (in SGX) using
-    // `lexe_tls_attest_server::cert::test::dump_attest_cert`.
-    const SGX_SERVER_CERT_PEM: &str =
-        include_str!("../../test_data/attest_cert.pem");
-    const SERVER_MRENCLAVE: Measurement = Measurement::new(hex::decode_const(
-        b"738f61792535f905807365a0f6023275b6a44972f48986c94aa7976c31bf1eb6",
-    ));
-
-    const INTEL_SGX_ROOT_CA_CERT_PEM: &str =
-        include_str!("../../test_data/intel-sgx-root-ca.pem");
-
     // TODO(phlip9): test verification catches bad evidence
+
+    // This can be regenerated (in SGX) using
+    // `lexe_tls_attest_server::cert::test::dump_attest_cert`.
+    fn attest_cert_fixture() -> (CertificateDer<'static>, Measurement) {
+        let measurement = Measurement::from_hex(
+            "738f61792535f905807365a0f6023275b6a44972f48986c94aa7976c31bf1eb6",
+        )
+        .unwrap();
+
+        let cert_pem = fs::read_to_string("test_data/attest_cert.pem").unwrap();
+        let cert_der =
+            CertificateDer::from_pem_slice(cert_pem.as_bytes()).unwrap();
+
+        (cert_der, measurement)
+    }
 
     #[test]
     fn test_intel_sgx_trust_anchor_der_pem_equal() {
-        let sgx_trust_anchor_der1 = INTEL_SGX_ROOT_CA_CERT_DER;
-        let sgx_trust_anchor_der2 = CertificateDer::from_pem_slice(
-            INTEL_SGX_ROOT_CA_CERT_PEM.as_bytes(),
+        let intel_sgx_root_ca_cert_der1 = INTEL_SGX_ROOT_CA_CERT_DER;
+
+        let intel_sgx_root_ca_cert_pem =
+            fs::read_to_string("test_data/intel-sgx-root-ca.pem").unwrap();
+        let intel_sgx_root_ca_cert_der2 = CertificateDer::from_pem_slice(
+            intel_sgx_root_ca_cert_pem.as_bytes(),
         )
         .unwrap();
-        assert_eq!(sgx_trust_anchor_der1, &sgx_trust_anchor_der2);
+        assert_eq!(intel_sgx_root_ca_cert_der1, &intel_sgx_root_ca_cert_der2);
 
         // this should not panic
         let _sgx_trust_anchor = &*INTEL_SGX_TRUST_ANCHOR;
@@ -802,9 +809,7 @@ mod test {
 
     #[test]
     fn test_verify_sgx_server_quote() {
-        let cert_der =
-            CertificateDer::from_pem_slice(SGX_SERVER_CERT_PEM.as_bytes())
-                .unwrap();
+        let (cert_der, measurement) = attest_cert_fixture();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
 
         let now = UnixTime::now();
@@ -815,7 +820,7 @@ mod test {
 
         let enclave_policy = EnclavePolicy {
             allow_debug: true,
-            trusted_mrenclaves: Some(vec![SERVER_MRENCLAVE]),
+            trusted_mrenclaves: Some(vec![measurement]),
             trusted_mrsigner: None,
         };
         enclave_policy.verify(&report).unwrap();
@@ -823,15 +828,13 @@ mod test {
 
     #[test]
     fn test_verify_sgx_server_cert() {
-        let cert_der =
-            CertificateDer::from_pem_slice(SGX_SERVER_CERT_PEM.as_bytes())
-                .unwrap();
+        let (cert_der, measurement) = attest_cert_fixture();
 
         let verifier = AttestationCertVerifier {
             expect_dummy_quote: false,
             enclave_policy: EnclavePolicy {
                 allow_debug: true,
-                trusted_mrenclaves: Some(vec![SERVER_MRENCLAVE]),
+                trusted_mrenclaves: Some(vec![measurement]),
                 trusted_mrsigner: None,
             },
         };
