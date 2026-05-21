@@ -3,10 +3,13 @@
 
 use std::{borrow::Cow, fmt};
 
+use anyhow::{Context, anyhow, ensure};
+use asn1_rs::FromDer;
 use lexe_crypto::ed25519;
 use lexe_enclave::enclave;
 use lexe_hex::hex;
-use yasna::models::ObjectIdentifier;
+use x509_parser::certificate::X509Certificate;
+use yasna::{ASN1Error, ASN1ErrorKind, models::ObjectIdentifier};
 
 use crate::attest_client::quote::ReportData;
 
@@ -113,8 +116,131 @@ impl fmt::Debug for SgxAttestationExtension<'_> {
     }
 }
 
+/// Additional X509 cert extensions that Intel includes in the PCK leaf cert.
+//
+// See: [Intel SGX PCK Certificate Specification - 1.3.5 p.11](https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/docs/Intel_SGX_PCK_Certificate_CRL_Spec-1.4.pdf)
+//
+// ```
+// X509v3 extensions:
+//   X509v3 Authority Key Identifier:
+//     keyid:<keyid of issuer public key>
+//   X509v3 CRL Distribution Points:
+//     Full Name:
+//       URI: <URL>
+//   X509v3 Subject Key Identifier:
+//     <keyid of public key>
+//   X509v3 Key Usage: critical
+//     Digital Signature, Non Repudiation
+//   X509v3 Basic Constraints: critical
+//     CA:FALSE
+//   <SGX Extensions OID>:
+//     <PPID OID>: <PPID value>
+//     <TCB OID>:
+//       <SGX TCB Comp01 SVN OID>: <SGX TCB Comp01 SVN value>
+//       <SGX TCB Comp02 SVN OID>: <SGX TCB Comp02 SVN value>
+//       ...
+//       <SGX TCB Comp16 SVN OID>: <SGX TCB Comp16 SVN value>
+//     <PCESVN OID>: <PCESVN value>
+//     <CPUSVN OID>: <CPUSVN value>
+//     <PCE-ID OID>: <PCE-ID value>
+//     <FMSPC OID>: <FMSPC value>
+//     <SGX Type OID>: <SGX Type value>
+//     <PlatformInstanceID OID>: <PlatformInstanceID value>
+//     <Configuration OID>:
+//       <Dynamic Platform OID>: <Dynamic Platform flag value>
+//       <Cached Keys OID>: <Cached Keys flag value>
+//       <SMT Enabled OID>: <SMT Enabled flag value>
+// ```
+//
+// | name           | oid                     | type               | description                               |
+// |----------------|-------------------------|--------------------|-------------------------------------------|
+// | SGX Extensions | 1.2.840.113741.1.13.1   | ASN.1 Sequence     | Sequence of Intel SGX PCK cert extensions |
+// | FMSPC          | 1.2.840.113741.1.13.1.4 | ASN.1 Octet String | Value of FMSPC (6 bytes)                  |
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct SgxPckExtensions {
+    /// This field contains the Intel CPU family of the machine that made the
+    /// attestation.
+    pub fmspc: Fmspc,
+}
+
+impl SgxPckExtensions {
+    /// The asn1 OID for the outer "SGX Extensions" sequence.
+    #[rustfmt::skip]
+    const OID: asn1_rs::Oid<'static> = asn1_rs::oid!(1.2.840.113741.1.13.1);
+
+    /// The asn1 OID for the inner FMSPC entry in the outer sequence.
+    const OID_FMSPC: &[u64] = &[1, 2, 840, 113741, 1, 13, 1, 4];
+
+    /// Try to parse from a whole DER-encoded x509 cert.
+    pub(crate) fn from_cert_der(cert_der: &[u8]) -> anyhow::Result<Self> {
+        let (unparsed_data, cert) =
+            X509Certificate::from_der(cert_der).context("Invalid PCK cert")?;
+        ensure!(unparsed_data.is_empty(), "leftover unparsed PCK cert data");
+
+        let cert_ext = cert
+            .get_extension_unique(&Self::OID)
+            .context("Invalid SGX PCK cert extension")?
+            .context("Missing SGX PCK cert extension")?;
+
+        Self::from_der_bytes(cert_ext.value)
+            .map_err(|err| anyhow!("Invalid SGX PCK cert extension: {err:#}"))
+    }
+
+    /// Try to parse from the x509 cert extension contents.
+    ///
+    /// These are the bytes contained in the `"SGX Extensions"
+    /// (oid=1.2.840.113741.1.13.1)` x509 cert extension.
+    fn from_der_bytes(buf: &[u8]) -> yasna::ASN1Result<Self> {
+        // Inside `buf` is an ASN1 sequence. We just want the entry for FMSPC.
+
+        let mut fmspc = None;
+
+        yasna::parse_der(buf, |reader| {
+            reader.read_sequence_of(|reader| {
+                reader.read_sequence(|reader| {
+                    let oid = reader.next().read_oid()?;
+
+                    if oid.as_ref() == Self::OID_FMSPC {
+                        let bytes = reader.next().read_bytes()?;
+                        let bytes = <[u8; 6]>::try_from(bytes.as_slice())
+                            .map_err(|_| Self::invalid_asn1())?;
+                        if fmspc.replace(bytes).is_some() {
+                            return Err(Self::invalid_asn1());
+                        }
+                    } else {
+                        // Skip other extensions we don't care about
+                        let _ = reader.next().read_der()?;
+                    }
+
+                    Ok(())
+                })
+            })?;
+
+            let fmspc = Fmspc(fmspc.ok_or_else(Self::invalid_asn1)?);
+            Ok(Self { fmspc })
+        })
+    }
+
+    fn invalid_asn1() -> ASN1Error {
+        ASN1Error::new(ASN1ErrorKind::Invalid)
+    }
+}
+
+/// An Intel FMSPC (Family-Model-Stepping-Platform-Config) code that identifies
+/// a model of Intel CPU hardware.
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct Fmspc([u8; 6]);
+
+lexe_byte_array::impl_byte_array!(Fmspc, 6);
+lexe_byte_array::impl_debug_display_as_hex!(Fmspc);
+
 #[cfg(test)]
 mod test {
+    use std::fs;
+
+    use lexe_common::ByteArray;
+    use rustls::pki_types::pem::PemObject;
+
     use super::*;
 
     #[test]
@@ -138,5 +264,18 @@ mod test {
         assert_eq!(der_bytes, der_bytes2);
 
         assert_eq!(b"test".as_slice(), ext2.quote.as_ref());
+    }
+
+    #[test]
+    fn test_sgx_pck_extensions_parse() {
+        let cert_pem = fs::read_to_string("test_data/pck_cert.pem").unwrap();
+        let cert_der = rustls::pki_types::CertificateDer::from_pem_slice(
+            cert_pem.as_bytes(),
+        )
+        .unwrap();
+
+        let extensions = SgxPckExtensions::from_cert_der(&cert_der).unwrap();
+        let fmspc = Fmspc::from_hex("00606a000000").unwrap();
+        assert_eq!(extensions.fmspc, fmspc);
     }
 }

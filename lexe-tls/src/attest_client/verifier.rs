@@ -31,7 +31,10 @@ use rustls::{
 use x509_parser::certificate::X509Certificate;
 
 use crate::{
-    attest_client::{cert::SgxAttestationExtension, quote::ReportData},
+    attest_client::{
+        cert::{SgxAttestationExtension, SgxPckExtensions},
+        quote::ReportData,
+    },
     ed25519_ext::Ed25519PublicKeyExt,
 };
 
@@ -427,6 +430,11 @@ impl SgxQuoteVerifier {
             cert_iter.next().context("Missing SGX root CA cert")??;
         ensure!(cert_iter.next().is_none(), "unexpected extra certificate");
 
+        // TODO(phlip9): use
+        let pck_exts = SgxPckExtensions::from_cert_der(&pck_cert_der)
+            .context("Failed to parse SGX PCK cert extensions")?;
+        let _fmspc = pck_exts.fmspc;
+
         let pck_cert = webpki::EndEntityCert::try_from(&pck_cert_der)
             .context("Invalid PCK cert")?;
 
@@ -770,7 +778,7 @@ fn rustls_err(s: impl Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::fs;
+    use std::{fs, time::Duration};
 
     use super::*;
 
@@ -812,7 +820,7 @@ mod test {
         let (cert_der, measurement) = attest_cert_fixture();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
 
-        let now = UnixTime::now();
+        let now = UnixTime::since_unix_epoch(Duration::from_secs(1779307188));
         let verifier = SgxQuoteVerifier;
         let report = verifier.verify(&evidence.cert_ext.quote, now).unwrap();
 
