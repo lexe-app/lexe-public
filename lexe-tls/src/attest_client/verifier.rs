@@ -32,7 +32,7 @@ use x509_parser::certificate::X509Certificate;
 
 use crate::{
     attest_client::{
-        cert::{SgxAttestationExtension, SgxPckExtensions},
+        cert::{CpuFmspc, SgxAttestationExtension, SgxPckExtensions},
         quote::ReportData,
     },
     ed25519_ext::Ed25519PublicKeyExt,
@@ -80,6 +80,50 @@ static SUPPORTED_SIG_ALGS: &[&dyn SignatureVerificationAlgorithm] = &[
     webpki::ring::RSA_PKCS1_2048_8192_SHA384,
     webpki::ring::RSA_PKCS1_2048_8192_SHA512,
     webpki::ring::RSA_PKCS1_3072_8192_SHA384,
+];
+
+/// Reject remote attestations from these Intel CPUs
+///
+/// These CPUs are missing hardware/microcode mitigations that require extreme
+/// performance penalties to mitigate in software. This also allows us to
+/// easily ban old CPUs as new vulnerabilities are discovered.
+///
+/// Current block criteria:
+/// - CPU generations older than Ice Lake
+/// - Consumer desktop/mobile CPUs
+///
+/// We only need to specify CPUs that support SGX and that Intel PCCS still
+/// allows for remote attestation.
+#[rustfmt::skip]
+const CPU_FMSPC_BLOCKLIST: [CpuFmspc; 14] = [
+    // 06_7AH CPUID.01H:EAX[19:0]=0x706A1 F/M/S/eM/P=6/A/1/7/0 FMSPC=00706a100000 INTEL_ATOM_GOLDMONT_PLUS (Gemini Lake, s:1)      platform=client
+    CpuFmspc([0x00, 0x70, 0x6a, 0x10, 0x00, 0x00]),
+    // 06_7AH CPUID.01H:EAX[19:0]=0x706A8 F/M/S/eM/P=6/A/8/7/0 FMSPC=00706a800000 INTEL_ATOM_GOLDMONT_PLUS (Gemini Lake, s:8)      platform=client
+    CpuFmspc([0x00, 0x70, 0x6a, 0x80, 0x00, 0x00]),
+    // 06_7EH CPUID.01H:EAX[19:0]=0x706E4 F/M/S/eM/P=6/E/4/7/0 FMSPC=00706e470000 INTEL_ICELAKE_L (Sunny Cove, s:4)                platform=client
+    CpuFmspc([0x00, 0x70, 0x6e, 0x47, 0x00, 0x00]),
+    // 06_8EH CPUID.01H:EAX[19:0]=0x806EA F/M/S/eM/P=6/E/A/8/0 FMSPC=00806ea60000 INTEL_KABYLAKE_L / COFFEELAKE_L (Sky Lake, s:A)  platform=client
+    CpuFmspc([0x00, 0x80, 0x6e, 0xa6, 0x00, 0x00]),
+    // 06_8EH CPUID.01H:EAX[19:0]=0x806EB F/M/S/eM/P=6/E/B/8/0 FMSPC=00806eb70000 INTEL_KABYLAKE_L / WHISKEYLAKE_L (Sky Lake, s:B) platform=client
+    CpuFmspc([0x00, 0x80, 0x6e, 0xb7, 0x00, 0x00]),
+    // 06_8EH CPUID.01H:EAX[19:0]=0x806EB F/M/S/eM/P=6/E/B/8/0 FMSPC=20806eb70000 INTEL_KABYLAKE_L / WHISKEYLAKE_L (Sky Lake, s:B) platform=client
+    CpuFmspc([0x20, 0x80, 0x6e, 0xb7, 0x00, 0x00]),
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EA F/M/S/eM/P=6/E/A/9/0 FMSPC=00906ea10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:A)      platform=E3
+    CpuFmspc([0x00, 0x90, 0x6e, 0xa1, 0x00, 0x00]),
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EA F/M/S/eM/P=6/E/A/9/0 FMSPC=00906ea50000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:A)      platform=client
+    CpuFmspc([0x00, 0x90, 0x6e, 0xa5, 0x00, 0x00]),
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EB F/M/S/eM/P=6/E/B/9/0 FMSPC=00906eb10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:B)      platform=client
+    CpuFmspc([0x00, 0x90, 0x6e, 0xb1, 0x00, 0x00]),
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EC F/M/S/eM/P=6/E/C/9/0 FMSPC=00906ec10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:C)      platform=client
+    CpuFmspc([0x00, 0x90, 0x6e, 0xc1, 0x00, 0x00]),
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EC F/M/S/eM/P=6/E/C/9/0 FMSPC=00906ec50000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:C)      platform=client
+    CpuFmspc([0x00, 0x90, 0x6e, 0xc5, 0x00, 0x00]),
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EC F/M/S/eM/P=6/E/C/9/0 FMSPC=20906ec10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:C)      platform=client
+    CpuFmspc([0x20, 0x90, 0x6e, 0xc1, 0x00, 0x00]),
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906ED F/M/S/eM/P=6/E/D/9/0 FMSPC=00906ed50000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:D)      platform=E3
+    CpuFmspc([0x00, 0x90, 0x6e, 0xd5, 0x00, 0x00]),
+    // 06_A5H CPUID.01H:EAX[19:0]=0xA0655 F/M/S/eM/P=6/5/5/A/0 FMSPC=00a065510000 INTEL_COMETLAKE (Sky Lake, s:5)                  platform=client
+    CpuFmspc([0x00, 0xa0, 0x65, 0x51, 0x00, 0x00]),
 ];
 
 /// A [`ClientCertVerifier`] and [`ServerCertVerifier`] which verifies embedded
@@ -430,10 +474,15 @@ impl SgxQuoteVerifier {
             cert_iter.next().context("Missing SGX root CA cert")??;
         ensure!(cert_iter.next().is_none(), "unexpected extra certificate");
 
-        // TODO(phlip9): use
+        // Extract and decode the SGX PCK Extensions from the PCK leaf cert.
         let pck_exts = SgxPckExtensions::from_cert_der(&pck_cert_der)
             .context("Failed to parse SGX PCK cert extensions")?;
-        let _fmspc = pck_exts.fmspc;
+        // Reject Intel CPUs that are too old.
+        let cpu_fmspc = pck_exts.cpu_fmspc;
+        ensure!(
+            !CPU_FMSPC_BLOCKLIST.contains(&pck_exts.cpu_fmspc),
+            "remote Intel CPU is too old: CPU FMSPC={cpu_fmspc}",
+        );
 
         let pck_cert = webpki::EndEntityCert::try_from(&pck_cert_der)
             .context("Invalid PCK cert")?;
@@ -778,9 +827,10 @@ fn rustls_err(s: impl Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::{fs, time::Duration};
+    use std::{fmt, fs, time::Duration};
 
     use super::*;
+    use crate::attest_client::cert::CpuFmspc;
 
     // TODO(phlip9): test verification catches bad evidence
 
@@ -859,5 +909,315 @@ mod test {
                 UnixTime::now(),
             )
             .unwrap();
+    }
+
+    // ```bash
+    // $ cargo test -p lexe-tls --lib -- pretty_print_cpu_fmspc --nocapture --ignored
+    // ```
+    #[test]
+    #[ignore]
+    fn pretty_print_cpu_fmspc() {
+        // Azure DCsv3 Intel Xeon-v3 CPU (Ice Lake)
+        let fmspc = CpuFmspc::from_hex("00606a000000").unwrap();
+        println!("{}", FmspcCpuid::new(fmspc));
+    }
+
+    // ```bash
+    // $ cargo test -p lexe-tls --lib -- dump_cpu_fmspc_blocklist --nocapture --ignored
+    // ```
+    //
+    // Update the list of FMSPC values for SGX and TDX platforms supporting DCAP
+    // attestation:
+    //
+    // ```bash
+    // $ curl -sSL 'https://api.trustedservices.intel.com/sgx/certification/v4/fmspcs' \
+    //     | jq . > public/lexe-tls/test_data/intel-sgx-v4-fmspcs.json
+    // ```
+    //
+    // Dump (2026-05-21):
+    //
+    // ```
+    // ### All CPUs that Intel supports for remote attestation
+    // 06_6AH CPUID.01H:EAX[19:0]=0x606A0 F/M/S/eM/P=6/A/0/6/0 FMSPC=00606a000000 INTEL_ICELAKE_X (Sunny Cove, s:0)                platform=E5
+    // 06_6AH CPUID.01H:EAX[19:0]=0x606A0 F/M/S/eM/P=6/A/0/6/0 FMSPC=30606a000000 INTEL_ICELAKE_X (Sunny Cove, s:0)                platform=E5
+    // 06_6CH CPUID.01H:EAX[19:0]=0x606C0 F/M/S/eM/P=6/C/0/6/0 FMSPC=00606c040000 INTEL_ICELAKE_D (Sunny Cove, s:0)                platform=E5
+    // 06_6CH CPUID.01H:EAX[19:0]=0x606C0 F/M/S/eM/P=6/C/0/6/0 FMSPC=20606c040000 INTEL_ICELAKE_D (Sunny Cove, s:0)                platform=E5
+    // 06_7AH CPUID.01H:EAX[19:0]=0x706A1 F/M/S/eM/P=6/A/1/7/0 FMSPC=00706a100000 INTEL_ATOM_GOLDMONT_PLUS (Gemini Lake, s:1)      platform=client
+    // 06_7AH CPUID.01H:EAX[19:0]=0x706A8 F/M/S/eM/P=6/A/8/7/0 FMSPC=00706a800000 INTEL_ATOM_GOLDMONT_PLUS (Gemini Lake, s:8)      platform=client
+    // 06_7EH CPUID.01H:EAX[19:0]=0x706E4 F/M/S/eM/P=6/E/4/7/0 FMSPC=00706e470000 INTEL_ICELAKE_L (Sunny Cove, s:4)                platform=client
+    // 06_8EH CPUID.01H:EAX[19:0]=0x806EA F/M/S/eM/P=6/E/A/8/0 FMSPC=00806ea60000 INTEL_KABYLAKE_L / COFFEELAKE_L (Sky Lake, s:A)  platform=client
+    // 06_8EH CPUID.01H:EAX[19:0]=0x806EB F/M/S/eM/P=6/E/B/8/0 FMSPC=00806eb70000 INTEL_KABYLAKE_L / WHISKEYLAKE_L (Sky Lake, s:B) platform=client
+    // 06_8EH CPUID.01H:EAX[19:0]=0x806EB F/M/S/eM/P=6/E/B/8/0 FMSPC=20806eb70000 INTEL_KABYLAKE_L / WHISKEYLAKE_L (Sky Lake, s:B) platform=client
+    // 06_8FH CPUID.01H:EAX[19:0]=0x806F0 F/M/S/eM/P=6/F/0/8/0 FMSPC=00806f000000 INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:0)        platform=E5
+    // 06_8FH CPUID.01H:EAX[19:0]=0x806F0 F/M/S/eM/P=6/F/0/8/0 FMSPC=00806f050000 INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:0)        platform=E5
+    // 06_8FH CPUID.01H:EAX[19:0]=0x806F0 F/M/S/eM/P=6/F/0/8/0 FMSPC=30806f040000 INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:0)        platform=E5
+    // 06_8FH CPUID.01H:EAX[19:0]=0x806F0 F/M/S/eM/P=6/F/0/8/0 FMSPC=50806f000000 INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:0)        platform=E5
+    // 06_8FH CPUID.01H:EAX[19:0]=0x806F0 F/M/S/eM/P=6/F/0/8/0 FMSPC=90806f000000 INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:0)        platform=E5
+    // 06_8FH CPUID.01H:EAX[19:0]=0x806F0 F/M/S/eM/P=6/F/0/8/0 FMSPC=c0806f000000 INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:0)        platform=E5
+    // 06_8FH CPUID.01H:EAX[19:0]=0x806F0 F/M/S/eM/P=6/F/0/8/0 FMSPC=f0806f000000 INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:0)        platform=E5
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EA F/M/S/eM/P=6/E/A/9/0 FMSPC=00906ea10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:A)      platform=E3
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EA F/M/S/eM/P=6/E/A/9/0 FMSPC=00906ea50000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:A)      platform=client
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EB F/M/S/eM/P=6/E/B/9/0 FMSPC=00906eb10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:B)      platform=client
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EC F/M/S/eM/P=6/E/C/9/0 FMSPC=00906ec10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:C)      platform=client
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EC F/M/S/eM/P=6/E/C/9/0 FMSPC=00906ec50000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:C)      platform=client
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906EC F/M/S/eM/P=6/E/C/9/0 FMSPC=20906ec10000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:C)      platform=client
+    // 06_9EH CPUID.01H:EAX[19:0]=0x906ED F/M/S/eM/P=6/E/D/9/0 FMSPC=00906ed50000 INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:D)      platform=E3
+    // 06_A5H CPUID.01H:EAX[19:0]=0xA0655 F/M/S/eM/P=6/5/5/A/0 FMSPC=00a065510000 INTEL_COMETLAKE (Sky Lake, s:5)                  platform=client
+    // 06_A7H CPUID.01H:EAX[19:0]=0xA0671 F/M/S/eM/P=6/7/1/A/0 FMSPC=00a067110000 INTEL_ROCKETLAKE (Cypress Cove, s:1)             platform=E3
+    // 06_ADH CPUID.01H:EAX[19:0]=0xA06D0 F/M/S/eM/P=6/D/0/A/0 FMSPC=00a06d080000 INTEL_GRANITERAPIDS_X (s:0)                      platform=E5
+    // 06_ADH CPUID.01H:EAX[19:0]=0xA06D0 F/M/S/eM/P=6/D/0/A/0 FMSPC=10a06d000000 INTEL_GRANITERAPIDS_X (s:0)                      platform=E5
+    // 06_ADH CPUID.01H:EAX[19:0]=0xA06D0 F/M/S/eM/P=6/D/0/A/0 FMSPC=20a06d080000 INTEL_GRANITERAPIDS_X (s:0)                      platform=E5
+    // 06_ADH CPUID.01H:EAX[19:0]=0xA06D0 F/M/S/eM/P=6/D/0/A/0 FMSPC=70a06d070000 INTEL_GRANITERAPIDS_X (s:0)                      platform=E5
+    // 06_AEH CPUID.01H:EAX[19:0]=0xA06E0 F/M/S/eM/P=6/E/0/A/0 FMSPC=00a06e050000 INTEL_GRANITERAPIDS_D (s:0)                      platform=E5
+    // 06_AEH CPUID.01H:EAX[19:0]=0xA06E0 F/M/S/eM/P=6/E/0/A/0 FMSPC=20a06e050000 INTEL_GRANITERAPIDS_D (s:0)                      platform=E5
+    // 06_AFH CPUID.01H:EAX[19:0]=0xA06F0 F/M/S/eM/P=6/F/0/A/0 FMSPC=10a06f010000 INTEL_ATOM_CRESTMONT_X (Sierra Forest, s:0)      platform=E5
+    // 06_AFH CPUID.01H:EAX[19:0]=0xA06F0 F/M/S/eM/P=6/F/0/A/0 FMSPC=20a06f000000 INTEL_ATOM_CRESTMONT_X (Sierra Forest, s:0)      platform=E5
+    // 06_AFH CPUID.01H:EAX[19:0]=0xA06F0 F/M/S/eM/P=6/F/0/A/0 FMSPC=60a06f000000 INTEL_ATOM_CRESTMONT_X (Sierra Forest, s:0)      platform=E5
+    // 06_CFH CPUID.01H:EAX[19:0]=0xC06F0 F/M/S/eM/P=6/F/0/C/0 FMSPC=90c06f000000 INTEL_EMERALDRAPIDS_X (s:0)                      platform=E5
+    // 06_CFH CPUID.01H:EAX[19:0]=0xC06F0 F/M/S/eM/P=6/F/0/C/0 FMSPC=b0c06f000000 INTEL_EMERALDRAPIDS_X (s:0)                      platform=E5
+    // ```
+    #[test]
+    #[ignore]
+    fn dump_cpu_fmspc_blocklist() {
+        let fmspcs_str =
+            fs::read_to_string("test_data/intel-sgx-v4-fmspcs.json").unwrap();
+        let fmspcs_json: serde_json::Value =
+            serde_json::from_str(&fmspcs_str).unwrap();
+
+        let mut entries = fmspcs_json
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| {
+                let fmspc = entry["fmspc"].as_str().unwrap();
+                let fmspc =
+                    CpuFmspc::from_hex(&fmspc.to_ascii_lowercase()).unwrap();
+                let fmspc_cpuid = FmspcCpuid::new(fmspc);
+
+                let platform = entry["platform"].as_str().unwrap();
+
+                FmspcPrettyPrintEntry {
+                    fmspc_cpuid,
+                    platform: platform.to_owned(),
+                }
+            })
+            .collect::<Vec<_>>();
+        entries.sort_by_cached_key(|entry| entry.to_string());
+
+        println!("### All CPUs that Intel supports for remote attestation");
+        for entry in &entries {
+            println!("{entry}")
+        }
+
+        let blocked_entries = entries
+            .iter()
+            .filter(|entry| entry.is_blocked())
+            .collect::<Vec<_>>();
+
+        println!();
+        println!("### Blocked CPUs (older than Ice Lake or platform=client):");
+        for entry in &blocked_entries {
+            println!("{entry}")
+        }
+
+        println!("\n```");
+        println!(
+            "const CPU_FMSPC_BLOCKLIST: [CpuFmspc; {}] = [",
+            blocked_entries.len()
+        );
+        for entry in blocked_entries {
+            let [a, b, c, d, e, f] = entry.fmspc_cpuid.fmspc.0;
+            let fmspc = format!(
+                "CpuFmspc([0x{a:02x}, 0x{b:02x}, 0x{c:02x}, 0x{d:02x}, 0x{e:02x}, 0x{f:02x}])"
+            );
+
+            println!("    // {entry}");
+            println!("    {fmspc},");
+        }
+        println!("];");
+        println!("```");
+    }
+
+    /// A decoded FMSPC code and the Intel "platform" kind (client, E3, E5).
+    /// `client` platforms are consumer desktop/mobile CPUs.
+    struct FmspcPrettyPrintEntry {
+        fmspc_cpuid: FmspcCpuid,
+        platform: String,
+    }
+
+    impl FmspcPrettyPrintEntry {
+        fn is_blocked(&self) -> bool {
+            self.fmspc_cpuid.is_older_than_icelake()
+                || self.platform == "client"
+        }
+    }
+
+    impl fmt::Display for FmspcPrettyPrintEntry {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let Self {
+                fmspc_cpuid,
+                platform,
+            } = self;
+            write!(f, "{fmspc_cpuid} platform={platform}")
+        }
+    }
+
+    /// A decoded FMSPC code
+    struct FmspcCpuid {
+        fmspc: CpuFmspc,
+        cpuid_01_eax_low20: u32,
+        family_id: u8,
+        model_id: u8,
+        stepping_id: u8,
+        extended_model_id: u8,
+        processor_type: u8,
+        display_family: u8,
+        display_model: u8,
+    }
+
+    impl FmspcCpuid {
+        fn new(fmspc: CpuFmspc) -> Self {
+            // FMSPC is 6 bytes. For current Intel SGX PCS FMSPC values, bytes
+            // 1, 2, and the high nibble of byte 3 encode the low 20 bits of
+            // CPUID.01H:EAX:
+            //
+            //   bits 19:16: Extended Model ID
+            //   bits 13:12: Processor Type
+            //   bits 11:8:  Family ID
+            //   bits 7:4:   Model ID
+            //   bits 3:0:   Stepping ID
+            //
+            // The low nibble of byte 3 is the platform component of FMSPC.
+            // The remaining FMSPC bytes should be preserved for exact
+            // collateral identity, but are not needed to compute
+            // DisplayFamily_DisplayModel.
+            let eax20 = ((fmspc.0[1] as u32) << 12)
+                | ((fmspc.0[2] as u32) << 4)
+                | ((fmspc.0[3] as u32) >> 4);
+
+            let stepping_id = (eax20 & 0x0f) as u8;
+            let model_id = ((eax20 >> 4) & 0x0f) as u8;
+            let family_id = ((eax20 >> 8) & 0x0f) as u8;
+            let processor_type = ((eax20 >> 12) & 0x03) as u8;
+            let extended_model_id = ((eax20 >> 16) & 0x0f) as u8;
+
+            // All current SGX PCS FMSPCs are Intel family 06h. Figure out how
+            // to handle this if they every release something with a different
+            // family id.
+            if family_id != 0x06 {
+                panic!("handle this");
+            }
+
+            let display_family = family_id;
+            let display_model = (extended_model_id << 4) | model_id;
+
+            Self {
+                fmspc,
+                cpuid_01_eax_low20: eax20,
+                family_id,
+                model_id,
+                stepping_id,
+                extended_model_id,
+                processor_type,
+                display_family,
+                display_model,
+            }
+        }
+    }
+
+    impl fmt::Display for FmspcCpuid {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let Self {
+                fmspc,
+                cpuid_01_eax_low20,
+                family_id,
+                model_id,
+                stepping_id,
+                extended_model_id,
+                processor_type,
+                display_family,
+                display_model,
+            } = self;
+            let intel_family_name = self.intel_family_name();
+            write!(
+                f,
+                "{display_family:02X}_{display_model:02X}H \
+                 CPUID.01H:EAX[19:0]=0x{cpuid_01_eax_low20:05X} \
+                 F/M/S/eM/P={family_id:X}/{model_id:X}/{stepping_id:X}/{extended_model_id:X}/{processor_type:X} \
+                 FMSPC={fmspc} {intel_family_name:<48}"
+            )
+        }
+    }
+
+    impl FmspcCpuid {
+        fn intel_family_name(&self) -> String {
+            let stepping_id = self.stepping_id;
+
+            // Names from:
+            // - arch/x86/include/asm/intel-family.h in Linux
+            // - [Intel Platform Security Guidance - Affected Processors](https://www.intel.com/content/www/us/en/developer/topic-technology/software-security-guidance/processors-affected-consolidated-product-cpu-model.html).
+            //   (in .csv format: <https://github.com/intel/Intel-affected-processor-list/blob/main/Intel_affected_processor_list.csv>)
+            match (self.display_family, self.display_model) {
+                (0x06, 0x6A) =>
+                    format!("INTEL_ICELAKE_X (Sunny Cove, s:{stepping_id:X})"),
+                (0x06, 0x6C) =>
+                    format!("INTEL_ICELAKE_D (Sunny Cove, s:{stepping_id:X})"),
+                (0x06, 0x7A) => {
+                    format!(
+                        "INTEL_ATOM_GOLDMONT_PLUS (Gemini Lake, s:{stepping_id:X})"
+                    )
+                }
+                (0x06, 0x7E) =>
+                    format!("INTEL_ICELAKE_L (Sunny Cove, s:{stepping_id:X})"),
+                (0x06, 0x8E) => match stepping_id {
+                    0x0A => "INTEL_KABYLAKE_L / COFFEELAKE_L (Sky Lake, s:A)"
+                        .to_owned(),
+                    0x0B | 0x0C => {
+                        format!(
+                            "INTEL_KABYLAKE_L / WHISKEYLAKE_L (Sky Lake, s:{stepping_id:X})"
+                        )
+                    }
+                    _ => format!(
+                        "INTEL_KABYLAKE_L (Sky Lake, s:{stepping_id:X})"
+                    ),
+                },
+                (0x06, 0x8F) => {
+                    format!(
+                        "INTEL_SAPPHIRERAPIDS_X (Golden Cove, s:{stepping_id:X})"
+                    )
+                }
+                (0x06, 0x9E) => match stepping_id {
+                    0x0A..=0x0D => {
+                        format!(
+                            "INTEL_KABYLAKE / COFFEELAKE (Sky Lake, s:{stepping_id:X})"
+                        )
+                    }
+                    _ =>
+                        format!("INTEL_KABYLAKE (Sky Lake, s:{stepping_id:X})"),
+                },
+                (0x06, 0xA5) =>
+                    format!("INTEL_COMETLAKE (Sky Lake, s:{stepping_id:X})"),
+                (0x06, 0xA7) => format!(
+                    "INTEL_ROCKETLAKE (Cypress Cove, s:{stepping_id:X})"
+                ),
+                (0x06, 0xAD) =>
+                    format!("INTEL_GRANITERAPIDS_X (s:{stepping_id:X})"),
+                (0x06, 0xAE) =>
+                    format!("INTEL_GRANITERAPIDS_D (s:{stepping_id:X})"),
+                (0x06, 0xAF) => {
+                    format!(
+                        "INTEL_ATOM_CRESTMONT_X (Sierra Forest, s:{stepping_id:X})"
+                    )
+                }
+                (0x06, 0xCF) =>
+                    format!("INTEL_EMERALDRAPIDS_X (s:{stepping_id:X})"),
+                _ => format!("unknown Intel family (s:{stepping_id:X})"),
+            }
+        }
+
+        fn is_older_than_icelake(&self) -> bool {
+            self.display_family == 0x06
+                && matches!(self.display_model, 0x7A | 0x8E | 0x9E | 0xA5)
+        }
     }
 }

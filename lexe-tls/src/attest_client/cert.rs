@@ -160,7 +160,7 @@ impl fmt::Debug for SgxAttestationExtension<'_> {
 pub(crate) struct SgxPckExtensions {
     /// This field contains the Intel CPU family of the machine that made the
     /// attestation.
-    pub fmspc: Fmspc,
+    pub cpu_fmspc: CpuFmspc,
 }
 
 impl SgxPckExtensions {
@@ -216,8 +216,8 @@ impl SgxPckExtensions {
                 })
             })?;
 
-            let fmspc = Fmspc(fmspc.ok_or_else(Self::invalid_asn1)?);
-            Ok(Self { fmspc })
+            let cpu_fmspc = CpuFmspc(fmspc.ok_or_else(Self::invalid_asn1)?);
+            Ok(Self { cpu_fmspc })
         })
     }
 
@@ -226,13 +226,13 @@ impl SgxPckExtensions {
     }
 }
 
-/// An Intel FMSPC (Family-Model-Stepping-Platform-Config) code that identifies
-/// a model of Intel CPU hardware.
+/// An Intel CPU FMSPC (Family-Model-Stepping-Platform-Config) code that
+/// identifies a family of Intel CPUs
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
-pub(crate) struct Fmspc([u8; 6]);
+pub(crate) struct CpuFmspc(pub [u8; 6]);
 
-lexe_byte_array::impl_byte_array!(Fmspc, 6);
-lexe_byte_array::impl_debug_display_as_hex!(Fmspc);
+lexe_byte_array::impl_byte_array!(CpuFmspc, 6);
+lexe_byte_array::impl_debug_display_as_hex!(CpuFmspc);
 
 #[cfg(test)]
 mod test {
@@ -275,7 +275,7 @@ mod test {
         .unwrap();
 
         let extensions = SgxPckExtensions::from_cert_der(&cert_der).unwrap();
-        let fmspc = Fmspc::from_hex("00606a000000").unwrap();
-        assert_eq!(extensions.fmspc, fmspc);
+        let fmspc = CpuFmspc::from_hex("00606a000000").unwrap();
+        assert_eq!(extensions.cpu_fmspc, fmspc);
     }
 }

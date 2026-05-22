@@ -1,0 +1,150 @@
+[
+  {
+    "fmspc": "00A06D080000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "70A06D070000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00A06E050000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00906EA50000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "20606C040000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "50806F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00A067110000",
+    "platform": "E3"
+  },
+  {
+    "fmspc": "00606C040000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00706E470000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "00806EA60000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "00706A800000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "00706A100000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "20A06E050000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "F0806F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00806EB70000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "00906EC50000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "90806F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "10A06F010000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00906EC10000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "B0C06F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "20A06F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00906ED50000",
+    "platform": "E3"
+  },
+  {
+    "fmspc": "60A06F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00A065510000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "30606A000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "20806EB70000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "00906EA10000",
+    "platform": "E3"
+  },
+  {
+    "fmspc": "30806F040000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "C0806F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "20A06D080000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "10A06D000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00806F050000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "20906EC10000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "90C06F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00806F000000",
+    "platform": "E5"
+  },
+  {
+    "fmspc": "00906EB10000",
+    "platform": "client"
+  },
+  {
+    "fmspc": "00606A000000",
+    "platform": "E5"
+  }
+]
