@@ -298,7 +298,8 @@ fn resolve_credentials(
     } else if let Some(seed) = root_seed {
         (Some(Credentials::from(seed)), source_if_direct)
     } else if let Some(path) = &root_seed_path {
-        let seed = RootSeed::read_from_path_either(path.as_path())?;
+        let seed =
+            RootSeed::read_from_path_as_seedphrase_or_hex(path.as_path())?;
         let source = Cow::Owned(path.display().to_string());
         (Some(Credentials::from(seed)), source)
     } else {

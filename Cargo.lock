@@ -4367,7 +4367,6 @@ dependencies = [
  "lexe-api",
  "lexe-common",
  "lexe-crypto",
- "lexe-logger",
  "lexe-node-client",
  "lexe-std",
  "lexe-tls-core",

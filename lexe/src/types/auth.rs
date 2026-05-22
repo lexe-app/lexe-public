@@ -162,6 +162,30 @@ impl RootSeed {
         }
     }
 
+    /// Read a root seed from a file containing either hex or mnemonic.
+    #[cfg(feature = "unstable")]
+    pub fn read_from_path_as_seedphrase_or_hex(
+        path: &Path,
+    ) -> anyhow::Result<RootSeed> {
+        use anyhow::anyhow;
+        let contents = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        let contents = contents.trim();
+
+        // Try hex first (64 hex chars = 32 bytes).
+        if contents.len() == 64
+            && contents.chars().all(|c| c.is_ascii_hexdigit())
+        {
+            return RootSeed::from_hex(contents)
+                .context("Failed to parse root seed hex");
+        }
+
+        // Fall back to mnemonic.
+        let mnemonic = Mnemonic::from_str(contents)
+            .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
+        RootSeed::from_mnemonic(mnemonic).context("Failed to parse mnemonic")
+    }
+
     /// Write this [`RootSeed`] to a seedphrase file at a specific path.
     ///
     /// Creates parent directories if needed. Returns an error if the file
@@ -255,35 +279,6 @@ impl RootSeed {
         encrypted: Vec<u8>,
     ) -> anyhow::Result<Self> {
         UnstableRootSeed::password_decrypt(password, encrypted).map(Self)
-    }
-
-    // --- Unstable functions --- //
-
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "unstable")] {
-            /// Read a root seed from a file containing either hex or mnemonic.
-            pub fn read_from_path_either(path: &Path) -> anyhow::Result<RootSeed> {
-                // Pull import here to avoid unused import & unused function
-                // based on cfg branch
-                use anyhow::anyhow;
-                let contents = std::fs::read_to_string(path)
-                    .with_context(|| format!("Failed to read {}", path.display()))?;
-                let contents = contents.trim();
-
-                // Try hex first (64 hex chars = 32 bytes).
-                if contents.len() == 64
-                    && contents.chars().all(|c| c.is_ascii_hexdigit())
-                {
-                    return RootSeed::from_hex(contents)
-                        .context("Failed to parse root seed hex");
-                }
-
-                // Fall back to mnemonic.
-                let mnemonic = Mnemonic::from_str(contents)
-                    .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
-                RootSeed::from_mnemonic(mnemonic).context("Failed to parse mnemonic")
-            }
-        }
     }
 
     // --- Internal Escape Hatches --- //

@@ -116,8 +116,8 @@ impl FromRequestParts<Arc<RouterState>> for WalletAndCredentialsExtractor {
             .as_ref()
             .ok_or(
                 "No client credentials configured. \
-                    Set LEXE_CLIENT_CREDENTIALS in env or .env, \
-                    or pass credentials via the Authorization header.",
+                 Set LEXE_CLIENT_CREDENTIALS in env or .env, \
+                 or pass credentials via the Authorization header.",
             )
             .map_err(SdkApiError::bad_auth)?;
 
