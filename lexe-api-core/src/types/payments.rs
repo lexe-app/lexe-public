@@ -849,14 +849,23 @@ impl BasicPaymentV2 {
     /// every page open, but we don't want this invoice to show up in the
     /// payments list unless it actually gets paid.
     pub fn is_junk(&self) -> bool {
-        // amount-less, description-less inbound BOLT11 invoices are junk
-        // payments unless paid.
+        // Inbound BOLT11 invoices are junk unless paid when either:
+        // - The amount or description is missing (e.g., the receive UI
+        //   generates one of these on every page open), OR
+        // - The description is the "Cash App Buy" tag the app sets on the
+        //   invoices it mints to fund a buy via Cash App.
+        //
+        // NOTE: keep "Cash App Buy" in sync with
+        // `public/app/lib/route/buy.dart`.
+        //
         // TODO(phlip9): also don't show pending/failed "superseded" invoices,
         // where the user edited the amount/description.
         self.status != PaymentStatus::Completed
             && self.kind.rail() == PaymentRail::Invoice
             && self.direction == PaymentDirection::Inbound
-            && (self.amount.is_none() || self.note_or_description().is_none())
+            && (self.amount.is_none()
+                || self.note_or_description().is_none()
+                || self.note_or_description() == Some("Cash App Buy"))
     }
 
     /// Returns the user's note or invoice description, prefering note over

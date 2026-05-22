@@ -70,6 +70,7 @@ import 'package:lexeapp/gdrive_auth.dart'
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/app_load_error.dart' show AppLoadErrorPage;
+import 'package:lexeapp/route/buy.dart' show BuyPage;
 import 'package:lexeapp/route/change_backup_password.dart'
     show ChangeBackupPasswordPage;
 import 'package:lexeapp/route/channels.dart'
@@ -837,6 +838,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           prev: AmountDescription(amountSats: null, description: null),
         ),
       ),
+      Component("BuyPage", (context) => BuyPage(app: mockApp)),
       Component(
         "PaymentDetailPage",
         subtitle: "Onchain outbound (failed)",
@@ -1733,7 +1735,7 @@ class ButtonDesignPage extends StatelessWidget {
 
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              spacing: Space.s400,
+              spacing: Space.s300,
               children: [
                 WalletActionButton(
                   onPressed: onTap,
@@ -1742,18 +1744,19 @@ class ButtonDesignPage extends StatelessWidget {
                 ),
                 WalletActionButton(
                   onPressed: onTap,
+                  icon: LxIcons.send,
+                  label: "Send",
+                ),
+                WalletActionButton(
+                  onPressed: onTap,
                   icon: LxIcons.receive,
                   label: "Receive",
                 ),
                 WalletActionButton(
                   onPressed: onTap,
-                  icon: LxIcons.send,
-                  label: "Send",
+                  icon: LxIcons.add,
+                  label: "Buy",
                 ),
-                // Builder(builder: (context) {
-                //   info("IconTheme.of(context): ${IconTheme.of(context)}");
-                //   return Text("foo");
-                // }),
               ],
             ),
             const SizedBox(height: Space.s600),

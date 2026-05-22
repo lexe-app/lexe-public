@@ -52,6 +52,7 @@ import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
 import 'package:lexeapp/gdrive_auth.dart';
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/buy.dart' show BuyPage;
 import 'package:lexeapp/route/channels.dart' show ChannelsPage;
 import 'package:lexeapp/route/clients.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
@@ -462,6 +463,19 @@ class WalletPageState extends State<WalletPage> {
     await this.onSendFlowSuccess(flowResult);
   }
 
+  /// Called when the "Buy" button is pressed. Pushes the [BuyPage] which
+  /// prompts for an amount, mints a Lightning invoice, and opens a Cash App
+  /// deep link to pay it.
+  Future<void> onBuyPressed() async {
+    await Navigator.of(this.context).push(
+      MaterialPageRoute(builder: (context) => BuyPage(app: this.widget.app)),
+    );
+    if (!this.mounted) return;
+
+    // Maybe the user completed the buy via Cash App; burst refresh to pick it up.
+    this.triggerBurstRefresh();
+  }
+
   /// Called when the "Scan" button is pressed. Pushes the QR scan page onto the
   /// navigation stack.
   Future<void> onScanPressed() async {
@@ -721,6 +735,7 @@ class WalletPageState extends State<WalletPage> {
                               onScanPressed: this.onScanPressed,
                               onReceivePressed: this.onReceivePressed,
                               onSendPressed: this.onSendPressed,
+                              onBuyPressed: this.onBuyPressed,
                             ),
                             const SizedBox(height: Space.s500),
                             WalletBanner.onChainDeposited(
@@ -735,6 +750,7 @@ class WalletPageState extends State<WalletPage> {
                               onScanPressed: this.onScanPressed,
                               onReceivePressed: this.onReceivePressed,
                               onSendPressed: this.onSendPressed,
+                              onBuyPressed: this.onBuyPressed,
                             ),
                             const SizedBox(height: Space.s500),
                             WalletBanner.channelOpening(
@@ -747,6 +763,7 @@ class WalletPageState extends State<WalletPage> {
                           onScanPressed: this.onScanPressed,
                           onReceivePressed: this.onReceivePressed,
                           onSendPressed: this.onSendPressed,
+                          onBuyPressed: this.onBuyPressed,
                         ),
                       };
                     },
@@ -759,6 +776,7 @@ class WalletPageState extends State<WalletPage> {
                         onScanPressed: this.onScanPressed,
                         onReceivePressed: this.onReceivePressed,
                         onSendPressed: this.onSendPressed,
+                        onBuyPressed: this.onBuyPressed,
                       ),
 
                       // Situational hints and prompts
@@ -1865,11 +1883,13 @@ class WalletActions extends StatelessWidget {
     this.onScanPressed,
     this.onSendPressed,
     this.onReceivePressed,
+    this.onBuyPressed,
   });
 
   final VoidCallback? onScanPressed;
   final VoidCallback? onSendPressed;
   final VoidCallback? onReceivePressed;
+  final VoidCallback? onBuyPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -1881,17 +1901,23 @@ class WalletActions extends StatelessWidget {
           icon: LxIcons.scan,
           label: "Scan",
         ),
-        const SizedBox(width: Space.s400),
+        const SizedBox(width: Space.s300),
+        WalletActionButton(
+          onPressed: this.onSendPressed,
+          icon: LxIcons.send,
+          label: "Send",
+        ),
+        const SizedBox(width: Space.s300),
         WalletActionButton(
           onPressed: this.onReceivePressed,
           icon: LxIcons.receive,
           label: "Receive",
         ),
-        const SizedBox(width: Space.s400),
+        const SizedBox(width: Space.s300),
         WalletActionButton(
-          onPressed: this.onSendPressed,
-          icon: LxIcons.send,
-          label: "Send",
+          onPressed: this.onBuyPressed,
+          icon: LxIcons.add,
+          label: "Buy",
         ),
       ],
     );
@@ -1919,7 +1945,7 @@ class WalletActionButton extends StatelessWidget {
         FilledButton(
           onPressed: this.onPressed,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Space.s450),
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
             child: Icon(this.icon, size: Fonts.size700),
           ),
         ),
