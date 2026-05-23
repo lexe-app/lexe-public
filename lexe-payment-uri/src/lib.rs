@@ -36,20 +36,31 @@ pub async fn resolve_best(
         network,
         payment_uri,
     )
-    .await
-    .context("Failed to resolve payment URI into payment methods")?;
+    .await?;
 
     // Pick the most preferable payment method.
     let best = payment_methods.into_iter().next().ok_or_else(|| {
         anyhow!(
             // Shouldn't be reachable, but just in case.
-            "Failed to resolve payment URI into payment methods"
+            "Failed to find any payment methods. This is a bug--please report!"
         )
     })?;
 
     // If it's an offer, check that the amounts are consistent
-    if let PaymentMethod::Offer(offer) = &best {
-        offer.validate_amounts()?;
+    if let PaymentMethod::Offer {
+        offer,
+        bip321_amount,
+    } = &best
+    {
+        match (offer.min_amount(), bip321_amount) {
+            (Some(min_amount), Some(bip321_amount))
+                if *bip321_amount < min_amount =>
+                return Err(anyhow!(
+                    "Receiver error: BIP 321 amount must be greater than or \
+                     equal to minimum amount encoded in offer."
+                )),
+            _ => (),
+        }
     }
 
     Ok(best)
@@ -66,14 +77,15 @@ pub async fn resolve_payment_methods(
 ) -> anyhow::Result<Vec<PaymentMethod>> {
     // Split the URI into its directly-known methods and any pieces that
     // require further resolution.
-    let (mut payment_methods, resolvables) = payment_uri.flatten();
+    let (mut payment_methods, resolvables) = payment_uri.flatten(network);
 
     // Resolve all `Resolvable`s and merge their methods in.
     // Error if *every* resolution fails AND we have no direct methods.
     let resolve_futs = resolvables.into_iter().map(|resolvable| async move {
         match resolvable {
             Resolvable::EmailLike(addr) =>
-                resolve::email_like(bip353_client, lnurl_client, addr).await,
+                resolve::email_like(bip353_client, lnurl_client, network, addr)
+                    .await,
             Resolvable::Lnurl(lnurl) =>
                 resolve::lnurl(lnurl_client, lnurl).await,
         }
@@ -88,6 +100,8 @@ pub async fn resolve_payment_methods(
         }
     }
 
+    // TODO(nicole): Possibly inaccurate error message, because failed
+    // resolvables are filtered, some parsing errors are filtered, etc.
     ensure!(
         !payment_methods.is_empty(),
         "Failed to resolve payment methods: {}",
@@ -117,6 +131,7 @@ mod resolve {
     pub(super) async fn email_like(
         bip353_client: &bip353::Bip353Client,
         lnurl_client: &lnurl::LnurlClient,
+        network: Network,
         email_like: EmailLikeAddress<'static>,
     ) -> anyhow::Result<Vec<PaymentMethod>> {
         let mut methods = Vec::with_capacity(3);
@@ -125,7 +140,7 @@ mod resolve {
         // Try resolving BIP353 if this is a valid BIP353 address.
         if let Some(bip353_fqdn) = email_like.bip353_fqdn {
             let bip353_result = bip353_client
-                .resolve_bip353_fqdn(bip353_fqdn)
+                .resolve_bip353_fqdn(network, bip353_fqdn)
                 .await
                 .context("Failed to resolve BIP353 address");
             match bip353_result {
@@ -143,14 +158,18 @@ mod resolve {
             }
         }
 
-        // Always try resolving Lightning Address
+        // Always try resolving Lightning Address, which uses LNURL-pay
         let ln_address_result = lnurl_client
             .get_pay_request(&email_like.lightning_address_url)
             .await
             .context("Failed to resolve Lightning Address url");
         match ln_address_result {
-            Ok(pay_request) =>
-                methods.push(PaymentMethod::LnurlPayRequest(pay_request)),
+            Ok(pay_request) => {
+                methods.push(PaymentMethod::LnurlPay {
+                    lnurl: email_like.lightning_address_url,
+                    pay_request,
+                });
+            }
             Err(e) => errors.push(format!("{e:#}")),
         }
 
@@ -174,7 +193,10 @@ mod resolve {
             .get_pay_request(&lnurl.http_url)
             .await
             .context("Failed to resolve LNURL-pay url")?;
-        Ok(vec![PaymentMethod::LnurlPayRequest(pay_request)])
+        Ok(vec![PaymentMethod::LnurlPay {
+            lnurl: lnurl.http_url.into_owned(),
+            pay_request,
+        }])
     }
 }
 
@@ -231,7 +253,7 @@ mod test {
         .unwrap();
 
         // Payment methods are Offer and Onchain, but Offer is higher priority.
-        assert!(matches!(payment_method, PaymentMethod::Offer(_)));
+        assert!(payment_method.is_offer());
         assert!(payment_method.supports_network(Network::Mainnet));
 
         info!("Successfully resolved BlueMatt's payment methods");

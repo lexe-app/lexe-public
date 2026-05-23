@@ -6,7 +6,6 @@ use lexe_api::{
     models::command::{self, GetUpdatedPayments},
     types::{
         bounded_string::BoundedString,
-        lnurl::LnurlPayRequest,
         payments::{
             ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentStatus,
         },
@@ -25,7 +24,7 @@ use lexe_common::{
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
-    self, Bip321Uri, OfferWithAmount, Onchain, PaymentMethod, PaymentUri,
+    self, Bip321Uri, PaymentMethod, PaymentUri,
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
     resolve_payment_methods,
@@ -795,134 +794,121 @@ impl LexeWallet {
 
         let payables = payment_methods
             .into_iter()
-            .map(|method| {
-                match &method {
-                    PaymentMethod::Onchain(onchain) => {
-                        let Onchain {
-                            address,
+            .map(|method| match &method {
+                PaymentMethod::Onchain {
+                    address,
+                    amount,
+                    label,
+                    message,
+                } => {
+                    let amount = *amount;
+                    let payable = if amount.is_some()
+                        || label.is_some()
+                        || message.is_some()
+                    {
+                        let bip_321_uri = Bip321Uri {
+                            onchain: vec![address.clone().into_unchecked()],
                             amount,
-                            label,
-                            message,
-                        } = onchain;
+                            label: label.clone(),
+                            message: message.clone(),
+                            ..Default::default()
+                        };
+                        bip_321_uri.to_string()
+                    } else {
+                        address.to_string()
+                    };
 
-                        let amount = *amount;
-                        let payable = if amount.is_some()
-                            || label.is_some()
-                            || message.is_some()
-                        {
+                    let description = message.to_owned();
+                    let min_amount = None;
+                    let max_amount = None;
+                    let expires_at = None;
+
+                    PayableDetails {
+                        payable,
+                        method,
+                        description,
+                        amount,
+                        min_amount,
+                        max_amount,
+                        expires_at,
+                    }
+                }
+                PaymentMethod::Invoice { invoice } => {
+                    let payable = invoice.to_string();
+                    let description =
+                        invoice.description_str().map(str::to_owned);
+                    let amount = invoice.amount();
+                    let min_amount = None;
+                    let max_amount = None;
+                    let expires_at = invoice.expires_at().ok();
+
+                    PayableDetails {
+                        payable,
+                        method,
+                        description,
+                        amount,
+                        min_amount,
+                        max_amount,
+                        expires_at,
+                    }
+                }
+                PaymentMethod::Offer {
+                    offer,
+                    bip321_amount,
+                } => {
+                    let payable = match bip321_amount {
+                        None => offer.to_string(),
+                        Some(amount) => {
                             let bip_321_uri = Bip321Uri {
-                                onchain: vec![onchain.address.clone()],
-                                amount,
-                                label: onchain.label.clone(),
-                                message: onchain.message.clone(),
+                                amount: Some(*amount),
+                                offer: Some(offer.clone()),
                                 ..Default::default()
                             };
                             bip_321_uri.to_string()
-                        } else {
-                            // We already checked network validity earlier
-                            address.assume_checked_ref().to_string()
-                        };
-
-                        let description = onchain.message.to_owned();
-                        let min_amount = None;
-                        let max_amount = None;
-                        let expires_at = None;
-
-                        PayableDetails {
-                            payable,
-                            method,
-                            description,
-                            amount,
-                            min_amount,
-                            max_amount,
-                            expires_at,
                         }
+                    };
+
+                    let description = offer.description().map(str::to_owned);
+                    let amount = *bip321_amount;
+                    let min_amount = amount
+                        .is_none()
+                        .then_some(offer.min_amount())
+                        .flatten();
+                    let max_amount = None;
+                    let expires_at = offer.expires_at();
+
+                    PayableDetails {
+                        payable,
+                        method,
+                        description,
+                        amount,
+                        min_amount,
+                        max_amount,
+                        expires_at,
                     }
-                    PaymentMethod::Invoice(invoice) => {
-                        let payable = invoice.to_string();
-                        let description =
-                            invoice.description_str().map(str::to_owned);
-                        let amount = invoice.amount();
-                        let min_amount = None;
-                        let max_amount = None;
-                        let expires_at = invoice.expires_at().ok();
+                }
+                PaymentMethod::LnurlPay { lnurl, pay_request } => {
+                    let payable = lnurl.to_string();
+                    let description = pay_request
+                        .metadata
+                        .long_description
+                        .to_owned()
+                        .or_else(|| {
+                            Some(pay_request.metadata.description.to_owned())
+                        });
+                    let amount = None;
+                    let min_amount = Some(pay_request.min_sendable);
+                    let max_amount = Some(pay_request.max_sendable);
+                    let expires_at = None;
 
-                        PayableDetails {
-                            payable,
-                            method,
-                            description,
-                            amount,
-                            min_amount,
-                            max_amount,
-                            expires_at,
-                        }
-                    }
-                    PaymentMethod::Offer(offer_with_amount) => {
-                        let OfferWithAmount {
-                            offer,
-                            bip321_amount,
-                        } = offer_with_amount;
-
-                        let payable = match bip321_amount {
-                            None => offer.to_string(),
-                            Some(amount) => {
-                                let bip_321_uri = Bip321Uri {
-                                    amount: Some(*amount),
-                                    offer: Some(offer.clone()),
-                                    ..Default::default()
-                                };
-                                bip_321_uri.to_string()
-                            }
-                        };
-
-                        let description =
-                            offer.description().map(str::to_owned);
-                        let amount = *bip321_amount;
-                        let min_amount = amount
-                            .is_none()
-                            .then_some(offer.min_amount())
-                            .flatten();
-                        let max_amount = None;
-                        let expires_at = offer.expires_at();
-
-                        PayableDetails {
-                            payable,
-                            method,
-                            description,
-                            amount,
-                            min_amount,
-                            max_amount,
-                            expires_at,
-                        }
-                    }
-                    PaymentMethod::LnurlPayRequest(lnurl) => {
-                        let LnurlPayRequest {
-                            callback: _,
-                            min_sendable,
-                            max_sendable,
-                            metadata,
-                            comment_allowed: _,
-                        } = lnurl;
-
-                        let payable = req.payable.to_owned();
-                        let description =
-                            metadata.long_description.to_owned().or_else(
-                                || Some(lnurl.metadata.description.to_owned()),
-                            );
-                        let amount = None;
-                        let min_amount = Some(*min_sendable);
-                        let max_amount = Some(*max_sendable);
-                        let expires_at = None;
-
-                        PayableDetails {
-                            payable,
-                            method,
-                            description,
-                            amount,
-                            min_amount,
-                            max_amount,
-                            expires_at,
-                        }
+                    PayableDetails {
+                        payable,
+                        method,
+                        description,
+                        amount,
+                        min_amount,
+                        max_amount,
+                        expires_at,
                     }
                 }
             })
@@ -1016,7 +1002,7 @@ impl LexeWallet {
         personal_note: Option<BoundedString>,
     ) -> anyhow::Result<PayResponse> {
         let (index, created_at) = match best_method {
-            PaymentMethod::Invoice(invoice) => {
+            PaymentMethod::Invoice { invoice } => {
                 let fallback_amount = match (invoice.amount(), amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(
@@ -1055,12 +1041,15 @@ impl LexeWallet {
                 };
                 (index, resp.created_at)
             }
-            PaymentMethod::LnurlPayRequest(lnurl_req) => {
+            PaymentMethod::LnurlPay {
+                lnurl: _,
+                pay_request,
+            } => {
                 let amount = amount.context(
                     "A payment amount must be provided for LNURL payments",
                 )?;
-                let min_sendable = lnurl_req.min_sendable;
-                let max_sendable = lnurl_req.max_sendable;
+                let min_sendable = pay_request.min_sendable;
+                let max_sendable = pay_request.max_sendable;
                 ensure!(
                     min_sendable <= amount,
                     "Given amount ({amount} sats) should be higher than the \
@@ -1075,7 +1064,7 @@ impl LexeWallet {
                 // LUD-12: Truncate message to recipient's limit if needed.
                 let truncated_comment = match (
                     message.map(BoundedString::into_inner),
-                    lnurl_req.comment_allowed,
+                    pay_request.comment_allowed,
                 ) {
                     // No message intended; skip.
                     (None, _) => None,
@@ -1120,7 +1109,7 @@ impl LexeWallet {
                 let invoice = self
                     .lnurl_client
                     .resolve_pay_request(
-                        &lnurl_req,
+                        &pay_request,
                         amount,
                         truncated_comment.as_deref(),
                     )
@@ -1143,8 +1132,11 @@ impl LexeWallet {
                 };
                 (index, resp.created_at)
             }
-            PaymentMethod::Offer(offer) => {
-                let amount = match (offer.bip321_amount, amount) {
+            PaymentMethod::Offer {
+                offer,
+                bip321_amount,
+            } => {
+                let amount = match (bip321_amount, amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(
                             "Given amount ({given} sats) doesn't match bip321 \
@@ -1157,7 +1149,7 @@ impl LexeWallet {
                              without a bip321-specified amount"
                         )),
                 };
-                if let Some(min_amount) = offer.offer.min_amount() {
+                if let Some(min_amount) = offer.min_amount() {
                     ensure!(
                         min_amount <= amount,
                         "Given amount ({amount} sats) should be higher than the \
@@ -1165,7 +1157,7 @@ impl LexeWallet {
                     );
                 }
                 let pay_req = PayOfferRequest {
-                    offer: offer.offer,
+                    offer,
                     amount,
                     message: message.map(BoundedString::into_inner),
                     personal_note: personal_note.map(BoundedString::into_inner),
@@ -1174,14 +1166,18 @@ impl LexeWallet {
                     self.pay_offer(pay_req).await?;
                 (index, created_at)
             }
-            PaymentMethod::Onchain(onchain) => {
+            PaymentMethod::Onchain {
+                amount: onchain_amount,
+                address,
+                ..
+            } => {
                 if message.is_some() {
                     warn!(
                         "On-chain payments do not support messages. \
                          The recipient will not see your message."
                     );
                 }
-                let amount = match (onchain.amount, amount) {
+                let amount = match (onchain_amount, amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(
                             "Given amount ({given} sats) doesn't match bip321 \
@@ -1195,10 +1191,9 @@ impl LexeWallet {
                         )),
                 };
                 let cid = ClientPaymentId::generate();
-                let address = onchain.address;
                 let pay_req = command::PayOnchainRequest {
                     cid,
-                    address,
+                    address: address.into_unchecked(),
                     amount,
                     priority: ConfirmationPriority::Normal,
                     personal_note,

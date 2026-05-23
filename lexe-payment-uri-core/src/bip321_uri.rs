@@ -9,14 +9,14 @@ use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
-use lexe_common::ln::amount::Amount;
+use lexe_common::ln::{amount::Amount, network::Network};
 use rust_decimal::Decimal;
 
 use crate::{
     Error,
     email_like::EmailLikeAddress,
     helpers::AddressExt,
-    payment_method::{OfferWithAmount, Onchain, PaymentMethod, Resolvable},
+    payment_method::{PaymentMethod, Resolvable},
     uri::{Uri, UriParam},
 };
 
@@ -317,7 +317,12 @@ impl Bip321Uri {
 
     /// "Flatten" the [`Bip321Uri`] into its directly-known [`PaymentMethod`]s
     /// and any [`Resolvable`]s requiring further resolution.
-    pub fn flatten(self) -> (Vec<PaymentMethod>, Vec<Resolvable>) {
+    ///
+    /// Filters out onchain addresses that aren't valid for `network`.
+    pub fn flatten(
+        self,
+        network: Network,
+    ) -> (Vec<PaymentMethod>, Vec<Resolvable>) {
         let mut methods = Vec::with_capacity(
             self.onchain.len()
                 + self.invoice.is_some() as usize
@@ -327,23 +332,25 @@ impl Bip321Uri {
             Vec::with_capacity(self.email_like.is_some() as usize);
 
         for address in self.onchain {
-            methods.push(PaymentMethod::Onchain(Onchain {
-                address,
-                amount: self.amount,
-                label: self.label.clone(),
-                message: self.message.clone(),
-            }));
+            if let Ok(addr) = address.require_network(network.to_bitcoin()) {
+                methods.push(PaymentMethod::Onchain {
+                    address: addr,
+                    amount: self.amount,
+                    label: self.label.clone(),
+                    message: self.message.clone(),
+                });
+            }
         }
 
         if let Some(invoice) = self.invoice {
-            methods.push(PaymentMethod::Invoice(invoice));
+            methods.push(PaymentMethod::Invoice { invoice });
         }
 
         if let Some(offer) = self.offer {
-            methods.push(PaymentMethod::Offer(OfferWithAmount {
+            methods.push(PaymentMethod::Offer {
                 offer,
                 bip321_amount: self.amount,
-            }));
+            });
         }
 
         if let Some(addr) = self.email_like {

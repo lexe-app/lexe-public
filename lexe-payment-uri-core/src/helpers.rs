@@ -1,13 +1,13 @@
 use bitcoin::address::NetworkUnchecked;
 use lexe_api_core::types::invoice::Invoice;
 
-use crate::payment_method::{Onchain, PaymentMethod};
+use crate::payment_method::PaymentMethod;
 
 /// "Flatten" an [`Invoice`] into its component [`PaymentMethod`]s.
 ///
 /// BOLT11 invoices can embed one or more onchain fallback addresses (the
 /// `f` field), so a single invoice may resolve to the invoice itself *plus*
-/// an [`Onchain`] entry for each fallback.
+/// a [`PaymentMethod::Onchain`] entry for each fallback.
 pub fn flatten_invoice(invoice: Invoice) -> Vec<PaymentMethod> {
     let onchain_fallback_addrs = invoice.onchain_fallbacks();
 
@@ -18,18 +18,17 @@ pub fn flatten_invoice(invoice: Invoice) -> Vec<PaymentMethod> {
         let description = invoice.description_str().map(str::to_owned);
         let amount = invoice.amount();
 
-        for addr in onchain_fallback_addrs {
-            let address = addr.into_unchecked();
-            methods.push(PaymentMethod::Onchain(Onchain {
+        for address in onchain_fallback_addrs {
+            methods.push(PaymentMethod::Onchain {
                 address,
                 amount,
                 label: None,
                 message: description.clone(),
-            }));
+            });
         }
     }
 
-    methods.push(PaymentMethod::Invoice(invoice));
+    methods.push(PaymentMethod::Invoice { invoice });
 
     methods
 }

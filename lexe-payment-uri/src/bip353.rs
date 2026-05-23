@@ -47,6 +47,7 @@ use dnssec_prover::{
     query::{ProofBuilder, QueryBuf},
     rr::{Name, RR, TXT_TYPE},
 };
+use lexe_common::ln::network::Network;
 pub use lexe_payment_uri_core::*;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 use tracing::{debug, warn};
@@ -126,6 +127,7 @@ impl Bip353Client {
     // Consider proxying the request over Tor, or using some other scheme.
     pub(super) async fn resolve_bip353_fqdn(
         &self,
+        network: Network,
         bip353_fqdn: String,
     ) -> anyhow::Result<Vec<PaymentMethod>> {
         // Name::try_from prefers an owned String
@@ -150,7 +152,7 @@ impl Bip353Client {
 
         // BIP353 records shouldn't nest resolution targets; ignore any so
         // the payment can still proceed via directly-known methods.
-        let (payment_methods, resolvables) = bip321_uri.flatten();
+        let (payment_methods, resolvables) = bip321_uri.flatten(network);
         if !resolvables.is_empty() {
             warn!(
                 "BIP353 record contained {resolvables_len} nested resolution \
@@ -468,7 +470,7 @@ mod test {
         let bip353_client = Bip353Client::new(GOOGLE_DOH_ENDPOINT).unwrap();
         let payment_methods = tokio::time::timeout(
             Duration::from_secs(5),
-            bip353_client.resolve_bip353_fqdn(bip353_fqdn),
+            bip353_client.resolve_bip353_fqdn(network, bip353_fqdn),
         )
         .await
         .expect("Timed out")
@@ -480,7 +482,7 @@ mod test {
         // Should contain a BOLT12 offer
         let num_offers = payment_methods
             .iter()
-            .filter(|m| matches!(m, PaymentMethod::Offer(_)))
+            .filter(|m| matches!(m, PaymentMethod::Offer { .. }))
             .count();
         assert_eq!(num_offers, 1, "Expected exactly one BOLT12 offer");
     }
@@ -523,7 +525,7 @@ mod test {
         debug!("Resolved BIP353 address: {bip321_uri}");
 
         // Convert to payment methods (BIP353 records shouldn't recurse).
-        let (payment_methods, resolvables) = bip321_uri.flatten();
+        let (payment_methods, resolvables) = bip321_uri.flatten(network);
         assert!(resolvables.is_empty());
 
         // All should be compatible w/ `network`
@@ -532,7 +534,7 @@ mod test {
         // Should contain a BOLT12 offer
         let num_offers = payment_methods
             .iter()
-            .filter(|m| matches!(m, PaymentMethod::Offer(_)))
+            .filter(|m| matches!(m, PaymentMethod::Offer { .. }))
             .count();
         assert_eq!(num_offers, 1, "Expected exactly one BOLT12 offer");
     }

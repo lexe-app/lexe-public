@@ -169,14 +169,14 @@ mod node {
                 let mut lnurl = None;
                 let mut onchain = None;
                 match method {
-                    PaymentMethod::Invoice(inv) =>
+                    PaymentMethod::Invoice { invoice: inv } =>
                         invoice = Some(inv.to_string()),
-                    PaymentMethod::Offer(off) =>
-                        offer = Some(off.offer.to_string()),
-                    PaymentMethod::LnurlPayRequest(_) => lnurl = Some(payable),
-                    PaymentMethod::Onchain(onch) =>
-                        onchain =
-                            Some(onch.address.assume_checked_ref().to_string()),
+                    PaymentMethod::Offer { offer: off, .. } =>
+                        offer = Some(off.to_string()),
+                    PaymentMethod::LnurlPay { lnurl: uri, .. } =>
+                        lnurl = Some(uri),
+                    PaymentMethod::Onchain { address, .. } =>
+                        onchain = Some(address.to_string()),
                 }
 
                 PayableDetails {

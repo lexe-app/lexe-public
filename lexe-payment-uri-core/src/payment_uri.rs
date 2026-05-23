@@ -2,6 +2,7 @@ use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
+use lexe_common::ln::network::Network;
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 #[cfg(test)]
@@ -10,7 +11,7 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 
 use crate::{
-    Error, OfferWithAmount, Onchain, PaymentMethod, Resolvable,
+    Error, PaymentMethod, Resolvable,
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
@@ -184,9 +185,14 @@ impl PaymentUri {
 
     /// "Flatten" the [`PaymentUri`] into its directly-known [`PaymentMethod`]s
     /// and any [`Resolvable`]s requiring further resolution.
-    pub fn flatten(self) -> (Vec<PaymentMethod>, Vec<Resolvable>) {
+    ///
+    /// Filters out onchain addresses that aren't valid for `network`.
+    pub fn flatten(
+        self,
+        network: Network,
+    ) -> (Vec<PaymentMethod>, Vec<Resolvable>) {
         match self {
-            Self::Bip321Uri(bip321) => (*bip321).flatten(),
+            Self::Bip321Uri(bip321) => (*bip321).flatten(network),
             Self::LightningUri(lnuri) => {
                 let (methods, resolvable) = lnuri.flatten();
                 (methods, resolvable.into_iter().collect())
@@ -194,15 +200,26 @@ impl PaymentUri {
             Self::Invoice(invoice) =>
                 (helpers::flatten_invoice(invoice), Vec::new()),
             Self::Offer(offer) => (
-                vec![PaymentMethod::Offer(OfferWithAmount::no_bip321_amount(
+                vec![PaymentMethod::Offer {
                     offer,
-                ))],
+                    bip321_amount: None,
+                }],
                 Vec::new(),
             ),
-            Self::Address(address) => (
-                vec![PaymentMethod::Onchain(Onchain::from(address))],
-                Vec::new(),
-            ),
+            Self::Address(address) => {
+                match address.require_network(network.to_bitcoin()) {
+                    Ok(addr) => (
+                        vec![PaymentMethod::Onchain {
+                            address: addr,
+                            amount: None,
+                            label: None,
+                            message: None,
+                        }],
+                        Vec::new(),
+                    ),
+                    Err(_) => (Vec::new(), Vec::new()),
+                }
+            }
             Self::EmailLikeAddress(addr) =>
                 (Vec::new(), vec![Resolvable::EmailLike(addr)]),
             Self::Lnurl(lnurl) => (Vec::new(), vec![Resolvable::Lnurl(lnurl)]),

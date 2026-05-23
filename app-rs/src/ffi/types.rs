@@ -46,7 +46,6 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_payment_uri::OfferWithAmount;
 
 use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
 
@@ -490,6 +489,7 @@ impl From<&BasicPaymentV2Rs> for Payment {
 }
 
 /// A potential scanned/pasted payment.
+// TODO(nicole): make structure resemble Rust PaymentMethod (no sub-types)
 pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(Invoice),
@@ -500,14 +500,30 @@ pub enum PaymentMethod {
 impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
     fn from(value: lexe_payment_uri::PaymentMethod) -> Self {
         match value {
-            lexe_payment_uri::PaymentMethod::Onchain(x) =>
-                Self::Onchain(Onchain::from(x)),
-            lexe_payment_uri::PaymentMethod::Invoice(x) =>
-                Self::Invoice(Invoice::from(x)),
-            lexe_payment_uri::PaymentMethod::Offer(x) =>
-                Self::Offer(Offer::from(x)),
-            lexe_payment_uri::PaymentMethod::LnurlPayRequest(x) =>
-                Self::LnurlPayRequest(LnurlPayRequest::from(x)),
+            lexe_payment_uri::PaymentMethod::Onchain {
+                address,
+                amount,
+                label,
+                message,
+            } => Self::Onchain(Onchain {
+                address: address.to_string(),
+                amount_sats: amount.map(|amt| amt.sats_u64()),
+                label,
+                message,
+            }),
+            lexe_payment_uri::PaymentMethod::Invoice { invoice } =>
+                Self::Invoice(Invoice::from(invoice)),
+            lexe_payment_uri::PaymentMethod::Offer {
+                offer,
+                bip321_amount,
+            } => Self::Offer(Offer {
+                bip321_amount_sats: bip321_amount.map(|amt| amt.sats_u64()),
+                ..Offer::from(offer)
+            }),
+            lexe_payment_uri::PaymentMethod::LnurlPay {
+                lnurl: _,
+                pay_request,
+            } => Self::LnurlPayRequest(LnurlPayRequest::from(pay_request)),
         }
     }
 }
@@ -520,17 +536,6 @@ pub struct Onchain {
     pub amount_sats: Option<u64>,
     pub label: Option<String>,
     pub message: Option<String>,
-}
-
-impl From<lexe_payment_uri::Onchain> for Onchain {
-    fn from(value: lexe_payment_uri::Onchain) -> Self {
-        Self {
-            address: value.address.assume_checked().to_string(),
-            amount_sats: value.amount.map(|amt| amt.sats_u64()),
-            label: value.label,
-            message: value.message,
-        }
-    }
 }
 
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
@@ -622,14 +627,6 @@ impl From<OfferRs> for Offer {
     #[inline]
     fn from(value: OfferRs) -> Self {
         Self::from(&value)
-    }
-}
-
-impl From<OfferWithAmount> for Offer {
-    fn from(value: OfferWithAmount) -> Self {
-        let mut this = Offer::from(&value.offer);
-        this.bip321_amount_sats = value.bip321_amount.map(|amt| amt.sats_u64());
-        this
     }
 }
 

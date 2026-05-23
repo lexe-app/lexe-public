@@ -41,7 +41,7 @@ pub mod bitcoin {
     pub use lexe_common::ln::{
         amount::Amount, hashes::Txid, priority::ConfirmationPriority,
     };
-    pub use lexe_payment_uri::{OfferWithAmount, Onchain, PaymentMethod};
+    pub use lexe_payment_uri::PaymentMethod;
 }
 
 /// General-purpose utilities.

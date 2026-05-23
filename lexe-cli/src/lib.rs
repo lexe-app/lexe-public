@@ -487,13 +487,22 @@ impl AnalyzeArgs {
             let mut json_payables = vec![];
             for p in resp.payables {
                 let kind = p.method.kind();
-                let command = format!("lexe pay {}", p.payable);
-                let method_string = match &p.method {
-                    PaymentMethod::Invoice(inv) => inv.to_string(),
-                    PaymentMethod::Offer(off) => off.offer.to_string(),
-                    PaymentMethod::LnurlPayRequest(_) => p.payable,
-                    PaymentMethod::Onchain(onch) =>
-                        onch.address.assume_checked_ref().to_string(),
+                let command = if p.payable.contains('\'') {
+                    format!(
+                        "ERR: payable contained a single quote (\'); \
+                         failed to generate command string for {}",
+                        p.payable
+                    )
+                } else {
+                    format!("lexe pay \'{}\'", p.payable)
+                };
+                let method_string = match p.method {
+                    PaymentMethod::Onchain { address, .. } =>
+                        address.to_string(),
+                    PaymentMethod::Invoice { invoice, .. } =>
+                        invoice.to_string(),
+                    PaymentMethod::Offer { offer, .. } => offer.to_string(),
+                    PaymentMethod::LnurlPay { lnurl, .. } => lnurl.to_string(),
                 };
 
                 let json_payable = serde_json::json!({
@@ -541,18 +550,17 @@ impl AnalyzeArgs {
                 expires_at,
             } = payable_details;
             let method_name = match method {
-                PaymentMethod::Onchain(_) => "On-chain address",
-                PaymentMethod::Invoice(_) => "BOLT11 invoice",
-                PaymentMethod::Offer(_) => "BOLT12 offer",
-                PaymentMethod::LnurlPayRequest(_) => "Lightning Address",
+                PaymentMethod::Onchain { .. } => "On-chain address",
+                PaymentMethod::Invoice { .. } => "BOLT11 invoice",
+                PaymentMethod::Offer { .. } => "BOLT12 offer",
+                PaymentMethod::LnurlPay { .. } => "LNURL-pay",
             };
             let kind = method.kind();
-            let method_string = match &method {
-                PaymentMethod::Invoice(inv) => &inv.to_string(),
-                PaymentMethod::Offer(off) => &off.offer.to_string(),
-                PaymentMethod::LnurlPayRequest(_) => &payable,
-                PaymentMethod::Onchain(onch) =>
-                    &onch.address.assume_checked_ref().to_string(),
+            let method_string = match method {
+                PaymentMethod::Onchain { address, .. } => address.to_string(),
+                PaymentMethod::Invoice { invoice, .. } => invoice.to_string(),
+                PaymentMethod::Offer { offer, .. } => offer.to_string(),
+                PaymentMethod::LnurlPay { lnurl, .. } => lnurl,
             };
 
             let details_list: [Option<String>; 5] = [
@@ -581,8 +589,15 @@ impl AnalyzeArgs {
                 println!("{styled_line}");
             }
             println!("\n{TAB}To pay this, run:");
-            // Don't wrap this to keep it copy/paste-able
-            println!("{TAB}$ lexe pay \"{payable}\" {amount_hint}");
+            if payable.contains('\'') {
+                println!(
+                    "{TAB}ERR: payable contained a single quote (\'); \
+                     failed to generate command string for {payable}"
+                );
+            } else {
+                // Don't wrap this to keep it copy/paste-able
+                println!("{TAB}$ lexe pay \'{payable}\' {amount_hint}");
+            }
 
             recommended_hint = "";
         }

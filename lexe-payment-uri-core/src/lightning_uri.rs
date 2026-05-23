@@ -3,7 +3,7 @@ use std::{borrow::Cow, fmt, str::FromStr};
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 
 use crate::{
-    Error, OfferWithAmount,
+    Error,
     email_like::EmailLikeAddress,
     helpers,
     lnurl::Lnurl,
@@ -116,9 +116,10 @@ impl LightningUri {
         match self {
             Self::Invoice(invoice) => (helpers::flatten_invoice(invoice), None),
             Self::Offer(offer) => (
-                vec![PaymentMethod::Offer(OfferWithAmount::no_bip321_amount(
+                vec![PaymentMethod::Offer {
                     offer,
-                ))],
+                    bip321_amount: None,
+                }],
                 None,
             ),
             Self::Lnurl(lnurl) => (Vec::new(), Some(Resolvable::Lnurl(lnurl))),

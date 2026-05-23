@@ -45,7 +45,7 @@ pub use crate::{
     email_like::EmailLikeAddress,
     lightning_uri::LightningUri,
     lnurl::Lnurl,
-    payment_method::{OfferWithAmount, Onchain, PaymentMethod, Resolvable},
+    payment_method::{PaymentMethod, Resolvable},
     payment_uri::PaymentUri,
 };
 
