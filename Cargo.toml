@@ -223,6 +223,9 @@ serde_core = { version = "1", default-features = false }
 serde_json = "1"
 serde_urlencoded = "0.7" # keep in sync with axum version
 serde_with = { version = "3", default-features = false, features = ["macros"] }
+# "Standard Webhooks" signature scheme: https://www.standardwebhooks.com/.
+# Only ~150 lines of logic and uses almost exclusively deps we already use.
+standardwebhooks = "1"
 # Enum #[derive(..)] helpers
 strum = { version = "0.26", features = ["derive"] }
 # Temporary files and directories
