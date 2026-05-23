@@ -1,11 +1,18 @@
 //! The [`WebhookSender`] allows for sidecar users to receive notifications
-//! via webhook `POST` whenever a payment is finalized. (See [`is_finalized`].)
+//! via webhook `POST` whenever a payment is finalized. (See [`is_finalized`]).
 //!
-//! Notification format is described by [`WebhookPayload`].
+//! The notification format is described by [`WebhookPayload`].
 //!
 //! To receive webhook notifications, configure the sidecar with either
 //! - CLI arg: `--webhook-url <url>`
 //! - Environment variable: `LEXE_WEBHOOK_URL=<url>`
+//!
+//! Outbound webhooks can optionally be signed using the "Standard Webhooks"
+//! HMAC-SHA256 scheme by configuring a shared secret with the receiver:
+//! - CLI arg: `--webhook-secret <secret>`
+//! - Environment variable: `LEXE_WEBHOOK_SECRET=<secret>`
+//!
+//! Full webhook documentation is at <https://docs.lexe.tech/sidecar/webhooks/>.
 //!
 //! [`is_finalized`]: lexe::types::payment::PaymentStatus::is_finalized
 //! [`WebhookSender`]: crate::webhook::WebhookSender
@@ -25,6 +32,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
+use bytes::Bytes;
 use lexe::{
     config::WalletEnvConfig,
     types::{
@@ -35,6 +43,7 @@ use lexe::{
     wallet::LexeWallet,
 };
 use lexe_api::types::payments::{PaymentCreatedIndex, PaymentUpdatedIndex};
+use lexe_common::time::TimestampMs;
 use lexe_crypto::ed25519;
 use lexe_std::{Apply, backoff};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
@@ -42,11 +51,12 @@ use quick_cache::unsync;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
+use standardwebhooks::Webhook as WebhookSigner;
 use tokio::{
     sync::{Semaphore, mpsc},
     time::MissedTickBehavior,
 };
-use tracing::{info, info_span, warn};
+use tracing::{error, info, info_span, warn};
 
 /// Cache of [`LexeWallet`]s, keyed by [`ClientCredentials`] `client_pk`.
 /// Shared between the sidecar server and webhook sender.
@@ -105,8 +115,17 @@ impl From<&Credentials> for CredentialsOrDefault {
 }
 
 /// JSON payload `POST`ed to the user's webhook URL when a payment finalizes.
+///
+/// The top-level `type` and `timestamp` fields follow the "Standard Webhooks"
+/// recommended payload structure; the rest of the fields are flattened from
+/// [`Payment`] alongside `user_pk`.
 #[derive(Serialize)]
 pub struct WebhookPayload {
+    /// Event type discriminator. Always `"payment.finalized"` for now.
+    pub r#type: &'static str,
+    /// When the underlying event occurred (ISO 8601).
+    /// For a finalized payment, this is `finalized_at`.
+    pub timestamp: chrono::DateTime<chrono::Utc>,
     /// The user's public key. Allows for identifying the user associated with
     /// the payment in the case of per-request authorization.
     pub user_pk: UserPk,
@@ -142,6 +161,10 @@ pub(crate) struct WebhookSender {
     /// Webhook URL to send payment notifications to.
     /// Notification format is described by [`WebhookPayload`].
     webhook_url: Url,
+    /// Optional signer for outbound webhooks ("Standard Webhooks"
+    /// HMAC-SHA256). When `Some`, every webhook delivery carries
+    /// `webhook-id`, `webhook-timestamp`, and `webhook-signature` headers.
+    webhook_signer: Option<WebhookSigner>,
     /// The HTTP client used for webhook delivery.
     http_client: reqwest::Client,
 
@@ -220,6 +243,7 @@ impl WebhookSender {
         shutdown: NotifyOnce,
         sidecar_dir: PathBuf,
         url: Url,
+        webhook_signer: Option<WebhookSigner>,
         wallet_cache: Arc<Mutex<WalletCache>>,
         wallet_env: WalletEnvConfig,
     ) -> (Self, mpsc::Sender<TrackRequest>) {
@@ -253,6 +277,7 @@ impl WebhookSender {
             wallet_env,
             webhook_sender_rx: rx,
             webhook_url: url,
+            webhook_signer,
             http_client,
             shutdown,
         };
@@ -427,11 +452,15 @@ impl WebhookSender {
                         // If the payment is one we are tracking, and is
                         // finalized, then queue a webhook.
                         //
+                        // Check `is_finalized` *before* removing so that
+                        // intermediate (non-finalizing) updates don't
+                        // prematurely remove the payment from tracking.
+                        //
                         // It's safe to remove the payment from the state before
                         // sending the webhook because the state is persisted
                         // only after `poll_wallets_and_send_webhooks` returns.
-                        if state.tracked_payments.remove(&payment.index)
-                            && payment.status.is_finalized()
+                        if payment.status.is_finalized()
+                            && state.tracked_payments.remove(&payment.index)
                         {
                             // Queue webhook
                             finalized_payments.push((user_pk, payment));
@@ -467,33 +496,88 @@ impl WebhookSender {
 
     /// Send a webhook for a finalized payment with exponential backoff retry.
     async fn send_webhook(&self, user_pk: UserPk, payment: Payment) {
-        let payment_id = payment.index.id;
-        let payload = WebhookPayload { user_pk, payment };
+        let payment_index = payment.index;
+        // Use `payment.index` as the event id and `finalized_at` as the event
+        // timestamp so that retries across sidecar restarts replay the same
+        // logical event (idempotency). The `pf-` prefix tags the event kind
+        // ("payment finalized") so future event kinds are disambiguable.
+        let event_id = format!("pf-{payment_index}");
+        let finalized_at = payment
+            .finalized_at
+            .expect("Finalized payments should always have finalized_at");
+        let timestamp =
+            chrono::DateTime::from_timestamp_millis(finalized_at.to_i64())
+                .expect("TimestampMs is in chrono's representable range");
+
+        let payload = WebhookPayload {
+            r#type: "payment.finalized",
+            timestamp,
+            user_pk,
+            payment,
+        };
+
         let mut backoff = backoff::get_backoff_iter();
 
+        // Serialize only once to ensure the bytes on the wire are the exact
+        // same as the bytes that are signed.
+        let body = serde_json::to_vec(&payload)
+            .map(Bytes::from)
+            .expect("Always succeeds");
+
         for attempt in 1..=MAX_WEBHOOK_ATTEMPTS {
-            let result = self
+            let req = self
                 .http_client
                 .post(self.webhook_url.clone())
-                .json(&payload)
-                .send()
-                .await;
+                .header(reqwest::header::CONTENT_TYPE, "application/json")
+                .body(body.clone());
+
+            // Per the "Standard Webhooks" spec, re-sign each attempt with a
+            // fresh timestamp so the receiver can reject replayed requests.
+            //
+            // This per-request timestamp is distinct from the per-event
+            // timestamp which uses the payment's `finalized_at` value.
+            let req = match &self.webhook_signer {
+                Some(signer) => {
+                    let request_ts = TimestampMs::now().to_secs() as i64;
+                    let signature =
+                        match signer.sign(&event_id, request_ts, &body) {
+                            Ok(sig) => sig,
+                            Err(e) =>
+                                return warn!(
+                                    %user_pk, %payment_index,
+                                    "Failed to sign webhook payload: {e:#}"
+                                ),
+                        };
+                    req.header(standardwebhooks::HEADER_WEBHOOK_ID, &event_id)
+                        .header(
+                            standardwebhooks::HEADER_WEBHOOK_TIMESTAMP,
+                            request_ts.to_string(),
+                        )
+                        .header(
+                            standardwebhooks::HEADER_WEBHOOK_SIGNATURE,
+                            signature,
+                        )
+                }
+                None => req,
+            };
+
+            let result = req.send().await;
 
             match result {
                 Ok(resp) if resp.status().is_success() => {
                     info!(
-                        %user_pk, %payment_id, "Webhook delivered successfully"
+                        %user_pk, %payment_index, "Webhook delivered successfully"
                     );
                     return;
                 }
                 Ok(resp) => warn!(
-                    %user_pk, %payment_id, attempt,
+                    %user_pk, %payment_index, attempt,
                     status = %resp.status(),
                     "Webhook delivery failed with non-success status"
                 ),
 
                 Err(e) => warn!(
-                    %user_pk, %payment_id, attempt,
+                    %user_pk, %payment_index, attempt,
                     "Webhook delivery failed: {e:#}"
                 ),
             }
@@ -505,8 +589,8 @@ impl WebhookSender {
             }
         }
 
-        warn!(
-            %user_pk, %payment_id,
+        error!(
+            %user_pk, %payment_index,
             "Webhook delivery failed after {MAX_WEBHOOK_ATTEMPTS} attempts"
         );
     }

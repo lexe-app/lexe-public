@@ -21,7 +21,8 @@ use lexe_tokio::{
     task::{self, LxTask},
 };
 use quick_cache::unsync;
-use tracing::{info, info_span, instrument};
+use standardwebhooks::Webhook as WebhookSigner;
+use tracing::{info, info_span, instrument, warn};
 
 use crate::{cli::SidecarArgs, server, webhook::WebhookSender};
 
@@ -91,6 +92,33 @@ impl Sidecar {
             .transpose()
             .context("Invalid webhook URL")?;
 
+        // Parse the optional shared secret used to sign outbound webhooks
+        // using the "Standard Webhooks" HMAC-SHA256 scheme.
+        let webhook_signer = match (&webhook_url, args.webhook_secret) {
+            (Some(_), Some(secret)) =>
+                WebhookSigner::new(&secret).map(Some).context(
+                    "Invalid LEXE_WEBHOOK_SECRET: expected a base64-encoded \
+                     string, optionally prefixed with `whsec_`. Generate one \
+                     with: `openssl rand -base64 24 | sed 's/^/whsec_/'`",
+                )?,
+            (Some(_), None) => {
+                info!(
+                    "LEXE_WEBHOOK_SECRET is not set; outbound webhooks will \
+                     be unsigned. Configure a secret if your webhook \
+                     receiver is publicly reachable."
+                );
+                None
+            }
+            (None, Some(_)) => {
+                warn!(
+                    "LEXE_WEBHOOK_SECRET was set but LEXE_WEBHOOK_URL was \
+                     not; ignoring the secret."
+                );
+                None
+            }
+            (None, None) => None,
+        };
+
         // Create WebhookSender if webhook URL is configured
         let shutdown = NotifyOnce::new();
         let wallet_cache =
@@ -103,6 +131,7 @@ impl Sidecar {
                     shutdown.clone(),
                     sidecar_dir,
                     url,
+                    webhook_signer,
                     wallet_cache.clone(),
                     wallet_env_config.clone(),
                 );

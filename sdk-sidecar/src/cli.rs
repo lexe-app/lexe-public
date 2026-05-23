@@ -69,16 +69,23 @@ pub struct SidecarArgs {
     #[argh(option)]
     pub sidecar_url: Option<String>,
 
-    /// the Bitcoin network to use. one of `mainnet`, `testnet3`, `regtest`.
+    /// the Bitcoin network to use. One of `mainnet`, `testnet3`, `regtest`.
     /// (default=`mainnet`, env=`LEXE_NETWORK`)
     #[argh(option, hidden_help)] // hide option until we support staging
     pub network: Option<Network>,
 
-    /// webhook URL for payment notifications. when a payment is finalized
+    /// webhook URL for payment notifications. When a payment is finalized
     /// (completed or failed), the sidecar will POST a JSON payload to this
     /// URL. (env=`LEXE_WEBHOOK_URL`)
     #[argh(option)]
     pub webhook_url: Option<String>,
+
+    /// shared secret for signing webhook payloads using the "Standard
+    /// Webhooks" HMAC-SHA256 scheme. Recommended if the webhook receiver is
+    /// publicly reachable. Typically a `whsec_`-prefixed base64 string.
+    /// (env=`LEXE_WEBHOOK_SECRET`)
+    #[argh(option)]
+    pub webhook_secret: Option<String>,
 
     /// data directory for persisted state.
     /// (default=`$HOME/.lexe`, env=`LEXE_DATA_DIR`)
@@ -108,6 +115,7 @@ impl SidecarArgs {
         self.sidecar_url.or_env_mut("LEXE_SIDECAR_URL")?;
         self.network.or_env_mut("LEXE_NETWORK")?;
         self.webhook_url.or_env_mut("LEXE_WEBHOOK_URL")?;
+        self.webhook_secret.or_env_mut("LEXE_WEBHOOK_SECRET")?;
         self.data_dir.or_env_mut("LEXE_DATA_DIR")?;
         Ok(())
     }
