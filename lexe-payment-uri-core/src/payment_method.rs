@@ -16,15 +16,6 @@ use crate::{email_like::EmailLikeAddress, lnurl::Lnurl};
 // NOTE: This is exposed in the Rust SDK, so only use stable public types here.
 #[allow(clippy::large_enum_variant)]
 pub enum PaymentMethod {
-    Offer {
-        /// A BOLT12 offer.
-        offer: Offer,
-
-        /// The amount to pay to the offer, if specified.
-        ///
-        /// Parsed from a BIP321 URI containing the offer.
-        bip321_amount: Option<Amount>,
-    },
     Onchain {
         /// An onchain Bitcoin address.
         address: bitcoin::Address,
@@ -35,12 +26,12 @@ pub enum PaymentMethod {
         /// onchain address.
         amount: Option<Amount>,
 
-        /// The recipient/payee name.
+        /// A label for the onchain address.
         ///
         /// Parsed from a BIP321 URI containing the onchain address.
         label: Option<String>,
 
-        /// The payment description.
+        /// A message describing the transaction or its purpose.
         ///
         /// Parsed from a BIP321 URI or BOLT11 invoice containing the
         /// onchain address.
@@ -50,12 +41,21 @@ pub enum PaymentMethod {
         /// A BOLT11 invoice.
         invoice: Invoice,
     },
+    Offer {
+        /// A BOLT12 offer.
+        offer: Offer,
+
+        /// The amount to pay to the offer, if specified.
+        ///
+        /// Parsed from a BIP321 URI containing the offer.
+        bip321_amount: Option<Amount>,
+    },
     LnurlPay {
         /// An LNURL-pay URI.
         lnurl: String,
 
         /// The LNURL-pay data, which includes information about
-        /// the amount constraints, comments, etc. associated with the LNURL.
+        /// the amount constraints, callback, etc. associated with the LNURL.
         pay_request: LnurlPayRequest,
     },
 }

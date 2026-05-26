@@ -20,6 +20,11 @@ use lexe::{
             CredentialsRef as SdkCredentialsRef, RootSeed as SdkRootSeed,
             UserPk,
         },
+        bitcoin::{
+            LnurlPayRequest as SdkLnurlPayRequest,
+            LnurlPayRequestMetadata as SdkLnurlPayRequestMetadata,
+            PaymentMethod as SdkPaymentMethod,
+        },
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
             AnalyzeResponse as SdkAnalyzeResponse,
@@ -1954,42 +1959,6 @@ impl From<PaymentKindRs> for PaymentKind {
     }
 }
 
-/// A BOLT11 Lightning invoice.
-#[derive(Clone, uniffi::Record)]
-pub struct Invoice {
-    /// The full invoice string (bech32 encoded).
-    pub string: String,
-    /// Invoice description, if present.
-    pub description: Option<String>,
-    /// Creation timestamp (milliseconds since the UNIX epoch).
-    pub created_at_ms: u64,
-    /// Expiration timestamp (milliseconds since the UNIX epoch).
-    pub expires_at_ms: u64,
-    /// Amount in satoshis, if specified.
-    pub amount_sats: Option<u64>,
-    /// The payee's node public key (hex-encoded).
-    pub payee_pubkey: String,
-}
-
-impl From<&InvoiceRs> for Invoice {
-    fn from(invoice: &InvoiceRs) -> Self {
-        Self {
-            string: invoice.to_string(),
-            description: invoice.description_str().map(String::from),
-            created_at_ms: invoice.saturating_created_at().to_millis(),
-            expires_at_ms: invoice.saturating_expires_at().to_millis(),
-            amount_sats: invoice.amount_sats(),
-            payee_pubkey: invoice.payee_node_pk().to_string(),
-        }
-    }
-}
-
-impl From<&Arc<InvoiceRs>> for Invoice {
-    fn from(invoice: &Arc<InvoiceRs>) -> Self {
-        Self::from(invoice.as_ref())
-    }
-}
-
 /// Information about a payment.
 #[derive(Clone, uniffi::Record)]
 pub struct Payment {
@@ -2144,7 +2113,7 @@ impl From<SdkPayment> for Payment {
             address: address
                 .as_ref()
                 .map(|a| a.assume_checked_ref().to_string()),
-            invoice: invoice.as_ref().map(Invoice::from),
+            invoice: invoice.map(|arc| Invoice::from(&*arc)),
             payer_name,
             message,
             personal_note,
@@ -2198,15 +2167,179 @@ impl From<SdkGetUpdatedPaymentsResponse> for GetUpdatedPaymentsResponse {
 // --- Pay/Analyze --- //
 // =================== //
 
+/// A single "payment method" -- each variant corresponds with a single
+/// linear (outbound) payment flow.
+#[derive(Clone, uniffi::Enum)]
+pub enum PaymentMethod {
+    /// An onchain Bitcoin payment.
+    Onchain {
+        /// The onchain Bitcoin address.
+        address: String,
+        /// The amount to pay to the onchain address, if specified.
+        /// Parsed from a BIP321 URI or
+        /// BOLT11 invoice containing the onchain address.
+        amount_sats: Option<u64>,
+        /// A label for the onchain address. Parsed from a BIP321 URI
+        /// containing the onchain address.
+        label: Option<String>,
+        /// A message describing the transaction. Parsed from a BIP321 URI
+        /// or BOLT11 invoice containing the onchain address.
+        message: Option<String>,
+    },
+    /// A BOLT11 Lightning invoice payment.
+    Invoice {
+        /// The BOLT 11 invoice.
+        invoice: Invoice,
+    },
+    /// A BOLT12 offer payment.
+    Offer {
+        /// The full BOLT12 offer.
+        offer: Offer,
+        /// Amount from a BIP321 URI which contained the offer, in satoshis.
+        bip321_amount_sats: Option<u64>,
+    },
+    /// An LNURL-pay payment (LUD-06).
+    LnurlPay {
+        /// An LNURL-pay URI.
+        lnurl: String,
+        /// LNURL-pay data, which includes information about
+        /// the amount constraints, callback, etc. associated with the LNURL.
+        pay_request: LnurlPayRequest,
+    },
+}
+
+impl From<SdkPaymentMethod> for PaymentMethod {
+    fn from(method: SdkPaymentMethod) -> Self {
+        match method {
+            SdkPaymentMethod::Onchain {
+                address,
+                amount,
+                label,
+                message,
+            } => Self::Onchain {
+                address: address.to_string(),
+                amount_sats: amount.map(|amt| amt.sats_u64()),
+                label,
+                message,
+            },
+            SdkPaymentMethod::Invoice { invoice } => Self::Invoice {
+                invoice: Invoice::from(&invoice),
+            },
+            SdkPaymentMethod::Offer {
+                offer,
+                bip321_amount,
+            } => Self::Offer {
+                offer: Offer::from(offer),
+                bip321_amount_sats: bip321_amount.map(|amt| amt.sats_u64()),
+            },
+            SdkPaymentMethod::LnurlPay { lnurl, pay_request } =>
+                Self::LnurlPay {
+                    lnurl,
+                    pay_request: LnurlPayRequest::from(pay_request),
+                },
+        }
+    }
+}
+
+// TODO(nicole): move structs to an // --- Lnurl --- // section when added
+/// The validated and parsed LNURL-pay data (tagged "payRequest").
+#[derive(Clone, uniffi::Record)]
+pub struct LnurlPayRequest {
+    /// Callback URL to request invoice from.
+    pub callback: String,
+    /// Minimum sendable amount, in satoshis.
+    pub min_sendable_sats: u64,
+    /// Maximum sendable amount, in satoshis.
+    pub max_sendable_sats: u64,
+    /// Parsed metadata with description and description hash.
+    pub metadata: LnurlPayRequestMetadata,
+    /// LUD-12: Max comment length in characters, if comments are supported.
+    pub comment_allowed: Option<u16>,
+}
+
+/// The metadata inside an [`LnurlPayRequest`].
+#[derive(Clone, uniffi::Record)]
+pub struct LnurlPayRequestMetadata {
+    /// Short description from `text/plain` (required, LUD-06).
+    pub description: String,
+    /// Long description from `text/long-desc` (optional, LUD-06).
+    /// Can be displayed to the user when prompting the user for an amount.
+    pub long_description: Option<String>,
+    /// PNG thumbnail from `image/png;base64` (optional, LUD-06).
+    /// Can be displayed to the user when prompting the user for an amount.
+    pub image_png_base64: Option<String>,
+    /// JPEG thumbnail from `image/jpeg;base64` (optional, LUD-06).
+    /// Can be displayed to the user when prompting the user for an amount.
+    pub image_jpeg_base64: Option<String>,
+    /// Internet identifier from `text/identifier` (LUD-16).
+    /// LNURL-Pay via LUD-16 requires this or `text/email` to be set.
+    pub identifier: Option<String>,
+    /// Email address from `text/email` (LUD-16).
+    /// LNURL-Pay via LUD-16 requires this or `text/identifier` to be set.
+    pub email: Option<String>,
+    /// Hex-encoded SHA256 hash of raw metadata for invoice validation.
+    pub description_hash: String,
+    /// The original unparsed metadata string.
+    pub raw: String,
+}
+
+impl From<SdkLnurlPayRequest> for LnurlPayRequest {
+    fn from(req: SdkLnurlPayRequest) -> Self {
+        // Destructure to get a compile error when a new field is added,
+        // reminding us to include it in the conversion below.
+        let SdkLnurlPayRequest {
+            callback,
+            min_sendable,
+            max_sendable,
+            metadata,
+            comment_allowed,
+        } = req;
+
+        Self {
+            callback,
+            min_sendable_sats: min_sendable.sats_u64(),
+            max_sendable_sats: max_sendable.sats_u64(),
+            metadata: LnurlPayRequestMetadata::from(metadata),
+            comment_allowed,
+        }
+    }
+}
+
+impl From<SdkLnurlPayRequestMetadata> for LnurlPayRequestMetadata {
+    fn from(metadata: SdkLnurlPayRequestMetadata) -> Self {
+        // Destructure to get a compile error when a new field is added,
+        // reminding us to include it in the conversion below.
+        let SdkLnurlPayRequestMetadata {
+            description,
+            long_description,
+            image_png_base64,
+            image_jpeg_base64,
+            identifier,
+            email,
+            description_hash,
+            raw,
+        } = metadata;
+
+        Self {
+            description,
+            long_description,
+            image_png_base64,
+            image_jpeg_base64,
+            identifier,
+            email,
+            description_hash: lexe::util::hex::encode(&description_hash),
+            raw,
+        }
+    }
+}
+
 /// Describes basic information for a payable string.
 #[derive(Clone, uniffi::Record)]
 pub struct PayableDetails {
     /// String encoding of the payable.
     pub payable: String,
-
-    /// Type of method of payment encoded:
-    /// "invoice", "lnurl", "offer", "onchain".
-    pub method: String,
+    /// The deserialized payment method.
+    pub method: PaymentMethod,
 
     /// Description encoded in the payable, if any.
     pub description: Option<String>,
@@ -2234,7 +2367,7 @@ impl From<SdkPayableDetails> for PayableDetails {
     fn from(resp: SdkPayableDetails) -> Self {
         Self {
             payable: resp.payable,
-            method: resp.method.kind().to_owned(),
+            method: PaymentMethod::from(resp.method),
             description: resp.description,
             amount_sats: resp.amount.map(|a| a.sats_u64()),
             min_amount_sats: resp.min_amount.map(|a| a.sats_u64()),
@@ -2284,6 +2417,36 @@ impl From<SdkPayResponse> for PayResponse {
 // ================ //
 // --- Invoices --- //
 // ================ //
+
+/// A BOLT11 Lightning invoice.
+#[derive(Clone, uniffi::Record)]
+pub struct Invoice {
+    /// The full invoice string (bech32 encoded).
+    pub string: String,
+    /// Invoice description, if present.
+    pub description: Option<String>,
+    /// Creation timestamp (milliseconds since the UNIX epoch).
+    pub created_at_ms: u64,
+    /// Expiration timestamp (milliseconds since the UNIX epoch).
+    pub expires_at_ms: u64,
+    /// Amount in satoshis, if specified.
+    pub amount_sats: Option<u64>,
+    /// The payee's node public key (hex-encoded).
+    pub payee_pubkey: String,
+}
+
+impl From<&InvoiceRs> for Invoice {
+    fn from(invoice: &InvoiceRs) -> Self {
+        Self {
+            string: invoice.to_string(),
+            description: invoice.description_str().map(String::from),
+            created_at_ms: invoice.saturating_created_at().to_millis(),
+            expires_at_ms: invoice.saturating_expires_at().to_millis(),
+            amount_sats: invoice.amount_sats(),
+            payee_pubkey: invoice.payee_node_pk().to_string(),
+        }
+    }
+}
 
 /// Response from creating an invoice.
 #[derive(Clone, uniffi::Record)]
@@ -2343,6 +2506,36 @@ impl From<SdkPayInvoiceResponse> for PayInvoiceResponse {
 // ============== //
 // --- Offers --- //
 // ============== //
+
+/// A BOLT12 Lightning offer.
+#[derive(Clone, uniffi::Record)]
+pub struct Offer {
+    /// The full BOLT12 offer string.
+    pub string: String,
+    /// Offer description, if present.
+    pub description: Option<String>,
+    /// Offer expiration time (milliseconds since the UNIX epoch).
+    pub expires_at_ms: Option<u64>,
+    /// Minimum payable amount, in satoshis.
+    pub min_amount_sats: Option<u64>,
+    /// Self-reported payee name.
+    pub payee: Option<String>,
+    /// Hex-encoded payee node public key.
+    pub payee_pubkey: Option<String>,
+}
+
+impl From<OfferRs> for Offer {
+    fn from(offer: OfferRs) -> Self {
+        Self {
+            string: offer.to_string(),
+            description: offer.description().map(String::from),
+            expires_at_ms: offer.expires_at().map(|t| t.to_millis()),
+            min_amount_sats: offer.min_amount().map(|amt| amt.sats_u64()),
+            payee: offer.payee().map(String::from),
+            payee_pubkey: offer.payee_node_pk().map(|pk| pk.to_string()),
+        }
+    }
+}
 
 /// Response from creating a BOLT 12 offer.
 #[derive(Clone, uniffi::Record)]

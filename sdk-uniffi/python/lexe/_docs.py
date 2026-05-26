@@ -656,8 +656,8 @@ Analyze a Bitcoin or Lightning payment string.
 
 Returns a list of payment methods found (as ``AnalyzeResponse``), sorted
 from most to least recommended. Each ``PayableDetails`` entry includes the
-payable string, method type (``"invoice"``, ``"offer"``, ``"onchain"``, or
-``"lnurl"``), amount constraints, description, and expiration.
+payable string, parsed :class:`PaymentMethod`, amount constraints,
+description, and expiration.
 
 Supported encodings:
 
@@ -693,8 +693,8 @@ Example::
 
     resp = wallet.analyze("satoshi@lexe.app")
     details = resp.payables[0]
-    print(details.payable)         # "satoshi@lexe.app"
-    print(details.method)          # "lnurl"
+    print(details.payable)         # "https://lexe.app/.well-known/lnurlp/satoshi"
+    print(details.method)          # PaymentMethod.LNURL_PAY(...)
     print(details.min_amount_sats) # minimum payable amount
     print(details.max_amount_sats) # maximum payable amount
 """)
@@ -1153,8 +1153,8 @@ Analyze a Bitcoin or Lightning payment string.
 
 Returns a list of payment methods found (as ``AnalyzeResponse``), sorted
 from most to least recommended. Each ``PayableDetails`` entry includes the
-payable string, method type (``"invoice"``, ``"offer"``, ``"onchain"``, or
-``"lnurl"``), amount constraints, description, and expiration.
+payable string, parsed :class:`PaymentMethod`, amount constraints,
+description, and expiration.
 
 Supported encodings:
 
@@ -1190,8 +1190,8 @@ Example::
 
     resp = await wallet.analyze("satoshi@lexe.app")
     details = resp.payables[0]
-    print(details.payable)         # "satoshi@lexe.app"
-    print(details.method)          # "lnurl"
+    print(details.payable)         # "https://lexe.app/.well-known/lnurlp/satoshi"
+    print(details.method)          # PaymentMethod.LNURL_PAY(...)
     print(details.min_amount_sats) # minimum payable amount
     print(details.max_amount_sats) # maximum payable amount
 """)
@@ -1570,6 +1570,54 @@ Attributes:
     payee_pubkey: Hex-encoded payee node public key.
 """
 
+lexe.Offer.__doc__ = """\
+A BOLT 12 Lightning offer.
+
+Attributes:
+    string: Full BOLT 12 offer string.
+    description: Offer description, if present.
+    expires_at_ms: Offer expiration time (ms since UNIX epoch), if any.
+    min_amount_sats: Minimum payable amount, in satoshis.
+    payee: Self-reported payee name.
+    payee_pubkey: Hex-encoded payee node public key.
+"""
+
+lexe.LnurlPayRequest.__doc__ = """\
+The validated and parsed LNURL-pay request ("payRequest").
+
+Attributes:
+    callback: Callback URL to request invoice from.
+    min_sendable_sats: Minimum sendable amount, in satoshis.
+    max_sendable_sats: Maximum sendable amount, in satoshis.
+    metadata: Parsed :class:`LnurlPayRequestMetadata` with description and
+        description hash.
+    comment_allowed: LUD-12 max comment length in characters, if comments
+        are supported. ``None`` if comments are not supported.
+"""
+
+lexe.LnurlPayRequestMetadata.__doc__ = """\
+The metadata inside a :class:`LnurlPayRequest`.
+
+Attributes:
+    description: Short description from ``text/plain`` (required, LUD-06).
+    long_description: Long description from ``text/long-desc`` (optional,
+        LUD-06). Can be displayed to the user when prompting the user for
+        an amount.
+    image_png_base64: PNG thumbnail from ``image/png;base64`` (optional,
+        LUD-06). Can be displayed to the user when prompting the user for
+        an amount.
+    image_jpeg_base64: JPEG thumbnail from ``image/jpeg;base64`` (optional,
+        LUD-06). Can be displayed to the user when prompting the user for
+        an amount.
+    identifier: Internet identifier from ``text/identifier`` (LUD-16).
+        LNURL-Pay via LUD-16 requires this or ``email`` to be set.
+    email: Email address from ``text/email`` (LUD-16). LNURL-Pay via LUD-16
+        requires this or ``identifier`` to be set.
+    description_hash: Hex-encoded SHA256 hash of raw metadata for invoice
+        validation.
+    raw: The original unparsed metadata string.
+"""
+
 lexe.Payment.__doc__ = """\
 Information about a payment.
 
@@ -1686,8 +1734,8 @@ A parsed payment method returned from analyzing a payable string.
 
 Attributes:
     payable: The string encoding of this payment method.
-    method: The type of payment method: ``"invoice"``, ``"offer"``,
-        ``"onchain"``, or ``"lnurl"``.
+    method: The parsed :class:`PaymentMethod` (Onchain, Invoice, Offer, or
+        LnurlPay).
     description: Description encoded in the payable, if any.
     amount_sats: Amount in satoshis encoded in the payable, if any.
         ``None`` if the payer must specify an amount, or if
@@ -1697,6 +1745,49 @@ Attributes:
     max_amount_sats: Maximum payable amount in satoshis, if any.
         ``None`` if ``amount_sats`` is set.
     expires_at_ms: Payable expiration time (ms since UNIX epoch), if any.
+"""
+
+lexe.PaymentMethod.__doc__ = """\
+A single payment method -- each variant corresponds with a single linear
+(outbound) payment flow.
+
+Returned as part of :class:`PayableDetails` from :meth:`LexeWallet.analyze`.
+
+Variants:
+
+- **ONCHAIN** -- An onchain Bitcoin payment. Attributes:
+
+  - ``address``: The onchain Bitcoin address.
+  - ``amount_sats``: Amount in satoshis, if specified. Parsed from a BIP321
+    URI or BOLT11 invoice containing the onchain address.
+  - ``label``: Label for the onchain address. Parsed from a BIP321 URI
+    containing the onchain address.
+  - ``message``: Message describing the transaction or its purpose. Parsed
+    from a BIP321 URI or BOLT11 invoice containing the onchain address.
+
+- **INVOICE** -- A BOLT11 Lightning invoice payment. Attributes:
+
+  - ``invoice``: The parsed :class:`Invoice`.
+
+- **OFFER** -- A BOLT12 offer payment. Attributes:
+
+  - ``offer``: The parsed :class:`Offer`.
+  - ``bip321_amount_sats``: Amount from a BIP321 URI which contained the
+    offer, in satoshis.
+
+- **LNURL_PAY** -- An LNURL-pay payment (LUD-06). Attributes:
+
+  - ``lnurl``: An LNURL-pay URI.
+  - ``pay_request``: The :class:`LnurlPayRequest` data.
+
+Example::
+
+    resp = wallet.analyze("lnbc1...")
+    match resp.payables[0].method:
+        case PaymentMethod.INVOICE(invoice=invoice):
+            print(f"BOLT11 {invoice.string}: {invoice.amount_sats} sats")
+        case PaymentMethod.LNURL_PAY(lnurl=lnurl):
+            print(f"LNURL-pay {lnurl}")
 """
 
 lexe.AnalyzeResponse.__doc__ = """\
