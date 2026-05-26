@@ -72,7 +72,7 @@ use lightning::events::{
     Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
 };
 use tokio::sync::mpsc;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::{
     alias::PaymentsManagerType, channel_manager::NodeChannelManager,
@@ -463,8 +463,23 @@ async fn do_handle_event(
             let id = PaymentId::from_ldk_event(payment_id, hash);
             // `None` for still-pending sends before 0.2
             let maybe_amount_msat = amount_msat;
-            let fees_paid_msat =
-                fee_paid_msat.expect("No pending sends before 0.0.103");
+            // NOTE: As of ldk-v0.2.2, their docs claim this can never be `None`
+            // for events generated after v0.0.103, but this is NOT TRUE.
+            //
+            // LDK forgets the `fee_paid_msat` when a payment is marked
+            // abandoned. If we expire and `cm.abandond_payment(id)`, then
+            // restart the node with the HTLC still pending, then reconnect and
+            // replay the pending HTLC, the `PaymentSent` event won't have a
+            // `fee_paid_msat` field set.
+            let fees_paid_msat = match fee_paid_msat {
+                Some(f) => f,
+                None => {
+                    warn!(
+                        "{id}.fee_paid_msat is 0, was this payment abandoned?"
+                    );
+                    0
+                }
+            };
             ctx.payments_manager
                 .payment_sent(
                     id,
