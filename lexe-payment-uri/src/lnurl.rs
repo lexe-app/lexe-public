@@ -1,7 +1,41 @@
-//! Resolver for LNURL-Pay and Lightning Address (LUD-06, LUD-16).
+//! This module implements the HTTP-related LNURL protocol steps for [`Lnurl`]s
+//! derived from Lightning Addresses (LUD-16), URI-encoded LNURLs (LUD-17),
+//! or bech32-encoded LNURLs (LUD-01).
 //!
-//! This module implements the LNURL-pay flow for HTTP URLs derived from
-//! Lightning Addresses, URI-encoded LNURLs, or bech32-encoded LNURLs.
+//! Supported LNURL flows include:
+//!
+//! Payments
+//! - LUD-06: LNURL-pay
+//! - LUD-12: LNURL-pay comments
+//!   - [`get_pay_request`](crate::lnurl::LnurlClient::get_pay_request)
+//!   - [`resolve_pay_request`](crate::lnurl::LnurlClient::resolve_pay_request)
+//!
+//! Withdraws
+//! - LUD-03: LNURL-withdraw
+//! - LUD-08: Fast LNURL-withdraw
+//!   - [`get_withdraw_request`](crate::lnurl::LnurlClient::get_withdraw_request)
+//!   - [`fetch_withdraw_request`](crate::lnurl::LnurlClient::fetch_withdraw_request)
+//!   - [`resolve_withdraw_request`](crate::lnurl::LnurlClient::resolve_withdraw_request)
+//!
+//! General resolution of LNURLs
+//! - [`get_lnurl_intermediate`](crate::lnurl::LnurlClient::get_lnurl_intermediate)
+//!
+//! Some steps in the LNURL flows require only parsing, and are implemented as
+//! methods on [`Lnurl`] rather than in this module. These include:
+//!   - [`to_fast_withdraw_request`](Lnurl::to_fast_withdraw_request)
+//!
+//! Terminology:
+//! - LNURL ([`Lnurl`]): The decoded URI used as the starting point for LNURL
+//!   flows
+//! - LNURL flow: A specific LNURL protocol flow (LNURL-pay, LNURL-withdraw,
+//!   etc.) which is always associated with an LNURL `tag` (LUD-01):
+//! - LNURL intermediate
+//!   ([`LnurlIntermediate`](crate::lnurl::LnurlIntermediate)): The data derived
+//!   directly from an LNURL, either by parsing the query parameters or by
+//!   making a GET request to the LNURL endpoint. We refer to each intermediate
+//!   by its associated LNURL tag:
+//!   - `LnurlPayRequest` for `payRequest` tag
+//!   - `LnurlWithdrawRequest` for `withdrawRequest` tag
 //!
 //! ## LNURL-pay Protocol Flow (LUD-06)
 //!
@@ -74,7 +108,7 @@
 //! Example with tag: `alice+tips@example.com`
 //!   => `https://example.com/.well-known/lnurlp/alice+tips`
 
-use std::{sync::Arc, time::Duration};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api_core::types::{
@@ -85,7 +119,11 @@ use lexe_api_core::types::{
     },
 };
 use lexe_common::{constants, env::DeployEnv, ln::amount::Amount};
-use lexe_payment_uri_core::Lnurl;
+use lexe_payment_uri_core::{
+    Lnurl, LnurlScheme, LnurlTag, LnurlWithdrawRequest,
+    LnurlWithdrawRequestWire,
+};
+use lexe_std::Apply;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 use serde::Deserialize;
 use tracing::debug;
@@ -94,6 +132,18 @@ use tracing::debug;
 // TODO(max): const_assert! that this timeout is shorter than the timeout on the
 // API handler for a sidecar `pay_lnurl_pay_request` endpoint?
 pub(crate) const LNURL_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Intermediate LNURL data, derived either directly from the LNURL parameters
+/// or from making a GET request to the LNURL endpoint.
+///
+/// Branches are associated with an LNURL `tag` (see LUD-01). Note that LNURL
+/// tags and flows may be different ("LNURL-auth" flow vs. `login` tag).
+pub enum LnurlIntermediate {
+    /// tag: "payRequest"
+    Pay(LnurlPayRequest),
+    /// tag: "withdrawRequest"
+    Withdraw(LnurlWithdrawRequest),
+}
 
 /// A client for LNURL-pay and Lightning Address requests.
 /// Trusts Mozilla's webpki roots.
@@ -131,6 +181,94 @@ impl LnurlClient {
             .context("Failed to build LNURL reqwest client")?;
 
         Ok(Self(client))
+    }
+
+    /// Reads an LNURL and resolves it into an [`LnurlIntermediate`].
+    ///
+    /// Uses the flow type indicated by the LNURL scheme or tag, if available.
+    pub async fn get_lnurl_intermediate(
+        &self,
+        lnurl: &Lnurl<'_>,
+    ) -> anyhow::Result<LnurlIntermediate> {
+        use LnurlScheme::*;
+
+        match (lnurl.scheme, lnurl.tag) {
+            // LNURL-pay flow
+            (Pay, _) | (_, Some(LnurlTag::PayRequest)) =>
+                Ok(LnurlIntermediate::Pay(self.get_pay_request(lnurl).await?)),
+            // LNURL-withdraw flow
+            (Withdraw, _) | (_, Some(LnurlTag::WithdrawRequest)) =>
+                Ok(LnurlIntermediate::Withdraw(
+                    self.get_withdraw_request(lnurl).await?,
+                )),
+            // Ambiguous LNURL flows which must be resolved via GET
+            (Https, None) | (HttpOnion, None) => {
+                let http_url: &str = &lnurl.http_url;
+                debug!("Fetching LNURL response from: {http_url}");
+
+                let json = self
+                    .0
+                    .get(http_url)
+                    .send()
+                    .await
+                    .context("Failed to make request to LNURL endpoint")?
+                    .json::<serde_json::Value>()
+                    .await
+                    .context("Failed to parse LNURL response")?;
+
+                if let Some(json_tag) = json.get("tag") {
+                    let tag = json_tag
+                        .as_str()
+                        .context("LNURL response missing tag")?
+                        .apply(LnurlTag::from_str)
+                        .context("Unknown LNURL tag in response")?;
+                    match tag {
+                        LnurlTag::PayRequest => {
+                            let pay_req_wire: LnurlPayRequestWire =
+                                serde_json::from_value(json).context(
+                                    "Failed to parse LNURL-pay response",
+                                )?;
+                            Ok(LnurlIntermediate::Pay(LnurlPayRequest::from(
+                                pay_req_wire,
+                            )))
+                        }
+                        LnurlTag::WithdrawRequest => {
+                            let withdraw_req_wire: LnurlWithdrawRequestWire =
+                                serde_json::from_value(json).context(
+                                    "Failed to parse LNURL-withdraw response",
+                                )?;
+                            let withdraw_req =
+                                LnurlWithdrawRequest::try_from_wire(
+                                    withdraw_req_wire,
+                                )
+                                .context("Invalid LNURL-withdraw response")?;
+                            Ok(LnurlIntermediate::Withdraw(withdraw_req))
+                        }
+                        other => Err(anyhow!(
+                            "Unsupported LNURL tag {other} in response"
+                        )),
+                    }
+                } else if let Ok(error) =
+                    serde_json::from_value::<LnurlErrorWire>(json)
+                {
+                    Err(anyhow!(
+                        "LNURL endpoint returned an error: {}",
+                        error.reason
+                    ))
+                } else {
+                    Err(anyhow!("Unexpected response format"))
+                }
+            }
+            // Unsupported LNURL flows
+            (scheme, tag) => {
+                let hint = if let Some(t) = tag {
+                    format!("tag {t}")
+                } else {
+                    format!("scheme {scheme:?}")
+                };
+                Err(anyhow!("Lnurl {hint} not supported"))
+            }
+        }
     }
 
     /// Fetches a [`LnurlPayRequest`] from an LNURL-pay HTTP URL.
@@ -288,7 +426,7 @@ impl LnurlClient {
         let raw_invoice_resp = match raw_response {
             RawResponse::Invoice(x) => x,
             RawResponse::Error(LnurlErrorWire { reason, .. }) =>
-                return Err(anyhow!("LNURL-pay callback: {reason}")),
+                return Err(anyhow!("LNURL-pay callback failed: {reason}")),
         };
         let LnurlCallbackResponse {
             pr: invoice,
@@ -320,6 +458,108 @@ impl LnurlClient {
         debug!("Resolved LNURL-pay invoice: {invoice}");
 
         Ok(invoice)
+    }
+
+    /// Resolve a given LNURL-withdraw HTTP URL into a [`LnurlWithdrawRequest`].
+    /// Supports both regular withdraw (LUD-03) and fast withdraw (LUD-08).
+    ///
+    /// To resolve specifically regular withdraw or fast withdraw, use
+    /// `fetch_withdraw_request` (LUD-03) or
+    /// `parse_fast_withdraw_request` (LUD-08).
+    ///
+    /// Doesn't verify expected LNURL flow type.
+    pub async fn get_withdraw_request(
+        &self,
+        lnurl: &Lnurl<'_>,
+    ) -> anyhow::Result<LnurlWithdrawRequest> {
+        match lnurl.to_fast_withdraw_request() {
+            Ok(req) => Ok(req),
+            Err(_) => self.fetch_withdraw_request(lnurl).await,
+        }
+    }
+
+    /// Fetches an [`LnurlWithdrawRequest`] from an LNURL-withdraw HTTP URL.
+    ///
+    /// Doesn't verify expected LNURL flow type.
+    pub async fn fetch_withdraw_request(
+        &self,
+        lnurl: &Lnurl<'_>,
+    ) -> anyhow::Result<LnurlWithdrawRequest> {
+        let http_url: &str = &lnurl.http_url;
+
+        /// The raw LNURL-withdraw response. LNURL doesn't use a consistent
+        /// response scheme, so an untagged enum is needed.
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum RawResponse {
+            WithdrawRequest(LnurlWithdrawRequestWire),
+            Error(LnurlErrorWire),
+        }
+
+        let resp = self
+            .0
+            .get(http_url)
+            .send()
+            .await
+            .context("Failed to fetch LNURL-withdraw endpoint")?
+            .json::<RawResponse>()
+            .await
+            .context("Failed to parse LNURL-withdraw response")?;
+
+        let wire = match resp {
+            RawResponse::WithdrawRequest(x) => x,
+            RawResponse::Error(LnurlErrorWire { reason, .. }) =>
+                return Err(anyhow!("LNURL-withdraw endpoint: {reason}")),
+        };
+
+        LnurlWithdrawRequest::try_from_wire(wire)
+    }
+
+    /// Completes a withdraw request by sending a GET
+    /// request to the callback URL with the required parameters.
+    ///
+    /// The [`Invoice`] to be sent must be provided and validated by the caller.
+    pub async fn resolve_withdraw_request(
+        &self,
+        withdraw_req: &LnurlWithdrawRequest,
+        invoice: Invoice,
+    ) -> anyhow::Result<()> {
+        let callback = &withdraw_req.callback;
+
+        /// The raw LNURL-withdraw callback response. LNURL doesn't use a
+        /// consistent response scheme, so an untagged enum is needed.
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum RawResponse {
+            // TODO(nicole): this is a repeated success/error response pattern
+            // across lnurl flows; consider pulling this out eventually?
+            Success { status: SuccessStatus },
+            Error(LnurlErrorWire),
+        }
+        #[derive(Deserialize)]
+        enum SuccessStatus {
+            #[serde(rename = "OK")]
+            Ok,
+        }
+
+        let resp = self
+            .0
+            .get(callback)
+            .query(&[("k1", &withdraw_req.k1), ("pr", &invoice.to_string())])
+            .send()
+            .await
+            .context("Failed to send LNURL-withdraw callback request")?
+            .json::<RawResponse>()
+            .await
+            .context("Failed to parse LNURL-withdraw callback response")?;
+
+        match resp {
+            RawResponse::Success {
+                status: SuccessStatus::Ok,
+            } => Ok(()),
+            RawResponse::Error(LnurlErrorWire { reason, .. }) =>
+                Err(anyhow!("LNURL-withdraw callback failed: {reason}")),
+        }
     }
 }
 

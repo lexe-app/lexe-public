@@ -50,7 +50,9 @@
 
 use std::{borrow::Cow, collections::HashMap, fmt, str::FromStr};
 
+use anyhow::{Context, anyhow, ensure};
 use bech32::{Bech32, Hrp};
+use lexe_common::ln::amount::Amount;
 #[cfg(test)]
 use proptest::{
     arbitrary::Arbitrary,
@@ -58,6 +60,7 @@ use proptest::{
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+use serde::Deserialize;
 
 use crate::{Error, uri::Uri};
 
@@ -127,6 +130,96 @@ pub enum LnurlScheme {
     Channel,
     /// `keyauth://` (LUD-04 `login`, LNURL-auth)
     Auth,
+}
+
+// --- LNURL-withdraw request --- //
+
+/// LUD-03 LNURL-withdraw request.
+pub struct LnurlWithdrawRequest {
+    /// The URL which will accept the withdraw request parameters.
+    pub callback: String,
+    /// A secret string which authorizes a withdrawal.
+    ///
+    /// WARNING: If leaked, anyone with this string can make a withdrawal.
+    pub k1: String,
+    /// A default description to be included in the invoice's description
+    /// field.
+    pub default_description: String,
+    /// The minimum amount that can be withdrawn.
+    pub min_withdrawable: Amount,
+    /// The maximum amount that can be withdrawn.
+    pub max_withdrawable: Amount,
+    /// (LUD-19) An optional payment LNURL string.
+    /// Should be a valid LNURL-pay endpoint. Caller is responsible for
+    /// parsing and validating compatibility with LNURL-pay.
+    pub pay_link: Option<String>,
+}
+
+impl LnurlWithdrawRequest {
+    /// Convert an LNURL withdraw request from the wire format
+    /// to the internal format.
+    ///
+    /// Validates `min_withdrawable` and `max_withdrawable` consistency.
+    pub fn try_from_wire(
+        wire: LnurlWithdrawRequestWire,
+    ) -> anyhow::Result<Self> {
+        ensure!(
+            wire.min_withdrawable_msat <= wire.max_withdrawable_msat,
+            "min_withdrawable cannot be greater than max_withdrawable"
+        );
+
+        Ok(Self {
+            callback: wire.callback,
+            k1: wire.k1,
+            default_description: wire.default_description,
+            min_withdrawable: Amount::from_msat(wire.min_withdrawable_msat),
+            max_withdrawable: Amount::from_msat(wire.max_withdrawable_msat),
+            pay_link: wire.pay_link,
+        })
+    }
+}
+
+/// LUD-03 wire format for LNURL-withdraw request.
+///
+/// This matches the exact JSON format specified in LUD-03:
+/// - camelCase field names
+/// - amounts in millisatoshi (integers)
+/// - includes the "tag" field
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LnurlWithdrawRequestWire {
+    /// Type of LNURL (always "withdrawRequest").
+    pub tag: LnurlWithdrawRequestTag,
+    /// The URL which will accept the withdraw request parameters.
+    pub callback: String,
+    /// A string associated with the withdraw request, which can be used
+    /// by the LN service for identification/authentication.
+    pub k1: String,
+    /// A default description to be included in the invoice's description
+    /// field.
+    pub default_description: String,
+    /// Min millisatoshi amount willing to receive.
+    #[serde(rename = "minWithdrawable")]
+    pub min_withdrawable_msat: u64,
+    /// Max millisatoshi amount willing to receive.
+    #[serde(rename = "maxWithdrawable")]
+    pub max_withdrawable_msat: u64,
+    /// (LUD-19) An optional payment LNURL. Not bech32-encoded.
+    pub pay_link: Option<String>,
+    // TODO(nicole): LUD-14
+    // /// (LUD-14) An optional followup LNURL withdraw link.
+    // /// If `balance_check` is present, `current_balance` indicate the
+    // /// LN service's balance, with fallback to `max_withdrawable` if
+    // /// `current_balance` is not present.
+    // pub balance_check: Option<String>,
+    // /// (LUD-14) An optional LN service withdrawal balance.
+    // pub current_balance: Option<Amount>,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize)]
+pub enum LnurlWithdrawRequestTag {
+    #[serde(rename = "withdrawRequest")]
+    WithdrawRequest,
 }
 
 // --- impl Lnurl --- //
@@ -448,6 +541,60 @@ impl<'a> Lnurl<'a> {
         }
 
         Ok(LnurlScheme::Https)
+    }
+
+    /// Parse a fast withdraw (LUD-08) LNURL-withdraw LNURL into an
+    /// [`LnurlWithdrawRequest`]. Does not make any HTTP requests.
+    ///
+    /// Doesn't verify expected LNURL flow type.
+    pub fn to_fast_withdraw_request(
+        &self,
+    ) -> anyhow::Result<LnurlWithdrawRequest> {
+        let callback = self
+            .params
+            .get("callback")
+            .ok_or_else(|| anyhow!("Missing 'callback' parameter"))?;
+        let k1 = self
+            .params
+            .get("k1")
+            .ok_or_else(|| anyhow!("Missing 'k1' parameter"))?;
+        let default_description = self
+            .params
+            .get("defaultDescription")
+            .ok_or_else(|| anyhow!("Missing 'defaultDescription' parameter"))?;
+
+        // Max withdrawable msat
+        let max_msat_str = self
+            .params
+            .get("maxWithdrawable")
+            .ok_or_else(|| anyhow!("Missing 'maxWithdrawable' parameter"))?;
+        let max_withdrawable_msat = max_msat_str
+            .parse::<u64>()
+            .context("Invalid 'maxWithdrawable' parameter")?;
+
+        // Min withdrawable msat
+        let min_msat_str = self
+            .params
+            .get("minWithdrawable")
+            .ok_or_else(|| anyhow!("Missing 'minWithdrawable' parameter"))?;
+        let min_withdrawable_msat = min_msat_str
+            .parse::<u64>()
+            .context("Invalid 'minWithdrawable' parameter")?;
+
+        // (LUD-19) Optional pay link
+        let pay_link = self.params.get("payLink").map(|s| s.to_string());
+
+        let wire = LnurlWithdrawRequestWire {
+            tag: LnurlWithdrawRequestTag::WithdrawRequest,
+            callback: callback.to_string(),
+            k1: k1.to_string(),
+            default_description: default_description.to_string(),
+            max_withdrawable_msat,
+            min_withdrawable_msat,
+            pay_link,
+        };
+
+        LnurlWithdrawRequest::try_from_wire(wire)
     }
 }
 

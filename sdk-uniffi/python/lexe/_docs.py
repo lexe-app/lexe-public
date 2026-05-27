@@ -1778,7 +1778,7 @@ Variants:
 - **LNURL_PAY** -- An LNURL-pay payment (LUD-06). Attributes:
 
   - ``lnurl``: An LNURL-pay URI.
-  - ``pay_request``: The :class:`LnurlPayRequest` data.
+  - ``pay_request``: The :class:`LnurlPayRequest` intermediate.
 
 Example::
 

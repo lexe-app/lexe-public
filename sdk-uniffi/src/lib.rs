@@ -2202,7 +2202,7 @@ pub enum PaymentMethod {
     LnurlPay {
         /// An LNURL-pay URI.
         lnurl: String,
-        /// LNURL-pay data, which includes information about
+        /// LNURL-pay request, which includes information about
         /// the amount constraints, callback, etc. associated with the LNURL.
         pay_request: LnurlPayRequest,
     },
@@ -2242,7 +2242,7 @@ impl From<SdkPaymentMethod> for PaymentMethod {
 }
 
 // TODO(nicole): move structs to an // --- Lnurl --- // section when added
-/// The validated and parsed LNURL-pay data (tagged "payRequest").
+/// The validated and parsed LNURL-pay request (tagged "payRequest").
 #[derive(Clone, uniffi::Record)]
 pub struct LnurlPayRequest {
     /// Callback URL to request invoice from.

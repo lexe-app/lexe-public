@@ -19,6 +19,7 @@ lexe-api-core = { workspace = true }
 lexe-common = { workspace = true }
 lexe-crypto = { workspace = true }
 lexe-payment-uri-core = { workspace = true }
+lexe-std = { workspace = true }
 lexe-tls-core = { workspace = true, features = ["webpki-roots"] }
 
 # --- WORKSPACE --- #

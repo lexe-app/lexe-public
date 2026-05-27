@@ -54,7 +54,7 @@ pub enum PaymentMethod {
         /// An LNURL-pay URI.
         lnurl: String,
 
-        /// The LNURL-pay data, which includes information about
+        /// The LNURL-pay request, which includes information about
         /// the amount constraints, callback, etc. associated with the LNURL.
         pay_request: LnurlPayRequest,
     },
