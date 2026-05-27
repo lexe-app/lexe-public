@@ -1,4 +1,4 @@
-//! Types related to LUD-06 (LNURL-pay).
+//! Types related to LNURL-pay (LUD-06).
 
 use std::fmt;
 
@@ -171,15 +171,16 @@ impl axum::response::IntoResponse for LnurlError {
 }
 
 /// Serialized error response for lnurl payment requests and callbacks.
+/// Used across multiple LNURL flows.
 #[derive(Serialize, Deserialize)]
 pub struct LnurlErrorWire {
-    status: Status,
+    status: ErrorStatus,
     pub reason: String,
 }
 
 /// An LNURL `status` field.
 #[derive(Serialize, Deserialize)]
-pub enum Status {
+pub enum ErrorStatus {
     #[serde(rename = "ERROR")]
     Error,
 }
@@ -187,7 +188,7 @@ pub enum Status {
 impl From<LnurlError> for LnurlErrorWire {
     fn from(e: LnurlError) -> Self {
         Self {
-            status: Status::Error,
+            status: ErrorStatus::Error,
             reason: e.reason,
         }
     }
@@ -216,7 +217,13 @@ pub struct LnurlPayRequestWire {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment_allowed: Option<u16>,
     /// Type of LNURL (always "payRequest").
-    pub tag: String,
+    pub tag: LnurlPayRequestTag,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum LnurlPayRequestTag {
+    #[serde(rename = "payRequest")]
+    PayRequest,
 }
 
 impl From<LnurlPayRequest> for LnurlPayRequestWire {
@@ -227,7 +234,7 @@ impl From<LnurlPayRequest> for LnurlPayRequestWire {
             max_sendable_msat: value.max_sendable.msat(),
             metadata: value.metadata.raw,
             comment_allowed: value.comment_allowed,
-            tag: "payRequest".to_owned(),
+            tag: LnurlPayRequestTag::PayRequest,
         }
     }
 }

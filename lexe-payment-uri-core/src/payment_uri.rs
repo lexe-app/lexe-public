@@ -119,7 +119,7 @@ impl PaymentUri {
                 return LightningUri::parse_uri(uri).map(Self::LightningUri);
             }
 
-            // LNURL-Pay: "lnurlp://domain.com/path"
+            // Non-bech32 LNURL URI (LUD-17): "lnurlp://domain.com/path"
             if Lnurl::matches_lud17_uri_scheme(uri.scheme)?.is_some() {
                 return Lnurl::parse_lud17_uri(uri)
                     .map(Lnurl::into_owned)

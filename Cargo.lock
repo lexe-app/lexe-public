@@ -2851,7 +2851,7 @@ dependencies = [
  "proptest-derive",
  "rust_decimal",
  "serde",
- "serde_json",
+ "strum",
 ]
 
 [[package]]

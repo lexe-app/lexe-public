@@ -85,6 +85,7 @@ use lexe_api_core::types::{
     },
 };
 use lexe_common::{constants, env::DeployEnv, ln::amount::Amount};
+use lexe_payment_uri_core::Lnurl;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
 use serde::Deserialize;
 use tracing::debug;
@@ -133,10 +134,13 @@ impl LnurlClient {
     }
 
     /// Fetches a [`LnurlPayRequest`] from an LNURL-pay HTTP URL.
+    ///
+    /// Doesn't verify expected LNURL flow type.
     pub async fn get_pay_request(
         &self,
-        http_url: &str,
+        lnurl: &Lnurl<'_>,
     ) -> anyhow::Result<LnurlPayRequest> {
+        let http_url = lnurl.http_url.as_ref();
         debug!("Fetching LNURL-pay response from: {http_url}");
 
         /// The raw LNURL-pay response prior to parsing and validation.
@@ -171,13 +175,8 @@ impl LnurlClient {
             max_sendable_msat,
             metadata,
             comment_allowed,
-            tag,
+            tag: _,
         } = pay_req_wire;
-
-        ensure!(
-            tag == "payRequest",
-            "Expected LNURL-pay endpoint, got '{tag}'"
-        );
 
         let min_sendable = Amount::from_msat(min_sendable_msat);
         let max_sendable = Amount::from_msat(max_sendable_msat);
@@ -358,13 +357,14 @@ mod test {
         };
 
         let ln_address_url = email_like.lightning_address_url;
+        let lnurl = Lnurl::from_http_url(&ln_address_url).unwrap();
         info!("Lightning Address URL: {ln_address_url}");
 
         let lnurl_client = LnurlClient::new(DeployEnv::Prod).unwrap();
 
         let pay_request = tokio::time::timeout(
             Duration::from_secs(10),
-            lnurl_client.get_pay_request(&ln_address_url),
+            lnurl_client.get_pay_request(&lnurl),
         )
         .await
         .unwrap()
@@ -450,9 +450,10 @@ mod test {
 
         // Make pay request
         let lnurl_client = LnurlClient::new(DeployEnv::Prod).unwrap();
+        let lnurl = Lnurl::from_http_url(&ln_address_url).unwrap();
         let pay_request = tokio::time::timeout(
             Duration::from_secs(10),
-            lnurl_client.get_pay_request(&ln_address_url),
+            lnurl_client.get_pay_request(&lnurl),
         )
         .await
         .unwrap()

@@ -159,14 +159,15 @@ mod resolve {
         }
 
         // Always try resolving Lightning Address, which uses LNURL-pay
+        let lnurl = Lnurl::parse(&email_like.lightning_address_url)?;
         let ln_address_result = lnurl_client
-            .get_pay_request(&email_like.lightning_address_url)
+            .get_pay_request(&lnurl)
             .await
             .context("Failed to resolve Lightning Address url");
         match ln_address_result {
             Ok(pay_request) => {
                 methods.push(PaymentMethod::LnurlPay {
-                    lnurl: email_like.lightning_address_url,
+                    lnurl: lnurl.http_url.into_owned(),
                     pay_request,
                 });
             }
@@ -190,7 +191,7 @@ mod resolve {
         lnurl: Lnurl<'static>,
     ) -> anyhow::Result<Vec<PaymentMethod>> {
         let pay_request = lnurl_client
-            .get_pay_request(&lnurl.http_url)
+            .get_pay_request(&lnurl)
             .await
             .context("Failed to resolve LNURL-pay url")?;
         Ok(vec![PaymentMethod::LnurlPay {

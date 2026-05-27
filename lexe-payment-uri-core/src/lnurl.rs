@@ -48,7 +48,7 @@
 //! - `lightning-address/DIY.md`
 //! ```
 
-use std::{borrow::Cow, fmt};
+use std::{borrow::Cow, collections::HashMap, fmt, str::FromStr};
 
 use bech32::{Bech32, Hrp};
 #[cfg(test)]
@@ -61,6 +61,8 @@ use proptest_derive::Arbitrary;
 
 use crate::{Error, uri::Uri};
 
+// --- LNURL URI --- //
+
 /// A parsed LNURL.
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
@@ -71,11 +73,38 @@ pub struct Lnurl<'a> {
     /// although `.onion` LNURLs are currently rejected.
     /// The scheme is also normalized to lowercase.
     pub http_url: Cow<'a, str>,
+    /// The query parameters contained in the HTTP URL.
+    ///
+    /// Should NOT contain the "tag" parameter,
+    /// which is stored separately in `tag`.
+    pub params: HashMap<Cow<'a, str>, Cow<'a, str>>,
     /// The original LNURL scheme encountered during parsing.
     /// Resolvers may use this to determine intent.
+    /// Should agree with `tag`.
     pub scheme: LnurlScheme,
     /// Optional "tag" query parameter contained in the HTTP URL - see LUD-01.
-    pub tag: Option<Cow<'a, str>>,
+    /// Should agree with `scheme`.
+    pub tag: Option<LnurlTag>,
+}
+
+/// LNURL tag variants.
+/// LUD-01 specifies that each LNURL flow must have an associated tag,
+/// which is either included in the original LNURL as a query parameter or
+/// returned under the "tag" key in a JSON response.
+#[derive(Copy, Clone, Debug, strum::Display, strum::EnumString)]
+#[cfg_attr(test, derive(Eq, PartialEq, Arbitrary))]
+#[strum(serialize_all = "camelCase")]
+pub enum LnurlTag {
+    /// (LUD-02) "channelRequest"
+    ChannelRequest,
+    /// (LUD-03) "withdrawRequest"
+    WithdrawRequest,
+    /// (LUD-04) "login"; indicates LNURL-auth flow
+    Login,
+    /// (LUD-06) "payRequest"
+    PayRequest,
+    /// (LUD-07) "hostedChannelRequest"
+    HostedChannelRequest,
 }
 
 /// The LNURL scheme encountered during parsing.
@@ -100,6 +129,8 @@ pub enum LnurlScheme {
     Auth,
 }
 
+// --- impl Lnurl --- //
+
 impl<'a> Lnurl<'a> {
     /// The Human Readable Part for bech32-encoded LNURLs.
     const HRP: Hrp = Hrp::parse_unchecked(Self::HRP_STR);
@@ -108,8 +139,15 @@ impl<'a> Lnurl<'a> {
     pub fn into_owned(self) -> Lnurl<'static> {
         Lnurl {
             http_url: Cow::Owned(self.http_url.into_owned()),
+            params: self
+                .params
+                .into_iter()
+                .map(|(k, v)| {
+                    (Cow::Owned(k.into_owned()), Cow::Owned(v.into_owned()))
+                })
+                .collect(),
             scheme: self.scheme,
-            tag: self.tag.map(|t| Cow::Owned(t.into_owned())),
+            tag: self.tag,
         }
     }
 
@@ -121,7 +159,8 @@ impl<'a> Lnurl<'a> {
     /// - HTTPS with bech32 param: `https://service.com?lightning=lnurl1...`
     /// - Lightning with bech32 body: `lightning:lnurl1...`
     ///
-    /// Returns an error if the input doesn't match any LNURL format.
+    /// Returns an error if the input doesn't match any LNURL format, or if
+    /// the LNURL's scheme and tag are inconsistent (LUD17 only).
     pub fn parse(s: &str) -> Result<Lnurl<'static>, Error> {
         let s = s.trim();
 
@@ -276,6 +315,9 @@ impl<'a> Lnurl<'a> {
     /// These are converted to HTTPS URLs per LUD-17.
     ///
     /// Example: `lnurlp://domain.com/path?foo=bar`
+    ///
+    /// Returns an error if the input doesn't match any LUD17 scheme, or if
+    /// the LNURL's scheme and tag are inconsistent.
     pub(crate) fn parse_lud17_uri(
         mut uri: Uri<'a>,
     ) -> Result<Lnurl<'a>, Error> {
@@ -298,17 +340,44 @@ impl<'a> Lnurl<'a> {
         Self::validate_http_uri(&uri)?;
         let http_url = Cow::Owned(uri.to_string());
 
+        // Extract query parameters
+        let mut params: HashMap<_, _> = uri
+            .params
+            .into_iter()
+            .map(|param| {
+                (Cow::Owned(param.key_parsed().name.to_string()), param.value)
+            })
+            .collect();
+
         // Extract the tag query parameter if present (LUD-01)
-        let tag = uri.params.into_iter().find_map(|param| {
-            if param.key_parsed().is("tag") {
-                Some(param.value)
-            } else {
-                None
+        let tag = params
+            .remove("tag")
+            .map(|t| LnurlTag::from_str(&t))
+            .transpose()
+            .map_err(|e| {
+                Error::InvalidLnurl(Cow::from(format!(
+                    "Unrecognized LNURL tag: {e}"
+                )))
+            })?;
+
+        // Ensure scheme and tag are consistent
+        if let Some(tag) = tag {
+            match (scheme, tag) {
+                (LnurlScheme::Pay, LnurlTag::PayRequest)
+                | (LnurlScheme::Withdraw, LnurlTag::WithdrawRequest)
+                | (LnurlScheme::Channel, LnurlTag::ChannelRequest)
+                | (LnurlScheme::Auth, LnurlTag::Login) => (),
+                (scheme, tag) =>
+                    return Err(Error::InvalidLnurl(Cow::from(format!(
+                        "LNURL scheme is {scheme:?}, \
+                         but found inconsistent tag {tag:?}"
+                    )))),
             }
-        });
+        }
 
         Ok(Self {
             http_url,
+            params,
             scheme,
             tag,
         })
@@ -317,9 +386,7 @@ impl<'a> Lnurl<'a> {
     /// Construct a [`Lnurl`] from a cleartext HTTP URL.
     ///
     /// Example: `https://service.com/path?foo=bar`
-    pub(crate) fn from_http_url<'b>(
-        http_url: &'b str,
-    ) -> Result<Lnurl<'b>, Error> {
+    pub fn from_http_url<'b>(http_url: &'b str) -> Result<Lnurl<'b>, Error> {
         let mut http_uri = Uri::parse(http_url)
             .map_err(|e| Error::InvalidLnurl(Cow::from(e.to_string())))?;
         let scheme = Self::validate_http_uri(&http_uri)?;
@@ -333,17 +400,31 @@ impl<'a> Lnurl<'a> {
             Cow::Borrowed(http_url)
         };
 
+        let mut params: HashMap<_, _> = http_uri
+            .params
+            .iter()
+            .map(|param| {
+                (
+                    Cow::Owned(param.key_parsed().name.to_string()),
+                    param.value.clone(),
+                )
+            })
+            .collect();
+
         // Extract the tag query parameter if present (LUD-01)
-        let tag = http_uri.params.iter().find_map(|param| {
-            if param.key_parsed().is("tag") {
-                Some(param.value.clone())
-            } else {
-                None
-            }
-        });
+        let tag = params
+            .remove("tag")
+            .map(|t| LnurlTag::from_str(&t))
+            .transpose()
+            .map_err(|e| {
+                Error::InvalidLnurl(Cow::from(format!(
+                    "Unrecognized LNURL tag: {e}"
+                )))
+            })?;
 
         Ok(Lnurl {
             http_url,
+            params,
             scheme,
             tag,
         })
@@ -404,8 +485,14 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(scheme_override: Self::Parameters) -> Self::Strategy {
-            (any::<LnurlScheme>(), any_https_url())
-                .prop_map(move |(mut scheme, url)| {
+            (
+                any::<Option<LnurlTag>>(),
+                any::<LnurlScheme>(),
+                any_https_no_params(),
+                any_https_query_params(),
+                any::<usize>(),
+            )
+                .prop_map(move |(tag, mut scheme, url, mut params, tag_idx)| {
                     // Apply the optional override first.
                     if let Some(r#override) = scheme_override {
                         scheme = r#override;
@@ -418,19 +505,45 @@ mod arbitrary_impl {
                     if scheme == LnurlScheme::HttpOnion {
                         scheme = LnurlScheme::Https;
                     }
+                    // Coerce tag to be consistent with scheme
+                    let tag = tag.map(|t| match (scheme, t) {
+                        (LnurlScheme::Https | LnurlScheme::HttpOnion, t) => t,
+                        (LnurlScheme::Pay, _) => LnurlTag::PayRequest,
+                        (LnurlScheme::Withdraw, _) => LnurlTag::WithdrawRequest,
+                        (LnurlScheme::Channel, _) => LnurlTag::ChannelRequest,
+                        (LnurlScheme::Auth, _) => LnurlTag::Login,
+                    });
 
-                    // url can chance into a valid `tag` query parameter, so
-                    // try to parse that out.
-                    let uri =
-                        Uri::parse(&url).expect("Generated URL should parse");
-                    let tag = uri
-                        .params
+                    // Remove existing "tag" param
+                    params.retain(|(k, _)| k != "tag");
+                    // Add tag to query parameters at random index
+                    if let Some(tag) = tag {
+                        let idx = tag_idx % (params.len() + 1);
+                        params
+                            .insert(idx, ("tag".to_string(), tag.to_string()));
+                    }
+
+                    // Construct the http_url
+                    let mut http_url = url;
+                    let mut sep = "?";
+                    for (k, v) in params.iter() {
+                        http_url.push_str(sep);
+                        http_url.push_str(k);
+                        http_url.push('=');
+                        http_url.push_str(v);
+                        sep = "&";
+                    }
+
+                    // Extract query parameters
+                    let params_map: HashMap<_, _> = params
                         .into_iter()
-                        .find(|param| param.key_parsed().is("tag"))
-                        .map(|param| Cow::Owned(param.value.into_owned()));
+                        .filter(|(k, _)| k != "tag")
+                        .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
+                        .collect();
 
                     Lnurl {
-                        http_url: Cow::Owned(url),
+                        http_url: Cow::Owned(http_url),
+                        params: params_map,
                         scheme,
                         tag,
                     }
@@ -439,20 +552,30 @@ mod arbitrary_impl {
         }
     }
 
-    /// Generate valid HTTPS URLs for testing.
-    fn any_https_url() -> impl Strategy<Value = String> {
+    /// Generate valid HTTPS URLs for Lnurl testing.
+    ///
+    /// Doesn't generate query parameters
+    fn any_https_no_params() -> impl Strategy<Value = String> {
         // Simple URL generation for testing
         (
             // Domain
             "[a-z]{3,10}\\.(com|org|app|io)",
             // Path
             "(/[a-z]{2,8}){0,3}",
-            // Query params
-            "(\\?[a-z]{2,5}=[a-z0-9]{3,10}(&[a-z]{2,5}=[a-z0-9]{3,10}){0,2})?",
         )
-            .prop_map(|(domain, path, query)| {
-                format!("https://{}{}{}", domain, path, query)
-            })
+            .prop_map(|(domain, path)| format!("https://{}{}", domain, path))
+    }
+
+    /// Generate valid HTTPS query parameters for Lnurl testing.
+    fn any_https_query_params() -> impl Strategy<Value = Vec<(String, String)>>
+    {
+        proptest::collection::vec(
+            (
+                "[a-z]{2,5}",     // key
+                "[a-z0-9]{3,10}", // value
+            ),
+            0..5, // up to 5 query params
+        )
     }
 }
 
