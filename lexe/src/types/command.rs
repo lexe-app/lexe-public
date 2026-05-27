@@ -6,6 +6,7 @@ use lexe_api::{
     types::{
         bounded_string::BoundedString,
         invoice::Invoice,
+        lnurl::LnurlPayRequest,
         payments::{
             ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentSecret,
             PaymentUpdatedIndex,
@@ -13,7 +14,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{constants, ln::amount::Amount, ppm::Ppm, time::TimestampMs};
-use lexe_payment_uri::{ClaimMethod, PaymentMethod};
+use lexe_payment_uri::{ClaimMethod, LnurlWithdrawRequest, PaymentMethod};
 use lexe_std::const_assert_usize_eq;
 use serde::{Deserialize, Serialize};
 
@@ -489,6 +490,72 @@ pub struct PayOfferResponse {
     /// Identifier for this outbound offer payment.
     pub index: PaymentCreatedIndex,
     /// When we tried to pay this offer, in milliseconds since the UNIX epoch.
+    pub created_at: TimestampMs,
+}
+
+/// A request to pay to an LNURL-pay endpoint.
+pub struct PayLnurlRequest {
+    /// The LNURL to pay to.
+    /// Exactly one of `lnurl` or `pay_request` should be provided.
+    pub lnurl: Option<String>,
+    /// The LNURL pay request to use.
+    /// Exactly one of `lnurl` or `pay_request` should be provided.
+    pub pay_request: Option<LnurlPayRequest>,
+    /// The amount to pay. If the LNURL endpoint specifies a minimum or maximum
+    /// amount, this value must satisfy those limits.
+    pub amount: Amount,
+    /// An optional message to include in the payment,
+    /// visible to the recipient.
+    ///
+    /// Will only be sent if the LNURL endpoint supports it, and will be
+    /// truncated to the LNURL endpoint's specified length limits if needed.
+    ///
+    /// See [`LnurlPayRequest::comment_allowed`] for more insight.
+    /// An [`LnurlPayRequest`] can be constructed from a string via
+    /// [`analyze`].
+    ///
+    /// [`analyze`]: crate::wallet::LexeWallet::analyze
+    pub message: Option<String>,
+    /// An optional personal note for this payment.
+    /// The receiver will not see this note.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub personal_note: Option<String>,
+}
+
+/// The response to a request to pay to an LNURL-pay endpoint.
+pub struct PayLnurlResponse {
+    /// Identifier for this outbound LNURL payment.
+    pub index: PaymentCreatedIndex,
+    /// When we tried to pay this LNURL, in milliseconds since the UNIX epoch.
+    pub created_at: TimestampMs,
+}
+
+/// A request to withdraw from an LNURL-withdraw endpoint.
+pub struct WithdrawLnurlRequest {
+    /// The LNURL to withdraw from.
+    /// Exactly one of `lnurl` or `withdraw_request` should be provided.
+    pub lnurl: Option<String>,
+    /// The LNURL withdraw request to use.
+    /// Exactly one of `lnurl` or `withdraw_request` should be provided.
+    pub withdraw_request: Option<LnurlWithdrawRequest>,
+    /// The amount to withdraw. If the LNURL endpoint specifies a minimum or
+    /// maximum amount, this value must satisfy those limits.
+    pub amount: Amount,
+    /// An optional description to encode into the withdrawal invoice,
+    /// visible to the LNURL endpoint.
+    ///
+    /// If `None`, the description encoded will be the one specified by the
+    /// LNURL endpoint, if any.
+    pub description: Option<String>,
+}
+
+/// The response to a request to withdraw from an LNURL-withdraw endpoint.
+pub struct WithdrawLnurlResponse {
+    /// Identifier for this inbound withdrawal payment.
+    pub index: PaymentCreatedIndex,
+    /// When we tried to withdraw this LNURL, in milliseconds since the UNIX
+    /// epoch.
     pub created_at: TimestampMs,
 }
 

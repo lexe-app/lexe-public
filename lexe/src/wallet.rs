@@ -24,7 +24,7 @@ use lexe_common::{
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
-    self, Bip321Uri, ClaimMethod, PaymentMethod, PaymentUri,
+    self, Bip321Uri, ClaimMethod, Lnurl, PaymentMethod, PaymentUri,
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
 };
@@ -44,9 +44,10 @@ use crate::{
             CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
             GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
             ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse, PayRequest,
-            PayResponse, PayableDetails, PaymentSyncSummary,
-            UpdatePersonalNoteRequest,
+            PayInvoiceResponse, PayLnurlRequest, PayLnurlResponse,
+            PayOfferRequest, PayOfferResponse, PayRequest, PayResponse,
+            PayableDetails, PaymentSyncSummary, UpdatePersonalNoteRequest,
+            WithdrawLnurlRequest, WithdrawLnurlResponse,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -1329,6 +1330,142 @@ impl LexeWallet {
             index,
             created_at: resp.created_at,
         })
+    }
+
+    /// Pay an LNURL via the `payRequest` flow.
+    #[instrument(skip_all, name = "(pay-lnurl)")]
+    pub async fn pay_lnurl(
+        &self,
+        req: PayLnurlRequest,
+    ) -> anyhow::Result<PayLnurlResponse> {
+        // Get the pay request
+        let pay_request = match (req.lnurl, req.pay_request) {
+            (Some(s), None) => {
+                let lnurl = Lnurl::parse(&s)
+                    .context("Failed to parse LNURL from string")?;
+
+                self.lnurl_client
+                    .get_pay_request(&lnurl)
+                    .await
+                    .context("Failed to resolve LNURL into pay request")?
+            }
+            (None, Some(pay_request)) => pay_request,
+            _ =>
+                return Err(anyhow!(
+                    "Exactly one of `pay_request` or `lnurl` must be provided"
+                )),
+        };
+
+        // Truncate/remove the message based on `comment_allowed`
+        let comment = match (req.message, pay_request.comment_allowed) {
+            (None, _) => None,
+            (Some(_), None) => {
+                warn!(
+                    "Recipient doesn't support LUD-12 comments; the recipient \
+                     will not see your message."
+                );
+                None
+            }
+            (Some(mut message), Some(max_len)) => {
+                let original_len = message.chars().count();
+                let receiver_limit = usize::from(max_len);
+
+                lexe_std::string::truncate_chars(&mut message, receiver_limit);
+
+                if original_len > receiver_limit {
+                    warn!(
+                        "Message truncated to {receiver_limit} character limit \
+                         specified by recipient: \"{message}\""
+                    );
+                }
+
+                Some(message)
+            }
+        };
+
+        // Make the LNURL callback to get the invoice
+        let invoice = self
+            .lnurl_client
+            .resolve_pay_request(&pay_request, req.amount, comment.as_deref())
+            .await
+            .context("Failed to resolve LNURL pay request")?;
+
+        // Pay invoice
+        let invoice_req = PayInvoiceRequest {
+            invoice,
+            fallback_amount: None,
+            personal_note: req.personal_note,
+        };
+        let invoice_resp = self.pay_invoice(invoice_req).await?;
+
+        Ok(PayLnurlResponse {
+            index: invoice_resp.index,
+            created_at: invoice_resp.created_at,
+        })
+    }
+
+    /// Withdraw an LNURL via the `withdrawRequest` flow.
+    #[instrument(skip_all, name = "(withdraw-lnurl)")]
+    pub async fn withdraw_lnurl(
+        &self,
+        req: WithdrawLnurlRequest,
+    ) -> anyhow::Result<WithdrawLnurlResponse> {
+        /// The amount of time to wait for the payment after making
+        /// the LNURL callback.
+        const TIMEOUT: Duration = Duration::from_secs(60);
+
+        // Get the withdraw request
+        let withdraw_request = match (req.lnurl, req.withdraw_request) {
+            (Some(s), None) => {
+                let lnurl = Lnurl::parse(&s)
+                    .context("Failed to parse LNURL from string")?;
+
+                self.lnurl_client
+                    .get_withdraw_request(&lnurl)
+                    .await
+                    .context("Failed to resolve LNURL into withdraw request")?
+            }
+            (None, Some(withdraw_request)) => withdraw_request,
+            _ =>
+                return Err(anyhow!(
+                    "Exactly one of `withdraw_request` or \
+                     `lnurl` must be provided"
+                )),
+        };
+
+        // Create an invoice according to the withdraw request
+        let invoice_req = CreateInvoiceRequest {
+            expiration_secs: None,
+            amount: Some(req.amount),
+            description: Some(req.description.unwrap_or_else(|| {
+                withdraw_request.default_description.to_owned()
+            })),
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
+        };
+        let invoice_resp = self
+            .create_invoice(invoice_req)
+            .await
+            .context("Failed to create invoice for withdrawal request")?;
+
+        // Make the LNURL callback with the invoice
+        self.lnurl_client
+            .resolve_withdraw_request(&withdraw_request, invoice_resp.invoice)
+            .await
+            .context("Failed to make LNURL withdraw callback")?;
+
+        // Wait for the payment
+        self.wait_for_payment(invoice_resp.index, Some(TIMEOUT))
+            .await
+            .context("Couldn't receive withdrawal payment")?;
+
+        let result = WithdrawLnurlResponse {
+            index: invoice_resp.index,
+            created_at: invoice_resp.created_at,
+        };
+
+        Ok(result)
     }
 
     /// Get information about a payment by its created index.
