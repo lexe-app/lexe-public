@@ -24,10 +24,9 @@ use lexe_common::{
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
-    self, Bip321Uri, PaymentMethod, PaymentUri,
+    self, Bip321Uri, ClaimMethod, PaymentMethod, PaymentUri,
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
-    resolve_payment_methods,
 };
 use lexe_std::backoff::Backoff;
 use tracing::{debug, info, instrument, warn};
@@ -40,13 +39,14 @@ use crate::{
     types::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
-            AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
-            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-            PayOfferResponse, PayRequest, PayResponse, PayableDetails,
-            PaymentSyncSummary, UpdatePersonalNoteRequest,
+            AnalyzeRequest, AnalyzeResponse, ClaimableDetails,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse, PayRequest,
+            PayResponse, PayableDetails, PaymentSyncSummary,
+            UpdatePersonalNoteRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -783,7 +783,8 @@ impl LexeWallet {
     ) -> anyhow::Result<AnalyzeResponse> {
         let network = self.user_config().env_config.wallet_env.network;
         let payment_uri = PaymentUri::parse(&req.payable)?;
-        let payment_methods = resolve_payment_methods(
+
+        let (payment_methods, claim_methods) = lexe_payment_uri::resolve(
             &self.bip353_client,
             &self.lnurl_client,
             network,
@@ -912,9 +913,36 @@ impl LexeWallet {
                     }
                 }
             })
-            .collect::<Vec<_>>();
+            .collect();
 
-        Ok(AnalyzeResponse { payables })
+        let claimables = claim_methods
+            .into_iter()
+            .map(|method| match &method {
+                ClaimMethod::LnurlWithdraw {
+                    lnurl,
+                    withdraw_request,
+                } => {
+                    let claimable = lnurl.to_string();
+                    let description =
+                        Some(withdraw_request.default_description.to_owned());
+                    let min_amount = Some(withdraw_request.min_withdrawable);
+                    let max_amount = Some(withdraw_request.max_withdrawable);
+
+                    ClaimableDetails {
+                        claimable,
+                        method,
+                        description,
+                        min_amount,
+                        max_amount,
+                    }
+                }
+            })
+            .collect();
+
+        Ok(AnalyzeResponse {
+            payables,
+            claimables,
+        })
     }
 
     /// Pay any string which encodes a Bitcoin or Lightning payment method.

@@ -596,14 +596,14 @@ impl AppHandle {
         let payment_uri = lexe_payment_uri::PaymentUri::parse(&uri_str)
             .context("Unrecognized payment code")?;
 
-        lexe_payment_uri::resolve_best(
+        let best = lexe_payment_uri::resolve_best(
             self.inner.bip353_client(),
             self.inner.lnurl_client(),
             network.into(),
             payment_uri,
         )
-        .await
-        .map(PaymentMethod::from)
+        .await?;
+        Ok(PaymentMethod::from(best))
     }
 
     /// Resolve a [`LnurlPayRequest`] that we just received + the amount in

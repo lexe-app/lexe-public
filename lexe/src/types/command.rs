@@ -13,7 +13,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{constants, ln::amount::Amount, ppm::Ppm, time::TimestampMs};
-use lexe_payment_uri::PaymentMethod;
+use lexe_payment_uri::{ClaimMethod, PaymentMethod};
 use lexe_std::const_assert_usize_eq;
 use serde::{Deserialize, Serialize};
 
@@ -112,11 +112,17 @@ pub struct AnalyzeRequest {
 
 /// The response to a string analysis request.
 pub struct AnalyzeResponse {
-    // TODO: kind: PaymentUri
     /// The valid payment routes encoded in the analyzed string, ordered
     /// by most recommended payment route first, and least recommended payment
     /// route last.
+    ///
+    /// "Payable" indicates an outbound payment flow.
     pub payables: Vec<PayableDetails>,
+
+    /// The valid claim routes encoded in the analyzed string.
+    ///
+    /// "Claimable" indicates an inbound payment flow.
+    pub claimables: Vec<ClaimableDetails>,
 }
 
 /// Describes basic information for a payable string.
@@ -145,6 +151,35 @@ pub struct PayableDetails {
 
     /// The payable expiration time, in milliseconds since the UNIX epoch.
     pub expires_at: Option<TimestampMs>,
+}
+
+/// Describes basic information for a claimable string.
+pub struct ClaimableDetails {
+    /// The claimable string encoding the claim method.
+    pub claimable: String,
+    /// The deserialized claim method.
+    pub method: ClaimMethod,
+
+    /// The description encoded in the `claimable`, if any.
+    pub description: Option<String>,
+
+    // /// The amount that should be received from the `claimable`; if `None`,
+    // /// the claimer should specify an amount to claim.
+    // ///
+    // /// This will be `None` if `min_amount` or `max_amount` are specified.
+    // pub amount: Option<Amount>,
+    ///
+    /// The minimum amount that can be received from the `claimable`.
+    ///
+    /// This will be `None` if `amount` is specified.
+    pub min_amount: Option<Amount>,
+    /// The maximum amount that can be received from the `claimable`.
+    ///
+    /// This will be `None` if `amount` is specified.
+    pub max_amount: Option<Amount>,
+    //
+    // /// The claimable expiration time, in milliseconds since the UNIX epoch.
+    // pub expires_at: Option<TimestampMs>,
 }
 
 /// A catch-all request to pay a Bitcoin or Lightning payment string.

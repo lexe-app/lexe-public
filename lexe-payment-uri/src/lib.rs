@@ -30,27 +30,21 @@ pub async fn resolve_best(
 ) -> anyhow::Result<PaymentMethod> {
     // A single scanned/opened PaymentUri can contain multiple different payment
     // methods (e.g., a LN BOLT11 invoice + an onchain fallback address).
-    let payment_methods = resolve_payment_methods(
-        bip353_client,
-        lnurl_client,
-        network,
-        payment_uri,
-    )
-    .await?;
+    let payment_methods =
+        resolve(bip353_client, lnurl_client, network, payment_uri).await?;
 
     // Pick the most preferable payment method.
-    let best = payment_methods.into_iter().next().ok_or_else(|| {
-        anyhow!(
-            // Shouldn't be reachable, but just in case.
-            "Failed to find any payment methods. This is a bug--please report!"
-        )
-    })?;
+    let best_payment = payment_methods
+        .0
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("Failed to find any payment methods."))?;
 
     // If it's an offer, check that the amounts are consistent
     if let PaymentMethod::Offer {
         offer,
         bip321_amount,
-    } = &best
+    } = &best_payment
     {
         match (offer.min_amount(), bip321_amount) {
             (Some(min_amount), Some(bip321_amount))
@@ -63,63 +57,80 @@ pub async fn resolve_best(
         }
     }
 
-    Ok(best)
+    Ok(best_payment)
 }
 
 /// Resolve the [`PaymentUri`] into its component [`PaymentMethod`]s.
 /// Filter by network validity and sort by highest priority method first.
-/// Ensures at least one result.
-pub async fn resolve_payment_methods(
+/// Ensures at least one method result.
+pub async fn resolve(
     bip353_client: &bip353::Bip353Client,
     lnurl_client: &lnurl::LnurlClient,
     network: Network,
     payment_uri: PaymentUri,
-) -> anyhow::Result<Vec<PaymentMethod>> {
+) -> anyhow::Result<(Vec<PaymentMethod>, Vec<ClaimMethod>)> {
     // Split the URI into its directly-known methods and any pieces that
     // require further resolution.
     let (mut payment_methods, resolvables) = payment_uri.flatten(network);
+
+    ensure!(
+        !payment_methods.is_empty() || !resolvables.is_empty(),
+        "No valid payment/claim methods found in URI"
+    );
 
     // Resolve all `Resolvable`s and merge their methods in.
     // Error if *every* resolution fails AND we have no direct methods.
     let resolve_futs = resolvables.into_iter().map(|resolvable| async move {
         match resolvable {
-            Resolvable::EmailLike(addr) =>
-                resolve::email_like(bip353_client, lnurl_client, network, addr)
-                    .await,
-            Resolvable::Lnurl(lnurl) =>
-                resolve::lnurl(lnurl_client, lnurl).await,
+            Resolvable::EmailLike(addr) => {
+                let payments = resolve::email_like(
+                    bip353_client,
+                    lnurl_client,
+                    network,
+                    addr,
+                )
+                .await?;
+                let claims = Vec::new();
+                Ok((payments, claims))
+            }
+            Resolvable::Lnurl(lnurl) => lnurl_client.resolve_lnurl(lnurl).await,
         }
     });
     let resolve_results = future::join_all(resolve_futs).await;
 
+    let mut claim_methods = Vec::new();
     let mut resolve_errors = Vec::new();
     for result in resolve_results {
         match result {
-            Ok(methods) => payment_methods.extend(methods),
-            Err(e) => resolve_errors.push(format!("{e:#}")),
+            Ok((payments, claims)) => {
+                payment_methods.extend(payments);
+                claim_methods.extend(claims);
+            }
+            Err(e) => {
+                resolve_errors.push(format!("{e:#}"));
+            }
         }
     }
 
-    // TODO(nicole): Possibly inaccurate error message, because failed
-    // resolvables are filtered, some parsing errors are filtered, etc.
     ensure!(
-        !payment_methods.is_empty(),
-        "Failed to resolve payment methods: {}",
+        !payment_methods.is_empty() || !resolve_errors.is_empty(),
+        "Failed to resolve methods: {}",
         resolve_errors.join("; "),
     );
 
     // Filter out all methods that aren't valid for our current network
     // (e.g., ignore all testnet addresses when we're cfg'd for mainnet).
     payment_methods.retain(|method| method.supports_network(network));
+    claim_methods.retain(|method| method.supports_network(network));
     ensure!(
-        !payment_methods.is_empty(),
+        !payment_methods.is_empty() || !claim_methods.is_empty(),
         "Payment code is not valid for {network}"
     );
 
     // Sort payment methods by relative priority; highest priority first
     payment_methods.sort_unstable_by_key(|m| cmp::Reverse(m.priority()));
 
-    Ok(payment_methods)
+    Ok((payment_methods, claim_methods))
 }
 
 /// Helpers to resolve every [`Resolvable`] variant.
@@ -183,21 +194,6 @@ mod resolve {
             debug_assert!(!errors.is_empty());
             Err(anyhow!("{}", errors.join("; ")))
         }
-    }
-
-    /// Resolve an [`Lnurl`] into a single LNURL-pay [`PaymentMethod`].
-    pub(super) async fn lnurl(
-        lnurl_client: &lnurl::LnurlClient,
-        lnurl: Lnurl<'static>,
-    ) -> anyhow::Result<Vec<PaymentMethod>> {
-        let pay_request = lnurl_client
-            .get_pay_request(&lnurl)
-            .await
-            .context("Failed to resolve LNURL-pay url")?;
-        Ok(vec![PaymentMethod::LnurlPay {
-            lnurl: lnurl.http_url.into_owned(),
-            pay_request,
-        }])
     }
 }
 

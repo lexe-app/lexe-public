@@ -19,6 +19,7 @@
 //!
 //! General resolution of LNURLs
 //! - [`get_lnurl_intermediate`](crate::lnurl::LnurlClient::get_lnurl_intermediate)
+//! - [`resolve_lnurl`](crate::lnurl::LnurlClient::resolve_lnurl)
 //!
 //! Some steps in the LNURL flows require only parsing, and are implemented as
 //! methods on [`Lnurl`] rather than in this module. These include:
@@ -120,8 +121,8 @@ use lexe_api_core::types::{
 };
 use lexe_common::{constants, env::DeployEnv, ln::amount::Amount};
 use lexe_payment_uri_core::{
-    Lnurl, LnurlScheme, LnurlTag, LnurlWithdrawRequest,
-    LnurlWithdrawRequestWire,
+    ClaimMethod, Lnurl, LnurlScheme, LnurlTag, LnurlWithdrawRequest,
+    LnurlWithdrawRequestWire, PaymentMethod,
 };
 use lexe_std::Apply;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
@@ -559,6 +560,65 @@ impl LnurlClient {
             } => Ok(()),
             RawResponse::Error(LnurlErrorWire { reason, .. }) =>
                 Err(anyhow!("LNURL-withdraw callback failed: {reason}")),
+        }
+    }
+
+    /// Resolve an [`Lnurl`] into LNURL [`PaymentMethod`]s or [`ClaimMethod`]s.
+    ///
+    /// Compare with [`resolve`](crate::resolve()).
+    pub async fn resolve_lnurl(
+        &self,
+        lnurl: Lnurl<'static>,
+    ) -> anyhow::Result<(Vec<PaymentMethod>, Vec<ClaimMethod>)> {
+        let lnurl_intermediate = self
+            .get_lnurl_intermediate(&lnurl)
+            .await
+            .context("Failed to resolve LNURL url")?;
+        match lnurl_intermediate {
+            LnurlIntermediate::Pay(pay_request) => Ok((
+                vec![PaymentMethod::LnurlPay {
+                    lnurl: lnurl.http_url.into_owned(),
+                    pay_request,
+                }],
+                Vec::new(),
+            )),
+            LnurlIntermediate::Withdraw(withdraw_request) => {
+                let mut payments = Vec::with_capacity(2);
+                let mut claims = Vec::with_capacity(1);
+
+                // LUD-19 LNURL-withdraw may contain LNURL-pay
+                if let Some(pay_link) = &withdraw_request.pay_link {
+                    match Lnurl::parse(pay_link) {
+                        Ok(pay_lnurl) => {
+                            let pay_request =
+                                self.get_pay_request(&pay_lnurl).await;
+                            match pay_request {
+                                Ok(pay_request) =>
+                                    payments.push(PaymentMethod::LnurlPay {
+                                        lnurl: pay_lnurl.http_url.into_owned(),
+                                        pay_request,
+                                    }),
+                                Err(e) => debug!(
+                                    "Failed to resolve LNURL-pay linked \
+                                     from LNURL-withdraw: {e:#}"
+                                ),
+                            }
+                        }
+                        Err(e) => debug!(
+                            "Failed to parse LNURL-pay link from \
+                             LNURL-withdraw: {e:#}"
+                        ),
+                    }
+                }
+
+                // LNURL-withdraw
+                claims.push(ClaimMethod::LnurlWithdraw {
+                    lnurl: lnurl.http_url.into_owned(),
+                    withdraw_request,
+                });
+
+                Ok((payments, claims))
+            }
         }
     }
 }
