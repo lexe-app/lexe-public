@@ -1,6 +1,6 @@
 [package]
 name = "sdk-sidecar"
-version = "0.4.8"
+version = "0.4.9"
 license = "MIT"
 authors = { workspace = true }
 edition = { workspace = true }
