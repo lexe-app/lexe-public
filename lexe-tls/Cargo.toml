@@ -1,6 +1,6 @@
 [package]
 name = "lexe-tls"
-version = "0.1.12"
+version = "0.1.13"
 license = "MIT"
 description = "Lexe TLS configs, certs, and utilities"
 documentation = "https://docs.rs/lexe-tls"
