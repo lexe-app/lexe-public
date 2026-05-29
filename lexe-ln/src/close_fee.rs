@@ -6,6 +6,7 @@ use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
         chainmonitor::LockedChannelMonitor,
+        channelmonitor::HolderCommitmentTransactionBalance,
     },
     ln::channel_state::ChannelDetails,
 };
@@ -47,12 +48,6 @@ pub(crate) fn our_close_tx_fees_sats(
 
     // Extract our balance and the commitment tx fee from the monitor.
     //
-    // `our_sats = amount_satoshis + transaction_fee_satoshis`, where:
-    // - `amount_satoshis` = our output on the commitment tx (LDK:
-    //   `to_broadcaster_value_sat`)
-    // - `transaction_fee_satoshis` = commitment tx fee (incl. rounding loss)
-    //   (LDK: `channel_value - sum_i commitment_tx.outputs[i]`)
-    //
     // Unlike LDK's `Balance::claimable_amount_satoshis`, this intentionally
     // uses the currently confirmed/on-chain-valid candidate. During coop
     // close, LDK negotiates and signs against the currently locked funding
@@ -60,6 +55,7 @@ pub(crate) fn our_close_tx_fees_sats(
     // candidate.
     let mut our_sats: u64 = 0;
     let mut commit_tx_fee_sats: u64 = 0;
+    let mut our_inbound_dust_loss_sats: u64 = 0;
     for b in monitor.get_claimable_balances() {
         match b {
             Balance::ClaimableOnChannelClose {
@@ -73,8 +69,22 @@ pub(crate) fn our_close_tx_fees_sats(
                 let maybe_b =
                     balance_candidates.get(confirmed_balance_candidate_index);
                 if let Some(b) = maybe_b {
-                    our_sats += b.amount_satoshis + b.transaction_fee_satoshis;
-                    commit_tx_fee_sats += b.transaction_fee_satoshis;
+                    // See: `balance::balance_from_channel_claimable_balance`
+                    // for more details
+                    let HolderCommitmentTransactionBalance {
+                        amount_satoshis,
+                        transaction_fee_satoshis,
+                        our_inbound_dust_loss_satoshis,
+                        their_inbound_dust_loss_satoshis,
+                    } = b;
+
+                    our_sats += (amount_satoshis
+                        + transaction_fee_satoshis
+                        + our_inbound_dust_loss_satoshis)
+                        .saturating_sub(*their_inbound_dust_loss_satoshis);
+                    commit_tx_fee_sats += transaction_fee_satoshis;
+                    our_inbound_dust_loss_sats +=
+                        our_inbound_dust_loss_satoshis;
                 }
             }
             Balance::ClaimableAwaitingConfirmations { .. }
@@ -84,9 +94,6 @@ pub(crate) fn our_close_tx_fees_sats(
             | Balance::CounterpartyRevokedOutputClaimable { .. } => {}
         }
     }
-    if our_sats == 0 {
-        return 0;
-    };
 
     // We only pay for the on-chain channel close fees if we're the channel
     // funder.
@@ -97,14 +104,9 @@ pub(crate) fn our_close_tx_fees_sats(
     //
     // TODO(phlip9): channel.is_outbound will no longer be an accurate proxy
     // for whether we have to pay the close fees once we move to splices.
-    if !channel.is_outbound {
-        let fee_sats = if our_sats <= constants::LDK_DUST_LIMIT_SATS.into() {
-            our_sats
-        } else {
-            0
-        };
-        return fee_sats;
-    }
+    if our_sats == 0 || !channel.is_outbound {
+        return our_inbound_dust_loss_sats;
+    };
 
     // The current fees required for this close tx to confirm
     let tx_fees_sats = close_tx_fees_sats(fee_estimates, channel);

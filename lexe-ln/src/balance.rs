@@ -9,9 +9,12 @@ use lexe_common::{
     ppm::Ppm,
 };
 use lexe_std::Apply;
-use lightning::ln::channel_state::ChannelDetails;
+use lightning::{
+    chain::channelmonitor::{Balance, HolderCommitmentTransactionBalance},
+    ln::channel_state::ChannelDetails,
+};
 use rust_decimal::Decimal;
-use tracing::{trace, warn};
+use tracing::warn;
 
 use crate::{alias::LexeChainMonitorType, traits::LexePersister};
 
@@ -50,7 +53,7 @@ pub fn all_channel_balances<PS: LexePersister>(
     let mut num_usable_channels = 0;
 
     for channel in channels {
-        let balance = match channel_balance(chain_monitor, channel) {
+        let balance = match balance_from_channel(chain_monitor, channel) {
             Ok(bal) => bal,
             Err(e) => {
                 warn!("Error getting channel balance: {e:#}");
@@ -116,76 +119,35 @@ pub fn all_channel_balances<PS: LexePersister>(
     (total_balance, num_usable_channels)
 }
 
-/// Get our claimable channel balance for a given channel.
-pub fn channel_balance<PS: LexePersister>(
+/// Compute the contribution of a single channel to our "top-level" balance.
+/// Also handles new channels that are pending open and thus don't have a
+/// channel monitor yet.
+///
+/// For our top-level balance display, we want the value to behave intuitively,
+/// without weird discontinuities around the dust threshold or weird channel
+/// reserve accounting.
+///
+/// If I receive 100 sats, it should display 100 sats and not 0 sats, even if
+/// it's technically not spendable. Otherwise a users receives a few sats, sees
+/// _literally zero_ balance, and thinks we've lost their money. We'll rather
+/// communicate what portion of their balance is spendable in a context
+/// appropriate way.
+///
+/// The balance should also behave intuitively across transactions. If I receive
+/// 50 sats then 5000 sats, it should display 50 sats then 5050 sats, not 0 sats
+/// then 5050 sats. If I then spend 4900 sats, it should display 150 sats, not
+/// 0 sats.
+pub fn balance_from_channel<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     channel: &ChannelDetails,
 ) -> anyhow::Result<Amount> {
-    use lightning::chain::channelmonitor::Balance;
-
     let monitor = chain_monitor.get_monitor(channel.channel_id).ok();
     match monitor {
         Some(monitor) => {
             let amount_sats = monitor
                 .get_claimable_balances()
                 .into_iter()
-                .map(|b| {
-                    trace!("ln_balance: {b:?}");
-                    match b {
-                        Balance::ClaimableOnChannelClose {
-                            balance_candidates,
-                            confirmed_balance_candidate_index,
-                            outbound_payment_htlc_rounded_msat: _,
-                            outbound_forwarded_htlc_rounded_msat: _,
-                            inbound_claiming_htlc_rounded_msat: _,
-                            inbound_htlc_rounded_msat: _,
-                        } => {
-                            let idx = confirmed_balance_candidate_index;
-                            // Mirror LDK's `claimable_amount_satoshis`
-                            // semantics for top-level user balance: when no
-                            // alternative funding tx has confirmed yet, show
-                            // the latest negotiated splice/RBF candidate
-                            // instead of the currently confirmed one. This
-                            // keeps the user-visible balance stable while a
-                            // splice/RBF is pending.
-                            let maybe_b = if idx != 0 {
-                                Some(&balance_candidates[idx])
-                            } else {
-                                balance_candidates.last()
-                            };
-                            // Add back in the "reserved"
-                            // `transaction_fee_satoshis` to make things more
-                            // intuitive, i.e., open 10_000 sat channel, get
-                            // 10_000 sats balance.
-                            maybe_b
-                                .map(|b| {
-                                    b.amount_satoshis
-                                        + b.transaction_fee_satoshis
-                                })
-                                .unwrap_or(0)
-                        }
-                        Balance::ClaimableAwaitingConfirmations {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::ContentiousClaimable {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::MaybeTimeoutClaimableHTLC {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::MaybePreimageClaimableHTLC {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                        Balance::CounterpartyRevokedOutputClaimable {
-                            amount_satoshis,
-                            ..
-                        } => amount_satoshis,
-                    }
-                })
+                .map(balance_sats_from_channel_claimable_balance)
                 .sum();
             Amount::try_from_sats_u64(amount_sats)
                 .with_context(|| channel.channel_id)
@@ -203,5 +165,77 @@ pub fn channel_balance<PS: LexePersister>(
                 .with_context(|| channel.channel_id)?;
             Ok(outbound_capacity + reserve_sat)
         }
+    }
+}
+
+/// Compute the contribution of a single channel to our "top-level" balance.
+fn balance_sats_from_channel_claimable_balance(balance: Balance) -> u64 {
+    match balance {
+        Balance::ClaimableOnChannelClose {
+            balance_candidates,
+            confirmed_balance_candidate_index,
+            outbound_payment_htlc_rounded_msat: _,
+            outbound_forwarded_htlc_rounded_msat: _,
+            inbound_claiming_htlc_rounded_msat: _,
+            inbound_htlc_rounded_msat: _,
+        } => {
+            let idx = confirmed_balance_candidate_index;
+            // Mirror LDK's `claimable_amount_satoshis` semantics for top-level
+            // user balance: when no alternative funding tx has confirmed yet,
+            // show the latest negotiated splice/RBF candidate instead of the
+            // currently confirmed one. This keeps the user-visible balance
+            // stable while a splice/RBF is pending.
+            let maybe_b = if idx != 0 {
+                Some(&balance_candidates[idx])
+            } else {
+                balance_candidates.last()
+            };
+            maybe_b
+                .map(|b| {
+                    let HolderCommitmentTransactionBalance {
+                        // Our to-self commitment outputs
+                        amount_satoshis,
+                        // The commitment tx fee _we_ pay.
+                        // outbound: `channel_value - ∑ outputs`
+                        //  inbound: 0
+                        transaction_fee_satoshis,
+                        // ≈ our balance if it's lost to dust.
+                        // Can only be non-zero for inbound.
+                        our_inbound_dust_loss_satoshis,
+                        // ≈ their balance if it's lost to dust.
+                        // Can only be non-zero for outbound.
+                        their_inbound_dust_loss_satoshis,
+                    } = b;
+
+                    (amount_satoshis
+                        + transaction_fee_satoshis
+                        + our_inbound_dust_loss_satoshis)
+                        .saturating_sub(*their_inbound_dust_loss_satoshis)
+                })
+                .unwrap_or(0)
+        }
+        Balance::ClaimableAwaitingConfirmations {
+            amount_satoshis, ..
+        } => amount_satoshis,
+        Balance::ContentiousClaimable {
+            amount_satoshis, ..
+        } => amount_satoshis,
+        Balance::MaybeTimeoutClaimableHTLC {
+            amount_satoshis, ..
+        } => amount_satoshis,
+        Balance::MaybePreimageClaimableHTLC {
+            amount_satoshis, ..
+        } => amount_satoshis,
+        Balance::CounterpartyRevokedOutputClaimable {
+            amount_satoshis, ..
+        } => amount_satoshis,
+        // TODO(phlip9): upstream has different logic for these variants.
+        // Determine whether this behavior better matches our expectations.
+        // Balance::MaybeTimeoutClaimableHTLC {
+        //     amount_satoshis,
+        //     outbound_payment,
+        //     ..
+        //  } => if *outbound_payment { 0 } else { *amount_satoshis },
+        // Balance::MaybePreimageClaimableHTLC { .. } => 0,
     }
 }

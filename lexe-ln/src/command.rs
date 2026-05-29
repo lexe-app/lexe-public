@@ -264,7 +264,7 @@ pub fn list_channels<PS: LexePersister>(
         .map(|channel| {
             let channel_id = channel.channel_id;
             let channel_balance =
-                balance::channel_balance(chain_monitor, &channel)?;
+                balance::balance_from_channel(chain_monitor, &channel)?;
 
             let counterparty_node_id =
                 NodeId::from_pubkey(&channel.counterparty.node_id);

@@ -350,10 +350,11 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 # * Bypass channel monitor sync requests when no partition key given (on master)
 # * util: add helper ChannelHandshakeConfig -> ChannelHandshakeConfigUpdate (on master)
 # * Add missing `OffersMessageHandler::best_block` updating (on master)
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_28" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_28" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_28" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_04_28" }
+# * ln: balance: inbound dust loss accounting to display sub-dust balance
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
