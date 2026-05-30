@@ -65,7 +65,9 @@ use lexe_api::{
         PaymentUpdatedIndex, VecBasicPaymentV2,
     },
 };
+use lexe_common::time::TimestampMs;
 use lexe_node_client::client::NodeClient;
+use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::{
@@ -106,7 +108,31 @@ struct PaymentsDbState {
     ///     .max()
     /// ```
     latest_updated_index: Option<PaymentUpdatedIndex>,
+
+    /// The time we last successfully synced, or `None` if we've never synced.
+    ///
+    /// Tracks when we last *checked* for updates, so unlike
+    /// [`latest_updated_index`] it stays current even when no new payments
+    /// arrive.
+    ///
+    /// NOTE: This is measured by the device's local clock, not the node's
+    /// clock, so it's subject to clock skew.
+    ///
+    /// [`latest_updated_index`]: Self::latest_updated_index
+    last_synced_at: Option<TimestampMs>,
 }
+
+/// Payments DB metadata, persisted at [`METADATA_FILENAME`] in the same folder
+/// as the per-payment files.
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+struct PaymentsDbMetadata {
+    /// See [`PaymentsDbState::last_synced_at`].
+    last_synced_at: Option<TimestampMs>,
+}
+
+/// Filename of the [`PaymentsDbMetadata`] file. It is not a valid
+/// [`PaymentCreatedIndex`], so it never collides with a payment file.
+const METADATA_FILENAME: &str = "metadata.json";
 
 /// Sync the app's local payment state from the user node.
 ///
@@ -162,6 +188,11 @@ pub(crate) async fn sync_payments<F: Ffs>(
             break;
         }
     }
+
+    // Record the local-clock sync time, even if nothing changed, so we can
+    // later tell users how fresh their local cache is.
+    db.record_synced_at(TimestampMs::now())
+        .context("Failed to persist sync timestamp")?;
 
     Ok(summary)
 }
@@ -245,6 +276,19 @@ impl<F: Ffs> PaymentsDb<F> {
     /// The latest `updated_at` index of any payment in the db.
     pub fn latest_updated_index(&self) -> Option<PaymentUpdatedIndex> {
         self.state.read().unwrap().latest_updated_index()
+    }
+
+    /// The time we last successfully synced with the user node, or `None` if
+    /// we've never synced.
+    ///
+    /// Tracks when we last *checked* for updates, so it can be much more recent
+    /// than the newest payment's `updated_at` if a sync turned up no new
+    /// payments.
+    ///
+    /// NOTE: This is measured by the device's local clock, not the node's
+    /// clock, so it's subject to clock skew.
+    pub fn last_synced_at(&self) -> Option<TimestampMs> {
+        self.state.read().unwrap().last_synced_at
     }
 
     /// Get a payment by its `PaymentCreatedIndex`.
@@ -424,6 +468,21 @@ impl<F: Ffs> PaymentsDb<F> {
         ffs.write(&filename, &data)
     }
 
+    /// Record that a successful sync just completed at the given local time.
+    ///
+    /// Persists the metadata first, then updates in-memory state.
+    fn record_synced_at(&self, now: TimestampMs) -> io::Result<()> {
+        let metadata = PaymentsDbMetadata {
+            last_synced_at: Some(now),
+        };
+        let data = serde_json::to_vec(&metadata)
+            .expect("Failed to serialize metadata");
+        self.ffs.write(METADATA_FILENAME, &data)?;
+
+        self.state.write().unwrap().last_synced_at = Some(now);
+        Ok(())
+    }
+
     /// Update the personal note on an existing payment in this [`PaymentsDb`].
     /// This does NOT actually update the note on the user node, hence why this
     /// is not a public API.
@@ -474,6 +533,7 @@ impl PaymentsDbState {
             payments: BTreeMap::new(),
             pending: BTreeSet::new(),
             latest_updated_index: None,
+            last_synced_at: None,
         }
     }
 
@@ -481,8 +541,22 @@ impl PaymentsDbState {
     fn read(ffs: &impl Ffs) -> anyhow::Result<Self> {
         let mut buf = Vec::<u8>::new();
         let mut payments = Vec::<BasicPaymentV2>::new();
+        let mut last_synced_at = None;
 
         ffs.read_dir_visitor(|filename| {
+            // The metadata file lives alongside the payment files.
+            if filename == METADATA_FILENAME {
+                buf.clear();
+                ffs.read_into(filename, &mut buf)?;
+                let metadata =
+                    serde_json::from_slice::<PaymentsDbMetadata>(&buf)
+                        .context(METADATA_FILENAME)
+                        .context("Failed to deserialize payments db metadata")
+                        .map_err(io_error_invalid_data)?;
+                last_synced_at = metadata.last_synced_at;
+                return Ok(());
+            }
+
             // Parse created_at index from filename; skip unrecognized files.
             let created_index = match PaymentCreatedIndex::from_str(filename) {
                 Ok(idx) => idx,
@@ -521,10 +595,13 @@ impl PaymentsDbState {
         })
         .context("Failed to read payments db, possibly corrupted?")?;
 
-        Ok(Self::from_vec(payments))
+        Ok(Self::from_vec(payments, last_synced_at))
     }
 
-    fn from_vec(payments: Vec<BasicPaymentV2>) -> Self {
+    fn from_vec(
+        payments: Vec<BasicPaymentV2>,
+        last_synced_at: Option<TimestampMs>,
+    ) -> Self {
         let payments = payments
             .into_iter()
             .map(|p| (p.created_index(), p))
@@ -537,6 +614,7 @@ impl PaymentsDbState {
             payments,
             pending,
             latest_updated_index,
+            last_synced_at,
         }
     }
 
@@ -986,6 +1064,59 @@ mod test {
 
         assert!(db.state.read().unwrap().is_empty());
         db.debug_assert_invariants();
+    }
+
+    /// `last_synced_at` is set on every sync (even with no payments),
+    /// survives a reload from disk, and is reset by `clear`.
+    #[tokio::test]
+    async fn test_last_synced_at() {
+        let mock_node = MockNode::new(BTreeMap::new());
+        let db = PaymentsDb::empty(InMemoryFfs::new());
+
+        // Never synced yet.
+        assert_eq!(db.last_synced_at(), None);
+
+        // A sync records the local-clock sync time, even with no payments.
+        let before = TimestampMs::now();
+        sync_payments(&db, &mock_node, 5).await.unwrap();
+        let after = TimestampMs::now();
+        let synced_at = db.last_synced_at().expect("sync should set time");
+        assert!((before..=after).contains(&synced_at));
+        db.debug_assert_invariants();
+
+        // The sync time survives a reload from disk.
+        let db = PaymentsDb::read(db.ffs).unwrap();
+        assert_eq!(db.last_synced_at(), Some(synced_at));
+
+        // Clearing resets it.
+        db.clear().unwrap();
+        assert_eq!(db.last_synced_at(), None);
+
+        // Re-sync, then deleting `metadata.json` also resets it on reload.
+        sync_payments(&db, &mock_node, 5).await.unwrap();
+        assert!(db.last_synced_at().is_some());
+        db.ffs.delete(METADATA_FILENAME).unwrap();
+        let db = PaymentsDb::read(db.ffs).unwrap();
+        assert_eq!(db.last_synced_at(), None);
+    }
+
+    /// Backwards compat: pre-existing dbs with no `metadata.json` still read
+    /// fine, with `last_synced_at` defaulting to `None`.
+    #[test]
+    fn test_read_without_metadata() {
+        proptest!(Config::with_cases(8), |(payments in test_utils::any_payments(0..10))| {
+            let ffs = InMemoryFfs::new();
+
+            // Write only payment files; no metadata.json (simulates old db).
+            for payment in payments.values() {
+                PaymentsDb::<InMemoryFfs>::write_payment(&ffs, payment).unwrap();
+            }
+
+            let db = PaymentsDb::read(ffs).unwrap();
+            assert_eq!(db.last_synced_at(), None);
+            assert_eq!(db.num_payments(), payments.len());
+            db.debug_assert_invariants();
+        });
     }
 
     #[test]

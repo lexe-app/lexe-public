@@ -1267,21 +1267,23 @@ impl ListPaymentsArgs {
 
         // Some users were confused that list-payments doesn't sync first.
         // Since list-payments output can be very long, print a hint *after*
-        // the payments display.
-        let latest_updated_index = wallet
-            .payments_db()
-            .and_then(|db| db.latest_updated_index());
-        match latest_updated_index {
-            Some(index) => {
-                let relative = helpers::timestamp_ms_relative(index.updated_at);
+        // the payments display. We show `last_synced_at` (when we last
+        // contacted the node) rather than the newest payment's `updated_at`,
+        // since a recent sync may have simply turned up no new payments.
+        let last_synced_at =
+            wallet.payments_db().and_then(|db| db.last_synced_at());
+        match last_synced_at {
+            Some(synced_at) => {
+                let relative = helpers::timestamp_ms_relative(synced_at);
                 info!(
-                    "Hint: Last payments update was {relative}. \
-                     You may want to run $ lexe sync-payments first to see \
-                     updates later than this."
+                    "Hint: Payments were last synced {relative}. \
+                     Run $ lexe sync-payments to see updates newer than this."
                 );
             }
-            None =>
-                info!("Note: You may need to run $ lexe sync-payments first."),
+            None => info!(
+                "Note: Run $ lexe sync-payments first to populate local \
+                 payments storage."
+            ),
         }
 
         Ok(())

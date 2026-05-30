@@ -94,8 +94,9 @@ impl WalletDb<DiskFs> {
 
         let num_pending = payments_db.num_pending();
         let latest_updated_index = payments_db.latest_updated_index();
+        let last_synced_at = payments_db.last_synced_at();
         debug!(
-            %num_payments, %num_pending, ?latest_updated_index,
+            %num_payments, %num_pending, ?latest_updated_index, ?last_synced_at,
             "Loaded WalletDb."
         );
 
