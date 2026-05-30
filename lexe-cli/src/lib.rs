@@ -152,6 +152,7 @@ pub enum LexeCommand {
     SyncPayments(SyncPaymentsArgs),
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
+    Export(ExportArgs),
 }
 
 // --- LexeArgs impl --- //
@@ -280,6 +281,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
+        LexeCommand::Export(a) => a.run(&credentials),
     }
 }
 
@@ -1193,6 +1195,78 @@ impl ClearPaymentsArgs {
             .clear_payments()
             .context("Failed to clear payments")?;
         println!("Cleared local payments cache.");
+        Ok(())
+    }
+}
+
+// --- `export` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Export this wallet's seedphrase as 24 words",
+    long_about = "Export this wallet's BIP39 seedphrase.\n\
+        \n\
+        Prints the 24-word mnemonic, suitable for importing the wallet into\n\
+        the Lexe mobile app. Pass --qr to also print a QR code encoding the\n\
+        same mnemonic.\n\
+        \n\
+        Requires the root seed (not just client credentials).\n\
+        \n\
+        WARNING: Anyone with the mnemonic or QR code can take full control of\n\
+        this wallet's funds. Only display this in a private location and store\n\
+        the backup somewhere safe.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct ExportArgs {
+    /// Also print a QR code encoding the seedphrase.
+    #[arg(long)]
+    qr: bool,
+}
+
+impl ExportArgs {
+    fn run(self, credentials: &Credentials) -> anyhow::Result<()> {
+        let Credentials::RootSeed(root_seed) = credentials else {
+            return Err(anyhow!(
+                "export requires a root seed. \
+                 Use --root-seed / $LEXE_ROOT_SEED \
+                 or --root-seed-path / $LEXE_ROOT_SEED_PATH."
+            ));
+        };
+
+        let mnemonic = root_seed.to_mnemonic();
+
+        println!("Seedphrase (24 words):\n");
+        println!("```");
+        println!("{mnemonic}");
+        println!("```");
+
+        println!(
+            "\nWARNING: Anyone with this seedphrase can spend your wallet's \
+             funds."
+        );
+
+        println!(
+            "\nTo import this wallet into the Lexe mobile app, go to \
+             Restore wallet > Restore from Seed Phrase and enter the words \
+             above."
+        );
+
+        // We don't display the QR code by default because we don't yet have a
+        // way to import a seedphrase into the app via scan.
+        //
+        // TODO(max): Implement "Restore from QR code" in the app, remove --qr
+        if self.qr {
+            let qr = lexe_qr::encode_unicode(mnemonic.to_string().into_bytes())
+                .map_err(anyhow::Error::new)
+                .context("Failed to encode mnemonic as QR code")?;
+
+            println!(
+                "\nAlternatively, scan this QR code to import your Lexe seed \
+                 into another wallet:\n"
+            );
+            println!("{qr}\n");
+        }
+
         Ok(())
     }
 }

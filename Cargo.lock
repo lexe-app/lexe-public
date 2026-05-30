@@ -2626,6 +2626,7 @@ dependencies = [
  "dotenvy",
  "lexe",
  "lexe-common",
+ "lexe-qr",
  "serde",
  "serde_json",
  "textwrap",

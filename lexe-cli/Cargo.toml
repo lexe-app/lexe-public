@@ -18,6 +18,7 @@ doc = false
 # need to do so, maybe that functionality should be exposed in the Rust SDK?
 lexe = { workspace = true, features = ["unstable"] }
 lexe-common = { workspace = true }
+lexe-qr = { workspace = true }
 
 # --- WORKSPACE --- #
 
