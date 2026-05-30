@@ -756,6 +756,17 @@ pub struct CreateInvoiceArgs {
         to also be set."
     )]
     partner_base_fee: Option<Amount>,
+
+    /// Don't render the QR code
+    //
+    // Skips QR rendering, which may be useful for agents trying to limit
+    // token usage.
+    #[arg(long)]
+    no_qr: bool,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
 }
 
 impl CreateInvoiceArgs {
@@ -781,7 +792,36 @@ impl CreateInvoiceArgs {
                 .context("Payment sync failed")?;
         }
 
-        helpers::print_json_pretty(&resp)
+        // JSON response
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        // Human-readable response: the invoice string, the payment index
+        // (usable with `wait-for-payment` / `get-payment`), and a QR code.
+        let invoice = resp.invoice;
+
+        println!("\nInvoice:\n");
+        // Don't wrap this to keep it copy/paste-able
+        println!("{invoice}");
+        println!(
+            "\nPayment index (can be used with `lexe wait-for-payment` or \
+             `lexe get-payment`):\n"
+        );
+        println!("{}", resp.index);
+
+        if !self.no_qr {
+            // Encode the QR as a `lightning:` URI, matching how the Lexe app
+            // encodes BOLT11 invoices (see `PaymentOffer.uri` in the app).
+            let qr = lexe_qr::encode_unicode(
+                format!("lightning:{invoice}").into_bytes(),
+            )
+            .context("Failed to encode invoice as QR code")?;
+            println!("\nScan this QR code to pay the invoice:\n");
+            println!("{qr}\n");
+        }
+
+        anyhow::Ok(())
     }
 }
 
@@ -865,6 +905,17 @@ pub struct CreateOfferArgs {
     /// Offer expiration in seconds from now
     #[arg(long)]
     expiration_secs: Option<u32>,
+
+    /// Don't render the QR code
+    //
+    // Skips QR rendering, which may be useful for agents trying to limit
+    // token usage.
+    #[arg(long)]
+    no_qr: bool,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
 }
 
 impl CreateOfferArgs {
@@ -876,7 +927,38 @@ impl CreateOfferArgs {
         };
         let resp = wallet.create_offer(req).await?;
 
-        helpers::print_json_pretty(&resp)
+        // JSON response
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        // Human-readable response: the offer string, the offer ID (which later
+        // shows up in `Payment::offer_id` on payments to this offer), and a QR
+        // code of the offer.
+        let offer = resp.offer;
+
+        println!("\nOffer:\n");
+        // Don't wrap this to keep it copy/paste-able
+        println!("{offer}");
+        let offer_id = offer.id();
+        println!("\nOffer ID: {offer_id}");
+        println!(
+            "\nPayments to this offer will have this ID in their `offer_id` \
+             field."
+        );
+
+        if !self.no_qr {
+            // Encode the QR as a `bitcoin:?lno=<offer>` URI, matching how the
+            // Lexe app encodes BOLT12 offers (see `PaymentOffer.uri` in app).
+            let qr = lexe_qr::encode_unicode(
+                format!("bitcoin:?lno={offer}").into_bytes(),
+            )
+            .context("Failed to encode offer as QR code")?;
+            println!("\nScan this QR code to pay the offer:\n");
+            println!("{qr}\n");
+        }
+
+        anyhow::Ok(())
     }
 }
 
@@ -1257,7 +1339,6 @@ impl ExportArgs {
         // TODO(max): Implement "Restore from QR code" in the app, remove --qr
         if self.qr {
             let qr = lexe_qr::encode_unicode(mnemonic.to_string().into_bytes())
-                .map_err(anyhow::Error::new)
                 .context("Failed to encode mnemonic as QR code")?;
 
             println!(
