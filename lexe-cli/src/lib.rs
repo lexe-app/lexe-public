@@ -63,8 +63,19 @@ Control a wallet created from the Lexe mobile app:
     • --client-credentials        Pass directly in CLI
     • --client-credentials-path   Path to file with client credentials
 
-Verify your setup:
+Verify your setup, view balance:
   $ lexe node-info
+
+Receive:
+  $ lexe create-invoice
+  $ lexe wait-for-payment <index> # 0000001778115215123-ln_e1f8e...
+
+Send:
+  $ lexe pay-invoice <invoice> # lnbc10u1p5...
+
+List payments:
+  $ lexe sync-payments # Sync payments to local storage
+  $ lexe list-payments # List payments in local storage
 
 Precedence: CLI args > env vars > .env
   `.env` is loaded from the current or any parent directory.",
