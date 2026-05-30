@@ -32,8 +32,6 @@ use serde::Serialize;
 use textwrap::wrap;
 use tracing::{info, warn};
 
-use crate::helpers::timestamp_ms_pretty;
-
 // --- Top-level args and command enum --- //
 
 /// Clap's default help template, but with `$ ` prefixed to the usage line.
@@ -583,7 +581,7 @@ impl AnalyzeArgs {
                 max_amount.map(|a| format!("maximum amount: {a} sats")),
                 expires_at.and_then(|t| {
                     // If conversion fails, time was too large, so just omit
-                    timestamp_ms_pretty(t)
+                    helpers::timestamp_ms_pretty(t)
                         .ok()
                         .map(|s| format!("expiration date: {s}"))
                 }),
@@ -1265,7 +1263,28 @@ impl ListPaymentsArgs {
         let resp = wallet
             .list_payments(&filter, order, self.limit, self.after.as_ref())
             .context("Failed to list payments")?;
-        helpers::print_json_pretty(&resp)
+        helpers::print_json_pretty(&resp)?;
+
+        // Some users were confused that list-payments doesn't sync first.
+        // Since list-payments output can be very long, print a hint *after*
+        // the payments display.
+        let latest_updated_index = wallet
+            .payments_db()
+            .and_then(|db| db.latest_updated_index());
+        match latest_updated_index {
+            Some(index) => {
+                let relative = helpers::timestamp_ms_relative(index.updated_at);
+                info!(
+                    "Hint: Last payments update was {relative}. \
+                     You may want to run $ lexe sync-payments first to see \
+                     updates later than this."
+                );
+            }
+            None =>
+                info!("Note: You may need to run $ lexe sync-payments first."),
+        }
+
+        Ok(())
     }
 }
 
@@ -1390,6 +1409,34 @@ mod helpers {
             // 2026 December 01 22:49:32 UTC-08:30
             .map(|dt| dt.format("%Y %B %d %T UTC%:z").to_string())
             .context("Failed to convert timestamp to display string")
+    }
+
+    /// Format a past [`TimestampMs`] relative to now, e.g. "just now",
+    /// "5 minutes ago", "3 hours ago", "143 weeks ago".
+    ///
+    /// Picks the largest whole unit that fits. Granularity tops out at weeks
+    /// (no months/years), so old timestamps still read as "N weeks ago".
+    pub fn timestamp_ms_relative(timestamp: TimestampMs) -> String {
+        const MINUTE: u64 = 60;
+        const HOUR: u64 = 60 * MINUTE;
+        const DAY: u64 = 24 * HOUR;
+        const WEEK: u64 = 7 * DAY;
+
+        // `absolute_diff` so a slightly-future timestamp (clock drift) still
+        // produces a sane "just now" rather than underflowing.
+        let secs = TimestampMs::now().absolute_diff(timestamp).as_secs();
+
+        let (count, unit) = match secs {
+            0 => return "just now".to_owned(),
+            s if s < MINUTE => (s, "second"),
+            s if s < HOUR => (s / MINUTE, "minute"),
+            s if s < DAY => (s / HOUR, "hour"),
+            s if s < WEEK => (s / DAY, "day"),
+            s => (s / WEEK, "week"),
+        };
+
+        let plural = if count == 1 { "" } else { "s" };
+        format!("{count} {unit}{plural} ago")
     }
 
     /// Resolve credentials from the provided args or the seedphrase file.
