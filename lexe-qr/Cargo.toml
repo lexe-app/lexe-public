@@ -1,0 +1,22 @@
+[package]
+name = "lexe-qr"
+version = "0.1.13"
+license = "MIT"
+description = "QR code generation with .bmp image output"
+documentation = "https://docs.rs/lexe-qr"
+authors = { workspace = true }
+edition = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+publish = true
+
+[dependencies]
+fast_qr = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true, features = ["alloc"] }
+
+[target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Include std impls when testing outside of SGX
+proptest = { workspace = true, features = ["std"] }

@@ -11,8 +11,8 @@ default = ["flutter"]
 # This feature enables flutter-only dependencies.
 # Disabling this feature removes a lot of gunk from our smoketests.
 flutter = [
-    "dep:fast_qr",
     "dep:flutter_rust_bridge",
+    "dep:lexe-qr",
 ]
 
 [dependencies]
@@ -26,6 +26,8 @@ lexe-crypto = { workspace = true }
 lexe-hex = { workspace = true }
 lexe-node-client = { workspace = true }
 lexe-payment-uri = { workspace = true }
+# Only enable QR code generation when actually building for app
+lexe-qr = { workspace = true, optional = true }
 lexe-std = { workspace = true }
 lexe-tls = { workspace = true }
 lexe-tokio = { workspace = true }
@@ -65,11 +67,6 @@ flutter_rust_bridge = { workspace = true, optional = true, features = [
     "thread-pool",
     "rust-async",
 ] }
-
-# --- CRATE-SPECIFIC --- #
-
-# Only enable QR code generation when actually building for app
-fast_qr = { workspace = true, optional = true }
 
 # TODO(phlip9): uncomment when I need this
 # [target.'cfg(target_os = "android")'.dependencies]

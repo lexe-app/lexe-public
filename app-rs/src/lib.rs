@@ -31,9 +31,6 @@ pub(crate) mod ffi;
 pub(crate) mod frb_generated;
 /// Pipe `tracing` log messages from native Rust to Dart.
 mod logger;
-/// QR code generation for the app
-#[cfg(feature = "flutter")]
-pub(crate) mod qr;
 /// Securely store and retrieve user secrets.
 mod secret_store;
 /// Settings DB

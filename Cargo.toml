@@ -19,6 +19,7 @@ members = [
     "lexe-node-client",
     "lexe-payment-uri",
     "lexe-payment-uri-core",
+    "lexe-qr",
     "lexe-serde",
     "lexe-sha256",
     "lexe-std",
@@ -85,6 +86,7 @@ lexe-logger = { version = "0.1.13", path = "lexe-logger" }
 lexe-node-client = { version = "0.1.13", path = "lexe-node-client" }
 lexe-payment-uri = { version = "0.1.13", path = "lexe-payment-uri" }
 lexe-payment-uri-core = { version = "0.1.13", path = "lexe-payment-uri-core" }
+lexe-qr = { version = "0.1.13", path = "lexe-qr" }
 lexe-serde = { version = "0.1.13", path = "lexe-serde" }
 lexe-sha256 = { version = "0.1.13", path = "lexe-sha256" }
 lexe-std = { version = "0.1.13", path = "lexe-std" }

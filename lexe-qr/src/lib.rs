@@ -1,18 +1,31 @@
-//! # QR encoding
+//! Lexe-opinionated QR code generation, built on [`fast_qr`].
 //!
-//! ### Why does this exist
+//! Encodes arbitrary byte payloads (typically Bitcoin addresses, Lightning
+//! invoices, BIP39 mnemonics, etc.) as either a `.bmp` image for embedding in
+//! a UI, or as Unicode block characters for printing to a terminal. All codes
+//! are produced at a minimum size so that differently-sized inputs render at a
+//! consistent visual scale.
 //!
-//! 1. Do the encoding in Rust, which is safe and reliable. The previous library
-//!    (flutter_zxing) has/had multiple memory safety issues.
+//! Note that we do *not* bake in the **Quiet Zone** (see "Background" below);
+//! callers are expected to add their own margin.
+//!
+//! ### Why does this crate exist?
+//!
+//! The Lexe app needs to render QR codes on its "Receive" page (Bitcoin
+//! addresses, LN invoices/offers). Flutter has existing QR libraries (e.g.
+//! flutter_zxing), but we generate codes ourselves in Rust for a few reasons:
+//!
+//! 1. Safety & reliability. flutter_zxing has/had multiple memory safety
+//!    issues; a pure-Rust implementation avoids that whole class of bugs.
 //!
 //! 2. Do the full image encoding in Rust and not a mix of Dart and C++.
 //!    [`fast_qr`] is especially fast and gives a lot of control.
 //!
-//! 3. Full control over the QR code sizing. For design reasons, I want the QR
-//!    codes on the "Receive" page to look visually similar and take up the same
-//!    space despite encoding different sized inputs (bitcoin address vs. LN
-//!    {invoice,offer}). Without this, the BTC address QR code looks especially
-//!    ugly.
+//! 3. Full control over the QR code sizing. For design reasons, the Lexe app
+//!    wants the QR codes on the "Receive" page to look visually similar and
+//!    take up the same space despite encoding different sized inputs (bitcoin
+//!    address vs. LN {invoice,offer}). Without this, the BTC address QR code
+//!    looks especially ugly.
 //!
 //! 4. (future) overlay or replace the center of the QR code with a LEXE logo.
 //!
@@ -32,15 +45,11 @@
 //! wallets don't handle scanning AlphaNumeric (all uppercase) bech32 codes
 //! properly.
 //!
-//! On the UI side, we also need to be aware of the minimum **Quiet Zone** that
-//! must surround the QR code in order to support a good scan rate. The Quiet
-//! Zone is the white margin around the QR code. Per the spec, it should be at
-//! least 4 modules worth of margin.
-//!
-//! [`ECL`]: fast_qr::ECL
-//! [`Mode`]: fast_qr::Mode
-//! [`Module`]: fast_qr::Module
-//! [`Version`]: fast_qr::Version
+//! Finally, a QR code needs a minimum **Quiet Zone** surrounding it in order to
+//! scan reliably. The Quiet Zone is the white margin around the QR code; per
+//! the spec, it should be at least 4 modules wide. This crate does *not* add
+//! the Quiet Zone — the caller (e.g. the app's "Receive" page, or a terminal
+//! frontend) is responsible for surrounding the output with sufficient margin.
 
 use std::fmt;
 
@@ -60,6 +69,20 @@ use fast_qr::{ECL, Mode, Module, QRCode, Version, qr::QRBuilder};
 pub fn encode(data: Vec<u8>) -> Result<Vec<u8>, DataTooLongError> {
     let qr = encode_qr_code(data)?;
     Ok(qr_code_to_bmp_image(&qr))
+}
+
+/// Encode `data` as a QR code, rendered as a string of Unicode half-block
+/// characters suitable for printing to a terminal.
+///
+/// The output does *not* include the standard 4-module quiet zone (only a
+/// minimal 1-module margin from [`fast_qr`]), so callers should surround it
+/// with additional whitespace for the code to scan reliably in a terminal.
+///
+/// Returns an error if the data is too long to fit in a QR code (input data is
+/// longer than 2953 B).
+pub fn encode_unicode(data: Vec<u8>) -> Result<String, DataTooLongError> {
+    let qr = encode_qr_code(data)?;
+    Ok(qr.to_str())
 }
 
 /// Return the size in pixels of one side of the encoded QR code .bmp image for

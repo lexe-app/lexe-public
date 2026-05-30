@@ -165,7 +165,6 @@ dependencies = [
  "bip39",
  "bitcoin",
  "cfg-if 1.0.4",
- "fast_qr",
  "flutter_rust_bridge",
  "gdrive",
  "http",
@@ -177,6 +176,7 @@ dependencies = [
  "lexe-hex",
  "lexe-node-client",
  "lexe-payment-uri",
+ "lexe-qr",
  "lexe-std",
  "lexe-tls",
  "lexe-tokio",
@@ -2852,6 +2852,14 @@ dependencies = [
  "rust_decimal",
  "serde",
  "strum",
+]
+
+[[package]]
+name = "lexe-qr"
+version = "0.1.13"
+dependencies = [
+ "fast_qr",
+ "proptest",
 ]
 
 [[package]]
