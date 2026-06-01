@@ -1422,9 +1422,9 @@ mod helpers {
         const DAY: u64 = 24 * HOUR;
         const WEEK: u64 = 7 * DAY;
 
-        // `absolute_diff` so a slightly-future timestamp (clock drift) still
-        // produces a sane "just now" rather than underflowing.
-        let secs = TimestampMs::now().absolute_diff(timestamp).as_secs();
+        // Saturating so a slightly-future timestamp (due to clock drift) reads
+        // as "just now" rather than underflowing.
+        let secs = timestamp.saturating_elapsed().as_secs();
 
         let (count, unit) = match secs {
             0 => return "just now".to_owned(),

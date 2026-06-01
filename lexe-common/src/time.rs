@@ -158,6 +158,36 @@ impl TimestampMs {
         Duration::from_millis(self.0.abs_diff(other.0))
     }
 
+    /// Returns the [`Duration`] elapsed from `earlier` to `self`,
+    /// or [`None`] if `earlier` is later than `self`.
+    #[inline]
+    pub fn checked_duration_since(self, earlier: Self) -> Option<Duration> {
+        let ms = u64::try_from(self.0 - earlier.0).ok()?;
+        Some(Duration::from_millis(ms))
+    }
+
+    /// Returns the [`Duration`] elapsed from `earlier` to `self`,
+    /// saturating to [`Duration::ZERO`] if `earlier` is later than `self`.
+    #[inline]
+    pub fn saturating_duration_since(self, earlier: Self) -> Duration {
+        self.checked_duration_since(earlier)
+            .unwrap_or(Duration::ZERO)
+    }
+
+    /// Returns the [`Duration`] elapsed since this timestamp,
+    /// or [`None`] if it is in the future.
+    #[inline]
+    pub fn checked_elapsed(self) -> Option<Duration> {
+        Self::now().checked_duration_since(self)
+    }
+
+    /// Returns the [`Duration`] elapsed since this timestamp,
+    /// saturating to [`Duration::ZERO`] if it is in the future.
+    #[inline]
+    pub fn saturating_elapsed(self) -> Duration {
+        Self::now().saturating_duration_since(self)
+    }
+
     /// Floors the timestamp to the most recent second.
     #[cfg(test)]
     fn floor_secs(self) -> Self {
@@ -348,5 +378,42 @@ mod test {
                 ts
             );
         })
+    }
+
+    #[test]
+    fn timestamp_duration_since() {
+        proptest!(|(ts1: TimestampMs, ts2: TimestampMs)| {
+            let (lesser, greater) =
+                if ts1 <= ts2 { (ts1, ts2) } else { (ts2, ts1) };
+            let diff =
+                Duration::from_millis(greater.to_millis() - lesser.to_millis());
+
+            // `greater` since `lesser` is exactly `diff`.
+            prop_assert_eq!(greater.checked_duration_since(lesser), Some(diff));
+            prop_assert_eq!(greater.saturating_duration_since(lesser), diff);
+
+            // `lesser` since `greater` underflows: `None` / saturates to
+            // `ZERO`, except when equal, where the diff is just `ZERO`.
+            let expected_checked = (lesser == greater).then_some(Duration::ZERO);
+            prop_assert_eq!(
+                lesser.checked_duration_since(greater),
+                expected_checked
+            );
+            prop_assert_eq!(
+                lesser.saturating_duration_since(greater),
+                Duration::ZERO
+            );
+        })
+    }
+
+    #[test]
+    fn timestamp_elapsed() {
+        // `now` lies between MIN and MAX, so a min timestamp has elapsed while
+        // a max (far-future) timestamp underflows.
+        assert!(TimestampMs::MIN.checked_elapsed().is_some());
+        assert!(TimestampMs::MIN.saturating_elapsed() > Duration::ZERO);
+
+        assert_eq!(TimestampMs::MAX.checked_elapsed(), None);
+        assert_eq!(TimestampMs::MAX.saturating_elapsed(), Duration::ZERO);
     }
 }
