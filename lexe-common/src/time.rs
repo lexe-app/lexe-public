@@ -152,12 +152,6 @@ impl TimestampMs {
         self.checked_sub(duration).unwrap_or(Self::MIN)
     }
 
-    /// Returns the absolute difference two timestamps as a [`Duration`].
-    pub fn absolute_diff(self, other: Self) -> Duration {
-        let dur_ms = self.0.abs_diff(other.0);
-        Duration::from_millis(dur_ms)
-    }
-
     /// Returns the [`Duration`] elapsed from `earlier` to `self`,
     /// or [`None`] if `earlier` is later than `self`.
     pub fn checked_duration_since(self, earlier: Self) -> Option<Duration> {

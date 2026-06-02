@@ -471,8 +471,8 @@ impl UserRunner {
 
         if self.mega_last_used < mega_inactive_ts {
             let inactive_secs =
-                self.mega_last_used.absolute_diff(now).as_secs();
-            info!(%inactive_secs, "Meganode inactive, initiating shutdown");
+                now.saturating_duration_since(self.mega_last_used).as_secs();
+            info!(inactive_secs, "Meganode inactive, initiating shutdown");
 
             self.mega_shutdown.send();
         }
@@ -898,7 +898,7 @@ mod helpers {
         now: TimestampMs,
         msg: &str,
     ) {
-        let inactive_secs = last_used.absolute_diff(now).as_secs();
-        info!(%inactive_secs, "{msg}");
+        let inactive_secs = now.saturating_duration_since(last_used).as_secs();
+        info!(inactive_secs, "{msg}");
     }
 }
