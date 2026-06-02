@@ -153,25 +153,23 @@ impl TimestampMs {
     }
 
     /// Returns the absolute difference two timestamps as a [`Duration`].
-    #[inline]
     pub fn absolute_diff(self, other: Self) -> Duration {
-        Duration::from_millis(self.0.abs_diff(other.0))
+        let dur_ms = self.0.abs_diff(other.0);
+        Duration::from_millis(dur_ms)
     }
 
     /// Returns the [`Duration`] elapsed from `earlier` to `self`,
     /// or [`None`] if `earlier` is later than `self`.
-    #[inline]
     pub fn checked_duration_since(self, earlier: Self) -> Option<Duration> {
-        let ms = u64::try_from(self.0 - earlier.0).ok()?;
-        Some(Duration::from_millis(ms))
+        let dur_ms = self.to_u64().checked_sub(earlier.to_u64())?;
+        Some(Duration::from_millis(dur_ms))
     }
 
     /// Returns the [`Duration`] elapsed from `earlier` to `self`,
     /// saturating to [`Duration::ZERO`] if `earlier` is later than `self`.
-    #[inline]
     pub fn saturating_duration_since(self, earlier: Self) -> Duration {
-        self.checked_duration_since(earlier)
-            .unwrap_or(Duration::ZERO)
+        let dur_ms = self.to_u64().saturating_sub(earlier.to_u64());
+        Duration::from_millis(dur_ms)
     }
 
     /// Returns the [`Duration`] elapsed since this timestamp,
