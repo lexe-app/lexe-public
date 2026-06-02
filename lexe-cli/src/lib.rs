@@ -820,14 +820,10 @@ impl CreateInvoiceArgs {
         println!("{}", resp.index);
 
         if !self.no_qr {
+            println!("\nScan this QR code to pay the invoice:");
             // Encode the QR as a `lightning:` URI, matching how the Lexe app
             // encodes BOLT11 invoices (see `PaymentOffer.uri` in the app).
-            let qr = lexe_qr::encode_unicode(
-                format!("lightning:{invoice}").into_bytes(),
-            )
-            .context("Failed to encode invoice as QR code")?;
-            println!("\nScan this QR code to pay the invoice:\n");
-            println!("{qr}\n");
+            helpers::encode_and_print_qr(&format!("lightning:{invoice}"))?;
         }
 
         anyhow::Ok(())
@@ -957,14 +953,10 @@ impl CreateOfferArgs {
         );
 
         if !self.no_qr {
+            println!("\nScan this QR code to pay the offer:");
             // Encode the QR as a `bitcoin:?lno=<offer>` URI, matching how the
             // Lexe app encodes BOLT12 offers (see `PaymentOffer.uri` in app).
-            let qr = lexe_qr::encode_unicode(
-                format!("bitcoin:?lno={offer}").into_bytes(),
-            )
-            .context("Failed to encode offer as QR code")?;
-            println!("\nScan this QR code to pay the offer:\n");
-            println!("{qr}\n");
+            helpers::encode_and_print_qr(&format!("bitcoin:?lno={offer}"))?;
         }
 
         anyhow::Ok(())
@@ -1370,14 +1362,11 @@ impl ExportArgs {
         //
         // TODO(max): Implement "Restore from QR code" in the app, remove --qr
         if self.qr {
-            let qr = lexe_qr::encode_unicode(mnemonic.to_string().into_bytes())
-                .context("Failed to encode mnemonic as QR code")?;
-
             println!(
                 "\nAlternatively, scan this QR code to import your Lexe seed \
-                 into another wallet:\n"
+                 into another wallet:"
             );
-            println!("{qr}\n");
+            helpers::encode_and_print_qr(&mnemonic.to_string())?;
         }
 
         Ok(())
@@ -1395,6 +1384,22 @@ mod helpers {
         let json = serde_json::to_string_pretty(value)
             .context("Failed to serialize to JSON")?;
         println!("{json}");
+        Ok(())
+    }
+
+    /// Encode `data` as a QR code and print it with two newlines above and
+    /// below, something like a vertical-only "quiet zone".
+    ///
+    /// We don't add extra horizontal quiet zones because Lexe QRs have been
+    /// designed to have 80-character widths if the data inside fits, so that
+    /// Lexe QRs show up nicely in most terminals. In practice the vertical
+    /// quiet zone alone should be good enough.
+    ///
+    /// See the [`lexe_qr`] crate for details.
+    pub fn encode_and_print_qr(data: &str) -> anyhow::Result<()> {
+        let qr = lexe_qr::encode_unicode(data.to_owned().into_bytes())
+            .context("Failed to encode QR code")?;
+        println!("\n\n{qr}\n");
         Ok(())
     }
 
