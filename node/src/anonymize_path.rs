@@ -1,4 +1,7 @@
-//! Logic to anonymize payment paths before reporting to Lexe LSP.
+//! Logic to anonymize payment paths before reporting to Lexe LSP. Payment
+//! paths are anonymized by progressively truncating the payment path until the
+//! anonymity set (the potential set of recipients from the last hop) is larger
+//! than our `MIN_ANONYMITY_SET_SIZE` threshold.
 
 use std::collections::{HashMap, hash_map::Entry};
 
@@ -97,15 +100,37 @@ pub(crate) fn failed_path(
 /// Anonymizes a [`Path`] to a receiver by removing hops from the end of the
 /// path until the size of the anonymity set of possible receivers is at
 /// least [`MIN_ANONYMITY_SET_SIZE`] (or returns [`None`] if unreachable).
+///
+/// If the the path has a `blinded_tail`, then we'll consider it already
+/// anonymized. We'll strip the `blinded_tail` to reduce the size of the
+/// anonymized path.
 fn anonymize_path(
     network_graph: &NetworkGraphType,
     mut path: Path,
 ) -> Option<Path> {
-    // If the tail is already blinded, the receiver is already anonymized;
-    // we can send the event to the LSP as is.
-    if path.blinded_tail.is_some() {
+    // If the tail is already blinded, the receiver is already anonymized.
+    //
+    // We can also optimize the size of the anonymized path by folding the
+    // blinded tail's value and CLTV delta into the last visible hop, then
+    // dropping the blinded tail.
+    if let Some(blinded_tail) = path.blinded_tail.take() {
+        let receiver_hop = match path.hops.last_mut() {
+            Some(hop) => hop,
+            None => {
+                debug_panic_release_log!("Path should always have >= 1 hop!");
+                return None;
+            }
+        };
+
+        receiver_hop.fee_msat = receiver_hop
+            .fee_msat
+            .saturating_add(blinded_tail.final_value_msat);
+        receiver_hop.cltv_expiry_delta = receiver_hop
+            .cltv_expiry_delta
+            .saturating_add(blinded_tail.excess_final_cltv_expiry_delta);
         return Some(path);
     }
+
     // From here, we know the path does not have a blinded tail.
     let start = Instant::now();
 
@@ -114,11 +139,12 @@ fn anonymize_path(
     // Coinbase, as their anonymity set is all of their users.
     let receiver_hop = path.hops.pop();
 
-    // Hold on to the path amount (last hop `fee_msat`). We need to restore
-    // this on the last hop of the anonymized path in order to update the
-    // LSP scorer accurately.
-    let path_amount_msat = match receiver_hop {
-        Some(h) => h.fee_msat,
+    // Track the value and CLTV delta represented by the anonymized tail. When a
+    // non-final hop becomes the anonymized final hop, these fields need to
+    // include that hop's fee and CLTV delta, since that is what was actually
+    // transferred into the hop.
+    let (mut anon_value_msat, mut anon_cltv_expiry_delta) = match receiver_hop {
+        Some(h) => (h.fee_msat, h.cltv_expiry_delta),
         None => {
             debug_panic_release_log!("Path should always have >= 1 hop!");
             return None;
@@ -151,11 +177,23 @@ fn anonymize_path(
                 "Anonymized path: termination depth={depth}"
             );
 
-            // Restore the original path amount in the last hop `fee_msat`.
-            departure_hop.fee_msat = path_amount_msat;
+            // Restore the accumulated value + CLTV delta from the anonymized
+            // suffix, plus this hop's own fee and CLTV delta, as it is now the
+            // final hop of the anonymized path.
+            departure_hop.fee_msat =
+                anon_value_msat.saturating_add(departure_hop.fee_msat);
+            departure_hop.cltv_expiry_delta = anon_cltv_expiry_delta
+                .saturating_add(departure_hop.cltv_expiry_delta);
 
             return Some(path);
         }
+
+        // Anonymity set not large enough. Accumulate this hop's fee + CLTV
+        // delta.
+        anon_value_msat =
+            anon_value_msat.saturating_add(departure_hop.fee_msat);
+        anon_cltv_expiry_delta = anon_cltv_expiry_delta
+            .saturating_add(departure_hop.cltv_expiry_delta);
 
         path.hops.pop();
         depth += 1;
@@ -246,12 +284,12 @@ mod tests {
         ln::msgs::UnsignedChannelUpdate,
         routing::{
             gossip::NodeId,
-            router::{Path, RouteHop},
+            router::{BlindedTail, Path, RouteHop},
         },
         types::features::{ChannelFeatures, NodeFeatures},
     };
 
-    use super::{MIN_ANONYMITY_SET_SIZE, NetworkGraphType, anonymize_path};
+    use super::*;
 
     #[test]
     fn test_anonymize_path() {
@@ -324,10 +362,18 @@ mod tests {
             blinded_tail: None,
         };
 
-        let anonymized = anonymize_path(&graph, path).expect("anonymizes path");
+        let anonymized =
+            anonymize_path(&graph, path.clone()).expect("anonymizes path");
 
-        // anonymized: sender <-> lsp <-> hop1
+        // Anonymized: sender <-> lsp <-> hop1
         assert_eq!(anonymized.hops.len(), 2);
+        assert_eq!(anonymized.blinded_tail, None);
+
+        // Anonymizing preserves total path value
+        assert_eq!(
+            path.final_value_msat() + path.fee_msat(),
+            anonymized.final_value_msat() + anonymized.fee_msat()
+        );
 
         let snd_lsp = &anonymized.hops[0];
         assert_eq!(snd_lsp.pubkey, lsp);
@@ -336,10 +382,80 @@ mod tests {
 
         let lsp_hop1 = &anonymized.hops[1];
         assert_eq!(lsp_hop1.pubkey, hop1);
-        assert_eq!(lsp_hop1.fee_msat, final_value_msat);
-        // assert_eq!(lsp_hop1.cltv_expiry_delta, final_cltv_expiry_delta);
+        assert_eq!(
+            lsp_hop1.fee_msat,
+            final_value_msat + hop1_fee_msat + hop2_fee_msat
+        );
+        assert_eq!(
+            lsp_hop1.cltv_expiry_delta,
+            final_cltv_expiry_delta
+                + hop1_cltv_expiry_delta
+                + hop2_cltv_expiry_delta
+        );
 
         assert_eq!(anonymized.blinded_tail, None);
+    }
+
+    #[test]
+    fn test_anonymize_blinded_tail() {
+        let graph = NetworkGraphType::new(
+            bitcoin::Network::Regtest,
+            LexeTracingLogger::new(),
+        );
+
+        let lsp = node_pubkey(1);
+        let intro_node = node_pubkey(2);
+        let blinded_path_fee_msat = 6969;
+        let final_value_msat = 123_456;
+        let blinded_path_cltv_expiry_delta = 42;
+        let excess_final_cltv_expiry_delta = 12;
+        let path = Path {
+            hops: vec![
+                route_hop(lsp, 1, 1212, 10),
+                route_hop(
+                    intro_node,
+                    2,
+                    blinded_path_fee_msat,
+                    blinded_path_cltv_expiry_delta,
+                ),
+            ],
+            blinded_tail: Some(BlindedTail {
+                trampoline_hops: vec![],
+                hops: vec![],
+                blinding_point: node_pubkey(3),
+                excess_final_cltv_expiry_delta,
+                final_value_msat,
+            }),
+        };
+
+        let anonymized =
+            anonymize_path(&graph, path.clone()).expect("anonymizes path");
+
+        // Anonymize: sender <-> lsp <-> intro_node
+        assert_eq!(anonymized.hops.len(), 2);
+        assert_eq!(anonymized.blinded_tail, None);
+
+        // Anonymizing preserves total path value
+        assert_eq!(
+            path.final_value_msat() + path.fee_msat(),
+            anonymized.final_value_msat() + anonymized.fee_msat()
+        );
+
+        let snd_lsp = &anonymized.hops[0];
+        assert_eq!(snd_lsp.pubkey, lsp);
+        assert_eq!(snd_lsp.fee_msat, 1212);
+        assert_eq!(snd_lsp.cltv_expiry_delta, 10);
+
+        let lsp_intro = &anonymized.hops[1];
+        assert_eq!(lsp_intro.pubkey, intro_node);
+        assert_eq!(
+            lsp_intro.fee_msat,
+            final_value_msat + blinded_path_fee_msat
+        );
+        assert_eq!(
+            lsp_intro.cltv_expiry_delta,
+            blinded_path_cltv_expiry_delta + excess_final_cltv_expiry_delta
+        );
     }
 
     fn add_channel(
