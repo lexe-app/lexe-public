@@ -790,6 +790,7 @@ mod helpers {
             lsp,
             lsp_url: _,
             mega_inactivity_secs: _,
+            mega_max_lifetime_secs: _,
             memory_overhead: _,
             oauth: _,
             runner_url,

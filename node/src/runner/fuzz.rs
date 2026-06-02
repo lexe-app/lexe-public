@@ -259,6 +259,7 @@ mod helpers {
             lsp: LspInfo::dummy(),
             lsp_url: String::new(),
             mega_inactivity_secs: 7200, // 2 hours (from dummy config)
+            mega_max_lifetime_secs: Some(12 * 60 * 60), // 12 hours (from dummy)
             // 200 MiB DEFAULT_MEGANODE_MEMORY_OVERHEAD
             memory_overhead: 200 * (1 << 20),
             oauth: None,

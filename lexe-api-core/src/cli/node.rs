@@ -36,6 +36,13 @@ pub struct MegaArgs {
     /// How long the meganode can remain inactive before it shuts itself down.
     pub mega_inactivity_secs: u64,
 
+    /// When set, how long the meganode can live before it shuts itself down.
+    //
+    // TODO(phlip9): This is a temporary operational workaround to keep the
+    // meganode network graph and scorer from growing too stale until we have
+    // proper LSP->meganode sync. Remove once that's implemented.
+    pub mega_max_lifetime_secs: Option<u64>,
+
     /// An estimate of the amount of enclave heap consumed by shared meganode
     /// components such as the network graph, Tokio, connection pools, etc.
     pub memory_overhead: u64,
