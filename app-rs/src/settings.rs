@@ -71,10 +71,12 @@ impl Default for SettingsRs {
 /// Wallet funding state machine.
 ///
 /// Tracks whether the user has funded their wallet.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub enum WalletFundingState {
     /// Initial state. User has no funds and no channel.
+    #[default]
     NonFunded,
     /// User has received on-chain funds but has no Lightning channel yet.
     OnChainDeposited,
@@ -85,12 +87,6 @@ pub enum WalletFundingState {
     ChannelReserveNotMet,
     /// User has a usable Lightning channel with outbound capacity.
     Funded,
-}
-
-impl Default for WalletFundingState {
-    fn default() -> Self {
-        Self::NonFunded
-    }
 }
 
 impl Update for WalletFundingState {}

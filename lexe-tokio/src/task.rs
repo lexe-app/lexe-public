@@ -89,7 +89,7 @@ pub async fn try_join_tasks_and_shutdown(
     // After the shutdown signal, wait for all tasks to complete, up to the
     // shutdown timeout.
     let mut all_tasks = static_tasks;
-    all_tasks.extend(ephemeral_tasks.into_iter());
+    all_tasks.extend(ephemeral_tasks);
 
     let shutdown_timeout_fut = tokio::time::sleep(shutdown_timeout);
     tokio::pin!(shutdown_timeout_fut);

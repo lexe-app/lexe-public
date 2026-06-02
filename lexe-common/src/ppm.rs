@@ -366,7 +366,6 @@ mod test {
     use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
 
     use super::*;
-    use crate::ppm;
 
     #[test]
     fn const_construction() {
