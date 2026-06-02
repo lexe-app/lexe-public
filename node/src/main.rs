@@ -1,3 +1,5 @@
+#![cfg_attr(target_env = "sgx", feature(alloc_error_hook))]
+
 use std::{env, io::Write, process::ExitCode, time::Instant};
 
 use lexe_enclave::allocator::InstrumentedSystemAllocator;
@@ -12,6 +14,10 @@ static ALLOCATOR: InstrumentedSystemAllocator =
     InstrumentedSystemAllocator::new();
 
 pub fn main() -> ExitCode {
+    // Panic instead of abort on allocation failure, so we get a backtrace.
+    #[cfg(target_env = "sgx")]
+    std::alloc::set_alloc_error_hook(|layout| panic!("oom: {layout:?}"));
+
     // Disable _non-panic_ `std::backtrace::Backtrace::capture()`.
     //
     // 2025-02-04: In SGX and outside a panic, `Backtrace::capture()` appears to
