@@ -220,3 +220,159 @@ fn explore(
             explore(network_graph, anonymity_set, *neighbor, depth - 1)
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use bitcoin::{constants::ChainHash, secp256k1::PublicKey};
+    use lexe_common::secp256k1_ctx::SECP256K1;
+    use lexe_ln::logger::LexeTracingLogger;
+    use lightning::{
+        ln::msgs::UnsignedChannelUpdate,
+        routing::{
+            gossip::NodeId,
+            router::{Path, RouteHop},
+        },
+        types::features::{ChannelFeatures, NodeFeatures},
+    };
+
+    use super::{MIN_ANONYMITY_SET_SIZE, NetworkGraphType, anonymize_path};
+
+    #[test]
+    fn anonymize_path_removes_receiver_and_restores_final_value() {
+        let graph = NetworkGraphType::new(
+            bitcoin::Network::Regtest,
+            LexeTracingLogger::new(),
+        );
+
+        // original: sender <-> lsp <-> hop <-> receiver
+        let _sender = node_pubkey(0);
+        let lsp = node_pubkey(1);
+        let hop = node_pubkey(2);
+        let receiver = node_pubkey(3);
+        let off_path = node_pubkey(4);
+        // sender<->lsp is un-announced
+        // add_channel(&network_graph, 1, sender, lsp);
+        add_channel(&graph, 2, lsp, hop);
+        add_channel(&graph, 3, hop, receiver);
+
+        add_channel(&graph, 4, hop, off_path);
+        add_channel(&graph, 5, off_path, receiver);
+
+        // Add some nodes/channels around `hop` to exercise min anonymity set
+        // anonymity set: {hop, lsp, }
+        for idx in 0..(MIN_ANONYMITY_SET_SIZE - 4) {
+            let scid = 1000 + idx as u64;
+            add_channel(&graph, scid, hop, node_pubkey(1000 + idx));
+        }
+
+        // Add some nodes/channels around `lsp` and `receiver` just for fun
+        for idx in 0..10 {
+            let scid = 2000 + idx as u64;
+            add_channel(&graph, scid, lsp, node_pubkey(2000 + idx));
+        }
+        for idx in 0..10 {
+            let scid = 3000 + idx as u64;
+            add_channel(&graph, scid, receiver, node_pubkey(3000 + idx));
+        }
+
+        let final_value_msat = 123_456;
+        let path = Path {
+            hops: vec![
+                route_hop(lsp, 1, 1212),
+                route_hop(hop, 2, 6969),
+                route_hop(receiver, 3, final_value_msat),
+            ],
+            blinded_tail: None,
+        };
+
+        let anonymized = anonymize_path(&graph, path).expect("anonymizes path");
+
+        // anonymized: sender <-> lsp <-> hop
+        assert_eq!(anonymized.hops.len(), 2);
+        assert_eq!(anonymized.hops[0].pubkey, lsp);
+        assert_eq!(anonymized.hops[0].fee_msat, 1212);
+        assert_eq!(anonymized.hops[1].pubkey, hop);
+        assert_eq!(anonymized.hops[1].fee_msat, final_value_msat);
+        assert_eq!(anonymized.blinded_tail, None);
+    }
+
+    fn add_channel(
+        network_graph: &NetworkGraphType,
+        short_channel_id: u64,
+        node_1: PublicKey,
+        node_2: PublicKey,
+    ) {
+        // Need real clock time o/w LDK rejects the channel for being too old
+        // or too far in the future
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("current time is after unix epoch")
+            .as_secs()
+            .try_into()
+            .expect("current time fits in u32");
+        network_graph
+            .add_channel_from_partial_announcement(
+                short_channel_id,
+                None,
+                u64::from(timestamp),
+                ChannelFeatures::empty(),
+                NodeId::from_pubkey(&node_1),
+                NodeId::from_pubkey(&node_2),
+            )
+            .unwrap();
+
+        update_channel(network_graph, short_channel_id, timestamp, 0);
+        update_channel(network_graph, short_channel_id, timestamp, 1);
+    }
+
+    fn node_pubkey(id: usize) -> PublicKey {
+        let mut bytes = [1u8; 32];
+        bytes[31] = id as u8 + 1;
+        let secret_key = bitcoin::secp256k1::SecretKey::from_slice(&bytes)
+            .expect("valid secret key");
+        PublicKey::from_secret_key(&SECP256K1, &secret_key)
+    }
+
+    fn route_hop(
+        pubkey: PublicKey,
+        short_channel_id: u64,
+        fee_msat: u64,
+    ) -> RouteHop {
+        RouteHop {
+            pubkey,
+            node_features: NodeFeatures::empty(),
+            short_channel_id,
+            channel_features: ChannelFeatures::empty(),
+            fee_msat,
+            cltv_expiry_delta: 144,
+            maybe_announced_channel: true,
+        }
+    }
+
+    fn update_channel(
+        network_graph: &NetworkGraphType,
+        short_channel_id: u64,
+        timestamp: u32,
+        channel_flags: u8,
+    ) {
+        network_graph
+            .update_channel_unsigned(&UnsignedChannelUpdate {
+                chain_hash: ChainHash::using_genesis_block(
+                    bitcoin::Network::Regtest,
+                ),
+                short_channel_id,
+                timestamp,
+                message_flags: 1,
+                channel_flags,
+                cltv_expiry_delta: 144,
+                htlc_minimum_msat: 1000,
+                htlc_maximum_msat: 1_000_000,
+                fee_base_msat: 1000,
+                fee_proportional_millionths: 100,
+                excess_data: Vec::new(),
+            })
+            .unwrap();
+    }
+}
