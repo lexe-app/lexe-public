@@ -1,6 +1,6 @@
 //! Logic to anonymize payment paths before reporting to Lexe LSP.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, hash_map::Entry};
 
 use lexe_common::{debug_panic_release_log, time::DisplayMs};
 use lexe_ln::alias::NetworkGraphType;
@@ -23,7 +23,7 @@ use tracing::info;
 const MIN_ANONYMITY_SET_SIZE: usize = 20;
 /// The maximum # of hops we'll explore from the departure node.
 /// Mostly just a safeguard against a bug causing an infinite loop.
-const MAX_DEPTH: usize = 5;
+const MAX_DEPTH: u8 = 5;
 
 /// Anonymizes a [`Event::PaymentPathSuccessful`].
 pub(crate) fn successful_path(
@@ -128,24 +128,26 @@ fn anonymize_path(
     // Pop off hops and increase our search depth until we either reach the
     // required anonymity set size or run out of hops.
     let network_graph = network_graph.read_only();
-    let mut anonymity_set =
-        HashSet::<NodeId>::with_capacity(MIN_ANONYMITY_SET_SIZE);
+    let mut anonymity_set_depths =
+        HashMap::<NodeId, u8>::with_capacity(MIN_ANONYMITY_SET_SIZE);
     let mut depth = 1;
     while let Some(departure_hop) = path.hops.last_mut()
         && depth <= MAX_DEPTH
     {
         let departure_node_id = NodeId::from_pubkey(&departure_hop.pubkey);
+
         let done = explore(
             &network_graph,
-            &mut anonymity_set,
+            &mut anonymity_set_depths,
             departure_node_id,
             depth,
         );
         if done {
-            debug_assert_eq!(anonymity_set.len(), MIN_ANONYMITY_SET_SIZE);
+            let anonymity_set_size = anonymity_set_depths.len();
+            debug_assert_eq!(anonymity_set_size, MIN_ANONYMITY_SET_SIZE);
             info!(
                 elapsed = %DisplayMs(start.elapsed()),
-                anonymity_set = %anonymity_set.len(),
+                anonymity_set_size,
                 "Anonymized path: termination depth={depth}"
             );
 
@@ -161,13 +163,14 @@ fn anonymize_path(
 
     info!(
         elapsed = %DisplayMs(start.elapsed()),
+        anonymity_set_size = anonymity_set_depths.len(),
         "Failed to anonymize path; skipping. Termination depth={depth}"
     );
     None
 }
 
 /// Explores the network graph starting from `node_id` up to a depth of
-/// `depth`, accumulating reachable nodes in `anonymity_set`.
+/// `depth`, accumulating reachable nodes in `anonymity_set_depths`.
 ///
 /// - Returns [`true`] if the anonymity set reaches or exceeds
 ///   [`MIN_ANONYMITY_SET_SIZE`] during exploration
@@ -180,22 +183,33 @@ fn anonymize_path(
 /// possible receivers.
 fn explore(
     network_graph: &ReadOnlyNetworkGraph<'_>,
-    anonymity_set: &mut HashSet<NodeId>,
+    anonymity_set_depths: &mut HashMap<NodeId, u8>,
     node_id: NodeId,
-    depth: usize,
+    depth: u8,
 ) -> bool {
-    // Skip this node if it’s already in the anonymity set, as we've visited
-    // it earlier in this DFS. We'll never need to re-`explore` this node
-    // because `explore` will never be called on this node at a *higher*
-    // depth than the depth it was explored with, due to the depth
-    // incrementing only as we also pop off nodes from the path.
-    let inserted = anonymity_set.insert(node_id);
-    if !inserted {
-        return false;
+    // Skip this node if we've already explored it with at least as much
+    // remaining search depth.
+    match anonymity_set_depths.entry(node_id) {
+        Entry::Occupied(mut occupied) => {
+            let prev_depth = occupied.get_mut();
+            if *prev_depth >= depth {
+                // We've already `explore`'d this node with a greater depth
+                // limit => skip
+                return false;
+            } else {
+                // We've already `explore`d this node, but with a lower depth
+                // limit => we can discover more nodes if we re-explore with
+                // this greater depth limit
+                *prev_depth = depth;
+            }
+        }
+        Entry::Vacant(vacant) => {
+            vacant.insert(depth);
+        }
     }
 
-    // If our anonymity set is large enough, we can stop early.
-    if anonymity_set.len() >= MIN_ANONYMITY_SET_SIZE {
+    // If our anonymity set is now large enough, we can stop early.
+    if anonymity_set_depths.len() >= MIN_ANONYMITY_SET_SIZE {
         return true;
     }
 
@@ -217,7 +231,7 @@ fn explore(
         .filter_map(|channel| channel.as_directed_from(&node_id))
         .map(|(channel, _)| channel.target())
         .any(|neighbor| {
-            explore(network_graph, anonymity_set, *neighbor, depth - 1)
+            explore(network_graph, anonymity_set_depths, *neighbor, depth - 1)
         })
 }
 
@@ -240,61 +254,91 @@ mod tests {
     use super::{MIN_ANONYMITY_SET_SIZE, NetworkGraphType, anonymize_path};
 
     #[test]
-    fn anonymize_path_removes_receiver_and_restores_final_value() {
+    fn test_anonymize_path() {
         let graph = NetworkGraphType::new(
             bitcoin::Network::Regtest,
             LexeTracingLogger::new(),
         );
 
-        // original: sender <-> lsp <-> hop <-> receiver
+        // original: sender <-> lsp <-> hop1 <-> hop2 <-> receiver
         let _sender = node_pubkey(0);
         let lsp = node_pubkey(1);
-        let hop = node_pubkey(2);
-        let receiver = node_pubkey(3);
-        let off_path = node_pubkey(4);
-        // sender<->lsp is un-announced
+        let hop1 = node_pubkey(2);
+        let hop2 = node_pubkey(3);
+        let receiver = node_pubkey(4);
+        let off_path = node_pubkey(5);
+
+        // sender<->lsp is un-announced:
         // add_channel(&network_graph, 1, sender, lsp);
-        add_channel(&graph, 2, lsp, hop);
-        add_channel(&graph, 3, hop, receiver);
+        add_channel(&graph, 2, lsp, hop1);
+        add_channel(&graph, 3, hop1, hop2);
+        add_channel(&graph, 4, hop2, receiver);
 
-        add_channel(&graph, 4, hop, off_path);
-        add_channel(&graph, 5, off_path, receiver);
+        // Add an indirect hop1 <-> off_path <-> receiver channel
+        add_channel(&graph, 10, hop1, off_path);
+        add_channel(&graph, 11, off_path, receiver);
 
-        // Add some nodes/channels around `hop` to exercise min anonymity set
-        // anonymity set: {hop, lsp, }
-        for idx in 0..(MIN_ANONYMITY_SET_SIZE - 4) {
+        // Add some nodes/channels around `hop1` to exercise min anonymity set
+        for idx in 0..MIN_ANONYMITY_SET_SIZE {
             let scid = 1000 + idx as u64;
-            add_channel(&graph, scid, hop, node_pubkey(1000 + idx));
+            add_channel(&graph, scid, hop1, node_pubkey(1000 + idx));
+        }
+        // Add some nodes/channels around `hop2` to exercise min anonymity set
+        for idx in 0..5 {
+            let scid = 2000 + idx as u64;
+            add_channel(&graph, scid, hop2, node_pubkey(2000 + idx));
         }
 
-        // Add some nodes/channels around `lsp` and `receiver` just for fun
-        for idx in 0..10 {
-            let scid = 2000 + idx as u64;
-            add_channel(&graph, scid, lsp, node_pubkey(2000 + idx));
-        }
+        // Add some nodes/channels around `lsp` and `receiver`
         for idx in 0..10 {
             let scid = 3000 + idx as u64;
-            add_channel(&graph, scid, receiver, node_pubkey(3000 + idx));
+            add_channel(&graph, scid, lsp, node_pubkey(3000 + idx));
+        }
+        for idx in 0..10 {
+            let scid = 4000 + idx as u64;
+            add_channel(&graph, scid, receiver, node_pubkey(4000 + idx));
         }
 
         let final_value_msat = 123_456;
+        let final_cltv_expiry_delta = 42;
+        let hop1_fee_msat = 6969;
+        let hop1_cltv_expiry_delta = 20;
+        let hop2_fee_msat = 7797;
+        let hop2_cltv_expiry_delta = 5;
         let path = Path {
             hops: vec![
-                route_hop(lsp, 1, 1212),
-                route_hop(hop, 2, 6969),
-                route_hop(receiver, 3, final_value_msat),
+                // sender <-> lsp
+                route_hop(lsp, 1, 1212, 10),
+                // lsp <-> hop1
+                route_hop(hop1, 2, hop1_fee_msat, hop1_cltv_expiry_delta),
+                // hop1 <-> hop2
+                route_hop(hop2, 3, hop2_fee_msat, hop2_cltv_expiry_delta),
+                // hop2 <-> receiver
+                route_hop(
+                    receiver,
+                    4,
+                    final_value_msat,
+                    final_cltv_expiry_delta,
+                ),
             ],
             blinded_tail: None,
         };
 
         let anonymized = anonymize_path(&graph, path).expect("anonymizes path");
 
-        // anonymized: sender <-> lsp <-> hop
+        // anonymized: sender <-> lsp <-> hop1
         assert_eq!(anonymized.hops.len(), 2);
-        assert_eq!(anonymized.hops[0].pubkey, lsp);
-        assert_eq!(anonymized.hops[0].fee_msat, 1212);
-        assert_eq!(anonymized.hops[1].pubkey, hop);
-        assert_eq!(anonymized.hops[1].fee_msat, final_value_msat);
+
+        let snd_lsp = &anonymized.hops[0];
+        assert_eq!(snd_lsp.pubkey, lsp);
+        assert_eq!(snd_lsp.fee_msat, 1212);
+        assert_eq!(snd_lsp.cltv_expiry_delta, 10);
+
+        let lsp_hop1 = &anonymized.hops[1];
+        assert_eq!(lsp_hop1.pubkey, hop1);
+        assert_eq!(lsp_hop1.fee_msat, final_value_msat);
+        // assert_eq!(lsp_hop1.cltv_expiry_delta, final_cltv_expiry_delta);
+
         assert_eq!(anonymized.blinded_tail, None);
     }
 
@@ -339,6 +383,7 @@ mod tests {
         pubkey: PublicKey,
         short_channel_id: u64,
         fee_msat: u64,
+        cltv_expiry_delta: u32,
     ) -> RouteHop {
         RouteHop {
             pubkey,
@@ -346,7 +391,7 @@ mod tests {
             short_channel_id,
             channel_features: ChannelFeatures::empty(),
             fee_msat,
-            cltv_expiry_delta: 144,
+            cltv_expiry_delta,
             maybe_announced_channel: true,
         }
     }
