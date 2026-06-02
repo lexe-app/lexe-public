@@ -526,6 +526,7 @@ pub struct PayLnurlRequest {
 }
 
 /// The response to a request to pay to an LNURL-pay endpoint.
+#[derive(Serialize, Deserialize)]
 pub struct PayLnurlResponse {
     /// Identifier for this outbound LNURL payment.
     pub index: PaymentCreatedIndex,
@@ -555,6 +556,7 @@ pub struct WithdrawLnurlRequest {
 }
 
 /// The response to a request to withdraw from an LNURL-withdraw endpoint.
+#[derive(Serialize, Deserialize)]
 pub struct WithdrawLnurlResponse {
     /// Identifier for this inbound withdrawal payment.
     pub index: PaymentCreatedIndex,

@@ -12,18 +12,20 @@ use lexe::{
         auth::{
             ClientCredentials, Credentials, CredentialsRef, RootSeed, UserPk,
         },
-        bitcoin::{Amount, Invoice, Offer, PaymentMethod},
+        bitcoin::{Amount, ClaimMethod, Invoice, Offer, PaymentMethod},
         command::{
-            AnalyzeRequest, CreateInvoiceRequest, CreateOfferRequest,
-            GetPaymentRequest, GetUpdatedPaymentsRequest, PayInvoiceRequest,
-            PayOfferRequest, PayRequest, PayResponse, PayableDetails,
-            PaymentSyncSummary, UpdatePersonalNoteRequest,
+            AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
+            CreateOfferRequest, GetPaymentRequest, GetUpdatedPaymentsRequest,
+            PayInvoiceRequest, PayLnurlRequest, PayLnurlResponse,
+            PayOfferRequest, PayRequest, PayResponse, PaymentSyncSummary,
+            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
+            WithdrawLnurlResponse,
         },
         payment::{
             Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
             PaymentUpdatedIndex,
         },
-        util::Ppm,
+        util::{Ppm, TimestampMs},
     },
     wallet::LexeWallet,
 };
@@ -154,6 +156,8 @@ pub enum LexeCommand {
     PayInvoice(PayInvoiceArgs),
     CreateOffer(CreateOfferArgs),
     PayOffer(PayOfferArgs),
+    PayLnurl(PayLnurlArgs),
+    WithdrawLnurl(WithdrawLnurlArgs),
     GetPayment(GetPaymentArgs),
     GetUpdatedPayments(GetUpdatedPaymentsArgs),
     WaitForPayment(WaitForPaymentArgs),
@@ -283,6 +287,8 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayInvoice(a) => a.run(&wallet).await,
         LexeCommand::CreateOffer(a) => a.run(&wallet).await,
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
+        LexeCommand::PayLnurl(a) => a.run(&wallet).await,
+        LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
         LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
         LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
@@ -461,15 +467,17 @@ impl NodeInfoArgs {
     about = "Get information about a Bitcoin or Lightning payment string",
     long_about = r#"
 Get information about a Bitcoin or Lightning payment string and its
-constituent payment methods (if any). Returned information includes the
-type of payment method used (invoice, offer, onchain, lnurl) and the amount
-constraints requested by the receiver.
+constituent payment and claim methods (if any). Returned information includes
+the type of method used (invoice, offer, onchain, lnurl-pay, lnurl-withdraw)
+and the amount constraints requested by the counterparty.
 
-Also provides the specific payment string <payable> that can be used
-to pay via the associated payment method using
+Analysis results include either a `payable` or `claimable` field.
+
+Payables (outbound) can be paid using
   $ lexe pay <payable>
-  
-Payment methods are returned in order of most to least recommended."#,
+
+Claimables (inbound, currently only LNURL-withdraw) can be claimed using
+  $ lexe withdraw-lnurl <claimable>"#,
     help_template = HELP_TEMPLATE,
 )]
 pub struct AnalyzeArgs {
@@ -477,36 +485,49 @@ pub struct AnalyzeArgs {
     #[arg(long)]
     json: bool,
 
+    /// Only show payables (outbound payment methods).
+    #[arg(long, conflicts_with = "claimables_only")]
+    payables_only: bool,
+
+    /// Only show claimables (inbound payment methods).
+    #[arg(long)]
+    claimables_only: bool,
+
     /// The Bitcoin or Lightning payment string to analyze.
     payment_string: String,
 }
 
 impl AnalyzeArgs {
     async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
-        /// Indent size to use in output formatting.
-        const TAB: &str = "    "; // 4
-        /// Text width to use for wrapping.
-        const TEXT_WIDTH: usize = 80;
-
         let req = AnalyzeRequest {
             payment_string: self.payment_string,
         };
         let resp = wallet.analyze(req).await?;
 
-        // JSON response
         if self.json {
+            // JSON response
+            Self::print_json(self.payables_only, self.claimables_only, resp)
+        } else {
+            // Human-readable response
+            Self::print_human_readable(
+                self.payables_only,
+                self.claimables_only,
+                resp,
+            )
+        }
+    }
+
+    fn print_json(
+        payables_only: bool,
+        claimables_only: bool,
+        resp: AnalyzeResponse,
+    ) -> anyhow::Result<()> {
+        let mut json_resp = serde_json::Map::new();
+        if !claimables_only {
             let mut json_payables = vec![];
             for p in resp.payables {
                 let kind = p.method.kind();
-                let command = if p.payable.contains('\'') {
-                    format!(
-                        "ERR: payable contained a single quote (\'); \
-                         failed to generate command string for {}",
-                        p.payable
-                    )
-                } else {
-                    format!("lexe pay \'{}\'", p.payable)
-                };
+                let command = Self::validate_command("pay", &p.payable, "");
                 let method_string = match p.method {
                     PaymentMethod::Onchain { address, .. } =>
                         address.to_string(),
@@ -515,7 +536,6 @@ impl AnalyzeArgs {
                     PaymentMethod::Offer { offer, .. } => offer.to_string(),
                     PaymentMethod::LnurlPay { lnurl, .. } => lnurl.to_string(),
                 };
-
                 let json_payable = serde_json::json!({
                     "command": command,
                     kind: method_string,
@@ -528,19 +548,68 @@ impl AnalyzeArgs {
                 });
                 json_payables.push(json_payable);
             }
-            let json_resp = serde_json::json!({ "payables": json_payables });
-
-            return helpers::print_json_pretty(&json_resp);
+            json_resp.insert(
+                "payables".to_string(),
+                serde_json::Value::Array(json_payables),
+            );
         }
 
-        // Human-readable response
+        if !payables_only {
+            let mut json_claimables = vec![];
+            for c in resp.claimables {
+                let kind = c.method.kind();
+                // TODO(nicole): don't forget to change when `claim` comes thru
+                let command =
+                    Self::validate_command("withdraw-lnurl", &c.claimable, "");
+                let method_string = match c.method {
+                    ClaimMethod::LnurlWithdraw { lnurl, .. } =>
+                        lnurl.to_string(),
+                };
+                let json_claimable = serde_json::json!({
+                    "command": command,
+                    kind: method_string,
+                    "kind": kind,
+                    "description": c.description,
+                    "min_amount": c.min_amount,
+                    "max_amount": c.max_amount,
+                });
+                json_claimables.push(json_claimable);
+            }
+            json_resp.insert(
+                "claimables".to_string(),
+                serde_json::Value::Array(json_claimables),
+            );
+        }
 
-        let plural = if resp.payables.len() > 1 {
-            "s, from most to least recommended"
-        } else {
-            ""
-        };
-        println!("Found payable{plural}:");
+        helpers::print_json_pretty(&json_resp)
+    }
+
+    fn print_human_readable(
+        payables_only: bool,
+        claimables_only: bool,
+        resp: AnalyzeResponse,
+    ) -> anyhow::Result<()> {
+        /// Indent size to use in output formatting.
+        const TAB: &str = "    "; // 4
+        /// Text width to use for wrapping.
+        const TEXT_WIDTH: usize = 80;
+
+        /// A struct used for printing payable and claimable analyze results
+        struct MethodEntry {
+            /// Lowercase "claim" or "pay", for example
+            verb: &'static str,
+            method_name: &'static str,
+            kind: &'static str,
+            /// The string encoding of the payment method
+            method_string: String,
+            description: Option<String>,
+            amount: Option<Amount>,
+            min_amount: Option<Amount>,
+            max_amount: Option<Amount>,
+            expires_at: Option<TimestampMs>,
+            command_arg: String,
+            lexe_command: &'static str,
+        }
 
         // Output list formatting options
         let list_bullet = format!("{TAB}- ");
@@ -549,33 +618,23 @@ impl AnalyzeArgs {
             .initial_indent(&list_bullet)
             .subsequent_indent(&subsequent_indent);
 
-        let mut recommended_hint = " (recommended)";
-        for payable_details in resp.payables.into_iter() {
-            let PayableDetails {
-                payable,
+        // `MethodEntry` print function
+        let print_entry = |entry: &MethodEntry, recommended| {
+            let MethodEntry {
+                verb,
+                method_name,
+                kind,
+                method_string,
                 description,
-                method,
                 amount,
                 min_amount,
                 max_amount,
                 expires_at,
-            } = payable_details;
-            let method_name = match method {
-                PaymentMethod::Onchain { .. } => "On-chain address",
-                PaymentMethod::Invoice { .. } => "BOLT11 invoice",
-                PaymentMethod::Offer { .. } => "BOLT12 offer",
-                PaymentMethod::LnurlPay { .. } => "LNURL-pay",
-            };
-            let kind = method.kind();
-            let method_string = match method {
-                PaymentMethod::Onchain { address, .. } => address.to_string(),
-                PaymentMethod::Invoice { invoice, .. } => invoice.to_string(),
-                PaymentMethod::Offer { offer, .. } => offer.to_string(),
-                PaymentMethod::LnurlPay { lnurl, .. } => lnurl,
-            };
-
-            let details_list: [Option<String>; 5] = [
-                description.map(|d| format!("description: {d}")),
+                command_arg,
+                lexe_command,
+            } = entry;
+            let details_list = [
+                description.as_ref().map(|d| format!("description: {d}")),
                 amount.map(|a| format!("amount: {a} sats")),
                 min_amount.map(|a| format!("minimum amount: {a} sats")),
                 max_amount.map(|a| format!("maximum amount: {a} sats")),
@@ -587,33 +646,137 @@ impl AnalyzeArgs {
                 }),
             ];
             let amount_hint = if amount.is_none() {
-                "--amount-sats <amount_sats>"
+                " --amount-sats <amount_sats>"
             } else {
                 ""
             };
+            let mut command = "$ ".to_string();
+            command.push_str(&Self::validate_command(
+                lexe_command,
+                command_arg,
+                amount_hint,
+            ));
 
-            println!("\n[ {method_name} ]{recommended_hint}");
-            // Don't wrap this to keep it copy-paste-able
+            // [ Offer ] (recommended)
+            if recommended {
+                println!("\n[ {method_name} ] (recommended)");
+            } else {
+                println!("\n[ {method_name} ]");
+            }
+
+            // - offer: lno1...
+            // Don't wrap this to keep it copy/paste-able
             println!("{list_bullet}{kind}: {method_string}");
+
+            // - description: ... (wrapped)
+            // - min_amount: 123 sats
             for line in details_list.into_iter().flatten() {
                 let styled_line = wrap(&line, &list_style_options).join("\n");
                 println!("{styled_line}");
             }
-            println!("\n{TAB}To pay this, run:");
-            if payable.contains('\'') {
-                println!(
-                    "{TAB}ERR: payable contained a single quote (\'); \
-                     failed to generate command string for {payable}"
-                );
-            } else {
-                // Don't wrap this to keep it copy/paste-able
-                println!("{TAB}$ lexe pay \'{payable}\' {amount_hint}");
-            }
 
-            recommended_hint = "";
+            // To pay this, run:
+            // $ lexe pay lno1abracadabra (--amount-sats <amount_sats>)
+            println!("\n{TAB}To {verb} this, run:");
+            // Don't wrap this to keep it copy/paste-able
+            println!("{TAB}{command}");
+        };
+
+        if !claimables_only {
+            // Process payables
+            let payable_details = resp.payables.into_iter().map(|details| {
+                let kind = details.method.kind();
+                let (method_name, method_string) = match details.method {
+                    PaymentMethod::Onchain { address, .. } =>
+                        ("On-chain address", address.to_string()),
+                    PaymentMethod::Invoice { invoice, .. } =>
+                        ("BOLT11 invoice", invoice.to_string()),
+                    PaymentMethod::Offer { offer, .. } =>
+                        ("BOLT12 offer", offer.to_string()),
+                    PaymentMethod::LnurlPay { lnurl, .. } =>
+                        ("LNURL-pay", lnurl),
+                };
+                MethodEntry {
+                    verb: "pay",
+                    method_name,
+                    kind,
+                    method_string,
+                    description: details.description,
+                    amount: details.amount,
+                    min_amount: details.min_amount,
+                    max_amount: details.max_amount,
+                    expires_at: details.expires_at,
+                    command_arg: details.payable,
+                    lexe_command: "pay",
+                }
+            });
+
+            // Print payables
+            match payable_details.len() {
+                0 => println!("No payables found."),
+                1 => println!("Found 1 payable:"),
+                n => println!("Found {n} payables:"),
+            }
+            let mut recommended = true;
+            for entry in payable_details {
+                print_entry(&entry, recommended);
+                recommended = false;
+            }
         }
 
-        anyhow::Ok(())
+        if !payables_only && !claimables_only {
+            println!("\n");
+        }
+
+        if !payables_only {
+            // Process claimables
+            let claimable_details =
+                resp.claimables.into_iter().map(|details| {
+                    let kind = details.method.kind();
+                    let (method_name, method_string) = match details.method {
+                        ClaimMethod::LnurlWithdraw { lnurl, .. } =>
+                            ("LNURL-withdraw", lnurl),
+                    };
+                    MethodEntry {
+                        verb: "withdraw",
+                        method_name,
+                        kind,
+                        method_string,
+                        description: details.description,
+                        amount: None,
+                        min_amount: details.min_amount,
+                        max_amount: details.max_amount,
+                        expires_at: None,
+                        command_arg: details.claimable,
+                        lexe_command: "withdraw-lnurl",
+                    }
+                });
+
+            // Print claimables
+            match claimable_details.len() {
+                0 => println!("No claimables found."),
+                1 => println!("Found 1 claimable:"),
+                n => println!("Found {n} claimables:"),
+            }
+            let mut recommended = true;
+            for entry in claimable_details {
+                print_entry(&entry, recommended);
+                recommended = false;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_command(command: &str, arg: &str, append: &str) -> String {
+        if arg.contains('\'') {
+            format!(
+                "ERR: arg contained a single quote ('); \
+                 failed to generate command string for {arg}"
+            )
+        } else {
+            format!("lexe {command} '{arg}'{append}")
+        }
     }
 }
 
@@ -707,7 +870,7 @@ impl PayArgs {
         // Don't wrap this to keep it copy/paste-able
         println!("index: {index}");
 
-        anyhow::Ok(())
+        Ok(())
     }
 }
 
@@ -1022,6 +1185,175 @@ impl PayOfferArgs {
         }
 
         helpers::print_json_pretty(&resp)
+    }
+}
+
+// --- `pay-lnurl` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Pay to an LNURL-pay endpoint",
+    long_about = r#"
+Pay to an LNURL-pay endpoint.
+
+Accepted LNURL encodings:
+    Lightning Address          user@domain.com
+    LUD-17 URI                 lnurlp://...
+    bech32                     lnurl1...
+    Lightning URI with bech32  lightning:lnurl1..."#,
+    help_template = HELP_TEMPLATE,
+)]
+pub struct PayLnurlArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+
+    /// The LNURL-pay string to pay.
+    lnurl: String,
+
+    #[arg(
+        long,
+        help = "The amount to pay in satoshis.\n\
+            Must satisfy the recipient's amount limits if set."
+    )]
+    amount_sats: Amount,
+
+    #[arg(
+        long,
+        help = "Message sent to the receiver with the payment.\n\
+            \n\
+            Sent only if the recipient accepts LUD-12 comments, and\n\
+            truncated to their specified length limit if necessary."
+    )]
+    message: Option<String>,
+
+    #[arg(
+        long,
+        help = "Personal note stored locally, not visible to receiver.\n\
+            Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    personal_note: Option<String>,
+}
+
+impl PayLnurlArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = PayLnurlRequest {
+            lnurl: Some(self.lnurl),
+            pay_request: None,
+            amount: self.amount_sats,
+            message: self.message,
+            personal_note: self.personal_note,
+        };
+        let resp =
+            wallet.pay_lnurl(req).await.context("Failed to pay LNURL")?;
+
+        // Sync payments to persist the new payment locally.
+        if wallet.persistence_enabled() {
+            wallet
+                .sync_payments()
+                .await
+                .context("Payment sync failed")?;
+        }
+
+        // JSON response
+        if self.json {
+            info!("Sent payment!");
+            return helpers::print_json_pretty(&resp);
+        }
+
+        // Human-readable response
+        let PayLnurlResponse {
+            index,
+            created_at: _,
+        } = resp;
+        println!("Sent payment!");
+        // Don't wrap this to keep it copy/paste-able
+        println!("index: {index}");
+
+        Ok(())
+    }
+}
+
+// --- `withdraw-lnurl` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Withdraw from an LNURL-withdraw endpoint",
+    long_about = r#"
+Withdraw from an LNURL-withdraw endpoint.
+
+Accepted LNURL encodings:
+    LUD-17 URI                 lnurlw://...
+    bech32                     lnurl1...
+    Lightning URI with bech32  lightning:lnurl1..."#,
+    help_template = HELP_TEMPLATE,
+    // We must set this otherwise help text width exceeds 80 chars
+    next_line_help = true,
+)]
+pub struct WithdrawLnurlArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+
+    /// The LNURL-withdraw string to withdraw from.
+    lnurl: String,
+
+    #[arg(
+        long,
+        help = "The amount to withdraw in satoshis.\n\
+            Must satisfy the endpoint's amount limits.\n\
+            Defaults to the maximum if not set."
+    )]
+    amount_sats: Option<Amount>,
+
+    #[arg(
+        long,
+        help = "Description encoded into the withdrawal invoice,\n\
+            visible to the LNURL endpoint.\n\
+            Defaults to the endpoint's description if not set."
+    )]
+    description: Option<String>,
+}
+
+impl WithdrawLnurlArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let amount = self.amount_sats;
+        let req = WithdrawLnurlRequest {
+            lnurl: Some(self.lnurl),
+            withdraw_request: None,
+            amount,
+            description: self.description,
+        };
+        info!("Waiting for withdrawal...");
+        let resp = wallet
+            .withdraw_lnurl(req)
+            .await
+            .context("Failed to withdraw LNURL")?;
+
+        // Sync payments to persist the new payment locally.
+        if wallet.persistence_enabled() {
+            wallet
+                .sync_payments()
+                .await
+                .context("Payment sync failed")?;
+        }
+
+        // JSON response
+        if self.json {
+            info!("Withdrawal received!");
+            return helpers::print_json_pretty(&resp);
+        }
+
+        // Human-readable response
+        let WithdrawLnurlResponse {
+            index,
+            created_at: _,
+        } = resp;
+        println!("Withdrawal received!");
+        // Don't wrap this to keep it copy/paste-able
+        println!("index: {index}");
+
+        Ok(())
     }
 }
 
