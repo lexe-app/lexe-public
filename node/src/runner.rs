@@ -27,7 +27,9 @@ mod fuzz;
 
 /// How frequently the UserRunner checks for inactivity.
 /// - Inactive usernodes are evicted.
-/// - If the meganode itself is inactive, a meganode shutdown is initiated.
+/// - If the meganode itself is inactive, it will shut itself down.
+/// - (Optional) If the meganode itself has lived too long, it will shut itself
+///   down.
 const INACTIVITY_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
 /// How frequently we send activity notifications to the megarunner.
@@ -81,6 +83,8 @@ pub(crate) struct UserRunner {
 
     /// The last time any usernode on this meganode was active.
     mega_last_used: TimestampMs,
+    /// The timestamp at which this meganode started.
+    mega_started_at: TimestampMs,
     /// Recently active users that we haven't yet notified the megarunner of.
     megarunner_activity_queue: HashSet<UserPk>,
 
@@ -132,6 +136,7 @@ impl UserRunner {
             runner_rx,
 
             mega_last_used: now,
+            mega_started_at: now,
             megarunner_activity_queue: HashSet::new(),
 
             user_nodes: HashMap::new(),
@@ -178,6 +183,7 @@ impl UserRunner {
                 _ = inactivity_check_interval.tick() => {
                     self.evict_any_inactive_usernodes(now);
                     self.shutdown_meganode_if_inactive(now);
+                    self.shutdown_meganode_if_too_old(now);
                 }
 
                 _ = megarunner_notif_interval.tick() =>
@@ -464,16 +470,29 @@ impl UserRunner {
 
     /// Checks if the meganode has been inactive and initiates shutdown if so.
     fn shutdown_meganode_if_inactive(&mut self, now: TimestampMs) {
-        let mega_inactivity_duration =
-            Duration::from_secs(self.mega_args.mega_inactivity_secs);
+        let max_inactive_secs = self.mega_args.mega_inactivity_secs;
+        let inactive_secs =
+            now.saturating_duration_since(self.mega_last_used).as_secs();
 
-        let mega_inactive_ts = now.saturating_sub(mega_inactivity_duration);
-
-        if self.mega_last_used < mega_inactive_ts {
-            let inactive_secs =
-                now.saturating_duration_since(self.mega_last_used).as_secs();
+        if inactive_secs > max_inactive_secs {
             info!(inactive_secs, "Meganode inactive, initiating shutdown");
+            self.mega_shutdown.send();
+        }
+    }
 
+    /// Checks if the meganode lifetime has exceeded its max lifetime config
+    /// and initiates shutdown if so.
+    fn shutdown_meganode_if_too_old(&mut self, now: TimestampMs) {
+        let max_lifetime_secs = match self.mega_args.mega_max_lifetime_secs {
+            Some(s) => s,
+            None => return,
+        };
+        let lifetime_secs = now
+            .saturating_duration_since(self.mega_started_at)
+            .as_secs();
+
+        if lifetime_secs > max_lifetime_secs {
+            info!(lifetime_secs, "Meganode too old, initiating shutdown");
             self.mega_shutdown.send();
         }
     }

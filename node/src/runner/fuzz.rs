@@ -222,6 +222,7 @@ impl UserRunnerFuzzer {
     fn do_inactivity_check(&mut self) {
         self.runner.evict_any_inactive_usernodes(self.now);
         self.runner.shutdown_meganode_if_inactive(self.now);
+        self.runner.shutdown_meganode_if_too_old(self.now);
         self.runner.assert_invariants();
     }
 }
