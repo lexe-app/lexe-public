@@ -5,7 +5,7 @@
   "crt-objects-fallback": "false",
   "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
   "env": "sgx",
-  "features": "+adx,+aes,+pclmul,+rdrnd,+rdseed,+sha,+vaes",
+  "features": "+adx,+aes,+pclmul,+rdrand,+rdseed,+sha,+vaes",
   "linker": "rust-lld",
   "linker-flavor": "gnu-lld",
   "llvm-args": [],
@@ -97,7 +97,7 @@
     ]
   },
   "relax-elf-relocations": true,
-  "target-pointer-width": "64",
+  "target-pointer-width": 64,
   "vendor": "fortanix",
   "default-uwtable": true
 }

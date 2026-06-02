@@ -84,6 +84,7 @@ let
       ++ (lib.optionals isSgx [
         "--target=${./rustc-target-specs}/x86_64-fortanix-unknown-sgx.json"
         "-Zbuild-std=std,panic_abort"
+        "-Zjson-target-spec"
       ])
       ++ (lib.optionals isVerbose [ "-vv" ])
     );

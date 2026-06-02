@@ -77,11 +77,11 @@ jobs:
       # SGX
       - run: |
           unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
-          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p lexe-common -p lexe-ln -p sgx-test --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort
+          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p lexe-common -p lexe-ln -p sgx-test --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort -Zjson-target-spec
       # SGX + tests
       - run: |
           unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
-          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p lexe-common -p lexe-ln -p sgx-test --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort --tests
+          RUSTC_BOOTSTRAP=1 cargo clippy --locked -p node -p lexe-common -p lexe-ln -p sgx-test --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort -Zjson-target-spec --tests
 
   # Run lints for `lexe-cli` in isolation on Windows.
   clippy-lexe-cli-windows:
@@ -115,7 +115,7 @@ jobs:
       # Node
       - run: |
           unset RUSTFLAGS # don't clobber SGX-specific RUSTFLAGS
-          RUSTC_BOOTSTRAP=1 cargo check --release --locked -p node --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort
+          RUSTC_BOOTSTRAP=1 cargo check --release --locked -p node --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort -Zjson-target-spec
 
   test:
     if: github.event_name == 'push' || github.event.pull_request.draft == false

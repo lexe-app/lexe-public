@@ -40,7 +40,7 @@ runCommand "x86_64-fortanix-unknown-sgx-nolvi-json"
            .features
            | split(",")
            - ["+lvi-cfi", "+lvi-load-hardening"]
-           + ["+adx", "+aes", "+pclmul", "+sha", "+vaes", "+rdrnd", "+rdseed"]
+           + ["+adx", "+aes", "+pclmul", "+sha", "+vaes", "+rdrand", "+rdseed"]
            | unique
            | join(",")
          )
