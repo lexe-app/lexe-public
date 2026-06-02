@@ -5,11 +5,11 @@
 //! - The channel manager internally contains a `pending_events` queue holding
 //!   events which are released to our event handler when our BGP calls
 //!   [`ChannelManager::process_pending_events_async`]. If the handler returns
-//!   [`Ok(())`], the event is lost when the BGP repersists the channel manager.
-//! - On the other hand, if the event handler returns [`Err(ReplayEvent)`], the
-//!   event won't be removed from the queue and LDK will automatically replay it
-//!   for us, but (as of 2024-11-18) the node won't be able to make progress on
-//!   other events until the erroring event is successfully handled.
+//!   `Ok(())`, the event is lost when the BGP repersists the channel manager.
+//! - On the other hand, if the event handler returns `Err(`[`ReplayEvent`]`)`,
+//!   the event won't be removed from the queue and LDK will automatically
+//!   replay it for us, but (as of 2024-11-18) the node won't be able to make
+//!   progress on other events until the erroring event is successfully handled.
 //! - In practice, depending on the event kind, sometimes we will handle the
 //!   event 'inline' (without spawning a task), and sometimes we'll persist the
 //!   event in our own queue and handle or replay it later.
@@ -31,8 +31,8 @@
 //! [`EventsProvider::process_pending_events`]: lightning::events::EventsProvider::process_pending_events
 //! [`Writeable::write`]: lightning::util::ser::Writeable::write
 //! [`ChannelManager::process_pending_events_async`]: lightning::ln::channelmanager::ChannelManager::process_pending_events_async
-//! [`ChannelManager::process_pending_events_async`]: lightning::ln::channelmanager::ChannelManager::process_pending_events_async
 //! [`ChainMonitor::process_pending_events_async`]: lightning::chain::chainmonitor::ChainMonitor::process_pending_events_async
+//! [`ReplayEvent`]: lightning::events::ReplayEvent
 
 use std::{
     future::Future,

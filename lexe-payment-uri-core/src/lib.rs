@@ -1,7 +1,7 @@
 //! Core types and logic required to permissively parse Bitcoin / lightning
 //! payment addresses and URIs. For actually *resolving* a [`PaymentUri`] into a
 //! [`PaymentMethod`], which frequently requires accessing a network, see the
-//! [`lexe-payment-uri`] crate.
+//! `lexe-payment-uri` crate.
 //!
 //! # Permissive parsing
 //!

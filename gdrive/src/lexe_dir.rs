@@ -62,7 +62,7 @@ pub(crate) async fn get_or_create_lexe_dir(
 ///
 /// - We search for folders containing the exact string 'LexeData' and filter
 ///   out any inexact matches which the Google Drive API may have returned.
-/// - If no matches are found, then [`Ok(None)`] is returned.
+/// - If no matches are found, then `Ok(None)` is returned.
 /// - If exactly one match is found, it is returned.
 /// - If multiple matches are found, the match with the earliest creation date
 ///   is returned. This provides some fault-tolerance in the case that

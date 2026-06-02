@@ -55,9 +55,10 @@ pub struct LightningBalance {
     ///   multi-hop payment, excepting a few (<=10) msat.
     /// - Exactly this amount may be sendable only in very specific scenarios,
     ///   such as paying another Lexe user.
-    /// - Technically, it is possible to send [`sum(next_outbound_htlc_limit)`]
-    ///   to our direct channel counterparties, but since User <-> LSP payments
-    ///   are a special case, we'll handle those flows differently.
+    /// - Technically, it is possible to send
+    ///   `sum(`[`next_outbound_htlc_limit`]`)` to our direct channel
+    ///   counterparties, but since User <-> LSP payments are a special case,
+    ///   we'll handle those flows differently.
     ///
     /// [`next_outbound_htlc_limit`]: crate::ln::channel::LxChannelDetails::next_outbound_htlc_limit
     // TODO(max): We've confirmed we can send `next_outbound_htlc_limit`
