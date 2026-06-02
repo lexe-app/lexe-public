@@ -108,7 +108,9 @@ impl From<command::NodeInfo> for NodeInfo {
 #[derive(Serialize, Deserialize)]
 pub struct AnalyzeRequest {
     /// The Bitcoin or Lightning payment string to analyze.
-    pub payable: String,
+    // compat: Alias added in node-v0.9.10
+    #[serde(alias = "payable")]
+    pub payment_string: String,
 }
 
 /// The response to a string analysis request.
@@ -495,14 +497,14 @@ pub struct PayOfferResponse {
 
 /// A request to pay to an LNURL-pay endpoint.
 pub struct PayLnurlRequest {
-    /// The LNURL to pay to.
+    /// The LNURL or Lightning Address to pay to.
     /// Exactly one of `lnurl` or `pay_request` should be provided.
     pub lnurl: Option<String>,
     /// The LNURL pay request to use.
     /// Exactly one of `lnurl` or `pay_request` should be provided.
     pub pay_request: Option<LnurlPayRequest>,
-    /// The amount to pay. If the LNURL endpoint specifies a minimum or maximum
-    /// amount, this value must satisfy those limits.
+    /// The amount to pay. This value must satisfy the minimum and maximum
+    /// limits set by the LNURL endpoint.
     pub amount: Amount,
     /// An optional message to include in the payment,
     /// visible to the recipient.
@@ -539,9 +541,11 @@ pub struct WithdrawLnurlRequest {
     /// The LNURL withdraw request to use.
     /// Exactly one of `lnurl` or `withdraw_request` should be provided.
     pub withdraw_request: Option<LnurlWithdrawRequest>,
-    /// The amount to withdraw. If the LNURL endpoint specifies a minimum or
-    /// maximum amount, this value must satisfy those limits.
-    pub amount: Amount,
+    /// The amount to withdraw. This value must satisfy the minimum and maximum
+    /// limits set by the LNURL endpoint.
+    ///
+    /// If `None`, the maximum amount will be withdrawn.
+    pub amount: Option<Amount>,
     /// An optional description to encode into the withdrawal invoice,
     /// visible to the LNURL endpoint.
     ///

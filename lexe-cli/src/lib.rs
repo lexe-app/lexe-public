@@ -478,7 +478,7 @@ pub struct AnalyzeArgs {
     json: bool,
 
     /// The Bitcoin or Lightning payment string to analyze.
-    payable: String,
+    payment_string: String,
 }
 
 impl AnalyzeArgs {
@@ -489,7 +489,7 @@ impl AnalyzeArgs {
         const TEXT_WIDTH: usize = 80;
 
         let req = AnalyzeRequest {
-            payable: self.payable,
+            payment_string: self.payment_string,
         };
         let resp = wallet.analyze(req).await?;
 

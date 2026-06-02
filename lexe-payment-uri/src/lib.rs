@@ -113,7 +113,7 @@ pub async fn resolve(
     }
 
     ensure!(
-        !payment_methods.is_empty() || !resolve_errors.is_empty(),
+        !payment_methods.is_empty() || !claim_methods.is_empty(),
         "Failed to resolve methods: {}",
         resolve_errors.join("; "),
     );
@@ -170,7 +170,7 @@ mod resolve {
         }
 
         // Always try resolving Lightning Address, which uses LNURL-pay
-        let lnurl = Lnurl::parse(&email_like.lightning_address_url)?;
+        let lnurl = Lnurl::from_http_url(&email_like.lightning_address_url)?;
         let ln_address_result = lnurl_client
             .get_pay_request(&lnurl)
             .await

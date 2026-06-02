@@ -135,6 +135,7 @@ pub enum LnurlScheme {
 // --- LNURL-withdraw request --- //
 
 /// LUD-03 LNURL-withdraw request.
+#[derive(Debug)]
 pub struct LnurlWithdrawRequest {
     /// The URL which will accept the withdraw request parameters.
     pub callback: String,
@@ -495,12 +496,9 @@ impl<'a> Lnurl<'a> {
 
         let mut params: HashMap<_, _> = http_uri
             .params
-            .iter()
+            .into_iter()
             .map(|param| {
-                (
-                    Cow::Owned(param.key_parsed().name.to_string()),
-                    param.value.clone(),
-                )
+                (Cow::Owned(param.key_parsed().name.to_string()), param.value)
             })
             .collect();
 

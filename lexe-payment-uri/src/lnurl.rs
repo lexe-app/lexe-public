@@ -139,6 +139,7 @@ pub(crate) const LNURL_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 ///
 /// Branches are associated with an LNURL `tag` (see LUD-01). Note that LNURL
 /// tags and flows may be different ("LNURL-auth" flow vs. `login` tag).
+#[derive(Debug)]
 pub enum LnurlIntermediate {
     /// tag: "payRequest"
     Pay(LnurlPayRequest),
@@ -574,6 +575,7 @@ impl LnurlClient {
             .get_lnurl_intermediate(&lnurl)
             .await
             .context("Failed to resolve LNURL url")?;
+        debug!("Resolved LNURL into intermediate: {lnurl_intermediate:?}");
         match lnurl_intermediate {
             LnurlIntermediate::Pay(pay_request) => Ok((
                 vec![PaymentMethod::LnurlPay {

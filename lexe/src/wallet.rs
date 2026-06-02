@@ -24,7 +24,8 @@ use lexe_common::{
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
-    self, Bip321Uri, ClaimMethod, Lnurl, PaymentMethod, PaymentUri,
+    self, Bip321Uri, ClaimMethod, EmailLikeAddress, Lnurl, PaymentMethod,
+    PaymentUri,
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
 };
@@ -783,7 +784,7 @@ impl LexeWallet {
         req: AnalyzeRequest,
     ) -> anyhow::Result<AnalyzeResponse> {
         let network = self.user_config().env_config.wallet_env.network;
-        let payment_uri = PaymentUri::parse(&req.payable)?;
+        let payment_uri = PaymentUri::parse(&req.payment_string)?;
 
         let (payment_methods, claim_methods) = lexe_payment_uri::resolve(
             &self.bip353_client,
@@ -1332,7 +1333,7 @@ impl LexeWallet {
         })
     }
 
-    /// Pay an LNURL via the `payRequest` flow.
+    /// Pay an LNURL or Lightning Address via the `payRequest` flow.
     #[instrument(skip_all, name = "(pay-lnurl)")]
     pub async fn pay_lnurl(
         &self,
@@ -1341,8 +1342,19 @@ impl LexeWallet {
         // Get the pay request
         let pay_request = match (req.lnurl, req.pay_request) {
             (Some(s), None) => {
-                let lnurl = Lnurl::parse(&s)
-                    .context("Failed to parse LNURL from string")?;
+                // Try to parse as Lightning Address first
+                let lnurl = if let Ok(e) = EmailLikeAddress::parse(&s) {
+                    if e.bip353_prefix {
+                        return Err(anyhow!(
+                            "Expected a Lightning Address but found a \
+                             ₿-prefixed BIP353 address: {s}"
+                        ));
+                    }
+                    let http_url = e.lightning_address_url;
+                    Lnurl::from_http_url(&http_url)?.into_owned()
+                } else {
+                    Lnurl::parse(&s)?
+                };
 
                 self.lnurl_client
                     .get_pay_request(&lnurl)
@@ -1433,10 +1445,33 @@ impl LexeWallet {
                 )),
         };
 
-        // Create an invoice according to the withdraw request
+        // Create an invoice according to the withdraw request.
+        // A `None` amount withdraws the maximum allowed.
+        let amount = match req.amount {
+            Some(amt) => {
+                // Ensure amount is within bounds
+                ensure!(
+                    withdraw_request.min_withdrawable <= amt,
+                    "Given amount ({amt} sats) shouldn't be lower than the \
+                     receiver's requested minimum amount: \
+                     {} sats",
+                    withdraw_request.min_withdrawable
+                );
+                ensure!(
+                    amt <= withdraw_request.max_withdrawable,
+                    "Given amount ({amt} sats) shouldn't be higher than the \
+                     receiver's requested maximum amount: \
+                     {} sats",
+                    withdraw_request.max_withdrawable
+                );
+                amt
+            }
+            None => withdraw_request.max_withdrawable,
+        };
+
         let invoice_req = CreateInvoiceRequest {
             expiration_secs: None,
-            amount: Some(req.amount),
+            amount: Some(amount),
             description: Some(req.description.unwrap_or_else(|| {
                 withdraw_request.default_description.to_owned()
             })),
@@ -1456,9 +1491,13 @@ impl LexeWallet {
             .context("Failed to make LNURL withdraw callback")?;
 
         // Wait for the payment
-        self.wait_for_payment(invoice_resp.index, Some(TIMEOUT))
+        let wait_result = self
+            .wait_for_payment(invoice_resp.index, Some(TIMEOUT))
             .await
             .context("Couldn't receive withdrawal payment")?;
+        if let PaymentStatus::Failed = wait_result.status {
+            return Err(anyhow!("Withdrawal payment failed"));
+        }
 
         let result = WithdrawLnurlResponse {
             index: invoice_resp.index,

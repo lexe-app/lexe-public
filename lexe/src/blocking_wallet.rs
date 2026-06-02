@@ -9,8 +9,6 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use lexe_api::types::payments::PaymentCreatedIndex;
-
 #[cfg(feature = "unstable")]
 use crate::unstable;
 use crate::{
@@ -22,11 +20,12 @@ use crate::{
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-            PayOfferResponse, PayRequest, PayResponse, PaymentSyncSummary,
-            UpdatePersonalNoteRequest,
+            PayInvoiceRequest, PayInvoiceResponse, PayLnurlRequest,
+            PayLnurlResponse, PayOfferRequest, PayOfferResponse, PayRequest,
+            PayResponse, PaymentSyncSummary, UpdatePersonalNoteRequest,
+            WithdrawLnurlRequest, WithdrawLnurlResponse,
         },
-        payment::{Order, Payment, PaymentFilter},
+        payment::{Order, Payment, PaymentCreatedIndex, PaymentFilter},
     },
     wallet::LexeWallet,
 };
@@ -415,6 +414,22 @@ impl BlockingLexeWallet {
         req: PayOfferRequest,
     ) -> anyhow::Result<PayOfferResponse> {
         block_on(self.inner.pay_offer(req))
+    }
+
+    /// Pay an LNURL or Lightning Address via the `payRequest` flow.
+    pub fn pay_lnurl(
+        &self,
+        req: PayLnurlRequest,
+    ) -> anyhow::Result<PayLnurlResponse> {
+        block_on(self.inner.pay_lnurl(req))
+    }
+
+    /// Withdraw an LNURL via the `withdrawRequest` flow.
+    pub fn withdraw_lnurl(
+        &self,
+        req: WithdrawLnurlRequest,
+    ) -> anyhow::Result<WithdrawLnurlResponse> {
+        block_on(self.inner.withdraw_lnurl(req))
     }
 
     /// Get information about a payment by its created index.

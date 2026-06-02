@@ -874,7 +874,9 @@ impl AsyncLexeWallet {
     /// `payable` is the string to analyze.
     #[uniffi::method]
     pub async fn analyze(&self, payable: String) -> FfiResult<AnalyzeResponse> {
-        let req = SdkAnalyzeRequest { payable };
+        let req = SdkAnalyzeRequest {
+            payment_string: payable,
+        };
         let resp = self.inner.analyze(req).await?;
         Ok(resp.into())
     }
@@ -1404,7 +1406,9 @@ impl BlockingLexeWallet {
     /// `payable` is the string to analyze.
     #[uniffi::method]
     pub fn analyze(&self, payable: String) -> FfiResult<AnalyzeResponse> {
-        let req = SdkAnalyzeRequest { payable };
+        let req = SdkAnalyzeRequest {
+            payment_string: payable,
+        };
         let resp = self.inner.analyze(req)?;
         Ok(resp.into())
     }

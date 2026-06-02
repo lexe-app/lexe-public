@@ -41,7 +41,9 @@ pub mod bitcoin {
     pub use lexe_common::ln::{
         amount::Amount, hashes::Txid, priority::ConfirmationPriority,
     };
-    pub use lexe_payment_uri::PaymentMethod;
+    pub use lexe_payment_uri::{
+        ClaimMethod, LnurlWithdrawRequest, PaymentMethod,
+    };
 }
 
 /// General-purpose utilities.
