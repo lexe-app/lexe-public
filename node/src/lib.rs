@@ -14,6 +14,8 @@ pub mod cli;
 
 /// Type aliases.
 mod alias;
+/// Logic to anonymize payment paths before reporting to Lexe LSP.
+mod anonymize_path;
 /// Version approval and revocation.
 mod approved_versions;
 /// `NodeChannelManager` and related configs.
