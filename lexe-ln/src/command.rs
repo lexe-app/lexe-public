@@ -833,6 +833,7 @@ where
         preimage.into(),
         kind,
         req.message,
+        req.personal_note,
         partner_fee,
     )
     .context("Failed to create payment")?;

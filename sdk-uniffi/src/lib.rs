@@ -934,6 +934,9 @@ impl AsyncLexeWallet {
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `personal_note` is a private note that the payer does not see.
+    /// If provided, `personal_note` must be non-empty and at most 200 chars /
+    /// 512 UTF-8 bytes.
     /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
     /// in order for the other partner fee fields to take effect.
     /// `partner_prop_fee_ppm` is the partner proportional fee in ppm; must be
@@ -941,9 +944,10 @@ impl AsyncLexeWallet {
     /// `partner_base_fee_sats` is the partner base fee in satoshis. If this is
     /// set, the invoice `amount_sats` must also be set.
     #[uniffi::method(default(
+        expiration_secs = None,
         amount_sats = None,
         description = None,
-        expiration_secs = None,
+        personal_note = None,
         partner_pk = None,
         partner_prop_fee_ppm = None,
         partner_base_fee_sats = None,
@@ -953,6 +957,7 @@ impl AsyncLexeWallet {
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
+        personal_note: Option<String>,
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
         partner_base_fee_sats: Option<u64>,
@@ -979,6 +984,7 @@ impl AsyncLexeWallet {
             expiration_secs,
             amount,
             description,
+            personal_note,
             partner_pk,
             partner_prop_fee,
             partner_base_fee,
@@ -1466,6 +1472,9 @@ impl BlockingLexeWallet {
     /// if `None`, the invoice expiry defaults to 86,400 (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `personal_note` is a private note that the payer does not see.
+    /// If provided, `personal_note` must be non-empty and at most 200 chars /
+    /// 512 UTF-8 bytes.
     /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
     /// in order for the other partner fee fields to take effect.
     /// `partner_prop_fee_ppm` is the partner proportional fee in ppm; must be
@@ -1476,6 +1485,7 @@ impl BlockingLexeWallet {
         expiration_secs = None,
         amount_sats = None,
         description = None,
+        personal_note = None,
         partner_pk = None,
         partner_prop_fee_ppm = None,
         partner_base_fee_sats = None,
@@ -1485,6 +1495,7 @@ impl BlockingLexeWallet {
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
+        personal_note: Option<String>,
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
         partner_base_fee_sats: Option<u64>,
@@ -1511,6 +1522,7 @@ impl BlockingLexeWallet {
             expiration_secs,
             amount,
             description,
+            personal_note,
             partner_pk,
             partner_prop_fee,
             partner_base_fee,

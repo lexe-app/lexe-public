@@ -934,40 +934,38 @@ impl PayArgs {
     help_template = HELP_TEMPLATE,
 )]
 pub struct CreateInvoiceArgs {
-    #[arg(
-        long,
-        help = "Amount in satoshis.\n\
-        Omit for amountless invoice."
-    )]
+    #[arg(long, help = "Amount in satoshis. Omit for amountless invoice.")]
     amount_sats: Option<Amount>,
 
     #[arg(
         long,
-        help = "Description to encode in invoice.\n\
-        Visible to sender when scanned."
+        help = "Description to encode in invoice. Visible to sender when scanned."
     )]
     description: Option<String>,
 
     #[arg(
         long,
-        help = "Invoice expiration in seconds.\n\
-        [default: 86400 = 1 day]"
+        help = "Personal note stored locally, not visible to sender.\n\
+        Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    personal_note: Option<String>,
+
+    #[arg(
+        long,
+        help = "Invoice expiration in seconds. [default: 86400 = 1 day]"
     )]
     expiration_secs: Option<u32>,
 
     #[arg(
         long,
-        help = "Partner user_pk for\n\
-        partner-set fees. Required for\n\
-        partner_prop_fee and\n\
-        partner_base_fee to take effect."
+        help = "Partner user_pk for partner-set fees. Required for\n\
+        partner_prop_fee and partner_base_fee to take effect."
     )]
     partner_pk: Option<UserPk>,
 
     #[arg(
         long,
-        help = "Partner proportional fee in ppm.\n\
-        Required if partner_pk is set.\n\
+        help = "Partner proportional fee in ppm. Required if partner_pk is set.\n\
         Min: 5000 (0.5%),\n\
         Max: 500000 (50%)"
     )]
@@ -975,9 +973,7 @@ pub struct CreateInvoiceArgs {
 
     #[arg(
         long,
-        help = "Partner base fee in satoshis.\n\
-        Requires amount_sats\n\
-        to also be set."
+        help = "Partner base fee in satoshis. Requires amount_sats to also be set."
     )]
     partner_base_fee: Option<Amount>,
 
@@ -999,6 +995,7 @@ impl CreateInvoiceArgs {
             expiration_secs: self.expiration_secs,
             amount: self.amount_sats,
             description: self.description,
+            personal_note: self.personal_note,
             partner_pk: self.partner_pk,
             partner_prop_fee: self.partner_prop_fee,
             partner_base_fee: self.partner_base_fee,

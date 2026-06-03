@@ -748,6 +748,8 @@ Args:
         or ``None`` for a default of ``86400`` (1 day).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    personal_note: Optional personal note (not visible to the payer).
+        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
     partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
         Must be set for partner fee fields to take effect.
     partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm).
@@ -1245,6 +1247,8 @@ Args:
         or ``None`` for a default of ``86400`` (1 day).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    personal_note: Optional personal note (not visible to the payer).
+        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
     partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
         Must be set for partner fee fields to take effect.
     partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm).

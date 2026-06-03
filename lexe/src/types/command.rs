@@ -250,15 +250,24 @@ pub struct CreateInvoiceRequest {
     pub expiration_secs: Option<u32>,
 
     /// Optionally include an amount, in sats, to encode into the invoice.
-    /// If no amount is provided, the sender will specify how much to pay.
+    /// If no amount is provided, the payer will specify how much to pay.
     pub amount: Option<Amount>,
 
     /// The description to be encoded into the invoice.
-    /// The sender will see this description when they scan the invoice.
+    /// The payer will see this description when they scan the invoice.
     // If `None`, the `description` field inside the invoice will be an empty
     // string (""), as lightning _requires_ a description (or description
     // hash) to be set.
     pub description: Option<String>,
+
+    /// An optional personal note for this invoice.
+    ///
+    /// The payer will not see this note.
+    ///
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    // Added in `node-v0.9.10`
+    pub personal_note: Option<String>,
 
     /// The partner's user_pk, if the partner is setting the fee for this
     /// payment instead of using Lexe's default fees.
@@ -345,6 +354,10 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
             message: None,
+            personal_note: req
+                .personal_note
+                .map(BoundedString::new)
+                .transpose()?,
             partner_pk: req.partner_pk.map(|pk| pk.unstable()),
             partner_prop_fee: req.partner_prop_fee,
             partner_base_fee: req.partner_base_fee,

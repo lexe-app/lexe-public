@@ -393,6 +393,10 @@ pub struct CreateInvoiceRequest {
     #[serde(rename = "payer_note", alias = "message")]
     pub message: Option<BoundedString>,
 
+    /// An optional personal note for this invoice.
+    /// Added in `node-v0.9.10`
+    pub personal_note: Option<BoundedString>,
+
     /// The partner's user_pk, if the partner is setting the fee for this
     /// payment instead of using Lexe's default fees.
     ///

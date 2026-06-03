@@ -1475,6 +1475,8 @@ impl LexeWallet {
             description: Some(req.description.unwrap_or_else(|| {
                 withdraw_request.default_description.to_owned()
             })),
+            // TODO(nicole): add personal_note to withdraw_lnurl
+            personal_note: None,
             partner_pk: None,
             partner_prop_fee: None,
             partner_base_fee: None,

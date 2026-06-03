@@ -389,11 +389,13 @@ impl InboundInvoicePaymentV2 {
         preimage: PaymentPreimage,
         kind: PaymentKind,
         message: Option<BoundedString>,
+        personal_note: Option<BoundedString>,
         partner_fee: Option<PartnerFeeFields>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
         let message = message.map(BoundedString::into_inner);
+        let personal_note = personal_note.map(BoundedString::into_inner);
 
         let invoice_amount =
             invoice.0.amount_milli_satoshis().map(Amount::from_msat);
@@ -423,7 +425,7 @@ impl InboundInvoicePaymentV2 {
             offer: None,
             payer_name: None,
             message,
-            personal_note: None,
+            personal_note,
             priority: None,
             quantity: None,
             replacement_txid: None,
