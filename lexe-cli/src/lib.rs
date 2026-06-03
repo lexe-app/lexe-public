@@ -527,7 +527,7 @@ impl AnalyzeArgs {
             let mut json_payables = vec![];
             for p in resp.payables {
                 let kind = p.method.kind();
-                let command = Self::validate_command("pay", &p.payable, "");
+                let command = Self::validate_command("pay", &p.payable, "")?;
                 let method_string = match p.method {
                     PaymentMethod::Onchain { address, .. } =>
                         address.to_string(),
@@ -560,7 +560,7 @@ impl AnalyzeArgs {
                 let kind = c.method.kind();
                 // TODO(nicole): don't forget to change when `claim` comes thru
                 let command =
-                    Self::validate_command("withdraw-lnurl", &c.claimable, "");
+                    Self::validate_command("withdraw-lnurl", &c.claimable, "")?;
                 let method_string = match c.method {
                     ClaimMethod::LnurlWithdraw { lnurl, .. } =>
                         lnurl.to_string(),
@@ -655,7 +655,7 @@ impl AnalyzeArgs {
                 lexe_command,
                 command_arg,
                 amount_hint,
-            ));
+            )?);
 
             // [ Offer ] (recommended)
             if recommended {
@@ -680,11 +680,14 @@ impl AnalyzeArgs {
             println!("\n{TAB}To {verb} this, run:");
             // Don't wrap this to keep it copy/paste-able
             println!("{TAB}{command}");
+
+            anyhow::Ok(())
         };
 
         if !claimables_only {
             // Process payables
-            let payable_details = resp.payables.into_iter().map(|details| {
+            let mut payable_details = Vec::with_capacity(resp.payables.len());
+            for details in resp.payables.into_iter() {
                 let kind = details.method.kind();
                 let (method_name, method_string) = match details.method {
                     PaymentMethod::Onchain { address, .. } =>
@@ -696,7 +699,7 @@ impl AnalyzeArgs {
                     PaymentMethod::LnurlPay { lnurl, .. } =>
                         ("LNURL-pay", lnurl),
                 };
-                MethodEntry {
+                let entry = MethodEntry {
                     verb: "pay",
                     method_name,
                     kind,
@@ -708,8 +711,9 @@ impl AnalyzeArgs {
                     expires_at: details.expires_at,
                     command_arg: details.payable,
                     lexe_command: "pay",
-                }
-            });
+                };
+                payable_details.push(entry);
+            }
 
             // Print payables
             match payable_details.len() {
@@ -719,7 +723,7 @@ impl AnalyzeArgs {
             }
             let mut recommended = true;
             for entry in payable_details {
-                print_entry(&entry, recommended);
+                print_entry(&entry, recommended)?;
                 recommended = false;
             }
         }
@@ -730,27 +734,29 @@ impl AnalyzeArgs {
 
         if !payables_only {
             // Process claimables
-            let claimable_details =
-                resp.claimables.into_iter().map(|details| {
-                    let kind = details.method.kind();
-                    let (method_name, method_string) = match details.method {
-                        ClaimMethod::LnurlWithdraw { lnurl, .. } =>
-                            ("LNURL-withdraw", lnurl),
-                    };
-                    MethodEntry {
-                        verb: "withdraw",
-                        method_name,
-                        kind,
-                        method_string,
-                        description: details.description,
-                        amount: None,
-                        min_amount: details.min_amount,
-                        max_amount: details.max_amount,
-                        expires_at: None,
-                        command_arg: details.claimable,
-                        lexe_command: "withdraw-lnurl",
-                    }
-                });
+            let mut claimable_details =
+                Vec::with_capacity(resp.claimables.len());
+            for details in resp.claimables.into_iter() {
+                let kind = details.method.kind();
+                let (method_name, method_string) = match details.method {
+                    ClaimMethod::LnurlWithdraw { lnurl, .. } =>
+                        ("LNURL-withdraw", lnurl),
+                };
+                let entry = MethodEntry {
+                    verb: "withdraw",
+                    method_name,
+                    kind,
+                    method_string,
+                    description: details.description,
+                    amount: None,
+                    min_amount: details.min_amount,
+                    max_amount: details.max_amount,
+                    expires_at: None,
+                    command_arg: details.claimable,
+                    lexe_command: "withdraw-lnurl",
+                };
+                claimable_details.push(entry);
+            }
 
             // Print claimables
             match claimable_details.len() {
@@ -760,7 +766,7 @@ impl AnalyzeArgs {
             }
             let mut recommended = true;
             for entry in claimable_details {
-                print_entry(&entry, recommended);
+                print_entry(&entry, recommended)?;
                 recommended = false;
             }
         }
@@ -768,14 +774,20 @@ impl AnalyzeArgs {
         Ok(())
     }
 
-    fn validate_command(command: &str, arg: &str, append: &str) -> String {
+    fn validate_command(
+        command: &str,
+        arg: &str,
+        append: &str,
+    ) -> anyhow::Result<String> {
         if arg.contains('\'') {
-            format!(
-                "ERR: arg contained a single quote ('); \
-                 failed to generate command string for {arg}"
-            )
+            Err(anyhow!(
+                // Shouldn't happen, but disallow to guard against
+                // command injection
+                "Found unexpected single quote (') in payment string.
+                 Please report this to Lexe. Payment string: {arg}"
+            ))
         } else {
-            format!("lexe {command} '{arg}'{append}")
+            Ok(format!("lexe {command} '{arg}'{append}"))
         }
     }
 }
@@ -1878,5 +1890,36 @@ mod helpers {
         // info!("Lexe pubkey (user_pk): {user_pk}");
 
         Ok(credentials)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use lexe_common::test_utils::arbitrary;
+    use lexe_payment_uri_core::{Lnurl, LnurlScheme};
+    use proptest::{
+        arbitrary::{any, any_with},
+        prop_assert, prop_oneof, proptest,
+        strategy::Strategy,
+    };
+
+    use super::*;
+
+    /// `analyze` output goes through [`AnalyzeArgs::validate_command`], which
+    /// rejects `payable`s/`claimable`s with single quotes.
+    /// We should never hit that case, but this test helps check
+    #[test]
+    fn analyze_results_have_no_single_quote() {
+        proptest!(|(
+            s in prop_oneof![
+                arbitrary::any_mainnet_addr().prop_map(|addr| addr.to_string()),
+                any::<Invoice>().prop_map(|invoice| invoice.to_string()),
+                any::<Offer>().prop_map(|offer| offer.to_string()),
+                any_with::<Lnurl>(Some(LnurlScheme::Pay)).prop_map(|lnurl| lnurl.to_string()),
+                any_with::<Lnurl>(Some(LnurlScheme::Withdraw)).prop_map(|lnurl| lnurl.to_string()),
+            ]
+        )| {
+            prop_assert!(!s.contains('\''));
+        });
     }
 }

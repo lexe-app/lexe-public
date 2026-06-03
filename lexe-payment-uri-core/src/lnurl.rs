@@ -53,12 +53,7 @@ use std::{borrow::Cow, collections::HashMap, fmt, str::FromStr};
 use anyhow::{Context, anyhow, ensure};
 use bech32::{Bech32, Hrp};
 use lexe_common::ln::amount::Amount;
-#[cfg(test)]
-use proptest::{
-    arbitrary::Arbitrary,
-    strategy::{BoxedStrategy, Strategy},
-};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::Deserialize;
 use tracing::error;
@@ -96,7 +91,8 @@ pub struct Lnurl<'a> {
 /// which is either included in the original LNURL as a query parameter or
 /// returned under the "tag" key in a JSON response.
 #[derive(Copy, Clone, Debug, strum::Display, strum::EnumString)]
-#[cfg_attr(test, derive(Eq, PartialEq, Arbitrary))]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[strum(serialize_all = "camelCase")]
 pub enum LnurlTag {
     /// (LUD-02) "channelRequest"
@@ -117,7 +113,7 @@ pub enum LnurlTag {
 /// LUD-17 defines fine-grained protocol schemes for specific flows:
 /// `lnurlp://`, `lnurlw://`, `lnurlc://`, and `keyauth://` - see below.
 #[derive(Copy, Clone, Debug)]
-#[cfg_attr(test, derive(Eq, PartialEq, Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq, Arbitrary))]
 pub enum LnurlScheme {
     /// `https://`
     Https,
@@ -624,9 +620,13 @@ impl<'a> fmt::Display for Lnurl<'a> {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use proptest::prelude::any;
+    use proptest::{
+        arbitrary::Arbitrary,
+        prelude::any,
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
 
