@@ -133,7 +133,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0 
       - run: uv --project sdk-uniffi sync --reinstall-package lexe-sdk
       - run: uv --project sdk-uniffi run pytest
         working-directory: sdk-uniffi
