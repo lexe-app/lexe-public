@@ -844,6 +844,61 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
+_set_method_doc(LexeWallet, "pay_lnurl", """\
+Pay an LNURL via the ``payRequest`` flow.
+
+Args:
+    lnurl: LNURL string to pay to.
+    amount_sats: Amount to pay in satoshis. If the LNURL endpoint specifies a
+        minimum or maximum amount, this value must satisfy those limits.
+    message: Optional message visible to the recipient. It is only sent if the
+        LNURL endpoint supports it, and is truncated to the endpoint's length
+        limit if needed.
+    personal_note: Optional personal note (not visible to the receiver).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    The resulting :class:`Payment`, returned once it reaches a terminal
+    state (completed or failed).
+
+Raises:
+    FfiError: If the LNURL is invalid or payment initiation fails.
+
+Example::
+
+    payment = wallet.pay_lnurl(lnurl_string, 1000)
+    print(f"Payment {payment.status}")
+""")
+
+_set_method_doc(LexeWallet, "withdraw_lnurl", """\
+Withdraw an LNURL via the ``withdrawRequest`` flow.
+
+Args:
+    lnurl: LNURL string to withdraw from.
+    amount_sats: Optional amount to withdraw in satoshis. Must satisfy the
+        minimum and maximum limits set by the LNURL endpoint. If ``None``, the
+        maximum amount is withdrawn.
+    description: Optional description encoded into the withdrawal invoice and
+        visible to the LNURL endpoint. If ``None``, the description specified by
+        the LNURL endpoint (if any) is used.
+    personal_note: Optional private note (not visible to the LNURL endpoint).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    The resulting :class:`Payment`, returned once the withdrawal reaches a
+    terminal state (completed or failed).
+
+Raises:
+    FfiError: If the LNURL is invalid or initiating the withdrawal fails.
+
+Example::
+
+    payment = wallet.withdraw_lnurl(lnurl_string, 1000)
+    print(f"Payment {payment.status}")
+""")
+
 _set_method_doc(LexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
@@ -1342,6 +1397,61 @@ Raises:
 Example::
 
     payment = await wallet.pay_offer(bolt12_offer, 1000)
+    print(f"Payment {payment.status}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "pay_lnurl", """\
+Pay an LNURL via the ``payRequest`` flow.
+
+Args:
+    lnurl: LNURL string to pay to.
+    amount_sats: Amount to pay in satoshis. If the LNURL endpoint specifies a
+        minimum or maximum amount, this value must satisfy those limits.
+    message: Optional message visible to the recipient. It is only sent if the
+        LNURL endpoint supports it, and is truncated to the endpoint's length
+        limit if needed.
+    personal_note: Optional personal note (not visible to the receiver).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    The resulting :class:`Payment`, returned once it reaches a terminal
+    state (completed or failed).
+
+Raises:
+    FfiError: If the LNURL is invalid or payment initiation fails.
+
+Example::
+
+    payment = await wallet.pay_lnurl(lnurl_string, 1000)
+    print(f"Payment {payment.status}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "withdraw_lnurl", """\
+Withdraw an LNURL via the ``withdrawRequest`` flow.
+
+Args:
+    lnurl: LNURL string to withdraw from.
+    amount_sats: Optional amount to withdraw in satoshis. Must satisfy the
+        minimum and maximum limits set by the LNURL endpoint. If ``None``, the
+        maximum amount is withdrawn.
+    description: Optional description encoded into the withdrawal invoice and
+        visible to the LNURL endpoint. If ``None``, the description specified by
+        the LNURL endpoint (if any) is used.
+    personal_note: Optional private note (not visible to the LNURL endpoint).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    The resulting :class:`Payment`, returned once the withdrawal reaches a
+    terminal state (completed or failed).
+
+Raises:
+    FfiError: If the LNURL is invalid or initiating the withdrawal fails.
+
+Example::
+
+    payment = await wallet.withdraw_lnurl(lnurl_string, 1000)
     print(f"Payment {payment.status}")
 """)
 

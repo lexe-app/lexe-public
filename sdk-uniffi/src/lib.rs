@@ -36,8 +36,10 @@ use lexe::{
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse as SdkGetUpdatedPaymentsResponse,
             NodeInfo as SdkNodeInfo, PayInvoiceRequest as SdkPayInvoiceRequest,
+            PayLnurlRequest as SdkPayLnurlRequest,
             PayOfferRequest as SdkPayOfferRequest, PayRequest as SdkPayRequest,
             PayableDetails as SdkPayableDetails, UpdatePersonalNoteRequest,
+            WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
         payment::Payment as SdkPayment,
         util::Ppm,
@@ -1098,6 +1100,86 @@ impl AsyncLexeWallet {
         Ok(resp.into())
     }
 
+    /// Pay an LNURL via the `payRequest` flow.
+    ///
+    /// `lnurl` is the LNURL string to pay to.
+    /// `amount_sats` is the amount to pay in satoshis. If the LNURL endpoint
+    /// specifies a minimum or maximum amount, this value must satisfy those
+    /// limits.
+    /// `message` is a note visible to the recipient. It is only sent if the
+    /// LNURL endpoint supports it, and is truncated to the endpoint's length
+    /// limit if needed.
+    /// `personal_note` is a private note that the receiver does not see. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
+    /// bytes.
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed).
+    #[uniffi::method(default(message = None, personal_note = None))]
+    pub async fn pay_lnurl(
+        &self,
+        lnurl: String,
+        amount_sats: u64,
+        message: Option<String>,
+        personal_note: Option<String>,
+    ) -> FfiResult<Payment> {
+        let amount = AmountRs::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+
+        let req = SdkPayLnurlRequest {
+            lnurl: Some(lnurl),
+            pay_request: None,
+            amount,
+            message,
+            personal_note,
+        };
+        let resp = self.inner.pay_lnurl(req).await?;
+        Ok(resp.into())
+    }
+
+    /// Withdraw an LNURL via the `withdrawRequest` flow.
+    ///
+    /// `lnurl` is the LNURL string to withdraw from.
+    /// `amount_sats` is the amount to withdraw in satoshis. It must satisfy the
+    /// minimum and maximum limits set by the LNURL endpoint. If `None`, the
+    /// maximum amount is withdrawn.
+    /// `description` is encoded into the withdrawal invoice and visible to the
+    /// LNURL endpoint. If `None`, the description specified by the LNURL
+    /// endpoint (if any) is used.
+    /// `personal_note` is a private note that the LNURL endpoint does not see.
+    /// If provided, it must be non-empty and no longer than 200 chars / 512
+    /// UTF-8 bytes.
+    ///
+    /// Returns the resulting `Payment` once the withdrawal reaches a terminal
+    /// state (completed or failed).
+    #[uniffi::method(default(
+        amount_sats = None,
+        description = None,
+        personal_note = None
+    ))]
+    pub async fn withdraw_lnurl(
+        &self,
+        lnurl: String,
+        amount_sats: Option<u64>,
+        description: Option<String>,
+        personal_note: Option<String>,
+    ) -> FfiResult<Payment> {
+        let amount = amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .context("Invalid amount")?;
+
+        let req = SdkWithdrawLnurlRequest {
+            lnurl: Some(lnurl),
+            withdraw_request: None,
+            amount,
+            description,
+            personal_note,
+        };
+        let resp = self.inner.withdraw_lnurl(req).await?;
+        Ok(resp.into())
+    }
+
     /// Get a payment by its `index` string.
     pub async fn get_payment(
         &self,
@@ -1644,6 +1726,86 @@ impl BlockingLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay_offer(req)?;
+        Ok(resp.into())
+    }
+
+    /// Pay an LNURL via the `payRequest` flow.
+    ///
+    /// `lnurl` is the LNURL string to pay to.
+    /// `amount_sats` is the amount to pay in satoshis. If the LNURL endpoint
+    /// specifies a minimum or maximum amount, this value must satisfy those
+    /// limits.
+    /// `message` is a note visible to the recipient. It is only sent if the
+    /// LNURL endpoint supports it, and is truncated to the endpoint's length
+    /// limit if needed.
+    /// `personal_note` is a private note that the receiver does not see. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
+    /// bytes.
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed).
+    #[uniffi::method(default(message = None, personal_note = None))]
+    pub fn pay_lnurl(
+        &self,
+        lnurl: String,
+        amount_sats: u64,
+        message: Option<String>,
+        personal_note: Option<String>,
+    ) -> FfiResult<Payment> {
+        let amount = AmountRs::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+
+        let req = SdkPayLnurlRequest {
+            lnurl: Some(lnurl),
+            pay_request: None,
+            amount,
+            message,
+            personal_note,
+        };
+        let resp = self.inner.pay_lnurl(req)?;
+        Ok(resp.into())
+    }
+
+    /// Withdraw an LNURL via the `withdrawRequest` flow.
+    ///
+    /// `lnurl` is the LNURL string to withdraw from.
+    /// `amount_sats` is the amount to withdraw in satoshis. It must satisfy the
+    /// minimum and maximum limits set by the LNURL endpoint. If `None`, the
+    /// maximum amount is withdrawn.
+    /// `description` is encoded into the withdrawal invoice and visible to the
+    /// LNURL endpoint. If `None`, the description specified by the LNURL
+    /// endpoint (if any) is used.
+    /// `personal_note` is a private note that the LNURL endpoint does not see.
+    /// If provided, it must be non-empty and no longer than 200 chars / 512
+    /// UTF-8 bytes.
+    ///
+    /// Returns the resulting `Payment` once the withdrawal reaches a terminal
+    /// state (completed or failed).
+    #[uniffi::method(default(
+        amount_sats = None,
+        description = None,
+        personal_note = None
+    ))]
+    pub fn withdraw_lnurl(
+        &self,
+        lnurl: String,
+        amount_sats: Option<u64>,
+        description: Option<String>,
+        personal_note: Option<String>,
+    ) -> FfiResult<Payment> {
+        let amount = amount_sats
+            .map(AmountRs::try_from_sats_u64)
+            .transpose()
+            .context("Invalid amount")?;
+
+        let req = SdkWithdrawLnurlRequest {
+            lnurl: Some(lnurl),
+            withdraw_request: None,
+            amount,
+            description,
+            personal_note,
+        };
+        let resp = self.inner.withdraw_lnurl(req)?;
         Ok(resp.into())
     }
 
