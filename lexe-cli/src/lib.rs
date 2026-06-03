@@ -485,6 +485,10 @@ pub struct AnalyzeArgs {
     #[arg(long)]
     json: bool,
 
+    /// Don't render the QR code
+    #[arg(long)]
+    no_qr: bool,
+
     /// Only show payables (outbound payment methods).
     #[arg(long, conflicts_with = "claimables_only")]
     payables_only: bool,
@@ -510,6 +514,7 @@ impl AnalyzeArgs {
         } else {
             // Human-readable response
             Self::print_human_readable(
+                self.no_qr,
                 self.payables_only,
                 self.claimables_only,
                 resp,
@@ -534,7 +539,7 @@ impl AnalyzeArgs {
                     PaymentMethod::Invoice { invoice, .. } =>
                         invoice.to_string(),
                     PaymentMethod::Offer { offer, .. } => offer.to_string(),
-                    PaymentMethod::LnurlPay { lnurl, .. } => lnurl.to_string(),
+                    PaymentMethod::LnurlPay { lnurl, .. } => lnurl,
                 };
                 let json_payable = serde_json::json!({
                     "command": command,
@@ -562,8 +567,7 @@ impl AnalyzeArgs {
                 let command =
                     Self::validate_command("withdraw-lnurl", &c.claimable, "")?;
                 let method_string = match c.method {
-                    ClaimMethod::LnurlWithdraw { lnurl, .. } =>
-                        lnurl.to_string(),
+                    ClaimMethod::LnurlWithdraw { lnurl, .. } => lnurl,
                 };
                 let json_claimable = serde_json::json!({
                     "command": command,
@@ -585,6 +589,7 @@ impl AnalyzeArgs {
     }
 
     fn print_human_readable(
+        no_qr: bool,
         payables_only: bool,
         claimables_only: bool,
         resp: AnalyzeResponse,
@@ -619,7 +624,7 @@ impl AnalyzeArgs {
             .subsequent_indent(&subsequent_indent);
 
         // `MethodEntry` print function
-        let print_entry = |entry: &MethodEntry, recommended| {
+        let print_entry = |entry: &MethodEntry, recommended, print_qr| {
             let MethodEntry {
                 verb,
                 method_name,
@@ -657,6 +662,15 @@ impl AnalyzeArgs {
                 amount_hint,
             )?);
 
+            // <QR>
+            if print_qr
+                && !no_qr
+                && let Ok(qr) =
+                    lexe_qr::encode_unicode(method_string.bytes().collect())
+            {
+                println!("\n{qr}\n");
+            }
+
             // [ Offer ] (recommended)
             if recommended {
                 println!("\n[ {method_name} ] (recommended)");
@@ -682,6 +696,24 @@ impl AnalyzeArgs {
             println!("{TAB}{command}");
 
             anyhow::Ok(())
+        };
+
+        // Check if there is only one entry across payables and claimables
+        enum OnlyOne {
+            Payable,
+            Claimable,
+            Neither,
+        }
+        let show_qr = if resp.payables.len() == 1
+            && (payables_only || resp.claimables.is_empty())
+        {
+            OnlyOne::Payable
+        } else if resp.claimables.len() == 1
+            && (claimables_only || resp.payables.is_empty())
+        {
+            OnlyOne::Claimable
+        } else {
+            OnlyOne::Neither
         };
 
         if !claimables_only {
@@ -721,10 +753,14 @@ impl AnalyzeArgs {
                 1 => println!("Found 1 payable:"),
                 n => println!("Found {n} payables:"),
             }
-            let mut recommended = true;
-            for entry in payable_details {
-                print_entry(&entry, recommended)?;
-                recommended = false;
+            let mut details_iter = payable_details.into_iter();
+            if let Some(first) = details_iter.next() {
+                let only_entry = matches!(show_qr, OnlyOne::Payable);
+                // If it's the only one: don't print "recommended"; do print QR
+                print_entry(&first, !only_entry, only_entry)?;
+            }
+            for entry in details_iter {
+                print_entry(&entry, false, false)?;
             }
         }
 
@@ -764,10 +800,14 @@ impl AnalyzeArgs {
                 1 => println!("Found 1 claimable:"),
                 n => println!("Found {n} claimables:"),
             }
-            let mut recommended = true;
-            for entry in claimable_details {
-                print_entry(&entry, recommended)?;
-                recommended = false;
+            let mut details_iter = claimable_details.into_iter();
+            if let Some(first) = details_iter.next() {
+                let only_entry = matches!(show_qr, OnlyOne::Claimable);
+                // If it's the only one: don't print "recommended"; do print QR
+                print_entry(&first, !only_entry, only_entry)?;
+            }
+            for entry in details_iter {
+                print_entry(&entry, false, false)?;
             }
         }
 
