@@ -566,6 +566,13 @@ pub struct WithdrawLnurlRequest {
     /// If `None`, the description encoded will be the one specified by the
     /// LNURL endpoint, if any.
     pub description: Option<String>,
+    /// An optional personal note for this withdrawal.
+    ///
+    /// The LNURL endpoint will not see this note.
+    ///
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub personal_note: Option<String>,
 }
 
 /// The response to a request to withdraw from an LNURL-withdraw endpoint.

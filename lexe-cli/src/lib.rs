@@ -1362,6 +1362,13 @@ pub struct WithdrawLnurlArgs {
             Defaults to the endpoint's description if not set."
     )]
     description: Option<String>,
+
+    #[arg(
+        long,
+        help = "Personal note stored locally, not visible to endpoint.\n\
+            Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    personal_note: Option<String>,
 }
 
 impl WithdrawLnurlArgs {
@@ -1372,6 +1379,7 @@ impl WithdrawLnurlArgs {
             withdraw_request: None,
             amount,
             description: self.description,
+            personal_note: self.personal_note,
         };
         info!("Waiting for withdrawal...");
         let resp = wallet
