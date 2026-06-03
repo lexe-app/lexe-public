@@ -61,6 +61,7 @@ use proptest::{
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::Deserialize;
+use tracing::error;
 
 use crate::{Error, uri::Uri};
 
@@ -599,8 +600,14 @@ impl<'a> Lnurl<'a> {
 impl<'a> fmt::Display for Lnurl<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scheme = match self.scheme {
-            LnurlScheme::Https => "https",
-            LnurlScheme::HttpOnion => "http",
+            LnurlScheme::Https | LnurlScheme::HttpOnion => {
+                // Encode as bech32 for unknown schemes
+                if let Ok(bech32) = self.to_bech32() {
+                    return write!(f, "{bech32}");
+                }
+                error!(%self.http_url, "Failed to encode LNURL as bech32");
+                return Err(fmt::Error);
+            }
             LnurlScheme::Pay => "lnurlp",
             LnurlScheme::Withdraw => "lnurlw",
             LnurlScheme::Channel => "lnurlc",
@@ -866,15 +873,16 @@ mod test {
 
     #[test]
     fn test_lnurl_display() {
-        // LNURL should display as the decoded URL
+        // HTTPS scheme LNURL should display as bech32, so that consumers
+        // can recognize it as an LNURL
         let url = "https://example.com/lnurl";
         let lnurl = Lnurl::from_http_url(url).unwrap();
         let encoded = lnurl.to_bech32().unwrap();
         let lnurl = Lnurl::parse_bech32(&encoded).unwrap();
-        assert_eq!(lnurl.to_string(), url);
+        assert_eq!(lnurl.to_string(), encoded);
 
-        // Clear text URL should display as is
+        // Clear text URL is also displayed as bech32
         let lnurl = Lnurl::from_http_url(url).unwrap();
-        assert_eq!(lnurl.to_string(), url);
+        assert_eq!(lnurl.to_string(), encoded);
     }
 }

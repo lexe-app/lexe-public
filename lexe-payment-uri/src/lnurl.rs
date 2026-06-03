@@ -569,7 +569,7 @@ impl LnurlClient {
     /// Compare with [`resolve`](crate::resolve()).
     pub async fn resolve_lnurl(
         &self,
-        lnurl: Lnurl<'static>,
+        mut lnurl: Lnurl<'static>,
     ) -> anyhow::Result<(Vec<PaymentMethod>, Vec<ClaimMethod>)> {
         let lnurl_intermediate = self
             .get_lnurl_intermediate(&lnurl)
@@ -577,13 +577,14 @@ impl LnurlClient {
             .context("Failed to resolve LNURL url")?;
         debug!("Resolved LNURL into intermediate: {lnurl_intermediate:?}");
         match lnurl_intermediate {
-            LnurlIntermediate::Pay(pay_request) => Ok((
-                vec![PaymentMethod::LnurlPay {
-                    lnurl: lnurl.http_url.into_owned(),
+            LnurlIntermediate::Pay(pay_request) => {
+                lnurl.scheme = LnurlScheme::Pay;
+                let method = PaymentMethod::LnurlPay {
+                    lnurl: lnurl.to_string(),
                     pay_request,
-                }],
-                Vec::new(),
-            )),
+                };
+                Ok((vec![method], Vec::new()))
+            }
             LnurlIntermediate::Withdraw(withdraw_request) => {
                 let mut payments = Vec::with_capacity(2);
                 let mut claims = Vec::with_capacity(1);
@@ -591,13 +592,14 @@ impl LnurlClient {
                 // LUD-19 LNURL-withdraw may contain LNURL-pay
                 if let Some(pay_link) = &withdraw_request.pay_link {
                     match Lnurl::parse(pay_link) {
-                        Ok(pay_lnurl) => {
+                        Ok(mut pay_lnurl) => {
                             let pay_request =
                                 self.get_pay_request(&pay_lnurl).await;
+                            pay_lnurl.scheme = LnurlScheme::Pay;
                             match pay_request {
                                 Ok(pay_request) =>
                                     payments.push(PaymentMethod::LnurlPay {
-                                        lnurl: pay_lnurl.http_url.into_owned(),
+                                        lnurl: pay_lnurl.to_string(),
                                         pay_request,
                                     }),
                                 Err(e) => debug!(
@@ -614,8 +616,9 @@ impl LnurlClient {
                 }
 
                 // LNURL-withdraw
+                lnurl.scheme = LnurlScheme::Withdraw;
                 claims.push(ClaimMethod::LnurlWithdraw {
-                    lnurl: lnurl.http_url.into_owned(),
+                    lnurl: lnurl.to_string(),
                     withdraw_request,
                 });
 
