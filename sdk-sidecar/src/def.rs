@@ -7,12 +7,15 @@
 #![allow(async_fn_in_trait)]
 #![deny(missing_docs)]
 
-use lexe::types::command::{
-    AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-    CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-    GetPaymentResponse, GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-    NodeInfo, PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-    PayOfferResponse, PayResponse,
+use lexe::types::{
+    command::{
+        AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+        GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, NodeInfo, PayInvoiceRequest,
+        PayOfferRequest,
+    },
+    payment::Payment,
 };
 use lexe_api::error::SdkApiError;
 #[cfg(doc)]
@@ -59,7 +62,10 @@ pub trait UserSidecarApi {
     /// endpoint to resolve the contents of the payable string. From there,
     /// one can either use the callback or invoke the specific pay endpoint
     /// for the payment method of choice: `pay_offer`, `pay_invoice`, etc.
-    async fn pay(&self, req: &PayRequest) -> Result<PayResponse, SdkApiError>;
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed). Exception: onchain sends return immediately.
+    async fn pay(&self, req: &PayRequest) -> Result<Payment, SdkApiError>;
 
     /// Create a BOLT11 invoice.
     async fn create_invoice(
@@ -68,10 +74,13 @@ pub trait UserSidecarApi {
     ) -> Result<CreateInvoiceResponse, SdkApiError>;
 
     /// Pay a BOLT11 invoice.
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
     async fn pay_invoice(
         &self,
         req: &PayInvoiceRequest,
-    ) -> Result<PayInvoiceResponse, SdkApiError>;
+    ) -> Result<Payment, SdkApiError>;
 
     /// Create a BOLT 12 offer to receive Lightning payments.
     async fn create_offer(
@@ -80,10 +89,13 @@ pub trait UserSidecarApi {
     ) -> Result<CreateOfferResponse, SdkApiError>;
 
     /// Pay a BOLT 12 offer over Lightning.
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
     async fn pay_offer(
         &self,
         req: &PayOfferRequest,
-    ) -> Result<PayOfferResponse, SdkApiError>;
+    ) -> Result<Payment, SdkApiError>;
 
     /// Get information about a payment by its index.
     async fn get_payment(

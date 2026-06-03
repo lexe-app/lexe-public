@@ -36,10 +36,7 @@ use lexe::{
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse as SdkGetUpdatedPaymentsResponse,
             NodeInfo as SdkNodeInfo, PayInvoiceRequest as SdkPayInvoiceRequest,
-            PayInvoiceResponse as SdkPayInvoiceResponse,
-            PayOfferRequest as SdkPayOfferRequest,
-            PayOfferResponse as SdkPayOfferResponse,
-            PayRequest as SdkPayRequest, PayResponse as SdkPayResponse,
+            PayOfferRequest as SdkPayOfferRequest, PayRequest as SdkPayRequest,
             PayableDetails as SdkPayableDetails, UpdatePersonalNoteRequest,
         },
         payment::Payment as SdkPayment,
@@ -903,6 +900,11 @@ impl AsyncLexeWallet {
     /// amount must be within the receiver's [min_amount, max_amount] range.
     /// `message` is an optional message to the recipient (BOLT12, LNURL).
     /// `personal_note` is an optional personal note (not visible to recipient).
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed). Exception: onchain sends return immediately with
+    /// the payment still in `Pending` state, since on-chain confirmation takes
+    /// ~1 hour.
     #[uniffi::method(default(
         amount_sats = None,
         message = None,
@@ -914,7 +916,7 @@ impl AsyncLexeWallet {
         amount_sats: Option<u64>,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<PayResponse> {
+    ) -> FfiResult<Payment> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -998,6 +1000,9 @@ impl AsyncLexeWallet {
     /// `personal_note` is a private note that the receiver does not see.
     /// If provided, `personal_note` must be non-empty and at most 200 chars /
     /// 512 UTF-8 bytes.
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed).
     #[uniffi::method(default(
         fallback_amount_sats = None,
         personal_note = None,
@@ -1007,7 +1012,7 @@ impl AsyncLexeWallet {
         invoice: String,
         fallback_amount_sats: Option<u64>,
         personal_note: Option<String>,
-    ) -> FfiResult<PayInvoiceResponse> {
+    ) -> FfiResult<Payment> {
         let invoice =
             InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
@@ -1068,6 +1073,9 @@ impl AsyncLexeWallet {
     /// `personal_note` is a private note that the receiver does not see. If
     /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
     /// bytes.
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed).
     #[uniffi::method(default(message = None, personal_note = None))]
     pub async fn pay_offer(
         &self,
@@ -1075,7 +1083,7 @@ impl AsyncLexeWallet {
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<PayOfferResponse> {
+    ) -> FfiResult<Payment> {
         let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
@@ -1441,6 +1449,11 @@ impl BlockingLexeWallet {
     /// amount must be within the receiver's [min_amount, max_amount] range.
     /// `message` is an optional message to the recipient (BOLT12, LNURL).
     /// `personal_note` is an optional personal note (not visible to recipient).
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed). Exception: onchain sends return immediately with
+    /// the payment still in `Pending` state, since on-chain confirmation takes
+    /// ~1 hour.
     #[uniffi::method(default(
         amount_sats = None,
         message = None,
@@ -1452,7 +1465,7 @@ impl BlockingLexeWallet {
         amount_sats: Option<u64>,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<PayResponse> {
+    ) -> FfiResult<Payment> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1536,6 +1549,9 @@ impl BlockingLexeWallet {
     /// `personal_note` is a private note that the receiver does not see.
     /// If provided, `personal_note` must be non-empty and at most 200 chars /
     /// 512 UTF-8 bytes.
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed).
     #[uniffi::method(default(
         fallback_amount_sats = None,
         personal_note = None,
@@ -1545,7 +1561,7 @@ impl BlockingLexeWallet {
         invoice: String,
         fallback_amount_sats: Option<u64>,
         personal_note: Option<String>,
-    ) -> FfiResult<PayInvoiceResponse> {
+    ) -> FfiResult<Payment> {
         let invoice =
             InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
@@ -1606,6 +1622,9 @@ impl BlockingLexeWallet {
     /// `personal_note` is a private note that the receiver does not see. If
     /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
     /// bytes.
+    ///
+    /// Returns the resulting `Payment` once it reaches a terminal state
+    /// (completed or failed).
     #[uniffi::method(default(message = None, personal_note = None))]
     pub fn pay_offer(
         &self,
@@ -1613,7 +1632,7 @@ impl BlockingLexeWallet {
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<PayOfferResponse> {
+    ) -> FfiResult<Payment> {
         let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
@@ -2412,24 +2431,6 @@ impl From<SdkAnalyzeResponse> for AnalyzeResponse {
     }
 }
 
-/// Response from paying a payable string.
-#[derive(Clone, uniffi::Record)]
-pub struct PayResponse {
-    /// Unique payment identifier for this payment.
-    pub index: String,
-    /// When we tried to pay this payable (milliseconds since the UNIX epoch).
-    pub created_at_ms: u64,
-}
-
-impl From<SdkPayResponse> for PayResponse {
-    fn from(resp: SdkPayResponse) -> Self {
-        Self {
-            index: resp.index.to_string(),
-            created_at_ms: resp.created_at.to_millis(),
-        }
-    }
-}
-
 // ================ //
 // --- Invoices --- //
 // ================ //
@@ -2500,25 +2501,6 @@ impl From<SdkCreateInvoiceResponse> for CreateInvoiceResponse {
     }
 }
 
-/// Response from paying an invoice.
-#[derive(Clone, uniffi::Record)]
-pub struct PayInvoiceResponse {
-    /// Unique payment identifier for this payment.
-    pub index: String,
-    /// When we tried to pay this invoice (milliseconds since the UNIX
-    /// epoch).
-    pub created_at_ms: u64,
-}
-
-impl From<SdkPayInvoiceResponse> for PayInvoiceResponse {
-    fn from(resp: SdkPayInvoiceResponse) -> Self {
-        Self {
-            index: resp.index.to_string(),
-            created_at_ms: resp.created_at.to_millis(),
-        }
-    }
-}
-
 // ============== //
 // --- Offers --- //
 // ============== //
@@ -2564,24 +2546,6 @@ impl From<SdkCreateOfferResponse> for CreateOfferResponse {
     fn from(resp: SdkCreateOfferResponse) -> Self {
         Self {
             offer: resp.offer.to_string(),
-        }
-    }
-}
-
-/// Response from paying a BOLT 12 offer.
-#[derive(Clone, uniffi::Record)]
-pub struct PayOfferResponse {
-    /// Unique payment identifier for this offer payment.
-    pub index: String,
-    /// When we tried to pay this offer (milliseconds since the UNIX epoch).
-    pub created_at_ms: u64,
-}
-
-impl From<SdkPayOfferResponse> for PayOfferResponse {
-    fn from(resp: SdkPayOfferResponse) -> Self {
-        Self {
-            index: resp.index.to_string(),
-            created_at_ms: resp.created_at.to_millis(),
         }
     }
 }

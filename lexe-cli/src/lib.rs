@@ -16,13 +16,12 @@ use lexe::{
         command::{
             AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
             CreateOfferRequest, GetPaymentRequest, GetUpdatedPaymentsRequest,
-            PayInvoiceRequest, PayLnurlRequest, PayLnurlResponse,
-            PayOfferRequest, PayRequest, PayResponse, PaymentSyncSummary,
-            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
-            WithdrawLnurlResponse,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
+            PaymentSyncSummary, UpdatePersonalNoteRequest,
+            WithdrawLnurlRequest,
         },
         payment::{
-            Order, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
+            Order, Payment, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
             PaymentUpdatedIndex,
         },
         util::{Ppm, TimestampMs},
@@ -853,10 +852,6 @@ etc."#,
     help_template = HELP_TEMPLATE
 )]
 pub struct PayArgs {
-    /// Display output as JSON
-    #[arg(long)]
-    json: bool,
-
     /// The string to be paid.
     pub payable: String,
 
@@ -897,7 +892,7 @@ impl PayArgs {
             message: self.message,
             personal_note: self.personal_note,
         };
-        let resp = wallet.pay(req).await?;
+        let payment = wallet.pay(req).await?;
 
         // Sync payments to persist the new payment locally.
         if wallet.persistence_enabled() {
@@ -907,22 +902,7 @@ impl PayArgs {
                 .context("Payment sync failed")?;
         }
 
-        // JSON response
-        if self.json {
-            info!("Sent payment!");
-            return helpers::print_json_pretty(&resp);
-        }
-
-        // Human-readable response
-        let PayResponse {
-            index,
-            created_at: _,
-        } = resp;
-        println!("Sent payment!");
-        // Don't wrap this to keep it copy/paste-able
-        println!("index: {index}");
-
-        Ok(())
+        helpers::print_payment(&payment)
     }
 }
 
@@ -1075,11 +1055,10 @@ impl PayInvoiceArgs {
             fallback_amount: self.fallback_amount_sats,
             personal_note: self.personal_note,
         };
-        let resp = wallet.pay_invoice(req).await.inspect(|_| {
-            // Provide some successful confirmation for CLI users;
-            // stdout only prints the `PayInvoiceResponse` with no status.
-            info!("Invoice paid!");
-        })?;
+        let payment = wallet
+            .pay_invoice(req)
+            .await
+            .context("Failed to pay invoice")?;
 
         // Sync payments to persist the new payment locally.
         if wallet.persistence_enabled() {
@@ -1089,7 +1068,7 @@ impl PayInvoiceArgs {
                 .context("Payment sync failed")?;
         }
 
-        helpers::print_json_pretty(&resp)
+        helpers::print_payment(&payment)
     }
 }
 
@@ -1221,9 +1200,8 @@ impl PayOfferArgs {
             message: self.message,
             personal_note: self.personal_note,
         };
-        let resp = wallet.pay_offer(req).await.inspect(|_| {
-            info!("Offer paid!");
-        })?;
+        let payment =
+            wallet.pay_offer(req).await.context("Failed to pay offer")?;
 
         // Sync payments to persist the new payment locally.
         if wallet.persistence_enabled() {
@@ -1233,7 +1211,7 @@ impl PayOfferArgs {
                 .context("Payment sync failed")?;
         }
 
-        helpers::print_json_pretty(&resp)
+        helpers::print_payment(&payment)
     }
 }
 
@@ -1253,10 +1231,6 @@ Accepted LNURL encodings:
     help_template = HELP_TEMPLATE,
 )]
 pub struct PayLnurlArgs {
-    /// Display output as JSON
-    #[arg(long)]
-    json: bool,
-
     /// The LNURL-pay string to pay.
     lnurl: String,
 
@@ -1293,7 +1267,7 @@ impl PayLnurlArgs {
             message: self.message,
             personal_note: self.personal_note,
         };
-        let resp =
+        let payment =
             wallet.pay_lnurl(req).await.context("Failed to pay LNURL")?;
 
         // Sync payments to persist the new payment locally.
@@ -1304,22 +1278,7 @@ impl PayLnurlArgs {
                 .context("Payment sync failed")?;
         }
 
-        // JSON response
-        if self.json {
-            info!("Sent payment!");
-            return helpers::print_json_pretty(&resp);
-        }
-
-        // Human-readable response
-        let PayLnurlResponse {
-            index,
-            created_at: _,
-        } = resp;
-        println!("Sent payment!");
-        // Don't wrap this to keep it copy/paste-able
-        println!("index: {index}");
-
-        Ok(())
+        helpers::print_payment(&payment)
     }
 }
 
@@ -1340,10 +1299,6 @@ Accepted LNURL encodings:
     next_line_help = true,
 )]
 pub struct WithdrawLnurlArgs {
-    /// Display output as JSON
-    #[arg(long)]
-    json: bool,
-
     /// The LNURL-withdraw string to withdraw from.
     lnurl: String,
 
@@ -1382,7 +1337,7 @@ impl WithdrawLnurlArgs {
             personal_note: self.personal_note,
         };
         info!("Waiting for withdrawal...");
-        let resp = wallet
+        let payment = wallet
             .withdraw_lnurl(req)
             .await
             .context("Failed to withdraw LNURL")?;
@@ -1395,22 +1350,7 @@ impl WithdrawLnurlArgs {
                 .context("Payment sync failed")?;
         }
 
-        // JSON response
-        if self.json {
-            info!("Withdrawal received!");
-            return helpers::print_json_pretty(&resp);
-        }
-
-        // Human-readable response
-        let WithdrawLnurlResponse {
-            index,
-            created_at: _,
-        } = resp;
-        println!("Withdrawal received!");
-        // Don't wrap this to keep it copy/paste-able
-        println!("index: {index}");
-
-        Ok(())
+        helpers::print_payment(&payment)
     }
 }
 
@@ -1790,6 +1730,33 @@ mod helpers {
             .context("Failed to encode QR code")?;
         println!("\n\n{qr}\n");
         Ok(())
+    }
+
+    /// Print a payment as pretty JSON, log its terminal status, and return an
+    /// `Err` (so the CLI exits non-zero) if the payment failed.
+    ///
+    /// This design allows us to expose the payment details while still
+    /// signalling that something went wrong.
+    pub fn print_payment(payment: &Payment) -> anyhow::Result<()> {
+        // Log the status (to stderr) before printing the payment (to stdout).
+        let result = match payment.status {
+            PaymentStatus::Completed => {
+                info!("Payment complete!");
+                Ok(())
+            }
+            PaymentStatus::Pending => {
+                // A `Pending` status is treated as success:
+                // Lightning `pay*` commands wait for a terminal state, so the
+                // only way to get `Pending` here is an outbound on-chain send
+                // (which takes ~1 hour to confirm).
+                info!("Payment initiated; still pending confirmation.");
+                Ok(())
+            }
+            // The returned `Err` is the failure signal; no `warn!` needed.
+            PaymentStatus::Failed => Err(anyhow!("Payment failed")),
+        };
+        print_json_pretty(payment)?;
+        result
     }
 
     /// Convert a [`TimestampMs`] to a formatted string

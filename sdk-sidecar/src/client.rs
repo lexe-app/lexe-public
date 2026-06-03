@@ -4,7 +4,7 @@ use lexe::types::{
         CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
         GetPaymentResponse, GetUpdatedPaymentsRequest,
         GetUpdatedPaymentsResponse, NodeInfo, PayInvoiceRequest,
-        PayInvoiceResponse, PayOfferRequest, PayOfferResponse, PayResponse,
+        PayOfferRequest,
     },
     payment::Payment,
 };
@@ -68,7 +68,7 @@ impl UserSidecarApi for SidecarClient {
         self.rest.send(http_req).await
     }
 
-    async fn pay(&self, req: &PayRequest) -> Result<PayResponse, SdkApiError> {
+    async fn pay(&self, req: &PayRequest) -> Result<Payment, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/pay");
         let http_req = self.rest.post(url, req);
@@ -88,7 +88,7 @@ impl UserSidecarApi for SidecarClient {
     async fn pay_invoice(
         &self,
         req: &PayInvoiceRequest,
-    ) -> Result<PayInvoiceResponse, SdkApiError> {
+    ) -> Result<Payment, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/pay_invoice");
         let http_req = self.rest.post(url, req);
@@ -108,7 +108,7 @@ impl UserSidecarApi for SidecarClient {
     async fn pay_offer(
         &self,
         req: &PayOfferRequest,
-    ) -> Result<PayOfferResponse, SdkApiError> {
+    ) -> Result<Payment, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/pay_offer");
         let http_req = self.rest.post(url, req);

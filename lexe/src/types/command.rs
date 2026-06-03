@@ -230,15 +230,6 @@ pub struct PayRequest {
     pub personal_note: Option<String>,
 }
 
-/// The response to a general pay request.
-#[derive(Serialize, Deserialize)]
-pub struct PayResponse {
-    /// Identifier for this outbound payment.
-    pub index: PaymentCreatedIndex,
-    /// When we tried to pay, in milliseconds since the UNIX epoch.
-    pub created_at: TimestampMs,
-}
-
 /// A request to create a BOLT 11 invoice.
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
@@ -392,16 +383,6 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
     }
 }
 
-/// The response to a request to pay a BOLT 11 invoice.
-#[derive(Serialize, Deserialize)]
-pub struct PayInvoiceResponse {
-    /// Identifier for this outbound invoice payment.
-    pub index: PaymentCreatedIndex,
-    /// When we tried to pay this invoice, in milliseconds since the UNIX
-    /// epoch.
-    pub created_at: TimestampMs,
-}
-
 /// A request to create a BOLT 12 offer to receive Lightning payments.
 ///
 /// Unlike invoices, offers are reusable: multiple payments can be made to
@@ -494,15 +475,6 @@ impl PayOfferRequest {
     }
 }
 
-/// The response to a request to pay a BOLT 12 offer.
-#[derive(Serialize, Deserialize)]
-pub struct PayOfferResponse {
-    /// Identifier for this outbound offer payment.
-    pub index: PaymentCreatedIndex,
-    /// When we tried to pay this offer, in milliseconds since the UNIX epoch.
-    pub created_at: TimestampMs,
-}
-
 /// A request to pay to an LNURL-pay endpoint.
 pub struct PayLnurlRequest {
     /// The LNURL or Lightning Address to pay to.
@@ -533,15 +505,6 @@ pub struct PayLnurlRequest {
     pub personal_note: Option<String>,
 }
 
-/// The response to a request to pay to an LNURL-pay endpoint.
-#[derive(Serialize, Deserialize)]
-pub struct PayLnurlResponse {
-    /// Identifier for this outbound LNURL payment.
-    pub index: PaymentCreatedIndex,
-    /// When we tried to pay this LNURL, in milliseconds since the UNIX epoch.
-    pub created_at: TimestampMs,
-}
-
 /// A request to withdraw from an LNURL-withdraw endpoint.
 pub struct WithdrawLnurlRequest {
     /// The LNURL to withdraw from.
@@ -568,16 +531,6 @@ pub struct WithdrawLnurlRequest {
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
     pub personal_note: Option<String>,
-}
-
-/// The response to a request to withdraw from an LNURL-withdraw endpoint.
-#[derive(Serialize, Deserialize)]
-pub struct WithdrawLnurlResponse {
-    /// Identifier for this inbound withdrawal payment.
-    pub index: PaymentCreatedIndex,
-    /// When we tried to withdraw this LNURL, in milliseconds since the UNIX
-    /// epoch.
-    pub created_at: TimestampMs,
 }
 
 /// A request to update the personal note on an existing payment.

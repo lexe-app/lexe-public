@@ -18,8 +18,7 @@ use lexe::{
             AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
             GetPaymentResponse, GetUpdatedPaymentsRequest, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferRequest,
-            PayOfferResponse, PayRequest as SdkPayRequest, PayResponse,
+            PayInvoiceRequest, PayOfferRequest, PayRequest as SdkPayRequest,
             PayableDetails as SdkPayableDetails,
         },
         payment::Payment,
@@ -207,7 +206,7 @@ mod node {
             credentials,
         }: WalletAndCredentialsExtractor,
         LxJson(req): LxJson<Option<PayRequest>>,
-    ) -> Result<LxJson<PayResponse>, SdkApiError> {
+    ) -> Result<LxJson<Payment>, SdkApiError> {
         // Ensure that query params and request body don't conflict
         let merged = if let Some(pay_req) = req {
             pay_req
@@ -278,7 +277,7 @@ mod node {
             credentials,
         }: WalletAndCredentialsExtractor,
         LxJson(req): LxJson<PayInvoiceRequest>,
-    ) -> Result<LxJson<PayInvoiceResponse>, SdkApiError> {
+    ) -> Result<LxJson<Payment>, SdkApiError> {
         let resp = wallet
             .pay_invoice(req)
             .await
@@ -311,7 +310,7 @@ mod node {
             credentials,
         }: WalletAndCredentialsExtractor,
         LxJson(req): LxJson<PayOfferRequest>,
-    ) -> Result<LxJson<PayOfferResponse>, SdkApiError> {
+    ) -> Result<LxJson<Payment>, SdkApiError> {
         let resp = wallet.pay_offer(req).await.map_err(SdkApiError::command)?;
 
         helpers::try_track_payment(&state, credentials, resp.index);

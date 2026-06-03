@@ -727,7 +727,9 @@ Args:
     personal_note: Optional personal note (not visible to recipient).
 
 Returns:
-    A :class:`PayResponse` with the payment index and timestamp.
+    The resulting :class:`Payment`, returned once it reaches a terminal state
+    (completed or failed). Exception: onchain sends return immediately with the
+    payment still in a pending state, since on-chain confirmation takes ~1 hour.
 
 Raises:
     FfiError: If the payable string is invalid, the amount is missing or
@@ -735,8 +737,7 @@ Raises:
 
 Example::
 
-    resp = wallet.pay("satoshi@lexe.app", amount_sats=1000)
-    payment = wallet.wait_for_payment(resp.index)
+    payment = wallet.pay("satoshi@lexe.app", amount_sats=1000)
     print(f"Payment {payment.status}")
 """)
 
@@ -780,15 +781,15 @@ Args:
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
-    A :class:`PayInvoiceResponse` with the payment index and timestamp.
+    The resulting :class:`Payment`, returned once it reaches a terminal
+    state (completed or failed).
 
 Raises:
     FfiError: If the invoice is invalid or payment initiation fails.
 
 Example::
 
-    resp = wallet.pay_invoice(bolt11_string)
-    payment = wallet.wait_for_payment(resp.index)
+    payment = wallet.pay_invoice(bolt11_string)
     print(f"Payment {payment.status}")
 """)
 
@@ -831,15 +832,15 @@ Args:
         512 UTF-8 bytes.
 
 Returns:
-    A :class:`PayOfferResponse` with the payment index and timestamp.
+    The resulting :class:`Payment`, returned once it reaches a terminal
+    state (completed or failed).
 
 Raises:
     FfiError: If the offer is invalid or payment initiation fails.
 
 Example::
 
-    resp = wallet.pay_offer(bolt12_offer, 1000)
-    payment = wallet.wait_for_payment(resp.index)
+    payment = wallet.pay_offer(bolt12_offer, 1000)
     print(f"Payment {payment.status}")
 """)
 
@@ -990,7 +991,8 @@ Raises:
 
 Example::
 
-    resp = wallet.pay_invoice(invoice_str)
+    resp = wallet.create_invoice(amount_sats=1000)
+    # Wait until someone pays the invoice (or it expires / fails).
     payment = wallet.wait_for_payment(resp.index)
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
@@ -1226,7 +1228,9 @@ Args:
     personal_note: Optional personal note (not visible to recipient).
 
 Returns:
-    A :class:`PayResponse` with the payment index and timestamp.
+    The resulting :class:`Payment`, returned once it reaches a terminal state
+    (completed or failed). Exception: onchain sends return immediately with the
+    payment still in a pending state, since on-chain confirmation takes ~1 hour.
 
 Raises:
     FfiError: If the payable string is invalid, the amount is missing or
@@ -1234,8 +1238,7 @@ Raises:
 
 Example::
 
-    resp = await wallet.pay("satoshi@lexe.app", amount_sats=1000)
-    payment = await wallet.wait_for_payment(resp.index)
+    payment = await wallet.pay("satoshi@lexe.app", amount_sats=1000)
     print(f"Payment {payment.status}")
 """)
 
@@ -1279,15 +1282,15 @@ Args:
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
-    A :class:`PayInvoiceResponse` with the payment index and timestamp.
+    The resulting :class:`Payment`, returned once it reaches a terminal
+    state (completed or failed).
 
 Raises:
     FfiError: If the invoice is invalid or payment initiation fails.
 
 Example::
 
-    resp = await wallet.pay_invoice(bolt11_string)
-    payment = await wallet.wait_for_payment(resp.index)
+    payment = await wallet.pay_invoice(bolt11_string)
     print(f"Payment {payment.status}")
 """)
 
@@ -1330,15 +1333,15 @@ Args:
         512 UTF-8 bytes.
 
 Returns:
-    A :class:`PayOfferResponse` with the payment index and timestamp.
+    The resulting :class:`Payment`, returned once it reaches a terminal
+    state (completed or failed).
 
 Raises:
     FfiError: If the offer is invalid or payment initiation fails.
 
 Example::
 
-    resp = await wallet.pay_offer(bolt12_offer, 1000)
-    payment = await wallet.wait_for_payment(resp.index)
+    payment = await wallet.pay_offer(bolt12_offer, 1000)
     print(f"Payment {payment.status}")
 """)
 
@@ -1489,7 +1492,8 @@ Raises:
 
 Example::
 
-    resp = await wallet.pay_invoice(invoice_str)
+    resp = await wallet.create_invoice(amount_sats=1000)
+    # Wait until someone pays the invoice (or it expires / fails).
     payment = await wallet.wait_for_payment(resp.index)
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
@@ -1802,14 +1806,6 @@ Attributes:
         from most recommended to least recommended.
 """
 
-lexe.PayResponse.__doc__ = """\
-Response from paying a payable string.
-
-Attributes:
-    index: Unique payment identifier for this payment.
-    created_at_ms: When payment was initiated (ms since UNIX epoch).
-"""
-
 # ================ #
 # --- Invoices --- #
 # ================ #
@@ -1828,14 +1824,6 @@ Attributes:
     payment_secret: Payment secret.
 """
 
-lexe.PayInvoiceResponse.__doc__ = """\
-Response from paying a Lightning invoice.
-
-Attributes:
-    index: Unique payment identifier for this payment.
-    created_at_ms: When payment was initiated (ms since UNIX epoch).
-"""
-
 # ============== #
 # --- Offers --- #
 # ============== #
@@ -1845,14 +1833,6 @@ Response from creating a BOLT 12 offer.
 
 Attributes:
     offer: BOLT 12 offer string.
-"""
-
-lexe.PayOfferResponse.__doc__ = """\
-Response from paying a BOLT 12 offer.
-
-Attributes:
-    index: Unique payment identifier for this payment.
-    created_at_ms: When payment was initiated (ms since UNIX epoch).
 """
 
 # ================= #

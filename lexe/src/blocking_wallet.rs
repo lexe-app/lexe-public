@@ -20,10 +20,9 @@ use crate::{
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
-            PayInvoiceRequest, PayInvoiceResponse, PayLnurlRequest,
-            PayLnurlResponse, PayOfferRequest, PayOfferResponse, PayRequest,
-            PayResponse, PaymentSyncSummary, UpdatePersonalNoteRequest,
-            WithdrawLnurlRequest, WithdrawLnurlResponse,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
+            PaymentSyncSummary, UpdatePersonalNoteRequest,
+            WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentCreatedIndex, PaymentFilter},
     },
@@ -357,6 +356,11 @@ impl BlockingLexeWallet {
     /// If there exist multiple encoded payment methods, one best recommended
     /// payment method will be chosen.
     ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed). Exception: onchain sends return immediately with
+    /// the payment still in `Pending` state, since on-chain confirmation takes
+    /// ~1 hour.
+    ///
     /// For finer control over how to pay, consider first using
     /// [`analyze`](Self::analyze) to resolve the contents of the
     /// payable string, then invoking the specific `pay` function for the
@@ -377,7 +381,7 @@ impl BlockingLexeWallet {
     ///
     /// [`PaymentMethod`]: lexe_payment_uri::PaymentMethod
     // Sync the encodings list with `analyze`
-    pub fn pay(&self, req: PayRequest) -> anyhow::Result<PayResponse> {
+    pub fn pay(&self, req: PayRequest) -> anyhow::Result<Payment> {
         block_on(self.inner.pay(req))
     }
 
@@ -390,10 +394,13 @@ impl BlockingLexeWallet {
     }
 
     /// Pay a BOLT 11 invoice over Lightning.
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
     pub fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
-    ) -> anyhow::Result<PayInvoiceResponse> {
+    ) -> anyhow::Result<Payment> {
         block_on(self.inner.pay_invoice(req))
     }
 
@@ -409,26 +416,29 @@ impl BlockingLexeWallet {
     }
 
     /// Pay a BOLT 12 offer over Lightning.
-    pub fn pay_offer(
-        &self,
-        req: PayOfferRequest,
-    ) -> anyhow::Result<PayOfferResponse> {
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
+    pub fn pay_offer(&self, req: PayOfferRequest) -> anyhow::Result<Payment> {
         block_on(self.inner.pay_offer(req))
     }
 
     /// Pay an LNURL or Lightning Address via the `payRequest` flow.
-    pub fn pay_lnurl(
-        &self,
-        req: PayLnurlRequest,
-    ) -> anyhow::Result<PayLnurlResponse> {
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
+    pub fn pay_lnurl(&self, req: PayLnurlRequest) -> anyhow::Result<Payment> {
         block_on(self.inner.pay_lnurl(req))
     }
 
     /// Withdraw an LNURL via the `withdrawRequest` flow.
+    ///
+    /// Returns the resulting [`Payment`] once the withdrawal reaches a
+    /// terminal state (completed or failed).
     pub fn withdraw_lnurl(
         &self,
         req: WithdrawLnurlRequest,
-    ) -> anyhow::Result<WithdrawLnurlResponse> {
+    ) -> anyhow::Result<Payment> {
         block_on(self.inner.withdraw_lnurl(req))
     }
 

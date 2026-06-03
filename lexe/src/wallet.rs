@@ -44,11 +44,9 @@ use crate::{
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
             GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
-            PayInvoiceResponse, PayLnurlRequest, PayLnurlResponse,
-            PayOfferRequest, PayOfferResponse, PayRequest, PayResponse,
-            PayableDetails, PaymentSyncSummary, UpdatePersonalNoteRequest,
-            WithdrawLnurlRequest, WithdrawLnurlResponse,
+            ListPaymentsResponse, NodeInfo, PayInvoiceRequest, PayLnurlRequest,
+            PayOfferRequest, PayRequest, PayableDetails, PaymentSyncSummary,
+            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -952,6 +950,11 @@ impl LexeWallet {
     /// If there exist multiple encoded payment methods, one best recommended
     /// payment method will be chosen.
     ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed). Exception: onchain sends return immediately with
+    /// the payment still in `Pending` state, since on-chain confirmation takes
+    /// ~1 hour.
+    ///
     /// For finer control over how to pay, consider first using
     /// [`analyze`](Self::analyze) to resolve the contents of the
     /// payable string, then invoking the specific `pay` function for the
@@ -971,7 +974,7 @@ impl LexeWallet {
     /// See [`PaymentMethod`] for more details on supported payment methods.
     // Sync the encodings list with `analyze`
     #[instrument(skip_all, name = "(pay)")]
-    pub async fn pay(&self, req: PayRequest) -> anyhow::Result<PayResponse> {
+    pub async fn pay(&self, req: PayRequest) -> anyhow::Result<Payment> {
         let PayRequest {
             payable,
             amount,
@@ -1019,9 +1022,23 @@ impl LexeWallet {
         .await?;
 
         // Create and send the appropriate request
-        self.pay_inner(best_method, amount, message, personal_note)
+        let index = self
+            .pay_inner(best_method, amount, message, personal_note)
             .await
-            .context(uri_err_context)
+            .context(uri_err_context)?;
+
+        // Lightning payments wait via `wait_for_payment` until they reach a
+        // terminal state. Onchain sends take 6 confirmations (~1 hour) to
+        // finalize, so we don't wait; we fetch the just-created (pending)
+        // payment.
+        match index.id {
+            PaymentId::OnchainSend(_) => self
+                .get_payment(GetPaymentRequest { index })
+                .await?
+                .payment
+                .context("Onchain payment missing right after creation"),
+            _ => self.wait_for_payment(index, None).await,
+        }
     }
 
     async fn pay_inner(
@@ -1030,8 +1047,8 @@ impl LexeWallet {
         amount: Option<Amount>,
         message: Option<BoundedString>,
         personal_note: Option<BoundedString>,
-    ) -> anyhow::Result<PayResponse> {
-        let (index, created_at) = match best_method {
+    ) -> anyhow::Result<PaymentCreatedIndex> {
+        match best_method {
             PaymentMethod::Invoice { invoice } => {
                 let fallback_amount = match (invoice.amount(), amount) {
                     (Some(amt), Some(given)) if amt != given =>
@@ -1065,11 +1082,10 @@ impl LexeWallet {
                     .pay_invoice(pay_req)
                     .await
                     .context("Failed to pay invoice")?;
-                let index = PaymentCreatedIndex {
+                Ok(PaymentCreatedIndex {
                     created_at: resp.created_at,
                     id,
-                };
-                (index, resp.created_at)
+                })
             }
             PaymentMethod::LnurlPay {
                 lnurl: _,
@@ -1156,11 +1172,10 @@ impl LexeWallet {
                     .pay_invoice(pay_req)
                     .await
                     .context("Failed to pay invoice")?;
-                let index = PaymentCreatedIndex {
+                Ok(PaymentCreatedIndex {
                     created_at: resp.created_at,
                     id,
-                };
-                (index, resp.created_at)
+                })
             }
             PaymentMethod::Offer {
                 offer,
@@ -1192,9 +1207,18 @@ impl LexeWallet {
                     message: message.map(BoundedString::into_inner),
                     personal_note: personal_note.map(BoundedString::into_inner),
                 };
-                let PayOfferResponse { index, created_at } =
-                    self.pay_offer(pay_req).await?;
-                (index, created_at)
+                let cid = ClientPaymentId::generate();
+                let id = PaymentId::OfferSend(cid);
+                let req = pay_req.into_unstable(cid)?;
+                let resp = self
+                    .node_client
+                    .pay_offer(req)
+                    .await
+                    .context("Failed to pay offer")?;
+                Ok(PaymentCreatedIndex {
+                    created_at: resp.created_at,
+                    id,
+                })
             }
             PaymentMethod::Onchain {
                 amount: onchain_amount,
@@ -1235,14 +1259,12 @@ impl LexeWallet {
                     .context("Failed to pay on-chain")?;
 
                 let id = PaymentId::OnchainSend(cid);
-                let created_at = resp.created_at;
-                let index = PaymentCreatedIndex { created_at, id };
-
-                (index, created_at)
+                Ok(PaymentCreatedIndex {
+                    created_at: resp.created_at,
+                    id,
+                })
             }
-        };
-
-        Ok(PayResponse { index, created_at })
+        }
     }
 
     /// Create a BOLT 11 invoice to receive a Lightning payment.
@@ -1264,11 +1286,14 @@ impl LexeWallet {
     }
 
     /// Pay a BOLT 11 invoice over Lightning.
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
-    ) -> anyhow::Result<PayInvoiceResponse> {
+    ) -> anyhow::Result<Payment> {
         let id = req.invoice.payment_id();
         let req: command::PayInvoiceRequest = req.try_into()?;
         let resp = self
@@ -1282,10 +1307,7 @@ impl LexeWallet {
             id,
         };
 
-        Ok(PayInvoiceResponse {
-            index,
-            created_at: resp.created_at,
-        })
+        self.wait_for_payment(index, None).await
     }
 
     /// Create a BOLT 12 offer to receive Lightning payments.
@@ -1308,11 +1330,14 @@ impl LexeWallet {
     }
 
     /// Pay a BOLT 12 offer over Lightning.
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
     #[instrument(skip_all, name = "(pay-offer)")]
     pub async fn pay_offer(
         &self,
         req: PayOfferRequest,
-    ) -> anyhow::Result<PayOfferResponse> {
+    ) -> anyhow::Result<Payment> {
         let cid = ClientPaymentId::generate();
         let id = PaymentId::OfferSend(cid);
         let req = req.into_unstable(cid)?;
@@ -1326,19 +1351,18 @@ impl LexeWallet {
             created_at: resp.created_at,
             id,
         };
-
-        Ok(PayOfferResponse {
-            index,
-            created_at: resp.created_at,
-        })
+        self.wait_for_payment(index, None).await
     }
 
     /// Pay an LNURL or Lightning Address via the `payRequest` flow.
+    ///
+    /// Returns the resulting [`Payment`] once it reaches a terminal state
+    /// (completed or failed).
     #[instrument(skip_all, name = "(pay-lnurl)")]
     pub async fn pay_lnurl(
         &self,
         req: PayLnurlRequest,
-    ) -> anyhow::Result<PayLnurlResponse> {
+    ) -> anyhow::Result<Payment> {
         // Get the pay request
         let pay_request = match (req.lnurl, req.pay_request) {
             (Some(s), None) => {
@@ -1408,20 +1432,18 @@ impl LexeWallet {
             fallback_amount: None,
             personal_note: req.personal_note,
         };
-        let invoice_resp = self.pay_invoice(invoice_req).await?;
-
-        Ok(PayLnurlResponse {
-            index: invoice_resp.index,
-            created_at: invoice_resp.created_at,
-        })
+        self.pay_invoice(invoice_req).await
     }
 
     /// Withdraw an LNURL via the `withdrawRequest` flow.
+    ///
+    /// Returns the resulting [`Payment`] once the withdrawal reaches a
+    /// terminal state (completed or failed).
     #[instrument(skip_all, name = "(withdraw-lnurl)")]
     pub async fn withdraw_lnurl(
         &self,
         req: WithdrawLnurlRequest,
-    ) -> anyhow::Result<WithdrawLnurlResponse> {
+    ) -> anyhow::Result<Payment> {
         /// The amount of time to wait for the payment after making
         /// the LNURL callback.
         const TIMEOUT: Duration = Duration::from_secs(60);
@@ -1492,20 +1514,9 @@ impl LexeWallet {
             .context("Failed to make LNURL withdraw callback")?;
 
         // Wait for the payment
-        let payment = self
-            .wait_for_payment(invoice_resp.index, Some(TIMEOUT))
+        self.wait_for_payment(invoice_resp.index, Some(TIMEOUT))
             .await
-            .context("Couldn't receive withdrawal payment")?;
-        if let PaymentStatus::Failed = payment.status {
-            return Err(anyhow!("Withdrawal payment failed"));
-        }
-
-        let result = WithdrawLnurlResponse {
-            index: invoice_resp.index,
-            created_at: invoice_resp.created_at,
-        };
-
-        Ok(result)
+            .context("Couldn't receive withdrawal payment")
     }
 
     /// Get information about a payment by its created index.
