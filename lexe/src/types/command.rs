@@ -108,8 +108,6 @@ impl From<command::NodeInfo> for NodeInfo {
 #[derive(Serialize, Deserialize)]
 pub struct AnalyzeRequest {
     /// The Bitcoin or Lightning payment string to analyze.
-    // compat: Alias added in node-v0.9.10
-    #[serde(alias = "payable")]
     pub payment_string: String,
 }
 
@@ -275,7 +273,6 @@ pub struct CreateInvoiceRequest {
     /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
     /// to take effect.
     // Added in `node-v0.9.6`
-    #[serde(default)]
     pub partner_pk: Option<UserPk>,
 
     /// The partner-chosen proportional fee to charge on this payment.
@@ -284,14 +281,12 @@ pub struct CreateInvoiceRequest {
     /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE`)
     /// Maximum: 500,000 ppm (50%)
     // Added in `node-v0.9.6`
-    #[serde(default)]
     pub partner_prop_fee: Option<Ppm>,
 
     /// The partner-chosen base fee to charge on this payment.
     ///
     /// If this is set, the invoice `amount` must also be set.
     // Added in `node-v0.9.6`
-    #[serde(default)]
     pub partner_base_fee: Option<Amount>,
 }
 

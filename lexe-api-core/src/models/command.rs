@@ -403,7 +403,7 @@ pub struct CreateInvoiceRequest {
     /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
     /// to take effect.
     // Added in `node-v0.9.6`
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub partner_pk: Option<UserPk>,
 
     /// The partner-chosen proportional fee to charge on this payment.
@@ -412,14 +412,14 @@ pub struct CreateInvoiceRequest {
     /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE`)
     /// Maximum: 500,000 ppm (50%)
     // Added in `node-v0.9.6`
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub partner_prop_fee: Option<Ppm>,
 
     /// The partner-chosen base fee to charge on this payment.
     ///
     /// If this is set, the invoice `amount` must also be set.
     // Added in `node-v0.9.6`
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub partner_base_fee: Option<Amount>,
 }
 
