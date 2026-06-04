@@ -149,6 +149,14 @@ pub(crate) struct InFlightRetryState {
     pub amount: Amount,
 }
 
+/// Data required for a single payment send retry attempt.
+struct RetryInfo {
+    id: PaymentId,
+    invoice: Arc<Invoice>,
+    amount: Amount,
+    failed_channel_scids: Vec<u64>,
+}
+
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Instantiates a new [`PaymentsManager`] and spawns associated tasks.
     pub fn new(
@@ -310,45 +318,18 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     //
     // Event sources:
     // - `payment_failed` handler (after PaymentFailed event)
-    #[instrument(skip_all, name = "(retry-payment)", fields(%id))]
+    #[instrument(skip_all, name = "(retry-payment)", fields(%retry.id))]
     async fn retry_payment(
         &self,
-        id: PaymentId,
+        retry: RetryInfo,
     ) -> Result<(), LxOutboundPaymentFailure> {
         debug!("Attempting retry");
 
-        struct RetryInfo {
-            invoice: Arc<Invoice>,
-            amount: Amount,
-            failed_channel_scids: Vec<u64>,
-        }
-
-        // Get in-flight state and extract info needed for routing. Clone the
-        // necessary info to avoid holding the lock during routing.
-        let retry_info = {
-            let locked_data = self.data.lock().await;
-            locked_data.get_in_flight(&id).map(|state| RetryInfo {
-                invoice: state.invoice.clone(),
-                amount: state.amount,
-                failed_channel_scids: state
-                    .failed_channel_scids
-                    .iter()
-                    .copied()
-                    .collect(),
-            })
-        };
-
-        // Can't retry without in-flight state.
-        let Some(retry_info) = retry_info else {
-            info!("No in-flight state found");
-            return Err(LxOutboundPaymentFailure::NoRetries);
-        };
-
         let payment_params = match route::build_payment_params(
-            Either::Right(retry_info.invoice.as_ref()),
+            Either::Right(retry.invoice.as_ref()),
             // TODO(a-mpch): Review if we should compute `num_usable_channels`
             None, // Don't need channel count for retry
-            retry_info.failed_channel_scids,
+            retry.failed_channel_scids,
         ) {
             Ok(params) => params,
             // Failed to build params (unlikely).
@@ -362,7 +343,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         );
 
         let route_result =
-            routing_context.find_route(&self.router, retry_info.amount);
+            routing_context.find_route(&self.router, retry.amount);
         let (route, _route_params) = match route_result {
             Ok(r) => r,
             Err(_) => {
@@ -373,9 +354,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         // Build recipient onion fields (includes payment_metadata if present).
-        let recipient_fields = recipient_onion_fields(&retry_info.invoice);
+        let recipient_fields = recipient_onion_fields(&retry.invoice);
 
-        let (payment_id, payment_hash) = match id {
+        let (payment_id, payment_hash) = match retry.id {
             PaymentId::Lightning(hash) => (
                 lightning::ln::channelmanager::PaymentId::from(hash),
                 lightning::types::payment::PaymentHash::from(hash),
@@ -393,7 +374,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         match send_result {
             Ok(()) => {
-                self.data.lock().await.increment_attempt(&id);
+                self.data.lock().await.increment_attempt(&retry.id);
                 info!("Retry send succeeded, waiting for events");
                 return Ok(());
             }
@@ -869,29 +850,31 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         warn!("handling PaymentFailed");
 
-        let should_retry = {
-            let mut locked_data = self.data.lock().await;
+        let mut locked_data = self.data.lock().await;
 
-            let is_finalized = self
-                .get_cow_payment(&mut locked_data, &id)
-                .await
-                .context("Could not get payment")?
-                .is_some_and(|p| p.payment.status().is_finalized());
+        // Idempotency: if the payment is already finalized, do nothing.
+        let is_finalized = self
+            .get_cow_payment(&mut locked_data, &id)
+            .await
+            .context("Could not get payment")?
+            .is_some_and(|p| p.payment.status().is_finalized());
+        if is_finalized {
+            warn!(%id, "Already finalized");
+            return Ok(());
+        }
 
-            if is_finalized {
-                warn!(%id, "Already finalized");
-                return Ok(());
-            }
-
-            locked_data.should_retry(&id, &failure)
-        };
-
-        let final_failure = if should_retry {
-            match self.retry_payment(id).await {
+        let maybe_retry = locked_data.maybe_acquire_retry(&id, &failure);
+        let final_failure = if let Some(retry) = maybe_retry {
+            // Don't hold lock while doing expensive routing
+            drop(locked_data);
+            match self.retry_payment(retry).await {
                 // Retry started, payment is in-flight.
                 Ok(()) => return Ok(()),
                 // Retry failed, use this as the latest failure reason.
-                Err(retry_failure) => retry_failure,
+                Err(retry_failure) => {
+                    locked_data = self.data.lock().await;
+                    retry_failure
+                }
             }
         } else {
             // No retry attempted, use the original failure.
@@ -899,7 +882,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         // Persist the payment as Failed.
-        let mut locked_data = self.data.lock().await;
         locked_data.remove_in_flight(&id);
 
         // Check
@@ -1304,12 +1286,29 @@ impl PaymentsData {
     }
 
     /// Determines whether a failed payment should be retried.
-    fn should_retry(
+    fn maybe_acquire_retry(
         &self,
         id: &PaymentId,
         failure: &LxOutboundPaymentFailure,
-    ) -> bool {
-        !failure.is_permanent() && self.has_remaining_attempts(id)
+    ) -> Option<RetryInfo> {
+        if failure.is_permanent() {
+            return None;
+        }
+
+        if let Some(state) = self.get_in_flight(id)
+            && state.attempts_count < state.max_attempts
+        {
+            let failed_channel_scids =
+                state.failed_channel_scids.iter().copied().collect();
+            Some(RetryInfo {
+                id: *id,
+                invoice: state.invoice.clone(),
+                amount: state.amount,
+                failed_channel_scids,
+            })
+        } else {
+            None
+        }
     }
 
     /// Increments the attempt count for an in-flight payment.
@@ -1317,12 +1316,6 @@ impl PaymentsData {
         if let Some(state) = self.get_in_flight_mut(id) {
             state.attempts_count = state.attempts_count.saturating_add(1);
         }
-    }
-
-    /// Returns whether the payment has remaining retry attempts.
-    fn has_remaining_attempts(&self, id: &PaymentId) -> bool {
-        self.get_in_flight(id)
-            .is_some_and(|s| s.attempts_count < s.max_attempts)
     }
 
     /// Precondition: Payment must not be finalized (Completed | Failed).
@@ -2112,7 +2105,7 @@ mod test {
         let permanent = LxOutboundPaymentFailure::Rejected;
 
         // No in-flight state: should NOT retry
-        assert!(!data.should_retry(&unknown_id, &transient));
+        assert!(data.maybe_acquire_retry(&unknown_id, &transient).is_none());
 
         // Start in-flight state with max_attempts=3, attempts_count=1
         let state = InFlightRetryState {
@@ -2125,13 +2118,13 @@ mod test {
         data.start_in_flight(id, state);
 
         // Retries remaining + transient failure: should retry
-        assert!(data.should_retry(&id, &transient));
+        assert!(data.maybe_acquire_retry(&id, &transient).is_some());
 
         // Retries remaining + permanent failure: should NOT retry
-        assert!(!data.should_retry(&id, &permanent));
+        assert!(data.maybe_acquire_retry(&id, &permanent).is_none());
 
         // Max retries exceeded: should NOT retry
         data.get_in_flight_mut(&id).unwrap().attempts_count = 3;
-        assert!(!data.should_retry(&id, &transient));
+        assert!(data.maybe_acquire_retry(&id, &transient).is_none());
     }
 }
