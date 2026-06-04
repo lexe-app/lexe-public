@@ -597,12 +597,20 @@ impl<'a> fmt::Display for Lnurl<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scheme = match self.scheme {
             LnurlScheme::Https | LnurlScheme::HttpOnion => {
-                // Encode as bech32 for unknown schemes
-                if let Ok(bech32) = self.to_bech32() {
-                    return write!(f, "{bech32}");
-                }
-                error!(%self.http_url, "Failed to encode LNURL as bech32");
-                return Err(fmt::Error);
+                // HACK: Ideally we could display as LUD-17 URIs
+                // (e.g. lnurlp://), but we don't know the scheme in this case.
+                // The legacy bech32 encoding is the only one that is
+                // universally scannable in this case, so we use that here.
+                match self.to_bech32() {
+                    Ok(bech32) => return write!(f, "{bech32}"),
+                    Err(e) => {
+                        error!(
+                            %self.http_url,
+                            "Failed to encode LNURL as bech32: {e}"
+                        );
+                        return Err(fmt::Error);
+                    }
+                };
             }
             LnurlScheme::Pay => "lnurlp",
             LnurlScheme::Withdraw => "lnurlw",

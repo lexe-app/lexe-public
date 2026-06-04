@@ -1492,11 +1492,11 @@ impl LexeWallet {
             .context("Failed to make LNURL withdraw callback")?;
 
         // Wait for the payment
-        let wait_result = self
+        let payment = self
             .wait_for_payment(invoice_resp.index, Some(TIMEOUT))
             .await
             .context("Couldn't receive withdrawal payment")?;
-        if let PaymentStatus::Failed = wait_result.status {
+        if let PaymentStatus::Failed = payment.status {
             return Err(anyhow!("Withdrawal payment failed"));
         }
 
