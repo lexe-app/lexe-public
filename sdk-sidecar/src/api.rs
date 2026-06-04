@@ -6,7 +6,13 @@
 use std::borrow::Cow;
 
 use anyhow::ensure;
-use lexe::types::bitcoin::Amount;
+use lexe::types::{
+    bitcoin::Amount,
+    command::{
+        PayLnurlRequest as SdkPayLnurlRequest,
+        WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
+    },
+};
 use lexe_common::time::TimestampMs;
 use serde::{Deserialize, Serialize};
 
@@ -95,5 +101,49 @@ impl PayRequest {
         };
 
         Ok(merged)
+    }
+}
+
+/// Mirrors [`lexe::types::command::PayLnurlRequest`],
+/// but omits the `pay_request` field
+#[derive(Serialize, Deserialize)]
+pub struct PayLnurlRequest {
+    pub lnurl: String,
+    pub amount: Amount,
+    pub message: Option<String>,
+    pub personal_note: Option<String>,
+}
+
+impl From<PayLnurlRequest> for SdkPayLnurlRequest {
+    fn from(req: PayLnurlRequest) -> Self {
+        Self {
+            lnurl: Some(req.lnurl),
+            pay_request: None,
+            amount: req.amount,
+            message: req.message,
+            personal_note: req.personal_note,
+        }
+    }
+}
+
+/// Mirrors [`lexe::types::command::WithdrawLnurlRequest`],
+/// but omits the `withdraw_request` field
+#[derive(Serialize, Deserialize)]
+pub struct WithdrawLnurlRequest {
+    pub lnurl: String,
+    pub amount: Option<Amount>,
+    pub description: Option<String>,
+    pub personal_note: Option<String>,
+}
+
+impl From<WithdrawLnurlRequest> for SdkWithdrawLnurlRequest {
+    fn from(req: WithdrawLnurlRequest) -> Self {
+        Self {
+            lnurl: Some(req.lnurl),
+            withdraw_request: None,
+            amount: req.amount,
+            description: req.description,
+            personal_note: req.personal_note,
+        }
     }
 }

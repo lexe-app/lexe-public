@@ -21,7 +21,10 @@ use lexe_api::error::SdkApiError;
 #[cfg(doc)]
 use lexe_api::types::Empty;
 
-use crate::api::{AnalyzeResponse, HealthCheckResponse, PayRequest};
+use crate::api::{
+    AnalyzeResponse, HealthCheckResponse, PayLnurlRequest, PayRequest,
+    WithdrawLnurlRequest,
+};
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
 pub trait UserSidecarApi {
@@ -95,6 +98,18 @@ pub trait UserSidecarApi {
     async fn pay_offer(
         &self,
         req: &PayOfferRequest,
+    ) -> Result<Payment, SdkApiError>;
+
+    /// Pay to a Lightning address or LNURL-pay endpoint.
+    async fn pay_lnurl(
+        &self,
+        req: &PayLnurlRequest,
+    ) -> Result<Payment, SdkApiError>;
+
+    /// Withdraw from an LNURL-withdraw endpoint.
+    async fn withdraw_lnurl(
+        &self,
+        req: &WithdrawLnurlRequest,
     ) -> Result<Payment, SdkApiError>;
 
     /// Get information about a payment by its index.

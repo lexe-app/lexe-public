@@ -17,9 +17,11 @@ use lexe::{
         command::{
             AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest, NodeInfo,
-            PayInvoiceRequest, PayOfferRequest, PayRequest as SdkPayRequest,
-            PayableDetails as SdkPayableDetails,
+            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse, NodeInfo, PayInvoiceRequest,
+            PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
+            PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
+            WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
         payment::Payment,
     },
@@ -34,7 +36,10 @@ use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
 
 use crate::{
-    api::{AnalyzeResponse, HealthCheckResponse, PayRequest, PayableDetails},
+    api::{
+        AnalyzeResponse, HealthCheckResponse, PayLnurlRequest, PayRequest,
+        PayableDetails, WithdrawLnurlRequest,
+    },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
     },
@@ -75,6 +80,8 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/pay_invoice", post(node::pay_invoice))
         .route("/v2/node/create_offer", post(node::create_offer))
         .route("/v2/node/pay_offer", post(node::pay_offer))
+        .route("/v2/node/pay_lnurl", post(node::pay_lnurl))
+        .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
         .route("/v2/node/payment", get(node::get_payment))
         .route("/v2/node/updated_payments", get(node::get_updated_payments))
         // v1 (legacy)
@@ -116,8 +123,6 @@ mod sidecar {
 }
 
 mod node {
-    use lexe::types::command::GetUpdatedPaymentsResponse;
-
     use super::*;
 
     #[instrument(skip_all, name = "(node-info)")]
@@ -312,6 +317,44 @@ mod node {
         LxJson(req): LxJson<PayOfferRequest>,
     ) -> Result<LxJson<Payment>, SdkApiError> {
         let resp = wallet.pay_offer(req).await.map_err(SdkApiError::command)?;
+
+        helpers::try_track_payment(&state, credentials, resp.index);
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(pay-lnurl)")]
+    pub(crate) async fn pay_lnurl(
+        State(state): State<Arc<RouterState>>,
+        WalletAndCredentialsExtractor {
+            wallet,
+            credentials,
+        }: WalletAndCredentialsExtractor,
+        LxJson(req): LxJson<PayLnurlRequest>,
+    ) -> Result<LxJson<Payment>, SdkApiError> {
+        let resp = wallet
+            .pay_lnurl(SdkPayLnurlRequest::from(req))
+            .await
+            .map_err(SdkApiError::command)?;
+
+        helpers::try_track_payment(&state, credentials, resp.index);
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(withdraw-lnurl)")]
+    pub(crate) async fn withdraw_lnurl(
+        State(state): State<Arc<RouterState>>,
+        WalletAndCredentialsExtractor {
+            wallet,
+            credentials,
+        }: WalletAndCredentialsExtractor,
+        LxJson(req): LxJson<WithdrawLnurlRequest>,
+    ) -> Result<LxJson<Payment>, SdkApiError> {
+        let resp = wallet
+            .withdraw_lnurl(SdkWithdrawLnurlRequest::from(req))
+            .await
+            .map_err(SdkApiError::command)?;
 
         helpers::try_track_payment(&state, credentials, resp.index);
 
