@@ -296,7 +296,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         )
     }
 
-    /// Attempts to retry a failed outbound invoice payment.
+    /// Attempts to initiate one retry of a failed outbound invoice payment.
     ///
     /// Gets the in-flight state, computes a new route avoiding previously
     /// failed channels, and sends the payment again.
@@ -305,8 +305,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// out-of-line `Event` handlers.
     ///
     /// Returns `Ok(())` if the payment was sent or is already in-flight.
-    /// Returns `Err(failure)` if the payment should be failed permanently;
-    /// the caller is responsible for persisting the failure.
+    /// Returns `Err(failure)` if the payment should be failed permanently; the
+    /// caller is responsible for persisting the failure.
     //
     // Event sources:
     // - `payment_failed` handler (after PaymentFailed event)
@@ -320,112 +320,98 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         struct RetryInfo {
             invoice: Arc<Invoice>,
             amount: Amount,
-            failed_channel_scids: HashSet<u64>,
+            failed_channel_scids: Vec<u64>,
         }
 
-        // Loop until we either send successfully or exhaust retries.
-        loop {
-            // Get in-flight state and extract info needed for routing.
-            // Clone the necessary info to avoid holding the lock during
-            // routing.
-            let retry_info = {
-                let locked_data = self.data.lock().await;
-                locked_data.get_in_flight(&id).map(|state| RetryInfo {
-                    invoice: state.invoice.clone(),
-                    amount: state.amount,
-                    failed_channel_scids: state.failed_channel_scids.clone(),
-                })
-            };
+        // Get in-flight state and extract info needed for routing. Clone the
+        // necessary info to avoid holding the lock during routing.
+        let retry_info = {
+            let locked_data = self.data.lock().await;
+            locked_data.get_in_flight(&id).map(|state| RetryInfo {
+                invoice: state.invoice.clone(),
+                amount: state.amount,
+                failed_channel_scids: state
+                    .failed_channel_scids
+                    .iter()
+                    .copied()
+                    .collect(),
+            })
+        };
 
-            // Can't retry without in-flight state.
-            let Some(retry_info) = retry_info else {
-                info!("No in-flight state found");
-                return Err(LxOutboundPaymentFailure::NoRetries);
-            };
+        // Can't retry without in-flight state.
+        let Some(retry_info) = retry_info else {
+            info!("No in-flight state found");
+            return Err(LxOutboundPaymentFailure::NoRetries);
+        };
 
-            let payment_params = match route::build_payment_params(
-                Either::Right(retry_info.invoice.as_ref()),
-                // TODO(a-mpch): Review if we should compute
-                // `num_usable_channels` here.
-                None, // Don't need channel count for retry
-                retry_info.failed_channel_scids.into_iter().collect(),
-            ) {
-                Ok(params) => params,
-                // Failed to build params (unlikely).
-                Err(_) => return Err(LxOutboundPaymentFailure::LexeErr),
-            };
+        let payment_params = match route::build_payment_params(
+            Either::Right(retry_info.invoice.as_ref()),
+            // TODO(a-mpch): Review if we should compute `num_usable_channels`
+            None, // Don't need channel count for retry
+            retry_info.failed_channel_scids,
+        ) {
+            Ok(params) => params,
+            // Failed to build params (unlikely).
+            Err(_) => return Err(LxOutboundPaymentFailure::LexeErr),
+        };
 
-            // Create routing context and find a new route.
-            let routing_context = RoutingContext::from_payment_params(
-                &self.channel_manager,
-                payment_params,
-            );
+        // Create routing context and find a new route.
+        let routing_context = RoutingContext::from_payment_params(
+            &self.channel_manager,
+            payment_params,
+        );
 
-            let route_result =
-                routing_context.find_route(&self.router, retry_info.amount);
-            let (route, _route_params) = match route_result {
-                Ok(r) => r,
-                Err(_) => {
-                    // No route found. Retry immediately if under max attempts.
-                    let should_retry = {
-                        let mut locked_data = self.data.lock().await;
-                        locked_data.increment_attempt(&id);
-                        locked_data.has_remaining_attempts(&id)
-                    };
+        let route_result =
+            routing_context.find_route(&self.router, retry_info.amount);
+        let (route, _route_params) = match route_result {
+            Ok(r) => r,
+            Err(_) => {
+                // No route found, give up immediately.
+                debug!("No route found, no more retries");
+                return Err(LxOutboundPaymentFailure::NoRoute);
+            }
+        };
 
-                    if should_retry {
-                        debug!("No route found, retrying immediately");
-                        self.test_event_tx.send(TestEvent::PaymentRetried);
-                        continue;
-                    }
+        // Build recipient onion fields (includes payment_metadata if present).
+        let recipient_fields = recipient_onion_fields(&retry_info.invoice);
 
-                    debug!("No route found, no more retries");
-                    return Err(LxOutboundPaymentFailure::NoRoute);
-                }
-            };
+        let (payment_id, payment_hash) = match id {
+            PaymentId::Lightning(hash) => (
+                lightning::ln::channelmanager::PaymentId::from(hash),
+                lightning::types::payment::PaymentHash::from(hash),
+            ),
+            _ => return Err(LxOutboundPaymentFailure::LexeErr),
+        };
 
-            // Build recipient onion fields (includes payment_metadata if
-            // present).
-            let recipient_fields = recipient_onion_fields(&retry_info.invoice);
+        // Send the payment.
+        let send_result = self.channel_manager.send_payment_with_route(
+            route,
+            payment_hash,
+            recipient_fields,
+            payment_id,
+        );
 
-            let (payment_id, payment_hash) = match id {
-                PaymentId::Lightning(hash) => (
-                    lightning::ln::channelmanager::PaymentId::from(hash),
-                    lightning::types::payment::PaymentHash::from(hash),
-                ),
-                _ => return Err(LxOutboundPaymentFailure::LexeErr),
-            };
-
-            // Send the payment.
-            let send_result = self.channel_manager.send_payment_with_route(
-                route,
-                payment_hash,
-                recipient_fields,
-                payment_id,
-            );
-
-            match send_result {
-                Ok(()) => {
-                    self.data.lock().await.increment_attempt(&id);
-                    info!("Retry send succeeded, waiting for events");
-                    return Ok(());
-                }
-                Err(RetryableSendFailure::DuplicatePayment) => {
-                    // Payment is already in-flight with LDK. We'll receive
-                    // PaymentSent or PaymentFailed events when it completes.
-                    debug!("Payment already in-flight, waiting for events");
-                    return Ok(());
-                }
-                Err(RetryableSendFailure::PaymentExpired) => {
-                    return Err(LxOutboundPaymentFailure::Expired);
-                }
-                Err(RetryableSendFailure::RouteNotFound) => {
-                    // Shouldn't happen after find_route succeeded.
-                    return Err(LxOutboundPaymentFailure::NoRoute);
-                }
-                Err(RetryableSendFailure::OnionPacketSizeExceeded) => {
-                    return Err(LxOutboundPaymentFailure::MetadataTooLarge);
-                }
+        match send_result {
+            Ok(()) => {
+                self.data.lock().await.increment_attempt(&id);
+                info!("Retry send succeeded, waiting for events");
+                return Ok(());
+            }
+            Err(RetryableSendFailure::DuplicatePayment) => {
+                // Payment is already in-flight with LDK. We'll receive
+                // PaymentSent or PaymentFailed events when it completes.
+                debug!("Payment already in-flight, waiting for events");
+                return Ok(());
+            }
+            Err(RetryableSendFailure::PaymentExpired) => {
+                return Err(LxOutboundPaymentFailure::Expired);
+            }
+            Err(RetryableSendFailure::RouteNotFound) => {
+                // Shouldn't happen after find_route succeeded.
+                return Err(LxOutboundPaymentFailure::NoRoute);
+            }
+            Err(RetryableSendFailure::OnionPacketSizeExceeded) => {
+                return Err(LxOutboundPaymentFailure::MetadataTooLarge);
             }
         }
     }
@@ -905,7 +891,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             self.test_event_tx.send(TestEvent::PaymentRetried);
 
             match self.retry_payment(id).await {
-                // Retry succeeded, payment is in-flight.
+                // Retry started, payment is in-flight.
                 Ok(()) => return Ok(()),
                 // Retry failed, use this as the latest failure reason.
                 Err(retry_failure) => retry_failure,
