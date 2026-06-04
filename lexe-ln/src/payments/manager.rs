@@ -887,9 +887,6 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         let final_failure = if should_retry {
-            debug!("Payment should be retried, attempting retry inline");
-            self.test_event_tx.send(TestEvent::PaymentRetried);
-
             match self.retry_payment(id).await {
                 // Retry started, payment is in-flight.
                 Ok(()) => return Ok(()),
