@@ -882,7 +882,7 @@ pub struct PayArgs {
         LNURL recipients whose wallets accept LUD-12 comments, and Lightning\n\
         Addresses of wallets that accept LUD-12 comments.\n\
         \n\
-        If the payable doesn't support payer notes, this note will be ignored.\n\
+        If the payable doesn't support messages, this message will be ignored.\n\
         \n\
         Maximum length: 200 chars / 512 UTF-8 bytes."
     )]
@@ -1108,7 +1108,7 @@ pub struct CreateOfferArgs {
     #[arg(
         long,
         help = "Description shown to payers when they scan the offer.\n\
-            Maximum length: 512 UTF-8 bytes."
+            Maximum length: 200 chars / 512 UTF-8 bytes."
     )]
     description: Option<String>,
 

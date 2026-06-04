@@ -1657,7 +1657,7 @@ impl BlockingLexeWallet {
         Ok(GetUpdatedPaymentsResponse::from(resp))
     }
 
-    /// Update a payment's note.
+    /// Update a payment's personal note.
     /// Call `sync_payments` first so the payment exists locally.
     /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
     /// / 512 UTF-8 bytes.
