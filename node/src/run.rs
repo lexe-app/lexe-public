@@ -94,7 +94,6 @@ use crate::{
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
     server::{self, RouterState},
-    user_cache::UserCache,
 };
 
 /// The minimum # of intercept scids we want (for inserting into invoices).
@@ -227,6 +226,7 @@ impl UserNode {
             runner_api,
             runner_tx,
             scorer,
+            user_cache,
             usernode_sync_timeout,
             untrusted_deploy_env,
             untrusted_network,
@@ -755,9 +755,8 @@ impl UserNode {
             node_pk: NodePk(node_pk),
             descriptors,
             legacy_descriptors,
-            user_cache: Arc::new(UserCache::new(backend_api.clone())),
+            user_cache,
             partners,
-
             // --- Actors --- //
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),

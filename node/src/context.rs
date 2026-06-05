@@ -29,6 +29,7 @@ use crate::{
     channel_manager,
     client::{NodeBackendClient, NodeLspClient, RunnerClient},
     runner::UserRunnerCommand,
+    user_cache::UserCache,
 };
 
 /// Usernode-specific context initialized by the meganode.
@@ -80,6 +81,8 @@ pub(crate) struct MegaContext {
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     /// The probabilistic scorer for pathfinding.
     pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    /// Caches whether users exist.
+    pub user_cache: Arc<UserCache>,
     /// BDK/LDK sync timeout for user nodes.
     pub usernode_sync_timeout: Duration,
     /// The untrusted deploy environment.
@@ -213,6 +216,7 @@ impl MegaContext {
         let usernode_sync_timeout = usernode_sync_timeout_secs
             .map(Duration::from_secs)
             .unwrap_or(constants::DEFAULT_USERNODE_SYNC_TIMEOUT);
+        let user_cache = Arc::new(UserCache::new(backend_api.clone()));
 
         let partners = Arc::new(partners);
 
@@ -231,6 +235,7 @@ impl MegaContext {
             runner_api,
             runner_tx,
             scorer,
+            user_cache,
             usernode_sync_timeout,
             untrusted_deploy_env,
             untrusted_network,
@@ -319,6 +324,8 @@ impl MegaContext {
 
         let partners = Arc::new(PartnersInfo::current());
 
+        let user_cache = Arc::new(UserCache::new(backend_api.clone()));
+
         Self {
             backend_api,
             config,
@@ -334,6 +341,7 @@ impl MegaContext {
             runner_api,
             runner_tx,
             scorer,
+            user_cache,
             usernode_sync_timeout: constants::DEFAULT_USERNODE_SYNC_TIMEOUT,
             untrusted_deploy_env: deploy_env,
             untrusted_network: network,
