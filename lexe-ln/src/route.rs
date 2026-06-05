@@ -115,7 +115,17 @@ impl LexeRouter {
     }
 
     fn default_scoring_fee_params() -> ProbabilisticScoringFeeParameters {
-        ProbabilisticScoringFeeParameters::default()
+        ProbabilisticScoringFeeParameters {
+            // This param penalizes channels with
+            // `htlc_maximum_msat >= channel_capacity/2`. Apparently a low
+            // `htlc_maximum_msat` "makes balance discovery attacks harder to
+            // execute" and a non-zero value encourages a low HTLC max. I would
+            // rather have more reliable payments though.
+            anti_probing_penalty_msat: 0,
+
+            // LDK defaults
+            ..ProbabilisticScoringFeeParameters::default()
+        }
     }
 
     fn default_router(&self) -> &DefaultRouterType {
