@@ -395,7 +395,7 @@ Your wallet always verifies your node's software before sharing any keys.
 
 **Up to 0.5% fee** to send and receive Lightning payments*
 
-[Learn more](https://docs.lexe.app/fees-and-pricing/)*
+[Learn more](https://docs.lexe.app/pricing/)*
       '''),
       ),
     ];
