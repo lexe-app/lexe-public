@@ -1102,6 +1102,9 @@ impl AsyncLexeWallet {
 
     /// Pay an LNURL via the `payRequest` flow.
     ///
+    /// Use `analyze` to get the associated LNURL pay request, which contains
+    /// information on amount constraints, message limits, and more.
+    ///
     /// `lnurl` is the LNURL string to pay to.
     /// `amount_sats` is the amount to pay in satoshis. If the LNURL endpoint
     /// specifies a minimum or maximum amount, this value must satisfy those
@@ -1138,6 +1141,10 @@ impl AsyncLexeWallet {
     }
 
     /// Withdraw an LNURL via the `withdrawRequest` flow.
+    ///
+    /// Use `analyze` to get the associated LNURL withdraw request, which
+    /// contains information on amount constraints, default description,
+    /// and more.
     ///
     /// `lnurl` is the LNURL string to withdraw from.
     /// `amount_sats` is the amount to withdraw in satoshis. It must satisfy the
@@ -1731,6 +1738,9 @@ impl BlockingLexeWallet {
 
     /// Pay an LNURL via the `payRequest` flow.
     ///
+    /// Use `analyze` to get the associated LNURL pay request, which contains
+    /// information on amount constraints, message limits, and more.
+    ///
     /// `lnurl` is the LNURL string to pay to.
     /// `amount_sats` is the amount to pay in satoshis. If the LNURL endpoint
     /// specifies a minimum or maximum amount, this value must satisfy those
@@ -1767,6 +1777,10 @@ impl BlockingLexeWallet {
     }
 
     /// Withdraw an LNURL via the `withdrawRequest` flow.
+    ///
+    /// Use `analyze` to get the associated LNURL withdraw request, which
+    /// contains information on amount constraints, default description,
+    /// and more.
     ///
     /// `lnurl` is the LNURL string to withdraw from.
     /// `amount_sats` is the amount to withdraw in satoshis. It must satisfy the

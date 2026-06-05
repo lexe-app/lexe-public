@@ -476,11 +476,18 @@ impl PayOfferRequest {
 }
 
 /// A request to pay to an LNURL-pay endpoint.
+///
+/// Use [`analyze`] to get the associated [`LnurlPayRequest`], which
+/// contains information on amount constraints, message limits, and more.
+///
+/// [`analyze`]: crate::wallet::LexeWallet::analyze
 pub struct PayLnurlRequest {
     /// The LNURL or Lightning Address to pay to.
+    ///
     /// Exactly one of `lnurl` or `pay_request` should be provided.
     pub lnurl: Option<String>,
     /// The LNURL pay request to use.
+    ///
     /// Exactly one of `lnurl` or `pay_request` should be provided.
     pub pay_request: Option<LnurlPayRequest>,
     /// The amount to pay. This value must satisfy the minimum and maximum
@@ -491,26 +498,28 @@ pub struct PayLnurlRequest {
     ///
     /// Will only be sent if the LNURL endpoint supports it, and will be
     /// truncated to the LNURL endpoint's specified length limits if needed.
-    ///
-    /// See [`LnurlPayRequest::comment_allowed`] for more insight.
-    /// An [`LnurlPayRequest`] can be constructed from a string via
-    /// [`analyze`].
-    ///
-    /// [`analyze`]: crate::wallet::LexeWallet::analyze
     pub message: Option<String>,
     /// An optional personal note for this payment.
     /// The receiver will not see this note.
+    ///
     /// If provided, it must be non-empty and no longer than 200 chars /
     /// 512 UTF-8 bytes.
     pub personal_note: Option<String>,
 }
 
 /// A request to withdraw from an LNURL-withdraw endpoint.
+///
+/// Use [`analyze`] to get the associated [`LnurlWithdrawRequest`], which
+/// contains information on amount constraints, default description, and more.
+///
+/// [`analyze`]: crate::wallet::LexeWallet::analyze
 pub struct WithdrawLnurlRequest {
     /// The LNURL to withdraw from.
+    ///
     /// Exactly one of `lnurl` or `withdraw_request` should be provided.
     pub lnurl: Option<String>,
     /// The LNURL withdraw request to use.
+    ///
     /// Exactly one of `lnurl` or `withdraw_request` should be provided.
     pub withdraw_request: Option<LnurlWithdrawRequest>,
     /// The amount to withdraw. This value must satisfy the minimum and maximum
@@ -521,8 +530,8 @@ pub struct WithdrawLnurlRequest {
     /// An optional description to encode into the withdrawal invoice,
     /// visible to the LNURL endpoint.
     ///
-    /// If `None`, the description encoded will be the one specified by the
-    /// LNURL endpoint, if any.
+    /// If `None`, the description encoded will be the default description
+    /// specified by the LNURL endpoint, if any.
     pub description: Option<String>,
     /// An optional personal note for this withdrawal.
     ///

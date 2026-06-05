@@ -1223,6 +1223,9 @@ impl PayOfferArgs {
     long_about = r#"
 Pay to an LNURL-pay endpoint.
 
+Use `lexe analyze` to get information on amount constraints,
+message length limits, and other details of the LNURL-pay endpoint.
+
 Accepted LNURL encodings:
     Lightning Address          user@domain.com
     LUD-17 URI                 lnurlp://...
@@ -1289,6 +1292,9 @@ impl PayLnurlArgs {
     about = "Withdraw from an LNURL-withdraw endpoint",
     long_about = r#"
 Withdraw from an LNURL-withdraw endpoint.
+
+Use `lexe analyze` to get information on amount constraints,
+default description, and other details of the LNURL-withdraw endpoint.
 
 Accepted LNURL encodings:
     LUD-17 URI                 lnurlw://...

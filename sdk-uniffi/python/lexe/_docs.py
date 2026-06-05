@@ -847,6 +847,9 @@ Example::
 _set_method_doc(LexeWallet, "pay_lnurl", """\
 Pay an LNURL via the ``payRequest`` flow.
 
+Use :meth:`analyze` to get the associated :class:`LnurlPayRequest`, which
+contains information on amount constraints, message length limits, and more.
+
 Args:
     lnurl: LNURL string to pay to.
     amount_sats: Amount to pay in satoshis. If the LNURL endpoint specifies a
@@ -873,6 +876,9 @@ Example::
 
 _set_method_doc(LexeWallet, "withdraw_lnurl", """\
 Withdraw an LNURL via the ``withdrawRequest`` flow.
+
+Use :meth:`analyze` to get the associated :class:`LnurlWithdrawRequest`, which
+contains information on amount constraints, default description, and more.
 
 Args:
     lnurl: LNURL string to withdraw from.
@@ -1403,6 +1409,9 @@ Example::
 _set_method_doc(AsyncLexeWallet, "pay_lnurl", """\
 Pay an LNURL via the ``payRequest`` flow.
 
+Use :meth:`analyze` to get the associated :class:`LnurlPayRequest`, which
+contains information on amount constraints, message length limits, and more.
+
 Args:
     lnurl: LNURL string to pay to.
     amount_sats: Amount to pay in satoshis. If the LNURL endpoint specifies a
@@ -1429,6 +1438,9 @@ Example::
 
 _set_method_doc(AsyncLexeWallet, "withdraw_lnurl", """\
 Withdraw an LNURL via the ``withdrawRequest`` flow.
+
+Use :meth:`analyze` to get the associated :class:`LnurlWithdrawRequest`, which
+contains information on amount constraints, default description, and more.
 
 Args:
     lnurl: LNURL string to withdraw from.
