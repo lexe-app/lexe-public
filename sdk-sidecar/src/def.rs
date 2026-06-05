@@ -33,9 +33,13 @@ pub trait UserSidecarApi {
     /// Check the health of the sidecar itself.
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError>;
 
+    /// GET /v2/node/node_info [`Empty`] -> [`NodeInfo`]
+    ///
     /// Get basic information about the Lexe node.
     async fn node_info(&self) -> Result<NodeInfo, SdkApiError>;
 
+    /// GET /v2/node/analyze [`AnalyzeRequest`] -> [`AnalyzeResponse`]
+    ///
     /// Get information about a Bitcoin or Lightning payment string and its
     /// constituent payment methods (if any). Returned information includes the
     /// type of payment method used (invoice, offer, onchain, lnurl) and the
@@ -52,6 +56,8 @@ pub trait UserSidecarApi {
         req: &AnalyzeRequest,
     ) -> Result<AnalyzeResponse, SdkApiError>;
 
+    /// POST /v2/node/pay [`PayRequest`] -> [`Payment`]
+    ///
     /// Pay any string which encodes a Bitcoin or Lightning payment method.
     ///
     /// If there exist multiple encoded payment methods, one best recommended
@@ -70,12 +76,17 @@ pub trait UserSidecarApi {
     /// (completed or failed). Exception: onchain sends return immediately.
     async fn pay(&self, req: &PayRequest) -> Result<Payment, SdkApiError>;
 
+    /// POST /v2/node/create_invoice [`CreateInvoiceRequest`]
+    ///                           -> [`CreateInvoiceResponse`]
+    ///
     /// Create a BOLT11 invoice.
     async fn create_invoice(
         &self,
         req: &CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, SdkApiError>;
 
+    /// POST /v2/node/pay_invoice [`PayInvoiceRequest`] -> [`Payment`]
+    ///
     /// Pay a BOLT11 invoice.
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
@@ -85,12 +96,17 @@ pub trait UserSidecarApi {
         req: &PayInvoiceRequest,
     ) -> Result<Payment, SdkApiError>;
 
+    /// POST /v2/node/create_offer [`CreateOfferRequest`]
+    ///                         -> [`CreateOfferResponse`]
+    ///
     /// Create a BOLT 12 offer to receive Lightning payments.
     async fn create_offer(
         &self,
         req: &CreateOfferRequest,
     ) -> Result<CreateOfferResponse, SdkApiError>;
 
+    /// POST /v2/node/pay_offer [`PayOfferRequest`] -> [`Payment`]
+    ///
     /// Pay a BOLT 12 offer over Lightning.
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
@@ -100,24 +116,33 @@ pub trait UserSidecarApi {
         req: &PayOfferRequest,
     ) -> Result<Payment, SdkApiError>;
 
+    /// POST /v2/node/pay_lnurl [`PayLnurlRequest`] -> [`Payment`]
+    ///
     /// Pay to a Lightning address or LNURL-pay endpoint.
     async fn pay_lnurl(
         &self,
         req: &PayLnurlRequest,
     ) -> Result<Payment, SdkApiError>;
 
+    /// POST /v2/node/withdraw_lnurl [`WithdrawLnurlRequest`] -> [`Payment`]
+    ///
     /// Withdraw from an LNURL-withdraw endpoint.
     async fn withdraw_lnurl(
         &self,
         req: &WithdrawLnurlRequest,
     ) -> Result<Payment, SdkApiError>;
 
+    /// GET /v2/node/payment [`GetPaymentRequest`] -> [`GetPaymentResponse`]
+    ///
     /// Get information about a payment by its index.
     async fn get_payment(
         &self,
         req: &GetPaymentRequest,
     ) -> Result<GetPaymentResponse, SdkApiError>;
 
+    /// GET /v2/node/updated_payments [`GetUpdatedPaymentsRequest`]
+    ///                            -> [`GetUpdatedPaymentsResponse`]
+    ///
     /// Get a batch of payments in ascending `updated_at` order, starting
     /// from a given `updated_at` index.
     ///
