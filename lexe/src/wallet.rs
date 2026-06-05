@@ -1363,6 +1363,17 @@ impl LexeWallet {
         &self,
         req: PayLnurlRequest,
     ) -> anyhow::Result<Payment> {
+        let message = req
+            .message
+            .map(BoundedString::new)
+            .transpose()
+            .context("Invalid message")?;
+        let personal_note = req
+            .personal_note
+            .map(BoundedString::new)
+            .transpose()
+            .context("Invalid personal note")?;
+
         // Get the pay request
         let pay_request = match (req.lnurl, req.pay_request) {
             (Some(s), None) => {
@@ -1393,7 +1404,10 @@ impl LexeWallet {
         };
 
         // Truncate/remove the message based on `comment_allowed`
-        let comment = match (req.message, pay_request.comment_allowed) {
+        let truncated_comment = match (
+            message.map(BoundedString::into_inner),
+            pay_request.comment_allowed,
+        ) {
             (None, _) => None,
             (Some(_), None) => {
                 warn!(
@@ -1402,37 +1416,60 @@ impl LexeWallet {
                 );
                 None
             }
-            (Some(mut message), Some(max_len)) => {
-                let original_len = message.chars().count();
+            (Some(mut comment), Some(max_len)) => {
+                let original_len = comment.chars().count();
                 let receiver_limit = usize::from(max_len);
 
-                lexe_std::string::truncate_chars(&mut message, receiver_limit);
+                lexe_std::string::truncate_chars(&mut comment, receiver_limit);
+
+                let truncated = BoundedString::new(comment).expect(
+                    "comment was checked above and truncation can \
+                     only make it shorter, so the truncated string is \
+                     still within bounds.",
+                );
 
                 if original_len > receiver_limit {
                     warn!(
                         "Message truncated to {receiver_limit} character limit \
-                         specified by recipient: \"{message}\""
+                         specified by recipient: \"{truncated}\""
                     );
                 }
 
-                Some(message)
+                Some(truncated)
             }
         };
 
         // Make the LNURL callback to get the invoice
         let invoice = self
             .lnurl_client
-            .resolve_pay_request(&pay_request, req.amount, comment.as_deref())
+            .resolve_pay_request(
+                &pay_request,
+                req.amount,
+                truncated_comment.as_deref(),
+            )
             .await
             .context("Failed to resolve LNURL pay request")?;
 
         // Pay invoice
-        let invoice_req = PayInvoiceRequest {
+        let id = invoice.payment_id();
+        let invoice_req = command::PayInvoiceRequest {
             invoice,
             fallback_amount: None,
-            personal_note: req.personal_note,
+            message: truncated_comment,
+            personal_note,
         };
-        self.pay_invoice(invoice_req).await
+        let invoice_resp = self
+            .node_client
+            .pay_invoice(invoice_req)
+            .await
+            .context("Failed to pay invoice from LNURL pay request")?;
+
+        let index = PaymentCreatedIndex {
+            created_at: invoice_resp.created_at,
+            id,
+        };
+
+        self.wait_for_payment(index, None).await
     }
 
     /// Withdraw an LNURL via the `withdrawRequest` flow.
