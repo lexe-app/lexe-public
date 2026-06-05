@@ -5399,8 +5399,8 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.36.0"
-source = "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6"
+version = "1.38.2"
+source = "git+https://github.com/lexe-app/tokio?branch=lexe-v1.38.2-2026_06_04#756b022547554ecdc04c4845b0343e5c6f32bae3"
 dependencies = [
  "backtrace",
  "bytes",
@@ -5417,8 +5417,8 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "2.2.0"
-source = "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6"
+version = "2.3.0"
+source = "git+https://github.com/lexe-app/tokio?branch=lexe-v1.38.2-2026_06_04#756b022547554ecdc04c4845b0343e5c6f32bae3"
 dependencies = [
  "proc-macro2",
  "quote",

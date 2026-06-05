@@ -436,7 +436,7 @@ ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.14-2026_
 # * fortanix: SGX port
 # * test: fix testing script
 # * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio` TODO(phlip9): Remove
-tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-v1.36.0-2024_10_11" }
+tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-v1.38.2-2026_06_04" }
 
 # * license: Add dual license information
 # * refactor: separate VSS response decoding from HTTP client

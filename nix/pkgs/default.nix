@@ -190,8 +190,8 @@ rec {
       "sha256-tieDFdzmMfrdHNoD3Y/JfGARcJZ7PMyv5vwYmXs4oQw=";
     "git+https://github.com/lexe-app/rust-sgx?branch=lexe-b23e3383-2025_12_18#b23e3383d1a9a7955af8ba5695f95a7a80e6e62a" =
       "sha256-HHjrzufA4t0pow5vnRnBIMnuDn92PALEvvZd4dhliqM=";
-    "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" =
-      "sha256-ZUoZHJC9OZthqtFKu4WdrBgyr7QSKxoQCCUtcOc9kvU=";
+    "git+https://github.com/lexe-app/tokio?branch=lexe-v1.38.2-2026_06_04#756b022547554ecdc04c4845b0343e5c6f32bae3" =
+      "sha256-edMmi723dAGzXkvYRIB8OaF09knvmrmIOMtnmfJVsqU=";
   };
 
   # Quickly fetch a gitdep with its output hash using `pkgs.fetchFromGitHub`.
