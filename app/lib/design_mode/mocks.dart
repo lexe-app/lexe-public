@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
+        ActiveHumanBitcoinAddress,
         Balance,
         CloseChannelRequest,
         CreateClientRequest,
@@ -17,7 +18,6 @@ import 'package:app_rs_dart/ffi/api.dart'
         FeeEstimate,
         FiatRate,
         FiatRates,
-        HumanBitcoinAddress,
         ListChannelsResponse,
         NodeInfo,
         OpenChannelRequest,
@@ -578,25 +578,27 @@ class MockAppHandle extends AppHandle {
   });
 
   @override
-  Future<HumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
+  Future<ActiveHumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => HumanBitcoinAddress(
+    () => ActiveHumanBitcoinAddress(
       username: const Username(field0: "user"),
       offer: defaultOffer,
       updatedAt: DateTime.now().millisecondsSinceEpoch,
+      isGenerated: false,
       updatable: true,
     ),
   );
 
   @override
-  Future<HumanBitcoinAddress> updateHumanBitcoinAddress({
+  Future<ActiveHumanBitcoinAddress> upsertCustomHumanBitcoinAddress({
     required Username username,
   }) => Future.delayed(
     const Duration(milliseconds: 1500),
-    () => HumanBitcoinAddress(
+    () => ActiveHumanBitcoinAddress(
       username: username,
       offer: defaultOffer,
       updatedAt: DateTime.now().millisecondsSinceEpoch,
+      isGenerated: false,
       updatable: true,
     ),
   );
@@ -727,7 +729,7 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<HumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
+  Future<ActiveHumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => throw const FfiError(
       "[106=Command] Failed to get Human Bitcoin Address",
@@ -735,7 +737,7 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<HumanBitcoinAddress> updateHumanBitcoinAddress({
+  Future<ActiveHumanBitcoinAddress> upsertCustomHumanBitcoinAddress({
     required Username username,
   }) => Future.delayed(
     const Duration(milliseconds: 1500),
@@ -888,8 +890,7 @@ class MockAppDataDb extends AppDataDb {
   MockAppDataDb() : super(inner: MockAppDataDbRs());
 
   @override
-  AppData read() =>
-      const AppData(humanBitcoinAddress: HumanBitcoinAddress(updatable: true));
+  AppData read() => const AppData(humanBitcoinAddress: null);
 
   @override
   void reset() {}

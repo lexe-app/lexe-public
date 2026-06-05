@@ -12,9 +12,11 @@ use lexe_api::{
     models::{
         command::{
             ClaimGeneratedHumanBitcoinAddress, GetGeneratedUsernameResponse,
-            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments,
             HumanBitcoinAddressV1, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct, UpdateHumanBitcoinAddress,
+            PaymentCreatedIndexes, PaymentIdStruct,
+            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
             VecPaymentId,
         },
         nwc::{
@@ -706,15 +708,15 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn update_human_bitcoin_address(
+    async fn get_human_bitcoin_address(
         &self,
-        req: UpdateHumanBitcoinAddress,
         auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
+    ) -> Result<GetHumanBitcoinAddressResponse, BackendApiError> {
         let backend = &self.backend_url;
+        let data = Empty {};
         let req = self
             .rest
-            .put(format!("{backend}/node/v1/human_bitcoin_address"), &req)
+            .get(format!("{backend}/node/v2/human_bitcoin_address"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -728,6 +730,32 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/human_bitcoin_address"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn upsert_custom_human_bitcoin_address(
+        &self,
+        req: UpsertCustomHumanBitcoinAddress,
+        auth: BearerAuthToken,
+    ) -> Result<UpsertHumanBitcoinAddressResponse, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v2/human_bitcoin_address"), &req)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn update_human_bitcoin_address_v1(
+        &self,
+        req: UpsertCustomHumanBitcoinAddress,
+        auth: BearerAuthToken,
+    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v1/human_bitcoin_address"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -752,16 +780,16 @@ impl NodeBackendApi for NodeBackendClient {
     }
 
     #[allow(deprecated)]
-    async fn update_payment_address(
+    async fn update_payment_address_v1(
         &self,
-        req: UpdateHumanBitcoinAddress,
+        req: UpsertCustomHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
-        self.update_human_bitcoin_address(req, auth).await
+        self.update_human_bitcoin_address_v1(req, auth).await
     }
 
     #[allow(deprecated)]
-    async fn get_payment_address(
+    async fn get_payment_address_v1(
         &self,
         auth: BearerAuthToken,
     ) -> Result<HumanBitcoinAddressV1, BackendApiError> {

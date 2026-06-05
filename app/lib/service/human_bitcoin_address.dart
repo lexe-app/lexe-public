@@ -1,4 +1,4 @@
-import 'package:app_rs_dart/ffi/api.dart' show HumanBitcoinAddress;
+import 'package:app_rs_dart/ffi/api.dart' show ActiveHumanBitcoinAddress;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/app_data.dart' show AppData;
 import 'package:app_rs_dart/ffi/types.dart' show Username;
@@ -25,7 +25,7 @@ class HumanBitcoinAddressService {
   DateTime? _lastFetchedAt;
 
   /// The most recent HBA. `null` if we haven't stored any yet.
-  ValueListenable<HumanBitcoinAddress?> get humanBitcoinAddress =>
+  ValueListenable<ActiveHumanBitcoinAddress?> get humanBitcoinAddress =>
       this._appData.humanBitcoinAddress;
 
   /// Notifies after each completed fetch, successful or otherwise.
@@ -87,7 +87,7 @@ class HumanBitcoinAddressService {
 
     this._isUpdating.value = true;
     final res = await Result.tryFfiAsync(
-      () => this._app.updateHumanBitcoinAddress(username: username),
+      () => this._app.upsertCustomHumanBitcoinAddress(username: username),
     );
     if (this.isDisposed) return Err("Already disposed");
 
@@ -114,10 +114,10 @@ class HumanBitcoinAddressService {
     this.isDisposed = true;
   }
 
-  Future<Result<HumanBitcoinAddress, void>> _fetch() async =>
+  Future<Result<ActiveHumanBitcoinAddress?, void>> _fetch() async =>
       Result.tryFfiAsync(this._app.getHumanBitcoinAddress);
 
-  Future<Result<HumanBitcoinAddress, void>?> _fetchWithRetries({
+  Future<Result<ActiveHumanBitcoinAddress?, void>?> _fetchWithRetries({
     required bool Function() isCanceled,
     void Function(String)? onError,
   }) async => retryWithBackoff(

@@ -2,32 +2,27 @@
 
 use anyhow::Context;
 use lexe::ffs::Ffs;
-#[cfg(doc)]
-use lexe_api::models::command::HumanBitcoinAddressV1;
-use lexe_api::types::{offer::Offer, username::Username};
-#[cfg(test)]
-use proptest_derive::Arbitrary;
-use serde::{Deserialize, Serialize};
+use lexe_api::models::command::ActiveHumanBitcoinAddress;
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::db::{SchemaVersion, Update, WritebackDb};
 
 const APP_JSON: &str = "app.json";
 
-/// In-memory app state.
-// We don't use Offer and Username here because
-// they are leaked into the FFI and we don't want
-// to.
-// TODO(maurice): Find out why we are leaking these types
-// into the frb_generated.rs file.
+/// The app's persisted database. Held in memory and written back to `app.json`
+/// asynchronously by the [`WritebackDb`].
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, Arbitrary))]
+#[cfg_attr(test, derive(Debug))]
 pub(crate) struct AppDataRs {
     /// AppDb schema version.
     pub schema: SchemaVersion,
-    /// User's human Bitcoin address.
-    // compat: alias added in app-v0.9.3
-    #[serde(alias = "payment_address")]
-    pub human_address: Option<HumanBitcoinAddressRs>,
+    /// Best-effort display cache of the user's active Human Bitcoin Address.
+    ///
+    /// A malformed or legacy cached value (e.g. from before the HBA v2
+    /// migration) deserializes to `None` rather than failing the whole load;
+    /// the next `get_human_bitcoin_address` repopulates it.
+    #[serde(default, deserialize_with = "deserialize_drop_invalid")]
+    pub human_bitcoin_address: Option<ActiveHumanBitcoinAddress>,
 }
 
 impl AppDataRs {
@@ -44,69 +39,47 @@ impl Update for AppDataRs {
         self.schema
             .ensure_matches(update.schema)
             .context("AppDb schema version mismatch")?;
-        self.human_address.update(update.human_address)?;
+        self.human_bitcoin_address
+            .update(update.human_bitcoin_address)?;
         Ok(())
     }
 }
+
+// The cached HBA is replaced wholesale, never field-merged.
+impl Update for ActiveHumanBitcoinAddress {}
 
 impl Default for AppDataRs {
     fn default() -> Self {
         Self {
             schema: AppDataRs::CURRENT_SCHEMA,
-            human_address: None,
+            human_bitcoin_address: None,
         }
     }
 }
 
-/// In-memory HBA state.
-///
-/// Serialized [`HumanBitcoinAddressV1`] struct that stores,
-/// Usename and Offer as Strings and timestamps as i64 since
-/// we don't want to leak the underlying types.
-/// TODO(maurice): We should probably want to use the Offer and Username
-/// types directly after fixing the leaks.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, Arbitrary))]
-pub(crate) struct HumanBitcoinAddressRs {
-    /// User's username to receive BIP353 and lnurl payments.
-    pub username: Option<String>,
-    /// User's preferred Offer.
-    pub offer: Option<String>,
-    /// Last updated timestamp.
-    pub updated_at: Option<i64>,
-    /// Whether the user can update their HBA.
-    pub updatable: bool,
-}
-
-impl Default for HumanBitcoinAddressRs {
-    fn default() -> Self {
-        Self {
-            username: None,
-            offer: None,
-            updated_at: None,
-            updatable: true,
-        }
-    }
-}
-
-impl Update for Offer {}
-impl Update for Username {}
-impl Update for i64 {}
-impl Update for HumanBitcoinAddressRs {
-    fn update(&mut self, update: Self) -> anyhow::Result<()> {
-        self.username = update.username;
-        self.offer = update.offer;
-        self.updated_at = update.updated_at;
-        self.updatable = update.updatable;
-        Ok(())
-    }
+/// Deserialize the cached HBA leniently: any malformed or legacy value degrades
+/// to `None` instead of failing the whole `app.json` load. Relies on the
+/// self-describing JSON format (the only format this db is (de)serialized as).
+fn deserialize_drop_invalid<'de, D>(
+    deserializer: D,
+) -> Result<Option<ActiveHumanBitcoinAddress>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
 }
 
 #[cfg(test)]
 mod test {
-    use std::ops::Deref;
+    use std::{ops::Deref, str::FromStr};
 
     use lexe::ffs::DiskFs;
+    use lexe_api::{
+        models::command::HumanBitcoinAddress,
+        types::{offer::Offer, username::Username},
+    };
+    use lexe_common::time::TimestampMs;
 
     use super::*;
 
@@ -114,131 +87,51 @@ mod test {
         WritebackDb::<AppDataRs>::load(ffs, APP_JSON, "test")
     }
 
+    fn dummy_hba(username: &str) -> ActiveHumanBitcoinAddress {
+        let offer = Offer::from_str(
+            "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q",
+        )
+        .unwrap();
+        ActiveHumanBitcoinAddress {
+            hba: HumanBitcoinAddress {
+                username: Username::parse(username).unwrap(),
+                offer,
+                updated_at: TimestampMs::try_from(1686743442000_i64).unwrap(),
+                expires_at: None,
+                is_generated: false,
+            },
+            updatable: true,
+        }
+    }
+
+    /// A cached HBA is replaced wholesale on update and survives a shutdown +
+    /// reload.
     #[tokio::test]
     async fn test_load_shutdown_load() {
-        // logger::init_for_testing();
-
         let tmpdir = tempfile::tempdir().unwrap();
         let ffs = DiskFs::create_dir_all(tmpdir.path().to_owned()).unwrap();
-        let dummy_offer = "lno1pgx9getnwss8vetrw3hhyuckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg".to_owned();
-        let dummy_username = "dummy".to_owned();
-        let dummy_updated_at = 1686743442000;
-        {
-            let mut db = load_db(ffs.clone());
-            assert_eq!(
-                db.db().lock().unwrap().deref(),
-                &AppDataRs {
-                    human_address: None,
-                    ..Default::default()
-                }
-            );
+        let final_hba = dummy_hba("second");
 
-            db.shutdown().await.unwrap();
-        }
         {
             let mut db = load_db(ffs.clone());
+            // Fresh db starts empty.
             assert_eq!(db.db().lock().unwrap().deref(), &AppDataRs::default());
 
-            // update: offer=DummyOffer
+            // Each update replaces the cached HBA wholesale.
             db.update(AppDataRs {
-                human_address: Some(HumanBitcoinAddressRs {
-                    offer: Some(dummy_offer.clone()),
-                    ..Default::default()
-                }),
+                human_bitcoin_address: Some(dummy_hba("first")),
+                ..Default::default()
+            })
+            .unwrap();
+            db.update(AppDataRs {
+                human_bitcoin_address: Some(final_hba.clone()),
                 ..Default::default()
             })
             .unwrap();
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    human_address: Some(HumanBitcoinAddressRs {
-                        offer: Some(dummy_offer.clone()),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                }
-            );
-
-            // update: username=dummy
-            db.update(AppDataRs {
-                human_address: Some(HumanBitcoinAddressRs {
-                    username: Some(dummy_username.clone()),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            })
-            .unwrap();
-            assert_eq!(
-                db.db().lock().unwrap().deref(),
-                &AppDataRs {
-                    human_address: Some(HumanBitcoinAddressRs {
-                        username: Some(dummy_username.clone()),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                }
-            );
-
-            // update: updated_at=1686743442000
-            db.update(AppDataRs {
-                human_address: Some(HumanBitcoinAddressRs {
-                    updated_at: Some(dummy_updated_at),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            })
-            .unwrap();
-            assert_eq!(
-                db.db().lock().unwrap().deref(),
-                &AppDataRs {
-                    human_address: Some(HumanBitcoinAddressRs {
-                        updated_at: Some(dummy_updated_at),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                }
-            );
-
-            // update: updatable=true
-            db.update(AppDataRs {
-                human_address: Some(HumanBitcoinAddressRs {
-                    updatable: true,
-                    ..Default::default()
-                }),
-                ..Default::default()
-            })
-            .unwrap();
-            assert_eq!(
-                db.db().lock().unwrap().deref(),
-                &AppDataRs {
-                    human_address: Some(HumanBitcoinAddressRs {
-                        updatable: true,
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                }
-            );
-
-            // update: all fields
-            db.update(AppDataRs {
-                human_address: Some(HumanBitcoinAddressRs {
-                    username: Some(dummy_username.clone()),
-                    offer: Some(dummy_offer.clone()),
-                    updated_at: Some(dummy_updated_at),
-                    updatable: true,
-                }),
-                ..Default::default()
-            })
-            .unwrap();
-            assert_eq!(
-                db.db().lock().unwrap().deref(),
-                &AppDataRs {
-                    human_address: Some(HumanBitcoinAddressRs {
-                        username: Some(dummy_username.clone()),
-                        offer: Some(dummy_offer.clone()),
-                        updated_at: Some(dummy_updated_at),
-                        updatable: true,
-                    }),
+                    human_bitcoin_address: Some(final_hba.clone()),
                     ..Default::default()
                 }
             );
@@ -247,21 +140,41 @@ mod test {
         }
 
         {
+            // The HBA persisted across the shutdown.
             let mut db = load_db(ffs.clone());
             assert_eq!(
                 db.db().lock().unwrap().deref(),
                 &AppDataRs {
-                    human_address: Some(HumanBitcoinAddressRs {
-                        offer: Some(dummy_offer.clone()),
-                        username: Some(dummy_username.clone()),
-                        updated_at: Some(dummy_updated_at),
-                        updatable: true,
-                    }),
+                    human_bitcoin_address: Some(final_hba),
                     ..Default::default()
                 }
             );
 
             db.shutdown().await.unwrap();
         }
+    }
+
+    /// A legacy or malformed cached HBA degrades to `None` rather than failing
+    /// the whole `app.json` deserialization.
+    #[test]
+    fn invalid_cached_hba_drops_to_none() {
+        // Legacy v1-shaped cache under the old `human_address` key (dropped in
+        // the HBA v2 migration): the unknown key is ignored.
+        let legacy = r#"{
+            "schema": 1,
+            "human_address": { "username": "alice", "updatable": true }
+        }"#;
+        let app_data: AppDataRs = serde_json::from_str(legacy)
+            .expect("legacy app.json must still deserialize");
+        assert!(app_data.human_bitcoin_address.is_none());
+
+        // Malformed value under the current key: dropped, load still succeeds.
+        let malformed = r#"{
+            "schema": 1,
+            "human_bitcoin_address": { "garbage": true }
+        }"#;
+        let app_data: AppDataRs = serde_json::from_str(malformed)
+            .expect("malformed cached HBA must not fail the load");
+        assert!(app_data.human_bitcoin_address.is_none());
     }
 }

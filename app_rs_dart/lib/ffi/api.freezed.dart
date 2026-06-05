@@ -12,6 +12,71 @@ part of 'api.dart';
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
+mixin _$ActiveHumanBitcoinAddress {
+
+ Username get username; Offer get offer; int get updatedAt; int? get expiresAt; bool get isGenerated; bool get updatable;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActiveHumanBitcoinAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.isGenerated, isGenerated) || other.isGenerated == isGenerated)&&(identical(other.updatable, updatable) || other.updatable == updatable));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,expiresAt,isGenerated,updatable);
+
+@override
+String toString() {
+  return 'ActiveHumanBitcoinAddress(username: $username, offer: $offer, updatedAt: $updatedAt, expiresAt: $expiresAt, isGenerated: $isGenerated, updatable: $updatable)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _ActiveHumanBitcoinAddress implements ActiveHumanBitcoinAddress {
+  const _ActiveHumanBitcoinAddress({required this.username, required this.offer, required this.updatedAt, this.expiresAt, required this.isGenerated, required this.updatable});
+  
+
+@override final  Username username;
+@override final  Offer offer;
+@override final  int updatedAt;
+@override final  int? expiresAt;
+@override final  bool isGenerated;
+@override final  bool updatable;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActiveHumanBitcoinAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.isGenerated, isGenerated) || other.isGenerated == isGenerated)&&(identical(other.updatable, updatable) || other.updatable == updatable));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,expiresAt,isGenerated,updatable);
+
+@override
+String toString() {
+  return 'ActiveHumanBitcoinAddress(username: $username, offer: $offer, updatedAt: $updatedAt, expiresAt: $expiresAt, isGenerated: $isGenerated, updatable: $updatable)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$Balance {
 
  int get totalSats; int get onchainSats; int get lightningSats; int get lightningUsableSats; int get lightningMaxSendableSats;
@@ -683,69 +748,6 @@ int get hashCode => Object.hash(runtimeType,timestampMs,const DeepCollectionEqua
 @override
 String toString() {
   return 'FiatRates(timestampMs: $timestampMs, rates: $rates)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$HumanBitcoinAddress {
-
- Username? get username; Offer? get offer; int? get updatedAt; bool get updatable;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HumanBitcoinAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
-
-@override
-String toString() {
-  return 'HumanBitcoinAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _HumanBitcoinAddress implements HumanBitcoinAddress {
-  const _HumanBitcoinAddress({this.username, this.offer, this.updatedAt, required this.updatable});
-  
-
-@override final  Username? username;
-@override final  Offer? offer;
-@override final  int? updatedAt;
-@override final  bool updatable;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HumanBitcoinAddress&&(identical(other.username, username) || other.username == username)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.updatable, updatable) || other.updatable == updatable));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,username,offer,updatedAt,updatable);
-
-@override
-String toString() {
-  return 'HumanBitcoinAddress(username: $username, offer: $offer, updatedAt: $updatedAt, updatable: $updatable)';
 }
 
 

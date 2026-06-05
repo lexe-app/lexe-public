@@ -1,16 +1,12 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe_api::types::offer::Offer as OfferRs;
+use lexe_api::models::command::ActiveHumanBitcoinAddress as ActiveHumanBitcoinAddressRs;
 
 use crate::{
-    app_data::{AppDataRs, HumanBitcoinAddressRs},
-    db::WritebackDb as WritebackDbRs,
-    ffi::{
-        api::HumanBitcoinAddress,
-        types::{Offer, Username},
-    },
+    app_data::AppDataRs, db::WritebackDb as WritebackDbRs,
+    ffi::api::ActiveHumanBitcoinAddress,
 };
 
 pub struct AppDataDb {
@@ -18,7 +14,7 @@ pub struct AppDataDb {
 }
 
 pub struct AppData {
-    pub human_bitcoin_address: Option<HumanBitcoinAddress>,
+    pub human_bitcoin_address: Option<ActiveHumanBitcoinAddress>,
 }
 
 //  --- impl AppDataDb --- //
@@ -34,7 +30,7 @@ impl AppDataDb {
     ///
     /// flutter_rust_bridge:sync
     pub fn read(&self) -> anyhow::Result<AppData> {
-        AppData::try_from(self.inner.read()).context("Failed to read AppData")
+        Ok(AppData::from(self.inner.read()))
     }
 
     /// Reset all data to their defaults.
@@ -50,84 +46,36 @@ impl AppDataDb {
     ///
     /// flutter_rust_bridge:sync
     pub fn update(&self, update: AppData) -> anyhow::Result<()> {
-        let update_rs = AppDataRs::try_from(update)
-            .context("Dart settings update is invalid")?;
         self.inner
-            .update(update_rs)
-            .context("Failed to apply settings update")?;
-        Ok(())
+            .update(AppDataRs::try_from(update)?)
+            .context("Failed to apply settings update")
     }
 }
 
 // --- impl AppData --- //
 
-impl TryFrom<AppDataRs> for AppData {
-    type Error = anyhow::Error;
-
-    fn try_from(a: AppDataRs) -> Result<Self, Self::Error> {
-        let human_bitcoin_address = a
-            .human_address
-            .map(HumanBitcoinAddress::try_from)
-            .transpose()?;
-
-        Ok(Self {
-            human_bitcoin_address,
-        })
-    }
-}
-
-impl TryFrom<HumanBitcoinAddressRs> for HumanBitcoinAddress {
-    type Error = anyhow::Error;
-    fn try_from(a: HumanBitcoinAddressRs) -> Result<Self, Self::Error> {
-        let username = a
-            .username
-            .map(|u| Username::parse(u.as_str()))
-            .transpose()?;
-        let offer = a
-            .offer
-            .map(|o| OfferRs::from_str(o.as_str()))
-            .transpose()?
-            .map(Offer::from);
-        let updated_at = a.updated_at;
-        let updatable = a.updatable;
-
-        Ok(Self {
-            username,
-            offer,
-            updated_at,
-            updatable,
-        })
+impl From<AppDataRs> for AppData {
+    fn from(a: AppDataRs) -> Self {
+        Self {
+            human_bitcoin_address: a
+                .human_bitcoin_address
+                .map(ActiveHumanBitcoinAddress::from),
+        }
     }
 }
 
 impl TryFrom<AppData> for AppDataRs {
     type Error = anyhow::Error;
-    fn try_from(a: AppData) -> Result<Self, Self::Error> {
-        let human_address = a
-            .human_bitcoin_address
-            .map(HumanBitcoinAddressRs::try_from)
-            .transpose()?;
 
+    fn try_from(a: AppData) -> anyhow::Result<Self> {
+        let human_bitcoin_address = a
+            .human_bitcoin_address
+            .map(ActiveHumanBitcoinAddressRs::try_from)
+            .transpose()
+            .context("Invalid cached HBA")?;
         Ok(Self {
             schema: AppDataRs::CURRENT_SCHEMA,
-            human_address,
-        })
-    }
-}
-
-impl TryFrom<HumanBitcoinAddress> for HumanBitcoinAddressRs {
-    type Error = anyhow::Error;
-    fn try_from(a: HumanBitcoinAddress) -> Result<Self, Self::Error> {
-        let username = a.username.map(|u| u.into_inner());
-        let offer = a.offer.map(|o| o.string);
-        let updated_at = a.updated_at;
-        let updatable = a.updatable;
-
-        Ok(Self {
-            username,
-            offer,
-            updated_at,
-            updatable,
+            human_bitcoin_address,
         })
     }
 }

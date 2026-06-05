@@ -16,7 +16,7 @@ use lexe_api::{
     models::{
         command::{
             ClaimGeneratedHumanBitcoinAddress, GDriveStatus,
-            UpdateHumanBitcoinAddress,
+            UpsertCustomHumanBitcoinAddress,
         },
         runner::UserLeaseRenewalRequest,
     },
@@ -1322,12 +1322,13 @@ mod helpers {
                 // Get existing HBA
                 let hba = persister
                     .backend_api()
-                    .get_human_bitcoin_address_v1(token.clone())
+                    .get_human_bitcoin_address(token.clone())
                     .await
-                    .context("get_human_bitcoin_address_v1 failed")?;
+                    .context("get_human_bitcoin_address failed")?;
 
                 // Regenerate the offer in v2 format
-                if let Some(username) = hba.username {
+                if let Some(active) = hba.hba {
+                    let username = active.hba.username;
                     info!("Migrating HBA offer to v2 format");
 
                     let offer_req = lexe_ln::command::hba_offer_request(
@@ -1341,15 +1342,17 @@ mod helpers {
                     .await
                     .context("Failed to create HBA offer")?;
 
-                    let req = UpdateHumanBitcoinAddress {
+                    let req = UpsertCustomHumanBitcoinAddress {
                         username,
                         offer: offer.offer,
                     };
                     persister
                         .backend_api()
-                        .update_human_bitcoin_address(req, token)
+                        .upsert_custom_human_bitcoin_address(req, token)
                         .await
-                        .context("update_human_bitcoin_address failed")?;
+                        .context(
+                            "upsert_custom_human_bitcoin_address failed",
+                        )?;
                 }
 
                 // Migration complete

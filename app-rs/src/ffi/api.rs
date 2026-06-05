@@ -9,13 +9,14 @@ use lexe::types::{
 };
 use lexe_api::{
     models::command::{
+        ActiveHumanBitcoinAddress as ActiveHumanBitcoinAddressRs,
         CloseChannelRequest as CloseChannelRequestRs,
         CreateInvoiceRequest as CreateInvoiceRequestRs,
         CreateInvoiceResponse as CreateInvoiceResponseRs,
         CreateOfferRequest as CreateOfferRequestRs,
         CreateOfferResponse as CreateOfferResponseRs,
         FeeEstimate as FeeEstimateRs,
-        HumanBitcoinAddressV1 as HumanBitcoinAddressRs,
+        HumanBitcoinAddress as HumanBitcoinAddressRs,
         ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
         OpenChannelRequest as OpenChannelRequestRs,
         OpenChannelResponse as OpenChannelResponseRs,
@@ -45,6 +46,7 @@ use lexe_api::{
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentId as PaymentIdRs,
         },
+        username::Username as UsernameRs,
     },
 };
 use lexe_common::{
@@ -60,6 +62,7 @@ use lexe_common::{
         amount::Amount,
         channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
     },
+    time::TimestampMs,
 };
 use lexe_crypto::ed25519;
 
@@ -783,30 +786,55 @@ impl TryFrom<UpdateClientRequest> for UpdateClientRequestRs {
     }
 }
 
-/// Whether the user has a human Bitcoin address associated with their username
-/// and if it is updatable.
+/// The user's active human Bitcoin address, plus the per-user `updatable`
+/// policy flag (whether the user can claim a different custom username now).
+///
+/// The FFI-flattened form of [`ActiveHumanBitcoinAddressRs`].
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct HumanBitcoinAddress {
-    pub username: Option<Username>,
-    pub offer: Option<Offer>,
-    pub updated_at: Option<i64>,
+pub struct ActiveHumanBitcoinAddress {
+    // --- The HBA --- //
+    pub username: Username,
+    pub offer: Offer,
+    pub updated_at: i64,
+    pub expires_at: Option<i64>,
+    pub is_generated: bool,
+
+    // --- Per-user policy --- //
     pub updatable: bool,
 }
 
-impl TryFrom<HumanBitcoinAddressRs> for HumanBitcoinAddress {
+impl From<ActiveHumanBitcoinAddressRs> for ActiveHumanBitcoinAddress {
+    fn from(active: ActiveHumanBitcoinAddressRs) -> Self {
+        let ActiveHumanBitcoinAddressRs { hba, updatable } = active;
+        Self {
+            username: hba.username.into(),
+            offer: hba.offer.into(),
+            updated_at: hba.updated_at.to_i64(),
+            expires_at: hba.expires_at.map(|ts| ts.to_i64()),
+            is_generated: hba.is_generated,
+            updatable,
+        }
+    }
+}
+
+impl TryFrom<ActiveHumanBitcoinAddress> for ActiveHumanBitcoinAddressRs {
     type Error = anyhow::Error;
 
-    fn try_from(value: HumanBitcoinAddressRs) -> Result<Self, Self::Error> {
-        let username = value.username.map(Username::try_from).transpose()?;
-        let offer = value.offer.map(Offer::try_from).transpose()?;
-        let updated_at = value.updated_at.map(|u| u.to_i64());
-
+    fn try_from(ffi: ActiveHumanBitcoinAddress) -> anyhow::Result<Self> {
+        let hba = HumanBitcoinAddressRs {
+            username: UsernameRs::try_from(ffi.username)?,
+            offer: OfferRs::from_str(&ffi.offer.string)?,
+            updated_at: TimestampMs::try_from(ffi.updated_at)?,
+            expires_at: ffi
+                .expires_at
+                .map(TimestampMs::try_from)
+                .transpose()?,
+            is_generated: ffi.is_generated,
+        };
         Ok(Self {
-            username,
-            offer,
-            updated_at,
-            updatable: value.updatable,
+            hba,
+            updatable: ffi.updatable,
         })
     }
 }

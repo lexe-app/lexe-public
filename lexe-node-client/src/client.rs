@@ -27,17 +27,18 @@ use lexe_api::{
             BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             DebugInfo, EnclavesToProvisionRequest, GetAddressResponse,
-            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddressV1,
-            ListChannelsResponse, NodeInfo, NodeInfoV1, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentCreatedIndexes, PaymentIdStruct,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOfferRequest, PreflightPayOfferResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            SetupGDrive, UpdatePersonalNote,
+            GetHumanBitcoinAddressResponse, GetNewPayments, GetUpdatedPayments,
+            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo, NodeInfoV1,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
+            PaymentIdStruct, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+            PreflightPayOfferResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, SetupGDrive, UpdatePersonalNote,
+            UpsertHumanBitcoinAddressResponse,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -843,6 +844,16 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
+    async fn get_human_bitcoin_address(
+        &self,
+    ) -> Result<GetHumanBitcoinAddressResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/v2/human_bitcoin_address");
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
+    }
+
     async fn get_human_bitcoin_address_v1(
         &self,
     ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
@@ -853,7 +864,18 @@ impl AppNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn update_human_bitcoin_address(
+    async fn upsert_custom_human_bitcoin_address(
+        &self,
+        req: UsernameStruct,
+    ) -> Result<UpsertHumanBitcoinAddressResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/app/v2/human_bitcoin_address");
+        let req = run_rest.put(url, &req);
+        run_rest.send(req).await
+    }
+
+    async fn update_human_bitcoin_address_v1(
         &self,
         req: UsernameStruct,
     ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
@@ -865,18 +887,18 @@ impl AppNodeRunApi for NodeClient {
     }
 
     #[allow(deprecated)]
-    async fn get_payment_address(
+    async fn get_payment_address_v1(
         &self,
     ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
         self.get_human_bitcoin_address_v1().await
     }
 
     #[allow(deprecated)]
-    async fn update_payment_address(
+    async fn update_payment_address_v1(
         &self,
         req: UsernameStruct,
     ) -> Result<HumanBitcoinAddressV1, NodeApiError> {
-        self.update_human_bitcoin_address(req).await
+        self.update_human_bitcoin_address_v1(req).await
     }
 
     async fn list_nwc_clients(

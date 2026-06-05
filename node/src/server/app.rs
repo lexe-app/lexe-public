@@ -10,17 +10,18 @@ use lexe_api::{
         command::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
             CreateOfferResponse, DebugInfo, GDriveStatus, GetAddressResponse,
-            GetNewPayments, GetUpdatedPayments, HumanBitcoinAddressV1,
-            ListChannelsResponse, NodeInfo, NodeInfoV1, OpenChannelRequest,
-            OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-            PayOnchainResponse, PaymentCreatedIndexes, PaymentIdStruct,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOfferRequest, PreflightPayOfferResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            SetupGDrive, UpdateHumanBitcoinAddress, UpdatePersonalNote,
+            GetHumanBitcoinAddressResponse, GetNewPayments, GetUpdatedPayments,
+            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo, NodeInfoV1,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
+            PaymentIdStruct, PreflightCloseChannelRequest,
+            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
+            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
+            PreflightPayOfferResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse, SetupGDrive, UpdatePersonalNote,
+            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
@@ -41,6 +42,7 @@ use lexe_api::{
 };
 use lexe_common::{
     api::{
+        auth::BearerAuthToken,
         models::{
             BroadcastedTx, BroadcastedTxInfo, SignMsgRequest, SignMsgResponse,
             VerifyMsgRequest, VerifyMsgResponse,
@@ -652,9 +654,9 @@ pub(super) async fn setup_gdrive(
     Ok(LxJson(Empty {}))
 }
 
-pub(super) async fn get_human_bitcoin_address_v1(
+pub(super) async fn get_human_bitcoin_address(
     State(state): State<Arc<RouterState>>,
-) -> Result<LxJson<HumanBitcoinAddressV1>, NodeApiError> {
+) -> Result<LxJson<GetHumanBitcoinAddressResponse>, NodeApiError> {
     let token = state
         .persister
         .get_token()
@@ -664,16 +666,52 @@ pub(super) async fn get_human_bitcoin_address_v1(
     let hba = state
         .persister
         .backend_api()
-        .get_human_bitcoin_address_v1(token)
+        .get_human_bitcoin_address(token)
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(hba))
 }
 
-pub(super) async fn update_human_bitcoin_address(
+pub(super) async fn get_human_bitcoin_address_v1(
+    state: State<Arc<RouterState>>,
+) -> Result<LxJson<HumanBitcoinAddressV1>, NodeApiError> {
+    let resp = get_human_bitcoin_address(state).await?;
+    Ok(LxJson(HumanBitcoinAddressV1::from(resp.0)))
+}
+
+pub(super) async fn upsert_custom_human_bitcoin_address(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<UsernameStruct>,
+) -> Result<LxJson<UpsertHumanBitcoinAddressResponse>, NodeApiError> {
+    let (token, req) = build_upsert_custom_hba_request(&state, req).await?;
+    let resp = state
+        .persister
+        .backend_api()
+        .upsert_custom_human_bitcoin_address(req, token)
+        .await
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(resp))
+}
+
+pub(super) async fn update_human_bitcoin_address_v1(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UsernameStruct>,
 ) -> Result<LxJson<HumanBitcoinAddressV1>, NodeApiError> {
+    let (token, req) = build_upsert_custom_hba_request(&state, req).await?;
+    #[allow(deprecated)]
+    let hba = state
+        .persister
+        .backend_api()
+        .update_human_bitcoin_address_v1(req, token)
+        .await
+        .map_err(NodeApiError::command)?;
+    Ok(LxJson(hba))
+}
+
+async fn build_upsert_custom_hba_request(
+    state: &RouterState,
+    req: UsernameStruct,
+) -> Result<(BearerAuthToken, UpsertCustomHumanBitcoinAddress), NodeApiError> {
     let token = state
         .persister
         .get_token()
@@ -688,17 +726,11 @@ pub(super) async fn update_human_bitcoin_address(
             .await
             .map_err(NodeApiError::command)?;
 
-    let req = UpdateHumanBitcoinAddress {
+    let req = UpsertCustomHumanBitcoinAddress {
         username: req.username,
         offer: offer.offer,
     };
-    let hba = state
-        .persister
-        .backend_api()
-        .update_human_bitcoin_address(req, token)
-        .await
-        .map_err(NodeApiError::command)?;
-    Ok(LxJson(hba))
+    Ok((token, req))
 }
 
 /// List all NWC clients for the current user.

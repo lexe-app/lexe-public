@@ -704,10 +704,10 @@ pub struct ResyncRequest {
 
 // --- Username --- //
 
-/// Creates or updates a human Bitcoin address.
+/// Upserts the user's custom human Bitcoin address.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct UpdateHumanBitcoinAddress {
+pub struct UpsertCustomHumanBitcoinAddress {
     /// Username for BIP-353 and LNURL.
     pub username: Username,
     /// Offer to be used to fetch invoices on BIP-353.
@@ -741,6 +741,61 @@ pub struct GetGeneratedUsernameResponse {
     pub already_claimed: bool,
 }
 
+/// Response for `get_human_bitcoin_address`.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetHumanBitcoinAddressResponse {
+    /// The user's active HBA, or `None` if they haven't claimed any yet.
+    pub hba: Option<ActiveHumanBitcoinAddress>,
+}
+
+/// Response for `upsert_custom_human_bitcoin_address`.
+///
+/// Unlike [`GetHumanBitcoinAddressResponse`], the HBA is never absent here: a
+/// successful upsert always yields the primary custom HBA it just set.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct UpsertHumanBitcoinAddressResponse {
+    /// The active HBA that was just claimed, renamed, or refreshed.
+    pub hba: ActiveHumanBitcoinAddress,
+}
+
+/// The user's active Human Bitcoin Address, paired with whether they may
+/// currently change it. This is what `get`/`upsert_*_human_bitcoin_address`
+/// serve back to the app.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct ActiveHumanBitcoinAddress {
+    /// The active HBA itself.
+    pub hba: HumanBitcoinAddress,
+    /// Whether the user can currently claim a *different* custom username.
+    /// `true` when the user has never claimed a custom HBA, is within the 24h
+    /// grace period, or is past the 90-day freeze; `false` while frozen.
+    pub updatable: bool,
+}
+
+/// The user's active Human Bitcoin Address: the active (non-expired) primary
+/// custom HBA if present, otherwise the generated fallback.
+/// Aliases are never returned here.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct HumanBitcoinAddress {
+    /// Username for BIP-353 and LNURL.
+    pub username: Username,
+    /// Offer for fetching invoices on BIP-353.
+    pub offer: Offer,
+    /// The last time this Human Bitcoin Address was updated.
+    pub updated_at: TimestampMs,
+    /// When this Human Bitcoin Address expires, if applicable.
+    ///
+    /// Custom HBAs may or may not expire; generated fallbacks never expire.
+    pub expires_at: Option<TimestampMs>,
+    /// Whether this is the user's generated fallback HBA.
+    pub is_generated: bool,
+}
+
+/// The legacy flat HBA shape returned by the deprecated v1
+/// `*_human_bitcoin_address` endpoints, built from the v2 types above.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct HumanBitcoinAddressV1 {
@@ -754,6 +809,39 @@ pub struct HumanBitcoinAddressV1 {
     /// generated addresses; for claimed addresses, depends on time-based
     /// freeze rules.
     pub updatable: bool,
+}
+
+impl From<GetHumanBitcoinAddressResponse> for HumanBitcoinAddressV1 {
+    fn from(resp: GetHumanBitcoinAddressResponse) -> Self {
+        match resp.hba {
+            Some(active) => Self::from(active),
+            None => Self {
+                username: None,
+                offer: None,
+                updated_at: None,
+                // No active HBA ⇒ the user has never claimed a custom one,
+                // so they are always free to claim one now.
+                updatable: true,
+            },
+        }
+    }
+}
+
+impl From<UpsertHumanBitcoinAddressResponse> for HumanBitcoinAddressV1 {
+    fn from(resp: UpsertHumanBitcoinAddressResponse) -> Self {
+        Self::from(resp.hba)
+    }
+}
+
+impl From<ActiveHumanBitcoinAddress> for HumanBitcoinAddressV1 {
+    fn from(active: ActiveHumanBitcoinAddress) -> Self {
+        Self {
+            username: Some(active.hba.username),
+            offer: Some(active.hba.offer),
+            updated_at: Some(active.hba.updated_at),
+            updatable: active.updatable,
+        }
+    }
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -824,8 +912,10 @@ mod test {
     }
 
     #[test]
-    fn human_bitcoin_address_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<UpdateHumanBitcoinAddress>();
+    fn upsert_custom_human_bitcoin_address_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<
+            UpsertCustomHumanBitcoinAddress,
+        >();
     }
 
     #[test]
@@ -844,6 +934,20 @@ mod test {
     #[test]
     fn human_bitcoin_address_response_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<HumanBitcoinAddressV1>();
+    }
+
+    #[test]
+    fn get_human_bitcoin_address_response_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<
+            GetHumanBitcoinAddressResponse,
+        >();
+    }
+
+    #[test]
+    fn upsert_human_bitcoin_address_response_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<
+            UpsertHumanBitcoinAddressResponse,
+        >();
     }
 
     /// Sanity check the `DebugInfo` serialization against a hard-coded string.

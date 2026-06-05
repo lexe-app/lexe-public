@@ -84,8 +84,9 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
-  /// Get the [`HumanBitcoinAddress`] for the user and if it is updatable.
-  Future<HumanBitcoinAddress> getHumanBitcoinAddress() =>
+  /// Get the [`ActiveHumanBitcoinAddress`] for the user, or `None` if not
+  /// claimed.
+  Future<ActiveHumanBitcoinAddress?> getHumanBitcoinAddress() =>
       AppRs.instance.api.crateFfiAppAppHandleGetHumanBitcoinAddress(that: this);
 
   /// flutter_rust_bridge:sync
@@ -269,17 +270,17 @@ class AppHandle {
   Future<void> updateClient({required UpdateClientRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleUpdateClient(that: this, req: req);
 
-  Future<HumanBitcoinAddress> updateHumanBitcoinAddress({
-    required Username username,
-  }) => AppRs.instance.api.crateFfiAppAppHandleUpdateHumanBitcoinAddress(
-    that: this,
-    username: username,
-  );
-
   Future<void> updatePersonalNote({required UpdatePersonalNote req}) => AppRs
       .instance
       .api
       .crateFfiAppAppHandleUpdatePersonalNote(that: this, req: req);
+
+  Future<ActiveHumanBitcoinAddress> upsertCustomHumanBitcoinAddress({
+    required Username username,
+  }) => AppRs.instance.api.crateFfiAppAppHandleUpsertCustomHumanBitcoinAddress(
+    that: this,
+    username: username,
+  );
 
   /// flutter_rust_bridge:sync
   AppUserInfo walletUser() =>

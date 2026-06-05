@@ -4,7 +4,7 @@ import 'dart:async' show StreamSubscription, TimeoutException, unawaited;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show FiatRate, HumanBitcoinAddress, NodeInfo;
+    show ActiveHumanBitcoinAddress, FiatRate, NodeInfo;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/settings.dart'
     show Settings, WalletFundingState;
@@ -1542,7 +1542,7 @@ class DrawerProfile extends StatelessWidget {
   });
   final bool allowEdit;
   final VoidCallback? onEditProfilePressed;
-  final HumanBitcoinAddress? humanBitcoinAddress;
+  final ActiveHumanBitcoinAddress? humanBitcoinAddress;
 
   DrawerHbaStatus get status {
     if (this.humanBitcoinAddress == null) {
@@ -1613,11 +1613,11 @@ class ClaimedHba extends StatelessWidget {
     required this.showEditButton,
     this.onTapEdit,
   });
-  final HumanBitcoinAddress humanBitcoinAddress;
+  final ActiveHumanBitcoinAddress humanBitcoinAddress;
   final bool showEditButton;
   final VoidCallback? onTapEdit;
 
-  String get username => this.humanBitcoinAddress.username!.field0;
+  String get username => this.humanBitcoinAddress.username.field0;
   String get emailLikeUsername => "${this.username}@lexe.app";
   String get displayUsername => "₿${this.emailLikeUsername}";
 

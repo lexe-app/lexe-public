@@ -155,15 +155,21 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         .route("/app/list_broadcasted_txs", get(app::list_broadcasted_txs))
         .route("/app/backup", get(app::backup_info))
         .route("/app/backup/gdrive", post(app::setup_gdrive))
+        .route("/app/v2/human_bitcoin_address",
+            get(app::get_human_bitcoin_address)
+            .put(app::upsert_custom_human_bitcoin_address)
+        )
         // TODO(a-mpch): Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2.
         // Remove once unused.
         .route("/app/payment_address",
             get(app::get_human_bitcoin_address_v1)
-            .put(app::update_human_bitcoin_address)
+            .put(app::update_human_bitcoin_address_v1)
         )
+        // TODO(max): Deprecated since app-v0.9.7 and sdk-sidecar-v0.4.7.
+        // Remove once unused.
         .route("/app/human_bitcoin_address",
             get(app::get_human_bitcoin_address_v1)
-            .put(app::update_human_bitcoin_address)
+            .put(app::update_human_bitcoin_address_v1)
         )
         .route("/app/nwc_clients",
             get(app::list_nwc_clients)

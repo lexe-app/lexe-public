@@ -72,7 +72,7 @@ class _EditHumanBitcoinAddressPageState
       .humanBitcoinAddress
       .value
       ?.username
-      ?.field0;
+      .field0;
 
   @override
   void initState() {

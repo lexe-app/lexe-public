@@ -19,8 +19,8 @@ class LxAppData {
 
   final AppDataDb _db;
 
-  final ValueNotifier<HumanBitcoinAddress?> _humanBitcoinAddress;
-  ValueListenable<HumanBitcoinAddress?> get humanBitcoinAddress =>
+  final ValueNotifier<ActiveHumanBitcoinAddress?> _humanBitcoinAddress;
+  ValueListenable<ActiveHumanBitcoinAddress?> get humanBitcoinAddress =>
       this._humanBitcoinAddress;
 
   void reset() {

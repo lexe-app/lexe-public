@@ -38,9 +38,9 @@ use tracing::instrument;
 
 use crate::ffi::{
     api::{
-        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, FiatRates, HumanBitcoinAddress,
+        ActiveHumanBitcoinAddress, CloseChannelRequest, CreateClientRequest,
+        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
+        CreateOfferRequest, CreateOfferResponse, FiatRates,
         ListChannelsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
         PayOfferRequest, PayOfferResponse, PayOnchainRequest,
@@ -651,30 +651,31 @@ impl AppHandle {
         Ok(Payment::from(resp))
     }
 
-    /// Get the [`HumanBitcoinAddress`] for the user and if it is updatable.
+    /// Get the [`ActiveHumanBitcoinAddress`] for the user, or `None` if not
+    /// claimed.
     pub async fn get_human_bitcoin_address(
         &self,
-    ) -> anyhow::Result<HumanBitcoinAddress> {
+    ) -> anyhow::Result<Option<ActiveHumanBitcoinAddress>> {
         let resp = self
             .inner
             .node_client()?
-            .get_human_bitcoin_address_v1()
+            .get_human_bitcoin_address()
             .await?;
-        HumanBitcoinAddress::try_from(resp)
+        Ok(resp.hba.map(ActiveHumanBitcoinAddress::from))
     }
 
-    pub async fn update_human_bitcoin_address(
+    pub async fn upsert_custom_human_bitcoin_address(
         &self,
         username: Username,
-    ) -> anyhow::Result<HumanBitcoinAddress> {
+    ) -> anyhow::Result<ActiveHumanBitcoinAddress> {
         let req = UsernameStructRs {
             username: UsernameRs::try_from(username)?,
         };
         let resp = self
             .inner
             .node_client()?
-            .update_human_bitcoin_address(req)
+            .upsert_custom_human_bitcoin_address(req)
             .await?;
-        HumanBitcoinAddress::try_from(resp)
+        Ok(ActiveHumanBitcoinAddress::from(resp.hba))
     }
 }

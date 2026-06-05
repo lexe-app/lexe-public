@@ -17,7 +17,25 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+
+/// The user's active human Bitcoin address, plus the per-user `updatable`
+/// policy flag (whether the user can claim a different custom username now).
+///
+/// The FFI-flattened form of [`ActiveHumanBitcoinAddressRs`].
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class ActiveHumanBitcoinAddress with _$ActiveHumanBitcoinAddress {
+  const factory ActiveHumanBitcoinAddress({
+    required Username username,
+    required Offer offer,
+    required int updatedAt,
+    int? expiresAt,
+    required bool isGenerated,
+    required bool updatable,
+  }) = _ActiveHumanBitcoinAddress;
+}
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -122,20 +140,6 @@ sealed class FiatRates with _$FiatRates {
     required int timestampMs,
     required List<FiatRate> rates,
   }) = _FiatRates;
-}
-
-/// Whether the user has a human Bitcoin address associated with their username
-/// and if it is updatable.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class HumanBitcoinAddress with _$HumanBitcoinAddress {
-  const factory HumanBitcoinAddress({
-    Username? username,
-    Offer? offer,
-    int? updatedAt,
-    required bool updatable,
-  }) = _HumanBitcoinAddress;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
