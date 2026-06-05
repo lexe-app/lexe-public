@@ -87,9 +87,8 @@ impl LexeRouter {
             logger,
             SysRngDerefHack::new(),
             scorer,
-            Self::default_scoring_fee_params(),
+            Self::payment_scoring_fee_params(),
         );
-
         Self::Node {
             default_router,
             lsp_info,
@@ -97,7 +96,7 @@ impl LexeRouter {
         }
     }
 
-    /// Create a new [`LexeRouter`] for LSP.
+    /// Create a new [`LexeRouter`] for the LSP's normal payment routing.
     pub fn new_lsp(
         network_graph: Arc<NetworkGraphType>,
         logger: LexeTracingLogger,
@@ -108,13 +107,29 @@ impl LexeRouter {
             logger,
             SysRngDerefHack::new(),
             scorer,
-            Self::default_scoring_fee_params(),
+            Self::payment_scoring_fee_params(),
         );
-
         Self::Lsp { default_router }
     }
 
-    fn default_scoring_fee_params() -> ProbabilisticScoringFeeParameters {
+    /// Create a new [`LexeRouter`] for the LSP's background payment prober.
+    pub fn new_lsp_prober(
+        network_graph: Arc<NetworkGraphType>,
+        logger: LexeTracingLogger,
+        scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    ) -> Self {
+        let default_router = DefaultRouter::new(
+            network_graph,
+            logger,
+            SysRngDerefHack::new(),
+            scorer,
+            Self::prober_scoring_fee_params(),
+        );
+        Self::Lsp { default_router }
+    }
+
+    /// Scoring fee params for normal user node and LSP payment routing.
+    fn payment_scoring_fee_params() -> ProbabilisticScoringFeeParameters {
         ProbabilisticScoringFeeParameters {
             // This param penalizes channels with
             // `htlc_maximum_msat >= channel_capacity/2`. Apparently a low
@@ -126,6 +141,12 @@ impl LexeRouter {
             // LDK defaults
             ..ProbabilisticScoringFeeParameters::default()
         }
+    }
+
+    /// Scoring fee params for the LSP's background payment prober.
+    fn prober_scoring_fee_params() -> ProbabilisticScoringFeeParameters {
+        // TODO(phlip9): set probe-specific penalties
+        Self::payment_scoring_fee_params()
     }
 
     fn default_router(&self) -> &DefaultRouterType {
