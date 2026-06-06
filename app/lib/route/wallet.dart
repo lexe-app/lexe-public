@@ -79,8 +79,6 @@ import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/service/root_seed_store.dart'
     show SecretStoreRootSeedStore;
-import 'package:lexeapp/service/send_payment_service_impl.dart'
-    show SendPaymentServiceImpl;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
@@ -519,7 +517,7 @@ class WalletPageState extends State<WalletPage> {
 
   SendState_NeedUri nodeInfoIntoSendContext(NodeInfo nodeInfo) =>
       SendState_NeedUri(
-        paymentService: SendPaymentServiceImpl(this.widget.app),
+        app: this.widget.app,
         configNetwork: this.widget.config.network,
         balance: nodeInfo.balance,
         cid: ClientPaymentId.generate(),

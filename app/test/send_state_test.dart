@@ -1,4 +1,4 @@
-// Unit tests for send state logic, using MockSendPaymentService to avoid FFI.
+// Unit tests for send state logic, using MockAppHandleConfigurable to avoid FFI.
 
 import 'dart:typed_data' show Uint8List;
 
@@ -8,11 +8,17 @@ import 'package:app_rs_dart/ffi/api.dart'
         Balance,
         FeeEstimate,
         FiatRate,
+        PayInvoiceRequest,
         PayInvoiceResponse,
+        PayOfferRequest,
         PayOfferResponse,
+        PayOnchainRequest,
         PayOnchainResponse,
+        PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
+        PreflightPayOfferRequest,
         PreflightPayOfferResponse,
+        PreflightPayOnchainRequest,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -24,10 +30,10 @@ import 'package:app_rs_dart/ffi/types.dart'
         Onchain,
         PaymentCreatedIndex,
         PaymentMethod;
+import 'package:app_rs_dart/frb.dart' show AnyhowException;
 import 'package:app_rs_dart/lib.dart' show U8Array32;
 import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Invoice,
@@ -38,7 +44,7 @@ import 'package:lexeapp/route/send/state.dart'
         SendState_NeedUri,
         SendState_Preflighted;
 
-import 'mocks/mock_send_payment_service.dart';
+import 'mocks/mock_app_handle.dart';
 
 // Test constants for invoice and offer strings.
 const testInvoice =
@@ -71,7 +77,7 @@ Balance testBalance({
 );
 
 void main() {
-  late MockSendPaymentService mockService;
+  late MockAppHandleConfigurable mockApp;
   late ValueNotifier<FiatRate?> fiatRate;
 
   setUpAll(() async {
@@ -79,12 +85,12 @@ void main() {
   });
 
   setUp(() {
-    mockService = MockSendPaymentService();
+    mockApp = MockAppHandleConfigurable();
     fiatRate = ValueNotifier(null);
   });
 
   tearDown(() {
-    mockService.reset();
+    mockApp.reset();
     fiatRate.dispose();
   });
 
@@ -92,10 +98,13 @@ void main() {
     test('resolveAndMaybePreflight succeeds with onchain address', () async {
       const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
       const onchain = Onchain(address: address);
-      mockService.resolveBestResult = const Ok(PaymentMethod.onchain(onchain));
+      mockApp.mock(
+        resolveBest,
+        (_) async => const PaymentMethod.onchain(onchain),
+      );
 
       final state = SendState_NeedUri(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -107,7 +116,12 @@ void main() {
       expect(result.isOk, true);
       final newState = result.ok!;
       expect(newState, isA<SendState_NeedAmount>());
-      expect(mockService.calls, ['resolveBest($address)']);
+      expect(mockApp.calls, [
+        TrackedCall(#resolveBest, {
+          #network: Network.mainnet,
+          #uriStr: address,
+        }),
+      ]);
     });
 
     test(
@@ -115,11 +129,13 @@ void main() {
       () async {
         const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
         const onchain = Onchain(address: address, amountSats: 5000);
-        mockService.resolveBestResult = const Ok(
-          PaymentMethod.onchain(onchain),
+        mockApp.mock(
+          resolveBest,
+          (_) async => const PaymentMethod.onchain(onchain),
         );
-        mockService.preflightPayOnchainResult = const Ok(
-          PreflightPayOnchainResponse(
+        mockApp.mock(
+          preflightPayOnchain,
+          (_) async => const PreflightPayOnchainResponse(
             high: FeeEstimate(amountSats: 500),
             normal: FeeEstimate(amountSats: 300),
             background: FeeEstimate(amountSats: 100),
@@ -127,7 +143,7 @@ void main() {
         );
 
         final state = SendState_NeedUri(
-          paymentService: mockService,
+          app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
           cid: testCid(),
@@ -138,18 +154,29 @@ void main() {
 
         expect(result.isOk, true);
         expect(result.ok, isA<SendState_Preflighted>());
-        expect(mockService.calls, contains('resolveBest($address)'));
-        expect(mockService.calls, contains('preflightPayOnchain(5000)'));
+        expect(mockApp.calls, [
+          TrackedCall(#resolveBest, {
+            #network: Network.mainnet,
+            #uriStr: address,
+          }),
+          TrackedCall(#preflightPayOnchain, {
+            #req: const PreflightPayOnchainRequest(
+              address: address,
+              amountSats: 5000,
+            ),
+          }),
+        ]);
       },
     );
 
     test('resolveAndMaybePreflight returns error for invalid URI', () async {
-      mockService.resolveBestResult = const Err(
-        FfiError('Invalid address format'),
+      mockApp.mock(
+        resolveBest,
+        (_) async => throw AnyhowException('Invalid address format'),
       );
 
       final state = SendState_NeedUri(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -167,15 +194,17 @@ void main() {
       () async {
         const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
         const onchain = Onchain(address: address, amountSats: 5000);
-        mockService.resolveBestResult = const Ok(
-          PaymentMethod.onchain(onchain),
+        mockApp.mock(
+          resolveBest,
+          (_) async => const PaymentMethod.onchain(onchain),
         );
-        mockService.preflightPayOnchainResult = const Err(
-          FfiError('Insufficient balance'),
+        mockApp.mock(
+          preflightPayOnchain,
+          (_) async => throw AnyhowException('Insufficient balance'),
         );
 
         final state = SendState_NeedUri(
-          paymentService: mockService,
+          app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
           cid: testCid(),
@@ -197,7 +226,7 @@ void main() {
         amountSats: 1000,
       );
       final state = SendState_NeedAmount(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -213,7 +242,7 @@ void main() {
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       );
       final state = SendState_NeedAmount(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -233,7 +262,7 @@ void main() {
         payeePubkey: 'abc123',
       );
       final state = SendState_NeedAmount(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -248,8 +277,9 @@ void main() {
       const onchain = Onchain(
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       );
-      mockService.preflightPayOnchainResult = const Ok(
-        PreflightPayOnchainResponse(
+      mockApp.mock(
+        preflightPayOnchain,
+        (_) async => const PreflightPayOnchainResponse(
           high: FeeEstimate(amountSats: 500),
           normal: FeeEstimate(amountSats: 300),
           background: FeeEstimate(amountSats: 100),
@@ -257,7 +287,7 @@ void main() {
       );
 
       final state = SendState_NeedAmount(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -269,7 +299,14 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendState_Preflighted>());
-      expect(mockService.calls, ['preflightPayOnchain(10000)']);
+      expect(mockApp.calls, [
+        TrackedCall(#preflightPayOnchain, {
+          #req: const PreflightPayOnchainRequest(
+            address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+            amountSats: 10000,
+          ),
+        }),
+      ]);
     });
 
     test('preflight succeeds for invoice payment', () async {
@@ -279,12 +316,14 @@ void main() {
         expiresAt: 1700003600000,
         payeePubkey: 'abc123',
       );
-      mockService.preflightPayInvoiceResult = const Ok(
-        PreflightPayInvoiceResponse(amountSats: 5000, feesSats: 10),
+      mockApp.mock(
+        preflightPayInvoice,
+        (_) async =>
+            const PreflightPayInvoiceResponse(amountSats: 5000, feesSats: 10),
       );
 
       final state = SendState_NeedAmount(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -296,17 +335,26 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendState_Preflighted>());
-      expect(mockService.calls, ['preflightPayInvoice($testInvoice)']);
+      expect(mockApp.calls, [
+        TrackedCall(#preflightPayInvoice, {
+          #req: const PreflightPayInvoiceRequest(
+            invoice: testInvoice,
+            fallbackAmountSats: 5000,
+          ),
+        }),
+      ]);
     });
 
     test('preflight succeeds for offer payment', () async {
       const offer = Offer(string: testOffer);
-      mockService.preflightPayOfferResult = const Ok(
-        PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
+      mockApp.mock(
+        preflightPayOffer,
+        (_) async =>
+            const PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
       );
 
       final state = SendState_NeedAmount(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -321,19 +369,28 @@ void main() {
       final preflighted =
           result.ok!.preflightedPayment as PreflightedPayment_Offer;
       expect(preflighted.message, 'payer note');
-      expect(mockService.calls, ['preflightPayOffer($testOffer)']);
+      expect(mockApp.calls, [
+        TrackedCall(#preflightPayOffer, {
+          #req: PreflightPayOfferRequest(
+            cid: testCid(),
+            offer: testOffer,
+            amountSats: 3000,
+          ),
+        }),
+      ]);
     });
 
     test('preflight returns error on failure', () async {
       const onchain = Onchain(
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       );
-      mockService.preflightPayOnchainResult = const Err(
-        FfiError('Network error'),
+      mockApp.mock(
+        preflightPayOnchain,
+        (_) async => throw AnyhowException('Network error'),
       );
 
       final state = SendState_NeedAmount(
-        paymentService: mockService,
+        app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
         cid: testCid(),
@@ -350,43 +407,66 @@ void main() {
 
   group('SendState_Preflighted', () {
     test('pay succeeds for onchain', () async {
-      mockService.payOnchainResult = Ok(
-        PayOnchainResponse(
+      mockApp.mock(
+        payOnchain,
+        (_) async => PayOnchainResponse(
           index: PaymentCreatedIndex(field0: 'test-index'),
           txid: 'abc123',
         ),
       );
 
-      final state = _createPreflightedOnchain(mockService, fiatRate);
+      final state = _createPreflightedOnchain(mockApp, fiatRate);
 
       final result = await state.pay('Test note', ConfirmationPriority.normal);
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
-      expect(mockService.calls, ['payOnchain(10000)']);
+      expect(mockApp.calls, [
+        TrackedCall(#payOnchain, {
+          #req: PayOnchainRequest(
+            cid: testCid(),
+            address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+            amountSats: 10000,
+            priority: ConfirmationPriority.normal,
+            personalNote: 'Test note',
+          ),
+        }),
+      ]);
     });
 
     test('pay succeeds for invoice', () async {
-      mockService.payInvoiceResult = Ok(
-        PayInvoiceResponse(index: PaymentCreatedIndex(field0: 'test-index')),
+      mockApp.mock(
+        payInvoice,
+        (_) async => PayInvoiceResponse(
+          index: PaymentCreatedIndex(field0: 'test-index'),
+        ),
       );
 
-      final state = _createPreflightedInvoice(mockService, fiatRate);
+      final state = _createPreflightedInvoice(mockApp, fiatRate);
 
       final result = await state.pay('Invoice payment', null);
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
-      expect(mockService.calls.first, startsWith('payInvoice('));
+      expect(mockApp.calls, [
+        TrackedCall(#payInvoice, {
+          #req: const PayInvoiceRequest(
+            invoice: testInvoice,
+            personalNote: 'Invoice payment',
+          ),
+        }),
+      ]);
     });
 
     test('pay succeeds for offer', () async {
-      mockService.payOfferResult = Ok(
-        PayOfferResponse(index: PaymentCreatedIndex(field0: 'test-index')),
+      mockApp.mock(
+        payOffer,
+        (_) async =>
+            PayOfferResponse(index: PaymentCreatedIndex(field0: 'test-index')),
       );
 
       final state = _createPreflightedOffer(
-        mockService,
+        mockApp,
         fiatRate,
         message: 'payer note',
       );
@@ -395,15 +475,26 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
-      expect(mockService.calls.first, startsWith('payOffer('));
-      expect(mockService.lastPayOfferRequest?.personalNote, 'Offer payment');
-      expect(mockService.lastPayOfferRequest?.message, 'payer note');
+      expect(mockApp.calls, [
+        TrackedCall(#payOffer, {
+          #req: PayOfferRequest(
+            cid: testCid(),
+            offer: testOffer,
+            amountSats: 3000,
+            message: 'payer note',
+            personalNote: 'Offer payment',
+          ),
+        }),
+      ]);
     });
 
     test('pay returns error on failure', () async {
-      mockService.payOnchainResult = const Err(FfiError('Transaction failed'));
+      mockApp.mock(
+        payOnchain,
+        (_) async => throw AnyhowException('Transaction failed'),
+      );
 
-      final state = _createPreflightedOnchain(mockService, fiatRate);
+      final state = _createPreflightedOnchain(mockApp, fiatRate);
 
       final result = await state.pay('Test note', ConfirmationPriority.normal);
 
@@ -418,18 +509,21 @@ void main() {
       () async {
         const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
         const onchain = Onchain(address: address);
-        mockService.resolveBestResult = const Ok(
-          PaymentMethod.onchain(onchain),
+        mockApp.mock(
+          resolveBest,
+          (_) async => const PaymentMethod.onchain(onchain),
         );
-        mockService.preflightPayOnchainResult = const Ok(
-          PreflightPayOnchainResponse(
+        mockApp.mock(
+          preflightPayOnchain,
+          (_) async => const PreflightPayOnchainResponse(
             high: FeeEstimate(amountSats: 500),
             normal: FeeEstimate(amountSats: 300),
             background: FeeEstimate(amountSats: 100),
           ),
         );
-        mockService.payOnchainResult = Ok(
-          PayOnchainResponse(
+        mockApp.mock(
+          payOnchain,
+          (req) async => PayOnchainResponse(
             index: PaymentCreatedIndex(field0: 'test-index'),
             txid: 'abc123',
           ),
@@ -437,7 +531,7 @@ void main() {
 
         // Step 1: Start with NeedUri
         final needUri = SendState_NeedUri(
-          paymentService: mockService,
+          app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
           cid: testCid(),
@@ -462,11 +556,28 @@ void main() {
         expect(payResult.isOk, true);
         expect(payResult.ok, isA<SendFlowResult>());
 
-        // Verify all calls were made
-        expect(mockService.calls.length, 3);
-        expect(mockService.calls[0], 'resolveBest($address)');
-        expect(mockService.calls[1], 'preflightPayOnchain(10000)');
-        expect(mockService.calls[2], 'payOnchain(10000)');
+        // Verify all calls were made, in order, with the expected arguments.
+        expect(mockApp.calls, [
+          TrackedCall(#resolveBest, {
+            #network: Network.mainnet,
+            #uriStr: address,
+          }),
+          TrackedCall(#preflightPayOnchain, {
+            #req: const PreflightPayOnchainRequest(
+              address: address,
+              amountSats: 10000,
+            ),
+          }),
+          TrackedCall(#payOnchain, {
+            #req: PayOnchainRequest(
+              cid: testCid(),
+              address: address,
+              amountSats: 10000,
+              priority: ConfirmationPriority.normal,
+              personalNote: 'Test payment',
+            ),
+          }),
+        ]);
       },
     );
   });
@@ -474,11 +585,11 @@ void main() {
 
 /// Create a preflighted onchain state for testing pay().
 SendState_Preflighted _createPreflightedOnchain(
-  MockSendPaymentService mockService,
+  MockAppHandleConfigurable mockApp,
   ValueNotifier<FiatRate?> fiatRate,
 ) {
   return SendState_Preflighted(
-    paymentService: mockService,
+    app: mockApp,
     configNetwork: Network.mainnet,
     balance: testBalance(),
     cid: testCid(),
@@ -497,11 +608,11 @@ SendState_Preflighted _createPreflightedOnchain(
 
 /// Create a preflighted invoice state for testing pay().
 SendState_Preflighted _createPreflightedInvoice(
-  MockSendPaymentService mockService,
+  MockAppHandleConfigurable mockApp,
   ValueNotifier<FiatRate?> fiatRate,
 ) {
   return SendState_Preflighted(
-    paymentService: mockService,
+    app: mockApp,
     configNetwork: Network.mainnet,
     balance: testBalance(),
     cid: testCid(),
@@ -522,12 +633,12 @@ SendState_Preflighted _createPreflightedInvoice(
 
 /// Create a preflighted offer state for testing pay().
 SendState_Preflighted _createPreflightedOffer(
-  MockSendPaymentService mockService,
+  MockAppHandleConfigurable mockApp,
   ValueNotifier<FiatRate?> fiatRate, {
   required String? message,
 }) {
   return SendState_Preflighted(
-    paymentService: mockService,
+    app: mockApp,
     configNetwork: Network.mainnet,
     balance: testBalance(),
     cid: testCid(),

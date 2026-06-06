@@ -127,8 +127,6 @@ import 'package:lexeapp/service/human_bitcoin_address.dart'
     show HumanBitcoinAddressService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
-import 'package:lexeapp/service/send_payment_service_impl.dart'
-    show SendPaymentServiceImpl;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
@@ -593,7 +591,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedUri(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -607,7 +605,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedAmount(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -629,7 +627,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedAmount(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -656,7 +654,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedAmount(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -671,7 +669,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedAmount(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -695,7 +693,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedAmount(
-            paymentService: SendPaymentServiceImpl(mockAppErr),
+            app: mockAppErr,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -717,7 +715,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedAmount(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -748,7 +746,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_Preflighted(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -770,7 +768,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_Preflighted(
-            paymentService: SendPaymentServiceImpl(mockAppErr),
+            app: mockAppErr,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -1039,7 +1037,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (_) => MultistepFlow<SendFlowResult>(
           builder: (_) => ScanPage(
             sendCtx: SendState_NeedUri(
-              paymentService: SendPaymentServiceImpl(mockApp),
+              app: mockApp,
               configNetwork: this.widget.config.network,
               balance: mockApp.balance,
               cid: cid,
@@ -1157,9 +1155,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (_) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_Preflighted(
-            paymentService: SendPaymentServiceImpl(
-              mocks.MockAppHandleScreenshots(),
-            ),
+            app: mocks.MockAppHandleScreenshots(),
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -1430,7 +1426,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_NeedUri(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
@@ -1446,7 +1442,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (context) => SendPaymentPage(
           startNewFlow: true,
           sendCtx: SendState_Preflighted(
-            paymentService: SendPaymentServiceImpl(mockApp),
+            app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
             cid: cid,
