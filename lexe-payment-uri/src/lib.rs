@@ -14,7 +14,8 @@ use futures::future;
 use lexe_common::ln::network::Network;
 pub use lexe_payment_uri_core::*;
 
-/// Resolve a `PaymentUri` into a single, "best" [`PaymentMethod`].
+/// Resolve a `PaymentUri` into a "best" [`PaymentMethod`] or [`ClaimMethod`].
+/// Returns at least one valid pay or claim method.
 //
 // phlip9: this impl is currently pretty dumb and just unconditionally
 // returns the first (valid) BOLT11 invoice it finds, o/w onchain. It's not
@@ -27,37 +28,21 @@ pub async fn resolve_best(
     lnurl_client: &lnurl::LnurlClient,
     network: Network,
     payment_uri: PaymentUri,
-) -> anyhow::Result<PaymentMethod> {
+) -> anyhow::Result<(Option<PaymentMethod>, Option<ClaimMethod>)> {
     // A single scanned/opened PaymentUri can contain multiple different payment
     // methods (e.g., a LN BOLT11 invoice + an onchain fallback address).
-    let payment_methods =
+    let (pay_methods, claim_methods) =
         resolve(bip353_client, lnurl_client, network, payment_uri).await?;
 
-    // Pick the most preferable payment method.
-    let best_payment = payment_methods
-        .0
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("Failed to find any payment methods."))?;
+    // Pick the highest priority payment method.
+    let best_payment = pay_methods.into_iter().next();
+    let best_claim = claim_methods.into_iter().next();
 
-    // If it's an offer, check that the amounts are consistent
-    if let PaymentMethod::Offer {
-        offer,
-        bip321_amount,
-    } = &best_payment
-    {
-        match (offer.min_amount(), bip321_amount) {
-            (Some(min_amount), Some(bip321_amount))
-                if *bip321_amount < min_amount =>
-                return Err(anyhow!(
-                    "Receiver error: BIP 321 amount must be greater than or \
-                     equal to minimum amount encoded in offer."
-                )),
-            _ => (),
-        }
+    if best_claim.is_none() && best_payment.is_none() {
+        return Err(anyhow!("No valid payment or claim methods found"));
     }
 
-    Ok(best_payment)
+    Ok((best_payment, best_claim))
 }
 
 /// Resolve the [`PaymentUri`] into its component [`PaymentMethod`]s.
@@ -126,6 +111,28 @@ pub async fn resolve(
         !payment_methods.is_empty() || !claim_methods.is_empty(),
         "Payment code is not valid for {network}"
     );
+
+    // Error on offers that contradict their containing BIP 321 URI.
+    // Even though there might be a valid other payment method (e.g. on-chain),
+    // the offer is most likely the only off-chain method and thus the one that
+    // our user actually cares about.
+    for method in &payment_methods {
+        if let PaymentMethod::Offer {
+            offer,
+            bip321_amount,
+        } = method
+        {
+            match (offer.min_amount(), bip321_amount) {
+                (Some(min_amount), Some(bip321_amount))
+                    if *bip321_amount < min_amount =>
+                    return Err(anyhow!(
+                        "Receiver error: BIP 321 amount must be greater than \
+                         or equal to minimum amount encoded in offer."
+                    )),
+                _ => (),
+            }
+        }
+    }
 
     // Sort payment methods by relative priority; highest priority first
     payment_methods.sort_unstable_by_key(|m| cmp::Reverse(m.priority()));
@@ -238,7 +245,7 @@ mod test {
             bip353::Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT).unwrap();
         let lnurl_client = lnurl::LnurlClient::new(DeployEnv::Prod).unwrap();
 
-        let payment_method = resolve_best(
+        let (maybe_pay_method, _) = resolve_best(
             &bip353_client,
             &lnurl_client,
             Network::Mainnet,
@@ -248,6 +255,7 @@ mod test {
         .await
         .expect("Timed out")
         .unwrap();
+        let payment_method = maybe_pay_method.expect("No payment method found");
 
         // Payment methods are Offer and Onchain, but Offer is higher priority.
         assert!(payment_method.is_offer());

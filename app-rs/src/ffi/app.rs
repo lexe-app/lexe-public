@@ -596,14 +596,18 @@ impl AppHandle {
         let payment_uri = lexe_payment_uri::PaymentUri::parse(&uri_str)
             .context("Unrecognized payment code")?;
 
-        let best = lexe_payment_uri::resolve_best(
-            self.inner.bip353_client(),
-            self.inner.lnurl_client(),
-            network.into(),
-            payment_uri,
-        )
-        .await?;
-        Ok(PaymentMethod::from(best))
+        // TODO(nicole): add claimmethod when adding to app
+        let (maybe_pay_method, _maybe_claim_method) =
+            lexe_payment_uri::resolve_best(
+                self.inner.bip353_client(),
+                self.inner.lnurl_client(),
+                network.into(),
+                payment_uri,
+            )
+            .await?;
+        let best_pay_method =
+            maybe_pay_method.context("No valid payment method found")?;
+        Ok(PaymentMethod::from(best_pay_method))
     }
 
     /// Resolve a [`LnurlPayRequest`] that we just received + the amount in

@@ -1013,17 +1013,20 @@ impl LexeWallet {
         let bip353_client = &self.bip353_client;
         let lnurl_client = &self.lnurl_client;
         let network = self.user_config().env_config.wallet_env.network;
-        let best_method = lexe_payment_uri::resolve_best(
-            bip353_client,
-            lnurl_client,
-            network,
-            payment_uri,
-        )
-        .await?;
+        let (maybe_pay_method, _maybe_claim_method) =
+            lexe_payment_uri::resolve_best(
+                bip353_client,
+                lnurl_client,
+                network,
+                payment_uri,
+            )
+            .await?;
+        let best_pay_method =
+            maybe_pay_method.context("No payment method found")?;
 
         // Create and send the appropriate request
         let index = self
-            .pay_inner(best_method, amount, message, personal_note)
+            .pay_inner(best_pay_method, amount, message, personal_note)
             .await
             .context(uri_err_context)?;
 
