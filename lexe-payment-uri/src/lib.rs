@@ -177,15 +177,17 @@ mod resolve {
         }
 
         // Always try resolving Lightning Address, which uses LNURL-pay
-        let lnurl = Lnurl::from_http_url(&email_like.lightning_address_url)?;
+        let mut lnurl =
+            Lnurl::from_http_url(&email_like.lightning_address_url)?;
         let ln_address_result = lnurl_client
             .get_pay_request(&lnurl)
             .await
             .context("Failed to resolve Lightning Address url");
         match ln_address_result {
             Ok(pay_request) => {
+                lnurl.scheme = LnurlScheme::Pay;
                 methods.push(PaymentMethod::LnurlPay {
-                    lnurl: lnurl.http_url.into_owned(),
+                    lnurl: lnurl.to_string(),
                     pay_request,
                 });
             }

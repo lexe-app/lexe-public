@@ -56,7 +56,8 @@ pub enum PaymentMethod {
         bip321_amount: Option<Amount>,
     },
     LnurlPay {
-        /// The LNURL-pay LNURL.
+        /// The LNURL-pay LNURL, e.g. `lnurlp://...`
+        // Should NOT be an HTTP URL
         lnurl: String,
 
         /// The LNURL-pay request, which includes information about
@@ -74,7 +75,8 @@ pub enum PaymentMethod {
 // NOTE: This is exposed in the Rust SDK, so only use stable public types here.
 pub enum ClaimMethod {
     LnurlWithdraw {
-        /// The LNURL-withdraw LNURL.
+        /// The LNURL-withdraw LNURL, e.g. `lnurlw://...`
+        // Should NOT be an HTTP URL
         lnurl: String,
 
         /// The LNURL-withdraw request, which includes information about
