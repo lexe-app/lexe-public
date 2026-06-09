@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -351,4 +351,17 @@ sealed class UpdatePersonalNote with _$UpdatePersonalNote {
     required PaymentCreatedIndex index,
     String? personalNote,
   }) = _UpdatePersonalNote;
+}
+
+/// See [`WithdrawLnurlRequestRs`].
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class WithdrawLnurlRequest with _$WithdrawLnurlRequest {
+  const factory WithdrawLnurlRequest({
+    required LnurlWithdrawRequest withdrawRequest,
+    required int amountMsat,
+    String? description,
+    String? personalNote,
+  }) = _WithdrawLnurlRequest;
 }

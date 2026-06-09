@@ -7,6 +7,7 @@ use lexe::{
     types::{
         auth::RootSeed as SdkRootSeed,
         bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
+        payment::Payment as PaymentRs,
     },
 };
 use lexe_api::{
@@ -414,6 +415,8 @@ impl From<&BasicPaymentV2Rs> for ShortPayment {
     }
 }
 
+// TODO(nicole): we should change this to mirror `PaymentRs` as we move towards
+// lexe-SDK-only dependencies
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPaymentV2Rs`] type.
 ///
@@ -487,6 +490,47 @@ impl From<&BasicPaymentV2Rs> for Payment {
 
             created_at: payment.created_at.to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),
+        }
+    }
+}
+
+impl From<PaymentRs> for Payment {
+    fn from(value: PaymentRs) -> Self {
+        // TODO(nicole): offer currently unexposed in SDK; add offer desc later
+        let description = value
+            .invoice
+            .as_deref()
+            .and_then(InvoiceRs::description_str)
+            .map(String::from);
+
+        Self {
+            index: PaymentCreatedIndex::from(value.index),
+            kind: PaymentKind::from(value.kind),
+            direction: PaymentDirection::from(value.direction),
+
+            invoice: value.invoice.as_deref().map(Invoice::from),
+            offer_id: value.offer_id.map(|id| id.to_string()),
+            // TODO(nicole): offer currently unexposed in SDK
+            offer: None,
+            preimage: value.preimage.map(|pi| pi.to_hex()),
+            hash: value.hash.map(|h| h.to_string()),
+            txid: value.txid.map(|txid| txid.to_string()),
+            // TODO(nicole): replacement_txid currently unexposed in SDK
+            replacement: None,
+
+            amount_sats: value.amount.map(|amt| amt.sats_u64()),
+            fees_sats: value.fees.sats_u64(),
+
+            status: PaymentStatus::from(value.status),
+            status_str: value.status_msg,
+
+            description,
+            payer_name: value.payer_name.as_deref().map(String::from),
+            message: value.message.as_deref().map(String::from),
+            personal_note: value.personal_note.as_deref().map(String::from),
+
+            created_at: value.created_at.to_i64(),
+            finalized_at: value.finalized_at.map(TimestampMs::to_i64),
         }
     }
 }

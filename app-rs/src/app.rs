@@ -314,6 +314,10 @@ impl App {
         Ok(())
     }
 
+    pub fn wallet(&self) -> &LexeWallet {
+        &self.wallet
+    }
+
     /// Returns the [`NodeClient`] if the app is provisioned.
     pub fn node_client(&self) -> anyhow::Result<&NodeClient> {
         if !self.is_provisioned.load(Ordering::Relaxed) {

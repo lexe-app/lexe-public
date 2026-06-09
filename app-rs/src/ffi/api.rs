@@ -3,6 +3,10 @@
 use std::str::FromStr;
 
 use anyhow::{Context, anyhow};
+use lexe::types::{
+    bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
+    command::WithdrawLnurlRequest as WithdrawLnurlRequestRs,
+};
 use lexe_api::{
     models::command::{
         CloseChannelRequest as CloseChannelRequestRs,
@@ -60,8 +64,9 @@ use lexe_common::{
 use lexe_crypto::ed25519;
 
 use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, LxChannelDetails, Offer,
-    PaymentCreatedIndex, RevocableClient, Scope, UserChannelId, Username,
+    ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
+    LxChannelDetails, Offer, PaymentCreatedIndex, RevocableClient, Scope,
+    UserChannelId, Username,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -677,6 +682,30 @@ impl PayOfferResponse {
         };
         Self {
             index: PaymentCreatedIndex::from(index),
+        }
+    }
+}
+
+/// See [`WithdrawLnurlRequestRs`].
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct WithdrawLnurlRequest {
+    pub withdraw_request: LnurlWithdrawRequest,
+    pub amount_msat: u64,
+    pub description: Option<String>,
+    pub personal_note: Option<String>,
+}
+
+impl From<WithdrawLnurlRequest> for WithdrawLnurlRequestRs {
+    fn from(value: WithdrawLnurlRequest) -> WithdrawLnurlRequestRs {
+        WithdrawLnurlRequestRs {
+            lnurl: None,
+            withdraw_request: Some(LnurlWithdrawRequestRs::from(
+                value.withdraw_request,
+            )),
+            amount: Some(Amount::from_msat(value.amount_msat)),
+            description: value.description,
+            personal_note: value.personal_note,
         }
     }
 }

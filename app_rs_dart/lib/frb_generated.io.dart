@@ -287,6 +287,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   WalletFundingState dco_decode_box_autoadd_wallet_funding_state(dynamic raw);
 
   @protected
+  WithdrawLnurlRequest dco_decode_box_autoadd_withdraw_lnurl_request(
+    dynamic raw,
+  );
+
+  @protected
   ClaimMethod dco_decode_claim_method(dynamic raw);
 
   @protected
@@ -634,6 +639,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   WalletFundingState dco_decode_wallet_funding_state(dynamic raw);
 
   @protected
+  WithdrawLnurlRequest dco_decode_withdraw_lnurl_request(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
@@ -899,6 +907,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   WalletFundingState sse_decode_box_autoadd_wallet_funding_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WithdrawLnurlRequest sse_decode_box_autoadd_withdraw_lnurl_request(
     SseDeserializer deserializer,
   );
 
@@ -1322,6 +1335,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  WithdrawLnurlRequest sse_decode_withdraw_lnurl_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -1645,6 +1663,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_wallet_funding_state(
     WalletFundingState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_withdraw_lnurl_request(
+    WithdrawLnurlRequest self,
     SseSerializer serializer,
   );
 
@@ -2150,6 +2174,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_wallet_funding_state(
     WalletFundingState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_withdraw_lnurl_request(
+    WithdrawLnurlRequest self,
     SseSerializer serializer,
   );
 }

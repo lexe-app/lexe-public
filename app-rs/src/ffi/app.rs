@@ -1,6 +1,11 @@
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe::{types::auth::UserPk, util::ByteArray};
+use lexe::{
+    types::{
+        auth::UserPk, command::WithdrawLnurlRequest as WithdrawLnurlRequestRs,
+    },
+    util::ByteArray,
+};
 use lexe_api::{
     def::{AppGatewayApi, AppNodeRunApi},
     models::command::{
@@ -45,6 +50,7 @@ use crate::ffi::{
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
         PreflightPayOfferResponse, PreflightPayOnchainRequest,
         PreflightPayOnchainResponse, UpdateClientRequest, UpdatePersonalNote,
+        WithdrawLnurlRequest,
     },
     app_data::AppDataDb,
     settings::SettingsDb,
@@ -631,6 +637,20 @@ impl AppHandle {
             )
             .await?;
         Ok(Invoice::from(lx_invoice))
+    }
+
+    /// Withdraw from an LNURL using an [`LnurlWithdrawRequest`].
+    ///
+    /// [`LnurlWithdrawRequest`]: crate::ffi::types::LnurlWithdrawRequest
+    // TODO(nicole): remove
+    #[allow(dead_code)]
+    pub async fn withdraw_lnurl(
+        &self,
+        req: WithdrawLnurlRequest,
+    ) -> anyhow::Result<Payment> {
+        let req = WithdrawLnurlRequestRs::from(req);
+        let resp = self.inner.wallet().withdraw_lnurl(req).await?;
+        Ok(Payment::from(resp))
     }
 
     /// Get the [`HumanBitcoinAddress`] for the user and if it is updatable.

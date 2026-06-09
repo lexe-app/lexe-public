@@ -2045,4 +2045,67 @@ String toString() {
 
 
 
+/// @nodoc
+mixin _$WithdrawLnurlRequest {
+
+ LnurlWithdrawRequest get withdrawRequest; int get amountMsat; String? get description; String? get personalNote;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WithdrawLnurlRequest&&(identical(other.withdrawRequest, withdrawRequest) || other.withdrawRequest == withdrawRequest)&&(identical(other.amountMsat, amountMsat) || other.amountMsat == amountMsat)&&(identical(other.description, description) || other.description == description)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,withdrawRequest,amountMsat,description,personalNote);
+
+@override
+String toString() {
+  return 'WithdrawLnurlRequest(withdrawRequest: $withdrawRequest, amountMsat: $amountMsat, description: $description, personalNote: $personalNote)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _WithdrawLnurlRequest implements WithdrawLnurlRequest {
+  const _WithdrawLnurlRequest({required this.withdrawRequest, required this.amountMsat, this.description, this.personalNote});
+  
+
+@override final  LnurlWithdrawRequest withdrawRequest;
+@override final  int amountMsat;
+@override final  String? description;
+@override final  String? personalNote;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WithdrawLnurlRequest&&(identical(other.withdrawRequest, withdrawRequest) || other.withdrawRequest == withdrawRequest)&&(identical(other.amountMsat, amountMsat) || other.amountMsat == amountMsat)&&(identical(other.description, description) || other.description == description)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,withdrawRequest,amountMsat,description,personalNote);
+
+@override
+String toString() {
+  return 'WithdrawLnurlRequest(withdrawRequest: $withdrawRequest, amountMsat: $amountMsat, description: $description, personalNote: $personalNote)';
+}
+
+
+}
+
+
+
+
 // dart format on

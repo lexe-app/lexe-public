@@ -285,6 +285,14 @@ class AppHandle {
   AppUserInfo walletUser() =>
       AppRs.instance.api.crateFfiAppAppHandleWalletUser(that: this);
 
+  /// Withdraw from an LNURL using an [`LnurlWithdrawRequest`].
+  ///
+  /// [`LnurlWithdrawRequest`]: crate::ffi::types::LnurlWithdrawRequest
+  Future<Payment> withdrawLnurl({required WithdrawLnurlRequest req}) => AppRs
+      .instance
+      .api
+      .crateFfiAppAppHandleWithdrawLnurl(that: this, req: req);
+
   @override
   int get hashCode => inner.hashCode;
 
