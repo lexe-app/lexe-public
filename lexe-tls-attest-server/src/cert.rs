@@ -95,13 +95,6 @@ impl AttestationCert {
 #[cfg(test)]
 mod test {
     use lexe_crypto::rng::FastRng;
-    use lexe_tls::attest_client::verifier::{
-        AttestationCertVerifier, EnclavePolicy,
-    };
-    use rustls::{
-        client::danger::ServerCertVerifier,
-        pki_types::{ServerName, UnixTime},
-    };
 
     use super::*;
 
@@ -157,7 +150,13 @@ mod test {
     #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_verify_dummy_server_cert() {
-        use lexe_crypto::rng::FastRng;
+        use lexe_tls::attest_client::verifier::{
+            AttestationCertVerifier, EnclavePolicy,
+        };
+        use rustls::{
+            client::danger::ServerCertVerifier,
+            pki_types::{ServerName, UnixTime},
+        };
 
         let mut rng = FastRng::new();
         let dns_name = "run.lexe.app".to_owned();

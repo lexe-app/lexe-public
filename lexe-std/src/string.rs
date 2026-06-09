@@ -89,6 +89,7 @@ fn truncate_chars_cold(s: &mut String, max_chars: usize) {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(target_env = "sgx"))]
     use proptest::{prop_assert, prop_assert_eq, proptest};
 
     use super::*;
@@ -148,6 +149,7 @@ mod tests {
 
     // Both truncate_bytes and truncate_chars are idempotent.
     // ∀ f ∈ {tb, tc}, s, n.  f(s, n) = f(f(s, n), n)
+    #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_truncate_idempotent() {
         proptest!(|(s: String, n in 0usize..=512)| {
@@ -164,6 +166,7 @@ mod tests {
     // For the same length, truncating by chars will be longer than truncating
     // by bytes.
     // ∀ s, n.  s.len() >= tc(s, n).len() >= tb(s, n).len()
+    #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_truncate_length_ordering() {
         proptest!(|(s: String, n in 0usize..=512)| {
@@ -180,6 +183,7 @@ mod tests {
     // byte / char gives the original string.
     // ∀ s, b.  s == tb(s || b, s.len())
     // ∀ s, c.  s == tc(s || c, s.chars().count())
+    #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_truncate_prefix_recovery() {
         proptest!(|(s: String, ascii in 0u8..=0x7f, c: char)| {

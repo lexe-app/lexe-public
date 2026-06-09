@@ -2960,6 +2960,7 @@ dependencies = [
  "aes",
  "aesm-client",
  "anyhow",
+ "base64 0.21.7",
  "bytemuck",
  "cmac",
  "lexe-common",
