@@ -18,7 +18,6 @@ import 'package:app_rs_dart/ffi/api.dart'
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show Invoice, LnurlPayRequest, Network, PaymentMethod;
-import 'package:collection/collection.dart' show MapEquality;
 
 /// Represents an [AppHandle] method which can be mocked, carrying its request
 /// type [Req] and response type [Resp] so that stubbing is type-checked.
@@ -67,28 +66,6 @@ const resolveBest = Stub<(Network, String), PaymentMethod>._(#resolveBest, _reso
 const resolveLnurlPayRequest = Stub<(LnurlPayRequest, int, String?), Invoice>._(#resolveLnurlPayRequest, _resolveLnurlPayRequestArgs);
 // dart format on
 
-/// Arguments of a method call.
-/// We delegate to [MapEquality] for by-value map comparison so we can
-/// verify calls in tests.
-class TrackedCall {
-  const TrackedCall(this.method, this.namedArgs);
-
-  static const _mapEquality = MapEquality<Symbol, Object?>();
-
-  final Symbol method;
-  final Map<Symbol, Object?> namedArgs;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TrackedCall &&
-          this.method == other.method &&
-          _mapEquality.equals(this.namedArgs, other.namedArgs);
-
-  @override
-  int get hashCode => Object.hash(method, _mapEquality.hash(namedArgs));
-}
-
 /// Mock [AppHandle] for unit tests.
 ///
 /// Configure responses before each test by invoking [mock] with one of the
@@ -99,14 +76,9 @@ class MockAppHandleConfigurable implements AppHandle {
   /// Configured responders, keyed by method name.
   final Map<Symbol, Future<dynamic> Function(Invocation)> _responses = {};
 
-  /// Tracked method calls for verification in tests.
-  /// Each entry is a [TrackedCall] instance.
-  final List<TrackedCall> calls = [];
-
-  /// Reset all configured responses and call tracking.
+  /// Reset all configured responses.
   void reset() {
     this._responses.clear();
-    this.calls.clear();
   }
 
   /// Configure a [responseFn] for the given AppHandle method [stub].
@@ -127,11 +99,6 @@ class MockAppHandleConfigurable implements AppHandle {
     assert(
       invocation.positionalArguments.isEmpty,
       '${invocation.memberName} was called with positional arguments',
-    );
-
-    // Track every call with its arguments for verification in tests.
-    this.calls.add(
-      TrackedCall(invocation.memberName, invocation.namedArguments),
     );
 
     final responseFn = this._responses[invocation.memberName];

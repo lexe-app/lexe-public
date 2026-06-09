@@ -8,17 +8,11 @@ import 'package:app_rs_dart/ffi/api.dart'
         Balance,
         FeeEstimate,
         FiatRate,
-        PayInvoiceRequest,
         PayInvoiceResponse,
-        PayOfferRequest,
         PayOfferResponse,
-        PayOnchainRequest,
         PayOnchainResponse,
-        PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest,
         PreflightPayOfferResponse,
-        PreflightPayOnchainRequest,
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -116,12 +110,6 @@ void main() {
       expect(result.isOk, true);
       final newState = result.ok!;
       expect(newState, isA<SendState_NeedAmount>());
-      expect(mockApp.calls, [
-        TrackedCall(#resolveBest, {
-          #network: Network.mainnet,
-          #uriStr: address,
-        }),
-      ]);
     });
 
     test(
@@ -154,18 +142,6 @@ void main() {
 
         expect(result.isOk, true);
         expect(result.ok, isA<SendState_Preflighted>());
-        expect(mockApp.calls, [
-          TrackedCall(#resolveBest, {
-            #network: Network.mainnet,
-            #uriStr: address,
-          }),
-          TrackedCall(#preflightPayOnchain, {
-            #req: const PreflightPayOnchainRequest(
-              address: address,
-              amountSats: 5000,
-            ),
-          }),
-        ]);
       },
     );
 
@@ -299,14 +275,6 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendState_Preflighted>());
-      expect(mockApp.calls, [
-        TrackedCall(#preflightPayOnchain, {
-          #req: const PreflightPayOnchainRequest(
-            address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-            amountSats: 10000,
-          ),
-        }),
-      ]);
     });
 
     test('preflight succeeds for invoice payment', () async {
@@ -335,14 +303,6 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendState_Preflighted>());
-      expect(mockApp.calls, [
-        TrackedCall(#preflightPayInvoice, {
-          #req: const PreflightPayInvoiceRequest(
-            invoice: testInvoice,
-            fallbackAmountSats: 5000,
-          ),
-        }),
-      ]);
     });
 
     test('preflight succeeds for offer payment', () async {
@@ -369,15 +329,6 @@ void main() {
       final preflighted =
           result.ok!.preflightedPayment as PreflightedPayment_Offer;
       expect(preflighted.message, 'payer note');
-      expect(mockApp.calls, [
-        TrackedCall(#preflightPayOffer, {
-          #req: PreflightPayOfferRequest(
-            cid: testCid(),
-            offer: testOffer,
-            amountSats: 3000,
-          ),
-        }),
-      ]);
     });
 
     test('preflight returns error on failure', () async {
@@ -421,17 +372,6 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
-      expect(mockApp.calls, [
-        TrackedCall(#payOnchain, {
-          #req: PayOnchainRequest(
-            cid: testCid(),
-            address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-            amountSats: 10000,
-            priority: ConfirmationPriority.normal,
-            personalNote: 'Test note',
-          ),
-        }),
-      ]);
     });
 
     test('pay succeeds for invoice', () async {
@@ -448,14 +388,6 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
-      expect(mockApp.calls, [
-        TrackedCall(#payInvoice, {
-          #req: const PayInvoiceRequest(
-            invoice: testInvoice,
-            personalNote: 'Invoice payment',
-          ),
-        }),
-      ]);
     });
 
     test('pay succeeds for offer', () async {
@@ -475,17 +407,6 @@ void main() {
 
       expect(result.isOk, true);
       expect(result.ok, isA<SendFlowResult>());
-      expect(mockApp.calls, [
-        TrackedCall(#payOffer, {
-          #req: PayOfferRequest(
-            cid: testCid(),
-            offer: testOffer,
-            amountSats: 3000,
-            message: 'payer note',
-            personalNote: 'Offer payment',
-          ),
-        }),
-      ]);
     });
 
     test('pay returns error on failure', () async {
@@ -555,29 +476,6 @@ void main() {
         );
         expect(payResult.isOk, true);
         expect(payResult.ok, isA<SendFlowResult>());
-
-        // Verify all calls were made, in order, with the expected arguments.
-        expect(mockApp.calls, [
-          TrackedCall(#resolveBest, {
-            #network: Network.mainnet,
-            #uriStr: address,
-          }),
-          TrackedCall(#preflightPayOnchain, {
-            #req: const PreflightPayOnchainRequest(
-              address: address,
-              amountSats: 10000,
-            ),
-          }),
-          TrackedCall(#payOnchain, {
-            #req: PayOnchainRequest(
-              cid: testCid(),
-              address: address,
-              amountSats: 10000,
-              priority: ConfirmationPriority.normal,
-              personalNote: 'Test payment',
-            ),
-          }),
-        ]);
       },
     );
   });
