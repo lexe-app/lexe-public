@@ -33,6 +33,7 @@ use lightning::{
         scoring::ProbabilisticScoringFeeParameters,
     },
     types::features::BlindedHopFeatures,
+    util::hash_tables::new_hash_map,
 };
 use lightning_invoice::{
     DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA, RouteHint, RouteHintHop, RoutingFees,
@@ -46,6 +47,8 @@ use crate::{
 };
 
 // TODO(max): We may want to set a fee limit at some point
+// TODO(phlip9): If we enable this, we'll likely need to re-tune the scoring fee
+// penalties below.
 const MAX_TOTAL_ROUTING_FEE_MSAT: Option<u64> = None;
 
 /// The default LDK [`Router`] impl with concrete Lexe types filled in.
@@ -128,25 +131,194 @@ impl LexeRouter {
         Self::Lsp { default_router }
     }
 
-    /// Scoring fee params for normal user node and LSP payment routing.
+    /// Route scoring parameters for normal user node and LSP payment routing.
+    //
+    // ## Scoring primer
+    //
+    // LDK routing looks for lowest "cost" path; both the actual, total
+    // forwarding fee cost plus a synthetic cost, denominated in msats:
+    //
+    // ```
+    // cost := ∑_hop (fee_hop + B(amount) + H(amount)*-log10(p_hop) + other)
+    //       = fee_route + n*B(amount) + H(amount)*-log10(p_route)
+    //
+    // - n := number of hops
+    // - p_route := Π_hop p_hop, the estimated success probability for the whole
+    //   route
+    // - other=0, for normal payment routing
+    // ```
+    //
+    // Compactly, the two synthetic costs are:
+    //
+    // ```
+    // B(amount) := cost of an additional hop
+    //            = base_penalty_msat
+    //              + (base_penalty_amount_multiplier_msat * amount / 2^30)
+    // H(amount) := cost of one reduced decimal order of success probability
+    //            = historical_liquidity_penalty_multiplier_msat
+    //              + (historical_liquidity_penalty_amount_multiplier_msat * amount / 2^20)
+    // ```
+    //
+    // The `B(amount)` and `H(amount)` synthetic costs allow us to bias routing
+    // away from purely greedy min-fee routes and towards shorter paths and/or
+    // more reliable hops. Since most channels have proportional fees, the
+    // synthetic costs also have to scale with the payment amount.
+    //
+    // `B(amount)` is the base price per hop. Each additional hop always adds
+    // some amount of reliability risk and latency. A larger `B(amount)` encodes
+    // our preference to pay for shorter paths, which tend to be more reliable.
+    //
+    // `H(amount)` is the price of uncertainty or bad historical liquidity. LDK
+    // estimates the success probability of each hop, `p_hop`, then charges
+    // `H(amount) * -log10(p_hop)` for that hop. A larger `H(amount)` encodes
+    // our preference to pay more for a route with good historical liquidity.
+    //
+    // Here are some concrete numbers for the `-log10(p)` term above:
+    //
+    // ```
+    // p = 97.5% -> -log10(p) = 0.01
+    // p = 80.0% -> -log10(p) = 0.10
+    // p = 10.0% -> -log10(p) = 1.00
+    // ```
+    //
+    // ## Overall approach
+    //
+    // User payments can pay more than LDK defaults for route reliability.
+    // However, the synthetic score should not dominate so much that it chooses
+    // bizarre routes or pays an excessive amount in fees.
+    //
+    // We set `B(amount) / H(amount) = 1/16`. This means an extra hop needs to
+    // improve route success by `10^(1/16) - 1 = 15.5%` to be worth it. A route
+    // that is 2x more likely to succeed can be up to `0.301*H(amount)` more
+    // expensive (`0.301 = log10(2)`).
+    //
+    // ## Extra
+    //
+    // ```
+    // network stats (2026-06-05):
+    //   mean  0.08% + 0.8 sat
+    //    P50  0.01% + 0.1 sat
+    //
+    // nodes (P50):
+    //  Block  0.07% + 0.3 sat
+    //  ACINQ  0.35% + 1.0 sat
+    // Megali  0.16%
+    //  LNBiG  0.01% + 1.0 sat
+    // 100%Up  0.03% + 1.0 sat
+    // Coindu  0.02% + 1.0 sat
+    //  1sats  0.03% + 0.0 sat
+    //  BitGo  0.02% + 1.0 sat
+    //   LOOP  0.15% + 0.5 sat
+    // Deenmo  0.02% + 0.1 sat
+    // satsqu  0.01% + 1.0 sat
+    // ```
     fn payment_scoring_fee_params() -> ProbabilisticScoringFeeParameters {
         ProbabilisticScoringFeeParameters {
+            // Total penalties for a 1k sat payment over 5 hops:
+            // @ 99% per hop ≈ 5 * ((2 + 0.3) + (0.14 + 0.02)) = 13 sat
+            // @ 75% per hop ≈ 5 * ((2 + 0.3) + (4 + 0.6)) = 35 sat
+            //
+            // Total penalties for a 100k sat payment over 5 hops:
+            // @ 99% per hop ≈ 5 * ((2 + 30) + (0.14 + 2)) = 170 sat
+            // @ 75% per hop ≈ 5 * ((2 + 30) + (4 + 60)) = 478 sat
+            //
+            // Total penalties for a 1M sat payment over 5 hops:
+            // @ 99% per hop ≈ 5 * ((2 + 298) + (0.14 + 21)) = 1605 sat
+            // @ 75% per hop ≈ 5 * ((2 + 298) + (4 + 596)) = 4500 sat
+
+            // External LN routing fees are currently negligible compared to
+            // Lexe's 0.5% fee. We're willing to pay more routing fees in
+            // exchange for higher success probability. We'll increase these
+            // penalties to encourage shorter routes over channels with good
+            // liquidity.
+            //
+            // The base penalty makes the router more willing to pay to avoid
+            // extra hops, especially for larger payments.
+            //
+            // We're willing to pay a flat ~2 sat penalty per hop.
+            //
+            // LDK default: 1_024 msat
+            base_penalty_msat: 2_048,
+            // We're willing to pay a ~300 sat penalty per 1M sats sent, per
+            // hop. (~0.3 sat per 1k sats sent, per hop)
+            //
+            // ≈ 300 sat penalty per hop @ 1M sats sent
+            //
+            // LDK default: 131_072 msat
+            base_penalty_amount_multiplier_msat: 320_000,
+
+            // Make historical scorer evidence matter more when choosing between
+            // cheap but failure-prone channels and more expensive channels with
+            // better liquidity.
+            //
+            // This is `base_penalty_msat * 16`.
+            //
+            // We're willing to pay a flat:
+            // - ~33 sat penalty for a 10% success hop
+            // - ~4 sat penalty for a 75% success hop
+            // - ~0.14 sat penalty for a 99% success hop
+            //
+            // You can think of this value as a multiple of `base_penalty_msat`.
+            // The multiple encodes when we equally prefer two high probability
+            // hops over one lower probability hop (independent of amount). The
+            // greater the multiple, the more we'll prefer longer but more
+            // reliable paths over just shorter paths.
+            //
+            // For example, two 93% hops ≈ one 75% hop:
+            //
+            // multiple = 1/log10(p_2^2 / p_1)
+            //          = 1/log10(0.93^2 / 0.75)
+            //          ≈ 16
+            //
+            // Or two 80% hops ≈ one 50% hop.
+            //
+            // LDK default: 10_000 msat
+            historical_liquidity_penalty_multiplier_msat: 32_768,
+            // This is `base_penalty_amount_multiplier_msat * 16 / 1024`.
+            //
+            // We're willing to pay an amount-variable:
+            // - 4.8 sat penalty per 1024 sats sent for a 10% success hop
+            // - 0.6 sat penalty per 1024 sats sent for a 75% success hop
+            // - 0.02 sat penalty per 1024 sats sent for a 99% success hop
+            //
+            // ≈ 596 sat @ 1M sent, 75% success
+            // ≈ 21 sat @ 1M sent, 99% success
+            //
+            // LDK default: 1_250 msat
+            historical_liquidity_penalty_amount_multiplier_msat: 5_000,
+
             // This param penalizes channels with
             // `htlc_maximum_msat >= channel_capacity/2`. Apparently a low
             // `htlc_maximum_msat` "makes balance discovery attacks harder to
             // execute" and a non-zero value encourages a low HTLC max. I would
             // rather have more reliable payments though.
+            //
+            // LDK default: 250 msat
             anti_probing_penalty_msat: 0,
 
-            // LDK defaults
-            ..ProbabilisticScoringFeeParameters::default()
+            // LDK defaults. Leave the liquidity penalty model disabled.
+            linear_success_probability: false,
+            liquidity_penalty_amount_multiplier_msat: 0,
+            liquidity_penalty_multiplier_msat: 0,
+            manual_node_penalties: new_hash_map(),
+            probing_diversity_penalty_msat: 0,
+            #[allow(clippy::inconsistent_digit_grouping)]
+            considered_impossible_penalty_msat: 1_0000_0000_000, // 1 BTC
         }
     }
 
-    /// Scoring fee params for the LSP's background payment prober.
+    /// Route scoring parameters for the LSP's background prober.
     fn prober_scoring_fee_params() -> ProbabilisticScoringFeeParameters {
-        // TODO(phlip9): set probe-specific penalties
-        Self::payment_scoring_fee_params()
+        ProbabilisticScoringFeeParameters {
+            // Encourage probing stale channels. We're willing to "pay" ~264
+            // sats for a hop we just probed. Then penalty decays quadratically
+            // over 24h.
+            //
+            // LDK default: 0 msat
+            probing_diversity_penalty_msat: 264_576,
+
+            ..Self::payment_scoring_fee_params()
+        }
     }
 
     fn default_router(&self) -> &DefaultRouterType {
