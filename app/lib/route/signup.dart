@@ -22,11 +22,11 @@ import 'package:lexeapp/components.dart'
         MultistepFlow,
         ScrollableSinglePageBody,
         SeedWordsCard,
+        StackedButton,
         SubheadingText,
         baseInputDecoration;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/url.dart' as url;

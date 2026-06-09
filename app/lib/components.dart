@@ -669,6 +669,31 @@ class ButtonChild extends StatelessWidget {
   }
 }
 
+class StackedButton extends StatelessWidget {
+  const StackedButton({super.key, required this.button, required this.label});
+
+  final Widget button;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        this.button,
+        const SizedBox(height: Space.s400),
+        Text(
+          this.label,
+          style: Fonts.fontUI.copyWith(
+            fontSize: Fonts.size300,
+            color: LxColors.foreground,
+            fontVariations: [Fonts.weightSemiBold],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Heading/title text that sits directly beneath the AppBar.
 class HeadingText extends StatelessWidget {
   const HeadingText({super.key, required this.text});

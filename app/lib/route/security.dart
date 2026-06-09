@@ -14,12 +14,12 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         ScrollableSinglePageBody,
         SeedWordsCard,
+        StackedButton,
         SubheadingText;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/change_backup_password.dart'
     show ChangeBackupPasswordPage;
-import 'package:lexeapp/route/send/page.dart' show StackedButton;
 import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:lexeapp/url.dart' as url;
