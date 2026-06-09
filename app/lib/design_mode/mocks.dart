@@ -49,12 +49,15 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
         BackupInfo,
+        ClaimMethod,
+        ClaimMethod_LnurlWithdraw,
         Config,
         GDriveSignupCredentials,
         GDriveStatus,
         Invoice,
         LnurlPayRequest,
         LnurlPayRequestMetadata,
+        LnurlWithdrawRequest,
         LxChannelDetails,
         Network,
         Offer,
@@ -498,24 +501,31 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1000), () => {});
 
   @override
-  Future<PaymentMethod> resolveBest({
+  Future<(PaymentMethod?, ClaimMethod?)> resolveBest({
     required Network network,
     required String uriStr,
   }) => Future.delayed(const Duration(milliseconds: 1000), () {
     if (uriStr == "bip353@lexe.app") {
-      return PaymentMethod_Offer(defaultOffer);
+      return (PaymentMethod_Offer(defaultOffer), null);
     }
 
     if (uriStr == "lnurl@lexe.app") {
-      return PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest);
+      return (PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest), null);
+    }
+
+    if (uriStr.startsWith("lnurlw")) {
+      return (
+        PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest),
+        ClaimMethod_LnurlWithdraw(defaultLnurlWithdrawRequest),
+      );
     }
 
     if (uriStr.startsWith("lnurl")) {
-      return PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest);
+      return (PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest), null);
     }
 
     if (uriStr.startsWith("lno")) {
-      return PaymentMethod_Offer(defaultOffer);
+      return (PaymentMethod_Offer(defaultOffer), null);
     }
 
     if (uriStr.startsWith("ln")) {
@@ -524,8 +534,7 @@ class MockAppHandle extends AppHandle {
       final expiresAt = now.add(Duration(seconds: 3600)).millisecondsSinceEpoch;
 
       final dummy = dummyLnInvoiceInboundPendingToComplete.invoice!;
-
-      return PaymentMethod_Invoice(
+      final invoiceMethod = PaymentMethod_Invoice(
         Invoice(
           string: dummy.string,
           createdAt: createdAt,
@@ -535,9 +544,11 @@ class MockAppHandle extends AppHandle {
           payeePubkey: dummy.payeePubkey,
         ),
       );
+
+      return (invoiceMethod, null);
     }
 
-    return PaymentMethod_Onchain(defaultOnchainPayment);
+    return (PaymentMethod_Onchain(defaultOnchainPayment), null);
   });
 
   @override
@@ -689,7 +700,7 @@ class MockAppHandleErr extends MockAppHandle {
       );
 
   @override
-  Future<PaymentMethod> resolveBest({
+  Future<(PaymentMethod?, ClaimMethod?)> resolveBest({
     required Network network,
     required String uriStr,
   }) => Future.delayed(
@@ -1723,6 +1734,14 @@ final LnurlPayRequest defaultLnurlPayRequest = LnurlPayRequest(
     descriptionHash: U8Array32.init(),
     raw: "lnurl1dp68gurn8ghj7um9wfux2r",
   ),
+);
+
+final LnurlWithdrawRequest defaultLnurlWithdrawRequest = LnurlWithdrawRequest(
+  callback: "https://example.com/withdraw-callback",
+  k1: "randomlygeneratedk1",
+  defaultDescription: "Withdrawal from Lexe",
+  minWithdrawableMsat: 1000,
+  maxWithdrawableMsat: 10000,
 );
 
 final Onchain defaultOnchainPayment = Onchain(

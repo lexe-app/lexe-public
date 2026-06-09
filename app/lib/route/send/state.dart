@@ -38,7 +38,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentStatus;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart' show immutable;
-import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/prelude.dart';
 
 /// The outcome of a successful send flow.
@@ -62,75 +61,6 @@ final class SendFlowResult {
 /// payment flow (see: `app/lib/route/send/page.dart`).
 @immutable
 sealed class SendState {}
-
-/// Initial state if we're just beginning a send flow with no extra user input.
-@immutable
-class SendState_NeedUri implements SendState {
-  const SendState_NeedUri({
-    required this.app,
-    required this.configNetwork,
-    required this.balance,
-    required this.cid,
-    required this.fiatRate,
-  });
-
-  final AppHandle app;
-  final Network configNetwork;
-  final Balance balance;
-  final ClientPaymentId cid;
-  final ValueListenable<FiatRate?> fiatRate;
-
-  /// Parse the payment URI (address, invoice, offer, BIP21, LN URI, ...) and
-  /// check that it's valid for our current network (mainnet, testnet, ...).
-  /// Then, if the payment already has an amount attached, try to preflight it
-  /// immediately.
-  Future<Result<SendState, String>> resolveAndMaybePreflight(
-    String uriStr,
-  ) async {
-    // Try to parse and resolve the payment URI into a single "best" PaymentMethod.
-    // TODO(phlip9): this API should return a bare error enum and flutter should
-    // convert that to a human-readable error message (for translations).
-    final result = await Result.tryFfiAsync(
-      () => this.app.resolveBest(network: this.configNetwork, uriStr: uriStr),
-    );
-
-    // Check if resolving was successful.
-    final PaymentMethod paymentMethod;
-    switch (result) {
-      case Ok(:final ok):
-        paymentMethod = ok;
-      case Err(:final err):
-        error("Error resolving payment URI: $err");
-        return Err(err.message);
-    }
-
-    final uriStrShort = address_format.ellipsizeBtcAddress(uriStr);
-    info("Resolved input '$uriStrShort' to payment method: $paymentMethod");
-
-    final needAmountSendCtx = SendState_NeedAmount(
-      app: this.app,
-      configNetwork: this.configNetwork,
-      balance: this.balance,
-      cid: this.cid,
-      fiatRate: this.fiatRate,
-      paymentMethod: paymentMethod,
-    );
-
-    // Try preflighting the payment if it already has an amount set.
-    final int? maybePreflightableAmount = needAmountSendCtx
-        .canPreflightImmediately();
-
-    // Can't preflight yet, need user to enter amount.
-    if (maybePreflightableAmount == null) return Ok(needAmountSendCtx);
-
-    // Preflight payment
-    final int amountSats = maybePreflightableAmount;
-    return (await needAmountSendCtx.preflight(amountSats)).mapErr((err) {
-      error("Error preflighting payment: $err");
-      return err.message;
-    });
-  }
-}
 
 /// State needed when we've resolved a "best" [PaymentMethod], but still need
 /// to collect an amount from the user.

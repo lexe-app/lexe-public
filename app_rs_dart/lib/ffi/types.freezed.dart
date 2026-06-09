@@ -74,6 +74,66 @@ String toString() {
 
 
 /// @nodoc
+mixin _$ClaimMethod {
+
+ LnurlWithdrawRequest get field0;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaimMethod&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'ClaimMethod(field0: $field0)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class ClaimMethod_LnurlWithdraw extends ClaimMethod {
+  const ClaimMethod_LnurlWithdraw(this.field0): super._();
+  
+
+@override final  LnurlWithdrawRequest field0;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaimMethod_LnurlWithdraw&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'ClaimMethod.lnurlWithdraw(field0: $field0)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$ClientPaymentId {
 
  U8Array32 get id;

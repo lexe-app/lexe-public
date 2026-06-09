@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/settings.dart'
     show Settings, WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
+        ClaimMethod,
         ClientPaymentId,
         Config,
         PaymentCreatedIndex,
@@ -21,6 +22,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_Unknown,
         PaymentKind_WaivedChannelFee,
         PaymentKind_WaivedLiquidityFee,
+        PaymentMethod,
         PaymentStatus,
         ShortPayment;
 import 'package:app_rs_dart/ffi/types.ext.dart' show ShortPaymentExt;
@@ -67,8 +69,9 @@ import 'package:lexeapp/route/receive/page.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/security.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
-import 'package:lexeapp/route/send/state.dart'
-    show SendFlowResult, SendState, SendState_NeedUri;
+import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
+import 'package:lexeapp/route/uri/page.dart' show NeedUriPage;
+import 'package:lexeapp/route/uri/state.dart' show NeedUriState, UriFlowResult;
 import 'package:lexeapp/service/background_error.dart'
     show BackgroundError, BackgroundErrorKind, BackgroundErrorService;
 import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
@@ -279,64 +282,104 @@ class WalletPageState extends State<WalletPage> {
     try {
       info("WalletPage: uriEvent: $uri");
 
-      // Wait for NodeInfo to be available (if not already) and try to preflight
-      // this send payment URI, showing a modal loading widget.
-      final result = await this._onUriEventPreflight(uri);
-      info("WalletPage: uriEvent: preflight result: $result");
-      if (!this.mounted || result == null || result.isErr) return;
+      // Wait for NodeInfo to be available (if not already)
+      final uriFlowCtx = await this.collectUriFlowContext();
 
-      // If the user successfully sent a payment, we'll get the new payment's
-      // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
-      final SendFlowResult? flowResult = await Navigator.of(this.context).push(
-        MaterialPageRoute(
-          builder: (context) =>
-              SendPaymentPage(sendCtx: result.unwrap(), startNewFlow: true),
+      // Canceled or timeout
+      if (!this.mounted || uriFlowCtx.isErr) return;
+
+      // Resolve the URI to a payment/claim method, with a spinner for the wait
+      // TODO(nicole): 2x showModalAsyncFlow causes a flicker effect; need to fix
+      final resolveResult = await showModalAsyncFlow(
+        context: this.context,
+        future: uriFlowCtx.unwrap().resolve(uri),
+        errorBuilder: (context, err) => AlertDialog(
+          title: const Text("Issue with resolving URI"),
+          content: Text(err),
+          scrollable: true,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close"),
+            ),
+          ],
         ),
       );
-
-      info("WalletPage: uriEvent: flowResult: $flowResult");
-
       // User canceled
-      if (!this.mounted || flowResult == null) return;
+      if (!this.mounted || resolveResult == null) return;
 
-      // Refresh and open new payment detail
-      await this.onSendFlowSuccess(flowResult);
+      final PaymentMethod? paymentMethod;
+      final ClaimMethod? claimMethod;
+      switch (resolveResult) {
+        case Ok(:final ok):
+          paymentMethod = ok.$1;
+          claimMethod = ok.$2;
+        case Err(:final err):
+          error("WalletPage: Failed to resolve URI: $err");
+          return;
+      }
+
+      // Branch accordingly
+      switch ((paymentMethod, claimMethod)) {
+        case (final paymentMethod?, _):
+          // Enter send flow; try immediately preflighting, showing a spinner
+          // during the wait and an error modal if something goes wrong.
+          // TODO(nicole): 2x showModalAsyncFlow causes a flicker effect; need to fix
+          final result = await showModalAsyncFlow(
+            context: this.context,
+            future: uriFlowCtx.unwrap().enterSendFlow(paymentMethod),
+            // TODO(phlip9): error messages need work
+            errorBuilder: (context, err) => AlertDialog(
+              title: const Text("Issue with preflighting payment"),
+              content: Text(err),
+              scrollable: true,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Close"),
+                ),
+              ],
+            ),
+          );
+          info("WalletPage: uriEvent: preflight result: $result");
+          if (!this.mounted || result == null) return;
+
+          final SendState sendCtx;
+          switch (result) {
+            case Ok(:final ok):
+              sendCtx = ok;
+            case Err(:final err):
+              error("WalletPage: Failed to preflight payment: $err");
+              return;
+          }
+
+          // If the user successfully sent a payment, we'll get the new payment's
+          // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
+          final SendFlowResult? flowResult = await Navigator.of(this.context)
+              .push(
+                MaterialPageRoute(
+                  builder: (context) =>
+                      SendPaymentPage(sendCtx: sendCtx, startNewFlow: true),
+                ),
+              );
+
+          info("WalletPage: uriEvent: flowResult: $flowResult");
+
+          // User canceled
+          if (!this.mounted || flowResult == null) return;
+
+          // Refresh and open new payment detail
+          await this.onSendFlowSuccess(flowResult);
+        case _:
+          // TODO(nicole): claim flow handling when we have claim flows
+          error(
+            "WalletPage: Unsupported URI with payment method: $paymentMethod and claim method: $claimMethod",
+          );
+          return;
+      }
     } finally {
       this.uriEventsListener.resume();
     }
-  }
-
-  /// Try to preflight a send payment URI, showing a spinner while it's loading
-  /// and an error modal if it fails.
-  Future<Result<SendState, String>?> _onUriEventPreflight(String uri) async {
-    // We could be cold starting (the user wants Lexe to make a payment from
-    // another app, but Lexe isn't already running, so it needs to startup
-    // cold).
-    //
-    // In such a case, we'll need to wait (with a timeout) for our connection to
-    // the node to go through so we can get our balance.
-    final result = await this.collectSendContext();
-
-    // Canceled or timedout
-    if (!this.mounted || result.isErr) return null;
-
-    final sendCtx = result.unwrap();
-    return showModalAsyncFlow(
-      context: this.context,
-      future: sendCtx.resolveAndMaybePreflight(uri),
-      // TODO(phlip9): error messages need work
-      errorBuilder: (context, err) => AlertDialog(
-        title: const Text("Issue with payment"),
-        content: Text(err),
-        scrollable: true,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Close"),
-          ),
-        ],
-      ),
-    );
   }
 
   /// Open the left drawer.
@@ -439,18 +482,18 @@ class WalletPageState extends State<WalletPage> {
     this.triggerBurstRefresh();
   }
 
-  /// Called when the "Send" button is pressed. Pushes the send payment page
+  /// Called when the "Send" button is pressed. Pushes the URI collection page
   /// onto the navigation stack.
   Future<void> onSendPressed() async {
-    final sendCtx = this.tryCollectSendContext();
-    if (sendCtx == null) return;
+    final uriFlowCtx = this.tryCollectUriFlowContext();
+    if (uriFlowCtx == null) return;
 
     // If the user successfully sent a payment, we'll get the new payment's
     // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
-    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+    final UriFlowResult? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) =>
-            SendPaymentPage(sendCtx: sendCtx, startNewFlow: true),
+            NeedUriPage(uriFlowCtx: uriFlowCtx, startNewFlow: true),
       ),
     );
 
@@ -460,7 +503,8 @@ class WalletPageState extends State<WalletPage> {
     if (!this.mounted || flowResult == null) return;
 
     // Refresh and open new payment detail
-    await this.onSendFlowSuccess(flowResult);
+    // TODO(nicole): add claim flow handling when we have claim flows
+    await this.onSendFlowSuccess(flowResult.sendFlowResult);
   }
 
   /// Called when the "Buy" button is pressed. Pushes the [BuyPage] which
@@ -479,18 +523,18 @@ class WalletPageState extends State<WalletPage> {
   /// Called when the "Scan" button is pressed. Pushes the QR scan page onto the
   /// navigation stack.
   Future<void> onScanPressed() async {
-    final sendCtx = this.tryCollectSendContext();
-    if (sendCtx == null) return;
+    final uriFlowCtx = this.tryCollectUriFlowContext();
+    if (uriFlowCtx == null) return;
 
     // If the user successfully sent a payment, we'll get the new payment's
     // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
     //
     // Note: this is inside a MultistepFlow so "back" goes back a step while
     // "close" exits the flow to this page again.
-    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+    final UriFlowResult? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (_context) => MultistepFlow<SendFlowResult>(
-          builder: (_context) => ScanPage(sendCtx: sendCtx),
+        builder: (_context) => MultistepFlow<UriFlowResult>(
+          builder: (_context) => ScanPage(uriFlowCtx: uriFlowCtx),
         ),
       ),
     );
@@ -500,14 +544,14 @@ class WalletPageState extends State<WalletPage> {
     if (!this.mounted || flowResult == null) return;
 
     // Refresh and open new payment detail
-    await this.onSendFlowSuccess(flowResult);
+    // TODO(nicole): add claim result handling when we have claim flows
+    await this.onSendFlowSuccess(flowResult.sendFlowResult);
   }
 
   /// Collect up all the relevant context needed to support a new send payment
   /// flow, and wait until it's available if it's not already immediately
   /// available.
-  Future<Result<SendState_NeedUri, TimeoutException>>
-  collectSendContext() async {
+  Future<Result<NeedUriState, TimeoutException>> collectUriFlowContext() async {
     final nodeInfo = this.nodeInfoService.nodeInfo.value;
     if (nodeInfo != null) return Ok(this.nodeInfoIntoSendContext(nodeInfo));
 
@@ -522,21 +566,20 @@ class WalletPageState extends State<WalletPage> {
 
   /// Collect up all the relevant context needed to support a new send payment
   /// flow.
-  SendState_NeedUri? tryCollectSendContext() {
+  NeedUriState? tryCollectUriFlowContext() {
     final nodeInfo = this.nodeInfoService.nodeInfo.value;
     // Ignore Send/Scan button press, we haven't fetched the node info yet.
     if (nodeInfo == null) return null;
     return this.nodeInfoIntoSendContext(nodeInfo);
   }
 
-  SendState_NeedUri nodeInfoIntoSendContext(NodeInfo nodeInfo) =>
-      SendState_NeedUri(
-        app: this.widget.app,
-        configNetwork: this.widget.config.network,
-        balance: nodeInfo.balance,
-        cid: ClientPaymentId.generate(),
-        fiatRate: this.fiatRateService.fiatRate,
-      );
+  NeedUriState nodeInfoIntoSendContext(NodeInfo nodeInfo) => NeedUriState(
+    app: this.widget.app,
+    configNetwork: this.widget.config.network,
+    balance: nodeInfo.balance,
+    cid: ClientPaymentId.generate(),
+    fiatRate: this.fiatRateService.fiatRate,
+  );
 
   /// Called after the user has successfully sent a new payment and the send
   /// flow has popped back to the wallet page. We'll trigger a refresh, wait
@@ -545,6 +588,7 @@ class WalletPageState extends State<WalletPage> {
   ///
   /// For lightning payments, we'll also start burst refreshing, so we can
   /// quickly pick up any status changes.
+  // TODO(nicole): augment this to handle claim results when claim flows added
   Future<void> onSendFlowSuccess(SendFlowResult flowResult) async {
     final payment = flowResult.payment;
 

@@ -35,8 +35,8 @@ import 'package:lexeapp/route/send/state.dart'
         PreflightedPayment_Onchain,
         SendFlowResult,
         SendState_NeedAmount,
-        SendState_NeedUri,
         SendState_Preflighted;
+import 'package:lexeapp/route/uri/state.dart' show NeedUriState;
 
 import 'mocks/mock_app_handle.dart';
 
@@ -92,12 +92,9 @@ void main() {
     test('resolveAndMaybePreflight succeeds with onchain address', () async {
       const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
       const onchain = Onchain(address: address);
-      mockApp.mock(
-        resolveBest,
-        (_) async => const PaymentMethod.onchain(onchain),
-      );
+      const paymentMethod = PaymentMethod.onchain(onchain);
 
-      final state = SendState_NeedUri(
+      final state = NeedUriState(
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
@@ -105,7 +102,7 @@ void main() {
         fiatRate: fiatRate,
       );
 
-      final result = await state.resolveAndMaybePreflight(address);
+      final result = await state.enterSendFlow(paymentMethod);
 
       expect(result.isOk, true);
       final newState = result.ok!;
@@ -117,10 +114,8 @@ void main() {
       () async {
         const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
         const onchain = Onchain(address: address, amountSats: 5000);
-        mockApp.mock(
-          resolveBest,
-          (_) async => const PaymentMethod.onchain(onchain),
-        );
+        const paymentMethod = PaymentMethod.onchain(onchain);
+
         mockApp.mock(
           preflightPayOnchain,
           (_) async => const PreflightPayOnchainResponse(
@@ -130,7 +125,7 @@ void main() {
           ),
         );
 
-        final state = SendState_NeedUri(
+        final state = NeedUriState(
           app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
@@ -138,7 +133,7 @@ void main() {
           fiatRate: fiatRate,
         );
 
-        final result = await state.resolveAndMaybePreflight(address);
+        final result = await state.enterSendFlow(paymentMethod);
 
         expect(result.isOk, true);
         expect(result.ok, isA<SendState_Preflighted>());
@@ -151,7 +146,7 @@ void main() {
         (_) async => throw AnyhowException('Invalid address format'),
       );
 
-      final state = SendState_NeedUri(
+      final state = NeedUriState(
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
@@ -159,7 +154,7 @@ void main() {
         fiatRate: fiatRate,
       );
 
-      final result = await state.resolveAndMaybePreflight('invalid');
+      final result = await state.resolve('invalid');
 
       expect(result.isErr, true);
       expect(result.err, 'Invalid address format');
@@ -170,16 +165,13 @@ void main() {
       () async {
         const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
         const onchain = Onchain(address: address, amountSats: 5000);
-        mockApp.mock(
-          resolveBest,
-          (_) async => const PaymentMethod.onchain(onchain),
-        );
+        const paymentMethod = PaymentMethod.onchain(onchain);
         mockApp.mock(
           preflightPayOnchain,
           (_) async => throw AnyhowException('Insufficient balance'),
         );
 
-        final state = SendState_NeedUri(
+        final state = NeedUriState(
           app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
@@ -187,7 +179,7 @@ void main() {
           fiatRate: fiatRate,
         );
 
-        final result = await state.resolveAndMaybePreflight(address);
+        final result = await state.enterSendFlow(paymentMethod);
 
         expect(result.isErr, true);
         expect(result.err, 'Insufficient balance');
@@ -430,10 +422,7 @@ void main() {
       () async {
         const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
         const onchain = Onchain(address: address);
-        mockApp.mock(
-          resolveBest,
-          (_) async => const PaymentMethod.onchain(onchain),
-        );
+        const paymentMethod = PaymentMethod.onchain(onchain);
         mockApp.mock(
           preflightPayOnchain,
           (_) async => const PreflightPayOnchainResponse(
@@ -451,7 +440,7 @@ void main() {
         );
 
         // Step 1: Start with NeedUri
-        final needUri = SendState_NeedUri(
+        final needUri = NeedUriState(
           app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
@@ -460,7 +449,7 @@ void main() {
         );
 
         // Step 2: Resolve URI -> NeedAmount
-        final resolveResult = await needUri.resolveAndMaybePreflight(address);
+        final resolveResult = await needUri.enterSendFlow(paymentMethod);
         expect(resolveResult.isOk, true);
         final needAmount = resolveResult.ok as SendState_NeedAmount;
 

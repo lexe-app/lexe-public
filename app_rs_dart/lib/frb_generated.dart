@@ -244,7 +244,7 @@ abstract class AppRsApi extends BaseApi {
 
   Future<void> crateFfiAppAppHandleProvision({required AppHandle that});
 
-  Future<PaymentMethod> crateFfiAppAppHandleResolveBest({
+  Future<(PaymentMethod?, ClaimMethod?)> crateFfiAppAppHandleResolveBest({
     required AppHandle that,
     required Network network,
     required String uriStr,
@@ -1720,7 +1720,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PaymentMethod> crateFfiAppAppHandleResolveBest({
+  Future<(PaymentMethod?, ClaimMethod?)> crateFfiAppAppHandleResolveBest({
     required AppHandle that,
     required Network network,
     required String uriStr,
@@ -1740,7 +1740,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_payment_method,
+          decodeSuccessData:
+              sse_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateFfiAppAppHandleResolveBestConstMeta,
@@ -3342,6 +3343,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  ClaimMethod dco_decode_box_autoadd_claim_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_claim_method(raw);
+  }
+
+  @protected
   CloseChannelRequest dco_decode_box_autoadd_close_channel_request(
     dynamic raw,
   ) {
@@ -3440,6 +3447,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlWithdrawRequest dco_decode_box_autoadd_lnurl_withdraw_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_lnurl_withdraw_request(raw);
+  }
+
+  @protected
   Offer dco_decode_box_autoadd_offer(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_offer(raw);
@@ -3493,6 +3508,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_payment_created_index(raw);
+  }
+
+  @protected
+  PaymentMethod dco_decode_box_autoadd_payment_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_payment_method(raw);
   }
 
   @protected
@@ -3590,6 +3611,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   WalletFundingState dco_decode_box_autoadd_wallet_funding_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_wallet_funding_state(raw);
+  }
+
+  @protected
+  ClaimMethod dco_decode_claim_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return ClaimMethod_LnurlWithdraw(
+          dco_decode_box_autoadd_lnurl_withdraw_request(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -3953,6 +3987,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlWithdrawRequest dco_decode_lnurl_withdraw_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return LnurlWithdrawRequest(
+      callback: dco_decode_String(arr[0]),
+      k1: dco_decode_String(arr[1]),
+      defaultDescription: dco_decode_String(arr[2]),
+      minWithdrawableMsat: dco_decode_CastedPrimitive_u_64(arr[3]),
+      maxWithdrawableMsat: dco_decode_CastedPrimitive_u_64(arr[4]),
+    );
+  }
+
+  @protected
   LxChannelDetails dco_decode_lx_channel_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4090,6 +4139,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  ClaimMethod? dco_decode_opt_box_autoadd_claim_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_claim_method(raw);
+  }
+
+  @protected
   FeeEstimate? dco_decode_opt_box_autoadd_fee_estimate(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_fee_estimate(raw);
@@ -4136,6 +4191,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_payment(raw);
+  }
+
+  @protected
+  PaymentMethod? dco_decode_opt_box_autoadd_payment_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_payment_method(raw);
   }
 
   @protected
@@ -4465,6 +4526,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       high: dco_decode_opt_box_autoadd_fee_estimate(arr[0]),
       normal: dco_decode_fee_estimate(arr[1]),
       background: dco_decode_fee_estimate(arr[2]),
+    );
+  }
+
+  @protected
+  (PaymentMethod?, ClaimMethod?)
+  dco_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_opt_box_autoadd_payment_method(arr[0]),
+      dco_decode_opt_box_autoadd_claim_method(arr[1]),
     );
   }
 
@@ -4866,6 +4943,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  ClaimMethod sse_decode_box_autoadd_claim_method(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_claim_method(deserializer));
+  }
+
+  @protected
   CloseChannelRequest sse_decode_box_autoadd_close_channel_request(
     SseDeserializer deserializer,
   ) {
@@ -4974,6 +5059,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlWithdrawRequest sse_decode_box_autoadd_lnurl_withdraw_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_lnurl_withdraw_request(deserializer));
+  }
+
+  @protected
   Offer sse_decode_box_autoadd_offer(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_offer(deserializer));
@@ -5037,6 +5130,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_payment_created_index(deserializer));
+  }
+
+  @protected
+  PaymentMethod sse_decode_box_autoadd_payment_method(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_payment_method(deserializer));
   }
 
   @protected
@@ -5148,6 +5249,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_wallet_funding_state(deserializer));
+  }
+
+  @protected
+  ClaimMethod sse_decode_claim_method(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_box_autoadd_lnurl_withdraw_request(
+          deserializer,
+        );
+        return ClaimMethod_LnurlWithdraw(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -5562,6 +5679,25 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlWithdrawRequest sse_decode_lnurl_withdraw_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_callback = sse_decode_String(deserializer);
+    var var_k1 = sse_decode_String(deserializer);
+    var var_defaultDescription = sse_decode_String(deserializer);
+    var var_minWithdrawableMsat = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_maxWithdrawableMsat = sse_decode_CastedPrimitive_u_64(deserializer);
+    return LnurlWithdrawRequest(
+      callback: var_callback,
+      k1: var_k1,
+      defaultDescription: var_defaultDescription,
+      minWithdrawableMsat: var_minWithdrawableMsat,
+      maxWithdrawableMsat: var_maxWithdrawableMsat,
+    );
+  }
+
+  @protected
   LxChannelDetails sse_decode_lx_channel_details(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_channelId = sse_decode_String(deserializer);
@@ -5748,6 +5884,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  ClaimMethod? sse_decode_opt_box_autoadd_claim_method(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_claim_method(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   FeeEstimate? sse_decode_opt_box_autoadd_fee_estimate(
     SseDeserializer deserializer,
   ) {
@@ -5828,6 +5977,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_payment(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PaymentMethod? sse_decode_opt_box_autoadd_payment_method(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_payment_method(deserializer));
     } else {
       return null;
     }
@@ -6212,6 +6374,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       normal: var_normal,
       background: var_background,
     );
+  }
+
+  @protected
+  (PaymentMethod?, ClaimMethod?)
+  sse_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_opt_box_autoadd_payment_method(deserializer);
+    var var_field1 = sse_decode_opt_box_autoadd_claim_method(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -6618,6 +6791,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_claim_method(
+    ClaimMethod self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_claim_method(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_close_channel_request(
     CloseChannelRequest self,
     SseSerializer serializer,
@@ -6738,6 +6920,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_lnurl_withdraw_request(
+    LnurlWithdrawRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lnurl_withdraw_request(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_offer(Offer self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_offer(self, serializer);
@@ -6807,6 +6998,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_created_index(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_payment_method(
+    PaymentMethod self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_payment_method(self, serializer);
   }
 
   @protected
@@ -6936,6 +7136,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_wallet_funding_state(self, serializer);
+  }
+
+  @protected
+  void sse_encode_claim_method(ClaimMethod self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case ClaimMethod_LnurlWithdraw(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_lnurl_withdraw_request(field0, serializer);
+    }
   }
 
   @protected
@@ -7284,6 +7494,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_lnurl_withdraw_request(
+    LnurlWithdrawRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.callback, serializer);
+    sse_encode_String(self.k1, serializer);
+    sse_encode_String(self.defaultDescription, serializer);
+    sse_encode_CastedPrimitive_u_64(self.minWithdrawableMsat, serializer);
+    sse_encode_CastedPrimitive_u_64(self.maxWithdrawableMsat, serializer);
+  }
+
+  @protected
   void sse_encode_lx_channel_details(
     LxChannelDetails self,
     SseSerializer serializer,
@@ -7430,6 +7653,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_claim_method(
+    ClaimMethod? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_claim_method(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_fee_estimate(
     FeeEstimate? self,
     SseSerializer serializer,
@@ -7514,6 +7750,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_payment(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_payment_method(
+    PaymentMethod? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_payment_method(self, serializer);
     }
   }
 
@@ -7832,6 +8081,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_box_autoadd_fee_estimate(self.high, serializer);
     sse_encode_fee_estimate(self.normal, serializer);
     sse_encode_fee_estimate(self.background, serializer);
+  }
+
+  @protected
+  void
+  sse_encode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
+    (PaymentMethod?, ClaimMethod?) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_payment_method(self.$1, serializer);
+    sse_encode_opt_box_autoadd_claim_method(self.$2, serializer);
   }
 
   @protected

@@ -49,9 +49,9 @@ use crate::ffi::{
     app_data::AppDataDb,
     settings::SettingsDb,
     types::{
-        AppUserInfo, BackupInfo, Config, GDriveSignupCredentials, Invoice,
-        LnurlPayRequest, Network, Payment, PaymentCreatedIndex, PaymentMethod,
-        RevocableClient, RootSeed, ShortPayment, Username,
+        AppUserInfo, BackupInfo, ClaimMethod, Config, GDriveSignupCredentials,
+        Invoice, LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
+        PaymentMethod, RevocableClient, RootSeed, ShortPayment, Username,
     },
 };
 pub(crate) use crate::{
@@ -584,7 +584,8 @@ impl AppHandle {
     }
 
     /// Resolve a (possible) [`PaymentUri`] string that we just
-    /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
+    /// scanned/pasted into a best [`PaymentMethod`] or [`ClaimMethod`]
+    /// for us to pay/claim.
     ///
     /// [`PaymentUri`]: lexe_payment_uri::PaymentUri
     #[instrument(skip_all, name = "(resolve-best)")]
@@ -592,12 +593,11 @@ impl AppHandle {
         &self,
         network: Network,
         uri_str: String,
-    ) -> anyhow::Result<PaymentMethod> {
+    ) -> anyhow::Result<(Option<PaymentMethod>, Option<ClaimMethod>)> {
         let payment_uri = lexe_payment_uri::PaymentUri::parse(&uri_str)
             .context("Unrecognized payment code")?;
 
-        // TODO(nicole): add claimmethod when adding to app
-        let (maybe_pay_method, _maybe_claim_method) =
+        let (maybe_pay_method, maybe_claim_method) =
             lexe_payment_uri::resolve_best(
                 self.inner.bip353_client(),
                 self.inner.lnurl_client(),
@@ -605,9 +605,9 @@ impl AppHandle {
                 payment_uri,
             )
             .await?;
-        let best_pay_method =
-            maybe_pay_method.context("No valid payment method found")?;
-        Ok(PaymentMethod::from(best_pay_method))
+        let best_pay_method = maybe_pay_method.map(PaymentMethod::from);
+        let best_claim_method = maybe_claim_method.map(ClaimMethod::from);
+        Ok((best_pay_method, best_claim_method))
     }
 
     /// Resolve a [`LnurlPayRequest`] that we just received + the amount in

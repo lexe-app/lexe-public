@@ -1504,6 +1504,29 @@ impl SseDecode for bool {
     }
 }
 
+impl SseDecode for crate::ffi::types::ClaimMethod {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_field0 =
+                    <crate::ffi::types::LnurlWithdrawRequest>::sse_decode(
+                        deserializer,
+                    );
+                return crate::ffi::types::ClaimMethod::LnurlWithdraw(
+                    var_field0,
+                );
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::ffi::types::ClientPaymentId {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2032,6 +2055,26 @@ impl SseDecode for crate::ffi::types::LnurlPayRequestMetadata {
     }
 }
 
+impl SseDecode for crate::ffi::types::LnurlWithdrawRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_callback = <String>::sse_decode(deserializer);
+        let mut var_k1 = <String>::sse_decode(deserializer);
+        let mut var_defaultDescription = <String>::sse_decode(deserializer);
+        let mut var_minWithdrawableMsat = <u64>::sse_decode(deserializer);
+        let mut var_maxWithdrawableMsat = <u64>::sse_decode(deserializer);
+        return crate::ffi::types::LnurlWithdrawRequest {
+            callback: var_callback,
+            k1: var_k1,
+            default_description: var_defaultDescription,
+            min_withdrawable_msat: var_minWithdrawableMsat,
+            max_withdrawable_msat: var_maxWithdrawableMsat,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::LxChannelDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2254,6 +2297,21 @@ impl SseDecode for Option<bool> {
     }
 }
 
+impl SseDecode for Option<crate::ffi::types::ClaimMethod> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::ClaimMethod>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ffi::api::FeeEstimate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2351,6 +2409,21 @@ impl SseDecode for Option<crate::ffi::types::Payment> {
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::ffi::types::Payment>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::PaymentMethod> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::PaymentMethod>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -2846,6 +2919,26 @@ impl SseDecode for crate::ffi::api::PreflightPayOnchainResponse {
     }
 }
 
+impl SseDecode
+    for (
+        Option<crate::ffi::types::PaymentMethod>,
+        Option<crate::ffi::types::ClaimMethod>,
+    )
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_field0 =
+            <Option<crate::ffi::types::PaymentMethod>>::sse_decode(
+                deserializer,
+            );
+        let mut var_field1 =
+            <Option<crate::ffi::types::ClaimMethod>>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
 impl SseDecode for crate::ffi::types::RevocableClient {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -3336,6 +3429,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::Balance>
     for crate::ffi::api::Balance
 {
     fn into_into_dart(self) -> crate::ffi::api::Balance {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::ClaimMethod {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::ffi::types::ClaimMethod::LnurlWithdraw(field0) =>
+                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::ClaimMethod
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ClaimMethod>
+    for crate::ffi::types::ClaimMethod
+{
+    fn into_into_dart(self) -> crate::ffi::types::ClaimMethod {
         self
     }
 }
@@ -3870,6 +3986,30 @@ impl
     > for crate::ffi::types::LnurlPayRequestMetadata
 {
     fn into_into_dart(self) -> crate::ffi::types::LnurlPayRequestMetadata {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlWithdrawRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.callback.into_into_dart().into_dart(),
+            self.k1.into_into_dart().into_dart(),
+            self.default_description.into_into_dart().into_dart(),
+            self.min_withdrawable_msat.into_into_dart().into_dart(),
+            self.max_withdrawable_msat.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LnurlWithdrawRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LnurlWithdrawRequest>
+    for crate::ffi::types::LnurlWithdrawRequest
+{
+    fn into_into_dart(self) -> crate::ffi::types::LnurlWithdrawRequest {
         self
     }
 }
@@ -5025,6 +5165,26 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::ffi::types::ClaimMethod {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        match self {
+            crate::ffi::types::ClaimMethod::LnurlWithdraw(field0) => {
+                <i32>::sse_encode(0, serializer);
+                <crate::ffi::types::LnurlWithdrawRequest>::sse_encode(
+                    field0, serializer,
+                );
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::ffi::types::ClientPaymentId {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -5474,6 +5634,20 @@ impl SseEncode for crate::ffi::types::LnurlPayRequestMetadata {
     }
 }
 
+impl SseEncode for crate::ffi::types::LnurlWithdrawRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.callback, serializer);
+        <String>::sse_encode(self.k1, serializer);
+        <String>::sse_encode(self.default_description, serializer);
+        <u64>::sse_encode(self.min_withdrawable_msat, serializer);
+        <u64>::sse_encode(self.max_withdrawable_msat, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::LxChannelDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -5660,6 +5834,19 @@ impl SseEncode for Option<bool> {
     }
 }
 
+impl SseEncode for Option<crate::ffi::types::ClaimMethod> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::ClaimMethod>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::ffi::api::FeeEstimate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -5753,6 +5940,19 @@ impl SseEncode for Option<crate::ffi::types::Payment> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::types::Payment>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::PaymentMethod> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::PaymentMethod>::sse_encode(value, serializer);
         }
     }
 }
@@ -6170,6 +6370,26 @@ impl SseEncode for crate::ffi::api::PreflightPayOnchainResponse {
         );
         <crate::ffi::api::FeeEstimate>::sse_encode(self.normal, serializer);
         <crate::ffi::api::FeeEstimate>::sse_encode(self.background, serializer);
+    }
+}
+
+impl SseEncode
+    for (
+        Option<crate::ffi::types::PaymentMethod>,
+        Option<crate::ffi::types::ClaimMethod>,
+    )
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <Option<crate::ffi::types::PaymentMethod>>::sse_encode(
+            self.0, serializer,
+        );
+        <Option<crate::ffi::types::ClaimMethod>>::sse_encode(
+            self.1, serializer,
+        );
     }
 }
 

@@ -25,7 +25,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod_Onchain;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/material.dart';
-import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -42,14 +41,11 @@ import 'package:lexeapp/components.dart'
         PaymentNoteInput,
         ReceiptSeparator,
         ScrollableSinglePageBody,
-        StackedButton,
-        SubheadingText,
-        baseInputDecoration;
+        SubheadingText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Invoice,
@@ -58,7 +54,6 @@ import 'package:lexeapp/route/send/state.dart'
         SendFlowResult,
         SendState,
         SendState_NeedAmount,
-        SendState_NeedUri,
         SendState_Preflighted;
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
@@ -82,7 +77,6 @@ class SendPaymentPage extends StatelessWidget {
     return switch (sendCtx) {
       SendState_Preflighted() => SendPaymentConfirmPage(sendCtx: sendCtx),
       SendState_NeedAmount() => SendPaymentAmountPage(sendCtx: sendCtx),
-      SendState_NeedUri() => SendPaymentNeedUriPage(sendCtx: sendCtx),
     };
   }
 
@@ -90,223 +84,6 @@ class SendPaymentPage extends StatelessWidget {
   Widget build(BuildContext context) => (this.startNewFlow)
       ? MultistepFlow<SendFlowResult>(builder: (_) => this.buildInnerSendPage())
       : this.buildInnerSendPage();
-}
-
-/// If the user is just hitting the "Send" button with no extra context, then we
-/// need to collect a [PaymentUri] of some kind (bitcoin address, LN invoice,
-/// etc...)
-class SendPaymentNeedUriPage extends StatefulWidget {
-  const SendPaymentNeedUriPage({super.key, required this.sendCtx});
-
-  final SendState_NeedUri sendCtx;
-
-  @override
-  State<StatefulWidget> createState() => _SendPaymentNeedUriPageState();
-}
-
-class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
-  final GlobalKey<FormFieldState<String>> paymentUriFieldKey = GlobalKey();
-
-  final ValueNotifier<bool> isPending = ValueNotifier(false);
-  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
-
-  @override
-  void dispose() {
-    this.errorMessage.dispose();
-    this.isPending.dispose();
-
-    super.dispose();
-  }
-
-  Future<void> onScanPressed() async {
-    info("pressed QR scan button");
-
-    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (_context) => ScanPage(sendCtx: this.widget.sendCtx),
-      ),
-    );
-    if (!this.mounted || flowResult == null) return;
-
-    // Successfully sent payment -- return result to parent page.
-    // ignore: use_build_context_synchronously
-    await Navigator.of(this.context).maybePop(flowResult);
-  }
-
-  Future<void> onNext() async {
-    // Hide error message
-    this.errorMessage.value = null;
-
-    // Validate the payment URI field.
-    final fieldState = this.paymentUriFieldKey.currentState!;
-    if (!fieldState.validate()) return;
-
-    final uriStr = fieldState.value;
-
-    // Don't bother showing an error if the input is empty.
-    if (uriStr == null || uriStr.isEmpty) return;
-
-    // Start loading animation
-    this.isPending.value = true;
-
-    // Try resolving the payment URI to a "best" payment method. Then try
-    // immediately preflighting it if it already has an associated amount.
-    final result = await this.widget.sendCtx.resolveAndMaybePreflight(uriStr);
-    if (!this.mounted) return;
-
-    // Stop loading animation
-    this.isPending.value = false;
-
-    // Check the results, or show an error on the page.
-    final SendState sendCtx;
-    switch (result) {
-      case Ok(:final ok):
-        sendCtx = ok;
-      case Err(:final err):
-        this.errorMessage.value = ErrorMessage(message: err);
-        return;
-    }
-
-    // If we still need an amount, then we have to collect that first.
-    // Otherwise, a successful payment preflight means we can go directly to the
-    // confirm page.
-    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
-      ),
-    );
-
-    info(
-      "SendPaymentNeedUriPage: flowResult: $flowResult, mounted: ${this.mounted}",
-    );
-    if (!this.mounted || flowResult == null) return;
-
-    // Successfully sent payment -- return result to parent page.
-    // ignore: use_build_context_synchronously
-    await Navigator.of(this.context).maybePop(flowResult);
-  }
-
-  /// Called when the user taps the paste button
-  Future<void> onPaste() async {
-    // Get clipboard text
-    final text = await LxClipboard.getText();
-    if (!this.mounted) return;
-    if (text == null || text.isEmpty) return;
-
-    // Set payment URI field
-    this.paymentUriFieldKey.currentState?.didChange(text);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxCloseButton(
-          isLeading: true,
-          kind: LxCloseButtonKind.closeFromRoot,
-        ),
-        actions: [
-          IconButton(
-            onPressed: this.onScanPressed,
-            icon: const Icon(LxIcons.scanDetailed),
-          ),
-          const SizedBox(width: Space.appBarTrailingPadding),
-        ],
-      ),
-      body: ScrollableSinglePageBody(
-        body: [
-          const HeadingText(text: "Who are we paying?"),
-          const SizedBox(height: Space.s300),
-
-          // Enter payment URI text field
-          TextFormField(
-            key: this.paymentUriFieldKey,
-            autofocus: true,
-            maxLines: 1,
-            // `visiblePassword` gives ready access to letters + numbers
-            keyboardType: TextInputType.visiblePassword,
-            textDirection: TextDirection.ltr,
-            textInputAction: TextInputAction.next,
-            onEditingComplete: this.onNext,
-            decoration: baseInputDecoration.copyWith(
-              hintText: "bc1.. lnbc1.. bitcoin:..",
-            ),
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size700,
-              fontVariations: [Fonts.weightMedium],
-              // Use unambiguous character alternatives (0OIl1) to avoid
-              // confusion in the unfortunate event that a user has to
-              // manually type in an address.
-              fontFeatures: [Fonts.featDisambugation],
-              letterSpacing: -0.5,
-              // Add a bit of extra height to make the text area look nicer.
-              height: 1.3,
-            ),
-          ),
-
-          const SizedBox(height: Space.s800),
-
-          // Error parsing, resolving, and/or preflighting payment
-          ValueListenableBuilder(
-            valueListenable: this.errorMessage,
-            builder: (_context, errorMessage, _widget) =>
-                ErrorMessageSection(errorMessage),
-          ),
-        ],
-
-        // Bottom buttons (paste, next ->)
-        bottom: Padding(
-          padding: const EdgeInsets.only(top: Space.s500),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Row(
-                children: [
-                  // Paste
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: this.onPaste,
-                      child: StackedButton(
-                        button: LxFilledButton(
-                          onTap: this.onPaste,
-                          icon: const Center(child: Icon(LxIcons.paste)),
-                        ),
-                        label: "Paste",
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: Space.s200),
-                  // Next ->
-                  Expanded(
-                    child: ValueListenableBuilder(
-                      valueListenable: this.isPending,
-                      builder: (_context, isPending, _widget) =>
-                          GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onTap: !isPending ? this.onNext : null,
-                            child: StackedButton(
-                              button: AnimatedFillButton(
-                                label: const Icon(LxIcons.next),
-                                icon: const Icon(null),
-                                onTap: this.onNext,
-                                loading: isPending,
-                              ),
-                              label: "Next",
-                            ),
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Send payment flow: this page collects the [SendAmount] from the user.

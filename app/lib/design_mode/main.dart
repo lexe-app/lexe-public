@@ -110,7 +110,6 @@ import 'package:lexeapp/route/send/state.dart'
         PreflightedPayment_Onchain,
         SendFlowResult,
         SendState_NeedAmount,
-        SendState_NeedUri,
         SendState_Preflighted;
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
@@ -121,6 +120,8 @@ import 'package:lexeapp/route/signup.dart'
         SignupCtx,
         SignupGDriveAuthPage,
         SignupPage;
+import 'package:lexeapp/route/uri/page.dart' show NeedUriPage;
+import 'package:lexeapp/route/uri/state.dart' show NeedUriState;
 import 'package:lexeapp/route/wallet.dart'
     show WalletActionButton, WalletBanner, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
@@ -588,10 +589,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         ),
       ),
       Component(
-        "SendPaymentNeedUriPage",
-        (context) => SendPaymentPage(
+        "NeedUriPage",
+        (context) => NeedUriPage(
           startNewFlow: true,
-          sendCtx: SendState_NeedUri(
+          uriFlowCtx: NeedUriState(
             app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
@@ -1038,7 +1039,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         "ScanPage",
         (_) => MultistepFlow<SendFlowResult>(
           builder: (_) => ScanPage(
-            sendCtx: SendState_NeedUri(
+            uriFlowCtx: NeedUriState(
               app: mockApp,
               configNetwork: this.widget.config.network,
               balance: mockApp.balance,
@@ -1425,9 +1426,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "DocsGettingStarted15",
-        (context) => SendPaymentPage(
+        (context) => NeedUriPage(
           startNewFlow: true,
-          sendCtx: SendState_NeedUri(
+          uriFlowCtx: NeedUriState(
             app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,

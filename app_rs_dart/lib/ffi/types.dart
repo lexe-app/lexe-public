@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
@@ -46,6 +46,14 @@ class BackupInfo {
       other is BackupInfo &&
           runtimeType == other.runtimeType &&
           gdriveStatus == other.gdriveStatus;
+}
+
+@freezed
+sealed class ClaimMethod with _$ClaimMethod {
+  const ClaimMethod._();
+
+  const factory ClaimMethod.lnurlWithdraw(LnurlWithdrawRequest field0) =
+      ClaimMethod_LnurlWithdraw;
 }
 
 /// A unique, client-generated id for payment types (onchain send,
@@ -241,6 +249,41 @@ class LnurlPayRequestMetadata {
           email == other.email &&
           descriptionHash == other.descriptionHash &&
           raw == other.raw;
+}
+
+class LnurlWithdrawRequest {
+  final String callback;
+  final String k1;
+  final String defaultDescription;
+  final int minWithdrawableMsat;
+  final int maxWithdrawableMsat;
+
+  const LnurlWithdrawRequest({
+    required this.callback,
+    required this.k1,
+    required this.defaultDescription,
+    required this.minWithdrawableMsat,
+    required this.maxWithdrawableMsat,
+  });
+
+  @override
+  int get hashCode =>
+      callback.hashCode ^
+      k1.hashCode ^
+      defaultDescription.hashCode ^
+      minWithdrawableMsat.hashCode ^
+      maxWithdrawableMsat.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LnurlWithdrawRequest &&
+          runtimeType == other.runtimeType &&
+          callback == other.callback &&
+          k1 == other.k1 &&
+          defaultDescription == other.defaultDescription &&
+          minWithdrawableMsat == other.minWithdrawableMsat &&
+          maxWithdrawableMsat == other.maxWithdrawableMsat;
 }
 
 class LxChannelDetails {

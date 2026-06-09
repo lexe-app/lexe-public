@@ -17,7 +17,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
-    show Invoice, LnurlPayRequest, Network, PaymentMethod;
+    show ClaimMethod, Invoice, LnurlPayRequest, Network, PaymentMethod;
 
 /// Represents an [AppHandle] method which can be mocked, carrying its request
 /// type [Req] and response type [Resp] so that stubbing is type-checked.
@@ -62,7 +62,7 @@ const payOnchain = Stub<PayOnchainRequest, PayOnchainResponse>._(#payOnchain, _r
 const preflightPayInvoice = Stub<PreflightPayInvoiceRequest, PreflightPayInvoiceResponse>._(#preflightPayInvoice, _reqArg);
 const preflightPayOffer = Stub<PreflightPayOfferRequest, PreflightPayOfferResponse>._(#preflightPayOffer, _reqArg);
 const preflightPayOnchain = Stub<PreflightPayOnchainRequest, PreflightPayOnchainResponse>._(#preflightPayOnchain, _reqArg);
-const resolveBest = Stub<(Network, String), PaymentMethod>._(#resolveBest, _resolveBestArgs);
+const resolveBest = Stub<(Network, String), (PaymentMethod?, ClaimMethod?)>._(#resolveBest, _resolveBestArgs);
 const resolveLnurlPayRequest = Stub<(LnurlPayRequest, int, String?), Invoice>._(#resolveLnurlPayRequest, _resolveLnurlPayRequestArgs);
 // dart format on
 

@@ -1,5 +1,6 @@
 // Page for scanning QR codes / barcodes
 
+import 'package:app_rs_dart/ffi/types.dart' show ClaimMethod, PaymentMethod;
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show Code, FixedScannerOverlay, Format, ReaderWidget;
@@ -7,14 +8,14 @@ import 'package:lexeapp/components.dart'
     show LxBackButton, LxCloseButton, LxCloseButtonKind, showModalAsyncFlow;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
-import 'package:lexeapp/route/send/state.dart'
-    show SendFlowResult, SendState, SendState_NeedUri;
+import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
+import 'package:lexeapp/route/uri/state.dart';
 import 'package:lexeapp/style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatefulWidget {
-  const ScanPage({super.key, required this.sendCtx});
+  const ScanPage({super.key, required this.uriFlowCtx});
 
-  final SendState_NeedUri sendCtx;
+  final NeedUriState uriFlowCtx;
 
   @override
   State<ScanPage> createState() => _ScanPageState();
@@ -43,16 +44,13 @@ class _ScanPageState extends State<ScanPage> {
     // Start loading animation
     this.isProcessing.value = true;
 
-    // Try resolving the payment URI to a "best" payment method. Then try
-    // immediately preflighting it if it already has an associated amount.
-    // Show a spinner while this happens, and an error modal if something goes
-    // wrong.
-    final result = await showModalAsyncFlow(
+    // Try resolving the payment URI to "best" payment and claim methods
+    // TODO(nicole): 2x showModalAsyncFlow causes a flicker effect; need to fix
+    final resolveResult = await showModalAsyncFlow(
       context: this.context,
-      future: this.widget.sendCtx.resolveAndMaybePreflight(text),
-      // TODO(phlip9): error messages need work
+      future: this.widget.uriFlowCtx.resolve(text),
       errorBuilder: (context, err) => AlertDialog(
-        title: const Text("Issue with payment"),
+        title: const Text("Issue with resolving URI"),
         content: Text(err),
         scrollable: true,
         actions: [
@@ -66,44 +64,97 @@ class _ScanPageState extends State<ScanPage> {
     if (!this.mounted) return;
 
     // User canceled
-    if (result == null) {
+    if (resolveResult == null) {
       this.isProcessing.value = false;
       return;
     }
 
-    // Check the results, or show an error on the page.
-    final SendState sendCtx;
-    switch (result) {
+    // Check the resolve result
+    final PaymentMethod? paymentMethod;
+    final ClaimMethod? claimMethod;
+    switch (resolveResult) {
       case Ok(:final ok):
-        sendCtx = ok;
+        paymentMethod = ok.$1;
+        claimMethod = ok.$2;
       case Err(:final err):
-        error("ScanPage: preflight error: $err");
+        error("ScanPage: URI resolution error: $err");
         this.isProcessing.value = false;
         return;
     }
 
-    // If we still need an amount, then we have to collect that first.
-    // Otherwise, a successful payment preflight means we can go directly to the
-    // confirm page.
-    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
-      ),
-    );
+    // Branch accordingly
+    switch ((paymentMethod, claimMethod)) {
+      case (final paymentMethod?, _):
+        // Enter send flow; try immediately preflighting, showing a spinner
+        // during the wait and an error modal if something goes wrong.
+        // TODO(nicole): 2x showModalAsyncFlow causes a flicker effect; need to fix
+        final result = await showModalAsyncFlow(
+          context: this.context,
+          future: this.widget.uriFlowCtx.enterSendFlow(paymentMethod),
+          // TODO(phlip9): error messages need work
+          errorBuilder: (context, err) => AlertDialog(
+            title: const Text("Issue with preflighting payment"),
+            content: Text(err),
+            scrollable: true,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Close"),
+              ),
+            ],
+          ),
+        );
+        if (!this.mounted) return;
 
-    info(
-      "SendPaymentNeedUriPage: flow result: $flowResult, mounted: ${this.mounted}",
-    );
+        // User canceled
+        if (result == null) {
+          this.isProcessing.value = false;
+          return;
+        }
 
-    // User canceled the payment flow - allow scanning again.
-    if (!this.mounted || flowResult == null) {
-      this.isProcessing.value = false;
-      return;
+        // Check the results, or show an error on the page.
+        final SendState sendCtx;
+        switch (result) {
+          case Ok(:final ok):
+            sendCtx = ok;
+          case Err(:final err):
+            error("ScanPage: preflight error: $err");
+            this.isProcessing.value = false;
+            return;
+        }
+
+        // If we still need an amount, then we have to collect that first.
+        // Otherwise, a successful payment preflight means we can go directly to the
+        // confirm page.
+        final SendFlowResult? flowResult = await Navigator.of(this.context)
+            .push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
+              ),
+            );
+
+        info(
+          "SendPaymentNeedUriPage: flow result: $flowResult, mounted: ${this.mounted}",
+        );
+
+        // User canceled the payment flow - allow scanning again.
+        if (!this.mounted || flowResult == null) {
+          this.isProcessing.value = false;
+          return;
+        }
+
+        // Successfully sent payment -- return result to parent page.
+        await Navigator.of(
+          this.context,
+        ).maybePop(UriFlowResult(sendFlowResult: flowResult));
+
+      // TODO(nicole): add claim flow
+      case _:
+        error("ScanPage: Failed to find a payment method from the scanned URI");
+        this.isProcessing.value = false;
+        return;
     }
-
-    // Successfully sent payment -- return result to parent page.
-    // ignore: use_build_context_synchronously
-    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   @override

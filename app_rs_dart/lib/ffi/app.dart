@@ -206,10 +206,11 @@ class AppHandle {
       AppRs.instance.api.crateFfiAppAppHandleProvision(that: this);
 
   /// Resolve a (possible) [`PaymentUri`] string that we just
-  /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
+  /// scanned/pasted into a best [`PaymentMethod`] or [`ClaimMethod`]
+  /// for us to pay/claim.
   ///
   /// [`PaymentUri`]: lexe_payment_uri::PaymentUri
-  Future<PaymentMethod> resolveBest({
+  Future<(PaymentMethod?, ClaimMethod?)> resolveBest({
     required Network network,
     required String uriStr,
   }) => AppRs.instance.api.crateFfiAppAppHandleResolveBest(

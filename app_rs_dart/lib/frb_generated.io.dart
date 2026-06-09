@@ -149,6 +149,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  ClaimMethod dco_decode_box_autoadd_claim_method(dynamic raw);
+
+  @protected
   CloseChannelRequest dco_decode_box_autoadd_close_channel_request(dynamic raw);
 
   @protected
@@ -199,6 +202,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   LnurlPayRequest dco_decode_box_autoadd_lnurl_pay_request(dynamic raw);
 
   @protected
+  LnurlWithdrawRequest dco_decode_box_autoadd_lnurl_withdraw_request(
+    dynamic raw,
+  );
+
+  @protected
   Offer dco_decode_box_autoadd_offer(dynamic raw);
 
   @protected
@@ -224,6 +232,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PaymentCreatedIndex dco_decode_box_autoadd_payment_created_index(dynamic raw);
+
+  @protected
+  PaymentMethod dco_decode_box_autoadd_payment_method(dynamic raw);
 
   @protected
   PreflightOpenChannelRequest
@@ -274,6 +285,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   WalletFundingState dco_decode_box_autoadd_wallet_funding_state(dynamic raw);
+
+  @protected
+  ClaimMethod dco_decode_claim_method(dynamic raw);
 
   @protected
   ClientPaymentId dco_decode_client_payment_id(dynamic raw);
@@ -383,6 +397,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   LnurlPayRequestMetadata dco_decode_lnurl_pay_request_metadata(dynamic raw);
 
   @protected
+  LnurlWithdrawRequest dco_decode_lnurl_withdraw_request(dynamic raw);
+
+  @protected
   LxChannelDetails dco_decode_lx_channel_details(dynamic raw);
 
   @protected
@@ -422,6 +439,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
   @protected
+  ClaimMethod? dco_decode_opt_box_autoadd_claim_method(dynamic raw);
+
+  @protected
   FeeEstimate? dco_decode_opt_box_autoadd_fee_estimate(dynamic raw);
 
   @protected
@@ -444,6 +464,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw);
+
+  @protected
+  PaymentMethod? dco_decode_opt_box_autoadd_payment_method(dynamic raw);
 
   @protected
   RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw);
@@ -541,6 +564,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PreflightPayOnchainResponse dco_decode_preflight_pay_onchain_response(
+    dynamic raw,
+  );
+
+  @protected
+  (PaymentMethod?, ClaimMethod?)
+  dco_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
     dynamic raw,
   );
 
@@ -694,6 +723,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  ClaimMethod sse_decode_box_autoadd_claim_method(SseDeserializer deserializer);
+
+  @protected
   CloseChannelRequest sse_decode_box_autoadd_close_channel_request(
     SseDeserializer deserializer,
   );
@@ -758,6 +790,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  LnurlWithdrawRequest sse_decode_box_autoadd_lnurl_withdraw_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Offer sse_decode_box_autoadd_offer(SseDeserializer deserializer);
 
   @protected
@@ -793,6 +830,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PaymentCreatedIndex sse_decode_box_autoadd_payment_created_index(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PaymentMethod sse_decode_box_autoadd_payment_method(
     SseDeserializer deserializer,
   );
 
@@ -859,6 +901,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   WalletFundingState sse_decode_box_autoadd_wallet_funding_state(
     SseDeserializer deserializer,
   );
+
+  @protected
+  ClaimMethod sse_decode_claim_method(SseDeserializer deserializer);
 
   @protected
   ClientPaymentId sse_decode_client_payment_id(SseDeserializer deserializer);
@@ -1002,6 +1047,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  LnurlWithdrawRequest sse_decode_lnurl_withdraw_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LxChannelDetails sse_decode_lx_channel_details(SseDeserializer deserializer);
 
   @protected
@@ -1047,6 +1097,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  ClaimMethod? sse_decode_opt_box_autoadd_claim_method(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   FeeEstimate? sse_decode_opt_box_autoadd_fee_estimate(
     SseDeserializer deserializer,
   );
@@ -1075,6 +1130,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Payment? sse_decode_opt_box_autoadd_payment(SseDeserializer deserializer);
+
+  @protected
+  PaymentMethod? sse_decode_opt_box_autoadd_payment_method(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer);
@@ -1186,6 +1246,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PreflightPayOnchainResponse sse_decode_preflight_pay_onchain_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  (PaymentMethod?, ClaimMethod?)
+  sse_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
     SseDeserializer deserializer,
   );
 
@@ -1364,6 +1430,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_claim_method(
+    ClaimMethod self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_close_channel_request(
     CloseChannelRequest self,
     SseSerializer serializer,
@@ -1442,6 +1514,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_lnurl_withdraw_request(
+    LnurlWithdrawRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_offer(Offer self, SseSerializer serializer);
 
   @protected
@@ -1483,6 +1561,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_payment_created_index(
     PaymentCreatedIndex self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_payment_method(
+    PaymentMethod self,
     SseSerializer serializer,
   );
 
@@ -1563,6 +1647,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
     WalletFundingState self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_claim_method(ClaimMethod self, SseSerializer serializer);
 
   @protected
   void sse_encode_client_payment_id(
@@ -1733,6 +1820,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_lnurl_withdraw_request(
+    LnurlWithdrawRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_lx_channel_details(
     LxChannelDetails self,
     SseSerializer serializer,
@@ -1787,6 +1880,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_claim_method(
+    ClaimMethod? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_fee_estimate(
     FeeEstimate? self,
     SseSerializer serializer,
@@ -1822,6 +1921,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_payment(
     Payment? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_payment_method(
+    PaymentMethod? self,
     SseSerializer serializer,
   );
 
@@ -1966,6 +2071,13 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_preflight_pay_onchain_response(
     PreflightPayOnchainResponse self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
+    (PaymentMethod?, ClaimMethod?) self,
     SseSerializer serializer,
   );
 

@@ -4,7 +4,10 @@ use anyhow::anyhow;
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig},
-    types::auth::RootSeed as SdkRootSeed,
+    types::{
+        auth::RootSeed as SdkRootSeed,
+        bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
+    },
 };
 use lexe_api::{
     models::command::{
@@ -528,6 +531,23 @@ impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
     }
 }
 
+pub enum ClaimMethod {
+    LnurlWithdraw(LnurlWithdrawRequest),
+}
+
+impl From<lexe_payment_uri::ClaimMethod> for ClaimMethod {
+    fn from(value: lexe_payment_uri::ClaimMethod) -> Self {
+        match value {
+            lexe_payment_uri::ClaimMethod::LnurlWithdraw {
+                lnurl: _,
+                withdraw_request,
+            } => Self::LnurlWithdraw(LnurlWithdrawRequest::from(
+                withdraw_request,
+            )),
+        }
+    }
+}
+
 /// A potential onchain Bitcoin payment.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -700,6 +720,39 @@ impl From<LnurlPayRequestMetadata> for LnurlPayRequestMetadataRs {
             email: value.email,
             description_hash: value.description_hash,
             raw: value.raw,
+        }
+    }
+}
+
+pub struct LnurlWithdrawRequest {
+    pub callback: String,
+    pub k1: String,
+    pub default_description: String,
+    pub min_withdrawable_msat: u64,
+    pub max_withdrawable_msat: u64,
+}
+
+impl From<LnurlWithdrawRequestRs> for LnurlWithdrawRequest {
+    fn from(value: LnurlWithdrawRequestRs) -> Self {
+        Self {
+            callback: value.callback,
+            k1: value.k1,
+            default_description: value.default_description,
+            min_withdrawable_msat: value.min_withdrawable.msat(),
+            max_withdrawable_msat: value.max_withdrawable.msat(),
+        }
+    }
+}
+
+impl From<LnurlWithdrawRequest> for LnurlWithdrawRequestRs {
+    fn from(value: LnurlWithdrawRequest) -> Self {
+        Self {
+            callback: value.callback,
+            k1: value.k1,
+            default_description: value.default_description,
+            min_withdrawable: AmountRs::from_msat(value.min_withdrawable_msat),
+            max_withdrawable: AmountRs::from_msat(value.max_withdrawable_msat),
+            pay_link: None,
         }
     }
 }
