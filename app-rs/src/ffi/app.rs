@@ -642,8 +642,6 @@ impl AppHandle {
     /// Withdraw from an LNURL using an [`LnurlWithdrawRequest`].
     ///
     /// [`LnurlWithdrawRequest`]: crate::ffi::types::LnurlWithdrawRequest
-    // TODO(nicole): remove
-    #[allow(dead_code)]
     pub async fn withdraw_lnurl(
         &self,
         req: WithdrawLnurlRequest,

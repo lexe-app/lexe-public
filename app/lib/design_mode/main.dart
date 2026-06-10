@@ -20,6 +20,7 @@ import 'package:app_rs_dart/ffi/settings.dart' show WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
+        ClaimMethod_LnurlWithdraw,
         ClientPaymentId,
         Config,
         Invoice,
@@ -75,6 +76,12 @@ import 'package:lexeapp/route/change_backup_password.dart'
     show ChangeBackupPasswordPage;
 import 'package:lexeapp/route/channels.dart'
     show ChannelBalanceBarRow, ChannelButton, ChannelsList, ChannelsPage;
+import 'package:lexeapp/route/claim/page.dart' show ClaimPaymentPage;
+import 'package:lexeapp/route/claim/state.dart'
+    show
+        ClaimReady_LnurlWithdraw,
+        ClaimState_NeedAmount,
+        ClaimState_NeedConfirm;
 import 'package:lexeapp/route/clients.dart' show ClientsPage;
 import 'package:lexeapp/route/close_channel.dart'
     show CloseChannelConfirmPage, CloseChannelPage;
@@ -598,6 +605,40 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             balance: mockApp.balance,
             cid: cid,
             fiatRate: mockFiatRate,
+          ),
+        ),
+      ),
+      Component(
+        "ClaimPaymentAmountPage",
+        subtitle: "lnurl-withdraw",
+        (context) => ClaimPaymentPage(
+          startNewFlow: true,
+          claimCtx: ClaimState_NeedAmount(
+            app: mockApp,
+            fiatRate: mockFiatRate,
+            claimMethod: ClaimMethod_LnurlWithdraw(
+              httpUrl:
+                  "https://send.laisee.org/withdraw/api/v1/lnurl/5AXKHMxBFNqFseJFFNSTye",
+              withdrawRequest: mocks.defaultLnurlWithdrawRequest,
+            ),
+          ),
+        ),
+      ),
+      Component(
+        "ClaimPaymentConfirmPage",
+        subtitle: "lnurl-withdraw",
+        (context) => ClaimPaymentPage(
+          startNewFlow: true,
+          claimCtx: ClaimState_NeedConfirm(
+            app: mockApp,
+            fiatRate: mockFiatRate,
+            claimable: ClaimReady_LnurlWithdraw(
+              httpUrl:
+                  "https://send.laisee.really.long.org/withdraw/api/v1/lnurl/5AXKHMxBFNqFseJFFNSTye",
+              withdrawRequest: mocks.defaultLnurlWithdrawRequest,
+              amountMsat: 7000,
+              description: "Need money for groceries",
+            ),
           ),
         ),
       ),

@@ -1743,8 +1743,8 @@ final LnurlPayRequest defaultLnurlPayRequest = LnurlPayRequest(
 final LnurlWithdrawRequest defaultLnurlWithdrawRequest = LnurlWithdrawRequest(
   callback: "https://example.com/withdraw-callback",
   k1: "randomlygeneratedk1",
-  defaultDescription: "Withdrawal from Lexe",
-  minWithdrawableMsat: 1000,
+  defaultDescription: "Withdraw from Laisee.org",
+  minWithdrawableMsat: 2000,
   maxWithdrawableMsat: 10000,
 );
 
