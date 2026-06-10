@@ -17,9 +17,9 @@
 //! 2) "Revocable": Node (server) deterministically derives a "revocable cert
 //!    issuing" CA. The app requests the node to issue an "revocable" client
 //!    cert. The issued client cert does not encode an expiration. Instead, its
-//!    expiration is managed at the application level via a cert store which
-//!    tracks each client cert's pubkey and expiration. These client certs can
-//!    be given to SDK clients and revoked at any time.
+//!    expiration is managed at the application level via `revocable_clients`,
+//!    which tracks each client cert's pubkey and expiration. These client certs
+//!    can be given to SDK clients and revoked at any time.
 //!
 //! ## Client and server cert verification
 //!
@@ -357,6 +357,49 @@ impl ServerCertVerifier for UserNodeRunVerifier {
     }
 }
 
+/// The client authentication kind, based on the CN of the certificate issuer.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ClientCertKind {
+    /// Client authenticated with an ephemeral cert (derived from the
+    /// RootSeed). Used by any root-seed client (e.g. the app); has full access.
+    Ephemeral,
+    /// Client authenticated with a revocable cert (SDK client).
+    Revocable {
+        /// The client credential's public key.
+        client_pk: ed25519::PublicKey,
+    },
+}
+
+impl ClientCertKind {
+    /// Classifies an untrusted, DER-encoded client cert by its issuer CN.
+    ///
+    /// Returns `None` if the cert can't be parsed or the issuer CN is
+    /// unrecognized.
+    ///
+    /// SECURITY: The issuer CN is attacker-controlled (hence `_untrusted`), so
+    /// this is only trustworthy for certs verified against our CAs.
+    pub fn from_der_untrusted(cert_der: &[u8]) -> Option<Self> {
+        let (_remaining, cert) = X509Certificate::from_der(cert_der).ok()?;
+
+        let issuer_cn = cert
+            .issuer()
+            .iter_common_name()
+            .next()
+            .and_then(|cn| cn.as_str().ok())?;
+
+        match issuer_cn {
+            certs::EphemeralIssuingCaCert::COMMON_NAME => Some(Self::Ephemeral),
+            certs::RevocableIssuingCaCert::COMMON_NAME => {
+                let client_pk =
+                    ed25519::PublicKey::try_from_spki(cert.public_key())
+                        .ok()?;
+                Some(Self::Revocable { client_pk })
+            }
+            _ => None,
+        }
+    }
+}
+
 /// A [`ClientCertVerifier`] which trusts either the "ephemeral issuing" or
 /// "revocable issuing" CA.
 ///
@@ -438,49 +481,43 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
             rustls::Error::General(s.to_string())
         }
 
-        // If it's signed by the ephemeral issuing CA, automatically trust it.
-        if let Ok(verified) = self.ephemeral_ca_verifier.verify_client_cert(
-            end_entity_der,
-            intermediates,
-            now,
-        ) {
-            return Ok(verified);
+        // Classify the cert by its issuer CN, then cryptographically verify it
+        // against the corresponding CA.
+        let cert_kind =
+            ClientCertKind::from_der_untrusted(end_entity_der.as_bytes())
+                .ok_or_else(|| rustls_err("Unrecognized cert issuer"))?;
+
+        match cert_kind {
+            ClientCertKind::Ephemeral => self
+                .ephemeral_ca_verifier
+                .verify_client_cert(end_entity_der, intermediates, now),
+
+            ClientCertKind::Revocable { client_pk } => {
+                self.revocable_ca_verifier.verify_client_cert(
+                    end_entity_der,
+                    intermediates,
+                    now,
+                )?;
+
+                // Revocable certs must also be in `revocable_clients`,
+                // not revoked, and not expired.
+                let now = TimestampMs::from_secs(now.as_secs())
+                    .map_err(|_| rustls_err("Clock overflow"))?;
+                let status = self
+                    .revocable_clients
+                    .get_client_status(&client_pk, now)
+                    .ok_or_else(|| rustls_err("Unrecognized cert pk"))?;
+                match status {
+                    RevocableClientStatus::Valid => {}
+                    RevocableClientStatus::Revoked =>
+                        return Err(rustls_err("Client was previously revoked")),
+                    RevocableClientStatus::Expired =>
+                        return Err(rustls_err("Client is expired")),
+                }
+
+                Ok(ClientCertVerified::assertion())
+            }
         }
-
-        // Ensure it is signed by the revocable issuing CA.
-        self.revocable_ca_verifier.verify_client_cert(
-            end_entity_der,
-            intermediates,
-            now,
-        )?;
-
-        // Great, it was signed by the revocable issuing CA.
-
-        // Parse the cert and get the SubjectPublicKeyInfo
-        let (_remaining, end_entity) =
-            X509Certificate::from_der(end_entity_der.as_bytes())
-                .map_err(|_| rustls_err("Cert was not encoded correctly"))?;
-        let end_entity_pk = ed25519::PublicKey::try_from_spki(
-            &end_entity.tbs_certificate.subject_pki,
-        )
-        .map_err(|e| rustls_err(format!("Not an ed25519 pk: {e}")))?;
-
-        // Check that the cert is known, not revoked, and not expired.
-        let now = TimestampMs::from_secs(now.as_secs())
-            .map_err(|_| rustls_err("Clock overflow"))?;
-        let status = self
-            .revocable_clients
-            .get_client_status(&end_entity_pk, now)
-            .ok_or_else(|| rustls_err("Unrecognized cert pk"))?;
-        match status {
-            RevocableClientStatus::Valid => {}
-            RevocableClientStatus::Revoked =>
-                return Err(rustls_err("Client was previously revoked")),
-            RevocableClientStatus::Expired =>
-                return Err(rustls_err("Client is expired")),
-        }
-
-        Ok(ClientCertVerified::assertion())
     }
 
     fn verify_tls12_signature(

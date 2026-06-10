@@ -57,7 +57,7 @@ impl EphemeralIssuingCaCert {
     // TODO(max): Ideally rename this to "Lexe ephemeral issuing CA cert", but
     // need to be careful about backwards compatibility. Both client and server
     // would need to trust the old and new CAs before the old CA can be removed.
-    const COMMON_NAME: &'static str = "Lexe shared seed CA cert";
+    pub const COMMON_NAME: &str = "Lexe shared seed CA cert";
 
     /// Deterministically derive the CA cert from the [`RootSeed`].
     pub fn from_root_seed(root_seed: &RootSeed) -> Self {
@@ -214,7 +214,7 @@ impl EphemeralServerCert {
 
 impl RevocableIssuingCaCert {
     /// The Common Name (CN) component of this cert's Distinguished Name (DN).
-    const COMMON_NAME: &'static str = "Lexe revocable issuing CA cert";
+    pub const COMMON_NAME: &str = "Lexe revocable issuing CA cert";
 
     /// Deterministically derive the CA cert from the [`RootSeed`].
     pub fn from_root_seed(root_seed: &RootSeed) -> Self {
