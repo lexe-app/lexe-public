@@ -1528,13 +1528,15 @@ impl SseDecode for crate::ffi::types::ClaimMethod {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                let mut var_field0 =
+                let mut var_httpUrl = <String>::sse_decode(deserializer);
+                let mut var_withdrawRequest =
                     <crate::ffi::types::LnurlWithdrawRequest>::sse_decode(
                         deserializer,
                     );
-                return crate::ffi::types::ClaimMethod::LnurlWithdraw(
-                    var_field0,
-                );
+                return crate::ffi::types::ClaimMethod::LnurlWithdraw {
+                    http_url: var_httpUrl,
+                    withdraw_request: var_withdrawRequest,
+                };
             }
             _ => {
                 unimplemented!("");
@@ -3474,8 +3476,15 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::Balance>
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::ClaimMethod {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::ffi::types::ClaimMethod::LnurlWithdraw(field0) =>
-                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::ffi::types::ClaimMethod::LnurlWithdraw {
+                http_url,
+                withdraw_request,
+            } => [
+                0.into_dart(),
+                http_url.into_into_dart().into_dart(),
+                withdraw_request.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -5234,10 +5243,15 @@ impl SseEncode for crate::ffi::types::ClaimMethod {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         match self {
-            crate::ffi::types::ClaimMethod::LnurlWithdraw(field0) => {
+            crate::ffi::types::ClaimMethod::LnurlWithdraw {
+                http_url,
+                withdraw_request,
+            } => {
                 <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(http_url, serializer);
                 <crate::ffi::types::LnurlWithdrawRequest>::sse_encode(
-                    field0, serializer,
+                    withdraw_request,
+                    serializer,
                 );
             }
             _ => {

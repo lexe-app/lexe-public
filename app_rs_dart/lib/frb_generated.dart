@@ -3667,7 +3667,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     switch (raw[0]) {
       case 0:
         return ClaimMethod_LnurlWithdraw(
-          dco_decode_box_autoadd_lnurl_withdraw_request(raw[1]),
+          httpUrl: dco_decode_String(raw[1]),
+          withdrawRequest: dco_decode_box_autoadd_lnurl_withdraw_request(
+            raw[2],
+          ),
         );
       default:
         throw Exception("unreachable");
@@ -5329,10 +5332,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        var var_field0 = sse_decode_box_autoadd_lnurl_withdraw_request(
+        var var_httpUrl = sse_decode_String(deserializer);
+        var var_withdrawRequest = sse_decode_box_autoadd_lnurl_withdraw_request(
           deserializer,
         );
-        return ClaimMethod_LnurlWithdraw(var_field0);
+        return ClaimMethod_LnurlWithdraw(
+          httpUrl: var_httpUrl,
+          withdrawRequest: var_withdrawRequest,
+        );
       default:
         throw UnimplementedError('');
     }
@@ -7241,9 +7248,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_claim_method(ClaimMethod self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case ClaimMethod_LnurlWithdraw(field0: final field0):
+      case ClaimMethod_LnurlWithdraw(
+        httpUrl: final httpUrl,
+        withdrawRequest: final withdrawRequest,
+      ):
         sse_encode_i_32(0, serializer);
-        sse_encode_box_autoadd_lnurl_withdraw_request(field0, serializer);
+        sse_encode_String(httpUrl, serializer);
+        sse_encode_box_autoadd_lnurl_withdraw_request(
+          withdrawRequest,
+          serializer,
+        );
     }
   }
 

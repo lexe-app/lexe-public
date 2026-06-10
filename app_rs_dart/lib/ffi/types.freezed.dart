@@ -76,22 +76,23 @@ String toString() {
 /// @nodoc
 mixin _$ClaimMethod {
 
- LnurlWithdrawRequest get field0;
+/// The HTTP endpoint, for display purposes
+ String get httpUrl; LnurlWithdrawRequest get withdrawRequest;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaimMethod&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaimMethod&&(identical(other.httpUrl, httpUrl) || other.httpUrl == httpUrl)&&(identical(other.withdrawRequest, withdrawRequest) || other.withdrawRequest == withdrawRequest));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,field0);
+int get hashCode => Object.hash(runtimeType,httpUrl,withdrawRequest);
 
 @override
 String toString() {
-  return 'ClaimMethod(field0: $field0)';
+  return 'ClaimMethod(httpUrl: $httpUrl, withdrawRequest: $withdrawRequest)';
 }
 
 
@@ -105,26 +106,28 @@ String toString() {
 
 
 class ClaimMethod_LnurlWithdraw extends ClaimMethod {
-  const ClaimMethod_LnurlWithdraw(this.field0): super._();
+  const ClaimMethod_LnurlWithdraw({required this.httpUrl, required this.withdrawRequest}): super._();
   
 
-@override final  LnurlWithdrawRequest field0;
+/// The HTTP endpoint, for display purposes
+@override final  String httpUrl;
+@override final  LnurlWithdrawRequest withdrawRequest;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaimMethod_LnurlWithdraw&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaimMethod_LnurlWithdraw&&(identical(other.httpUrl, httpUrl) || other.httpUrl == httpUrl)&&(identical(other.withdrawRequest, withdrawRequest) || other.withdrawRequest == withdrawRequest));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,field0);
+int get hashCode => Object.hash(runtimeType,httpUrl,withdrawRequest);
 
 @override
 String toString() {
-  return 'ClaimMethod.lnurlWithdraw(field0: $field0)';
+  return 'ClaimMethod.lnurlWithdraw(httpUrl: $httpUrl, withdrawRequest: $withdrawRequest)';
 }
 
 

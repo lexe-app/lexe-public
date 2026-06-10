@@ -576,18 +576,33 @@ impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
 }
 
 pub enum ClaimMethod {
-    LnurlWithdraw(LnurlWithdrawRequest),
+    LnurlWithdraw {
+        /// The HTTP endpoint, for display purposes
+        http_url: String,
+        withdraw_request: LnurlWithdrawRequest,
+    },
 }
 
 impl From<lexe_payment_uri::ClaimMethod> for ClaimMethod {
     fn from(value: lexe_payment_uri::ClaimMethod) -> Self {
         match value {
             lexe_payment_uri::ClaimMethod::LnurlWithdraw {
-                lnurl: _,
+                lnurl,
                 withdraw_request,
-            } => Self::LnurlWithdraw(LnurlWithdrawRequest::from(
-                withdraw_request,
-            )),
+            } => {
+                // This is unfortunate but we don't expose `Lnurl` type in SDK
+                let http_url = lexe_payment_uri::Lnurl::parse(&lnurl)
+                    .expect("lnurl field should be lnurl-parseable")
+                    .http_url
+                    .to_string();
+
+                Self::LnurlWithdraw {
+                    http_url,
+                    withdraw_request: LnurlWithdrawRequest::from(
+                        withdraw_request,
+                    ),
+                }
+            }
         }
     }
 }

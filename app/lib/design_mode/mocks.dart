@@ -516,7 +516,11 @@ class MockAppHandle extends AppHandle {
     if (uriStr.startsWith("lnurlw")) {
       return (
         PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest),
-        ClaimMethod_LnurlWithdraw(defaultLnurlWithdrawRequest),
+        ClaimMethod_LnurlWithdraw(
+          httpUrl:
+              "https://send.laisee.org/withdraw/api/v1/lnurl/5AXKHMxBFNqFseJFFNSTye",
+          withdrawRequest: defaultLnurlWithdrawRequest,
+        ),
       );
     }
 

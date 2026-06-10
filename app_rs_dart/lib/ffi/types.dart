@@ -52,8 +52,11 @@ class BackupInfo {
 sealed class ClaimMethod with _$ClaimMethod {
   const ClaimMethod._();
 
-  const factory ClaimMethod.lnurlWithdraw(LnurlWithdrawRequest field0) =
-      ClaimMethod_LnurlWithdraw;
+  const factory ClaimMethod.lnurlWithdraw({
+    /// The HTTP endpoint, for display purposes
+    required String httpUrl,
+    required LnurlWithdrawRequest withdrawRequest,
+  }) = ClaimMethod_LnurlWithdraw;
 }
 
 /// A unique, client-generated id for payment types (onchain send,
