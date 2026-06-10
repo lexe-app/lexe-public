@@ -76,7 +76,6 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     if (!this.mounted || flowResult == null) return;
 
     // Successfully sent payment -- return result to parent page.
-    // ignore: use_build_context_synchronously
     await Navigator.of(this.context).maybePop(flowResult);
   }
 
@@ -152,7 +151,6 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
         if (!this.mounted || flowResult == null) return;
 
         // Successfully sent payment -- return result to parent page.
-        // ignore: use_build_context_synchronously
         await Navigator.of(
           this.context,
         ).maybePop(UriFlowResult(sendFlowResult: flowResult));

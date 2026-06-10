@@ -1,7 +1,5 @@
 // Send payment page
 
-// ignore_for_file: camel_case_types
-
 import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart'
@@ -173,16 +171,14 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     }
 
     // Everything looks good so far -- navigate to the confirmation page.
-    final SendFlowResult? flowResult =
-        // ignore: use_build_context_synchronously
-        await Navigator.of(this.context).push(
-          MaterialPageRoute(
-            builder: (_) => SendPaymentConfirmPage(
-              sendCtx: nextSendCtx,
-              initialNote: personalNote,
-            ),
-          ),
-        );
+    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => SendPaymentConfirmPage(
+          sendCtx: nextSendCtx,
+          initialNote: personalNote,
+        ),
+      ),
+    );
 
     // Confirm page results:
     info(
@@ -191,7 +187,6 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
     if (!this.mounted || flowResult == null) return;
 
-    // ignore: use_build_context_synchronously
     await Navigator.of(this.context).maybePop(flowResult);
   }
 
@@ -596,7 +591,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         // notify our caller that we were successful.
         final flowResult = ok;
         info("SendPaymentConfirmPage: success: flowResult: $flowResult");
-        // ignore: use_build_context_synchronously
         unawaited(Navigator.of(this.context).maybePop(flowResult));
 
       case Err(:final err):

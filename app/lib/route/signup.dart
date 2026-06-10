@@ -139,7 +139,6 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         return;
     }
 
-    // ignore: use_build_context_synchronously
     final AppHandle? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (_) => SignupBackupPasswordPage(ctx: ctx, authInfo: authInfo),
@@ -149,7 +148,6 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
 
     info("SignupGDriveAuthPage: successful signup");
 
-    // ignore: use_build_context_synchronously
     unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 

@@ -249,7 +249,6 @@ class _RestoreGDriveAuthPageStateState extends State<RestoreGDriveAuthPage> {
 
     info("restore: successful restore");
 
-    // ignore: use_build_context_synchronously
     unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
