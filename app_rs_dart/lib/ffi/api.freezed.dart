@@ -260,22 +260,22 @@ String toString() {
 /// @nodoc
 mixin _$CreateInvoiceRequest {
 
- int get expirySecs; int? get amountSats; String? get description;
+ int get expirySecs; int? get amountSats; String? get description; String? get personalNote;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateInvoiceRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateInvoiceRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description,personalNote);
 
 @override
 String toString() {
-  return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+  return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description, personalNote: $personalNote)';
 }
 
 
@@ -289,28 +289,29 @@ String toString() {
 
 
 class _CreateInvoiceRequest implements CreateInvoiceRequest {
-  const _CreateInvoiceRequest({required this.expirySecs, this.amountSats, this.description});
+  const _CreateInvoiceRequest({required this.expirySecs, this.amountSats, this.description, this.personalNote});
   
 
 @override final  int expirySecs;
 @override final  int? amountSats;
 @override final  String? description;
+@override final  String? personalNote;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateInvoiceRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateInvoiceRequest&&(identical(other.expirySecs, expirySecs) || other.expirySecs == expirySecs)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.description, description) || other.description == description)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description);
+int get hashCode => Object.hash(runtimeType,expirySecs,amountSats,description,personalNote);
 
 @override
 String toString() {
-  return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+  return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description, personalNote: $personalNote)';
 }
 
 

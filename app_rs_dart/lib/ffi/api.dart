@@ -65,6 +65,7 @@ sealed class CreateInvoiceRequest with _$CreateInvoiceRequest {
     required int expirySecs,
     int? amountSats,
     String? description,
+    String? personalNote,
   }) = _CreateInvoiceRequest;
 }
 

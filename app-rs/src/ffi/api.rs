@@ -393,6 +393,7 @@ pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
     pub amount_sats: Option<u64>,
     pub description: Option<String>,
+    pub personal_note: Option<String>,
 }
 
 impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
@@ -407,7 +408,10 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
             description: value.description,
             description_hash: None,
             message: None,
-            personal_note: None,
+            personal_note: value
+                .personal_note
+                .map(BoundedString::new)
+                .transpose()?,
             partner_pk: None,
             partner_prop_fee: None,
             partner_base_fee: None,
