@@ -402,6 +402,14 @@ rec {
     ${run-sgx}/bin/run-sgx ${sgx-test}/bin/sgx-test.sgxs --debug "$@"
   '';
 
+  # Custom rust target-spec.json for x86_64-fortanix-unknown-sgx with LVI-CFI
+  # and LVI-LOAD mitigations removed.
+  x86_64-fortanix-unknown-sgx-nolvi-json =
+    pkgs.callPackage ./x86_64-fortanix-unknown-sgx-nolvi-json.nix
+      {
+        rustLexeToolchain = rustLexeToolchain;
+      };
+
   # Minimal `pkgs.mkShellNoCC` for `nix develop` that only
   #
   # 1. passes through `env`
