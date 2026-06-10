@@ -29,6 +29,11 @@ rec {
   workspaceTomlParsed = builtins.fromTOML (builtins.readFile workspaceToml);
   workspaceVersion = workspaceTomlParsed.workspace.package.version;
 
+  # Rust std Cargo.lock. Vendored to avoid IFD.
+  rustStdLockParsed = builtins.fromTOML (
+    builtins.readFile (./. + "/Cargo.rust-std-v${rustToolchainVersion}.lock")
+  );
+
   # `fenix` rust toolchains need patching on macOS to work properly inside the
   # build sandbox.
   patchFenixRustToolchainIfMacOS =
@@ -71,12 +76,22 @@ rec {
         '';
       });
 
+  # parse our `rust-toolchain.toml` file and get the expected version
+  rustToolchainVersion =
+    let
+      rustToolchainToml = builtins.fromTOML (
+        builtins.readFile ../../rust-toolchain.toml
+      );
+    in
+    rustToolchainToml.toolchain.channel;
+
   # Instantiate the rust toolchain from our `rust-toolchain.toml`.
   rustLexeToolchain =
     let
       fenixToolchainUnpatched = fenixPkgs.combine [
         fenixPkgs.stable.rustc
         fenixPkgs.stable.cargo
+        fenixPkgs.stable.rust-src
         fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
       ];
 
@@ -89,12 +104,6 @@ rec {
       url = fenixPkgs.stable.cargo.src.url;
       dlFile = builtins.baseNameOf url;
       fenixToolchainVersion = builtins.elemAt (builtins.split "-" dlFile) 2;
-
-      # parse our `rust-toolchain.toml` file and get the expected version
-      rustToolchainToml = builtins.fromTOML (
-        builtins.readFile ../../rust-toolchain.toml
-      );
-      rustToolchainVersion = rustToolchainToml.toolchain.channel;
     in
     # assert that the fenix stable toolchain uses our expected version
     assert lib.assertMsg (fenixToolchainVersion == rustToolchainVersion) ''
@@ -218,15 +227,13 @@ rec {
   # A function to vendor all cargo dependencies from a Cargo.lock file.
   vendorCargoDeps =
     {
-      cargoLock ? throw "Requires oneof `cargoLock`, `cargoLockContents`, `cargoLockParsed`",
-      cargoLockContents ? builtins.readFile cargoLock,
-      cargoLockParsed ? builtins.fromTOML cargoLockContents,
+      cargoLockParsedList,
       gitDepOutputHashes ? { },
       gitDepOutputs ? builtins.mapAttrs fetchGitDep gitDepOutputHashes,
     }:
     craneLib.vendorMultipleCargoDeps {
       cargoConfigs = [ ]; # only used if we have custom registries
-      cargoLockParsedList = [ cargoLockParsed ];
+      cargoLockParsedList = cargoLockParsedList;
       outputHashes = gitDepOutputHashes;
       overrideVendorCargoPackage = _ps: drv: drv;
       overrideVendorGitCheckout =
@@ -255,7 +262,10 @@ rec {
   # Download and vendor all cargo deps from the workspace Cargo.lock into the
   # nix store.
   cargoVendorDir = vendorCargoDeps {
-    cargoLockParsed = workspaceLockParsed;
+    cargoLockParsedList = [
+      workspaceLockParsed
+      rustStdLockParsed
+    ];
     gitDepOutputs = gitDepOutputs;
     gitDepOutputHashes = gitDepOutputHashes;
   };
@@ -322,7 +332,10 @@ rec {
     );
   rustSgxSrc = gitDepOutputs.${rustSgxCargoSource};
   rustSgxCargoVendorDir = vendorCargoDeps {
-    cargoLock = rustSgxSrc + "/Cargo.lock";
+    # TODO(phlip9): remove IFD, use nixpkgs fetchCargoVendor
+    cargoLockParsedList = [
+      (builtins.fromTOML (builtins.readFile (rustSgxSrc + "/Cargo.lock")))
+    ];
   };
 
   # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into
