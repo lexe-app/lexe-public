@@ -38,16 +38,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1772251230,
-        "narHash": "sha256-qDF0s7E+8cmoc9GEdU59b34E6+V+W1WwyAIoGf4BIwU=",
+        "lastModified": 1783622018,
+        "narHash": "sha256-T/m2ilmeLjtUCvT33T8+P0HNGA6Vg+L3CVP8RZgKJME=",
         "owner": "lexe-app",
         "repo": "nixpkgs",
-        "rev": "4fcfac2871e6872e62f45457013de6e04e041c78",
+        "rev": "30b0ae7066bc61d6f271bbdc119933b005769f6b",
         "type": "github"
       },
       "original": {
         "owner": "lexe-app",
-        "ref": "lexe-nixos-25.11-2026_02_26",
+        "ref": "lexe-nixos-26.05-2026_07_09",
         "repo": "nixpkgs",
         "type": "github"
       }

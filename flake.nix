@@ -3,12 +3,8 @@
 
   inputs = {
     # NixOS/nixpkgs - nixos-stable branch for the current release
-    # * blockstream-electrs: 0.4.1-unstable-2024-11-25 -> 0.4.1-unstable-2025-09-29
-    # * sgx-psw+aesmd: 2.25 -> 2.26
-    # * sgx-psw+aesmd: 2.26 -> 2.27
-    # * sgx-azure-dcap-client: 1.12.3 -> 1.13.0-pre0
-    # * sgx-sdk: remove broken package
-    nixpkgs.url = "github:lexe-app/nixpkgs/lexe-nixos-25.11-2026_02_26";
+    # * sgx-psw: 2.27 -> 2.29; nixos/aesmd: update
+    nixpkgs.url = "github:lexe-app/nixpkgs/lexe-nixos-26.05-2026_07_09";
 
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
