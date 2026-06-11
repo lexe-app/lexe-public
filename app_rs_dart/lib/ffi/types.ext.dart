@@ -3,6 +3,8 @@ library;
 
 import 'package:app_rs_dart/ffi/types.dart'
     show
+        ClaimMethod,
+        ClaimMethod_LnurlWithdraw,
         Invoice,
         Offer,
         Payment,
@@ -154,6 +156,19 @@ extension PaymentKindExt on PaymentKind {
     PaymentKind_WaivedChannelFee() ||
     PaymentKind_WaivedLiquidityFee() ||
     PaymentKind_Unknown() => false,
+  };
+}
+
+//
+// ClaimMethod
+//
+
+extension ClaimMethodExt on ClaimMethod {
+  int? fixedAmountSats() => switch (this) {
+    ClaimMethod_LnurlWithdraw(:final withdrawRequest) =>
+      withdrawRequest.minWithdrawableMsat == withdrawRequest.maxWithdrawableMsat
+          ? withdrawRequest.minWithdrawableMsat ~/ 1000
+          : null,
   };
 }
 

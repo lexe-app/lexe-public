@@ -919,6 +919,12 @@ final class LxIcons {
   /// Send payment icon (up arrow)
   static const IconData send = Symbols.arrow_upward_rounded;
 
+  /// Inbound payment icon (down left arrow)
+  static const IconData inbound = Symbols.call_received_rounded;
+
+  /// Outbound payment icon (up right arrow)
+  static const IconData outbound = Symbols.call_made_rounded;
+
   /// Expand up (up arrow)
   static const IconData expandUp = Symbols.arrow_upward_rounded;
 

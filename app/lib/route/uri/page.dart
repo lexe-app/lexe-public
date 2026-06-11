@@ -1,4 +1,12 @@
-import 'package:app_rs_dart/ffi/types.dart' show ClaimMethod, PaymentMethod;
+import 'package:app_rs_dart/ffi/types.dart'
+    show
+        ClaimMethod,
+        ClaimMethod_LnurlWithdraw,
+        PaymentMethod,
+        PaymentMethod_Invoice,
+        PaymentMethod_LnurlPayRequest,
+        PaymentMethod_Offer,
+        PaymentMethod_Onchain;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
@@ -12,14 +20,17 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
+        SheetDragHandle,
         StackedButton,
         baseInputDecoration;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/claim/page.dart' show ClaimPaymentPage;
+import 'package:lexeapp/route/claim/state.dart' show ClaimFlowResult;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
 import 'package:lexeapp/route/uri/state.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxIcons, Space;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 class NeedUriPage extends StatelessWidget {
   const NeedUriPage({
@@ -79,6 +90,56 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     await Navigator.of(this.context).maybePop(flowResult);
   }
 
+  Future<UriFlowResult?> _handlePaymentMethod(
+    PaymentMethod paymentMethod,
+  ) async {
+    final result = await this.widget.uriFlowCtx.enterSendFlow(paymentMethod);
+    if (!this.mounted) return null;
+
+    // Check the results, or show an error on the page.
+    final SendState sendCtx;
+    switch (result) {
+      case Ok(:final ok):
+        sendCtx = ok;
+      case Err(:final err):
+        this.errorMessage.value = ErrorMessage(message: err);
+        return null;
+    }
+
+    // If we still need an amount, then we have to collect that first.
+    // Otherwise, a successful payment preflight means we can go directly to the
+    // confirm page.
+    final SendFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
+      ),
+    );
+
+    info(
+      "NeedUriPage (send): flowResult: $flowResult, mounted: ${this.mounted}",
+    );
+    if (!this.mounted || flowResult == null) return null;
+
+    return UriFlowResult_Send(flowResult);
+  }
+
+  Future<UriFlowResult?> _handleClaimMethod(ClaimMethod claimMethod) async {
+    final claimCtx = this.widget.uriFlowCtx.enterClaimFlow(claimMethod);
+
+    final ClaimFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ClaimPaymentPage(claimCtx: claimCtx, startNewFlow: true),
+      ),
+    );
+    info(
+      "NeedUriPage (claim): flowResult: $flowResult, mounted: ${this.mounted}",
+    );
+    if (!this.mounted || flowResult == null) return null;
+
+    return UriFlowResult_Claim(flowResult);
+  }
+
   Future<void> onNext() async {
     // Hide error message
     this.errorMessage.value = null;
@@ -113,57 +174,41 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     }
 
     // Branch accordingly
+    final UriFlowResult? flowResult;
     switch ((paymentMethod, claimMethod)) {
-      // We can enter the send flow if we resolved a payment method
-      case (final paymentMethod?, _):
-        final result = await this.widget.uriFlowCtx.enterSendFlow(
-          paymentMethod,
+      case (final paymentMethod?, final claimMethod?):
+        final UriChoice? userChoice = await SendOrClaimChoiceSheet.show(
+          context: this.context,
+          paymentMethod: paymentMethod,
+          claimMethod: claimMethod,
         );
-        if (!this.mounted) return;
-
-        // Stop loading animation
-        this.isPending.value = false;
-
-        // Check the results, or show an error on the page.
-        final SendState sendCtx;
-        switch (result) {
-          case Ok(:final ok):
-            sendCtx = ok;
-          case Err(:final err):
-            this.errorMessage.value = ErrorMessage(message: err);
-            return;
+        if (userChoice == null) {
+          this.isPending.value = false;
+          return;
         }
+        flowResult = switch (userChoice) {
+          UriChoice.send => await this._handlePaymentMethod(paymentMethod),
+          UriChoice.claim => await this._handleClaimMethod(claimMethod),
+        };
 
-        // If we still need an amount, then we have to collect that first.
-        // Otherwise, a successful payment preflight means we can go directly to the
-        // confirm page.
-        final SendFlowResult? flowResult = await Navigator.of(this.context)
-            .push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
-              ),
-            );
+      case (final paymentMethod?, _):
+        flowResult = await this._handlePaymentMethod(paymentMethod);
 
-        info(
-          "SendPaymentNeedUriPage: flowResult: $flowResult, mounted: ${this.mounted}",
-        );
-        if (!this.mounted || flowResult == null) return;
+      case (_, final claimMethod?):
+        flowResult = await this._handleClaimMethod(claimMethod);
 
-        // Successfully sent payment -- return result to parent page.
-        await Navigator.of(
-          this.context,
-        ).maybePop(UriFlowResult(sendFlowResult: flowResult));
-
-      // Otherwise, fail and allow for another attempt
-      // TODO(nicole): add claim flow and send/pay selection
       case _:
         this.isPending.value = false;
         this.errorMessage.value = ErrorMessage(
-          message: "Failed to find a payment method from the URI.",
+          message: "Failed to resolve the URI. This is a bug -- please report.",
         );
         return;
     }
+    this.isPending.value = false;
+    if (!this.mounted || flowResult == null) return;
+
+    // Successfully processed payment -- return result to parent page.
+    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   /// Called when the user taps the paste button
@@ -284,6 +329,115 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+enum UriChoice { send, claim }
+
+/// A bottom sheet that asks the user to choose between sending or claiming,
+/// and pops a [UriChoice] accordingly.
+///
+/// Currently, only shown when the user scans an LNURL-withdraw with an embedded
+/// LNURL-pay via the payLink field.
+class SendOrClaimChoiceSheet extends StatelessWidget {
+  const SendOrClaimChoiceSheet({
+    super.key,
+    required this.paymentMethod,
+    required this.claimMethod,
+  });
+
+  final PaymentMethod paymentMethod;
+  final ClaimMethod claimMethod;
+
+  /// Show the sheet and return the user's choice
+  static Future<UriChoice?> show({
+    required BuildContext context,
+    required PaymentMethod paymentMethod,
+    required ClaimMethod claimMethod,
+  }) => showModalBottomSheet(
+    backgroundColor: LxColors.background,
+    enableDrag: true,
+    isScrollControlled: true,
+    isDismissible: true,
+    context: context,
+    builder: (context) => SendOrClaimChoiceSheet(
+      paymentMethod: paymentMethod,
+      claimMethod: claimMethod,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final sendKind = switch (this.paymentMethod) {
+      PaymentMethod_Onchain() => "onchain",
+      PaymentMethod_Invoice() => "invoice",
+      PaymentMethod_LnurlPayRequest() => "LNURL",
+      PaymentMethod_Offer() => "offer",
+    };
+    final claimKind = switch (this.claimMethod) {
+      ClaimMethod_LnurlWithdraw() => "LNURL",
+    };
+
+    // TODO(nicole): could b cuter ):
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: Space.s400,
+        right: Space.s400,
+        bottom: Space.s700,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        spacing: Space.s400,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: Space.s500),
+            child: const SheetDragHandle(),
+          ),
+          LxFilledButton(
+            onTap: () => Navigator.of(context).pop(UriChoice.send),
+            style: FilledButton.styleFrom(
+              backgroundColor: LxColors.grey1000,
+              foregroundColor: LxColors.foreground,
+              iconColor: LxColors.foreground,
+              fixedSize: const Size(300.0, Space.s800),
+            ),
+            label: Text("Pay via $sendKind"),
+            icon: const Icon(LxIcons.outbound),
+          ),
+          LxFilledButton(
+            onTap: () => Navigator.of(context).pop(UriChoice.claim),
+            style: FilledButton.styleFrom(
+              backgroundColor: LxColors.grey1000,
+              foregroundColor: LxColors.foreground,
+              iconColor: LxColors.foreground,
+              fixedSize: const Size(300.0, Space.s800),
+            ),
+            label: Text("Withdraw via $claimKind"),
+            icon: const Icon(LxIcons.inbound),
+          ),
+          // InfoCard(
+          //   children: [
+          //     Row(
+          //       children: [
+          //         Container(
+          //           width: Space.s800,
+          //           height: Space.s800,
+          //           decoration: BoxDecoration(
+          //             color: LxColors.foreground,
+          //             borderRadius: BorderRadius.circular(LxRadius.r300),
+          //             // shape: BoxShape.circle,
+          //           ),
+          //           child: const Icon(LxIcons.inbound, color: LxColors.background),
+          //         ),
+          //         Text("Receive via LNURL")
+          //       ]
+          //     ),
+          //   ],
+          // ),
+        ],
       ),
     );
   }

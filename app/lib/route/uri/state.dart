@@ -1,20 +1,35 @@
+// URI-derived payment flow state (branches into both send and claim flows)
+
+// ignore_for_file: camel_case_types
+
 import 'package:app_rs_dart/ffi/api.dart';
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show ClaimMethod, ClientPaymentId, Network, PaymentMethod;
+import 'package:app_rs_dart/ffi/types.ext.dart' show ClaimMethodExt;
 import 'package:flutter/foundation.dart';
 import 'package:lexeapp/address_format.dart'
     as address_format
     show ellipsizeBtcAddress;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/claim/state.dart'
+    show ClaimFlowResult, ClaimState, ClaimState_NeedAmount;
 import 'package:lexeapp/route/send/state.dart';
 
 /// The outcome of a successful URI payment flow.
 @immutable
-final class UriFlowResult {
-  const UriFlowResult({required this.sendFlowResult});
-  // TODO(nicole): augment into claim/payment result sum type when adding claim flow
+sealed class UriFlowResult {
+  const UriFlowResult();
+}
+
+class UriFlowResult_Send implements UriFlowResult {
+  const UriFlowResult_Send(this.sendFlowResult);
   final SendFlowResult sendFlowResult;
+}
+
+class UriFlowResult_Claim implements UriFlowResult {
+  const UriFlowResult_Claim(this.claimFlowResult);
+  final ClaimFlowResult claimFlowResult;
 }
 
 /// Initial state if we're beginning a URI-based flow with no extra user input.
@@ -78,6 +93,8 @@ class NeedUriState {
     );
 
     // Try preflighting the payment if it already has an amount set.
+    // TODO(nicole): all we check for is amount, so for something like lnurl
+    // which accepts comments, the comment gets unconditionally skipped
     final int? maybePreflightableAmount = needAmountSendCtx
         .canPreflightImmediately();
 
@@ -90,5 +107,26 @@ class NeedUriState {
       error("Error preflighting payment: $err");
       return err.message;
     });
+  }
+
+  /// Enter a claim flow, returning the next [ClaimState]
+  ClaimState enterClaimFlow(ClaimMethod claimMethod) {
+    final needAmountClaimCtx = ClaimState_NeedAmount(
+      app: this.app,
+      fiatRate: this.fiatRate,
+      claimMethod: claimMethod,
+    );
+
+    // Check for an amount
+    final int? fixedAmount = claimMethod.fixedAmountSats();
+    if (fixedAmount == null) {
+      // No fixed amount, need user to enter amount.
+      return needAmountClaimCtx;
+    }
+
+    // Otherwise, we can skip to the confirmation step
+    // TODO(nicole): all we check for is amount, so for something like lnurl
+    // which accepts messages, the message gets unconditionally skipped
+    return needAmountClaimCtx.withAmount(fixedAmount);
   }
 }
