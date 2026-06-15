@@ -131,7 +131,7 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
 
     // The keys for the input fields
     final amountInputKey = GlobalKey<FormFieldState<String>>();
-    final messageKey = GlobalKey<FormFieldState<String>>();
+    // final messageKey = GlobalKey<FormFieldState<String>>();
 
     Future<void> onNext() async {
       // Validate the amount input field
@@ -151,13 +151,13 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
           amountSats = ok;
       }
 
-      // Get the message from the input field
-      final message = messageKey.currentState?.value?.nonEmpty();
+      // // Get the message from the input field
+      // final message = messageKey.currentState?.value?.nonEmpty();
 
       // Advance state
       final needConfirmCtx = this.widget.claimCtx.withAmount(
         amountSats,
-        message: message,
+        // message: message,
       );
 
       final ClaimFlowResult? flowResult = await Navigator.push(
@@ -234,23 +234,25 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
           ),
           if (detailsList.isNotEmpty) const SizedBox(height: Space.s300),
 
-          // Message (invoice description)
-          const Text(
-            "Optional message",
-            style: TextStyle(
-              fontSize: Fonts.size200,
-              color: LxColors.fgTertiary,
-            ),
-          ),
-          const SizedBox(height: Space.s200),
-          PaymentNoteInput(
-            fieldKey: messageKey,
-            onSubmit: onNext,
-            hintText: "Optional message (visible to recipient)",
-            // BOLT11 invoice description limit
-            maxLength: 200,
-            textInputAction: TextInputAction.next,
-          ),
+          // For now we disable invoice description for LNURL withdraw until
+          // it's more obvious how description/default description are used
+          // // Message (invoice description)
+          // const Text(
+          //   "Optional message",
+          //   style: TextStyle(
+          //     fontSize: Fonts.size200,
+          //     color: LxColors.fgTertiary,
+          //   ),
+          // ),
+          // const SizedBox(height: Space.s200),
+          // PaymentNoteInput(
+          //   fieldKey: messageKey,
+          //   onSubmit: onNext,
+          //   hintText: "Optional message (visible to recipient)",
+          //   // BOLT11 invoice description limit
+          //   maxLength: 200,
+          //   textInputAction: TextInputAction.next,
+          // ),
         ],
 
         // Next ->
@@ -356,9 +358,9 @@ class _ClaimPaymentConfirmPageState extends State<ClaimPaymentConfirmPage> {
       withdrawRequest.defaultDescription.nonEmpty(),
   };
 
-  String? message() => switch (this.widget.claimCtx.claimable) {
-    ClaimReady_LnurlWithdraw(:final description) => description?.nonEmpty(),
-  };
+  // String? message() => switch (this.widget.claimCtx.claimable) {
+  //   ClaimReady_LnurlWithdraw(:final description) => description?.nonEmpty(),
+  // };
 
   Future<void> onConfirm() async {
     if (this.isClaiming.value) return;
@@ -405,7 +407,7 @@ class _ClaimPaymentConfirmPageState extends State<ClaimPaymentConfirmPage> {
     final amountFiatStr = this.formatFiatAmount(this.amountSats());
 
     final description = this.description();
-    final message = this.message();
+    // final message = this.message();
 
     return Scaffold(
       appBar: AppBar(
@@ -501,13 +503,11 @@ class _ClaimPaymentConfirmPageState extends State<ClaimPaymentConfirmPage> {
           if (description != null)
             MetadataRow(title: "Description", value: description),
 
-          //
-          // Message to recipient
-          //
-          if (message != null) MetadataRow(title: "Message", value: message),
-
-          if (description != null || message != null)
-            const SizedBox(height: Space.s450),
+          // //
+          // // Message to recipient
+          // //
+          // if (message != null) MetadataRow(title: "Message", value: message),
+          if (description != null) const SizedBox(height: Space.s450),
 
           //
           // Optional payment note input

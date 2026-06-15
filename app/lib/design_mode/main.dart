@@ -637,7 +637,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   "https://send.laisee.really.long.org/withdraw/api/v1/lnurl/5AXKHMxBFNqFseJFFNSTye",
               withdrawRequest: mocks.defaultLnurlWithdrawRequest,
               amountMsat: 7000,
-              description: "Need money for groceries",
             ),
           ),
         ),

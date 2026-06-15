@@ -55,7 +55,7 @@ class ClaimState_NeedAmount extends ClaimState {
   /// Advance state to [ClaimState_NeedConfirm] with the given info
   ClaimState_NeedConfirm withAmount(
     int amountSats, {
-    String? message,
+    // String? message,
     String? personalNote,
   }) {
     switch (this.claimMethod) {
@@ -67,7 +67,7 @@ class ClaimState_NeedAmount extends ClaimState {
             httpUrl: httpUrl,
             withdrawRequest: withdrawRequest,
             amountMsat: amountSats * 1000,
-            description: message,
+            // description: message,
             personalNote: personalNote,
           ),
         );
@@ -97,7 +97,7 @@ class ClaimState_NeedConfirm extends ClaimState {
         final req = WithdrawLnurlRequest(
           withdrawRequest: claimParams.withdrawRequest,
           amountMsat: claimParams.amountMsat,
-          description: claimParams.description,
+          // description: claimParams.description,
           personalNote: newPersonalNote,
         );
         final result = await Result.tryFfiAsync(
@@ -112,17 +112,19 @@ class ClaimState_NeedConfirm extends ClaimState {
 sealed class ClaimReady {}
 
 class ClaimReady_LnurlWithdraw extends ClaimReady {
+  // Custom invoice description is disabled for now, since it's unclear how
+  // it's meant to be used (eg. as a message? why change the default description?)
   ClaimReady_LnurlWithdraw({
     required this.httpUrl,
     required this.withdrawRequest,
     required this.amountMsat,
-    this.description,
+    // this.description,
     this.personalNote,
   });
 
   final String httpUrl;
   final LnurlWithdrawRequest withdrawRequest;
   final int amountMsat;
-  final String? description;
+  // final String? description;
   final String? personalNote;
 }
