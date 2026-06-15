@@ -110,7 +110,8 @@ mod sidecar {
             Cow::from(
                 "warning: No client credentials configured. \
                  Credentials must be set per-request via the Authorization \
-                 header. Alternatively, one of the following flags can be set:
+                 header. Alternatively, one of the following flags \
+                 can be set:\n\
                  \t--client-credentials / $LEXE_CLIENT_CREDENTIALS\n\
                  \t--client-credentials-path / $LEXE_CLIENT_CREDENTIALS_PATH\n\
                  \t--root-seed / $LEXE_ROOT_SEED\n\
@@ -210,8 +211,10 @@ mod node {
             wallet,
             credentials,
         }: WalletAndCredentialsExtractor,
-        LxJson(req): LxJson<Option<PayRequest>>,
+        maybe_req: Option<LxJson<PayRequest>>,
     ) -> Result<LxJson<Payment>, SdkApiError> {
+        let req = maybe_req.map(|LxJson(r)| r);
+
         // Ensure that query params and request body don't conflict
         let merged = if let Some(pay_req) = req {
             pay_req

@@ -324,7 +324,7 @@ fn resolve_credentials(
         info!(
             "No client credentials configured. \
              Credentials must be set per-request via the Authorization \
-             header. Alternatively, one of the following flags can be set:
+             header. Alternatively, one of the following flags can be set:\n\
              \t--client-credentials / $LEXE_CLIENT_CREDENTIALS\n\
              \t--client-credentials-path / $LEXE_CLIENT_CREDENTIALS_PATH\n\
              \t--root-seed / $LEXE_ROOT_SEED\n\
