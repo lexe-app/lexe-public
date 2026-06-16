@@ -14,6 +14,7 @@ use lexe::types::{
         GetPaymentResponse, GetUpdatedPaymentsRequest,
         GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
         PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
+        UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -190,4 +191,14 @@ pub trait UserSidecarApi {
         &self,
         req: &GetUpdatedPaymentsRequest,
     ) -> Result<GetUpdatedPaymentsResponse, SdkApiError>;
+
+    /// POST /v2/node/update_personal_note [`UpdatePersonalNoteRequest`]
+    ///                                 -> [`Empty`]
+    ///
+    /// Update the personal note on an existing payment. The note is stored on
+    /// the user node and is not visible to the counterparty.
+    async fn update_personal_note(
+        &self,
+        req: &UpdatePersonalNoteRequest,
+    ) -> Result<Empty, SdkApiError>;
 }

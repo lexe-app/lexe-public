@@ -23,6 +23,7 @@ use lexe::{
             PayInvoiceRequest, PayLnurlRequest as SdkPayLnurlRequest,
             PayOfferRequest, PayRequest as SdkPayRequest,
             PayableDetails as SdkPayableDetails, PaymentSyncSummary,
+            UpdatePersonalNoteRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
         payment::Payment,
@@ -94,6 +95,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
         .route("/v2/node/payment", get(node::get_payment))
         .route("/v2/node/updated_payments", get(node::get_updated_payments))
+        .route(
+            "/v2/node/update_personal_note",
+            post(node::update_personal_note),
+        )
         // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
         .route("/v1/node/node_info", get(node::node_info))
@@ -529,6 +534,19 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(update-personal-note)")]
+    pub(crate) async fn update_personal_note(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<UpdatePersonalNoteRequest>,
+    ) -> Result<LxJson<Empty>, SdkApiError> {
+        wallet
+            .update_personal_note(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(Empty {}))
     }
 }
 

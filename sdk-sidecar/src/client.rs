@@ -5,6 +5,7 @@ use lexe::types::{
         GetPaymentResponse, GetUpdatedPaymentsRequest,
         GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
         PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
+        UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -206,6 +207,16 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/updated_payments");
         let http_req = self.rest.get(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn update_personal_note(
+        &self,
+        req: &UpdatePersonalNoteRequest,
+    ) -> Result<Empty, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/update_personal_note");
+        let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 }
