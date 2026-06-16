@@ -3,8 +3,8 @@ use lexe::types::{
         AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
         GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, NodeInfo, PayInvoiceRequest,
-        PayOfferRequest,
+        GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
+        PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
     },
     payment::Payment,
 };
@@ -16,8 +16,8 @@ use lexe_api::{
 
 use crate::{
     api::{
-        AnalyzeResponse, HealthCheckResponse, PayLnurlRequest, PayRequest,
-        SignupRequest, WithdrawLnurlRequest,
+        AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
+        PayLnurlRequest, PayRequest, SignupRequest, WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };
@@ -52,6 +52,30 @@ impl UserSidecarApi for SidecarClient {
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError> {
         let url = format!("{base}/v2/health", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn sync_payments(&self) -> Result<PaymentSyncSummary, SdkApiError> {
+        let url =
+            format!("{base}/v2/node/sync_payments", base = self.sidecar_url);
+        let http_req = self.rest.put(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn list_payments(
+        &self,
+        req: &ListPaymentsRequest,
+    ) -> Result<ListPaymentsResponse, SdkApiError> {
+        let url =
+            format!("{base}/v2/node/list_payments", base = self.sidecar_url);
+        let http_req = self.rest.get(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn clear_payments(&self) -> Result<Empty, SdkApiError> {
+        let url =
+            format!("{base}/v2/node/clear_payments", base = self.sidecar_url);
+        let http_req = self.rest.post(url, &Empty {});
         self.rest.send(http_req).await
     }
 

@@ -631,7 +631,7 @@ pub struct ListPaymentsResponse {
 }
 
 /// Summary of changes from a payment sync operation.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentSyncSummary {
     /// Number of new payments added to the local database.
     pub num_new: usize,

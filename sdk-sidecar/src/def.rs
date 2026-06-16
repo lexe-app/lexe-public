@@ -12,17 +12,16 @@ use lexe::types::{
         AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
         GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, NodeInfo, PayInvoiceRequest,
-        PayOfferRequest,
+        GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
+        PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
     },
     payment::Payment,
 };
-use lexe_api::error::SdkApiError;
-use lexe_api::types::Empty;
+use lexe_api::{error::SdkApiError, types::Empty};
 
 use crate::api::{
-    AnalyzeResponse, HealthCheckResponse, PayLnurlRequest, PayRequest,
-    SignupRequest, WithdrawLnurlRequest,
+    AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest,
+    PayRequest, SignupRequest, WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -31,6 +30,34 @@ pub trait UserSidecarApi {
     ///
     /// Check the health of the sidecar itself.
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError>;
+
+    /// PUT /v2/node/sync_payments [`Empty`] -> [`PaymentSyncSummary`]
+    ///
+    /// Sync the local payment cache with the latest payment data from the
+    /// node, fetching all payments which are new or have been updated since
+    /// the last sync. Returns a summary of how many were added or updated.
+    async fn sync_payments(&self) -> Result<PaymentSyncSummary, SdkApiError>;
+
+    /// GET /v2/node/list_payments [`ListPaymentsRequest`]
+    ///                         -> [`ListPaymentsResponse`]
+    ///
+    /// List payments from the local cache, filtered by status and returned in
+    /// the requested order with cursor-based pagination. Call [`sync_payments`]
+    /// first to ensure the cache reflects the latest data from the node.
+    ///
+    /// [`sync_payments`]: Self::sync_payments
+    async fn list_payments(
+        &self,
+        req: &ListPaymentsRequest,
+    ) -> Result<ListPaymentsResponse, SdkApiError>;
+
+    /// POST /v2/node/clear_payments [`Empty`] -> [`Empty`]
+    ///
+    /// Clear all locally cached payment data. Remote data on the node is not
+    /// affected; call [`sync_payments`] to re-populate the cache.
+    ///
+    /// [`sync_payments`]: Self::sync_payments
+    async fn clear_payments(&self) -> Result<Empty, SdkApiError>;
 
     /// PUT /v2/node/signup [`SignupRequest`] -> [`Empty`]
     ///

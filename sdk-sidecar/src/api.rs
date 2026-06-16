@@ -13,6 +13,7 @@ use lexe::types::{
         PayLnurlRequest as SdkPayLnurlRequest,
         WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
     },
+    payment::{Order, PaymentCreatedIndex, PaymentFilter},
 };
 use lexe_common::time::TimestampMs;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct HealthCheckResponse {
     pub status: Cow<'static, str>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ListPaymentsRequest {
+    pub filter: PaymentFilter,
+    pub order: Option<Order>,
+    pub limit: Option<usize>,
+    pub after: Option<PaymentCreatedIndex>,
 }
 
 #[derive(Serialize, Deserialize)]
