@@ -17,7 +17,7 @@ use lexe_api::{
 use crate::{
     api::{
         AnalyzeResponse, HealthCheckResponse, PayLnurlRequest, PayRequest,
-        WithdrawLnurlRequest,
+        SignupRequest, WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };
@@ -52,6 +52,12 @@ impl UserSidecarApi for SidecarClient {
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError> {
         let url = format!("{base}/v2/health", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn signup(&self, req: &SignupRequest) -> Result<Empty, SdkApiError> {
+        let url = format!("{base}/v2/node/signup", base = self.sidecar_url);
+        let http_req = self.rest.put(url, req);
         self.rest.send(http_req).await
     }
 

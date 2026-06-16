@@ -7,6 +7,7 @@ use std::borrow::Cow;
 
 use anyhow::ensure;
 use lexe::types::{
+    auth::UserPk,
     bitcoin::Amount,
     command::{
         PayLnurlRequest as SdkPayLnurlRequest,
@@ -19,6 +20,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct HealthCheckResponse {
     pub status: Cow<'static, str>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SignupRequest {
+    pub partner_pk: Option<UserPk>,
 }
 
 #[derive(Serialize, Deserialize)]

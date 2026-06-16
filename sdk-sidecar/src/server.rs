@@ -8,7 +8,7 @@ use anyhow::Context;
 use axum::{
     Router,
     extract::State,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use lexe::{
     config::WalletEnvConfig,
@@ -31,7 +31,7 @@ use lexe::{
 use lexe_api::{
     error::{SdkApiError, SdkErrorKind},
     server::{LxJson, extract::LxQuery},
-    types::payments::PaymentCreatedIndex,
+    types::{Empty, payments::PaymentCreatedIndex},
 };
 use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
@@ -39,7 +39,7 @@ use tracing::{debug, instrument, warn};
 use crate::{
     api::{
         AnalyzeResponse, HealthCheckResponse, PayLnurlRequest, PayRequest,
-        PayableDetails, WithdrawLnurlRequest,
+        PayableDetails, SignupRequest, WithdrawLnurlRequest,
     },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
@@ -76,6 +76,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
     Router::new()
         // v2
         .route("/v2/health", get(sidecar::health))
+        .route("/v2/node/signup", put(node::signup))
         .route("/v2/node/node_info", get(node::node_info))
         .route("/v2/node/analyze", get(node::analyze))
         .route("/v2/node/pay", post(node::pay))
@@ -128,6 +129,55 @@ mod sidecar {
 
 mod node {
     use super::*;
+
+    #[instrument(skip_all, name = "(signup)")]
+    pub(crate) async fn signup(
+        State(state): State<Arc<RouterState>>,
+        CredentialsExtractor(maybe_credentials): CredentialsExtractor,
+        req: Option<LxJson<SignupRequest>>,
+    ) -> Result<LxJson<Empty>, SdkApiError> {
+        // Ensure that per-request credentials weren't passed
+        if maybe_credentials.is_some() {
+            return Err(SdkApiError::bad_auth(
+                "Signup requires root seed credentials, but per-request client \
+                 credentials were provided. \
+                 Ensure that the Authorization header is empty.",
+            ));
+        };
+        let (wallet, root_seed) = match state
+            .default
+            .as_ref()
+            .map(|(w, creds)| (w.as_ref(), creds.as_ref()))
+        {
+            None =>
+                return Err(SdkApiError::bad_auth(
+                    "Signup requires root seed credentials, but none were \
+                     provided.\n\
+                     Ensure that one of the following are set:\n\
+                     \t--root-seed / $LEXE_ROOT_SEED\n\
+                     \t--root-seed-path / $LEXE_ROOT_SEED_PATH",
+                )),
+            Some((_, Credentials::ClientCredentials(_))) =>
+                return Err(SdkApiError::bad_auth(
+                    "Signup requires root seed credentials, but client \
+                     credentials were provided instead.\n\
+                     Ensure that none of the following are set,\n\
+                     \t--client-credentials / $LEXE_CLIENT_CREDENTIALS\n\
+                     \t--client-credentials-path / $LEXE_CLIENT_CREDENTIALS_PATH\n\
+                     and ensure that only one of the following are set:\n\
+                     \t--root-seed / $LEXE_ROOT_SEED\n\
+                     \t--root-seed-path / $LEXE_ROOT_SEED_PATH",
+                )),
+            Some((w, Credentials::RootSeed(seed))) => (w, seed),
+        };
+        let partner_pk = req.and_then(|LxJson(req)| req.partner_pk);
+        wallet
+            .signup(root_seed, partner_pk)
+            .await
+            .map_err(SdkApiError::command)?;
+
+        Ok(LxJson(Empty {}))
+    }
 
     #[instrument(skip_all, name = "(node-info)")]
     pub(crate) async fn node_info(

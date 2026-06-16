@@ -18,12 +18,11 @@ use lexe::types::{
     payment::Payment,
 };
 use lexe_api::error::SdkApiError;
-#[cfg(doc)]
 use lexe_api::types::Empty;
 
 use crate::api::{
     AnalyzeResponse, HealthCheckResponse, PayLnurlRequest, PayRequest,
-    WithdrawLnurlRequest,
+    SignupRequest, WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -32,6 +31,11 @@ pub trait UserSidecarApi {
     ///
     /// Check the health of the sidecar itself.
     async fn health_check(&self) -> Result<HealthCheckResponse, SdkApiError>;
+
+    /// PUT /v2/node/signup [`SignupRequest`] -> [`Empty`]
+    ///
+    /// Register with Lexe and perform initial provisioning using a root seed.
+    async fn signup(&self, req: &SignupRequest) -> Result<Empty, SdkApiError>;
 
     /// GET /v2/node/node_info [`Empty`] -> [`NodeInfo`]
     ///
