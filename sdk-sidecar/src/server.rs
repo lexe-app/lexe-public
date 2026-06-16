@@ -77,6 +77,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         // v2
         .route("/v2/health", get(sidecar::health))
         .route("/v2/node/signup", put(node::signup))
+        .route("/v2/node/provision", put(node::provision))
         .route("/v2/node/node_info", get(node::node_info))
         .route("/v2/node/analyze", get(node::analyze))
         .route("/v2/node/pay", post(node::pay))
@@ -176,6 +177,21 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
 
+        Ok(LxJson(Empty {}))
+    }
+
+    #[instrument(skip_all, name = "(provision)")]
+    pub(crate) async fn provision(
+        State(_): State<Arc<RouterState>>,
+        WalletAndCredentialsExtractor {
+            wallet,
+            credentials,
+        }: WalletAndCredentialsExtractor,
+    ) -> Result<LxJson<Empty>, SdkApiError> {
+        wallet
+            .provision(Credentials::as_ref(&credentials))
+            .await
+            .map_err(SdkApiError::command)?;
         Ok(LxJson(Empty {}))
     }
 

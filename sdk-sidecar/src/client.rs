@@ -61,6 +61,12 @@ impl UserSidecarApi for SidecarClient {
         self.rest.send(http_req).await
     }
 
+    async fn provision(&self) -> Result<Empty, SdkApiError> {
+        let url = format!("{base}/v2/node/provision", base = self.sidecar_url);
+        let http_req = self.rest.put(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
     async fn node_info(&self) -> Result<NodeInfo, SdkApiError> {
         let url = format!("{base}/v2/node/node_info", base = self.sidecar_url);
         let http_req = self.rest.get(url, &Empty {});

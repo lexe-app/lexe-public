@@ -37,6 +37,11 @@ pub trait UserSidecarApi {
     /// Register with Lexe and perform initial provisioning using a root seed.
     async fn signup(&self, req: &SignupRequest) -> Result<Empty, SdkApiError>;
 
+    /// PUT /v2/node/provision [`Empty`] -> [`Empty`]
+    ///
+    /// Ensure the wallet is provisioned to all recent trusted releases.
+    async fn provision(&self) -> Result<Empty, SdkApiError>;
+
     /// GET /v2/node/node_info [`Empty`] -> [`NodeInfo`]
     ///
     /// Get basic information about the Lexe node.
