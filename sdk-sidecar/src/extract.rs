@@ -87,9 +87,10 @@ impl FromRequestParts<Arc<RouterState>> for WalletAndCredentialsExtractor {
                         CredentialsRef::from(&client_credentials);
 
                     // Create new wallet and insert into cache
-                    let wallet = LexeWallet::without_db(
+                    let wallet = LexeWallet::load_or_fresh(
                         state.wallet_env_config.clone(),
                         credentials_ref,
+                        Some(state.data_dir.clone()),
                     )
                     .context("Failed to create wallet")
                     .map_err(SdkApiError::bad_auth)?;

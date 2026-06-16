@@ -87,7 +87,9 @@ pub struct SidecarArgs {
     #[argh(option)]
     pub webhook_secret: Option<String>,
 
-    /// data directory for persisted state.
+    /// data directory for local persistence. Also used by the webhook sender
+    /// to store tracked payments.
+    ///
     /// (default=`$HOME/.lexe`, env=`LEXE_DATA_DIR`)
     #[argh(option)]
     pub data_dir: Option<PathBuf>,

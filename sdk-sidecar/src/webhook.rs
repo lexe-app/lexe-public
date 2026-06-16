@@ -157,6 +157,10 @@ pub(crate) struct WebhookSender {
     /// Only wallets using [`ClientCredentials`] are cached; the cache is
     /// keyed by client pk.
     cache: Arc<Mutex<WalletCache>>,
+    /// Data directory for persisted state. Although the webhook sender doesn't
+    /// need wallet persistence, the `cache` is shared with the server which
+    /// does need wallet persistence.
+    data_dir: PathBuf,
 
     /// Webhook URL to send payment notifications to.
     /// Notification format is described by [`WebhookPayload`].
@@ -235,13 +239,13 @@ impl WebhookSender {
     /// Create a new webhook sender and return the channel sender to track
     /// requests.
     ///
-    /// `sidecar_dir` is the base directory for the webhook sender's data
+    /// `<data_dir>/sidecar` is the base directory for the webhook sender's data
     /// persistence; state is persisted in
-    /// `<sidecar_dir>/<wallet_env>/tracked_payments.json`.
+    /// `<data_dir>/sidecar/<wallet_env>/tracked_payments.json`.
     pub fn new(
         default_wallet: Option<Arc<LexeWallet>>,
         shutdown: NotifyOnce,
-        sidecar_dir: PathBuf,
+        data_dir: PathBuf,
         url: Url,
         webhook_signer: Option<WebhookSigner>,
         wallet_cache: Arc<Mutex<WalletCache>>,
@@ -260,7 +264,8 @@ impl WebhookSender {
             .build()
             .expect("reqwest::ClientBuilder::build failed");
 
-        let tracked_payments_path = sidecar_dir
+        let tracked_payments_path = data_dir
+            .join("sidecar")
             .join(wallet_env.wallet_env.to_string())
             .join(TRACKED_PAYMENTS_FILE);
 
@@ -273,6 +278,7 @@ impl WebhookSender {
             tracked_wallets: Self::load_wallets(&tracked_payments_path),
             tracked_payments_path,
             cache: wallet_cache,
+            data_dir,
             default_wallet,
             wallet_env,
             webhook_sender_rx: rx,
@@ -687,9 +693,10 @@ impl WebhookSender {
                     Some(cached_wallet) => cached_wallet.clone(),
                     None => {
                         // Create new
-                        let wallet = LexeWallet::without_db(
+                        let wallet = LexeWallet::load_or_fresh(
                             self.wallet_env.clone(),
                             CredentialsRef::from(cc),
+                            Some(self.data_dir.clone()),
                         )
                         .map(Arc::new)
                         .context("Couldn't create new wallet")?;

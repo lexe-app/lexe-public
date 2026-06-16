@@ -74,9 +74,10 @@ impl Sidecar {
         // Create the default wallet if default credentials were provided.
         let default = match maybe_credentials {
             Some(credentials) => {
-                let wallet = LexeWallet::without_db(
+                let wallet = LexeWallet::load_or_fresh(
                     wallet_env_config.clone(),
                     credentials.as_ref(),
+                    Some(data_dir.clone()),
                 )
                 .context("Failed to create wallet")?;
 
@@ -125,11 +126,10 @@ impl Sidecar {
             Arc::new(Mutex::new(unsync::Cache::new(WALLET_CACHE_CAPACITY)));
         let webhook_tx = match webhook_url {
             Some(url) => {
-                let sidecar_dir = data_dir.join("sidecar");
                 let (sender, tx) = WebhookSender::new(
                     default.as_ref().map(|(w, _)| w.clone()),
                     shutdown.clone(),
-                    sidecar_dir,
+                    data_dir.clone(),
                     url,
                     webhook_signer,
                     wallet_cache.clone(),
@@ -151,6 +151,7 @@ impl Sidecar {
         let deploy_env = wallet_env_config.wallet_env.deploy_env;
         let router_state = Arc::new(server::RouterState {
             sidecar_url,
+            data_dir,
             default,
             wallet_cache,
             wallet_env_config,

@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -56,6 +57,8 @@ const HTTP_PERCENT_ENCODE_SET: percent_encoding::AsciiSet =
 
 pub(crate) struct RouterState {
     pub sidecar_url: String,
+    /// The data directory for persisted state.
+    pub data_dir: PathBuf,
     /// The default [`LexeWallet`] and [`Credentials`] from env/CLI.
     /// Used when no per-request credentials are provided.
     pub default: Option<(Arc<LexeWallet>, Arc<Credentials>)>,
