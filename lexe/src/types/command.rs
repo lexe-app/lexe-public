@@ -542,35 +542,6 @@ pub struct WithdrawLnurlRequest {
     pub personal_note: Option<String>,
 }
 
-/// A request to update the personal note on an existing payment.
-/// Pass `None` to clear the note.
-#[derive(Serialize, Deserialize)]
-pub struct UpdatePersonalNoteRequest {
-    /// Identifier for the payment to be updated.
-    pub index: PaymentCreatedIndex,
-    /// The updated note, or `None` to clear.
-    /// If provided, it must be non-empty and no longer than 200 chars /
-    /// 512 UTF-8 bytes.
-    // compat: Alias added in node-v0.9.7
-    #[serde(rename = "note", alias = "personal_note")]
-    pub personal_note: Option<String>,
-}
-
-impl TryFrom<UpdatePersonalNoteRequest> for command::UpdatePersonalNote {
-    type Error = anyhow::Error;
-
-    fn try_from(sdk: UpdatePersonalNoteRequest) -> anyhow::Result<Self> {
-        Ok(Self {
-            index: sdk.index,
-            personal_note: sdk
-                .personal_note
-                .map(BoundedString::new)
-                .transpose()
-                .context("Invalid note")?,
-        })
-    }
-}
-
 /// A request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
 pub struct GetPaymentRequest {
@@ -620,14 +591,33 @@ pub struct GetUpdatedPaymentsResponse {
     pub updated_index: Option<PaymentUpdatedIndex>,
 }
 
-/// Response from listing payments.
+/// A request to update the personal note on an existing payment.
+/// Pass `None` to clear the note.
 #[derive(Serialize, Deserialize)]
-pub struct ListPaymentsResponse {
-    /// Payments in the requested page.
-    pub payments: Vec<Payment>,
-    /// Cursor for fetching the next page. `None` when there are no more
-    /// results. Pass this as the `after` argument to get the next page.
-    pub next_index: Option<PaymentCreatedIndex>,
+pub struct UpdatePersonalNoteRequest {
+    /// Identifier for the payment to be updated.
+    pub index: PaymentCreatedIndex,
+    /// The updated note, or `None` to clear.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    // compat: Alias added in node-v0.9.7
+    #[serde(rename = "note", alias = "personal_note")]
+    pub personal_note: Option<String>,
+}
+
+impl TryFrom<UpdatePersonalNoteRequest> for command::UpdatePersonalNote {
+    type Error = anyhow::Error;
+
+    fn try_from(sdk: UpdatePersonalNoteRequest) -> anyhow::Result<Self> {
+        Ok(Self {
+            index: sdk.index,
+            personal_note: sdk
+                .personal_note
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid note")?,
+        })
+    }
 }
 
 /// Summary of changes from a payment sync operation.
@@ -637,4 +627,14 @@ pub struct PaymentSyncSummary {
     pub num_new: usize,
     /// Number of existing payments that were updated.
     pub num_updated: usize,
+}
+
+/// Response from listing payments.
+#[derive(Serialize, Deserialize)]
+pub struct ListPaymentsResponse {
+    /// Payments in the requested page.
+    pub payments: Vec<Payment>,
+    /// Cursor for fetching the next page. `None` when there are no more
+    /// results. Pass this as the `after` argument to get the next page.
+    pub next_index: Option<PaymentCreatedIndex>,
 }

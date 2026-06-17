@@ -356,129 +356,38 @@ impl LexeWallet {
         self.db.as_ref().map(WalletDb::payments_db)
     }
 
-    // --- DB-required methods --- //
+    // --- Client accessors --- //
 
-    /// Sync payments from the user node to the local payments cache.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    #[instrument(skip_all, name = "(sync-payments)")]
-    pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
-        self.require_db()?
-            .sync_payments(
-                &self.node_client,
-                lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
-            )
-            .await
+    /// Get a reference to the user's wallet configuration.
+    pub fn user_config(&self) -> &WalletUserConfig {
+        &self.user_config
     }
 
-    /// List payments from local storage with cursor-based pagination.
-    ///
-    /// Defaults to descending order (newest first) with a limit of 100.
-    ///
-    /// To continue paginating, set `after` to the `next_index` from the
-    /// previous response. `after` is an *exclusive* index.
-    ///
-    /// If needed, use [`sync_payments`] to fetch the latest data from the
-    /// node before calling this method.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    ///
-    /// [`sync_payments`]: Self::sync_payments
-    #[instrument(skip_all, name = "(list-payments)")]
-    pub fn list_payments(
-        &self,
-        filter: &PaymentFilter,
-        order: Option<Order>,
-        limit: Option<usize>,
-        after: Option<&PaymentCreatedIndex>,
-    ) -> anyhow::Result<ListPaymentsResponse> {
-        let order = order.unwrap_or(Order::Desc);
-        let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT);
-        let (basics, next_index) = self
-            .require_payments_db()?
-            .list_payments(filter, order, limit, after);
-        let payments = basics.into_iter().map(Payment::from).collect();
-        Ok(ListPaymentsResponse {
-            payments,
-            next_index,
-        })
+    /// Get a reference to the [`GatewayClient`].
+    #[cfg(feature = "unstable")]
+    pub fn gateway_client(&self) -> &GatewayClient {
+        &self.gateway_client
     }
 
-    /// Clear all locally cached payment data for this wallet.
-    ///
-    /// Clears the local payment cache only. Remote data on the node is not
-    /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    #[instrument(skip_all, name = "(clear-payments)")]
-    pub fn clear_payments(&self) -> anyhow::Result<()> {
-        self.require_payments_db()?
-            .clear()
-            .context("Failed to clear local payments")
+    /// Get a reference to the [`NodeClient`].
+    #[cfg(feature = "unstable")]
+    pub fn node_client(&self) -> &NodeClient {
+        &self.node_client
     }
 
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    #[instrument(skip_all, name = "(wait-for-payment)")]
-    pub async fn wait_for_payment(
-        &self,
-        index: PaymentCreatedIndex,
-        timeout: Option<Duration>,
-    ) -> anyhow::Result<Payment> {
-        let timeout = timeout.unwrap_or(WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT);
-        let max_secs = WAIT_FOR_PAYMENT_MAX_TIMEOUT.as_secs();
-        let timeout_secs = timeout.as_secs();
-        ensure!(
-            timeout <= WAIT_FOR_PAYMENT_MAX_TIMEOUT,
-            "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
-        );
-
-        let initial_wait_ms = 250;
-        let max_wait_ms = 4_000;
-        let start = tokio::time::Instant::now();
-        let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
-
-        loop {
-            // Fetch the latest payment state.
-            let payment = if self.db.is_some() {
-                // DB-backed path: sync payments and query local DB.
-                self.sync_payments().await?;
-                self.require_payments_db()?
-                    .get_payment_by_created_index(&index)
-                    .map(Payment::from)
-            } else {
-                // No-DB path: poll the node directly.
-                self.node_client
-                    .get_payment_by_id(command::PaymentIdStruct {
-                        id: index.id,
-                    })
-                    .await
-                    .context("Failed to get payment")?
-                    .maybe_payment
-                    .map(Payment::from)
-            };
-
-            if let Some(payment) = payment {
-                match payment.status {
-                    PaymentStatus::Completed | PaymentStatus::Failed =>
-                        return Ok(payment),
-                    PaymentStatus::Pending => (), // Continue polling
-                }
-            }
-
-            ensure!(
-                start.elapsed() < timeout,
-                "Payment did not complete within {timeout_secs}s timeout",
-            );
-
-            tokio::time::sleep(backoff.next().unwrap()).await;
-        }
+    /// Get a reference to the [`Bip353Client`].
+    #[cfg(feature = "unstable")]
+    pub fn bip353_client(&self) -> &Bip353Client {
+        &self.bip353_client
     }
 
-    // --- Shared methods --- //
+    /// Get a reference to the [`LnurlClient`].
+    #[cfg(feature = "unstable")]
+    pub fn lnurl_client(&self) -> &LnurlClient {
+        &self.lnurl_client
+    }
+
+    // --- Node management --- //
 
     /// Registers this user with Lexe, then provisions the node.
     /// This method must be called after the user's [`LexeWallet`] has been
@@ -709,37 +618,6 @@ impl LexeWallet {
         Ok(())
     }
 
-    /// Get a reference to the user's wallet configuration.
-    pub fn user_config(&self) -> &WalletUserConfig {
-        &self.user_config
-    }
-
-    /// Get a reference to the [`GatewayClient`].
-    #[cfg(feature = "unstable")]
-    pub fn gateway_client(&self) -> &GatewayClient {
-        &self.gateway_client
-    }
-
-    /// Get a reference to the [`NodeClient`].
-    #[cfg(feature = "unstable")]
-    pub fn node_client(&self) -> &NodeClient {
-        &self.node_client
-    }
-
-    /// Get a reference to the [`Bip353Client`].
-    #[cfg(feature = "unstable")]
-    pub fn bip353_client(&self) -> &Bip353Client {
-        &self.bip353_client
-    }
-
-    /// Get a reference to the [`LnurlClient`].
-    #[cfg(feature = "unstable")]
-    pub fn lnurl_client(&self) -> &LnurlClient {
-        &self.lnurl_client
-    }
-
-    // --- Command API --- //
-
     /// Get information about this Lexe node, including balance and channels.
     #[instrument(skip_all, name = "(node-info)")]
     pub async fn node_info(&self) -> anyhow::Result<NodeInfo> {
@@ -749,6 +627,8 @@ impl LexeWallet {
             .map(NodeInfo::from)
             .context("Failed to get node info")
     }
+
+    // --- Paying and receiving Bitcoin --- //
 
     /// Get information about a Bitcoin or Lightning payment string, including:
     /// - `payable`: The payable string encoding the payment method.
@@ -1559,6 +1439,8 @@ impl LexeWallet {
             .context("Couldn't receive withdrawal payment")
     }
 
+    // --- Payment information and management --- //
+
     /// Get information about a payment by its created index.
     #[instrument(skip_all, name = "(get-payment)")]
     pub async fn get_payment(
@@ -1604,6 +1486,67 @@ impl LexeWallet {
         })
     }
 
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    #[instrument(skip_all, name = "(wait-for-payment)")]
+    pub async fn wait_for_payment(
+        &self,
+        index: PaymentCreatedIndex,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Payment> {
+        let timeout = timeout.unwrap_or(WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT);
+        let max_secs = WAIT_FOR_PAYMENT_MAX_TIMEOUT.as_secs();
+        let timeout_secs = timeout.as_secs();
+        ensure!(
+            timeout <= WAIT_FOR_PAYMENT_MAX_TIMEOUT,
+            "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
+        );
+
+        let initial_wait_ms = 250;
+        let max_wait_ms = 4_000;
+        let start = tokio::time::Instant::now();
+        let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
+
+        loop {
+            // Fetch the latest payment state.
+            let payment = if self.db.is_some() {
+                // DB-backed path: sync payments and query local DB.
+                self.sync_payments().await?;
+                self.require_payments_db()?
+                    .get_payment_by_created_index(&index)
+                    .map(Payment::from)
+            } else {
+                // No-DB path: poll the node directly.
+                self.node_client
+                    .get_payment_by_id(command::PaymentIdStruct {
+                        id: index.id,
+                    })
+                    .await
+                    .context("Failed to get payment")?
+                    .maybe_payment
+                    .map(Payment::from)
+            };
+
+            if let Some(payment) = payment {
+                match payment.status {
+                    PaymentStatus::Completed | PaymentStatus::Failed =>
+                        return Ok(payment),
+                    PaymentStatus::Pending => (), // Continue polling
+                }
+            }
+
+            ensure!(
+                start.elapsed() < timeout,
+                "Payment did not complete within {timeout_secs}s timeout",
+            );
+
+            tokio::time::sleep(backoff.next().unwrap()).await;
+        }
+    }
+
     /// Update the personal note on an existing payment.
     /// The note is stored on the user node and is not visible to the
     /// counterparty.
@@ -1626,5 +1569,64 @@ impl LexeWallet {
         }
 
         Ok(())
+    }
+
+    /// Sync payments from the user node to the local payments cache.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    #[instrument(skip_all, name = "(sync-payments)")]
+    pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
+        self.require_db()?
+            .sync_payments(
+                &self.node_client,
+                lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+            )
+            .await
+    }
+
+    /// List payments from local storage with cursor-based pagination.
+    ///
+    /// Defaults to descending order (newest first) with a limit of 100.
+    ///
+    /// To continue paginating, set `after` to the `next_index` from the
+    /// previous response. `after` is an *exclusive* index.
+    ///
+    /// If needed, use [`sync_payments`] to fetch the latest data from the
+    /// node before calling this method.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    ///
+    /// [`sync_payments`]: Self::sync_payments
+    #[instrument(skip_all, name = "(list-payments)")]
+    pub fn list_payments(
+        &self,
+        filter: &PaymentFilter,
+        order: Option<Order>,
+        limit: Option<usize>,
+        after: Option<&PaymentCreatedIndex>,
+    ) -> anyhow::Result<ListPaymentsResponse> {
+        let order = order.unwrap_or(Order::Desc);
+        let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT);
+        let (basics, next_index) = self
+            .require_payments_db()?
+            .list_payments(filter, order, limit, after);
+        let payments = basics.into_iter().map(Payment::from).collect();
+        Ok(ListPaymentsResponse {
+            payments,
+            next_index,
+        })
+    }
+
+    /// Clear all locally cached payment data for this wallet.
+    ///
+    /// Clears the local payment cache only. Remote data on the node is not
+    /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    #[instrument(skip_all, name = "(clear-payments)")]
+    pub fn clear_payments(&self) -> anyhow::Result<()> {
+        self.require_payments_db()?
+            .clear()
+            .context("Failed to clear local payments")
     }
 }

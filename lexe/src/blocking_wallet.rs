@@ -119,60 +119,7 @@ impl BlockingLexeWallet {
         Ok(Self { inner })
     }
 
-    // --- DB-required methods --- //
-
-    /// Sync payments from the user node to the local payments cache.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
-        block_on(self.inner.sync_payments())
-    }
-
-    /// List payments from local storage with cursor-based pagination.
-    ///
-    /// Defaults to descending order (newest first) with a limit of 100.
-    ///
-    /// To continue paginating, set `after` to the `next_index` from the
-    /// previous response. `after` is an *exclusive* index.
-    ///
-    /// If needed, use [`sync_payments`] to fetch the latest data from the
-    /// node before calling this method.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    ///
-    /// [`sync_payments`]: Self::sync_payments
-    pub fn list_payments(
-        &self,
-        filter: &PaymentFilter,
-        order: Option<Order>,
-        limit: Option<usize>,
-        after: Option<&PaymentCreatedIndex>,
-    ) -> anyhow::Result<ListPaymentsResponse> {
-        self.inner.list_payments(filter, order, limit, after)
-    }
-
-    /// Clear all locally cached payment data for this wallet.
-    ///
-    /// Clears the local payment cache only. Remote data on the node is not
-    /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    pub fn clear_payments(&self) -> anyhow::Result<()> {
-        self.inner.clear_payments()
-    }
-
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    pub fn wait_for_payment(
-        &self,
-        index: PaymentCreatedIndex,
-        timeout: Option<Duration>,
-    ) -> anyhow::Result<Payment> {
-        block_on(self.inner.wait_for_payment(index, timeout))
-    }
+    // --- DB accessors (unstable) --- //
 
     /// Get a reference to the
     /// [`WalletDb`](crate::unstable::wallet_db::WalletDb).
@@ -197,12 +144,42 @@ impl BlockingLexeWallet {
         self.inner.payments_db()
     }
 
-    // --- Shared methods --- //
+    // --- Client accessors --- //
 
     /// Get a reference to the user's wallet configuration.
     pub fn user_config(&self) -> &crate::config::WalletUserConfig {
         self.inner.user_config()
     }
+
+    /// Get a reference to the
+    /// [`GatewayClient`](lexe_node_client::client::GatewayClient).
+    #[cfg(feature = "unstable")]
+    pub fn gateway_client(&self) -> &lexe_node_client::client::GatewayClient {
+        self.inner.gateway_client()
+    }
+
+    /// Get a reference to the
+    /// [`NodeClient`](lexe_node_client::client::NodeClient).
+    #[cfg(feature = "unstable")]
+    pub fn node_client(&self) -> &lexe_node_client::client::NodeClient {
+        self.inner.node_client()
+    }
+
+    /// Get a reference to the
+    /// [`Bip353Client`](lexe_payment_uri::bip353::Bip353Client).
+    #[cfg(feature = "unstable")]
+    pub fn bip353_client(&self) -> &lexe_payment_uri::bip353::Bip353Client {
+        self.inner.bip353_client()
+    }
+
+    /// Get a reference to the
+    /// [`LnurlClient`](lexe_payment_uri::lnurl::LnurlClient).
+    #[cfg(feature = "unstable")]
+    pub fn lnurl_client(&self) -> &lexe_payment_uri::lnurl::LnurlClient {
+        self.inner.lnurl_client()
+    }
+
+    // --- Node management --- //
 
     /// Registers this user with Lexe, then provisions the node.
     /// This method must be called after the user's [`BlockingLexeWallet`]
@@ -280,40 +257,12 @@ impl BlockingLexeWallet {
         ))
     }
 
-    /// Get a reference to the
-    /// [`GatewayClient`](lexe_node_client::client::GatewayClient).
-    #[cfg(feature = "unstable")]
-    pub fn gateway_client(&self) -> &lexe_node_client::client::GatewayClient {
-        self.inner.gateway_client()
-    }
-
-    /// Get a reference to the
-    /// [`NodeClient`](lexe_node_client::client::NodeClient).
-    #[cfg(feature = "unstable")]
-    pub fn node_client(&self) -> &lexe_node_client::client::NodeClient {
-        self.inner.node_client()
-    }
-
-    /// Get a reference to the
-    /// [`Bip353Client`](lexe_payment_uri::bip353::Bip353Client).
-    #[cfg(feature = "unstable")]
-    pub fn bip353_client(&self) -> &lexe_payment_uri::bip353::Bip353Client {
-        self.inner.bip353_client()
-    }
-
-    /// Get a reference to the
-    /// [`LnurlClient`](lexe_payment_uri::lnurl::LnurlClient).
-    #[cfg(feature = "unstable")]
-    pub fn lnurl_client(&self) -> &lexe_payment_uri::lnurl::LnurlClient {
-        self.inner.lnurl_client()
-    }
-
-    // --- Command API --- //
-
     /// Get information about this Lexe node, including balance and channels.
     pub fn node_info(&self) -> anyhow::Result<NodeInfo> {
         block_on(self.inner.node_info())
     }
+
+    // --- Paying and receiving Bitcoin --- //
 
     /// Get information about a Bitcoin or Lightning payment string, including:
     /// - `payable`: The payable string encoding the payment method.
@@ -442,6 +391,8 @@ impl BlockingLexeWallet {
         block_on(self.inner.withdraw_lnurl(req))
     }
 
+    // --- Payment information and management --- //
+
     /// Get information about a payment by its created index.
     pub fn get_payment(
         &self,
@@ -462,6 +413,19 @@ impl BlockingLexeWallet {
         block_on(self.inner.get_updated_payments(req))
     }
 
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    pub fn wait_for_payment(
+        &self,
+        index: PaymentCreatedIndex,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Payment> {
+        block_on(self.inner.wait_for_payment(index, timeout))
+    }
+
     /// Update the personal note on an existing payment.
     /// The note is stored on the user node and is not visible to the
     /// counterparty.
@@ -470,6 +434,46 @@ impl BlockingLexeWallet {
         req: UpdatePersonalNoteRequest,
     ) -> anyhow::Result<()> {
         block_on(self.inner.update_personal_note(req))
+    }
+
+    /// Sync payments from the user node to the local payments cache.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    pub fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
+        block_on(self.inner.sync_payments())
+    }
+
+    /// List payments from local storage with cursor-based pagination.
+    ///
+    /// Defaults to descending order (newest first) with a limit of 100.
+    ///
+    /// To continue paginating, set `after` to the `next_index` from the
+    /// previous response. `after` is an *exclusive* index.
+    ///
+    /// If needed, use [`sync_payments`] to fetch the latest data from the
+    /// node before calling this method.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    ///
+    /// [`sync_payments`]: Self::sync_payments
+    pub fn list_payments(
+        &self,
+        filter: &PaymentFilter,
+        order: Option<Order>,
+        limit: Option<usize>,
+        after: Option<&PaymentCreatedIndex>,
+    ) -> anyhow::Result<ListPaymentsResponse> {
+        self.inner.list_payments(filter, order, limit, after)
+    }
+
+    /// Clear all locally cached payment data for this wallet.
+    ///
+    /// Clears the local payment cache only. Remote data on the node is not
+    /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    pub fn clear_payments(&self) -> anyhow::Result<()> {
+        self.inner.clear_payments()
     }
 }
 
