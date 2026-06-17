@@ -351,7 +351,7 @@ impl KeyPair {
 
     /// Serialize the `ed25519::KeyPair` into PKCS#8 DER bytes.
     pub fn serialize_pkcs8_der(&self) -> [u8; PKCS_LEN] {
-        serialize_keypair_pkcs8_der(&self.seed, self.public_key().as_inner())
+        serialize_keypair_pkcs8_der(&self.seed, self.public_key().as_array())
     }
 
     /// Deserialize an `ed25519::KeyPair` from PKCS#8 DER bytes.
@@ -463,6 +463,10 @@ impl FromStr for KeyPair {
 
 // -- impl PublicKey --- //
 
+lexe_byte_array::impl_byte_array!(PublicKey, 32);
+lexe_byte_array::impl_fromstr_fromhex!(PublicKey, 32);
+lexe_byte_array::impl_debug_display_as_hex!(PublicKey);
+
 impl PublicKey {
     pub const fn new(bytes: [u8; 32]) -> Self {
         // TODO(phlip9): check for malleability/small-order subgroup?
@@ -473,18 +477,6 @@ impl PublicKey {
     pub const fn from_ref(bytes: &[u8; 32]) -> &Self {
         const_utils::const_ref_cast(bytes)
     }
-
-    pub const fn as_slice(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-
-    pub const fn into_inner(self) -> [u8; 32] {
-        self.0
-    }
-
-    pub const fn as_inner(&self) -> &[u8; 32] {
-        &self.0
-    }
 }
 
 impl TryFrom<&[u8]> for PublicKey {
@@ -494,46 +486,6 @@ impl TryFrom<&[u8]> for PublicKey {
         let pk =
             <[u8; 32]>::try_from(bytes).map_err(|_| Error::InvalidPkLength)?;
         Ok(Self::new(pk))
-    }
-}
-
-impl AsRef<[u8]> for PublicKey {
-    fn as_ref(&self) -> &[u8] {
-        self.as_slice()
-    }
-}
-
-impl AsRef<[u8; 32]> for PublicKey {
-    fn as_ref(&self) -> &[u8; 32] {
-        self.as_inner()
-    }
-}
-
-impl FromHex for PublicKey {
-    fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
-        <[u8; 32]>::from_hex(s).map(Self::new)
-    }
-}
-
-impl FromStr for PublicKey {
-    type Err = hex::DecodeError;
-    #[inline]
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_hex(s)
-    }
-}
-
-impl fmt::Display for PublicKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(self.as_slice()))
-    }
-}
-
-impl fmt::Debug for PublicKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ed25519::PublicKey")
-            .field(&hex::display(self.as_slice()))
-            .finish()
     }
 }
 
@@ -934,7 +886,7 @@ mod test {
 
         let key_pair = KeyPair::from_seed(&sk);
         let pubkey = key_pair.public_key();
-        assert_eq!(pubkey.as_inner(), &pk);
+        assert_eq!(pubkey.as_array(), &pk);
 
         let sig2 = key_pair.sign_raw(&msg);
         assert_eq!(&sig, sig2.as_inner());

@@ -4654,6 +4654,7 @@ dependencies = [
 name = "sgx-test"
 version = "0.1.0"
 dependencies = [
+ "lexe-byte-array",
  "lexe-crypto",
  "lexe-enclave",
  "lexe-hex",

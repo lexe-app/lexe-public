@@ -1,3 +1,4 @@
+use lexe_byte_array::ByteArray;
 use lexe_crypto::{
     ed25519,
     rng::{RngExt, SysRng},

@@ -24,6 +24,7 @@ use lexe_api::{
     types::{ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
+use lexe_byte_array::ByteArray;
 use lexe_common::{
     api::{
         models::BroadcastedTx,
@@ -1223,7 +1224,7 @@ async fn fetch_provisioned_secrets(
 
             let user_key_pair = root_seed.derive_user_key_pair();
             let derived_user_pk =
-                UserPk::from_ref(user_key_pair.public_key().as_inner());
+                UserPk::from_ref(user_key_pair.public_key().as_array());
             let derived_node_key_pair = root_seed.derive_node_key_pair();
             let derived_node_pk = NodePk(derived_node_key_pair.public_key());
 

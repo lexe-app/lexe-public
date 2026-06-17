@@ -3,6 +3,7 @@
 //!
 //! On non-SGX platforms, we just return a dummy extension for now.
 
+use lexe_byte_array::ByteArray;
 use lexe_crypto::ed25519;
 
 /// Small newtype for [`sgx_isa::Report::reportdata`] field.

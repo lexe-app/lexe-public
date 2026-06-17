@@ -27,6 +27,7 @@ use lexe_api::{
     server::{self, LayerConfig},
     types::{Empty, ports::ProvisionPorts, sealed_seed::SealedSeed},
 };
+use lexe_byte_array::ByteArray;
 use lexe_common::{
     api::provision::NodeProvisionRequest, constants, env::DeployEnv,
     ln::network::Network, net,
@@ -259,7 +260,7 @@ mod handlers {
         // We do this before gDrive provisioning to ensure the user is a real &
         // valid Lexe user before taxing our gDrive API quotas.
         let user_key_pair = req.root_seed.derive_user_key_pair();
-        let user_pk = UserPk::new(user_key_pair.public_key().into_inner());
+        let user_pk = UserPk::new(user_key_pair.public_key().to_array());
         let maybe_token = None;
         let authenticator =
             BearerAuthenticator::new(user_key_pair, maybe_token);

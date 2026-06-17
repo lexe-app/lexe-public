@@ -10,6 +10,7 @@ publish = false
 
 # --- LEXE --- #
 
+lexe-byte-array = { workspace = true }
 lexe-crypto = { workspace = true }
 lexe-enclave = { workspace = true }
 lexe-hex = { workspace = true }

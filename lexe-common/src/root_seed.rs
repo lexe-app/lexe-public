@@ -5,6 +5,7 @@ use bitcoin::{
     bip32::{self, ChildNumber},
     secp256k1,
 };
+use lexe_byte_array::ByteArray;
 use lexe_crypto::{
     aes::{self, AesMasterKey},
     ed25519, password,
@@ -197,7 +198,7 @@ impl RootSeed {
 
     /// Convenience function to derive the [`UserPk`].
     pub fn derive_user_pk(&self) -> UserPk {
-        UserPk::new(self.derive_user_key_pair().public_key().into_inner())
+        UserPk::new(self.derive_user_key_pair().public_key().to_array())
     }
 
     /// Derive the BIP32 master xpriv using the BIP39-compatible derived 64-byte

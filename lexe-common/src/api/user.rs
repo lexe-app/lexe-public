@@ -246,7 +246,7 @@ impl From<&UserPk> for ShortUserPk {
 
 impl From<ed25519::PublicKey> for UserPk {
     fn from(pk: ed25519::PublicKey) -> Self {
-        Self::new(pk.into_inner())
+        Self::new(pk.to_array())
     }
 }
 
