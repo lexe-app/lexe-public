@@ -794,7 +794,14 @@ impl AsyncLexeWallet {
         Ok(Arc::new(Self { inner }))
     }
 
-    // --- Shared methods --- //
+    // --- Getters --- //
+
+    /// Get the user's hex-encoded public key.
+    pub fn user_pk(&self) -> String {
+        self.inner.user_config().user_pk.to_string()
+    }
+
+    // --- Node management --- //
 
     /// Registers this user with Lexe and provisions their node.
     ///
@@ -835,16 +842,13 @@ impl AsyncLexeWallet {
         Ok(())
     }
 
-    /// Get the user's hex-encoded public key.
-    pub fn user_pk(&self) -> String {
-        self.inner.user_config().user_pk.to_string()
-    }
-
     /// Get information about the node.
     pub async fn node_info(&self) -> FfiResult<NodeInfo> {
         let info = self.inner.node_info().await?;
         Ok(info.into())
     }
+
+    // --- Paying and receiving Bitcoin --- //
 
     /// Analyze a Bitcoin or Lightning payment string.
     ///
@@ -1187,6 +1191,8 @@ impl AsyncLexeWallet {
         Ok(resp.into())
     }
 
+    // --- Payment information and management --- //
+
     /// Get a payment by its `index` string.
     pub async fn get_payment(
         &self,
@@ -1219,24 +1225,6 @@ impl AsyncLexeWallet {
         Ok(GetUpdatedPaymentsResponse::from(resp))
     }
 
-    /// Update a payment's personal note.
-    /// Call `sync_payments` first so the payment exists locally.
-    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
-    /// / 512 UTF-8 bytes.
-    pub async fn update_personal_note(
-        &self,
-        index: String,
-        personal_note: Option<String>,
-    ) -> FfiResult<()> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = UpdatePersonalNoteRequest {
-            index,
-            personal_note,
-        };
-        self.inner.update_personal_note(req).await?;
-        Ok(())
-    }
-
     /// Wait for a payment to reach a terminal state (completed or failed).
     ///
     /// Polls the node with exponential backoff until the payment finalizes or
@@ -1254,7 +1242,23 @@ impl AsyncLexeWallet {
         Ok(Payment::from(payment))
     }
 
-    // --- DB-only methods --- //
+    /// Update a payment's personal note.
+    /// Call `sync_payments` first so the payment exists locally.
+    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
+    /// / 512 UTF-8 bytes.
+    pub async fn update_personal_note(
+        &self,
+        index: String,
+        personal_note: Option<String>,
+    ) -> FfiResult<()> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let req = UpdatePersonalNoteRequest {
+            index,
+            personal_note,
+        };
+        self.inner.update_personal_note(req).await?;
+        Ok(())
+    }
 
     /// Sync payments from the user node to the local payments cache.
     ///
@@ -1433,7 +1437,14 @@ impl BlockingLexeWallet {
         Ok(Arc::new(Self { inner }))
     }
 
-    // --- Shared methods --- //
+    // --- Client accessors --- //
+
+    /// Get the user's hex-encoded public key.
+    pub fn user_pk(&self) -> String {
+        self.inner.user_config().user_pk.to_string()
+    }
+
+    // --- Node management --- //
 
     /// Registers this user with Lexe and provisions their node.
     ///
@@ -1471,16 +1482,13 @@ impl BlockingLexeWallet {
         Ok(())
     }
 
-    /// Get the user's hex-encoded public key.
-    pub fn user_pk(&self) -> String {
-        self.inner.user_config().user_pk.to_string()
-    }
-
     /// Get information about the node.
     pub fn node_info(&self) -> FfiResult<NodeInfo> {
         let info = self.inner.node_info()?;
         Ok(info.into())
     }
+
+    // --- Paying and receiving Bitcoin --- //
 
     /// Analyze a Bitcoin or Lightning payment string.
     ///
@@ -1823,6 +1831,8 @@ impl BlockingLexeWallet {
         Ok(resp.into())
     }
 
+    // --- Payment information and management --- //
+
     /// Get a payment by its `index` string.
     pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
@@ -1852,24 +1862,6 @@ impl BlockingLexeWallet {
         Ok(GetUpdatedPaymentsResponse::from(resp))
     }
 
-    /// Update a payment's personal note.
-    /// Call `sync_payments` first so the payment exists locally.
-    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
-    /// / 512 UTF-8 bytes.
-    pub fn update_personal_note(
-        &self,
-        index: String,
-        personal_note: Option<String>,
-    ) -> FfiResult<()> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = UpdatePersonalNoteRequest {
-            index,
-            personal_note,
-        };
-        self.inner.update_personal_note(req)?;
-        Ok(())
-    }
-
     /// Wait for a payment to reach a terminal state (completed or failed).
     ///
     /// Polls the node with exponential backoff until the payment finalizes or
@@ -1887,7 +1879,23 @@ impl BlockingLexeWallet {
         Ok(Payment::from(payment))
     }
 
-    // --- DB-only methods --- //
+    /// Update a payment's personal note.
+    /// Call `sync_payments` first so the payment exists locally.
+    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
+    /// / 512 UTF-8 bytes.
+    pub fn update_personal_note(
+        &self,
+        index: String,
+        personal_note: Option<String>,
+    ) -> FfiResult<()> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let req = UpdatePersonalNoteRequest {
+            index,
+            personal_note,
+        };
+        self.inner.update_personal_note(req)?;
+        Ok(())
+    }
 
     /// Sync payments from the user node to the local payments cache.
     ///

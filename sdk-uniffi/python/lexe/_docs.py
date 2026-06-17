@@ -521,15 +521,21 @@ Example::
     print(f"Balance: {info.balance_sats} sats")
 """
 
-_set_method_doc(LexeWallet, "user_pk", """\
-Get the user's hex-encoded public key.
+_set_method_doc(LexeWallet, "fresh", """\
+Create a fresh wallet, deleting any existing local state for this user.
+
+Data for other users and environments is not affected.
+
+Args:
+    env_config: Wallet environment configuration.
+    credentials: Authentication credentials (see :class:`Credentials`).
+    lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
-    The hex-encoded ed25519 user public key string.
+    A new LexeWallet instance.
 
-Example::
-
-    print(f"User PK: {wallet.user_pk()}")
+Raises:
+    FfiError: If wallet creation fails.
 """)
 
 _set_method_doc(LexeWallet, "load", """\
@@ -558,23 +564,6 @@ Example::
         wallet = LexeWallet.fresh(config, creds)
 """)
 
-_set_method_doc(LexeWallet, "fresh", """\
-Create a fresh wallet, deleting any existing local state for this user.
-
-Data for other users and environments is not affected.
-
-Args:
-    env_config: Wallet environment configuration.
-    credentials: Authentication credentials (see :class:`Credentials`).
-    lexe_data_dir: Base data directory (default: ``~/.lexe``).
-
-Returns:
-    A new LexeWallet instance.
-
-Raises:
-    FfiError: If wallet creation fails.
-""")
-
 _set_method_doc(LexeWallet, "load_or_fresh", """\
 Load an existing wallet, or create a fresh one if none exists.
 If you are authenticating with client credentials, this is generally
@@ -590,6 +579,17 @@ Returns:
 
 Raises:
     FfiError: If wallet creation fails.
+""")
+
+_set_method_doc(LexeWallet, "user_pk", """\
+Get the user's hex-encoded public key.
+
+Returns:
+    The hex-encoded ed25519 user public key string.
+
+Example::
+
+    print(f"User PK: {wallet.user_pk()}")
 """)
 
 _set_method_doc(LexeWallet, "signup", """\
@@ -950,6 +950,32 @@ Example::
         resp = wallet.get_updated_payments(start_index=resp.updated_index)
 """)
 
+_set_method_doc(LexeWallet, "wait_for_payment", """\
+Wait for a payment to reach a terminal state (completed or failed).
+
+Polls the node with exponential backoff until the payment finalizes
+or the timeout is reached. Defaults to 600 seconds (10 minutes).
+Maximum timeout is 86,400 seconds (24 hours).
+
+Args:
+    index: Payment index string.
+    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
+        Max: ``86400`` (24 hours).
+
+Returns:
+    The finalized :class:`Payment`.
+
+Raises:
+    FfiError: If the timeout is exceeded or the node is unreachable.
+
+Example::
+
+    resp = wallet.create_invoice(amount_sats=1000)
+    # Wait until someone pays the invoice (or it expires / fails).
+    payment = wallet.wait_for_payment(resp.index)
+    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
+""")
+
 _set_method_doc(LexeWallet, "update_personal_note", """\
 Update a payment's personal note.
 
@@ -1032,32 +1058,6 @@ Raises:
     FfiError: If the local database cannot be cleared.
 """)
 
-_set_method_doc(LexeWallet, "wait_for_payment", """\
-Wait for a payment to reach a terminal state (completed or failed).
-
-Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 600 seconds (10 minutes).
-Maximum timeout is 86,400 seconds (24 hours).
-
-Args:
-    index: Payment index string.
-    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
-        Max: ``86400`` (24 hours).
-
-Returns:
-    The finalized :class:`Payment`.
-
-Raises:
-    FfiError: If the timeout is exceeded or the node is unreachable.
-
-Example::
-
-    resp = wallet.create_invoice(amount_sats=1000)
-    # Wait until someone pays the invoice (or it expires / fails).
-    payment = wallet.wait_for_payment(resp.index)
-    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
-""")
-
 # ======================= #
 # --- AsyncLexeWallet --- #
 # ======================= #
@@ -1083,15 +1083,21 @@ Example::
     print(f"Balance: {info.balance_sats} sats")
 """
 
-_set_method_doc(AsyncLexeWallet, "user_pk", """\
-Get the user's hex-encoded public key.
+_set_method_doc(AsyncLexeWallet, "fresh", """\
+Create a fresh wallet, deleting any existing local state for this user.
+
+Data for other users and environments is not affected.
+
+Args:
+    env_config: Wallet environment configuration.
+    credentials: Authentication credentials (see :class:`Credentials`).
+    lexe_data_dir: Base data directory (default: ``~/.lexe``).
 
 Returns:
-    The hex-encoded ed25519 user public key string.
+    A new AsyncLexeWallet instance.
 
-Example::
-
-    print(f"User PK: {wallet.user_pk()}")
+Raises:
+    FfiError: If wallet creation fails.
 """)
 
 _set_method_doc(AsyncLexeWallet, "load", """\
@@ -1120,23 +1126,6 @@ Example::
         wallet = AsyncLexeWallet.fresh(config, creds)
 """)
 
-_set_method_doc(AsyncLexeWallet, "fresh", """\
-Create a fresh wallet, deleting any existing local state for this user.
-
-Data for other users and environments is not affected.
-
-Args:
-    env_config: Wallet environment configuration.
-    credentials: Authentication credentials (see :class:`Credentials`).
-    lexe_data_dir: Base data directory (default: ``~/.lexe``).
-
-Returns:
-    A new AsyncLexeWallet instance.
-
-Raises:
-    FfiError: If wallet creation fails.
-""")
-
 _set_method_doc(AsyncLexeWallet, "load_or_fresh", """\
 Load an existing wallet, or create a fresh one if none exists.
 If you are authenticating with client credentials, this is generally
@@ -1152,6 +1141,17 @@ Returns:
 
 Raises:
     FfiError: If wallet creation fails.
+""")
+
+_set_method_doc(AsyncLexeWallet, "user_pk", """\
+Get the user's hex-encoded public key.
+
+Returns:
+    The hex-encoded ed25519 user public key string.
+
+Example::
+
+    print(f"User PK: {wallet.user_pk()}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "signup", """\
@@ -1512,6 +1512,32 @@ Example::
         resp = await wallet.get_updated_payments(start_index=resp.updated_index)
 """)
 
+_set_method_doc(AsyncLexeWallet, "wait_for_payment", """\
+Wait for a payment to reach a terminal state (completed or failed).
+
+Polls the node with exponential backoff until the payment finalizes
+or the timeout is reached. Defaults to 600 seconds (10 minutes).
+Maximum timeout is 86,400 seconds (24 hours).
+
+Args:
+    index: Payment index string.
+    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
+        Max: ``86400`` (24 hours).
+
+Returns:
+    The finalized :class:`Payment`.
+
+Raises:
+    FfiError: If the timeout is exceeded or the node is unreachable.
+
+Example::
+
+    resp = await wallet.create_invoice(amount_sats=1000)
+    # Wait until someone pays the invoice (or it expires / fails).
+    payment = await wallet.wait_for_payment(resp.index)
+    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
+""")
+
 _set_method_doc(AsyncLexeWallet, "update_personal_note", """\
 Update a payment's personal note.
 
@@ -1592,32 +1618,6 @@ not affected. Call :meth:`sync_payments` to re-populate.
 
 Raises:
     FfiError: If the local database cannot be cleared.
-""")
-
-_set_method_doc(AsyncLexeWallet, "wait_for_payment", """\
-Wait for a payment to reach a terminal state (completed or failed).
-
-Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 600 seconds (10 minutes).
-Maximum timeout is 86,400 seconds (24 hours).
-
-Args:
-    index: Payment index string.
-    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
-        Max: ``86400`` (24 hours).
-
-Returns:
-    The finalized :class:`Payment`.
-
-Raises:
-    FfiError: If the timeout is exceeded or the node is unreachable.
-
-Example::
-
-    resp = await wallet.create_invoice(amount_sats=1000)
-    # Wait until someone pays the invoice (or it expires / fails).
-    payment = await wallet.wait_for_payment(resp.index)
-    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
 
 # ================ #
