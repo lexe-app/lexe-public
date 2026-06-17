@@ -148,8 +148,8 @@ pub mod verify {
         signer: &PublicKey,
         serialized: &'msg [u8],
     ) -> Result<Signed<T>, Error> {
-        let accept_self_signer = |s| s == signer;
-        signed_struct_with_policy(accept_self_signer, serialized)
+        let accept_only_signer = |s| s == signer;
+        signed_struct_with_policy(accept_only_signer, serialized)
     }
 
     /// Like [`signed_struct_with_policy`] but accepts any signer, so long as
