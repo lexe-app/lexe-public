@@ -237,7 +237,7 @@ impl UserSignupRequestWireV1 {
     ) -> Result<Signed<Self>, Error> {
         // for user sign up, the signed signup request is just used to prove
         // ownership of a user_pk.
-        ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
+        ed25519::verify::signed_struct_by_any_signer(serialized)
             .map_err(Error::UserVerifyError)
     }
 }
@@ -323,7 +323,7 @@ impl BearerAuthRequestWire {
     ) -> Result<Signed<Self>, Error> {
         // likewise, user/node auth is (currently) just used to prove ownership
         // of a user_pk.
-        ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
+        ed25519::verify::signed_struct_by_any_signer(serialized)
             .map_err(Error::UserVerifyError)
     }
 }

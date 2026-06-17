@@ -62,6 +62,8 @@ pub const SIGNATURE_LEN: usize = 64;
 /// struct size.
 pub const SIGNED_STRUCT_OVERHEAD: usize = PUBLIC_KEY_LEN + SIGNATURE_LEN;
 
+// --- Types --- //
+
 /// An ed25519 secret key and public key.
 ///
 /// Applications should always sign with a *key pair* rather than passing in
@@ -78,6 +80,9 @@ pub struct KeyPair {
 }
 
 /// An ed25519 public key.
+//
+// NOTE: this type is exported in the Rust SDK, so changes to its public API are
+// breaking changes for SDK consumers.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
 #[repr(transparent)]
 pub struct PublicKey([u8; 32]);
@@ -131,89 +136,137 @@ impl<T: Signable> Signable for &T {
     const DOMAIN_SEPARATOR: [u8; 32] = T::DOMAIN_SEPARATOR;
 }
 
-// -- verify_signed_struct -- //
+// --- Signature verification --- //
 
-/// Helper fn to pass to [`ed25519::verify_signed_struct`]
-/// that accepts any public key, so long as the signature is OK.
-pub fn accept_any_signer(_: &PublicKey) -> bool {
-    true
-}
+/// Verification of signed [`Signable`] structs.
+pub mod verify {
+    use super::*;
 
-/// Verify a BCS-serialized and signed [`Signable`] struct.
-/// Returns the deserialized struct inside a [`Signed`] proof that it was in
-/// fact signed by the associated [`ed25519::PublicKey`].
-///
-/// Signed struct signatures are created using
-/// [`ed25519::KeyPair::sign_struct`](KeyPair::sign_struct).
-pub fn verify_signed_struct<'msg, T, F>(
-    is_expected_signer: F,
-    serialized: &'msg [u8],
-) -> Result<Signed<T>, Error>
-where
-    T: Signable + Deserialize<'msg>,
-    F: FnOnce(&'msg PublicKey) -> bool,
-{
-    let (signer, sig, ser_struct) = deserialize_signed_struct(serialized)?;
-
-    // ensure the signer is expected
-    if !is_expected_signer(signer) {
-        return Err(Error::UnexpectedSigner);
+    /// Like [`signed_struct_with_policy`] but only allows signatures produced
+    /// by `signer`.
+    pub fn signed_struct_by_signer<'msg, T: Signable + Deserialize<'msg>>(
+        signer: &PublicKey,
+        serialized: &'msg [u8],
+    ) -> Result<Signed<T>, Error> {
+        let accept_self_signer = |s| s == signer;
+        signed_struct_with_policy(accept_self_signer, serialized)
     }
 
-    // verify the signature on this serialized struct. the sig should also
-    // commit to the domain separator for this type.
-    verify_signed_struct_inner(signer, sig, ser_struct, &T::DOMAIN_SEPARATOR)
+    /// Like [`signed_struct_with_policy`] but accepts any signer, so long as
+    /// the signature is valid.
+    pub fn signed_struct_by_any_signer<
+        'msg,
+        T: Signable + Deserialize<'msg>,
+    >(
+        serialized: &'msg [u8],
+    ) -> Result<Signed<T>, Error> {
+        signed_struct_with_policy(accept_any_signer, serialized)
+    }
+
+    /// Helper fn to pass to [`ed25519::verify::signed_struct_with_policy`]
+    /// that accepts any public key, so long as the signature is OK.
+    pub fn accept_any_signer(_: &PublicKey) -> bool {
+        true
+    }
+
+    /// Verify a BCS-serialized and signed [`Signable`] struct, accepting the
+    /// signer only if `is_expected_signer` returns `true`.
+    /// Returns the deserialized struct inside a [`Signed`] proof that it was in
+    /// fact signed by the associated [`ed25519::PublicKey`].
+    ///
+    /// Signed struct signatures are created using
+    /// [`ed25519::KeyPair::sign_struct`](KeyPair::sign_struct).
+    pub fn signed_struct_with_policy<'msg, T, F>(
+        is_expected_signer: F,
+        serialized: &'msg [u8],
+    ) -> Result<Signed<T>, Error>
+    where
+        T: Signable + Deserialize<'msg>,
+        F: FnOnce(&'msg PublicKey) -> bool,
+    {
+        // NOTE: these helpers are intentionally nested fns w/o any generics to
+        // reduce binary size (nested fns can't capture the enclosing generics).
+
+        fn deserialize_signed_struct(
+            serialized: &[u8],
+        ) -> Result<(&PublicKey, &Signature, &[u8]), Error> {
+            if serialized.len() < SIGNED_STRUCT_OVERHEAD {
+                return Err(Error::SignedTooShort);
+            }
+
+            // deserialize signer public key
+            let (signer, serialized) = serialized
+                .split_first_chunk::<PUBLIC_KEY_LEN>()
+                .expect("serialized.len() checked above");
+            let signer = PublicKey::from_ref(signer);
+
+            // deserialize signature
+            let (sig, ser_struct) = serialized
+                .split_first_chunk::<SIGNATURE_LEN>()
+                .expect("serialized.len() checked above");
+            let sig = Signature::from_ref(sig);
+
+            Ok((signer, sig, ser_struct))
+        }
+
+        fn verify_signed_struct_inner(
+            signer: &PublicKey,
+            sig: &Signature,
+            ser_struct: &[u8],
+            domain_separator: &[u8; 32],
+        ) -> Result<(), InvalidSignature> {
+            // ring doesn't let you digest multiple values into the inner
+            // SHA-512 digest w/o just allocating + copying, so we do a quick
+            // pre-hash outside.
+
+            let msg =
+                sha256::digest_many(&[domain_separator.as_slice(), ser_struct]);
+            signed_bytes_by_signer(signer, msg.as_slice(), sig)
+        }
+
+        let (signer, sig, ser_struct) = deserialize_signed_struct(serialized)?;
+
+        // ensure the signer is expected
+        if !is_expected_signer(signer) {
+            return Err(Error::UnexpectedSigner);
+        }
+
+        // verify the signature on this serialized struct. the sig should also
+        // commit to the domain separator for this type.
+        verify_signed_struct_inner(
+            signer,
+            sig,
+            ser_struct,
+            &T::DOMAIN_SEPARATOR,
+        )
         .map_err(|_| Error::InvalidSignature)?;
 
-    // canonically deserialize the struct; assume it's bcs-serialized
-    let inner: T =
-        bcs::from_bytes(ser_struct).map_err(|_| Error::BcsDeserialize)?;
+        // canonically deserialize the struct; assume it's bcs-serialized
+        let inner: T =
+            bcs::from_bytes(ser_struct).map_err(|_| Error::BcsDeserialize)?;
 
-    // wrap the deserialized struct in a "proof-carrying" type that can only
-    // be instantiated by actually verifying the signature.
-    Ok(Signed {
-        signer: *signer,
-        sig: *sig,
-        inner,
-    })
-}
-
-// NOTE: these fns are intentionally written as separate methods w/o
-// any generics to reduce binary size.
-
-fn deserialize_signed_struct(
-    serialized: &[u8],
-) -> Result<(&PublicKey, &Signature, &[u8]), Error> {
-    if serialized.len() < SIGNED_STRUCT_OVERHEAD {
-        return Err(Error::SignedTooShort);
+        // wrap the deserialized struct in a "proof-carrying" type that can only
+        // be instantiated by actually verifying the signature.
+        Ok(Signed {
+            signer: *signer,
+            sig: *sig,
+            inner,
+        })
     }
 
-    // deserialize signer public key
-    let (signer, serialized) = serialized
-        .split_first_chunk::<PUBLIC_KEY_LEN>()
-        .expect("serialized.len() checked above");
-    let signer = PublicKey::from_ref(signer);
-
-    // deserialize signature
-    let (sig, ser_struct) = serialized
-        .split_first_chunk::<SIGNATURE_LEN>()
-        .expect("serialized.len() checked above");
-    let sig = Signature::from_ref(sig);
-
-    Ok((signer, sig, ser_struct))
-}
-
-fn verify_signed_struct_inner(
-    signer: &PublicKey,
-    sig: &Signature,
-    ser_struct: &[u8],
-    domain_separator: &[u8; 32],
-) -> Result<(), InvalidSignature> {
-    // ring doesn't let you digest multiple values into the inner SHA-512 digest
-    // w/o just allocating + copying, so we do a quick pre-hash outside.
-
-    let msg = sha256::digest_many(&[domain_separator.as_slice(), ser_struct]);
-    signer.verify_raw(msg.as_slice(), sig)
+    /// Verify some raw bytes were signed by `signer`.
+    pub fn signed_bytes_by_signer(
+        signer: &PublicKey,
+        msg: &[u8],
+        sig: &Signature,
+    ) -> Result<(), InvalidSignature> {
+        ring::signature::UnparsedPublicKey::new(
+            &ring::signature::ED25519,
+            signer.as_slice(),
+        )
+        .verify(msg, sig.as_slice())
+        .map_err(|_| InvalidSignature)
+    }
 }
 
 // -- impl KeyPair -- //
@@ -337,7 +390,7 @@ impl KeyPair {
     /// cryptographic canonical serialization.
     ///
     /// You can verify this signed struct using
-    /// [`ed25519::verify_signed_struct`]
+    /// [`ed25519::verify::signed_struct_with_policy`]
     pub fn sign_struct<'a, T: Signable + Serialize>(
         &self,
         value: &'a T,
@@ -431,30 +484,6 @@ impl PublicKey {
 
     pub const fn as_inner(&self) -> &[u8; 32] {
         &self.0
-    }
-
-    /// Verify some raw bytes were signed by this public key.
-    pub fn verify_raw(
-        &self,
-        msg: &[u8],
-        sig: &Signature,
-    ) -> Result<(), InvalidSignature> {
-        ring::signature::UnparsedPublicKey::new(
-            &ring::signature::ED25519,
-            self.as_slice(),
-        )
-        .verify(msg, sig.as_slice())
-        .map_err(|_| InvalidSignature)
-    }
-
-    /// Like [`ed25519::verify_signed_struct`] but only allows signatures
-    /// produced by this `ed25519::PublicKey`.
-    pub fn verify_self_signed_struct<'msg, T: Signable + Deserialize<'msg>>(
-        &self,
-        serialized: &'msg [u8],
-    ) -> Result<Signed<T>, Error> {
-        let accept_self_signer = |signer| signer == self;
-        verify_signed_struct(accept_self_signer, serialized)
     }
 }
 
@@ -910,7 +939,7 @@ mod test {
         let sig2 = key_pair.sign_raw(&msg);
         assert_eq!(&sig, sig2.as_inner());
 
-        pubkey.verify_raw(&msg, &sig2).unwrap();
+        verify::signed_bytes_by_signer(pubkey, &msg, &sig2).unwrap();
     }
 
     // truncating the signed struct should cause the verification to fail.
@@ -926,16 +955,13 @@ mod test {
             let sig2 = signed.serialize().unwrap();
             assert_eq!(&sig, &sig2);
 
-            let _ = pubkey
-                .verify_self_signed_struct::<SignableBytes>(&sig)
+            let _ = verify::signed_struct_by_signer::<SignableBytes>(pubkey, &sig)
                 .unwrap();
 
             for trunc_len in 0..SIGNED_STRUCT_OVERHEAD {
-                pubkey
-                    .verify_self_signed_struct::<SignableBytes>(&sig[..trunc_len])
+                verify::signed_struct_by_signer::<SignableBytes>(pubkey, &sig[..trunc_len])
                     .unwrap_err();
-                pubkey
-                    .verify_self_signed_struct::<SignableBytes>(&sig[(trunc_len+1)..])
+                verify::signed_struct_by_signer::<SignableBytes>(pubkey, &sig[(trunc_len+1)..])
                     .unwrap_err();
             }
         });
@@ -959,8 +985,7 @@ mod test {
             let sig2 = signed.serialize().unwrap();
             assert_eq!(&sig, &sig2);
 
-            let _ = pubkey
-                .verify_self_signed_struct::<SignableBytes>(&sig)
+            let _ = verify::signed_struct_by_signer::<SignableBytes>(pubkey, &sig)
                 .unwrap();
 
             let mut sig2: Vec<u8> = Vec::with_capacity(sig.len() + padding.len());
@@ -975,8 +1000,7 @@ mod test {
                 sig2.extend_from_slice(&padding);
                 sig2.extend_from_slice(right);
 
-                pubkey
-                    .verify_self_signed_struct::<SignableBytes>(&sig2)
+                verify::signed_struct_by_signer::<SignableBytes>(pubkey, &sig2)
                     .unwrap_err();
             }
         });
@@ -1006,8 +1030,7 @@ mod test {
             mutation.truncate(sig.len());
             prop_assume!(!mutation.is_empty() && !mutation.iter().all(|x| x == &0));
 
-            let _ = pubkey
-                .verify_self_signed_struct::<SignableBytes>(&sig)
+            let _ = verify::signed_struct_by_signer::<SignableBytes>(pubkey, &sig)
                 .unwrap();
 
             // xor in the mutation bytes to the signature to modify it. any
@@ -1017,7 +1040,7 @@ mod test {
                 sig[idx_sig] ^= m;
             }
 
-            pubkey.verify_self_signed_struct::<SignableBytes>(&sig).unwrap_err();
+            verify::signed_struct_by_signer::<SignableBytes>(pubkey, &sig).unwrap_err();
         });
     }
 
@@ -1027,7 +1050,7 @@ mod test {
             let pubkey = key_pair.public_key();
 
             let sig = key_pair.sign_raw(&msg);
-            pubkey.verify_raw(&msg, &sig).unwrap();
+            verify::signed_bytes_by_signer(pubkey, &msg, &sig).unwrap();
         });
     }
 
@@ -1059,13 +1082,13 @@ mod test {
             assert_eq!(&sig, &sig2);
 
             let signed2 =
-                signer.verify_self_signed_struct::<Foo>(&sig).unwrap();
+                verify::signed_struct_by_signer::<Foo>(signer, &sig).unwrap();
             assert_eq!(signed, signed2.as_ref());
 
             // trying to verify signature as another type with a valid
             // serialization is prevented by domain separation.
 
-            signer.verify_self_signed_struct::<Bar>(&sig).unwrap_err();
+            verify::signed_struct_by_signer::<Bar>(signer, &sig).unwrap_err();
         });
     }
 }
