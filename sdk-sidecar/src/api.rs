@@ -24,14 +24,6 @@ pub struct HealthCheckResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ListPaymentsRequest {
-    pub filter: PaymentFilter,
-    pub order: Option<Order>,
-    pub limit: Option<usize>,
-    pub after: Option<PaymentCreatedIndex>,
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct SignupRequest {
     pub partner_pk: Option<UserPk>,
 }
@@ -161,4 +153,12 @@ impl From<WithdrawLnurlRequest> for SdkWithdrawLnurlRequest {
             personal_note: req.personal_note,
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ListPaymentsRequest {
+    pub filter: PaymentFilter,
+    pub order: Option<Order>,
+    pub limit: Option<usize>,
+    pub after: Option<PaymentCreatedIndex>,
 }

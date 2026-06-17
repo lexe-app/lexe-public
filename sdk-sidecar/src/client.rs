@@ -56,30 +56,6 @@ impl UserSidecarApi for SidecarClient {
         self.rest.send(http_req).await
     }
 
-    async fn sync_payments(&self) -> Result<PaymentSyncSummary, SdkApiError> {
-        let url =
-            format!("{base}/v2/node/sync_payments", base = self.sidecar_url);
-        let http_req = self.rest.put(url, &Empty {});
-        self.rest.send(http_req).await
-    }
-
-    async fn list_payments(
-        &self,
-        req: &ListPaymentsRequest,
-    ) -> Result<ListPaymentsResponse, SdkApiError> {
-        let url =
-            format!("{base}/v2/node/list_payments", base = self.sidecar_url);
-        let http_req = self.rest.get(url, req);
-        self.rest.send(http_req).await
-    }
-
-    async fn clear_payments(&self) -> Result<Empty, SdkApiError> {
-        let url =
-            format!("{base}/v2/node/clear_payments", base = self.sidecar_url);
-        let http_req = self.rest.post(url, &Empty {});
-        self.rest.send(http_req).await
-    }
-
     async fn signup(&self, req: &SignupRequest) -> Result<Empty, SdkApiError> {
         let url = format!("{base}/v2/node/signup", base = self.sidecar_url);
         let http_req = self.rest.put(url, req);
@@ -217,6 +193,30 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/update_personal_note");
         let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn sync_payments(&self) -> Result<PaymentSyncSummary, SdkApiError> {
+        let url =
+            format!("{base}/v2/node/sync_payments", base = self.sidecar_url);
+        let http_req = self.rest.put(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn list_payments(
+        &self,
+        req: &ListPaymentsRequest,
+    ) -> Result<ListPaymentsResponse, SdkApiError> {
+        let url =
+            format!("{base}/v2/node/list_payments", base = self.sidecar_url);
+        let http_req = self.rest.get(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn clear_payments(&self) -> Result<Empty, SdkApiError> {
+        let url =
+            format!("{base}/v2/node/clear_payments", base = self.sidecar_url);
+        let http_req = self.rest.post(url, &Empty {});
         self.rest.send(http_req).await
     }
 }
