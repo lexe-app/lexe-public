@@ -37,6 +37,13 @@ pub mod blocking_wallet;
 pub mod util {
     pub use lexe_byte_array::ByteArray;
     pub use lexe_hex::hex;
+
+    /// ed25519 keys and signatures.
+    //
+    // We *could* replace this with the actual ed25519 module later if desired.
+    pub mod ed25519 {
+        pub use lexe_crypto::ed25519::PublicKey;
+    }
 }
 
 // Reexport crates and items reachable through the stable public API surface.
