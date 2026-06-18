@@ -38,7 +38,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         UpdateClientRequest,
-        UpdatePersonalNote;
+        UpdatePersonalNote,
+        WithdrawLnurlRequest;
 import 'package:app_rs_dart/ffi/app.dart'
     show App, AppHandle, WritebackDbRsSettingsRs;
 import 'package:app_rs_dart/ffi/app_data.dart'
@@ -334,6 +335,16 @@ class MockAppHandle extends AppHandle {
     // () => throw FfiError("Request timed out").toFfi(),
     () => PreflightPayOfferResponse(amountSats: req.amountSats, feesSats: 123),
   );
+
+  @override
+  Future<Payment> withdrawLnurl({required WithdrawLnurlRequest req}) =>
+      Future.delayed(
+        const Duration(seconds: 1),
+        () => dummyInvoiceInboundCompleted04.copyWith(
+          amountSats: req.amountMsat ~/ 1000,
+          personalNote: req.personalNote,
+        ),
+      );
 
   @override
   Future<String> listBroadcastedTxs() => Future.delayed(
@@ -1489,6 +1500,35 @@ const Payment dummyInvoiceInboundCompleted03 = Payment(
   status: PaymentStatus.completed,
   statusStr: "completed",
   personalNote: "Initial Lightning deposit",
+  createdAt: 1740000000000,
+  finalizedAt: 1740000003000,
+);
+
+/// Lightning inbound payment; vaguely matches [defaultLnurlWithdrawRequest]
+const Payment dummyInvoiceInboundCompleted04 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001740000000000-ln_5ca99b7534df3a98afb69757b770faffead8b0794e5d618fbbf9b4cfd1f157d0",
+  ),
+  kind: PaymentKind_Invoice(),
+  direction: PaymentDirection.inbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt600000n1pn6ap5xdqgf36kucmgpp5fj5ekaf5muaf3takjatmwu86ll4d3vrefewkrramlx6vl5032l8ssp50sn9getawgwsuzmlll5rfk0cqydw4hhdgct47k424f7r9s4pya9s9qyysgqcqpcxq8pn6aph2dzwjlq2vjtmducjrdgjpk6pvr23c7a3s4qrh4770a7qj00pph3vpurg0av8ps689pxt8exufuf45vd8mladjsky2rxtdqtwdpmdj38qp7k5cz7",
+    createdAt: 1740000000000,
+    expiresAt: 1740001000000,
+    amountSats: 10,
+    description: "Withdraw from Laisee.org",
+    payeePubkey:
+        "036d5a2631b3f1c25ef9a004973762b3c1af5fb892ad14b166e9573b93b83088926667d1c431271a8f06adf5510ac79763f0dfbf66904a449fd55aff60639905",
+  ),
+  amountSats: 10,
+  feesSats: 0,
+  amountMsats: 10 * 1000,
+  feesMsats: 0,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  personalNote: "",
   createdAt: 1740000000000,
   finalizedAt: 1740000003000,
 );
