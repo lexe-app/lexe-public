@@ -473,17 +473,16 @@ class PaymentDetailPageInner extends StatelessWidget {
   }
 }
 
-String formatSatsAmountFiatBelow(int amountSats, FiatRate? fiatRate) {
-  final amountSatsStr = currency_format.formatSatsAmount(
-    amountSats,
-    bitcoinSymbol: true,
-  );
+/// Format a millisat amount (e.g. "123.456 sats") with the approximate fiat
+/// value on the line below.
+String formatMsatAmountFiatBelow(int amountMsats, FiatRate? fiatRate) {
+  final amountStr = currency_format.formatMsatAmount(amountMsats);
   if (fiatRate != null) {
-    final fiatAmount = currency_format.satsToBtc(amountSats) * fiatRate.rate;
+    final fiatAmount = currency_format.msatToBtc(amountMsats) * fiatRate.rate;
     final fiatAmountStr = currency_format.formatFiat(fiatAmount, fiatRate.fiat);
-    return "$amountSatsStr\n≈ $fiatAmountStr (now)";
+    return "$amountStr\n≈ $fiatAmountStr (now)";
   } else {
-    return "$amountSatsStr\n";
+    return "$amountStr\n";
   }
 }
 
@@ -555,9 +554,9 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                   final txid = payment.txid;
                   final replacement = payment.replacement;
 
-                  final amountSats = payment.amountSats;
-                  final feesSats = payment.feesSats;
-                  final totalSats = payment.totalSats;
+                  final amountMsats = payment.amountMsats;
+                  final feesMsats = payment.feesMsats;
+                  final totalMsats = payment.totalMsats;
 
                   final createdAt = DateTime.fromMillisecondsSinceEpoch(
                     payment.createdAt,
@@ -710,22 +709,22 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                           final bool showFees;
                           if (direction == PaymentDirection.outbound) {
                             firstRowLabel = "Amount $directionLabel";
-                            firstRowValue = amountSats;
+                            firstRowValue = amountMsats;
                             lastRowLabel = "Total";
-                            lastRowValue = totalSats;
+                            lastRowValue = totalMsats;
                             showFees = true;
                           } else if (direction == PaymentDirection.inbound) {
                             firstRowLabel = "Payer sent";
-                            firstRowValue = totalSats;
+                            firstRowValue = totalMsats;
                             lastRowLabel = "You received";
-                            lastRowValue = amountSats;
+                            lastRowValue = amountMsats;
                             showFees = true;
                           } else {
                             // Waived fees: only show "Amount waived".
                             firstRowLabel = null;
                             firstRowValue = null;
                             lastRowLabel = "Amount $directionLabel";
-                            lastRowValue = amountSats;
+                            lastRowValue = amountMsats;
                             showFees = false;
                           }
 
@@ -735,7 +734,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                                   firstRowLabel != null)
                                 InfoRow(
                                   label: firstRowLabel,
-                                  value: formatSatsAmountFiatBelow(
+                                  value: formatMsatAmountFiatBelow(
                                     firstRowValue,
                                     fiatRate,
                                   ),
@@ -743,15 +742,15 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                               if (showFees)
                                 InfoRow(
                                   label: "Fees",
-                                  value: formatSatsAmountFiatBelow(
-                                    feesSats,
+                                  value: formatMsatAmountFiatBelow(
+                                    feesMsats,
                                     fiatRate,
                                   ),
                                 ),
                               if (lastRowValue != null)
                                 InfoRow(
                                   label: lastRowLabel,
-                                  value: formatSatsAmountFiatBelow(
+                                  value: formatMsatAmountFiatBelow(
                                     lastRowValue,
                                     fiatRate,
                                   ),
