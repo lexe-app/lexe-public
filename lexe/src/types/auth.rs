@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     config::WalletEnv,
-    util::{ByteArray, hex},
+    util::{ByteArray, ed25519, hex},
 };
 
 // --- Credentials --- //
@@ -355,6 +355,11 @@ impl TryFrom<Mnemonic> for RootSeed {
 pub struct ClientCredentials(UnstableClientCredentials);
 
 impl ClientCredentials {
+    /// Get the associated client public key
+    pub fn client_pk(&self) -> ed25519::PublicKey {
+        self.unstable().client_pk
+    }
+
     /// Parse [`ClientCredentials`] from a string.
     pub fn from_string(s: &str) -> anyhow::Result<Self> {
         Self::from_str(s)
