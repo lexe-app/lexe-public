@@ -15,8 +15,7 @@ import 'package:lexeapp/components.dart'
         ErrorMessage,
         ErrorMessageSection,
         HeadingText,
-        LxCloseButton,
-        LxCloseButtonKind,
+        LxBackButton,
         LxFilledButton,
         MultistepFlow,
         ScrollableSinglePageBody,
@@ -227,10 +226,7 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxCloseButton(
-          isLeading: true,
-          kind: LxCloseButtonKind.closeFromRoot,
-        ),
+        leading: const LxBackButton(isLeading: true),
         actions: [
           IconButton(
             onPressed: this.onScanPressed,
