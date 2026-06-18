@@ -565,8 +565,11 @@ class WalletPageState extends State<WalletPage> {
     // `PaymentCreatedIndex` from the flow. O/w canceling the flow will give us `null`.
     final UriFlowResult? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            NeedUriPage(uriFlowCtx: uriFlowCtx, startNewFlow: true),
+        builder: (context) => NeedUriPage(
+          uriFlowCtx: uriFlowCtx,
+          startNewFlow: true,
+          expectClaimFlow: false,
+        ),
       ),
     );
 

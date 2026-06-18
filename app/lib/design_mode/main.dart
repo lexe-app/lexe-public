@@ -295,6 +295,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       const FiatRate(fiat: "USD", rate: 96626.76),
     );
 
+    final mockUriFlowCtx = NeedUriState(
+      app: mockApp,
+      configNetwork: this.widget.config.network,
+      balance: mockApp.balance,
+      cid: cid,
+      fiatRate: mockFiatRate,
+    );
+
     const feeEstimates = PreflightPayOnchainResponse(
       high: FeeEstimate(amountSats: 849),
       normal: FeeEstimate(amountSats: 722),
@@ -598,15 +606,20 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "NeedUriPage",
+        subtitle: "expect pay flow",
         (context) => NeedUriPage(
           startNewFlow: true,
-          uriFlowCtx: NeedUriState(
-            app: mockApp,
-            configNetwork: this.widget.config.network,
-            balance: mockApp.balance,
-            cid: cid,
-            fiatRate: mockFiatRate,
-          ),
+          uriFlowCtx: mockUriFlowCtx,
+          expectClaimFlow: false,
+        ),
+      ),
+      Component(
+        "NeedUriPage",
+        subtitle: "expect claim flow",
+        (context) => NeedUriPage(
+          startNewFlow: true,
+          uriFlowCtx: mockUriFlowCtx,
+          expectClaimFlow: true,
         ),
       ),
       Component(
@@ -1082,15 +1095,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       Component(
         "ScanPage",
         (_) => MultistepFlow<SendFlowResult>(
-          builder: (_) => ScanPage(
-            uriFlowCtx: NeedUriState(
-              app: mockApp,
-              configNetwork: this.widget.config.network,
-              balance: mockApp.balance,
-              cid: cid,
-              fiatRate: mockFiatRate,
-            ),
-          ),
+          builder: (_) => ScanPage(uriFlowCtx: mockUriFlowCtx),
         ),
       ),
       Component("NodeInfoPage", (_) {
@@ -1472,13 +1477,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         "DocsGettingStarted15",
         (context) => NeedUriPage(
           startNewFlow: true,
-          uriFlowCtx: NeedUriState(
-            app: mockApp,
-            configNetwork: this.widget.config.network,
-            balance: mockApp.balance,
-            cid: cid,
-            fiatRate: mockFiatRate,
-          ),
+          uriFlowCtx: mockUriFlowCtx,
+          expectClaimFlow: false,
         ),
         screenshot:
             "lexe-docs/docs.lexe.app/images/getting-started/15-send-who.png",

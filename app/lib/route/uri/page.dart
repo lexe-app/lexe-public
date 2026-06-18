@@ -36,26 +36,39 @@ class NeedUriPage extends StatelessWidget {
     super.key,
     required this.uriFlowCtx,
     required this.startNewFlow,
+    required this.expectClaimFlow,
   });
 
   final NeedUriState uriFlowCtx;
   final bool startNewFlow;
+  final bool expectClaimFlow;
 
   @override
   Widget build(BuildContext context) => (this.startNewFlow)
       ? MultistepFlow<UriFlowResult>(
-          builder: (_) => NeedUriPageInner(uriFlowCtx: this.uriFlowCtx),
+          builder: (_) => NeedUriPageInner(
+            uriFlowCtx: this.uriFlowCtx,
+            expectClaimFlow: this.expectClaimFlow,
+          ),
         )
-      : NeedUriPageInner(uriFlowCtx: this.uriFlowCtx);
+      : NeedUriPageInner(
+          uriFlowCtx: this.uriFlowCtx,
+          expectClaimFlow: this.expectClaimFlow,
+        );
 }
 
 /// If the user is just hitting the "Send" button with no extra context, then we
 /// need to collect a [PaymentUri] of some kind (bitcoin address, LN invoice,
 /// etc...)
 class NeedUriPageInner extends StatefulWidget {
-  const NeedUriPageInner({super.key, required this.uriFlowCtx});
+  const NeedUriPageInner({
+    super.key,
+    required this.uriFlowCtx,
+    required this.expectClaimFlow,
+  });
 
   final NeedUriState uriFlowCtx;
+  final bool expectClaimFlow;
 
   @override
   State<NeedUriPageInner> createState() => _NeedUriPageInnerState();
@@ -74,6 +87,13 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
 
     super.dispose();
   }
+
+  String header() =>
+      this.widget.expectClaimFlow ? "Who's paying us?" : "Who are we paying?";
+
+  String hintText() => this.widget.expectClaimFlow
+      ? "lnurl1.. lnurlw.."
+      : "bc1.. lnbc1.. bitcoin:..";
 
   Future<void> onScanPressed() async {
     info("pressed QR scan button");
@@ -237,7 +257,7 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Who are we paying?"),
+          HeadingText(text: this.header()),
           const SizedBox(height: Space.s300),
 
           // Enter payment URI text field
@@ -250,9 +270,7 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
             textDirection: TextDirection.ltr,
             textInputAction: TextInputAction.next,
             onEditingComplete: this.onNext,
-            decoration: baseInputDecoration.copyWith(
-              hintText: "bc1.. lnbc1.. bitcoin:..",
-            ),
+            decoration: baseInputDecoration.copyWith(hintText: this.hintText()),
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size700,
               fontVariations: [Fonts.weightMedium],
