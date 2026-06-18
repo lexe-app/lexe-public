@@ -129,6 +129,39 @@ void main() {
     );
   });
 
+  test("currency_format.formatMsatAmount", () {
+    String fmt(
+      int msats, {
+      PaymentDirection? direction,
+      String locale = "en_US",
+    }) => currency_format.formatMsatAmount(
+      msats,
+      direction: direction,
+      locale: locale,
+    );
+
+    // Whole-sat amounts omit the decimal portion entirely.
+    expect(fmt(0), "₿0");
+    expect(fmt(123000), "₿123");
+    expect(fmt(1234567000), "₿1,234,567");
+
+    // Sub-sat precision: padded to 3 digits, trailing zeros trimmed.
+    expect(fmt(1), "₿0.001");
+    expect(fmt(50), "₿0.05");
+    expect(fmt(123456), "₿123.456");
+    expect(fmt(1234500), "₿1,234.5");
+
+    // Direction signs ('+'/'-'); info direction is neutral (no sign).
+    expect(fmt(123456, direction: PaymentDirection.inbound), "+₿123.456");
+    expect(fmt(123456, direction: PaymentDirection.outbound), "-₿123.456");
+    expect(fmt(123456, direction: PaymentDirection.info), "₿123.456");
+
+    // Locale-aware grouping and decimal separator: fr_FR groups with a narrow
+    // no-break space and uses "," as the decimal separator, and suffixes ₿.
+    expect(fmt(1234500, locale: "fr_FR"), "1 234,5 ₿");
+    expect(fmt(1234500, locale: "da_DK"), "1.234,5 ₿");
+  });
+
   test("currency_format.formatFiatParts", () {
     expect((
       "\$1,234",

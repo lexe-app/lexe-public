@@ -7,6 +7,8 @@ const int satsPerBtc = 100000000; // 1e8, 100 million sats
 
 double satsToBtc(int sats) => sats * 1e-8;
 
+double msatToBtc(int msats) => msats * 1e-11;
+
 String directionToSign(PaymentDirection direction) => switch (direction) {
   PaymentDirection.inbound => "+",
   PaymentDirection.outbound => "-",
@@ -124,6 +126,54 @@ String formatSatsAmount(
     final amountStr = formatter.format(amountSats);
     return "$sign$amountStr";
   }
+}
+
+/// Format a millisatoshi amount with full millisat precision, using the "₿"
+/// symbol like [formatSatsAmount] (e.g. "₿123.456"). The sub-sat portion is
+/// padded to 3 digits with trailing zeros trimmed, and omitted entirely for
+/// whole-sat amounts. Unlike float-based formatting, this is exact.
+///
+/// ### Examples
+///
+/// ```dart
+/// assert("₿0" == formatMsatAmount(0, locale: "en_US"));
+/// assert("₿0.001" == formatMsatAmount(1, locale: "en_US"));
+/// assert("₿0.05" == formatMsatAmount(50, locale: "en_US"));
+/// assert("₿123" == formatMsatAmount(123000, locale: "en_US"));
+/// assert("₿123.456" == formatMsatAmount(123456, locale: "en_US"));
+/// assert("₿1,234.5" == formatMsatAmount(1234500, locale: "en_US"));
+/// assert("-₿123.456" == formatMsatAmount(123456, direction: PaymentDirection.outbound, locale: "en_US"));
+/// ```
+String formatMsatAmount(
+  int amountMsats, {
+  PaymentDirection? direction,
+  String? locale,
+}) {
+  final (wholeSats, msatsFrac) = divRem(amountMsats.abs(), 1000);
+
+  // Format the whole-sats portion with the ₿ symbol, sign, and locale grouping.
+  final whole = formatSatsAmount(
+    wholeSats,
+    direction: direction,
+    locale: locale,
+  );
+  if (msatsFrac == 0) return whole;
+
+  // Sub-sat portion: pad to 3 digits, then trim trailing zeros.
+  // ex: 456 => ".456", 50 => ".05"
+  final trimmed = msatsFrac
+      .toString()
+      .padLeft(3, "0")
+      .replaceAll(RegExp(r"0+$"), "");
+  final decimalSep = NumberFormat.decimalPatternDigits(
+    locale: locale,
+  ).symbols.DECIMAL_SEP;
+
+  // Insert the fraction right after the last digit, so it lands inside the
+  // number regardless of which side the locale places the ₿ symbol.
+  final lastDigit = whole.lastIndexOf(RegExp(r"\d"));
+  return "${whole.substring(0, lastDigit + 1)}$decimalSep$trimmed"
+      "${whole.substring(lastDigit + 1)}";
 }
 
 /// Format a fiat currency amount.
