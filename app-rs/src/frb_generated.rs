@@ -2661,6 +2661,8 @@ impl SseDecode for crate::ffi::types::Payment {
         let mut var_replacement = <Option<String>>::sse_decode(deserializer);
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_feesSats = <u64>::sse_decode(deserializer);
+        let mut var_amountMsats = <Option<u64>>::sse_decode(deserializer);
+        let mut var_feesMsats = <u64>::sse_decode(deserializer);
         let mut var_status =
             <crate::ffi::types::PaymentStatus>::sse_decode(deserializer);
         let mut var_statusStr = <String>::sse_decode(deserializer);
@@ -2683,6 +2685,8 @@ impl SseDecode for crate::ffi::types::Payment {
             replacement: var_replacement,
             amount_sats: var_amountSats,
             fees_sats: var_feesSats,
+            amount_msats: var_amountMsats,
+            fees_msats: var_feesMsats,
             status: var_status,
             status_str: var_statusStr,
             description: var_description,
@@ -4389,6 +4393,8 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Payment {
             self.replacement.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
             self.fees_sats.into_into_dart().into_dart(),
+            self.amount_msats.into_into_dart().into_dart(),
+            self.fees_msats.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
             self.status_str.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
@@ -6221,6 +6227,8 @@ impl SseEncode for crate::ffi::types::Payment {
         <Option<String>>::sse_encode(self.replacement, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <u64>::sse_encode(self.fees_sats, serializer);
+        <Option<u64>>::sse_encode(self.amount_msats, serializer);
+        <u64>::sse_encode(self.fees_msats, serializer);
         <crate::ffi::types::PaymentStatus>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.status_str, serializer);
         <Option<String>>::sse_encode(self.description, serializer);

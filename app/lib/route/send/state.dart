@@ -326,6 +326,8 @@ class SendState_Preflighted implements SendState {
           amountSats: preflighted.amountSats,
           // TODO(phlip9): get from resp
           feesSats: estimatedFee.amountSats,
+          amountMsats: preflighted.amountSats * 1000,
+          feesMsats: estimatedFee.amountSats * 1000,
         ),
       ),
     );
@@ -366,6 +368,8 @@ class SendState_Preflighted implements SendState {
           amountSats: preflighted.preflight.amountSats,
           // TODO(phlip9): get from resp
           feesSats: preflighted.preflight.feesSats,
+          amountMsats: preflighted.preflight.amountSats * 1000,
+          feesMsats: preflighted.preflight.feesSats * 1000,
         ),
       ),
     );
@@ -406,6 +410,8 @@ class SendState_Preflighted implements SendState {
           amountSats: preflighted.preflight.amountSats,
           // TODO(phlip9): get from resp
           feesSats: preflighted.preflight.feesSats,
+          amountMsats: preflighted.preflight.amountSats * 1000,
+          feesMsats: preflighted.preflight.feesSats * 1000,
         ),
       ),
     );

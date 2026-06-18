@@ -52,6 +52,10 @@ extension PaymentExt on Payment {
   int? get totalSats =>
       this.amountSats != null ? this.amountSats! + this.feesSats : null;
 
+  /// The total payment amount in millisats, inclusive of fees (`amount + fee`).
+  int? get totalMsats =>
+      this.amountMsats != null ? this.amountMsats! + this.feesMsats : null;
+
   ShortPayment intoShort() => ShortPayment(
     index: this.index,
     kind: this.kind,
@@ -78,6 +82,8 @@ extension PaymentExt on Payment {
     String? replacement,
     int? amountSats,
     int? feesSats,
+    int? amountMsats,
+    int? feesMsats,
     PaymentStatus? status,
     String? statusStr,
     String? description,
@@ -99,6 +105,8 @@ extension PaymentExt on Payment {
     replacement: replacement ?? this.replacement,
     amountSats: amountSats ?? this.amountSats,
     feesSats: feesSats ?? this.feesSats,
+    amountMsats: amountMsats ?? this.amountMsats,
+    feesMsats: feesMsats ?? this.feesMsats,
     status: status ?? this.status,
     statusStr: statusStr ?? this.statusStr,
     description: description ?? this.description,

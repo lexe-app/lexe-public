@@ -583,22 +583,22 @@ String toString() {
 /// @nodoc
 mixin _$Payment {
 
- PaymentCreatedIndex get index; PaymentKind get kind; PaymentDirection get direction; Invoice? get invoice; String? get offerId; Offer? get offer; String? get preimage; String? get hash; String? get txid; String? get replacement; int? get amountSats; int get feesSats; PaymentStatus get status; String get statusStr; String? get description; String? get payerName; String? get message; String? get personalNote; int get createdAt; int? get finalizedAt;
+ PaymentCreatedIndex get index; PaymentKind get kind; PaymentDirection get direction; Invoice? get invoice; String? get offerId; Offer? get offer; String? get preimage; String? get hash; String? get txid; String? get replacement; int? get amountSats; int get feesSats; int? get amountMsats; int get feesMsats; PaymentStatus get status; String get statusStr; String? get description; String? get payerName; String? get message; String? get personalNote; int get createdAt; int? get finalizedAt;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Payment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.offerId, offerId) || other.offerId == offerId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.preimage, preimage) || other.preimage == preimage)&&(identical(other.hash, hash) || other.hash == hash)&&(identical(other.txid, txid) || other.txid == txid)&&(identical(other.replacement, replacement) || other.replacement == replacement)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.status, status) || other.status == status)&&(identical(other.statusStr, statusStr) || other.statusStr == statusStr)&&(identical(other.description, description) || other.description == description)&&(identical(other.payerName, payerName) || other.payerName == payerName)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.finalizedAt, finalizedAt) || other.finalizedAt == finalizedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Payment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.offerId, offerId) || other.offerId == offerId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.preimage, preimage) || other.preimage == preimage)&&(identical(other.hash, hash) || other.hash == hash)&&(identical(other.txid, txid) || other.txid == txid)&&(identical(other.replacement, replacement) || other.replacement == replacement)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.amountMsats, amountMsats) || other.amountMsats == amountMsats)&&(identical(other.feesMsats, feesMsats) || other.feesMsats == feesMsats)&&(identical(other.status, status) || other.status == status)&&(identical(other.statusStr, statusStr) || other.statusStr == statusStr)&&(identical(other.description, description) || other.description == description)&&(identical(other.payerName, payerName) || other.payerName == payerName)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.finalizedAt, finalizedAt) || other.finalizedAt == finalizedAt));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,index,kind,direction,invoice,offerId,offer,preimage,hash,txid,replacement,amountSats,feesSats,status,statusStr,description,payerName,message,personalNote,createdAt,finalizedAt]);
+int get hashCode => Object.hashAll([runtimeType,index,kind,direction,invoice,offerId,offer,preimage,hash,txid,replacement,amountSats,feesSats,amountMsats,feesMsats,status,statusStr,description,payerName,message,personalNote,createdAt,finalizedAt]);
 
 @override
 String toString() {
-  return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, offerId: $offerId, offer: $offer, preimage: $preimage, hash: $hash, txid: $txid, replacement: $replacement, amountSats: $amountSats, feesSats: $feesSats, status: $status, statusStr: $statusStr, description: $description, payerName: $payerName, message: $message, personalNote: $personalNote, createdAt: $createdAt, finalizedAt: $finalizedAt)';
+  return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, offerId: $offerId, offer: $offer, preimage: $preimage, hash: $hash, txid: $txid, replacement: $replacement, amountSats: $amountSats, feesSats: $feesSats, amountMsats: $amountMsats, feesMsats: $feesMsats, status: $status, statusStr: $statusStr, description: $description, payerName: $payerName, message: $message, personalNote: $personalNote, createdAt: $createdAt, finalizedAt: $finalizedAt)';
 }
 
 
@@ -612,7 +612,7 @@ String toString() {
 
 
 class _Payment implements Payment {
-  const _Payment({required this.index, required this.kind, required this.direction, this.invoice, this.offerId, this.offer, this.preimage, this.hash, this.txid, this.replacement, this.amountSats, required this.feesSats, required this.status, required this.statusStr, this.description, this.payerName, this.message, this.personalNote, required this.createdAt, this.finalizedAt});
+  const _Payment({required this.index, required this.kind, required this.direction, this.invoice, this.offerId, this.offer, this.preimage, this.hash, this.txid, this.replacement, this.amountSats, required this.feesSats, this.amountMsats, required this.feesMsats, required this.status, required this.statusStr, this.description, this.payerName, this.message, this.personalNote, required this.createdAt, this.finalizedAt});
   
 
 @override final  PaymentCreatedIndex index;
@@ -627,6 +627,8 @@ class _Payment implements Payment {
 @override final  String? replacement;
 @override final  int? amountSats;
 @override final  int feesSats;
+@override final  int? amountMsats;
+@override final  int feesMsats;
 @override final  PaymentStatus status;
 @override final  String statusStr;
 @override final  String? description;
@@ -641,16 +643,16 @@ class _Payment implements Payment {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Payment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.offerId, offerId) || other.offerId == offerId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.preimage, preimage) || other.preimage == preimage)&&(identical(other.hash, hash) || other.hash == hash)&&(identical(other.txid, txid) || other.txid == txid)&&(identical(other.replacement, replacement) || other.replacement == replacement)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.status, status) || other.status == status)&&(identical(other.statusStr, statusStr) || other.statusStr == statusStr)&&(identical(other.description, description) || other.description == description)&&(identical(other.payerName, payerName) || other.payerName == payerName)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.finalizedAt, finalizedAt) || other.finalizedAt == finalizedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Payment&&(identical(other.index, index) || other.index == index)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.direction, direction) || other.direction == direction)&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.offerId, offerId) || other.offerId == offerId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.preimage, preimage) || other.preimage == preimage)&&(identical(other.hash, hash) || other.hash == hash)&&(identical(other.txid, txid) || other.txid == txid)&&(identical(other.replacement, replacement) || other.replacement == replacement)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&(identical(other.amountMsats, amountMsats) || other.amountMsats == amountMsats)&&(identical(other.feesMsats, feesMsats) || other.feesMsats == feesMsats)&&(identical(other.status, status) || other.status == status)&&(identical(other.statusStr, statusStr) || other.statusStr == statusStr)&&(identical(other.description, description) || other.description == description)&&(identical(other.payerName, payerName) || other.payerName == payerName)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.finalizedAt, finalizedAt) || other.finalizedAt == finalizedAt));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,index,kind,direction,invoice,offerId,offer,preimage,hash,txid,replacement,amountSats,feesSats,status,statusStr,description,payerName,message,personalNote,createdAt,finalizedAt]);
+int get hashCode => Object.hashAll([runtimeType,index,kind,direction,invoice,offerId,offer,preimage,hash,txid,replacement,amountSats,feesSats,amountMsats,feesMsats,status,statusStr,description,payerName,message,personalNote,createdAt,finalizedAt]);
 
 @override
 String toString() {
-  return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, offerId: $offerId, offer: $offer, preimage: $preimage, hash: $hash, txid: $txid, replacement: $replacement, amountSats: $amountSats, feesSats: $feesSats, status: $status, statusStr: $statusStr, description: $description, payerName: $payerName, message: $message, personalNote: $personalNote, createdAt: $createdAt, finalizedAt: $finalizedAt)';
+  return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, offerId: $offerId, offer: $offer, preimage: $preimage, hash: $hash, txid: $txid, replacement: $replacement, amountSats: $amountSats, feesSats: $feesSats, amountMsats: $amountMsats, feesMsats: $feesMsats, status: $status, statusStr: $statusStr, description: $description, payerName: $payerName, message: $message, personalNote: $personalNote, createdAt: $createdAt, finalizedAt: $finalizedAt)';
 }
 
 

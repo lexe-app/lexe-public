@@ -42,6 +42,8 @@ Payment _paymentWithPayerFields(
     replacement: base.replacement,
     amountSats: base.amountSats,
     feesSats: base.feesSats,
+    amountMsats: base.amountMsats,
+    feesMsats: base.feesMsats,
     status: base.status,
     statusStr: base.statusStr,
     description: base.description,

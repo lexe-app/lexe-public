@@ -405,6 +405,8 @@ sealed class Payment with _$Payment {
     String? replacement,
     int? amountSats,
     required int feesSats,
+    int? amountMsats,
+    required int feesMsats,
     required PaymentStatus status,
     required String statusStr,
     String? description,

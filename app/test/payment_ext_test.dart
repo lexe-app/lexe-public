@@ -33,6 +33,8 @@ const Payment paymentAllFields = Payment(
   replacement: "replacement-txid",
   amountSats: 1000,
   feesSats: 5,
+  amountMsats: 1000 * 1000,
+  feesMsats: 5 * 1000,
   status: PaymentStatus.completed,
   statusStr: "completed",
   description: "top-level description",

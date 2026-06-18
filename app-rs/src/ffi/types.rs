@@ -446,6 +446,14 @@ pub struct Payment {
     pub amount_sats: Option<u64>,
     pub fees_sats: u64,
 
+    /// Millisat-precision versions of `amount_sats`/`fees_sats`, used only by
+    /// the payment detail page to display e.g. "123.456 sats".
+    //
+    // TODO(max): At some point, we may want to migrate the entire app to msat
+    // precision.
+    pub amount_msats: Option<u64>,
+    pub fees_msats: u64,
+
     pub status: PaymentStatus,
     pub status_str: String,
 
@@ -479,6 +487,9 @@ impl From<&BasicPaymentV2Rs> for Payment {
 
             amount_sats: payment.amount.map(|amt| amt.sats_u64()),
             fees_sats: payment.fee.sats_u64(),
+
+            amount_msats: payment.amount.map(|amt| amt.msat()),
+            fees_msats: payment.fee.msat(),
 
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),
@@ -520,6 +531,9 @@ impl From<PaymentRs> for Payment {
 
             amount_sats: value.amount.map(|amt| amt.sats_u64()),
             fees_sats: value.fees.sats_u64(),
+
+            amount_msats: value.amount.map(|amt| amt.msat()),
+            fees_msats: value.fees.msat(),
 
             status: PaymentStatus::from(value.status),
             status_str: value.status_msg,
