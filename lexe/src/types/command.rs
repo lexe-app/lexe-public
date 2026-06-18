@@ -1,5 +1,7 @@
 //! Lexe SDK API request and response types.
 
+use std::collections::HashMap;
+
 use anyhow::Context;
 use lexe_api::{
     models::command,
@@ -13,16 +15,27 @@ use lexe_api::{
         },
     },
 };
-use lexe_common::{constants, ln::amount::Amount, ppm::Ppm, time::TimestampMs};
+use lexe_common::{
+    api::{auth::Scope, revocable_clients},
+    constants,
+    ln::amount::Amount,
+    ppm::Ppm,
+    time::TimestampMs,
+};
 use lexe_payment_uri::{ClaimMethod, LnurlWithdrawRequest, PaymentMethod};
 use lexe_std::const_assert_usize_eq;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{
-    auth::{Measurement, NodePk, UserPk},
-    bitcoin::Offer,
-    payment::Payment,
+use crate::{
+    types::{
+        auth::{ClientCredentials, Measurement, NodePk, UserPk},
+        bitcoin::Offer,
+        payment::Payment,
+    },
+    util::ed25519,
 };
+
+// --- Node management --- //
 
 /// Information about a Lexe node.
 // Simple version of `lexe_api::models::command::NodeInfo`.
@@ -101,6 +114,8 @@ impl From<command::NodeInfo> for NodeInfo {
         }
     }
 }
+
+// --- Paying and receiving Bitcoin --- //
 
 /// A request to analyze the contents of a Bitcoin or Lightning payment string.
 /// Reveals all payment methods encoded in the string, and gives payment-related
@@ -542,6 +557,8 @@ pub struct WithdrawLnurlRequest {
     pub personal_note: Option<String>,
 }
 
+// --- Payment information and management --- //
+
 /// A request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
 pub struct GetPaymentRequest {
@@ -637,4 +654,128 @@ pub struct ListPaymentsResponse {
     /// Cursor for fetching the next page. `None` when there are no more
     /// results. Pass this as the `after` argument to get the next page.
     pub next_index: Option<PaymentCreatedIndex>,
+}
+
+// --- Client credentials management --- //
+
+/// Information about a client that can authenticate with a Lexe node.
+pub struct ClientInfo {
+    /// The public key of the client.
+    pub client_pk: ed25519::PublicKey,
+    /// The time at which the client was created,
+    /// in milliseconds since the UNIX epoch.
+    pub created_at: TimestampMs,
+    /// The time at which the client expires,
+    /// in milliseconds since the UNIX epoch.
+    ///
+    /// [`None`] means that the client will never expire.
+    pub expires_at: Option<TimestampMs>,
+    /// An optional label for the client.
+    pub label: Option<String>,
+    // TODO(nicole): Add scope when it's useful
+    // scope: Scope,
+}
+
+impl From<revocable_clients::RevocableClient> for ClientInfo {
+    fn from(value: revocable_clients::RevocableClient) -> Self {
+        Self {
+            client_pk: value.pubkey,
+            created_at: value.created_at,
+            expires_at: value.expires_at,
+            label: value.label,
+        }
+    }
+}
+
+/// A response containing information about a single client.
+pub struct ClientInfoResponse {
+    /// Information about the client.
+    pub client: ClientInfo,
+}
+
+/// The response to a request to get information about active clients
+/// on a Lexe node.
+pub struct GetClientResponse {
+    /// The clients that can authenticate with this node, mapped from
+    /// client public key to client information.
+    pub clients: HashMap<ed25519::PublicKey, ClientInfo>,
+}
+
+/// A request to create a new client and client credentials
+/// that can authenticate with a Lexe node.
+pub struct CreateClientRequest {
+    /// An optional expiration for the client.
+    ///
+    /// [`None`] indicates that the client should never expire. Use carefully!
+    pub expires_at: Option<TimestampMs>,
+    /// An optional label for the client.
+    ///
+    /// Must be less than 64 UTF-8 bytes if provided.
+    pub label: Option<String>,
+    // TODO(nicole): Add scope when it's useful
+    // pub scope: Scope,
+}
+
+// If this breaks, update the docs above.
+const_assert_usize_eq!(revocable_clients::RevocableClient::MAX_LABEL_LEN, 64);
+
+impl From<CreateClientRequest>
+    for revocable_clients::CreateRevocableClientRequest
+{
+    fn from(req: CreateClientRequest) -> Self {
+        Self {
+            expires_at: req.expires_at,
+            label: req.label,
+            // TODO(nicole): Allow configuring scope when it becomes useful
+            scope: Scope::All,
+        }
+    }
+}
+
+/// The response to a request to create a new client.
+pub struct CreateClientResponse {
+    /// The public key of the created client.
+    pub client_pk: ed25519::PublicKey,
+    /// The client credentials that can be used to authenticate as this client.
+    pub client_credentials: ClientCredentials,
+    /// The time at which the client was created,
+    /// in milliseconds since the UNIX epoch.
+    pub created_at: TimestampMs,
+}
+
+/// A request to update the properties of an existing client.
+pub struct UpdateClientRequest {
+    /// The public key of the client to update.
+    pub client_pk: ed25519::PublicKey,
+    /// The updated label for the client.
+    ///
+    /// - `None`: leave the label unchanged.
+    /// - `Some(None)`: clear the label.
+    /// - `Some(Some(label))`: set the label.
+    pub new_label: Option<Option<String>>,
+    /// The updated expiration for the client.
+    ///
+    /// - `None`: leave the expiration unchanged.
+    /// - `Some(None)`: make the client never expire. Use carefully!
+    /// - `Some(Some(expires_at))`: set the expiration.
+    pub new_expires_at: Option<Option<TimestampMs>>,
+}
+
+impl From<UpdateClientRequest> for revocable_clients::UpdateClientRequest {
+    fn from(req: UpdateClientRequest) -> Self {
+        Self {
+            pubkey: req.client_pk,
+            expires_at: req.new_expires_at,
+            label: req.new_label,
+            scope: None,
+            is_revoked: None,
+        }
+    }
+}
+
+/// A request to permanently revoke a client, making its credentials invalid for
+/// authentication.
+pub struct RevokeClientRequest {
+    /// The public key of the client to revoke.
+    pub client_pk: ed25519::PublicKey,
 }

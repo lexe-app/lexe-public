@@ -373,6 +373,10 @@ impl ClientCredentials {
         self.unstable().to_base64_blob()
     }
 
+    pub(crate) fn from_unstable(inner: UnstableClientCredentials) -> Self {
+        Self(inner)
+    }
+
     cfg_if::cfg_if! {
         if #[cfg(feature = "unstable")] {
             /// Access the inner [`UnstableClientCredentials`].

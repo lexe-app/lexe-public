@@ -1893,7 +1893,7 @@ pub async fn create_revocable_client(
     persister
         .persist_file(updated_file, retries)
         .await
-        .context("Failed to persisted updated RevocableClients")?;
+        .context("Failed to persist updated RevocableClients")?;
 
     Ok(CreateRevocableClientResponse {
         // Always `Some` since `node-v0.8.11`.

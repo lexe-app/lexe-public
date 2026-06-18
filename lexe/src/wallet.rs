@@ -17,6 +17,7 @@ use lexe_common::{
             UserSignupRequestWire, UserSignupRequestWireV1,
             UserSignupRequestWireV2,
         },
+        revocable_clients,
         user::NodePkProof,
     },
     ln::{amount::Amount, priority::ConfirmationPriority},
@@ -38,15 +39,18 @@ use crate::{
         WalletUserDbConfig,
     },
     types::{
-        auth::{CredentialsRef, RootSeed, UserPk},
+        auth::{ClientCredentials, CredentialsRef, RootSeed, UserPk},
         command::{
-            AnalyzeRequest, AnalyzeResponse, ClaimableDetails,
+            AnalyzeRequest, AnalyzeResponse, ClaimableDetails, ClientInfo,
+            ClientInfoResponse, CreateClientRequest, CreateClientResponse,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
-            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-            ListPaymentsResponse, NodeInfo, PayInvoiceRequest, PayLnurlRequest,
-            PayOfferRequest, PayRequest, PayableDetails, PaymentSyncSummary,
-            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
+            CreateOfferResponse, GetClientResponse, GetPaymentRequest,
+            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
+            PayableDetails, PaymentSyncSummary, RevokeClientRequest,
+            UpdateClientRequest, UpdatePersonalNoteRequest,
+            WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentFilter},
     },
@@ -1628,5 +1632,77 @@ impl LexeWallet {
         self.require_payments_db()?
             .clear()
             .context("Failed to clear local payments")
+    }
+
+    // --- Client credentials management --- //
+
+    /// Get information about the active client credentials for this node.
+    #[instrument(skip_all, name = "(get-clients)")]
+    pub async fn get_clients(&self) -> anyhow::Result<GetClientResponse> {
+        let req = revocable_clients::GetRevocableClients { valid_only: true };
+        let clients = self
+            .node_client
+            .get_revocable_clients(req)
+            .await?
+            .clients
+            .into_iter()
+            .map(|(pk, rc)| (pk, ClientInfo::from(rc)))
+            .collect();
+
+        Ok(GetClientResponse { clients })
+    }
+
+    /// Create new client credentials for this node.
+    #[instrument(skip_all, name = "(create-client)")]
+    pub async fn create_client(
+        &self,
+        req: CreateClientRequest,
+    ) -> anyhow::Result<CreateClientResponse> {
+        let (rev_client, client_creds) = self
+            .node_client
+            .create_client_credentials(req.into())
+            .await?;
+        Ok(CreateClientResponse {
+            client_pk: client_creds.client_pk,
+            client_credentials: ClientCredentials::from_unstable(client_creds),
+            created_at: rev_client.created_at,
+        })
+    }
+
+    /// Update a set of client credentials used by this node.
+    #[instrument(skip_all, name = "(update-client)")]
+    pub async fn update_client(
+        &self,
+        req: UpdateClientRequest,
+    ) -> anyhow::Result<ClientInfoResponse> {
+        let client = self
+            .node_client
+            .update_revocable_client(req.into())
+            .await?
+            .client;
+        Ok(ClientInfoResponse {
+            client: ClientInfo::from(client),
+        })
+    }
+
+    /// Permanently revoke a client, making its credentials invalid for
+    /// authentication.
+    #[instrument(skip_all, name = "(revoke-client)")]
+    pub async fn revoke_client(
+        &self,
+        req: RevokeClientRequest,
+    ) -> anyhow::Result<ClientInfoResponse> {
+        let req = revocable_clients::UpdateClientRequest {
+            pubkey: req.client_pk,
+            is_revoked: Some(true),
+            label: None,
+            expires_at: None,
+            scope: None,
+        };
+        let client =
+            self.node_client.update_revocable_client(req).await?.client;
+        Ok(ClientInfoResponse {
+            client: ClientInfo::from(client),
+        })
     }
 }
