@@ -504,16 +504,24 @@ class WalletPageState extends State<WalletPage> {
   /// Called when the "Receive" button is pressed. Pushes the receive payment
   /// page onto the navigation stack.
   Future<void> onReceivePressed() async {
+    final uriFlowCtx = this.tryCollectUriFlowContext();
+    if (uriFlowCtx == null) return;
+
     // Navigate to receive page and wait for user to return to wallet screen.
-    await Navigator.of(this.context).push(
+    // Since the NeedUriPage can be accessed from here, the flow might return
+    // a flowResult.
+    final UriFlowResult? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) => ReceivePaymentPage(
-          app: this.widget.app,
-          appData: this.widget.appData,
-          featureFlags: this.widget.featureFlags,
-          provisionService: this.provisionService,
-          fiatRate: this.fiatRateService.fiatRate,
-          settings: this.widget.settings,
+        builder: (context) => MultistepFlow<UriFlowResult>(
+          builder: (context) => ReceivePaymentPage(
+            app: this.widget.app,
+            appData: this.widget.appData,
+            featureFlags: this.widget.featureFlags,
+            provisionService: this.provisionService,
+            fiatRate: this.fiatRateService.fiatRate,
+            settings: this.widget.settings,
+            uriFlowCtx: uriFlowCtx,
+          ),
         ),
       ),
     );
@@ -521,7 +529,10 @@ class WalletPageState extends State<WalletPage> {
 
     // Maybe user received a payment, burst refresh to pick it up if we're lucky.
     // TODO(phlip9): real event stream from node should make this unnecessary.
-    this.triggerBurstRefresh();
+    if (flowResult == null) return this.triggerBurstRefresh();
+
+    // If we got a flow result, that means the user completed a need-URI flow
+    await this.onUriFlowSuccess(flowResult);
   }
 
   /// Called when the "Fund your wallet" banner is tapped (NonFunded state).

@@ -41,6 +41,8 @@ import 'package:lexeapp/route/receive/state.dart'
         LnOfferInputs,
         PaymentOffer,
         PaymentOfferKind;
+import 'package:lexeapp/route/uri/page.dart' show NeedUriPage;
+import 'package:lexeapp/route/uri/state.dart' show NeedUriState, UriFlowResult;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
@@ -75,6 +77,7 @@ class ReceivePaymentPage extends StatelessWidget {
     required this.provisionService,
     required this.fiatRate,
     required this.settings,
+    required this.uriFlowCtx,
     this.designInitialPageIdx,
     this.designInitialLightningType,
   });
@@ -90,6 +93,9 @@ class ReceivePaymentPage extends StatelessWidget {
   /// User settings.
   final LxSettings settings;
 
+  /// URI flow context, if the user chooses to input a URI
+  final NeedUriState uriFlowCtx;
+
   /// (Design mode screenshot automation only) Initial page to show.
   final int? designInitialPageIdx;
 
@@ -104,6 +110,7 @@ class ReceivePaymentPage extends StatelessWidget {
     provisionService: this.provisionService,
     fiatRate: this.fiatRate,
     settings: this.settings,
+    uriFlowCtx: this.uriFlowCtx,
     viewportWidth: MediaQuery.sizeOf(context).width,
     designInitialPageIdx: this.designInitialPageIdx,
     designInitialLightningType: this.designInitialLightningType,
@@ -121,6 +128,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
     required this.provisionService,
     required this.fiatRate,
     required this.settings,
+    required this.uriFlowCtx,
     required this.viewportWidth,
     this.designInitialPageIdx,
     this.designInitialLightningType,
@@ -132,6 +140,7 @@ class ReceivePaymentPageInner extends StatefulWidget {
   final ProvisionService provisionService;
   final ValueListenable<FiatRate?> fiatRate;
   final LxSettings settings;
+  final NeedUriState uriFlowCtx;
   final double viewportWidth;
 
   final int? designInitialPageIdx;
@@ -669,6 +678,21 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   //   );
   // }
 
+  Future<void> openUriPage() async {
+    final UriFlowResult? flowResult = await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => NeedUriPage(
+          uriFlowCtx: this.widget.uriFlowCtx,
+          startNewFlow: false,
+          expectClaimFlow: true,
+        ),
+      ),
+    );
+    if (!this.mounted || flowResult == null) return;
+
+    await Navigator.of(this.context).maybePop(flowResult);
+  }
+
   // Open an edit page when we press a "+ Amount" or "Edit" button for the given
   // page.
   Future<void> openEditPage(PaymentOfferKind kind) async {
@@ -813,6 +837,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
             height: 1.0,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: this.openUriPage,
+            icon: const Icon(LxIcons.enterText, weight: LxIcons.weightNormal),
+          ),
+          const SizedBox(width: Space.appBarTrailingPadding),
+        ],
       ),
       body: ScrollableSinglePageBody(
         padding: EdgeInsets.zero,

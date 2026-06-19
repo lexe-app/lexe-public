@@ -949,6 +949,9 @@ final class LxIcons {
   /// Scan box with QR code inside (scan box with qr inside)
   static const IconData scanDetailed = Symbols.qr_code_scanner_rounded;
 
+  /// Enter text (keyboard)
+  static const IconData enterText = Symbols.keyboard_rounded;
+
   /// Edit icon (pen in square)
   static const IconData edit = Symbols.edit_square_rounded;
 

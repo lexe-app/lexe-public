@@ -858,6 +858,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mockApp.settingsDb()),
+          uriFlowCtx: mockUriFlowCtx,
         ),
       ),
       Component(
@@ -870,6 +871,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
+          uriFlowCtx: mockUriFlowCtx,
         ),
       ),
       Component(
@@ -882,6 +884,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
+          uriFlowCtx: mockUriFlowCtx,
         ),
       ),
       Component(
@@ -1197,6 +1200,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               const FiatRate(fiat: "USD", rate: 96626.76),
             ),
             settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
+            uriFlowCtx: mockUriFlowCtx,
             designInitialLightningType: PaymentOfferKind.lightningOffer,
           );
         },
@@ -1323,6 +1327,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mocks.MockSettingsDbWithSeenHint()),
+          uriFlowCtx: mockUriFlowCtx,
         ),
         screenshot:
             "lexe-docs/docs.lexe.app/images/getting-started/07-receive-lightning.png",
@@ -1366,6 +1371,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           provisionService: ProvisionService(app: mockApp),
           fiatRate: this.makeFiatRateStream(),
           settings: LxSettings(mockApp.settingsDb()),
+          uriFlowCtx: mockUriFlowCtx,
           designInitialPageIdx: btcPageIdx,
         ),
         screenshot:
