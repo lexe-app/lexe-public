@@ -12,6 +12,8 @@ pub mod auth;
 pub mod rest;
 /// Webserver utilities.
 pub mod server;
+/// TLS acceptor wrapper for injecting client certs into server-side handlers.
+pub mod tls_acceptor;
 /// API tracing utilities for both client and server.
 pub mod trace;
 

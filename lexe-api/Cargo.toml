@@ -43,6 +43,7 @@ axum = { workspace = true, features = ["json", "query"] }
 axum-server = { workspace = true }
 bcs = { workspace = true }
 bytes = { workspace = true }
+futures = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
@@ -50,12 +51,13 @@ lightning = { workspace = true }
 rand_core = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 rustls = { workspace = true }
+tokio-rustls = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = [] }
 tower = { workspace = true, features = ["buffer", "limit", "load-shed", "timeout", "util"] }
-tower-http = { workspace = true, features = ["trace"] }
+tower-http = { workspace = true, features = ["add-extension", "trace"] }
 tracing = { workspace = true }
 
 # --- OPTIONAL --- #
@@ -66,11 +68,14 @@ proptest-derive = { optional = true, workspace = true }
 
 [dev-dependencies]
 lexe-common = { workspace = true, features = ["test-utils"] }
+lexe-crypto = { workspace = true, features = ["test-utils"] }
 
 axum = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive = { workspace = true }
 tokio = { workspace = true, features = [
+    "macros",
+    "rt",
     "test-util",
     "time"
 ] }

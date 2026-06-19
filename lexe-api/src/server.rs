@@ -61,7 +61,7 @@ use axum::{
     response::IntoResponse,
     routing::RouterIntoService,
 };
-use axum_server::tls_rustls::RustlsConfig;
+use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
 use bytes::Bytes;
 use http::{HeaderValue, StatusCode, header::CONTENT_TYPE};
 use lexe_api_core::{
@@ -78,7 +78,7 @@ use tower::{
 };
 use tracing::{Instrument, debug, error, info, warn};
 
-use crate::{rest, trace};
+use crate::{rest, tls_acceptor::CertInjectorAcceptor, trace};
 
 /// The grace period passed to [`axum_server::Handle::graceful_shutdown`] during
 /// which new connections are refused and we wait for existing connections to
@@ -358,8 +358,14 @@ pub fn build_server_fut_with_listener(
     let server_fut = async {
         let serve_result = match maybe_tls_config {
             Some(tls_config) => {
+                // Use our custom CertInjectorAcceptor to inject verified
+                // TLS client certificates into request extensions.
                 let axum_tls_config = RustlsConfig::from_config(tls_config);
-                axum_server::from_tcp_rustls(listener, axum_tls_config)
+                let rustls_acceptor = RustlsAcceptor::new(axum_tls_config);
+                let acceptor = CertInjectorAcceptor::new(rustls_acceptor);
+
+                axum_server::from_tcp(listener)
+                    .acceptor(acceptor)
                     .handle(handle_clone)
                     .serve(make_service)
                     .await
