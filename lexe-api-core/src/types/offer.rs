@@ -675,12 +675,12 @@ mod test {
             "lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj",
         );
 
-        // TODO(phlip9): LDK 0.3+ and updated BOLT12 spec consider
-        // offer_amount=Some(0) invalid.
+        // LDK 0.2.3+ and the updated BOLT12 spec reject offer_amount=Some(0).
         // See: <https://github.com/lightning/bolts/pull/1316>
-        parse_ok(
+        Offer::from_str(
             "lno1qgsqvgnwgcg35z6ee2h3yczraddm72xrfua9uve2rlrm9deu7xyfzrcgqq9qq93pqvv5dla0t723qkw63fqr543d764z8xmkwkwlk7qq43easjcetsqjc",
-        );
+        )
+        .unwrap_err();
     }
 
     #[test]

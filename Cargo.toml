@@ -348,15 +348,12 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 # * ln: onion-messenger: just queue forwards to offline peers
 # * onion-messenger: bump MAX_TIMER_TICKS to 3 (~30 sec)
 # * log: silence some especially chatty logs
-# * types: fix zero conf feature missing `clear_zero_conf` (on master)
-# * Bypass channel monitor sync requests when no partition key given (on master)
 # * util: add helper ChannelHandshakeConfig -> ChannelHandshakeConfigUpdate (on master)
-# * Add missing `OffersMessageHandler::best_block` updating (on master)
 # * ln: balance: inbound dust loss accounting to display sub-dust balance
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.2-2026_05_27" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.3-2026_06_18" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.3-2026_06_18" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.3-2026_06_18" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.2.3-2026_06_18" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
