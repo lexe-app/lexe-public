@@ -1,7 +1,9 @@
 use std::{borrow::Cow, str::FromStr};
 
 use anyhow::{Context, anyhow, ensure};
-use lexe_api::types::payments::{DbPaymentMetadata, DbPaymentV2, PaymentId};
+use lexe_api::types::payments::{
+    DbPaymentMetadata, DbPaymentV2, PaymentId, PaymentKind,
+};
 use lexe_common::time::TimestampMs;
 use lexe_crypto::{aes::AesMasterKey, rng::Crng};
 use lexe_std::{const_assert, fmt::DisplayOption};
@@ -226,7 +228,7 @@ fn decrypt_payment_v1(
     // Destructure so can update the validation below when a new field is added.
     let DbPaymentV2 {
         id: db_id,
-        kind,
+        kind: _,
         direction,
         amount,
         fee,
@@ -261,13 +263,6 @@ fn decrypt_payment_v1(
         "Payment status mismatch: db={db_status}, payment={}",
         payment.status().as_str(),
     );
-    if let Some(db_kind) = kind {
-        ensure!(
-            payment.kind().to_str() == db_kind,
-            "Payment kind mismatch: db={db_kind}, payment={}",
-            payment.kind().to_str(),
-        );
-    }
     if let Some(db_direction) = direction {
         ensure!(
             payment.direction().as_str() == db_direction,
@@ -321,7 +316,7 @@ fn decrypt_payment_v2(
         .decrypt(aad, data)
         .context("Could not decrypt Payment")?;
 
-    let payment = serde_json::from_slice::<PaymentV2>(&plaintext_bytes)
+    let mut payment = serde_json::from_slice::<PaymentV2>(&plaintext_bytes)
         .context("Could not deserialize PaymentV2")?;
 
     // Validate all plaintext fields match
@@ -343,11 +338,15 @@ fn decrypt_payment_v2(
         "status mismatch: db={db_status}, payment={}",
         payment.status().as_str(),
     );
-    ensure!(
-        payment.kind().to_str() == db_kind,
-        "kind mismatch: db={db_kind}, payment={}",
-        payment.kind().to_str(),
-    );
+
+    // Treat the DB `kind` column as the source of truth; the decrypted kind is
+    // discarded. This lets us rename a payment kind in the future using only a
+    // Lexe-side DB update; no migration is required to re-encrypt ciphertexts.
+    //
+    // compat: The db-vs-ciphertext equality check was dropped in node-v0.9.11.
+    // DB-only column edits can only be made once all nodes <= v0.9.10 are gone.
+    payment.set_kind(PaymentKind::from_str(&db_kind).expect("Infallible"));
+
     ensure!(
         payment.direction().as_str() == db_direction,
         "direction mismatch: db={db_direction}, payment={}",

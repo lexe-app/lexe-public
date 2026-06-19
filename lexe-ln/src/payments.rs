@@ -667,6 +667,20 @@ impl PaymentV2 {
         }
     }
 
+    /// Overrides the application-level kind of this payment.
+    pub fn set_kind(&mut self, kind: PaymentKind) {
+        match self {
+            Self::OnchainSend(os) => os.kind = kind,
+            Self::OnchainReceive(or) => or.kind = kind,
+            Self::InboundInvoice(iip) => iip.kind = kind,
+            Self::InboundOfferReusable(iorp) => iorp.kind = kind,
+            Self::InboundSpontaneous(isp) => isp.kind = kind,
+            Self::OutboundInvoice(oip) => oip.kind = kind,
+            Self::OutboundOffer(oop) => oop.kind = kind,
+            Self::OutboundSpontaneous(osp) => osp.kind = kind,
+        }
+    }
+
     /// Whether this payment is inbound or outbound. Useful for filtering.
     pub fn direction(&self) -> PaymentDirection {
         match self {
