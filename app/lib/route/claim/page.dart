@@ -160,8 +160,7 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
         // message: message,
       );
 
-      final ClaimFlowResult? flowResult = await Navigator.push(
-        context,
+      final ClaimFlowResult? flowResult = await Navigator.of(this.context).push(
         MaterialPageRoute(
           builder: (context) =>
               ClaimPaymentConfirmPage(claimCtx: needConfirmCtx),
