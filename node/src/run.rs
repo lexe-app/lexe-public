@@ -664,6 +664,7 @@ impl UserNode {
             esplora.clone(),
             pending_payments,
             wallet.clone(),
+            tx_broadcaster.clone(),
             onchain_recv_rx,
             test_event_tx.clone(),
             shutdown.clone(),

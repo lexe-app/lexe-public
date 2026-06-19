@@ -44,13 +44,14 @@ use crate::{
             ClaimableError, InboundOfferReusablePaymentV2,
             InboundSpontaneousPaymentV2, LnClaimCtx,
         },
-        onchain::OnchainReceiveV2,
+        onchain::{OnchainReceiveV2, OnchainSendStatus},
         outbound::{ExpireError, LxOutboundPaymentFailure},
     },
     persister::LexePersisterMethods,
     route::{self, LexeRouter, RoutingContext},
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexePersister},
+    tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
 
@@ -61,6 +62,11 @@ const PAYMENT_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const PAYMENT_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
 const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
+/// How long after an onchain send's `created_at` we keep retrying to broadcast
+/// it before giving up and cancelling it.
+const CREATED_SEND_REBROADCAST_TIMEOUT: Duration =
+    Duration::from_secs(48 * 60 * 60);
+
 /// Annotates that a given [`PaymentV2`] was returned by a `check_*` method
 /// which successfully validated a proposed state transition.
 /// [`CheckedPayment`]s should be persisted in order to transform into
@@ -167,6 +173,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         esplora: Arc<LexeEsplora>,
         pending_payments: Vec<PaymentWithMetadata>,
         wallet: OnchainWallet,
+        tx_broadcaster: TxBroadcaster,
         onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: NotifyOnce,
@@ -211,6 +218,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             this.spawn_onchain_checker(
                 esplora,
                 wallet,
+                tx_broadcaster,
                 onchain_recv_rx,
                 shutdown.clone(),
             ),
@@ -263,6 +271,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         esplora: Arc<LexeEsplora>,
         wallet: OnchainWallet,
+        tx_broadcaster: TxBroadcaster,
         mut onchain_recv_rx: notify::Receiver,
         mut shutdown: NotifyOnce,
     ) -> LxTask<()> {
@@ -290,7 +299,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     };
 
                     let res = tokio::select! {
-                        res = payman.check_onchain(&esplora, &wallet, check_new) => res,
+                        res = payman.check_onchain(
+                            &esplora,
+                            &wallet,
+                            &tx_broadcaster,
+                            check_new,
+                        ) => res,
                         () = shutdown.recv() => break,
                     };
 
@@ -1028,6 +1042,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         esplora: &LexeEsplora,
         wallet: &OnchainWallet,
+        tx_broadcaster: &TxBroadcaster,
         check_new: bool,
     ) -> anyhow::Result<()> {
         // if we completed a BDK sync, check wallet for any new onchain recvs
@@ -1039,6 +1054,130 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // send and recv.
         self.check_onchain_confs(esplora).await.context("confs")?;
 
+        // (re)broadcast any sends still stuck in the `Created` state, after
+        // verifying that they're neither confirmed nor in the mempool
+        self.rebroadcast_created_sends(tx_broadcaster)
+            .await
+            .context("rebroadcast")?;
+
+        Ok(())
+    }
+
+    /// (Re)broadcasts any onchain sends still stuck in the [`Created`] state.
+    ///
+    /// A `Created` send is one that [`pay_onchain`] persisted but never
+    /// advanced to [`Broadcasted`] -- typically because we crashed in the
+    /// window between the two. The signed tx lives on the payment, so we simply
+    /// rebroadcast it (harmless if it was already broadcasted) and advance it.
+    ///
+    /// If a send can't be broadcast within [`CREATED_SEND_REBROADCAST_TIMEOUT`]
+    /// of its `created_at`, we give up and [`cancel`] it. Sends already visible
+    /// on-chain are promoted by [`check_onchain_confs`] (which runs first), so
+    /// any still-`Created` send here is not on-chain and safe to cancel.
+    ///
+    /// [`Created`]: OnchainSendStatus::Created
+    /// [`Broadcasted`]: OnchainSendStatus::Broadcasted
+    /// [`pay_onchain`]: crate::command::pay_onchain
+    /// [`cancel`]: crate::payments::onchain::OnchainSendV2::cancel
+    /// [`check_onchain_confs`]: Self::check_onchain_confs
+    #[instrument(skip_all, name = "(rebroadcast-created-sends)")]
+    async fn rebroadcast_created_sends(
+        &self,
+        tx_broadcaster: &TxBroadcaster,
+    ) -> anyhow::Result<()> {
+        // Collect all `Created` sends. We drop the lock before broadcasting so
+        // off-chain payments can make progress.
+        let onchain_sends_in_created_state = {
+            let locked_data = self.data.lock().await;
+            locked_data
+                .pending
+                .values()
+                .filter_map(|pwm| match &pwm.payment {
+                    PaymentV2::OnchainSend(os)
+                        if os.status == OnchainSendStatus::Created =>
+                    // This clone is cheap; the tx is behind an `Arc`.
+                        Some(os.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let now = TimestampMs::now();
+        for os in onchain_sends_in_created_state {
+            let id = os.id();
+            match tx_broadcaster
+                .broadcast_transaction(os.tx.as_ref().clone())
+                .await
+            {
+                // Broadcast succeeded; advance the send to `Broadcasted`.
+                Ok(()) => self
+                    .onchain_send_broadcasted(&id, &os.txid)
+                    .await
+                    .with_context(|| format!("Couldn't register {id}"))?,
+                // Broadcast failed. Keep retrying until the send times out,
+                // then give up.
+                Err(broadcast_err) => {
+                    let stuck_for = os
+                        .created_at
+                        .map(|at| now.saturating_duration_since(at))
+                        .unwrap_or_default();
+                    if stuck_for <= CREATED_SEND_REBROADCAST_TIMEOUT {
+                        warn!(%id, "Failed to rebroadcast, will retry later: {broadcast_err:#}");
+                    } else {
+                        warn!(%id, "Giving up on stuck onchain send: {broadcast_err:#}");
+                        self.cancel_onchain_send(&id, now)
+                            .await
+                            .with_context(|| format!("Couldn't cancel {id}"))?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Gives up on an onchain send stuck in `Created`, marking it failed.
+    #[instrument(skip_all, name = "(cancel-onchain-send)")]
+    async fn cancel_onchain_send(
+        &self,
+        id: &PaymentId,
+        now: TimestampMs,
+    ) -> anyhow::Result<()> {
+        debug!(%id, "Cancelling stuck onchain send");
+        let mut locked_data = self.data.lock().await;
+
+        let pwm = self
+            .get_cow_payment(&mut locked_data, id)
+            .await
+            .context("Could not get payment")?
+            .context("Payment does not exist")?;
+
+        // Check
+        let checked = match &pwm.payment {
+            PaymentV2::OnchainSend(os) => os
+                .cancel(now)
+                .map(|os_cancelled| {
+                    let oswm = PaymentWithMetadata {
+                        payment: os_cancelled,
+                        metadata: pwm.metadata.clone(),
+                    };
+                    CheckedPayment(oswm.into_enum())
+                })
+                .context("Invalid state transition")?,
+            _ => bail!("Payment was not an onchain send"),
+        };
+
+        // Persist
+        let persisted = self
+            .persister
+            .upsert_payment(checked)
+            .await
+            .context("Persist failed")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        debug!("Successfully cancelled onchain send");
         Ok(())
     }
 

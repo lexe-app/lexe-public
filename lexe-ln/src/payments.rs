@@ -1080,6 +1080,7 @@ impl From<OnchainSendStatus> for PaymentStatus {
             OnchainSendStatus::FullyConfirmed => Self::Completed,
             OnchainSendStatus::FullyReplaced => Self::Failed,
             OnchainSendStatus::Dropped => Self::Failed,
+            OnchainSendStatus::Cancelled => Self::Failed,
         }
     }
 }
@@ -1174,6 +1175,7 @@ impl OnchainSendStatus {
             Self::FullyReplaced =>
                 "fully replaced (replacement has 6+ confirmations)",
             Self::Dropped => "dropped from mempool",
+            Self::Cancelled => "cancelled",
         }
     }
 }

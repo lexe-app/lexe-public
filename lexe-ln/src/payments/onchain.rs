@@ -57,10 +57,8 @@ pub struct OnchainSendV2 {
 #[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OnchainSendStatus {
     /// (Pending, not broadcasted) The tx has been created and signed but
-    /// hasn't been broadcasted yet.
-    //
-    // TODO(phlip9): handle the case where we create a new `OnchainSend` but
-    // crash before we broadcast the tx.
+    /// hasn't been broadcasted yet. The onchain checker rebroadcasts sends
+    /// stuck in this state, e.g. if we crashed before broadcasting.
     Created,
 
     /// (Pending, zeroconf) The tx has been broadcasted and is awaiting its
@@ -96,6 +94,13 @@ pub enum OnchainSendStatus {
     /// and move on, since this isn't security-critical; the user will still
     /// see the successful send reflected in their wallet balance.
     Dropped,
+
+    /// (Finalized-Failed, never broadcast) We failed to broadcast a send within
+    /// 48 hours of creation, so we gave up. Unlike `Dropped`, the tx never made
+    /// it into a mempool. This may be because the tx is unbroadcastable
+    /// (e.g. its inputs were spent by another tx), or due to transient issues
+    /// reaching the broadcast provider.
+    Cancelled,
 }
 
 impl OnchainSendV2 {
@@ -171,12 +176,36 @@ impl OnchainSendV2 {
             PartiallyConfirmed => bail!("Tx already has confirmations"),
             ReplacementBroadcasted => bail!("Tx was being replaced"),
             PartiallyReplaced => bail!("Tx already partially replaced"),
-            FullyConfirmed | FullyReplaced | Dropped => bail!("Tx was final"),
+            FullyConfirmed | FullyReplaced | Dropped | Cancelled =>
+                bail!("Tx was final"),
         }
 
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
         clone.status = Broadcasted;
+
+        Ok(clone)
+    }
+
+    // Event sources:
+    // - `PaymentsManager::spawn_onchain_checker` task via
+    //   `rebroadcast_created_sends`
+    pub(crate) fn cancel(&self, now: TimestampMs) -> anyhow::Result<Self> {
+        use OnchainSendStatus::*;
+
+        match self.status {
+            Created => (),
+            Broadcasted
+            | ReplacementBroadcasted
+            | PartiallyConfirmed
+            | PartiallyReplaced => bail!("Tx was already broadcasted"),
+            FullyConfirmed | FullyReplaced | Dropped | Cancelled =>
+                bail!("Tx was final"),
+        }
+
+        let mut clone = self.clone();
+        clone.status = Cancelled;
+        clone.finalized_at = Some(now);
 
         Ok(clone)
     }
@@ -190,18 +219,28 @@ impl OnchainSendV2 {
     ) -> anyhow::Result<(Option<Self>, Option<PaymentMetadataUpdate>)> {
         use OnchainSendStatus::*;
 
-        // We'll update our state if and only if (1) the payment is still in a
-        // pending state and (2) the tx has been broadcasted.
+        // Only update if the payment is pending and the conf status is
+        // actionable.
         match self.status {
-            Created => {
-                warn!("Skipping conf status update; waiting for broadcast");
-                return Ok((None, None));
-            }
+            // A `Created` send may not have been broadcasted yet, and
+            // `ZeroConf` / `Dropped` can't disambiguate (in a mempool vs never
+            // sent). Acting on them would falsely mark it `Broadcasted`, so we
+            // leave it for `PaymentsManager::rebroadcast_created_sends` to
+            // actually (re)broadcast. Only `InBestChain` / `HasReplacement`
+            // prove it reached the chain.
+            Created => match &conf_status {
+                TxConfStatus::ZeroConf | TxConfStatus::Dropped => {
+                    warn!("Skipping conf status update; awaiting broadcast");
+                    return Ok((None, None));
+                }
+                TxConfStatus::InBestChain { .. }
+                | TxConfStatus::HasReplacement { .. } => (),
+            },
             Broadcasted
             | PartiallyConfirmed
             | ReplacementBroadcasted
             | PartiallyReplaced => (),
-            FullyConfirmed | FullyReplaced | Dropped => bail!(
+            FullyConfirmed | FullyReplaced | Dropped | Cancelled => bail!(
                 "Tx already finalized; shouldn't have checked for conf status"
             ),
         }
@@ -588,7 +627,7 @@ mod test {
 
     #[test]
     fn status_json_backwards_compat() {
-        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
+        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped","cancelled"]"#;
         json_unit_enum_backwards_compat::<OnchainSendStatus>(expected_ser);
 
         let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
