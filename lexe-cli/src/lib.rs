@@ -157,13 +157,13 @@ pub enum LexeCommand {
     PayOffer(PayOfferArgs),
     PayLnurl(PayLnurlArgs),
     WithdrawLnurl(WithdrawLnurlArgs),
-    GetPayment(GetPaymentArgs),
-    GetUpdatedPayments(GetUpdatedPaymentsArgs),
-    WaitForPayment(WaitForPaymentArgs),
-    UpdatePersonalNote(UpdatePersonalNoteArgs),
     SyncPayments(SyncPaymentsArgs),
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
+    WaitForPayment(WaitForPaymentArgs),
+    GetPayment(GetPaymentArgs),
+    GetUpdatedPayments(GetUpdatedPaymentsArgs),
+    UpdatePersonalNote(UpdatePersonalNoteArgs),
     Export(ExportArgs),
 }
 
@@ -288,13 +288,13 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
         LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
-        LexeCommand::GetPayment(a) => a.run(&wallet).await,
-        LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
-        LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
-        LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
+        LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
+        LexeCommand::GetPayment(a) => a.run(&wallet).await,
+        LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
+        LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
         LexeCommand::Export(a) => a.run(&credentials),
     }
 }
@@ -1360,152 +1360,6 @@ impl WithdrawLnurlArgs {
     }
 }
 
-// --- `get-payment` --- //
-
-#[derive(Parser)]
-#[command(
-    about = "Get a payment by its created index",
-    long_about = "Get a payment by its created index.\n\
-        \n\
-        Fetches the payment directly from the user node (not from local storage).",
-    help_template = HELP_TEMPLATE,
-)]
-pub struct GetPaymentArgs {
-    /// The payment's created index
-    index: PaymentCreatedIndex,
-}
-
-impl GetPaymentArgs {
-    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
-        let resp = wallet
-            .get_payment(GetPaymentRequest { index: self.index })
-            .await
-            .context("Failed to get payment")?;
-        helpers::print_json_pretty(&resp)
-    }
-}
-
-// --- `get-updated-payments` --- //
-
-#[derive(Parser)]
-#[command(
-    about = "Get payments which were updated past a specified index",
-    long_about = "Get payments which were updated past a specified index.\n\
-        \n\
-        Fetches updated payments directly from the user node \
-        (not from local storage).",
-    help_template = HELP_TEMPLATE,
-)]
-pub struct GetUpdatedPaymentsArgs {
-    #[arg(
-        long,
-        help = "The cursor at which the results should start, exclusive.\n\
-        If given, payments that were last updated earlier than or\n\
-        equal to this will not be returned. If omitted, the least\n\
-        recently updated payments will be returned first."
-    )]
-    start_index: Option<PaymentUpdatedIndex>,
-
-    #[arg(
-        long,
-        help = "Maximum number of updated payments to return.\n\
-        Maximum value: 100. Defaults to 50 if not set."
-    )]
-    limit: Option<u16>,
-}
-
-impl GetUpdatedPaymentsArgs {
-    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
-        let req = GetUpdatedPaymentsRequest {
-            start_index: self.start_index,
-            limit: self.limit,
-        };
-        let resp = wallet
-            .get_updated_payments(req)
-            .await
-            .context("Failed to get updated payments")?;
-        helpers::print_json_pretty(&resp)
-    }
-}
-
-// --- `wait-for-payment` --- //
-
-#[derive(Parser)]
-#[command(
-    about = "Wait for a payment to reach a terminal state",
-    long_about = "Wait for a payment to reach a terminal state (completed or failed).\n\
-        \n\
-        Polls the node with exponential backoff until the payment finalizes\n\
-        or the timeout is reached. Defaults to 600 seconds (10 minutes).\n\
-        \n\
-        If already finalized, we still fetch the payment\n\
-        to ensure we have the latest metadata.",
-    help_template = HELP_TEMPLATE,
-)]
-pub struct WaitForPaymentArgs {
-    /// The payment index to wait on
-    index: PaymentCreatedIndex,
-
-    /// Timeout in seconds. [default: 600, max: 86400]
-    #[arg(long)]
-    timeout_secs: Option<u64>,
-}
-
-impl WaitForPaymentArgs {
-    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
-        let timeout = self.timeout_secs.map(Duration::from_secs);
-        info!("Waiting for payment...");
-        let payment = wallet
-            .wait_for_payment(self.index, timeout)
-            .await
-            .context("Failed waiting for payment")?;
-        match payment.status {
-            PaymentStatus::Pending =>
-                unreachable!("wait_for_payment should only return finalized"),
-            PaymentStatus::Completed => info!("Payment complete!"),
-            PaymentStatus::Failed => warn!("Payment failed."),
-        }
-        helpers::print_json_pretty(&payment)
-    }
-}
-
-// --- `update-personal-note` --- //
-
-#[derive(Parser)]
-#[command(
-    about = "Update the personal note on an existing payment",
-    long_about = "Update the personal note on an existing payment.\n\
-        \n\
-        The note is stored on the user node and is not visible to the counterparty.",
-    help_template = HELP_TEMPLATE,
-)]
-pub struct UpdatePersonalNoteArgs {
-    /// The payment index
-    index: PaymentCreatedIndex,
-
-    #[arg(
-        long,
-        help = "The new personal note. Omit to clear.\n\
-        Maximum length: 200 chars / 512 UTF-8 bytes."
-    )]
-    personal_note: Option<String>,
-}
-
-impl UpdatePersonalNoteArgs {
-    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
-        let req = UpdatePersonalNoteRequest {
-            index: self.index,
-            personal_note: self.personal_note,
-        };
-        wallet
-            .update_personal_note(req)
-            .await
-            .context("Failed to update personal note")?;
-        println!("Personal note updated");
-        Ok(())
-    }
-}
-
 // --- `sync-payments` --- //
 
 #[derive(Parser)]
@@ -1636,6 +1490,152 @@ impl ClearPaymentsArgs {
             .clear_payments()
             .context("Failed to clear payments")?;
         println!("Cleared local payments cache.");
+        Ok(())
+    }
+}
+
+// --- `wait-for-payment` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Wait for a payment to reach a terminal state",
+    long_about = "Wait for a payment to reach a terminal state (completed or failed).\n\
+        \n\
+        Polls the node with exponential backoff until the payment finalizes\n\
+        or the timeout is reached. Defaults to 600 seconds (10 minutes).\n\
+        \n\
+        If already finalized, we still fetch the payment\n\
+        to ensure we have the latest metadata.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct WaitForPaymentArgs {
+    /// The payment index to wait on
+    index: PaymentCreatedIndex,
+
+    /// Timeout in seconds. [default: 600, max: 86400]
+    #[arg(long)]
+    timeout_secs: Option<u64>,
+}
+
+impl WaitForPaymentArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let timeout = self.timeout_secs.map(Duration::from_secs);
+        info!("Waiting for payment...");
+        let payment = wallet
+            .wait_for_payment(self.index, timeout)
+            .await
+            .context("Failed waiting for payment")?;
+        match payment.status {
+            PaymentStatus::Pending =>
+                unreachable!("wait_for_payment should only return finalized"),
+            PaymentStatus::Completed => info!("Payment complete!"),
+            PaymentStatus::Failed => warn!("Payment failed."),
+        }
+        helpers::print_json_pretty(&payment)
+    }
+}
+
+// --- `get-payment` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get a payment by its created index",
+    long_about = "Get a payment by its created index.\n\
+        \n\
+        Fetches the payment directly from the user node (not from local storage).",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetPaymentArgs {
+    /// The payment's created index
+    index: PaymentCreatedIndex,
+}
+
+impl GetPaymentArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .get_payment(GetPaymentRequest { index: self.index })
+            .await
+            .context("Failed to get payment")?;
+        helpers::print_json_pretty(&resp)
+    }
+}
+
+// --- `get-updated-payments` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get payments which were updated past a specified index",
+    long_about = "Get payments which were updated past a specified index.\n\
+        \n\
+        Fetches updated payments directly from the user node \
+        (not from local storage).",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetUpdatedPaymentsArgs {
+    #[arg(
+        long,
+        help = "The cursor at which the results should start, exclusive.\n\
+        If given, payments that were last updated earlier than or\n\
+        equal to this will not be returned. If omitted, the least\n\
+        recently updated payments will be returned first."
+    )]
+    start_index: Option<PaymentUpdatedIndex>,
+
+    #[arg(
+        long,
+        help = "Maximum number of updated payments to return.\n\
+        Maximum value: 100. Defaults to 50 if not set."
+    )]
+    limit: Option<u16>,
+}
+
+impl GetUpdatedPaymentsArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = GetUpdatedPaymentsRequest {
+            start_index: self.start_index,
+            limit: self.limit,
+        };
+        let resp = wallet
+            .get_updated_payments(req)
+            .await
+            .context("Failed to get updated payments")?;
+        helpers::print_json_pretty(&resp)
+    }
+}
+
+// --- `update-personal-note` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Update the personal note on an existing payment",
+    long_about = "Update the personal note on an existing payment.\n\
+        \n\
+        The note is stored on the user node and is not visible to the counterparty.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct UpdatePersonalNoteArgs {
+    /// The payment index
+    index: PaymentCreatedIndex,
+
+    #[arg(
+        long,
+        help = "The new personal note. Omit to clear.\n\
+        Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    personal_note: Option<String>,
+}
+
+impl UpdatePersonalNoteArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = UpdatePersonalNoteRequest {
+            index: self.index,
+            personal_note: self.personal_note,
+        };
+        wallet
+            .update_personal_note(req)
+            .await
+            .context("Failed to update personal note")?;
+        println!("Personal note updated");
         Ok(())
     }
 }

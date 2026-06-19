@@ -393,49 +393,6 @@ impl BlockingLexeWallet {
 
     // --- Payment information and management --- //
 
-    /// Get information about a payment by its created index.
-    pub fn get_payment(
-        &self,
-        req: GetPaymentRequest,
-    ) -> anyhow::Result<GetPaymentResponse> {
-        block_on(self.inner.get_payment(req))
-    }
-
-    /// Get a batch of payments in ascending `updated_at` order, starting from
-    /// a given `updated_at` index.
-    ///
-    /// Useful for tailing / syncing payment updates as they occur and merging
-    /// them into a local payments store.
-    pub fn get_updated_payments(
-        &self,
-        req: GetUpdatedPaymentsRequest,
-    ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
-        block_on(self.inner.get_updated_payments(req))
-    }
-
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    pub fn wait_for_payment(
-        &self,
-        index: PaymentCreatedIndex,
-        timeout: Option<Duration>,
-    ) -> anyhow::Result<Payment> {
-        block_on(self.inner.wait_for_payment(index, timeout))
-    }
-
-    /// Update the personal note on an existing payment.
-    /// The note is stored on the user node and is not visible to the
-    /// counterparty.
-    pub fn update_personal_note(
-        &self,
-        req: UpdatePersonalNoteRequest,
-    ) -> anyhow::Result<()> {
-        block_on(self.inner.update_personal_note(req))
-    }
-
     /// Sync payments from the user node to the local payments cache.
     ///
     /// Returns an error if local persistence is disabled for this wallet.
@@ -474,6 +431,49 @@ impl BlockingLexeWallet {
     /// Returns an error if local persistence is disabled for this wallet.
     pub fn clear_payments(&self) -> anyhow::Result<()> {
         self.inner.clear_payments()
+    }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    pub fn wait_for_payment(
+        &self,
+        index: PaymentCreatedIndex,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Payment> {
+        block_on(self.inner.wait_for_payment(index, timeout))
+    }
+
+    /// Get information about a payment by its created index.
+    pub fn get_payment(
+        &self,
+        req: GetPaymentRequest,
+    ) -> anyhow::Result<GetPaymentResponse> {
+        block_on(self.inner.get_payment(req))
+    }
+
+    /// Get a batch of payments in ascending `updated_at` order, starting from
+    /// a given `updated_at` index.
+    ///
+    /// Useful for tailing / syncing payment updates as they occur and merging
+    /// them into a local payments store.
+    pub fn get_updated_payments(
+        &self,
+        req: GetUpdatedPaymentsRequest,
+    ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
+        block_on(self.inner.get_updated_payments(req))
+    }
+
+    /// Update the personal note on an existing payment.
+    /// The note is stored on the user node and is not visible to the
+    /// counterparty.
+    pub fn update_personal_note(
+        &self,
+        req: UpdatePersonalNoteRequest,
+    ) -> anyhow::Result<()> {
+        block_on(self.inner.update_personal_note(req))
     }
 }
 

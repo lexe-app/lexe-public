@@ -90,15 +90,15 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/pay_offer", post(node::pay_offer))
         .route("/v2/node/pay_lnurl", post(node::pay_lnurl))
         .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
+        .route("/v2/node/sync_payments", put(node::sync_payments))
+        .route("/v2/node/list_payments", get(node::list_payments))
+        .route("/v2/node/clear_payments", post(node::clear_payments))
         .route("/v2/node/payment", get(node::get_payment))
         .route("/v2/node/updated_payments", get(node::get_updated_payments))
         .route(
             "/v2/node/update_personal_note",
             post(node::update_personal_note),
         )
-        .route("/v2/node/sync_payments", put(node::sync_payments))
-        .route("/v2/node/list_payments", get(node::list_payments))
-        .route("/v2/node/clear_payments", post(node::clear_payments))
         // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
         .route("/v1/node/node_info", get(node::node_info))
@@ -443,6 +443,42 @@ mod node {
         Ok(LxJson(resp))
     }
 
+    #[instrument(skip_all, name = "(sync-payments)")]
+    pub(crate) async fn sync_payments(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<PaymentSyncSummary>, SdkApiError> {
+        let resp =
+            wallet.sync_payments().await.map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(list-payments)")]
+    pub(crate) async fn list_payments(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxQuery(req): LxQuery<ListPaymentsRequest>,
+    ) -> Result<LxJson<ListPaymentsResponse>, SdkApiError> {
+        let resp = wallet
+            .list_payments(
+                &req.filter,
+                req.order,
+                req.limit,
+                req.after.as_ref(),
+            )
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(clear-payments)")]
+    pub(crate) async fn clear_payments(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<Empty>, SdkApiError> {
+        wallet.clear_payments().map_err(SdkApiError::command)?;
+        Ok(LxJson(Empty {}))
+    }
+
     /// Legacy: Returns `{ "payment": null }` if not found.
     #[instrument(skip_all, name = "(get-payment-v1)")]
     pub(crate) async fn get_payment_v1(
@@ -510,42 +546,6 @@ mod node {
             .update_personal_note(req)
             .await
             .map_err(SdkApiError::command)?;
-        Ok(LxJson(Empty {}))
-    }
-
-    #[instrument(skip_all, name = "(sync-payments)")]
-    pub(crate) async fn sync_payments(
-        State(_): State<Arc<RouterState>>,
-        WalletExtractor(wallet): WalletExtractor,
-    ) -> Result<LxJson<PaymentSyncSummary>, SdkApiError> {
-        let resp =
-            wallet.sync_payments().await.map_err(SdkApiError::command)?;
-        Ok(LxJson(resp))
-    }
-
-    #[instrument(skip_all, name = "(list-payments)")]
-    pub(crate) async fn list_payments(
-        State(_): State<Arc<RouterState>>,
-        WalletExtractor(wallet): WalletExtractor,
-        LxQuery(req): LxQuery<ListPaymentsRequest>,
-    ) -> Result<LxJson<ListPaymentsResponse>, SdkApiError> {
-        let resp = wallet
-            .list_payments(
-                &req.filter,
-                req.order,
-                req.limit,
-                req.after.as_ref(),
-            )
-            .map_err(SdkApiError::command)?;
-        Ok(LxJson(resp))
-    }
-
-    #[instrument(skip_all, name = "(clear-payments)")]
-    pub(crate) async fn clear_payments(
-        State(_): State<Arc<RouterState>>,
-        WalletExtractor(wallet): WalletExtractor,
-    ) -> Result<LxJson<Empty>, SdkApiError> {
-        wallet.clear_payments().map_err(SdkApiError::command)?;
         Ok(LxJson(Empty {}))
     }
 }

@@ -1193,73 +1193,6 @@ impl AsyncLexeWallet {
 
     // --- Payment information and management --- //
 
-    /// Get a payment by its `index` string.
-    pub async fn get_payment(
-        &self,
-        index: String,
-    ) -> FfiResult<Option<Payment>> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkGetPaymentRequest { index };
-        let resp = self.inner.get_payment(req).await?;
-        Ok(resp.payment.map(Into::into))
-    }
-
-    /// Get a batch of payments in ascending `updated_at` order, starting
-    /// from a given `updated_at` index.
-    ///
-    /// `start_index` is the cursor at which the results should start,
-    /// exclusive. If `None`, the least recently updated payments will be
-    /// returned first. `limit` caps the number of payments returned
-    /// (max 100, default 50).
-    #[uniffi::method(default(start_index = None, limit = None))]
-    pub async fn get_updated_payments(
-        &self,
-        start_index: Option<String>,
-        limit: Option<u16>,
-    ) -> FfiResult<GetUpdatedPaymentsResponse> {
-        let start_index = start_index
-            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
-            .transpose()?;
-        let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
-        let resp = self.inner.get_updated_payments(req).await?;
-        Ok(GetUpdatedPaymentsResponse::from(resp))
-    }
-
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    #[uniffi::method(default(timeout_secs = None))]
-    pub async fn wait_for_payment(
-        &self,
-        index: String,
-        timeout_secs: Option<u32>,
-    ) -> FfiResult<Payment> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
-        let payment = self.inner.wait_for_payment(index, timeout).await?;
-        Ok(Payment::from(payment))
-    }
-
-    /// Update a payment's personal note.
-    /// Call `sync_payments` first so the payment exists locally.
-    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
-    /// / 512 UTF-8 bytes.
-    pub async fn update_personal_note(
-        &self,
-        index: String,
-        personal_note: Option<String>,
-    ) -> FfiResult<()> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = UpdatePersonalNoteRequest {
-            index,
-            personal_note,
-        };
-        self.inner.update_personal_note(req).await?;
-        Ok(())
-    }
-
     /// Sync payments from the user node to the local payments cache.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
@@ -1320,6 +1253,73 @@ impl AsyncLexeWallet {
     /// Returns an error if local persistence is disabled for this wallet.
     pub fn clear_payments(&self) -> FfiResult<()> {
         self.inner.clear_payments()?;
+        Ok(())
+    }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    #[uniffi::method(default(timeout_secs = None))]
+    pub async fn wait_for_payment(
+        &self,
+        index: String,
+        timeout_secs: Option<u32>,
+    ) -> FfiResult<Payment> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
+        let payment = self.inner.wait_for_payment(index, timeout).await?;
+        Ok(Payment::from(payment))
+    }
+
+    /// Get a payment by its `index` string.
+    pub async fn get_payment(
+        &self,
+        index: String,
+    ) -> FfiResult<Option<Payment>> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let req = SdkGetPaymentRequest { index };
+        let resp = self.inner.get_payment(req).await?;
+        Ok(resp.payment.map(Into::into))
+    }
+
+    /// Get a batch of payments in ascending `updated_at` order, starting
+    /// from a given `updated_at` index.
+    ///
+    /// `start_index` is the cursor at which the results should start,
+    /// exclusive. If `None`, the least recently updated payments will be
+    /// returned first. `limit` caps the number of payments returned
+    /// (max 100, default 50).
+    #[uniffi::method(default(start_index = None, limit = None))]
+    pub async fn get_updated_payments(
+        &self,
+        start_index: Option<String>,
+        limit: Option<u16>,
+    ) -> FfiResult<GetUpdatedPaymentsResponse> {
+        let start_index = start_index
+            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
+            .transpose()?;
+        let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
+        let resp = self.inner.get_updated_payments(req).await?;
+        Ok(GetUpdatedPaymentsResponse::from(resp))
+    }
+
+    /// Update a payment's personal note.
+    /// Call `sync_payments` first so the payment exists locally.
+    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
+    /// / 512 UTF-8 bytes.
+    pub async fn update_personal_note(
+        &self,
+        index: String,
+        personal_note: Option<String>,
+    ) -> FfiResult<()> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let req = UpdatePersonalNoteRequest {
+            index,
+            personal_note,
+        };
+        self.inner.update_personal_note(req).await?;
         Ok(())
     }
 }
@@ -1833,70 +1833,6 @@ impl BlockingLexeWallet {
 
     // --- Payment information and management --- //
 
-    /// Get a payment by its `index` string.
-    pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = SdkGetPaymentRequest { index };
-        let resp = self.inner.get_payment(req)?;
-        Ok(resp.payment.map(Into::into))
-    }
-
-    /// Get a batch of payments in ascending `updated_at` order, starting
-    /// from a given `updated_at` index.
-    ///
-    /// `start_index` is the cursor at which the results should start,
-    /// exclusive. If `None`, the least recently updated payments will be
-    /// returned first. `limit` caps the number of payments returned
-    /// (max 100, default 50).
-    #[uniffi::method(default(start_index = None, limit = None))]
-    pub fn get_updated_payments(
-        &self,
-        start_index: Option<String>,
-        limit: Option<u16>,
-    ) -> FfiResult<GetUpdatedPaymentsResponse> {
-        let start_index = start_index
-            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
-            .transpose()?;
-        let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
-        let resp = self.inner.get_updated_payments(req)?;
-        Ok(GetUpdatedPaymentsResponse::from(resp))
-    }
-
-    /// Wait for a payment to reach a terminal state (completed or failed).
-    ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
-    /// Maximum timeout is 86,400 seconds (24 hours).
-    #[uniffi::method(default(timeout_secs = None))]
-    pub fn wait_for_payment(
-        &self,
-        index: String,
-        timeout_secs: Option<u32>,
-    ) -> FfiResult<Payment> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
-        let payment = self.inner.wait_for_payment(index, timeout)?;
-        Ok(Payment::from(payment))
-    }
-
-    /// Update a payment's personal note.
-    /// Call `sync_payments` first so the payment exists locally.
-    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
-    /// / 512 UTF-8 bytes.
-    pub fn update_personal_note(
-        &self,
-        index: String,
-        personal_note: Option<String>,
-    ) -> FfiResult<()> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let req = UpdatePersonalNoteRequest {
-            index,
-            personal_note,
-        };
-        self.inner.update_personal_note(req)?;
-        Ok(())
-    }
-
     /// Sync payments from the user node to the local payments cache.
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
@@ -1957,6 +1893,70 @@ impl BlockingLexeWallet {
     /// Returns an error if local persistence is disabled for this wallet.
     pub fn clear_payments(&self) -> FfiResult<()> {
         self.inner.clear_payments()?;
+        Ok(())
+    }
+
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Polls the node with exponential backoff until the payment finalizes or
+    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
+    /// Maximum timeout is 86,400 seconds (24 hours).
+    #[uniffi::method(default(timeout_secs = None))]
+    pub fn wait_for_payment(
+        &self,
+        index: String,
+        timeout_secs: Option<u32>,
+    ) -> FfiResult<Payment> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
+        let payment = self.inner.wait_for_payment(index, timeout)?;
+        Ok(Payment::from(payment))
+    }
+
+    /// Get a payment by its `index` string.
+    pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let req = SdkGetPaymentRequest { index };
+        let resp = self.inner.get_payment(req)?;
+        Ok(resp.payment.map(Into::into))
+    }
+
+    /// Get a batch of payments in ascending `updated_at` order, starting
+    /// from a given `updated_at` index.
+    ///
+    /// `start_index` is the cursor at which the results should start,
+    /// exclusive. If `None`, the least recently updated payments will be
+    /// returned first. `limit` caps the number of payments returned
+    /// (max 100, default 50).
+    #[uniffi::method(default(start_index = None, limit = None))]
+    pub fn get_updated_payments(
+        &self,
+        start_index: Option<String>,
+        limit: Option<u16>,
+    ) -> FfiResult<GetUpdatedPaymentsResponse> {
+        let start_index = start_index
+            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
+            .transpose()?;
+        let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
+        let resp = self.inner.get_updated_payments(req)?;
+        Ok(GetUpdatedPaymentsResponse::from(resp))
+    }
+
+    /// Update a payment's personal note.
+    /// Call `sync_payments` first so the payment exists locally.
+    /// If `personal_note` is `Some`, it must be non-empty and at most 200 chars
+    /// / 512 UTF-8 bytes.
+    pub fn update_personal_note(
+        &self,
+        index: String,
+        personal_note: Option<String>,
+    ) -> FfiResult<()> {
+        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let req = UpdatePersonalNoteRequest {
+            index,
+            personal_note,
+        };
+        self.inner.update_personal_note(req)?;
         Ok(())
     }
 }

@@ -1445,49 +1445,63 @@ impl LexeWallet {
 
     // --- Payment information and management --- //
 
-    /// Get information about a payment by its created index.
-    #[instrument(skip_all, name = "(get-payment)")]
-    pub async fn get_payment(
-        &self,
-        req: GetPaymentRequest,
-    ) -> anyhow::Result<GetPaymentResponse> {
-        let id = req.index.id;
-        let payment = self
-            .node_client
-            .get_payment_by_id(command::PaymentIdStruct { id })
+    /// Sync payments from the user node to the local payments cache.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    #[instrument(skip_all, name = "(sync-payments)")]
+    pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
+        self.require_db()?
+            .sync_payments(
+                &self.node_client,
+                lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+            )
             .await
-            .context("Failed to get payment")?
-            .maybe_payment
-            .map(Into::into);
-
-        Ok(GetPaymentResponse { payment })
     }
 
-    /// Get a batch of payments in ascending `updated_at` order, starting from
-    /// a given `updated_at` index.
+    /// List payments from local storage with cursor-based pagination.
     ///
-    /// Useful for tailing / syncing payment updates as they occur and merging
-    /// them into a local payments store.
-    #[instrument(skip_all, name = "(get-updated-payments)")]
-    pub async fn get_updated_payments(
+    /// Defaults to descending order (newest first) with a limit of 100.
+    ///
+    /// To continue paginating, set `after` to the `next_index` from the
+    /// previous response. `after` is an *exclusive* index.
+    ///
+    /// If needed, use [`sync_payments`] to fetch the latest data from the
+    /// node before calling this method.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    ///
+    /// [`sync_payments`]: Self::sync_payments
+    #[instrument(skip_all, name = "(list-payments)")]
+    pub fn list_payments(
         &self,
-        req: GetUpdatedPaymentsRequest,
-    ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
-        let req = GetUpdatedPayments {
-            start_index: req.start_index,
-            limit: req.limit,
-        };
-        let resp = self
-            .node_client
-            .get_updated_payments(req)
-            .await
-            .context("Failed to get updated payments")?;
-        let updated_index = resp.payments.last().map(|p| p.updated_index());
-        let payments = resp.payments.into_iter().map(Payment::from).collect();
-        Ok(GetUpdatedPaymentsResponse {
+        filter: &PaymentFilter,
+        order: Option<Order>,
+        limit: Option<usize>,
+        after: Option<&PaymentCreatedIndex>,
+    ) -> anyhow::Result<ListPaymentsResponse> {
+        let order = order.unwrap_or(Order::Desc);
+        let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT);
+        let (basics, next_index) = self
+            .require_payments_db()?
+            .list_payments(filter, order, limit, after);
+        let payments = basics.into_iter().map(Payment::from).collect();
+        Ok(ListPaymentsResponse {
             payments,
-            updated_index,
+            next_index,
         })
+    }
+
+    /// Clear all locally cached payment data for this wallet.
+    ///
+    /// Clears the local payment cache only. Remote data on the node is not
+    /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
+    ///
+    /// Returns an error if local persistence is disabled for this wallet.
+    #[instrument(skip_all, name = "(clear-payments)")]
+    pub fn clear_payments(&self) -> anyhow::Result<()> {
+        self.require_payments_db()?
+            .clear()
+            .context("Failed to clear local payments")
     }
 
     /// Wait for a payment to reach a terminal state (completed or failed).
@@ -1551,6 +1565,51 @@ impl LexeWallet {
         }
     }
 
+    /// Get information about a payment by its created index.
+    #[instrument(skip_all, name = "(get-payment)")]
+    pub async fn get_payment(
+        &self,
+        req: GetPaymentRequest,
+    ) -> anyhow::Result<GetPaymentResponse> {
+        let id = req.index.id;
+        let payment = self
+            .node_client
+            .get_payment_by_id(command::PaymentIdStruct { id })
+            .await
+            .context("Failed to get payment")?
+            .maybe_payment
+            .map(Into::into);
+
+        Ok(GetPaymentResponse { payment })
+    }
+
+    /// Get a batch of payments in ascending `updated_at` order, starting from
+    /// a given `updated_at` index.
+    ///
+    /// Useful for tailing / syncing payment updates as they occur and merging
+    /// them into a local payments store.
+    #[instrument(skip_all, name = "(get-updated-payments)")]
+    pub async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPaymentsRequest,
+    ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
+        let req = GetUpdatedPayments {
+            start_index: req.start_index,
+            limit: req.limit,
+        };
+        let resp = self
+            .node_client
+            .get_updated_payments(req)
+            .await
+            .context("Failed to get updated payments")?;
+        let updated_index = resp.payments.last().map(|p| p.updated_index());
+        let payments = resp.payments.into_iter().map(Payment::from).collect();
+        Ok(GetUpdatedPaymentsResponse {
+            payments,
+            updated_index,
+        })
+    }
+
     /// Update the personal note on an existing payment.
     /// The note is stored on the user node and is not visible to the
     /// counterparty.
@@ -1573,65 +1632,6 @@ impl LexeWallet {
         }
 
         Ok(())
-    }
-
-    /// Sync payments from the user node to the local payments cache.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    #[instrument(skip_all, name = "(sync-payments)")]
-    pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
-        self.require_db()?
-            .sync_payments(
-                &self.node_client,
-                lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
-            )
-            .await
-    }
-
-    /// List payments from local storage with cursor-based pagination.
-    ///
-    /// Defaults to descending order (newest first) with a limit of 100.
-    ///
-    /// To continue paginating, set `after` to the `next_index` from the
-    /// previous response. `after` is an *exclusive* index.
-    ///
-    /// If needed, use [`sync_payments`] to fetch the latest data from the
-    /// node before calling this method.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    ///
-    /// [`sync_payments`]: Self::sync_payments
-    #[instrument(skip_all, name = "(list-payments)")]
-    pub fn list_payments(
-        &self,
-        filter: &PaymentFilter,
-        order: Option<Order>,
-        limit: Option<usize>,
-        after: Option<&PaymentCreatedIndex>,
-    ) -> anyhow::Result<ListPaymentsResponse> {
-        let order = order.unwrap_or(Order::Desc);
-        let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT);
-        let (basics, next_index) = self
-            .require_payments_db()?
-            .list_payments(filter, order, limit, after);
-        let payments = basics.into_iter().map(Payment::from).collect();
-        Ok(ListPaymentsResponse {
-            payments,
-            next_index,
-        })
-    }
-
-    /// Clear all locally cached payment data for this wallet.
-    ///
-    /// Clears the local payment cache only. Remote data on the node is not
-    /// affected. Call [`sync_payments`](Self::sync_payments) to re-populate.
-    ///
-    /// Returns an error if local persistence is disabled for this wallet.
-    #[instrument(skip_all, name = "(clear-payments)")]
-    pub fn clear_payments(&self) -> anyhow::Result<()> {
-        self.require_payments_db()?
-            .clear()
-            .context("Failed to clear local payments")
     }
 
     // --- Client credentials management --- //

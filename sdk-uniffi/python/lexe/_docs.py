@@ -905,91 +905,6 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
-_set_method_doc(LexeWallet, "get_payment", """\
-Get a specific payment by its index.
-
-Args:
-    index: Payment index string
-        (format: ``<created_at_ms>-<payment_id>``).
-
-Returns:
-    The :class:`Payment`, or ``None`` if not found locally.
-
-Raises:
-    FfiError: If the index is malformed or the request fails.
-""")
-
-_set_method_doc(LexeWallet, "get_updated_payments", """\
-Get a batch of payments in ascending ``updated_at`` order, starting from
-a given ``updated_at`` index.
-
-Useful for tailing / syncing payment updates as they occur. Fetches directly
-from the user node (does not read from or write to the local payments cache).
-
-Args:
-    start_index: The cursor at which the results should start, exclusive.
-        If ``None``, the least recently updated payments will be returned
-        first.
-    limit: Maximum number of payments to return. Max 100, defaults to 50.
-
-Returns:
-    A :class:`GetUpdatedPaymentsResponse` with the updated payments and
-    an ``updated_index`` cursor for fetching the next page.
-
-Raises:
-    FfiError: If ``start_index`` is malformed or the request fails.
-
-Example::
-
-    resp = wallet.get_updated_payments()
-    for p in resp.payments:
-        print(f"{p.index}: {p.status}")
-
-    # Next page
-    if resp.updated_index is not None:
-        resp = wallet.get_updated_payments(start_index=resp.updated_index)
-""")
-
-_set_method_doc(LexeWallet, "wait_for_payment", """\
-Wait for a payment to reach a terminal state (completed or failed).
-
-Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 600 seconds (10 minutes).
-Maximum timeout is 86,400 seconds (24 hours).
-
-Args:
-    index: Payment index string.
-    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
-        Max: ``86400`` (24 hours).
-
-Returns:
-    The finalized :class:`Payment`.
-
-Raises:
-    FfiError: If the timeout is exceeded or the node is unreachable.
-
-Example::
-
-    resp = wallet.create_invoice(amount_sats=1000)
-    # Wait until someone pays the invoice (or it expires / fails).
-    payment = wallet.wait_for_payment(resp.index)
-    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
-""")
-
-_set_method_doc(LexeWallet, "update_personal_note", """\
-Update a payment's personal note.
-
-Call :meth:`sync_payments` first so the payment exists locally.
-
-Args:
-    index: Payment index string.
-    personal_note: New personal note text, or ``None`` to clear.
-        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
-
-Raises:
-    FfiError: If the payment doesn't exist locally.
-""")
-
 _set_method_doc(LexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -1056,6 +971,91 @@ not affected. Call :meth:`sync_payments` to re-populate.
 
 Raises:
     FfiError: If the local database cannot be cleared.
+""")
+
+_set_method_doc(LexeWallet, "wait_for_payment", """\
+Wait for a payment to reach a terminal state (completed or failed).
+
+Polls the node with exponential backoff until the payment finalizes
+or the timeout is reached. Defaults to 600 seconds (10 minutes).
+Maximum timeout is 86,400 seconds (24 hours).
+
+Args:
+    index: Payment index string.
+    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
+        Max: ``86400`` (24 hours).
+
+Returns:
+    The finalized :class:`Payment`.
+
+Raises:
+    FfiError: If the timeout is exceeded or the node is unreachable.
+
+Example::
+
+    resp = wallet.create_invoice(amount_sats=1000)
+    # Wait until someone pays the invoice (or it expires / fails).
+    payment = wallet.wait_for_payment(resp.index)
+    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
+""")
+
+_set_method_doc(LexeWallet, "get_payment", """\
+Get a specific payment by its index.
+
+Args:
+    index: Payment index string
+        (format: ``<created_at_ms>-<payment_id>``).
+
+Returns:
+    The :class:`Payment`, or ``None`` if not found locally.
+
+Raises:
+    FfiError: If the index is malformed or the request fails.
+""")
+
+_set_method_doc(LexeWallet, "get_updated_payments", """\
+Get a batch of payments in ascending ``updated_at`` order, starting from
+a given ``updated_at`` index.
+
+Useful for tailing / syncing payment updates as they occur. Fetches directly
+from the user node (does not read from or write to the local payments cache).
+
+Args:
+    start_index: The cursor at which the results should start, exclusive.
+        If ``None``, the least recently updated payments will be returned
+        first.
+    limit: Maximum number of payments to return. Max 100, defaults to 50.
+
+Returns:
+    A :class:`GetUpdatedPaymentsResponse` with the updated payments and
+    an ``updated_index`` cursor for fetching the next page.
+
+Raises:
+    FfiError: If ``start_index`` is malformed or the request fails.
+
+Example::
+
+    resp = wallet.get_updated_payments()
+    for p in resp.payments:
+        print(f"{p.index}: {p.status}")
+
+    # Next page
+    if resp.updated_index is not None:
+        resp = wallet.get_updated_payments(start_index=resp.updated_index)
+""")
+
+_set_method_doc(LexeWallet, "update_personal_note", """\
+Update a payment's personal note.
+
+Call :meth:`sync_payments` first so the payment exists locally.
+
+Args:
+    index: Payment index string.
+    personal_note: New personal note text, or ``None`` to clear.
+        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
+
+Raises:
+    FfiError: If the payment doesn't exist locally.
 """)
 
 # ======================= #
@@ -1467,91 +1467,6 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
-_set_method_doc(AsyncLexeWallet, "get_payment", """\
-Get a specific payment by its index.
-
-Args:
-    index: Payment index string
-        (format: ``<created_at_ms>-<payment_id>``).
-
-Returns:
-    The :class:`Payment`, or ``None`` if not found locally.
-
-Raises:
-    FfiError: If the index is malformed or the request fails.
-""")
-
-_set_method_doc(AsyncLexeWallet, "get_updated_payments", """\
-Get a batch of payments in ascending ``updated_at`` order, starting from
-a given ``updated_at`` index.
-
-Useful for tailing / syncing payment updates as they occur. Fetches directly
-from the user node (does not read from or write to the local payments cache).
-
-Args:
-    start_index: The cursor at which the results should start, exclusive.
-        If ``None``, the least recently updated payments will be returned
-        first.
-    limit: Maximum number of payments to return. Max 100, defaults to 50.
-
-Returns:
-    A :class:`GetUpdatedPaymentsResponse` with the updated payments and
-    an ``updated_index`` cursor for fetching the next page.
-
-Raises:
-    FfiError: If ``start_index`` is malformed or the request fails.
-
-Example::
-
-    resp = await wallet.get_updated_payments()
-    for p in resp.payments:
-        print(f"{p.index}: {p.status}")
-
-    # Next page
-    if resp.updated_index is not None:
-        resp = await wallet.get_updated_payments(start_index=resp.updated_index)
-""")
-
-_set_method_doc(AsyncLexeWallet, "wait_for_payment", """\
-Wait for a payment to reach a terminal state (completed or failed).
-
-Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 600 seconds (10 minutes).
-Maximum timeout is 86,400 seconds (24 hours).
-
-Args:
-    index: Payment index string.
-    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
-        Max: ``86400`` (24 hours).
-
-Returns:
-    The finalized :class:`Payment`.
-
-Raises:
-    FfiError: If the timeout is exceeded or the node is unreachable.
-
-Example::
-
-    resp = await wallet.create_invoice(amount_sats=1000)
-    # Wait until someone pays the invoice (or it expires / fails).
-    payment = await wallet.wait_for_payment(resp.index)
-    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
-""")
-
-_set_method_doc(AsyncLexeWallet, "update_personal_note", """\
-Update a payment's personal note.
-
-Call :meth:`sync_payments` first so the payment exists locally.
-
-Args:
-    index: Payment index string.
-    personal_note: New personal note text, or ``None`` to clear.
-        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
-
-Raises:
-    FfiError: If the payment doesn't exist locally.
-""")
-
 _set_method_doc(AsyncLexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -1618,6 +1533,91 @@ not affected. Call :meth:`sync_payments` to re-populate.
 
 Raises:
     FfiError: If the local database cannot be cleared.
+""")
+
+_set_method_doc(AsyncLexeWallet, "wait_for_payment", """\
+Wait for a payment to reach a terminal state (completed or failed).
+
+Polls the node with exponential backoff until the payment finalizes
+or the timeout is reached. Defaults to 600 seconds (10 minutes).
+Maximum timeout is 86,400 seconds (24 hours).
+
+Args:
+    index: Payment index string.
+    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
+        Max: ``86400`` (24 hours).
+
+Returns:
+    The finalized :class:`Payment`.
+
+Raises:
+    FfiError: If the timeout is exceeded or the node is unreachable.
+
+Example::
+
+    resp = await wallet.create_invoice(amount_sats=1000)
+    # Wait until someone pays the invoice (or it expires / fails).
+    payment = await wallet.wait_for_payment(resp.index)
+    assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
+""")
+
+_set_method_doc(AsyncLexeWallet, "get_payment", """\
+Get a specific payment by its index.
+
+Args:
+    index: Payment index string
+        (format: ``<created_at_ms>-<payment_id>``).
+
+Returns:
+    The :class:`Payment`, or ``None`` if not found locally.
+
+Raises:
+    FfiError: If the index is malformed or the request fails.
+""")
+
+_set_method_doc(AsyncLexeWallet, "get_updated_payments", """\
+Get a batch of payments in ascending ``updated_at`` order, starting from
+a given ``updated_at`` index.
+
+Useful for tailing / syncing payment updates as they occur. Fetches directly
+from the user node (does not read from or write to the local payments cache).
+
+Args:
+    start_index: The cursor at which the results should start, exclusive.
+        If ``None``, the least recently updated payments will be returned
+        first.
+    limit: Maximum number of payments to return. Max 100, defaults to 50.
+
+Returns:
+    A :class:`GetUpdatedPaymentsResponse` with the updated payments and
+    an ``updated_index`` cursor for fetching the next page.
+
+Raises:
+    FfiError: If ``start_index`` is malformed or the request fails.
+
+Example::
+
+    resp = await wallet.get_updated_payments()
+    for p in resp.payments:
+        print(f"{p.index}: {p.status}")
+
+    # Next page
+    if resp.updated_index is not None:
+        resp = await wallet.get_updated_payments(start_index=resp.updated_index)
+""")
+
+_set_method_doc(AsyncLexeWallet, "update_personal_note", """\
+Update a payment's personal note.
+
+Call :meth:`sync_payments` first so the payment exists locally.
+
+Args:
+    index: Payment index string.
+    personal_note: New personal note text, or ``None`` to clear.
+        If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
+
+Raises:
+    FfiError: If the payment doesn't exist locally.
 """)
 
 # ================ #

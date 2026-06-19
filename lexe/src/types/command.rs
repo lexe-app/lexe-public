@@ -559,6 +559,25 @@ pub struct WithdrawLnurlRequest {
 
 // --- Payment information and management --- //
 
+/// Summary of changes from a payment sync operation.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentSyncSummary {
+    /// Number of new payments added to the local database.
+    pub num_new: usize,
+    /// Number of existing payments that were updated.
+    pub num_updated: usize,
+}
+
+/// Response from listing payments.
+#[derive(Serialize, Deserialize)]
+pub struct ListPaymentsResponse {
+    /// Payments in the requested page.
+    pub payments: Vec<Payment>,
+    /// Cursor for fetching the next page. `None` when there are no more
+    /// results. Pass this as the `after` argument to get the next page.
+    pub next_index: Option<PaymentCreatedIndex>,
+}
+
 /// A request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
 pub struct GetPaymentRequest {
@@ -635,25 +654,6 @@ impl TryFrom<UpdatePersonalNoteRequest> for command::UpdatePersonalNote {
                 .context("Invalid note")?,
         })
     }
-}
-
-/// Summary of changes from a payment sync operation.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentSyncSummary {
-    /// Number of new payments added to the local database.
-    pub num_new: usize,
-    /// Number of existing payments that were updated.
-    pub num_updated: usize,
-}
-
-/// Response from listing payments.
-#[derive(Serialize, Deserialize)]
-pub struct ListPaymentsResponse {
-    /// Payments in the requested page.
-    pub payments: Vec<Payment>,
-    /// Cursor for fetching the next page. `None` when there are no more
-    /// results. Pass this as the `after` argument to get the next page.
-    pub next_index: Option<PaymentCreatedIndex>,
 }
 
 // --- Client credentials management --- //
