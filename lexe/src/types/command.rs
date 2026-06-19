@@ -659,6 +659,7 @@ impl TryFrom<UpdatePersonalNoteRequest> for command::UpdatePersonalNote {
 // --- Client credentials management --- //
 
 /// Information about a client that can authenticate with a Lexe node.
+#[derive(Serialize)]
 pub struct ClientInfo {
     /// The public key of the client.
     pub client_pk: ed25519::PublicKey,
@@ -688,6 +689,7 @@ impl From<revocable_clients::RevocableClient> for ClientInfo {
 }
 
 /// A response containing information about a single client.
+#[derive(Serialize)]
 pub struct ClientInfoResponse {
     /// Information about the client.
     pub client: ClientInfo,
@@ -695,6 +697,7 @@ pub struct ClientInfoResponse {
 
 /// The response to a request to get information about active clients
 /// on a Lexe node.
+#[derive(Serialize)]
 pub struct GetClientResponse {
     /// The clients that can authenticate with this node, mapped from
     /// client public key to client information.

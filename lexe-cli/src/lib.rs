@@ -4,7 +4,6 @@
 use std::{borrow::Cow, path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
-use chrono::DateTime;
 use clap::{Parser, Subcommand, ValueEnum};
 use lexe::{
     config::{Network, WalletEnvConfig},
@@ -14,11 +13,12 @@ use lexe::{
         },
         bitcoin::{Amount, ClaimMethod, Invoice, Offer, PaymentMethod},
         command::{
-            AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
-            CreateOfferRequest, GetPaymentRequest, GetUpdatedPaymentsRequest,
-            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
-            PaymentSyncSummary, UpdatePersonalNoteRequest,
-            WithdrawLnurlRequest,
+            AnalyzeRequest, AnalyzeResponse, ClientInfo, CreateClientRequest,
+            CreateInvoiceRequest, CreateOfferRequest, GetPaymentRequest,
+            GetUpdatedPaymentsRequest, PayInvoiceRequest, PayLnurlRequest,
+            PayOfferRequest, PayRequest, PaymentSyncSummary,
+            RevokeClientRequest, UpdateClientRequest,
+            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
         },
         payment::{
             Order, Payment, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
@@ -26,6 +26,7 @@ use lexe::{
         },
         util::{Ppm, TimestampMs},
     },
+    util::ed25519,
     wallet::LexeWallet,
 };
 use lexe_common::or_env::OrEnvExt;
@@ -164,6 +165,10 @@ pub enum LexeCommand {
     GetPayment(GetPaymentArgs),
     GetUpdatedPayments(GetUpdatedPaymentsArgs),
     UpdatePersonalNote(UpdatePersonalNoteArgs),
+    GetClients(GetClientsArgs),
+    CreateClient(CreateClientArgs),
+    UpdateClient(UpdateClientArgs),
+    RevokeClient(RevokeClientArgs),
     Export(ExportArgs),
 }
 
@@ -295,6 +300,10 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
         LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
         LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
+        LexeCommand::GetClients(a) => a.run(&wallet).await,
+        LexeCommand::CreateClient(a) => a.run(&wallet).await,
+        LexeCommand::UpdateClient(a) => a.run(&wallet).await,
+        LexeCommand::RevokeClient(a) => a.run(&wallet).await,
         LexeCommand::Export(a) => a.run(&credentials),
     }
 }
@@ -643,10 +652,10 @@ impl AnalyzeArgs {
                 min_amount.map(|a| format!("minimum amount: {a} sats")),
                 max_amount.map(|a| format!("maximum amount: {a} sats")),
                 expires_at.and_then(|t| {
-                    // If conversion fails, time was too large, so just omit
-                    helpers::timestamp_ms_pretty(t)
-                        .ok()
-                        .map(|s| format!("expiration date: {s}"))
+                    Some(format!(
+                        "expiration date: {}",
+                        helpers::timestamp_to_datetime(t).to_rfc2822()
+                    ))
                 }),
             ];
             let amount_hint = if amount.is_none() {
@@ -1640,6 +1649,293 @@ impl UpdatePersonalNoteArgs {
     }
 }
 
+// --- `get-clients` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "List the clients authorized to control this node",
+    long_about = "List the clients authorized to control this node.\n\
+        \n\
+        Returns each client's public key, creation time, expiration (if any),\n\
+        and label (if any). Revoked and expired clients are not included.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetClientsArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl GetClientsArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .get_clients()
+            .await
+            .context("Failed to get clients")?;
+
+        // JSON response
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        // Display oldest first for stable, deterministic output.
+        let mut clients = resp.clients.into_values().collect::<Vec<_>>();
+        clients.sort_by_key(|client| client.created_at);
+
+        match clients.len() {
+            0 => println!("No clients found."),
+            1 => println!("Found 1 client:"),
+            n => println!("Found {n} clients:"),
+        }
+        // Blank line before each entry, separating it from the header above and
+        // from the preceding entry (`print_client_info` adds no leading break).
+        for client in &clients {
+            println!();
+            helpers::print_client_info(client)?;
+        }
+
+        Ok(())
+    }
+}
+
+// --- `create-client` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Create a new client authorized to control this node",
+    long_about = "Create a new client and its associated client credentials.\n\
+        \n\
+        The returned credentials grant control of this node without exposing\n\
+        the root seed, and can be revoked at any time with `lexe \
+        revoke-client`.\n\
+        \n\
+        An expiration must be chosen explicitly: pass --expiration-days and/or\n\
+        --expiration-secs to set one, or --never-expires to opt out.\n\
+        \n\
+        WARNING: Anyone with these credentials can control this node's funds.\n\
+        Store them somewhere safe.",
+        // TODO(nicole): edit the above warning when credential scopes are added
+    help_template = HELP_TEMPLATE,
+)]
+pub struct CreateClientArgs {
+    #[arg(
+        long,
+        help = "Label for the client. Maximum length: 64 UTF-8 bytes."
+    )]
+    label: Option<String>,
+
+    /// Create a credential that never expires. Use carefully!
+    #[arg(long, conflicts_with_all = ["expiration_days", "expiration_secs"])]
+    never_expires: bool,
+
+    #[arg(
+        long,
+        help = "Days until the client expires, counting from now.\n\
+        Adds to --expiration-secs."
+    )]
+    expiration_days: Option<u32>,
+
+    #[arg(
+        long,
+        help = "Seconds until the client expires, counting from now.\n\
+        Adds to --expiration-days."
+    )]
+    expiration_secs: Option<u32>,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl CreateClientArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let expires_at = if self.never_expires {
+            None
+        } else {
+            let expiration = helpers::expiration_from_now(
+                self.expiration_days,
+                self.expiration_secs,
+            );
+            match expiration {
+                None =>
+                // self.never_expires was false -- force an opt-in
+                    return Err(anyhow!(
+                        "Choose an expiration: pass --expiration-days and/or \
+                         --expiration-secs, or --never-expires to opt out."
+                    )),
+                Some(e) => Some(e),
+            }
+        };
+        let req = CreateClientRequest {
+            expires_at,
+            label: self.label.clone(),
+        };
+        let resp = wallet
+            .create_client(req)
+            .await
+            .context("Failed to create client")?;
+
+        let credentials = resp.client_credentials.export_string();
+
+        // JSON response
+        if self.json {
+            let json = serde_json::json!({
+                "client_pk": resp.client_pk,
+                "client_credentials": credentials,
+                "created_at": resp.created_at,
+                "expires_at": expires_at,
+                "label": self.label,
+            });
+            return helpers::print_json_pretty(&json);
+        }
+
+        let client_info = ClientInfo {
+            client_pk: resp.client_pk,
+            created_at: resp.created_at,
+            expires_at,
+            label: self.label,
+        };
+
+        // Human-readable response
+        println!("\nClient credentials:");
+        // Don't wrap this to keep it copy/paste-able
+        println!("{credentials}");
+
+        // TODO(nicole): edit when credential scopes are added
+        println!(
+            "\nWARNING: Anyone with these credentials can control this node's \
+             funds. Store them somewhere safe.\n"
+        );
+
+        helpers::print_client_info(&client_info)
+    }
+}
+
+// --- `update-client` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Update a client's label or expiration",
+    long_about = "Update the label or expiration of an existing client.\n\
+        \n\
+        Only the provided fields are changed; omitted fields are left as-is.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct UpdateClientArgs {
+    /// The public key of the client to update.
+    client_pk: ed25519::PublicKey,
+
+    #[arg(
+        long,
+        conflicts_with = "clear_label",
+        help = "Set the client's label. Maximum length: 64 UTF-8 bytes."
+    )]
+    label: Option<String>,
+
+    /// Clear the client's label.
+    #[arg(long)]
+    clear_label: bool,
+
+    #[arg(
+        long,
+        conflicts_with = "never_expires",
+        help = "Set the client's expiration in days from now.\n\
+        Adds to --expiration-secs."
+    )]
+    expiration_days: Option<u32>,
+
+    #[arg(
+        long,
+        conflicts_with = "never_expires",
+        help = "Set the client's expiration in seconds from now.\n\
+        Adds to --expiration-days."
+    )]
+    expiration_secs: Option<u32>,
+
+    /// Make the client never expire. Use carefully!
+    #[arg(long)]
+    never_expires: bool,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl UpdateClientArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let new_label = if self.clear_label {
+            Some(None)
+        } else {
+            self.label.map(Some)
+        };
+        let new_expires_at = if self.never_expires {
+            Some(None)
+        } else {
+            helpers::expiration_from_now(
+                self.expiration_days,
+                self.expiration_secs,
+            )
+            .map(Some)
+        };
+
+        let req = UpdateClientRequest {
+            client_pk: self.client_pk,
+            new_label,
+            new_expires_at,
+        };
+        let resp = wallet
+            .update_client(req)
+            .await
+            .context("Failed to update client")?;
+
+        // JSON response
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        helpers::print_client_info(&resp.client)
+    }
+}
+
+// --- `revoke-client` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Permanently revoke a client",
+    long_about = "Permanently revoke a client, making its credentials invalid\n\
+        for authentication. This cannot be undone.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct RevokeClientArgs {
+    /// The public key of the client to revoke.
+    client_pk: ed25519::PublicKey,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl RevokeClientArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = RevokeClientRequest {
+            client_pk: self.client_pk,
+        };
+        let resp = wallet
+            .revoke_client(req)
+            .await
+            .context("Failed to revoke client")?;
+
+        // JSON response
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        println!("Client revoked.");
+        println!();
+        helpers::print_client_info(&resp.client)
+    }
+}
+
 // --- `export` --- //
 
 #[derive(Parser)]
@@ -1765,19 +2061,39 @@ mod helpers {
         result
     }
 
-    /// Convert a [`TimestampMs`] to a formatted string
-    /// Loses millisecond precision (only displays up to seconds)
-    /// If conversion fails, timestamp was too big
-    pub fn timestamp_ms_pretty(
-        timestamp: TimestampMs,
-    ) -> anyhow::Result<String> {
-        i64::try_from(timestamp.to_millis())
-            .ok()
-            .and_then(DateTime::from_timestamp_millis)
-            .map(|dt| dt.with_timezone(&chrono::Local))
-            // 2026 December 01 22:49:32 UTC-08:30
-            .map(|dt| dt.format("%Y %B %d %T UTC%:z").to_string())
-            .context("Failed to convert timestamp to display string")
+    /// Print a [`ClientInfo`] as a human-readable block.
+    ///
+    /// The entry title uses the client's label if present, falling back to its
+    /// public key. `expires_at` is always shown.
+    pub fn print_client_info(client: &ClientInfo) -> anyhow::Result<()> {
+        let title = match &client.label {
+            Some(label) => label.clone(),
+            None => client.client_pk.to_string(),
+        };
+        println!("Client [{title}]");
+        // `- client_pk: <hex>` is always 81 chars wide (a 64-char hex pubkey),
+        // so we linebreak
+        println!("    - client_pk:");
+        println!("        {}", client.client_pk);
+
+        let created_at =
+            helpers::timestamp_to_datetime(client.created_at).to_rfc2822();
+        println!("    - created_at: {created_at}");
+
+        match client.expires_at {
+            Some(expires_at) => {
+                let expires_at =
+                    helpers::timestamp_to_datetime(expires_at).to_rfc2822();
+                println!("    - expires_at: {expires_at}");
+            }
+            None => println!("    - expires_at: Never expires!"),
+        }
+
+        if let Some(label) = &client.label {
+            println!("    - label: {label}");
+        }
+
+        Ok(())
     }
 
     /// Format a past [`TimestampMs`] relative to now, e.g. "just now",
@@ -1806,6 +2122,37 @@ mod helpers {
 
         let plural = if count == 1 { "" } else { "s" };
         format!("{count} {unit}{plural} ago")
+    }
+
+    /// Compute an absolute expiration [`TimestampMs`] from `--expiration-days`
+    /// and `--expiration-secs`, which combine additively. Returns [`None`] if
+    /// neither is set.
+    // Can repurpose this generically (not expiration-flavored) when needed
+    pub fn expiration_from_now(
+        days: Option<u32>,
+        secs: Option<u32>,
+    ) -> Option<TimestampMs> {
+        if days.is_none() && secs.is_none() {
+            return None;
+        }
+
+        const SECS_PER_DAY: u64 = 24 * 60 * 60;
+        let days = u64::from(days.unwrap_or(0));
+        let secs = u64::from(secs.unwrap_or(0));
+        let total_secs = days.saturating_mul(SECS_PER_DAY).saturating_add(secs);
+
+        let expires_at =
+            TimestampMs::now().saturating_add(Duration::from_secs(total_secs));
+        Some(expires_at)
+    }
+
+    /// Get this unix timestamp as a [`FixedOffset`] [`chrono::DateTime`].
+    ///
+    /// [`FixedOffset`]: chrono::FixedOffset
+    pub fn timestamp_to_datetime(
+        timestamp: TimestampMs,
+    ) -> chrono::DateTime<chrono::Local> {
+        chrono::DateTime::<chrono::Local>::from(timestamp.to_system_time())
     }
 
     /// Resolve credentials from the provided args or the seedphrase file.
