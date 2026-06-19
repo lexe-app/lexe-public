@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{future::Future, sync::Arc, time::Duration};
 
 use axum::{Router, routing::post};
 use lexe_api_core::error::BackendApiError;
@@ -12,16 +12,53 @@ use crate::{
     server::{self, LayerConfig, LxJson},
 };
 
+/// Spawns a TLS test server serving `router`, runs `client_fn` against its URL,
+/// then gracefully shuts the server down. Returns `client_fn`'s output.
+///
+/// See [`do_http_request`] below for an example.
+pub async fn with_test_server<F, Fut, T>(
+    server_config: Arc<rustls::ServerConfig>,
+    // The primary DNS name used by the server.
+    server_dns: &str,
+    router: Router,
+    client_fn: F,
+) -> T
+where
+    F: FnOnce(String) -> Fut,
+    Fut: Future<Output = T>,
+{
+    let shutdown = NotifyOnce::new();
+    const SPAN_NAME: &str = "(test-server)";
+    let (server_task, server_url) = server::spawn_server_task(
+        net::LOCALHOST_WITH_EPHEMERAL_PORT,
+        router,
+        LayerConfig::default(),
+        Some((server_config, server_dns)),
+        SPAN_NAME.into(),
+        info_span!(parent: None, SPAN_NAME),
+        shutdown.clone(),
+    )
+    .expect("Failed to spawn test server");
+
+    let output = client_fn(server_url).await;
+
+    shutdown.send();
+    tokio::time::timeout(Duration::from_secs(5), server_task)
+        .await
+        .expect("Server shutdown timed out")
+        .expect("Server task panicked");
+
+    output
+}
+
 /// Conducts an HTTP request over TLS *with* all of our HTTP infrastructure.
 /// Primarily exists to test TLS configs; may help if
 /// [`crate::tls::test_utils::do_tls_handshake`] fails to reproduce an error.
 pub async fn do_http_request(
     client_config: rustls::ClientConfig,
     server_config: Arc<rustls::ServerConfig>,
-    // The primary DNS name used by the server.
     server_dns: &str,
 ) {
-    // Request/response structs and handler used by `do_tls_handshake_with_http`
     #[derive(Serialize, Deserialize)]
     struct TestRequest {
         data: String,
@@ -41,34 +78,24 @@ pub async fn do_http_request(
     }
 
     let router = Router::new().route("/test_endpoint", post(handler));
-    let shutdown = NotifyOnce::new();
-    let tls_and_dns = Some((server_config, server_dns));
-    const TEST_SPAN_NAME: &str = "(test-server)";
-    let (server_task, server_url) = server::spawn_server_task(
-        net::LOCALHOST_WITH_EPHEMERAL_PORT,
+    with_test_server(
+        server_config,
+        server_dns,
         router,
-        LayerConfig::default(),
-        tls_and_dns,
-        TEST_SPAN_NAME.into(),
-        info_span!(parent: None, TEST_SPAN_NAME),
-        shutdown.clone(),
+        |server_url| async move {
+            let rest =
+                RestClient::new("test-client", "test-server", client_config);
+            let req = TestRequest {
+                data: "hello".to_owned(),
+            };
+            let http_req =
+                rest.post(format!("{server_url}/test_endpoint"), &req);
+            let resp: TestResponse = rest
+                .send::<_, BackendApiError>(http_req)
+                .await
+                .expect("Request failed");
+            assert_eq!(resp.data, "hello, world");
+        },
     )
-    .expect("Failed to spawn test server");
-
-    let rest = RestClient::new("test-client", "test-server", client_config);
-    let req = TestRequest {
-        data: "hello".to_owned(),
-    };
-    let http_req = rest.post(format!("{server_url}/test_endpoint"), &req);
-    let resp: TestResponse = rest
-        .send::<_, BackendApiError>(http_req)
-        .await
-        .expect("Request failed");
-    assert_eq!(resp.data, "hello, world");
-
-    shutdown.send();
-    tokio::time::timeout(Duration::from_secs(5), server_task)
-        .await
-        .expect("Server shutdown timed out")
-        .expect("Server task panicked");
+    .await
 }
