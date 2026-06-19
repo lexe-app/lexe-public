@@ -464,11 +464,12 @@ impl NodeClient {
     async fn request_long_lived_connect_token(
         &self,
     ) -> anyhow::Result<BearerAuthToken> {
-        let user_key_pair = self
-            .inner
-            .authenticator
-            .user_key_pair()
-            .context("Somehow using a static bearer auth token")?;
+        // TODO(nicole): It should be possible to create client credentials
+        // with client credentials
+        let user_key_pair = self.inner.authenticator.user_key_pair().context(
+            "Can't use a bearer auth token to mint new bearer auth tokens. \
+             Authenticate with root seed credentials instead.",
+        )?;
 
         let now = SystemTime::now();
         let lifetime_secs = 10 * 365 * 24 * 60 * 60; // 10 years
