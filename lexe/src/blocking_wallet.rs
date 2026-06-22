@@ -16,13 +16,15 @@ use crate::{
     types::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
-            AnalyzeRequest, AnalyzeResponse, CreateInvoiceRequest,
+            AnalyzeRequest, AnalyzeResponse, ClientInfoResponse,
+            CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
-            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
-            PaymentSyncSummary, UpdatePersonalNoteRequest,
-            WithdrawLnurlRequest,
+            GetClientResponse, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListPaymentsResponse, NodeInfo, PayInvoiceRequest, PayLnurlRequest,
+            PayOfferRequest, PayRequest, PaymentSyncSummary,
+            RevokeClientRequest, UpdateClientRequest,
+            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentCreatedIndex, PaymentFilter},
     },
@@ -474,6 +476,38 @@ impl BlockingLexeWallet {
         req: UpdatePersonalNoteRequest,
     ) -> anyhow::Result<()> {
         block_on(self.inner.update_personal_note(req))
+    }
+
+    // --- Client credentials management --- //
+
+    /// Get information about the active client credentials for this node.
+    pub fn get_clients(&self) -> anyhow::Result<GetClientResponse> {
+        block_on(self.inner.get_clients())
+    }
+
+    /// Create new client credentials for this node.
+    pub fn create_client(
+        &self,
+        req: CreateClientRequest,
+    ) -> anyhow::Result<CreateClientResponse> {
+        block_on(self.inner.create_client(req))
+    }
+
+    /// Update a set of client credentials used by this node.
+    pub fn update_client(
+        &self,
+        req: UpdateClientRequest,
+    ) -> anyhow::Result<ClientInfoResponse> {
+        block_on(self.inner.update_client(req))
+    }
+
+    /// Permanently revoke a client, making its credentials invalid for
+    /// authentication.
+    pub fn revoke_client(
+        &self,
+        req: RevokeClientRequest,
+    ) -> anyhow::Result<ClientInfoResponse> {
+        block_on(self.inner.revoke_client(req))
     }
 }
 

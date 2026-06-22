@@ -1160,7 +1160,7 @@ impl LexeWallet {
         &self,
         req: CreateInvoiceRequest,
     ) -> anyhow::Result<CreateInvoiceResponse> {
-        let req = req.try_into()?;
+        let req = command::CreateInvoiceRequest::try_from(req)?;
         let resp = self
             .node_client
             .create_invoice(req)
@@ -1182,7 +1182,7 @@ impl LexeWallet {
         req: PayInvoiceRequest,
     ) -> anyhow::Result<Payment> {
         let id = req.invoice.payment_id();
-        let req: command::PayInvoiceRequest = req.try_into()?;
+        let req = command::PayInvoiceRequest::try_from(req)?;
         let resp = self
             .node_client
             .pay_invoice(req)
@@ -1206,7 +1206,7 @@ impl LexeWallet {
         &self,
         req: CreateOfferRequest,
     ) -> anyhow::Result<CreateOfferResponse> {
-        let req = req.try_into()?;
+        let req = command::CreateOfferRequest::try_from(req)?;
         let resp = self
             .node_client
             .create_offer(req)
@@ -1618,7 +1618,7 @@ impl LexeWallet {
         &self,
         req: UpdatePersonalNoteRequest,
     ) -> anyhow::Result<()> {
-        let req: command::UpdatePersonalNote = req.try_into()?;
+        let req = command::UpdatePersonalNote::try_from(req)?;
 
         // Update remote store first
         self.node_client
@@ -1658,9 +1658,11 @@ impl LexeWallet {
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
+        let inner_req =
+            revocable_clients::CreateRevocableClientRequest::from(req);
         let (rev_client, client_creds) = self
             .node_client
-            .create_client_credentials(req.into())
+            .create_client_credentials(inner_req)
             .await?;
         Ok(CreateClientResponse {
             client_pk: client_creds.client_pk,
@@ -1675,9 +1677,10 @@ impl LexeWallet {
         &self,
         req: UpdateClientRequest,
     ) -> anyhow::Result<ClientInfoResponse> {
+        let inner_req = revocable_clients::UpdateClientRequest::from(req);
         let client = self
             .node_client
-            .update_revocable_client(req.into())
+            .update_revocable_client(inner_req)
             .await?
             .client;
         Ok(ClientInfoResponse {
