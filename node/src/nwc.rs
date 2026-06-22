@@ -237,6 +237,7 @@ impl NwcClient {
             client_nostr_pk: self.client_nostr_pk,
             wallet_nostr_pk: self.wallet_nostr_pk,
             ciphertext,
+            info_event: Vec::new(),
         }
     }
 

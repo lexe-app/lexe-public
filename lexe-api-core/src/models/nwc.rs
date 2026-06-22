@@ -60,6 +60,10 @@ pub struct DbNwcClientFields {
     /// VFS-encrypted client secret data (wallet SK + label).
     #[serde(with = "base64_or_bytes")]
     pub ciphertext: Vec<u8>,
+    /// The wallet-signed NIP-47 `13194` info event as JSON, served by the
+    /// relay for capability discovery.
+    #[serde(with = "base64_or_bytes")]
+    pub info_event: Vec<u8>,
 }
 
 /// Full NWC client record from the DB.
