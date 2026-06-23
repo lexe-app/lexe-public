@@ -1,10 +1,12 @@
 # justfile for the Lexe app (Flutter + flutter_rust_bridge to app-rs).
 #
-# Recipes assume cwd = public/app/. When invoked via `just app <recipe>`
-# from a parent justfile (root or public/), `just` flips cwd to this dir
-# automatically. Inline shebang recipes inherit the same cwd.
+# Recipes assume cwd = public/app/. This module lives in public/just/app/, so
+# `set working-directory` points cwd back at the app dir; `just` applies it on
+# every `just app <recipe>` invocation (from root or public/). Inline shebang
+# recipes inherit the same cwd.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
+set working-directory := '../../app'
 
 # select a recipe interactively
 default:
@@ -83,7 +85,7 @@ rs-freezed *args:
 
 # check that the Rust+Dart ffi codegen is up-to-date
 rs-codegen-check:
-    just rs-codegen --check
+    just app rs-codegen --check
 
 # lint native app-rs crate, built for android target
 rs-lint-android *args:
@@ -107,22 +109,22 @@ build kind *args:
 # run the app against local dev. config is pulled from <repo-root>/.env
 run-dev *args:
     dotenvy -f "$(git rev-parse --show-toplevel)/.env" \
-      just run --flavor=dev {{ args }}
+      just app run --flavor=dev {{ args }}
 
 # run the app against staging/testnet
 run-staging *args:
     DEPLOY_ENVIRONMENT=staging NETWORK=testnet3 SGX=true \
-      just run --flavor=staging {{ args }}
+      just app run --flavor=staging {{ args }}
 
 # run the app against production/mainnet
 run-prod *args:
     DEPLOY_ENVIRONMENT=prod NETWORK=mainnet SGX=true \
-      just run --flavor=prod {{ args }}
+      just app run --flavor=prod {{ args }}
 
 # run the app in "design" mode for quickly iterating on pages and components.
 run-design *args:
     DEPLOY_ENVIRONMENT=dev NETWORK=regtest SGX=false \
-      just run --flavor=design --target=lib/design_mode/main.dart {{ args }}
+      just app run --flavor=design --target=lib/design_mode/main.dart {{ args }}
 
 # --- test / lint / fmt --- #
 
@@ -155,7 +157,7 @@ fix *args:
 
     dart run custom_lint --fix {{ args }}
 
-    just fmt
+    just app fmt
 
 fmt:
     dart format --line-length=80 .
@@ -173,17 +175,17 @@ fmt-check:
 # Root justfile re-exposes this as `just ai-app-ci`.
 
 ci:
-    just lint --no-pub --no-preamble --no-congratulate
-    just fmt-check
+    just app lint --no-pub --no-preamble --no-congratulate
+    just app fmt-check
     @# Annoyingly causes diffs to temporarily appear
-    @# just rs-codegen-check
+    @# just app rs-codegen-check
 
 local-ci:
-    just rs-codegen-check
-    just fmt-check
-    just lint
-    just test
-    just integration
+    just app rs-codegen-check
+    just app fmt-check
+    just app lint
+    just app test
+    just app integration
 
 # --- on-device log tailing --- #
 
@@ -215,7 +217,7 @@ fastlane-ios *args:
 # build the production Android app release artifact
 build-prod-android *args:
     DEPLOY_ENVIRONMENT=prod NETWORK=mainnet SGX=true \
-      just build appbundle --flavor=prod --release {{ args }}
+      just app build appbundle --flavor=prod --release {{ args }}
 
 # print the Android app's requested permissions from the compiled bundle.
 android-bundle-permissions:
@@ -252,18 +254,18 @@ android-bundle-git-rev path:
 
 # build android app and check 16KiB page-size compatibility
 android-test-16kb-page-sizes *args:
-    just build-prod-android {{ args }}
-    just android-lint-16kb-page-sizes build/app/outputs/bundle/prodRelease/app-prod-release.aab
+    just app build-prod-android {{ args }}
+    just app android-lint-16kb-page-sizes build/app/outputs/bundle/prodRelease/app-prod-release.aab
 
 android-lint-16kb-page-sizes path:
-    ./just/android-lint-16kb-page-sizes.sh "{{ path }}"
+    ../just/app/android-lint-16kb-page-sizes.sh "{{ path }}"
 
 # --- ios build & inspect --- #
 
 # build the production iOS app release artifact
 build-prod-ios *args:
     DEPLOY_ENVIRONMENT=prod NETWORK=mainnet SGX=true \
-        just build ipa --flavor=prod --release {{ args }}
+        just app build ipa --flavor=prod --release {{ args }}
 
 # read the combined version from the built .ipa bundle (ex: "1.2.3+45")
 # [no-cd] so the caller's cwd is preserved; the release script

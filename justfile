@@ -2,7 +2,7 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-mod app 'app'
+mod app 'just/app/mod.just'
 
 # select a recipe interactively
 default:
