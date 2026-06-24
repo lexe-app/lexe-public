@@ -19,6 +19,8 @@ use self::models::UpdateClientRequest;
 
 /// Request and response types for the revocable client endpoints.
 pub mod models;
+/// Authorization scopes: `ClientPermissions`, `Scope`s, and `Permission`s.
+pub mod scopes;
 
 /// A locked [`RevocableClients`], newtyped so it can implement
 /// [`GetRevocableClientStatus`]. Share via `Arc<RevocableClientsHandle>`.
