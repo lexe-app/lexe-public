@@ -56,9 +56,6 @@ pub-get:
     cd ../app_embed_git_rev && dart pub get
     cd ../app_lints && dart pub get
 
-build-runner-build *args:
-    dart run build_runner build --delete-conflicting-outputs {{ args }}
-
 # run the app Rust+Dart ffi codegen
 rs-codegen *args:
     #!/usr/bin/env bash
