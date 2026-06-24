@@ -41,6 +41,7 @@ lexe-tokio = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["json", "query"] }
 axum-server = { workspace = true }
+base64 = { workspace = true }
 bcs = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
@@ -69,6 +70,7 @@ proptest-derive = { optional = true, workspace = true }
 [dev-dependencies]
 lexe-common = { workspace = true, features = ["test-utils"] }
 lexe-crypto = { workspace = true, features = ["test-utils"] }
+lexe-tls = { workspace = true, features = ["test-utils"] }
 
 axum = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }

@@ -1,13 +1,10 @@
-//! Client credentials for authentication with Lexe services.
+//! Credentials (root seed / revocable client) used to control a Lexe wallet.
 
 use std::{fmt, str::FromStr, sync::Arc};
 
 use anyhow::{Context, anyhow};
 use base64::Engine;
-use lexe_api::{
-    auth::BearerAuthenticator,
-    revocable_clients::models::CreateRevocableClientResponse,
-};
+use lexe_api_core::revocable_clients::models::CreateRevocableClientResponse;
 use lexe_common::{
     api::{
         auth::{BearerAuthToken, LexeScope},
@@ -33,6 +30,8 @@ use proptest::{
     strategy::{BoxedStrategy, Strategy},
 };
 use serde::{Deserialize, Serialize};
+
+use crate::auth::BearerAuthenticator;
 
 /// Credentials used to authenticate with a Lexe user node.
 //

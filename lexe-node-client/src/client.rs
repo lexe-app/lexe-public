@@ -17,6 +17,7 @@ use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use lexe_api::{
     auth::{self, BearerAuthenticator},
+    credentials::{ClientCredentials, CredentialsRef},
     def::{
         BearerAuthBackendApi, UserBackendApi, UserGatewayApi,
         UserNodeProvisionApi, UserNodeRunApi,
@@ -85,8 +86,6 @@ use lexe_crypto::{ed25519, rng::Crng};
 use lexe_enclave::enclave::Measurement;
 use lexe_tls::{attest_client, lexe_ca, rustls};
 use reqwest::Url;
-
-use crate::credentials::{ClientCredentials, CredentialsRef};
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.
 #[derive(Clone)]

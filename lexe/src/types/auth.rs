@@ -4,6 +4,10 @@ use std::{fmt, io::Write, path::Path, str::FromStr};
 
 use anyhow::Context;
 use bip39::Mnemonic;
+use lexe_api::credentials::{
+    ClientCredentials as UnstableClientCredentials,
+    CredentialsRef as UnstableCredentialsRef,
+};
 use lexe_common::{
     ExposeSecret,
     api::user::{NodePk as UnstableNodePk, UserPk as UnstableUserPk},
@@ -11,10 +15,6 @@ use lexe_common::{
 };
 use lexe_crypto::rng::SysRng;
 use lexe_enclave::enclave::Measurement as UnstableMeasurement;
-use lexe_node_client::credentials::{
-    ClientCredentials as UnstableClientCredentials,
-    CredentialsRef as UnstableCredentialsRef,
-};
 use serde::{Deserialize, Serialize};
 
 use crate::{

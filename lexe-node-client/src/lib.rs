@@ -2,5 +2,3 @@
 
 /// `NodeClient` and `GatewayClient`.
 pub mod client;
-/// Client credentials.
-pub mod credentials;
