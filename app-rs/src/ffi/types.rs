@@ -5,9 +5,10 @@ use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig},
     types::{
-        auth::RootSeed as SdkRootSeed,
+        auth::{RootSeed as SdkRootSeed, Scope as ScopeRs},
         bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
-        command::ClientInfo as ClientInfoRs, payment::Payment as PaymentRs,
+        command::ClientInfo as ClientInfoRs,
+        payment::Payment as PaymentRs,
     },
 };
 use lexe_api::{
@@ -1015,11 +1016,102 @@ impl From<LxChannelDetailsRs> for LxChannelDetails {
     }
 }
 
+/// A named authorization preset. Mirrors `lexe::types::auth::Scope`.
+#[derive(Clone)]
+pub enum Scope {
+    ReadInfo,
+    ReadPayments,
+    Read,
+    Receive,
+    ManageChannels,
+    Spend,
+    Full,
+}
+
+impl From<Scope> for ScopeRs {
+    fn from(value: Scope) -> Self {
+        match value {
+            Scope::ReadInfo => Self::ReadInfo,
+            Scope::ReadPayments => Self::ReadPayments,
+            Scope::Read => Self::Read,
+            Scope::Receive => Self::Receive,
+            Scope::ManageChannels => Self::ManageChannels,
+            Scope::Spend => Self::Spend,
+            Scope::Full => Self::Full,
+        }
+    }
+}
+
+impl From<ScopeRs> for Scope {
+    fn from(scope: ScopeRs) -> Self {
+        match scope {
+            ScopeRs::ReadInfo => Self::ReadInfo,
+            ScopeRs::ReadPayments => Self::ReadPayments,
+            ScopeRs::Read => Self::Read,
+            ScopeRs::Receive => Self::Receive,
+            ScopeRs::ManageChannels => Self::ManageChannels,
+            ScopeRs::Spend => Self::Spend,
+            ScopeRs::Full => Self::Full,
+        }
+    }
+}
+
+impl Scope {
+    /// The other scopes this scope fully covers; see `Scope::children` in
+    /// the `lexe` SDK. The UI locks a child's checkbox while its parent is
+    /// selected.
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn children(&self) -> Vec<Scope> {
+        ScopeRs::from(self.clone())
+            .children()
+            .into_iter()
+            .map(Scope::from)
+            .collect()
+    }
+
+    /// Scopes recommended to be granted alongside this one, but not implied
+    /// by it; see `Scope::recommended` in the `lexe` SDK. The UI uses this
+    /// to pre-select companion scopes.
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn recommended(&self) -> Vec<Scope> {
+        ScopeRs::from(self.clone())
+            .recommended()
+            .into_iter()
+            .map(Scope::from)
+            .collect()
+    }
+
+    /// Parse a canonical scope id for display in the app. Returns [`None`]
+    /// for ids meaningless to a user node, e.g. LSP-specific scopes.
+    fn from_string_id(s: &str) -> Option<Self> {
+        match s {
+            "read_info" => Some(Self::ReadInfo),
+            "read_payments" => Some(Self::ReadPayments),
+            "read" => Some(Self::Read),
+            "receive" => Some(Self::Receive),
+            "manage_channels" => Some(Self::ManageChannels),
+            "spend" => Some(Self::Spend),
+            "full" => Some(Self::Full),
+            _ => None,
+        }
+    }
+}
+
 /// See `lexe::types::command::ClientInfo`.
 pub struct RevocableClient {
     pub pubkey: String,
     pub created_at: i64,
     pub label: Option<String>,
+    /// The scope aliases granted to this client.
+    pub scopes: Vec<Scope>,
+    /// Extra permissions granted explicitly, beyond those from `scopes`,
+    /// by string id.
+    pub permissions: Vec<String>,
+    /// Every permission this client currently holds: the union of all
+    /// `scopes`' permissions plus the explicit `permissions`, by string id.
+    pub effective_permissions: Vec<String>,
 }
 
 impl From<ClientInfoRs> for RevocableClient {
@@ -1028,6 +1120,13 @@ impl From<ClientInfoRs> for RevocableClient {
             pubkey: value.client_pk.to_string(),
             created_at: value.created_at.to_i64(),
             label: value.label,
+            scopes: value
+                .scopes
+                .iter()
+                .filter_map(|s| Scope::from_string_id(s))
+                .collect(),
+            permissions: value.permissions,
+            effective_permissions: value.effective_permissions,
         }
     }
 }

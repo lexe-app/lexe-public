@@ -15,8 +15,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These functions are ignored because they are not marked as `pub`: `from_string_id`, `into_inner`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 int get hbaClaimMinBalanceSats =>
@@ -520,14 +520,34 @@ class RevocableClient {
   final int createdAt;
   final String? label;
 
+  /// The scope aliases granted to this client.
+  final List<Scope> scopes;
+
+  /// Extra permissions granted explicitly, beyond those from `scopes`,
+  /// by string id.
+  final List<String> permissions;
+
+  /// Every permission this client currently holds: the union of all
+  /// `scopes`' permissions plus the explicit `permissions`, by string id.
+  final List<String> effectivePermissions;
+
   const RevocableClient({
     required this.pubkey,
     required this.createdAt,
     this.label,
+    required this.scopes,
+    required this.permissions,
+    required this.effectivePermissions,
   });
 
   @override
-  int get hashCode => pubkey.hashCode ^ createdAt.hashCode ^ label.hashCode;
+  int get hashCode =>
+      pubkey.hashCode ^
+      createdAt.hashCode ^
+      label.hashCode ^
+      scopes.hashCode ^
+      permissions.hashCode ^
+      effectivePermissions.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -536,7 +556,10 @@ class RevocableClient {
           runtimeType == other.runtimeType &&
           pubkey == other.pubkey &&
           createdAt == other.createdAt &&
-          label == other.label;
+          label == other.label &&
+          scopes == other.scopes &&
+          permissions == other.permissions &&
+          effectivePermissions == other.effectivePermissions;
 }
 
 /// The user's root seed from which we derive all child secrets.
@@ -574,6 +597,33 @@ class RootSeed {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is RootSeed && runtimeType == other.runtimeType && sdk == other.sdk;
+}
+
+/// A named authorization preset. Mirrors `lexe::types::auth::Scope`.
+enum Scope {
+  readInfo,
+  readPayments,
+  read,
+  receive,
+  manageChannels,
+  spend,
+  full;
+
+  /// The other scopes this scope fully covers; see `Scope::children` in
+  /// the `lexe` SDK. The UI locks a child's checkbox while its parent is
+  /// selected.
+  ///
+  /// flutter_rust_bridge:sync
+  List<Scope> children() =>
+      AppRs.instance.api.crateFfiTypesScopeChildren(that: this);
+
+  /// Scopes recommended to be granted alongside this one, but not implied
+  /// by it; see `Scope::recommended` in the `lexe` SDK. The UI uses this
+  /// to pre-select companion scopes.
+  ///
+  /// flutter_rust_bridge:sync
+  List<Scope> recommended() =>
+      AppRs.instance.api.crateFfiTypesScopeRecommended(that: this);
 }
 
 /// Just the info we need to display an entry in the payments list UI.

@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1147189394;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 734963028;
 
 // Section: executor
 
@@ -1203,6 +1203,32 @@ fn wire__crate__ffi__types__root_seed_seed_phrase_impl(
                      let output_ok = Result::<_,()>::Ok(crate::ffi::types::RootSeed::seed_phrase(&api_that))?;   Ok(output_ok)
                 })()) })
 }
+fn wire__crate__ffi__types__scope_children_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "scope_children", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::types::Scope>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::Scope::children(&api_that))?;   Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__types__scope_recommended_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "scope_recommended", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::types::Scope>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::Scope::recommended(&api_that))?;   Ok(output_ok)
+                })()) })
+}
 fn wire__crate__ffi__secret_store__secret_store_new_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1671,7 +1697,12 @@ impl SseDecode for crate::ffi::api::CreateClientRequest {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_label = <Option<String>>::sse_decode(deserializer);
-        return crate::ffi::api::CreateClientRequest { label: var_label };
+        let mut var_scopes =
+            <Vec<crate::ffi::types::Scope>>::sse_decode(deserializer);
+        return crate::ffi::api::CreateClientRequest {
+            label: var_label,
+            scopes: var_scopes,
+        };
     }
 }
 
@@ -2069,6 +2100,20 @@ impl SseDecode for Vec<crate::ffi::types::RevocableClient> {
             ans_.push(<crate::ffi::types::RevocableClient>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::ffi::types::Scope> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::ffi::types::Scope>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -3081,10 +3126,18 @@ impl SseDecode for crate::ffi::types::RevocableClient {
         let mut var_pubkey = <String>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_scopes =
+            <Vec<crate::ffi::types::Scope>>::sse_decode(deserializer);
+        let mut var_permissions = <Vec<String>>::sse_decode(deserializer);
+        let mut var_effectivePermissions =
+            <Vec<String>>::sse_decode(deserializer);
         return crate::ffi::types::RevocableClient {
             pubkey: var_pubkey,
             created_at: var_createdAt,
             label: var_label,
+            scopes: var_scopes,
+            permissions: var_permissions,
+            effective_permissions: var_effectivePermissions,
         };
     }
 }
@@ -3107,6 +3160,25 @@ impl SseDecode for crate::ffi::types::RootSeed {
         let mut var_sdk =
             <RustOpaqueNom<SdkRootSeed>>::sse_decode(deserializer);
         return crate::ffi::types::RootSeed { sdk: var_sdk };
+    }
+}
+
+impl SseDecode for crate::ffi::types::Scope {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ffi::types::Scope::ReadInfo,
+            1 => crate::ffi::types::Scope::ReadPayments,
+            2 => crate::ffi::types::Scope::Read,
+            3 => crate::ffi::types::Scope::Receive,
+            4 => crate::ffi::types::Scope::ManageChannels,
+            5 => crate::ffi::types::Scope::Spend,
+            6 => crate::ffi::types::Scope::Full,
+            _ => unreachable!("Invalid variant for Scope: {}", inner),
+        };
     }
 }
 
@@ -3386,8 +3458,8 @@ fn pde_ffi_dispatcher_primary_impl(
 68 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
 69 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
 70 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-85 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-86 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+87 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+88 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3437,15 +3509,17 @@ fn pde_ffi_dispatcher_sync_impl(
 76 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
 77 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
 78 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-79 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-80 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-81 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-82 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-83 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-84 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
-87 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-88 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-89 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+79 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
+80 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
+81 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+82 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+83 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+84 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+85 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+86 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
+89 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+90 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+91 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3704,7 +3778,11 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ConfirmationPriority>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateClientRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.label.into_into_dart().into_dart()].into_dart()
+        [
+            self.label.into_into_dart().into_dart(),
+            self.scopes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -4924,6 +5002,9 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::RevocableClient {
             self.pubkey.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
+            self.scopes.into_into_dart().into_dart(),
+            self.permissions.into_into_dart().into_dart(),
+            self.effective_permissions.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4970,6 +5051,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::RootSeed>
     for crate::ffi::types::RootSeed
 {
     fn into_into_dart(self) -> crate::ffi::types::RootSeed {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::Scope {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::ReadInfo => 0.into_dart(),
+            Self::ReadPayments => 1.into_dart(),
+            Self::Read => 2.into_dart(),
+            Self::Receive => 3.into_dart(),
+            Self::ManageChannels => 4.into_dart(),
+            Self::Spend => 5.into_dart(),
+            Self::Full => 6.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::Scope
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Scope>
+    for crate::ffi::types::Scope
+{
+    fn into_into_dart(self) -> crate::ffi::types::Scope {
         self
     }
 }
@@ -5474,6 +5581,7 @@ impl SseEncode for crate::ffi::api::CreateClientRequest {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <Option<String>>::sse_encode(self.label, serializer);
+        <Vec<crate::ffi::types::Scope>>::sse_encode(self.scopes, serializer);
     }
 }
 
@@ -5817,6 +5925,19 @@ impl SseEncode for Vec<crate::ffi::types::RevocableClient> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::ffi::types::RevocableClient>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::ffi::types::Scope> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::ffi::types::Scope>::sse_encode(item, serializer);
         }
     }
 }
@@ -6676,6 +6797,9 @@ impl SseEncode for crate::ffi::types::RevocableClient {
         <String>::sse_encode(self.pubkey, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
+        <Vec<crate::ffi::types::Scope>>::sse_encode(self.scopes, serializer);
+        <Vec<String>>::sse_encode(self.permissions, serializer);
+        <Vec<String>>::sse_encode(self.effective_permissions, serializer);
     }
 }
 
@@ -6696,6 +6820,30 @@ impl SseEncode for crate::ffi::types::RootSeed {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <RustOpaqueNom<SdkRootSeed>>::sse_encode(self.sdk, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::types::Scope {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(
+            match self {
+                crate::ffi::types::Scope::ReadInfo => 0,
+                crate::ffi::types::Scope::ReadPayments => 1,
+                crate::ffi::types::Scope::Read => 2,
+                crate::ffi::types::Scope::Receive => 3,
+                crate::ffi::types::Scope::ManageChannels => 4,
+                crate::ffi::types::Scope::Spend => 5,
+                crate::ffi::types::Scope::Full => 6,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

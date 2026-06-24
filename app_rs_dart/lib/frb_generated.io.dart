@@ -410,6 +410,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   List<RevocableClient> dco_decode_list_revocable_client(dynamic raw);
 
   @protected
+  List<Scope> dco_decode_list_scope(dynamic raw);
+
+  @protected
   LnurlPay dco_decode_lnurl_pay(dynamic raw);
 
   @protected
@@ -600,6 +603,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed dco_decode_root_seed(dynamic raw);
+
+  @protected
+  Scope dco_decode_scope(dynamic raw);
 
   @protected
   SecretStore dco_decode_secret_store(dynamic raw);
@@ -1075,6 +1081,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  List<Scope> sse_decode_list_scope(SseDeserializer deserializer);
+
+  @protected
   LnurlPay sse_decode_lnurl_pay(SseDeserializer deserializer);
 
   @protected
@@ -1303,6 +1312,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed sse_decode_root_seed(SseDeserializer deserializer);
+
+  @protected
+  Scope sse_decode_scope(SseDeserializer deserializer);
 
   @protected
   SecretStore sse_decode_secret_store(SseDeserializer deserializer);
@@ -1872,6 +1884,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_list_scope(List<Scope> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_lnurl_pay(LnurlPay self, SseSerializer serializer);
 
   @protected
@@ -2159,6 +2174,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_scope(Scope self, SseSerializer serializer);
 
   @protected
   void sse_encode_secret_store(SecretStore self, SseSerializer serializer);

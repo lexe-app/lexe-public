@@ -198,22 +198,22 @@ String toString() {
 /// @nodoc
 mixin _$CreateClientRequest {
 
- String? get label;
+ String? get label; List<Scope> get scopes;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientRequest&&(identical(other.label, label) || other.label == label));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientRequest&&(identical(other.label, label) || other.label == label)&&const DeepCollectionEquality().equals(other.scopes, scopes));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,label);
+int get hashCode => Object.hash(runtimeType,label,const DeepCollectionEquality().hash(scopes));
 
 @override
 String toString() {
-  return 'CreateClientRequest(label: $label)';
+  return 'CreateClientRequest(label: $label, scopes: $scopes)';
 }
 
 
@@ -227,26 +227,33 @@ String toString() {
 
 
 class _CreateClientRequest implements CreateClientRequest {
-  const _CreateClientRequest({this.label});
+  const _CreateClientRequest({this.label, required final  List<Scope> scopes}): _scopes = scopes;
   
 
 @override final  String? label;
+ final  List<Scope> _scopes;
+@override List<Scope> get scopes {
+  if (_scopes is EqualUnmodifiableListView) return _scopes;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_scopes);
+}
+
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientRequest&&(identical(other.label, label) || other.label == label));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientRequest&&(identical(other.label, label) || other.label == label)&&const DeepCollectionEquality().equals(other._scopes, _scopes));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,label);
+int get hashCode => Object.hash(runtimeType,label,const DeepCollectionEquality().hash(_scopes));
 
 @override
 String toString() {
-  return 'CreateClientRequest(label: $label)';
+  return 'CreateClientRequest(label: $label, scopes: $scopes)';
 }
 
 

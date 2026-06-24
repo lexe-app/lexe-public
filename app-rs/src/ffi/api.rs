@@ -1,6 +1,6 @@
 //! API request and response types exposed to Dart.
 
-use std::{collections::BTreeSet, str::FromStr};
+use std::str::FromStr;
 
 use anyhow::{Context, anyhow};
 use lexe::types::{
@@ -65,7 +65,8 @@ use lexe_crypto::ed25519;
 
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
-    LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind, UserChannelId,
+    LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind, Scope,
+    UserChannelId,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -752,6 +753,7 @@ impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRs {
 #[derive(Clone)]
 pub struct CreateClientRequest {
     pub label: Option<String>,
+    pub scopes: Vec<Scope>,
 }
 
 impl From<CreateClientRequest> for CreateClientRequestRs {
@@ -759,9 +761,7 @@ impl From<CreateClientRequest> for CreateClientRequestRs {
         Self {
             expires_at: None,
             label: value.label,
-            // TODO(max): Expose scope selection through the FFI instead of
-            // hardcoding `full`, so the app doesn't over-request access.
-            scopes: BTreeSet::from([ScopeRs::Full]),
+            scopes: value.scopes.into_iter().map(ScopeRs::from).collect(),
             permissions: Vec::new(),
         }
     }

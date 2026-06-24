@@ -84,6 +84,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentStatus,
         RevocableClient,
         RootSeed,
+        Scope,
         ShortPayment,
         Username;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
@@ -495,12 +496,18 @@ class MockAppHandle extends AppHandle {
         label: "bitcoinrouter.ai",
         pubkey:
             "d6f34a82bf64b68a28b2f0934d715271580afebc29a4b37bfd355999705f43ff",
+        scopes: [Scope.full],
+        permissions: [],
+        effectivePermissions: [],
       ),
       const RevocableClient(
         createdAt: 1775952000000,
         label: null,
         pubkey:
             "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",
+        scopes: [Scope.read],
+        permissions: [],
+        effectivePermissions: [],
       ),
     ],
   );

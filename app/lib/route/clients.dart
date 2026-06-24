@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:app_rs_dart/ffi/api.dart'
     show CreateClientRequest, CreateClientResponse, RevokeClientRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show RevocableClient;
+import 'package:app_rs_dart/ffi/types.dart' show RevocableClient, Scope;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -267,7 +267,8 @@ class _CreateClientPageState extends State<CreateClientPage> {
 
     this.isPending.value = true;
 
-    final req = CreateClientRequest(label: label);
+    // TODO(phlip9): allow configuring scope in the UI
+    final req = CreateClientRequest(label: label, scopes: [Scope.full]);
     final res = await Result.tryFfiAsync(
       () => this.widget.app.createClient(req: req),
     );

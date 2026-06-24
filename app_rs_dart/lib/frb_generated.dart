@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1147189394;
+  int get rustContentHash => 734963028;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -391,6 +391,10 @@ abstract class AppRsApi extends BaseApi {
   RootSeed crateFfiTypesRootSeedGenerate();
 
   List<String> crateFfiTypesRootSeedSeedPhrase({required RootSeed that});
+
+  List<Scope> crateFfiTypesScopeChildren({required Scope that});
+
+  List<Scope> crateFfiTypesScopeRecommended({required Scope that});
 
   SecretStore crateFfiSecretStoreSecretStoreNew({required Config config});
 
@@ -2931,13 +2935,59 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  List<Scope> crateFfiTypesScopeChildren({required Scope that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_scope(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 79)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_scope,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiTypesScopeChildrenConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiTypesScopeChildrenConstMeta =>
+      const TaskConstMeta(debugName: "scope_children", argNames: ["that"]);
+
+  @override
+  List<Scope> crateFfiTypesScopeRecommended({required Scope that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_scope(that, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 80)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_scope,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiTypesScopeRecommendedConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiTypesScopeRecommendedConstMeta =>
+      const TaskConstMeta(debugName: "scope_recommended", argNames: ["that"]);
+
+  @override
   SecretStore crateFfiSecretStoreSecretStoreNew({required Config config}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_config(config, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 79)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 81)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_secret_store,
@@ -2962,7 +3012,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_secret_store(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 80)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 82)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_root_seed,
@@ -2988,7 +3038,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_settings_db(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 81)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 83)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_settings,
@@ -3011,7 +3061,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_settings_db(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 82)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 84)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -3038,7 +3088,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_settings_db(that, serializer);
           sse_encode_box_autoadd_settings(update, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 83)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 85)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -3068,7 +3118,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(prefix, serializer);
           sse_encode_CastedPrimitive_usize(take, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 84)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 86)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -3096,7 +3146,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 85,
+            funcId: 87,
             port: port_,
           );
         },
@@ -3123,7 +3173,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 86,
+            funcId: 88,
             port: port_,
           );
         },
@@ -3147,7 +3197,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 87)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 89)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_user_channel_id,
@@ -3170,7 +3220,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(s, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 88)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 90)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_username,
@@ -3193,7 +3243,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(password, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 89)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 91)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -3841,9 +3891,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   CreateClientRequest dco_decode_create_client_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return CreateClientRequest(label: dco_decode_opt_String(arr[0]));
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CreateClientRequest(
+      label: dco_decode_opt_String(arr[0]),
+      scopes: dco_decode_list_scope(arr[1]),
+    );
   }
 
   @protected
@@ -4122,6 +4175,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   List<RevocableClient> dco_decode_list_revocable_client(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_revocable_client).toList();
+  }
+
+  @protected
+  List<Scope> dco_decode_list_scope(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_scope).toList();
   }
 
   @protected
@@ -4752,12 +4811,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RevocableClient dco_decode_revocable_client(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return RevocableClient(
       pubkey: dco_decode_String(arr[0]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[1]),
       label: dco_decode_opt_String(arr[2]),
+      scopes: dco_decode_list_scope(arr[3]),
+      permissions: dco_decode_list_String(arr[4]),
+      effectivePermissions: dco_decode_list_String(arr[5]),
     );
   }
 
@@ -4777,6 +4839,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return RootSeed(sdk: dco_decode_RustOpaque_SdkRootSeed(arr[0]));
+  }
+
+  @protected
+  Scope dco_decode_scope(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Scope.values[raw as int];
   }
 
   @protected
@@ -5564,7 +5632,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_label = sse_decode_opt_String(deserializer);
-    return CreateClientRequest(label: var_label);
+    var var_scopes = sse_decode_list_scope(deserializer);
+    return CreateClientRequest(label: var_label, scopes: var_scopes);
   }
 
   @protected
@@ -5880,6 +5949,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var ans_ = <RevocableClient>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_revocable_client(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Scope> sse_decode_list_scope(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Scope>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_scope(deserializer));
     }
     return ans_;
   }
@@ -6694,10 +6775,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_pubkey = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
+    var var_scopes = sse_decode_list_scope(deserializer);
+    var var_permissions = sse_decode_list_String(deserializer);
+    var var_effectivePermissions = sse_decode_list_String(deserializer);
     return RevocableClient(
       pubkey: var_pubkey,
       createdAt: var_createdAt,
       label: var_label,
+      scopes: var_scopes,
+      permissions: var_permissions,
+      effectivePermissions: var_effectivePermissions,
     );
   }
 
@@ -6715,6 +6802,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_sdk = sse_decode_RustOpaque_SdkRootSeed(deserializer);
     return RootSeed(sdk: var_sdk);
+  }
+
+  @protected
+  Scope sse_decode_scope(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return Scope.values[inner];
   }
 
   @protected
@@ -7545,6 +7639,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_String(self.label, serializer);
+    sse_encode_list_scope(self.scopes, serializer);
   }
 
   @protected
@@ -7813,6 +7908,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_revocable_client(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_scope(List<Scope> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_scope(item, serializer);
     }
   }
 
@@ -8491,6 +8595,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.pubkey, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
     sse_encode_opt_String(self.label, serializer);
+    sse_encode_list_scope(self.scopes, serializer);
+    sse_encode_list_String(self.permissions, serializer);
+    sse_encode_list_String(self.effectivePermissions, serializer);
   }
 
   @protected
@@ -8506,6 +8613,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_RustOpaque_SdkRootSeed(self.sdk, serializer);
+  }
+
+  @protected
+  void sse_encode_scope(Scope self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
