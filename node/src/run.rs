@@ -21,6 +21,7 @@ use lexe_api::{
         },
         runner::UserLeaseRenewalRequest,
     },
+    revocable_clients::{RevocableClients, RevocableClientsHandle},
     server::LayerConfig,
     types::{payments::OfferId, ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
@@ -29,7 +30,6 @@ use lexe_byte_array::ByteArray;
 use lexe_common::{
     api::{
         models::BroadcastedTx,
-        revocable_clients::RevocableClients,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
     constants::{self},
@@ -432,8 +432,7 @@ impl UserNode {
         let revocable_clients = try_maybe_revocable_clients
             .context("Could not read revocable clients")?
             .unwrap_or_default()
-            .apply(RwLock::new)
-            .apply(Arc::new);
+            .apply(|rcs| Arc::new(RevocableClientsHandle(RwLock::new(rcs))));
 
         // Create a fresh EsploraSyncClient for this user node. The sync client
         // maintains internal state and cannot be shared between nodes, though

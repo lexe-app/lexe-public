@@ -2907,6 +2907,7 @@ dependencies = [
  "asn1-rs",
  "base64 0.21.7",
  "dcap-ql",
+ "lexe-api-core",
  "lexe-byte-array",
  "lexe-common",
  "lexe-crypto",

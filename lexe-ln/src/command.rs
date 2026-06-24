@@ -27,6 +27,13 @@ use lexe_api::{
         PreflightPayOnchainResponse, ResyncRequest,
     },
     rest::API_REQUEST_TIMEOUT,
+    revocable_clients::{
+        RevocableClient, RevocableClients,
+        models::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            UpdateClientRequest, UpdateClientResponse,
+        },
+    },
     types::{
         Empty,
         bounded_string::BoundedString,
@@ -43,11 +50,6 @@ use lexe_api::{
 use lexe_common::{
     api::{
         auth::BearerAuthToken,
-        revocable_clients::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            RevocableClient, RevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
-        },
         user::{NodePk, Scid, UserPk},
     },
     debug_panic_release_log,

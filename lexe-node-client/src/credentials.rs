@@ -4,11 +4,13 @@ use std::{fmt, str::FromStr, sync::Arc};
 
 use anyhow::{Context, anyhow};
 use base64::Engine;
-use lexe_api::auth::BearerAuthenticator;
+use lexe_api::{
+    auth::BearerAuthenticator,
+    revocable_clients::models::CreateRevocableClientResponse,
+};
 use lexe_common::{
     api::{
         auth::{BearerAuthToken, LexeScope},
-        revocable_clients::CreateRevocableClientResponse,
         user::UserPk,
     },
     env::DeployEnv,

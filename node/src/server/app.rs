@@ -29,6 +29,13 @@ use lexe_api::{
             UpdateNwcClientResponse,
         },
     },
+    revocable_clients::{
+        RevocableClients,
+        models::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetRevocableClients, UpdateClientRequest, UpdateClientResponse,
+        },
+    },
     server::{LxJson, extract::LxQuery},
     types::{
         Empty,
@@ -46,11 +53,6 @@ use lexe_common::{
         models::{
             BroadcastedTx, BroadcastedTxInfo, SignMsgRequest, SignMsgResponse,
             VerifyMsgRequest, VerifyMsgResponse,
-        },
-        revocable_clients::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
         },
     },
     constants::{self},
@@ -493,7 +495,7 @@ pub(super) async fn get_revocable_clients(
     State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<GetRevocableClients>,
 ) -> Result<LxJson<RevocableClients>, NodeApiError> {
-    let locked_revocable_clients = state.revocable_clients.read().unwrap();
+    let locked_revocable_clients = state.revocable_clients.0.read().unwrap();
 
     let revocable_clients = if req.valid_only {
         let clients = locked_revocable_clients
@@ -524,7 +526,7 @@ pub(super) async fn create_revocable_client(
         &state.persister,
         state.eph_ca_cert_der.deref().clone(),
         &state.rev_ca_cert,
-        &state.revocable_clients,
+        &state.revocable_clients.0,
         req,
     )
     .await
@@ -538,7 +540,7 @@ pub(super) async fn update_revocable_client(
 ) -> Result<LxJson<UpdateClientResponse>, NodeApiError> {
     lexe_ln::command::update_revocable_client(
         &state.persister,
-        &state.revocable_clients,
+        &state.revocable_clients.0,
         req,
     )
     .await

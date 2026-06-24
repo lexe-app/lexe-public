@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use anyhow::{Context, ensure};
 use lexe_api::{
     models::command,
+    revocable_clients,
     types::{
         bounded_string::BoundedString,
         invoice::Invoice,
@@ -16,7 +17,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::{auth::LexeScope, revocable_clients},
+    api::auth::LexeScope,
     constants,
     ln::{amount::Amount, channel::LxChannelDetails},
     ppm::Ppm,
@@ -729,7 +730,7 @@ pub struct CreateClientRequest {
 const_assert_usize_eq!(revocable_clients::RevocableClient::MAX_LABEL_LEN, 64);
 
 impl From<CreateClientRequest>
-    for revocable_clients::CreateRevocableClientRequest
+    for revocable_clients::models::CreateRevocableClientRequest
 {
     fn from(req: CreateClientRequest) -> Self {
         Self {
@@ -815,7 +816,9 @@ impl UpdateClientRequest {
     }
 }
 
-impl From<UpdateClientRequest> for revocable_clients::UpdateClientRequest {
+impl From<UpdateClientRequest>
+    for revocable_clients::models::UpdateClientRequest
+{
     fn from(req: UpdateClientRequest) -> Self {
         Self {
             pubkey: req.client_pk,

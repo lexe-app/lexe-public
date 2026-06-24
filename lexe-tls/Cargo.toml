@@ -73,6 +73,7 @@ proptest-derive = { optional = true, workspace = true }
 tokio-rustls = { optional = true, workspace = true }
 
 [dev-dependencies]
+lexe-api-core = { workspace = true, features = ["test-utils"] }
 lexe-common = { workspace = true, features = ["test-utils"] }
 lexe-crypto = { workspace = true, features = ["test-utils"] }
 

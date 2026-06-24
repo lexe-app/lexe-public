@@ -47,11 +47,6 @@ use lexe_common::api::{
         VerifyMsgResponse,
     },
     provision::NodeProvisionRequest,
-    revocable_clients::{
-        CreateRevocableClientRequest, CreateRevocableClientResponse,
-        GetRevocableClients, RevocableClients, UpdateClientRequest,
-        UpdateClientResponse,
-    },
     test_event::TestEventOp,
     user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
     version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
@@ -107,6 +102,13 @@ use crate::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
             MegaNodeApiUserRunResponse, UserFinishedRequest,
             UserLeaseRenewalRequest,
+        },
+    },
+    revocable_clients::{
+        RevocableClients,
+        models::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetRevocableClients, UpdateClientRequest, UpdateClientResponse,
         },
     },
     types::{

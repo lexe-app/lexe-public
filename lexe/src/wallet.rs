@@ -4,6 +4,7 @@ use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
     def::{AppBackendApi, AppGatewayApi, AppNodeRunApi},
     models::command::{self, GetUpdatedPayments},
+    revocable_clients,
     types::{
         bounded_string::BoundedString,
         payments::{
@@ -18,7 +19,6 @@ use lexe_common::{
             UserSignupRequestWire, UserSignupRequestWireV1,
             UserSignupRequestWireV2,
         },
-        revocable_clients,
         user::NodePkProof,
     },
     ln::{
@@ -1655,7 +1655,8 @@ impl LexeWallet {
     /// Revoked and expired clients are not included.
     #[instrument(skip_all, name = "(list-clients)")]
     pub async fn list_clients(&self) -> anyhow::Result<ListClientsResponse> {
-        let req = revocable_clients::GetRevocableClients { valid_only: true };
+        let req =
+            revocable_clients::models::GetRevocableClients { valid_only: true };
         let clients = self
             .node_client
             .get_revocable_clients(req)
@@ -1677,7 +1678,8 @@ impl LexeWallet {
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
-        let req = revocable_clients::CreateRevocableClientRequest::from(req);
+        let req =
+            revocable_clients::models::CreateRevocableClientRequest::from(req);
         let (rev_client, client_creds) =
             self.node_client.create_client_credentials(req).await?;
         Ok(CreateClientResponse {
@@ -1693,7 +1695,7 @@ impl LexeWallet {
         &self,
         req: UpdateClientRequest,
     ) -> anyhow::Result<ClientInfoResponse> {
-        let req = revocable_clients::UpdateClientRequest::from(req);
+        let req = revocable_clients::models::UpdateClientRequest::from(req);
         let client =
             self.node_client.update_revocable_client(req).await?.client;
         Ok(ClientInfoResponse {
@@ -1708,7 +1710,7 @@ impl LexeWallet {
         &self,
         req: RevokeClientRequest,
     ) -> anyhow::Result<ClientInfoResponse> {
-        let req = revocable_clients::UpdateClientRequest {
+        let req = revocable_clients::models::UpdateClientRequest {
             pubkey: req.client_pk,
             is_revoked: Some(true),
             label: None,

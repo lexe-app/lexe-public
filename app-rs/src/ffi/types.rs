@@ -14,6 +14,7 @@ use lexe_api::{
     models::command::{
         BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
     },
+    revocable_clients::RevocableClient as RevocableClientRs,
     types::{
         invoice::Invoice as InvoiceRs,
         lnurl::{
@@ -34,10 +35,7 @@ use lexe_api::{
 };
 use lexe_common::{
     ByteArray,
-    api::{
-        auth::LexeScope as ScopeRs,
-        revocable_clients::RevocableClient as RevocableClientRs,
-    },
+    api::auth::LexeScope as ScopeRs,
     env::DeployEnv as DeployEnvRs,
     ln::{
         amount::Amount as AmountRs,

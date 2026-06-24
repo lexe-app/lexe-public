@@ -47,6 +47,13 @@ use lexe_api::{
         },
     },
     rest::{POST, RequestBuilderExt, RestClient},
+    revocable_clients::{
+        RevocableClient, RevocableClients,
+        models::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetRevocableClients, UpdateClientRequest, UpdateClientResponse,
+        },
+    },
     types::{
         Empty,
         payments::{MaybeBasicPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2},
@@ -66,11 +73,6 @@ use lexe_common::{
             VerifyMsgResponse,
         },
         provision::NodeProvisionRequest,
-        revocable_clients::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, RevocableClient, RevocableClients,
-            UpdateClientRequest, UpdateClientResponse,
-        },
         user::UserPk,
         version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
     },

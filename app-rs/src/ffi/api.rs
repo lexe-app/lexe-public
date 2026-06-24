@@ -37,6 +37,10 @@ use lexe_api::{
         PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
         UpdatePersonalNote as UpdatePersonalNoteRs,
     },
+    revocable_clients::models::{
+        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+        UpdateClientRequest as UpdateClientRequestRs,
+    },
     types::{
         bounded_string::BoundedString,
         invoice::Invoice as InvoiceRs,
@@ -50,14 +54,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::{
-        auth::LexeScope as ScopeRs,
-        fiat_rates::FiatRates as FiatRatesRs,
-        revocable_clients::{
-            CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-            UpdateClientRequest as UpdateClientRequestRs,
-        },
-    },
+    api::{auth::LexeScope as ScopeRs, fiat_rates::FiatRates as FiatRatesRs},
     ln::{
         amount::Amount,
         channel::{ChannelId, UserChannelId as UserChannelIdRs},
@@ -746,7 +743,7 @@ impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRs {
     }
 }
 
-/// See `lexe_common::api::revocable_clients::CreateRevocableClientRequest`.
+/// See `lexe_common::api::revocable_clients::models::CreateRevocableClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 #[derive(Clone)]
@@ -771,7 +768,7 @@ pub struct CreateClientResponse {
     pub credentials: String,
 }
 
-/// See `lexe_common::api::revocable_clients::UpdateClientRequest`.
+/// See `lexe_common::api::revocable_clients::models::UpdateClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UpdateClientRequest {

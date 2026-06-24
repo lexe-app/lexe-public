@@ -56,7 +56,7 @@ sealed class CloseChannelRequest with _$CloseChannelRequest {
       _CloseChannelRequest;
 }
 
-/// See `lexe_common::api::revocable_clients::CreateRevocableClientRequest`.
+/// See `lexe_common::api::revocable_clients::models::CreateRevocableClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -342,7 +342,7 @@ sealed class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
   }) = _PreflightPayOnchainResponse;
 }
 
-/// See `lexe_common::api::revocable_clients::UpdateClientRequest`.
+/// See `lexe_common::api::revocable_clients::models::UpdateClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed

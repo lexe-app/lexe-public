@@ -11,7 +11,7 @@ pub mod fiat_rates;
 pub mod models;
 /// Data types specific to provisioning.
 pub mod provision;
-/// Revocable clients.
+/// The revocable clients interface for handshake-time revocation checks.
 pub mod revocable_clients;
 /// `TestEvent`.
 pub mod test_event;

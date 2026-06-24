@@ -23,14 +23,12 @@ use lexe_api::{
         CreateInvoiceRequest, CreateInvoiceResponse, GDriveStatus,
         OnchainDescriptors,
     },
+    revocable_clients::RevocableClientsHandle,
     server::LxJson,
     types::{partners::PartnersInfo, payments::OfferId},
 };
 use lexe_common::{
-    api::{
-        revocable_clients::RevocableClients,
-        user::{NodePk, Scid, UserPk},
-    },
+    api::user::{NodePk, Scid, UserPk},
     env::DeployEnv,
     ln::network::Network,
 };
@@ -83,7 +81,7 @@ pub(crate) struct RouterState {
     pub lsp_info: LspInfo,
     pub eph_ca_cert_der: Arc<LxCertificateDer>,
     pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
-    pub revocable_clients: Arc<RwLock<RevocableClients>>,
+    pub revocable_clients: Arc<RevocableClientsHandle>,
     pub intercept_scids: Vec<Scid>,
     pub gdrive_status: Arc<tokio::sync::Mutex<GDriveStatus>>,
     pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,

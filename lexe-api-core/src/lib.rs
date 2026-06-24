@@ -28,6 +28,8 @@ pub mod error;
 pub mod macros;
 /// API request and response types unique to a specific endpoint.
 pub mod models;
+/// Revocable client API types and `RevocableClients`.
+pub mod revocable_clients;
 /// API types shared across multiple endpoints.
 pub mod types;
 /// Lexe's VFS ("virtual file system") trait and associated types.

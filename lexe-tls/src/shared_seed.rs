@@ -69,10 +69,7 @@
 // TODO(max): Only the app (not an SDK) should have the power to call the "issue
 // new cert" endpoint.
 
-use std::{
-    fmt::Display,
-    sync::{Arc, RwLock},
-};
+use std::{fmt::Display, sync::Arc};
 
 use anyhow::Context;
 use asn1_rs::{FromDer, nom::AsBytes};
@@ -81,8 +78,11 @@ use certs::{
     RevocableIssuingCaCert,
 };
 use lexe_common::{
-    api::revocable_clients::RevocableClients, constants, env::DeployEnv,
-    root_seed::RootSeed, time::TimestampMs,
+    api::revocable_clients::{GetRevocableClientStatus, RevocableClientStatus},
+    constants,
+    env::DeployEnv,
+    root_seed::RootSeed,
+    time::TimestampMs,
 };
 use lexe_crypto::{ed25519, rng::Crng};
 use rustls::{
@@ -117,7 +117,7 @@ pub fn node_run_server_config(
     eph_ca_cert: &EphemeralIssuingCaCert,
     eph_ca_cert_der: &LxCertificateDer,
     rev_ca_cert: &RevocableIssuingCaCert,
-    revocable_clients: Arc<RwLock<RevocableClients>>,
+    revocable_clients: Arc<dyn GetRevocableClientStatus>,
 ) -> anyhow::Result<(Arc<rustls::ServerConfig>, String)> {
     // Build ephemeral server cert and sign with derived CA
     let dns_name = constants::NODE_RUN_DNS;
@@ -360,23 +360,23 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 /// "revocable issuing" CA.
 ///
 /// - All certs signed by the ephemeral issuing CA are automatically trusted.
-/// - Certs signed by the revocable issuing CA must additionally appear in
-///   [`RevocableClients`], must not be expired, and must not be revoked.
+/// - Certs signed by the revocable issuing CA must additionally pass a
+///   [`GetRevocableClientStatus`] check: known, not expired, and not revoked.
 #[derive(Debug)]
 pub struct SharedSeedClientCertVerifier {
     /// Trusts the "ephemeral issuing" CA
     ephemeral_ca_verifier: Arc<dyn ClientCertVerifier>,
     /// Trusts the "revocable issuing" CA
     revocable_ca_verifier: Arc<dyn ClientCertVerifier>,
-    /// A handle to our list of revocable clients.
-    revocable_clients: Arc<RwLock<RevocableClients>>,
+    /// Handshake-time validity check for revocable client certs.
+    revocable_clients: Arc<dyn GetRevocableClientStatus>,
 }
 
 impl SharedSeedClientCertVerifier {
     pub fn new(
         eph_ca_cert_der: &LxCertificateDer,
         rev_ca_cert: &RevocableIssuingCaCert,
-        revocable_clients: Arc<RwLock<RevocableClients>>,
+        revocable_clients: Arc<dyn GetRevocableClientStatus>,
     ) -> anyhow::Result<Self> {
         let ephemeral_ca_verifier = {
             let mut eph_roots = rustls::RootCertStore::empty();
@@ -464,21 +464,19 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
         )
         .map_err(|e| rustls_err(format!("Not an ed25519 pk: {e}")))?;
 
-        // Check that the cert is in our client store.
-        let locked_client_certs = self.revocable_clients.read().unwrap();
-        let client_cert = locked_client_certs
-            .clients
-            .get(&end_entity_pk)
-            .ok_or_else(|| rustls_err("Unrecognized cert pk"))?;
-
-        // Ensure the cert hasn't been revoked and isn't expired.
+        // Check that the cert is known, not revoked, and not expired.
         let now = TimestampMs::from_secs(now.as_secs())
             .map_err(|_| rustls_err("Clock overflow"))?;
-        if client_cert.is_revoked {
-            return Err(rustls_err("Client was previously revoked"));
-        }
-        if client_cert.is_expired_at(now) {
-            return Err(rustls_err("Client is expired"));
+        let status = self
+            .revocable_clients
+            .get_client_status(&end_entity_pk, now)
+            .ok_or_else(|| rustls_err("Unrecognized cert pk"))?;
+        match status {
+            RevocableClientStatus::Valid => {}
+            RevocableClientStatus::Revoked =>
+                return Err(rustls_err("Client was previously revoked")),
+            RevocableClientStatus::Expired =>
+                return Err(rustls_err("Client is expired")),
         }
 
         Ok(ClientCertVerified::assertion())
@@ -516,13 +514,14 @@ impl ClientCertVerifier for SharedSeedClientCertVerifier {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
+    use std::sync::{Arc, RwLock};
 
     use certs::RevocableClientCert;
+    use lexe_api_core::revocable_clients::{
+        RevocableClient, RevocableClients, RevocableClientsHandle,
+    };
     use lexe_common::{
-        api::{auth::LexeScope, revocable_clients::RevocableClient},
-        env::DeployEnv,
-        root_seed::RootSeed,
+        api::auth::LexeScope, env::DeployEnv, root_seed::RootSeed,
         time::TimestampMs,
     };
     use lexe_crypto::rng::FastRng;
@@ -577,15 +576,16 @@ mod test {
                 eph_ca_cert.serialize_der_self_signed().unwrap();
             let rev_ca_cert =
                 RevocableIssuingCaCert::from_root_seed(server_seed);
-            let revocable_clients =
-                Arc::new(RwLock::new(RevocableClients::default()));
+            let clients = Arc::new(RevocableClientsHandle(RwLock::new(
+                RevocableClients::default(),
+            )));
 
             node_run_server_config(
                 &mut rng,
                 &eph_ca_cert,
                 &eph_ca_cert_der,
                 &rev_ca_cert,
-                revocable_clients,
+                clients,
             )
             .unwrap()
         };
@@ -683,13 +683,13 @@ mod test {
             is_revoked,
         };
         let rev_client_certs = {
-            let store = Arc::new(RwLock::new(RevocableClients::default()));
-            store
+            let revocable_clients = RwLock::new(RevocableClients::default());
+            revocable_clients
                 .write()
                 .unwrap()
                 .clients
                 .insert(*rev_client_cert_pk, rev_client);
-            store
+            Arc::new(RevocableClientsHandle(revocable_clients))
         };
 
         // SDK client config

@@ -16,6 +16,10 @@ use lexe_api::{
         PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         UpdatePersonalNote as UpdatePersonalNoteRs,
     },
+    revocable_clients::models::{
+        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
+        GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
+    },
     types::{
         Empty,
         lnurl::LnurlPayRequest as LnurlPayRequestRs,
@@ -25,14 +29,7 @@ use lexe_api::{
         },
     },
 };
-use lexe_common::{
-    api::revocable_clients::{
-        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-        GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
-    },
-    env::DeployEnv,
-    ln::amount::Amount,
-};
+use lexe_common::{env::DeployEnv, ln::amount::Amount};
 use lexe_std::Apply;
 use tracing::instrument;
 
