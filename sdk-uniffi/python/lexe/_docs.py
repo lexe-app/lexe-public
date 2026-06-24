@@ -2074,8 +2074,10 @@ Variants:
 
 - **LNURL_PAY** -- An LNURL-pay payment (LUD-06). Attributes:
 
-  - ``lnurl``: An LNURL-pay URI.
   - ``pay_request``: The :class:`LnurlPayRequest` intermediate.
+  - ``lnurl``: An LNURL-pay URI.
+  - ``lightning_address``: The Lightning Address (``user@domain``) this was
+    resolved from, if it originated from one rather than a raw LNURL.
 
 Example::
 

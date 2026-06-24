@@ -636,6 +636,7 @@ impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
             lexe_payment_uri::PaymentMethod::LnurlPay {
                 lnurl: _,
                 pay_request,
+                ..
             } => Self::LnurlPayRequest(LnurlPayRequest::from(pay_request)),
         }
     }

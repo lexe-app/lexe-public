@@ -56,13 +56,17 @@ pub enum PaymentMethod {
         bip321_amount: Option<Amount>,
     },
     LnurlPay {
-        /// The LNURL-pay LNURL, e.g. `lnurlp://...`
-        // Should NOT be an HTTP URL
-        lnurl: String,
-
         /// The LNURL-pay request, which includes information about
         /// the amount constraints, callback, etc. associated with the LNURL.
         pay_request: LnurlPayRequest,
+
+        /// The original LNURL-pay LNURL, e.g. `lnurlp://...`
+        // Should NOT be an HTTP URL
+        lnurl: String,
+
+        /// The original Lightning Address (`user@domain`) this was resolved
+        /// from, if it originated from one rather than a raw LNURL.
+        lightning_address: Option<String>,
     },
 }
 

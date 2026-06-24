@@ -2652,11 +2652,14 @@ pub enum PaymentMethod {
     },
     /// An LNURL-pay payment (LUD-06).
     LnurlPay {
-        /// An LNURL-pay URI.
-        lnurl: String,
         /// LNURL-pay request, which includes information about
         /// the amount constraints, callback, etc. associated with the LNURL.
         pay_request: LnurlPayRequest,
+        /// An LNURL-pay URI.
+        lnurl: String,
+        /// The Lightning Address (`user@domain`) this LNURL-pay endpoint was
+        /// resolved from, if it originated from one rather than a raw LNURL.
+        lightning_address: Option<String>,
     },
 }
 
@@ -2684,11 +2687,15 @@ impl From<SdkPaymentMethod> for PaymentMethod {
                 offer: Offer::from(offer),
                 bip321_amount_sats: bip321_amount.map(|amt| amt.sats_u64()),
             },
-            SdkPaymentMethod::LnurlPay { lnurl, pay_request } =>
-                Self::LnurlPay {
-                    lnurl,
-                    pay_request: LnurlPayRequest::from(pay_request),
-                },
+            SdkPaymentMethod::LnurlPay {
+                pay_request,
+                lnurl,
+                lightning_address,
+            } => Self::LnurlPay {
+                pay_request: LnurlPayRequest::from(pay_request),
+                lnurl,
+                lightning_address,
+            },
         }
     }
 }

@@ -589,10 +589,14 @@ impl LnurlClient {
 
     /// Resolve an [`Lnurl`] into LNURL [`PaymentMethod`]s or [`ClaimMethod`]s.
     ///
+    /// Optionally pass the `lightning_address` the LNURL was constructed from
+    /// to associate it with the resulting [`PaymentMethod::LnurlPay`].
+    ///
     /// Compare with [`resolve`](crate::resolve()).
     pub async fn resolve_lnurl(
         &self,
         mut lnurl: Lnurl<'static>,
+        lightning_address: Option<String>,
     ) -> anyhow::Result<(Vec<PaymentMethod>, Vec<ClaimMethod>)> {
         let lnurl_intermediate = self
             .get_lnurl_intermediate(&lnurl)
@@ -603,8 +607,9 @@ impl LnurlClient {
             LnurlIntermediate::Pay(pay_request) => {
                 lnurl.scheme = LnurlScheme::Pay;
                 let method = PaymentMethod::LnurlPay {
-                    lnurl: lnurl.to_string(),
                     pay_request,
+                    lnurl: lnurl.to_string(),
+                    lightning_address,
                 };
                 Ok((vec![method], Vec::new()))
             }
@@ -622,8 +627,11 @@ impl LnurlClient {
                             match pay_request {
                                 Ok(pay_request) =>
                                     payments.push(PaymentMethod::LnurlPay {
-                                        lnurl: pay_lnurl.to_string(),
                                         pay_request,
+                                        lnurl: pay_lnurl.to_string(),
+                                        // LNURL-Pay embedded in LNURL-Withdraw
+                                        // never has a Lightning Address
+                                        lightning_address: None,
                                     }),
                                 Err(e) => debug!(
                                     "Failed to resolve LNURL-pay linked \

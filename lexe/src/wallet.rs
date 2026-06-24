@@ -773,7 +773,11 @@ impl LexeWallet {
                         expires_at,
                     }
                 }
-                PaymentMethod::LnurlPay { lnurl, pay_request } => {
+                PaymentMethod::LnurlPay {
+                    pay_request,
+                    lnurl,
+                    lightning_address: _,
+                } => {
                     let payable = lnurl.to_string();
                     let description = pay_request
                         .metadata
@@ -977,8 +981,9 @@ impl LexeWallet {
                 })
             }
             PaymentMethod::LnurlPay {
-                lnurl: _,
                 pay_request,
+                lnurl: _,
+                lightning_address: _,
             } => {
                 let amount = amount.context(
                     "A payment amount must be provided for LNURL payments",

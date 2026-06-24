@@ -78,7 +78,10 @@ pub async fn resolve(
                 let claims = Vec::new();
                 Ok((payments, claims))
             }
-            Resolvable::Lnurl(lnurl) => lnurl_client.resolve_lnurl(lnurl).await,
+            Resolvable::Lnurl(lnurl) => {
+                let lightning_address = None;
+                lnurl_client.resolve_lnurl(lnurl, lightning_address).await
+            }
         }
     });
     let resolve_results = future::join_all(resolve_futs).await;
@@ -156,9 +159,9 @@ mod resolve {
         let mut errors = Vec::with_capacity(2);
 
         // Try resolving BIP353 if this is a valid BIP353 address.
-        if let Some(bip353_fqdn) = email_like.bip353_fqdn {
+        if let Some(bip353_fqdn) = &email_like.bip353_fqdn {
             let bip353_result = bip353_client
-                .resolve_bip353_fqdn(network, bip353_fqdn)
+                .resolve_bip353_fqdn(network, bip353_fqdn.clone())
                 .await
                 .context("Failed to resolve BIP353 address");
             match bip353_result {
@@ -187,8 +190,9 @@ mod resolve {
             Ok(pay_request) => {
                 lnurl.scheme = LnurlScheme::Pay;
                 methods.push(PaymentMethod::LnurlPay {
-                    lnurl: lnurl.to_string(),
                     pay_request,
+                    lnurl: lnurl.to_string(),
+                    lightning_address: Some(email_like.lightning_address()),
                 });
             }
             Err(e) => errors.push(format!("{e:#}")),

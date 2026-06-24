@@ -94,17 +94,6 @@ impl fmt::Display for EmailLikeAddress<'_> {
 }
 
 impl<'a> EmailLikeAddress<'a> {
-    pub fn into_owned(self) -> EmailLikeAddress<'static> {
-        EmailLikeAddress {
-            username: Cow::Owned(self.username.into_owned()),
-            domain: Cow::Owned(self.domain.into_owned()),
-            tag: self.tag.map(|t| Cow::Owned(t.into_owned())),
-            bip353_prefix: self.bip353_prefix,
-            bip353_fqdn: self.bip353_fqdn,
-            lightning_address_url: self.lightning_address_url,
-        }
-    }
-
     /// Whether the payment uri "looks like" an email address and should be
     /// parsed as such. If so, returns the trimmed username and domain parts.
     pub(crate) fn matches(s: &str) -> Option<(&str, &str)> {
@@ -232,6 +221,28 @@ impl<'a> EmailLikeAddress<'a> {
                 };
                 Error::InvalidEmailLike(Cow::from(combined_msg))
             })
+    }
+
+    pub fn into_owned(self) -> EmailLikeAddress<'static> {
+        EmailLikeAddress {
+            username: Cow::Owned(self.username.into_owned()),
+            domain: Cow::Owned(self.domain.into_owned()),
+            tag: self.tag.map(|t| Cow::Owned(t.into_owned())),
+            bip353_prefix: self.bip353_prefix,
+            bip353_fqdn: self.bip353_fqdn,
+            lightning_address_url: self.lightning_address_url,
+        }
+    }
+
+    /// The canonical Lightning Address (`username[+tag]@domain`), i.e. the
+    /// [`Display`](fmt::Display) form without the optional BIP353 `₿` prefix.
+    pub fn lightning_address(&self) -> String {
+        let username = &self.username;
+        let domain = &self.domain;
+        match &self.tag {
+            Some(tag) => format!("{username}+{tag}@{domain}"),
+            None => format!("{username}@{domain}"),
+        }
     }
 }
 
