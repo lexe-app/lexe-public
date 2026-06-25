@@ -244,6 +244,13 @@ impl<'a> EmailLikeAddress<'a> {
             None => format!("{username}@{domain}"),
         }
     }
+
+    /// The canonical Human Bitcoin Address (BIP353): `₿username@domain`.
+    pub fn human_bitcoin_address(&self) -> String {
+        let username = &self.username;
+        let domain = &self.domain;
+        format!("₿{username}@{domain}")
+    }
 }
 
 /// Helpers to validate components of email-like addresses and DNS names.

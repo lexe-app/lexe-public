@@ -350,6 +350,7 @@ impl Bip321Uri {
             methods.push(PaymentMethod::Offer {
                 offer,
                 bip321_amount: self.amount,
+                human_bitcoin_address: None,
             });
         }
 

@@ -203,6 +203,7 @@ impl PaymentUri {
                 vec![PaymentMethod::Offer {
                     offer,
                     bip321_amount: None,
+                    human_bitcoin_address: None,
                 }],
                 Vec::new(),
             ),

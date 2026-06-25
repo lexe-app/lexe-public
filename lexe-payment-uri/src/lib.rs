@@ -123,6 +123,7 @@ pub async fn resolve(
         if let PaymentMethod::Offer {
             offer,
             bip321_amount,
+            ..
         } = method
         {
             match (offer.min_amount(), bip321_amount) {
@@ -160,8 +161,13 @@ mod resolve {
 
         // Try resolving BIP353 if this is a valid BIP353 address.
         if let Some(bip353_fqdn) = &email_like.bip353_fqdn {
+            let human_bitcoin_address = email_like.human_bitcoin_address();
             let bip353_result = bip353_client
-                .resolve_bip353_fqdn(network, bip353_fqdn.clone())
+                .resolve_bip353_fqdn(
+                    network,
+                    bip353_fqdn.clone(),
+                    human_bitcoin_address,
+                )
                 .await
                 .context("Failed to resolve BIP353 address");
             match bip353_result {

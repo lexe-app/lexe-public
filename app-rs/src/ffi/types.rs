@@ -632,8 +632,10 @@ impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
             lexe_payment_uri::PaymentMethod::Offer {
                 offer,
                 bip321_amount,
+                human_bitcoin_address,
             } => Self::Offer(Offer {
                 bip321_amount_sats: bip321_amount.map(|amt| amt.sats_u64()),
+                human_bitcoin_address,
                 ..Offer::from(offer)
             }),
             lexe_payment_uri::PaymentMethod::LnurlPay {
@@ -755,6 +757,10 @@ pub struct Offer {
     /// If this field is less than `min_amount_sats`, we reject the offer.
     pub bip321_amount_sats: Option<u64>,
 
+    /// The original Human Bitcoin Address this offer was resolved from, if
+    /// it originated from one. Includes ₿ prefix: "₿user@domain".
+    pub human_bitcoin_address: Option<String>,
+
     pub payee: Option<String>,
     pub payee_pubkey: Option<String>,
 }
@@ -769,6 +775,7 @@ impl From<&OfferRs> for Offer {
             expires_at: offer.expires_at().map(TimestampMs::to_i64),
             min_amount_sats: offer.min_amount().map(|amt| amt.sats_u64()),
             bip321_amount_sats: None,
+            human_bitcoin_address: None,
 
             payee: offer.payee().map(String::from),
             payee_pubkey: offer.payee_node_pk().map(|pk| pk.to_string()),

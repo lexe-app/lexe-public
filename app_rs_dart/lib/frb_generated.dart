@@ -4159,16 +4159,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Offer dco_decode_offer(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return Offer(
       string: dco_decode_String(arr[0]),
       description: dco_decode_opt_String(arr[1]),
       expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[2]),
       minAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
       bip321AmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
-      payee: dco_decode_opt_String(arr[5]),
-      payeePubkey: dco_decode_opt_String(arr[6]),
+      humanBitcoinAddress: dco_decode_opt_String(arr[5]),
+      payee: dco_decode_opt_String(arr[6]),
+      payeePubkey: dco_decode_opt_String(arr[7]),
     );
   }
 
@@ -5954,6 +5955,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_bip321AmountSats = sse_decode_opt_CastedPrimitive_u_64(
       deserializer,
     );
+    var var_humanBitcoinAddress = sse_decode_opt_String(deserializer);
     var var_payee = sse_decode_opt_String(deserializer);
     var var_payeePubkey = sse_decode_opt_String(deserializer);
     return Offer(
@@ -5962,6 +5964,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       expiresAt: var_expiresAt,
       minAmountSats: var_minAmountSats,
       bip321AmountSats: var_bip321AmountSats,
+      humanBitcoinAddress: var_humanBitcoinAddress,
       payee: var_payee,
       payeePubkey: var_payeePubkey,
     );
@@ -7830,6 +7833,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.minAmountSats, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.bip321AmountSats, serializer);
+    sse_encode_opt_String(self.humanBitcoinAddress, serializer);
     sse_encode_opt_String(self.payee, serializer);
     sse_encode_opt_String(self.payeePubkey, serializer);
   }

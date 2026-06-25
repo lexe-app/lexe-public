@@ -741,6 +741,7 @@ impl LexeWallet {
                 PaymentMethod::Offer {
                     offer,
                     bip321_amount,
+                    human_bitcoin_address: _,
                 } => {
                     let payable = match bip321_amount {
                         None => offer.to_string(),
@@ -1075,6 +1076,7 @@ impl LexeWallet {
             PaymentMethod::Offer {
                 offer,
                 bip321_amount,
+                human_bitcoin_address: _,
             } => {
                 let amount = match (bip321_amount, amount) {
                     (Some(amt), Some(given)) if amt != given =>

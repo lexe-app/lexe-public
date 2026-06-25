@@ -2072,6 +2072,9 @@ Variants:
   - ``offer``: The parsed :class:`Offer`.
   - ``bip321_amount_sats``: Amount from a BIP321 URI which contained the
     offer, in satoshis.
+  - ``human_bitcoin_address``: The original Human Bitcoin Address this offer
+    was resolved from, if it originated from one. Includes ₿ prefix:
+    ``₿user@domain``.
 
 - **LNURL_PAY** -- An LNURL-pay payment (LUD-06). Attributes:
 

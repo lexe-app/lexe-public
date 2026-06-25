@@ -397,6 +397,7 @@ sealed class Offer with _$Offer {
     int? expiresAt,
     int? minAmountSats,
     int? bip321AmountSats,
+    String? humanBitcoinAddress,
     String? payee,
     String? payeePubkey,
   }) = _Offer;

@@ -2220,6 +2220,8 @@ impl SseDecode for crate::ffi::types::Offer {
         let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
         let mut var_minAmountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_bip321AmountSats = <Option<u64>>::sse_decode(deserializer);
+        let mut var_humanBitcoinAddress =
+            <Option<String>>::sse_decode(deserializer);
         let mut var_payee = <Option<String>>::sse_decode(deserializer);
         let mut var_payeePubkey = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::types::Offer {
@@ -2228,6 +2230,7 @@ impl SseDecode for crate::ffi::types::Offer {
             expires_at: var_expiresAt,
             min_amount_sats: var_minAmountSats,
             bip321_amount_sats: var_bip321AmountSats,
+            human_bitcoin_address: var_humanBitcoinAddress,
             payee: var_payee,
             payee_pubkey: var_payeePubkey,
         };
@@ -4264,6 +4267,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Offer {
             self.expires_at.into_into_dart().into_dart(),
             self.min_amount_sats.into_into_dart().into_dart(),
             self.bip321_amount_sats.into_into_dart().into_dart(),
+            self.human_bitcoin_address.into_into_dart().into_dart(),
             self.payee.into_into_dart().into_dart(),
             self.payee_pubkey.into_into_dart().into_dart(),
         ]
@@ -5959,6 +5963,7 @@ impl SseEncode for crate::ffi::types::Offer {
         <Option<i64>>::sse_encode(self.expires_at, serializer);
         <Option<u64>>::sse_encode(self.min_amount_sats, serializer);
         <Option<u64>>::sse_encode(self.bip321_amount_sats, serializer);
+        <Option<String>>::sse_encode(self.human_bitcoin_address, serializer);
         <Option<String>>::sse_encode(self.payee, serializer);
         <Option<String>>::sse_encode(self.payee_pubkey, serializer);
     }

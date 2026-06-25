@@ -121,6 +121,10 @@ impl Bip353Client {
     /// Resolves a BIP353 FQDN (e.g. "satoshi.user._bitcoin-payment.lexe.app.")
     /// into [`PaymentMethod`]s using DNS-over-HTTPS.
     ///
+    /// The given `human_bitcoin_address` will be associated with any resulting
+    /// [`PaymentMethod::Offer`]s, so it should come from the original
+    /// [`EmailLikeAddress`] the `bip353_fqdn` was constructed from.
+    ///
     /// DNS-over-HTTPS is robust on VPNs, unlike direct DNS which is often
     /// blocked and leaks queries to your ISP.
     // NOTE: The recursive DNS resolver can see who we're paying.
@@ -129,6 +133,7 @@ impl Bip353Client {
         &self,
         network: Network,
         bip353_fqdn: String,
+        human_bitcoin_address: String,
     ) -> anyhow::Result<Vec<PaymentMethod>> {
         // Name::try_from prefers an owned String
         let dns_name = Name::try_from(bip353_fqdn)
@@ -152,7 +157,7 @@ impl Bip353Client {
 
         // BIP353 records shouldn't nest resolution targets; ignore any so
         // the payment can still proceed via directly-known methods.
-        let (payment_methods, resolvables) = bip321_uri.flatten(network);
+        let (mut payment_methods, resolvables) = bip321_uri.flatten(network);
         if !resolvables.is_empty() {
             warn!(
                 "BIP353 record contained {resolvables_len} nested resolution \
@@ -165,6 +170,18 @@ impl Bip353Client {
             !payment_methods.is_empty(),
             "Resolved BIP353 address did not contain any supported payment methods",
         );
+
+        // Associate the originating Human Bitcoin Address with each resolved
+        // offer, so offer payments to a BIP353 address can be labeled as such.
+        for method in &mut payment_methods {
+            if let PaymentMethod::Offer {
+                human_bitcoin_address: hba,
+                ..
+            } = method
+            {
+                *hba = Some(human_bitcoin_address.clone());
+            }
+        }
 
         Ok(payment_methods)
     }
@@ -461,6 +478,7 @@ mod test {
         };
 
         // Extract BIP353 FQDN
+        let human_bitcoin_address = email_like.human_bitcoin_address();
         let bip353_fqdn = email_like
             .bip353_fqdn
             .expect("matt@mattcorallo.com should be valid BIP353");
@@ -470,7 +488,11 @@ mod test {
         let bip353_client = Bip353Client::new(GOOGLE_DOH_ENDPOINT).unwrap();
         let payment_methods = tokio::time::timeout(
             Duration::from_secs(5),
-            bip353_client.resolve_bip353_fqdn(network, bip353_fqdn),
+            bip353_client.resolve_bip353_fqdn(
+                network,
+                bip353_fqdn,
+                human_bitcoin_address,
+            ),
         )
         .await
         .expect("Timed out")

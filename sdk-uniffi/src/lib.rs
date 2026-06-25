@@ -2652,6 +2652,9 @@ pub enum PaymentMethod {
         offer: Offer,
         /// Amount from a BIP321 URI which contained the offer, in satoshis.
         bip321_amount_sats: Option<u64>,
+        /// The original Human Bitcoin Address this offer was resolved from, if
+        /// it originated from one. Includes ₿ prefix: "₿user@domain".
+        human_bitcoin_address: Option<String>,
     },
     /// An LNURL-pay payment (LUD-06).
     LnurlPay {
@@ -2686,9 +2689,11 @@ impl From<SdkPaymentMethod> for PaymentMethod {
             SdkPaymentMethod::Offer {
                 offer,
                 bip321_amount,
+                human_bitcoin_address,
             } => Self::Offer {
                 offer: Offer::from(offer),
                 bip321_amount_sats: bip321_amount.map(|amt| amt.sats_u64()),
+                human_bitcoin_address,
             },
             SdkPaymentMethod::LnurlPay {
                 pay_request,

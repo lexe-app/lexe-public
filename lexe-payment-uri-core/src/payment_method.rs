@@ -54,6 +54,10 @@ pub enum PaymentMethod {
         ///
         /// Parsed from a BIP321 URI containing the offer.
         bip321_amount: Option<Amount>,
+
+        /// The original Human Bitcoin Address this offer was resolved from, if
+        /// it originated from one. Includes ₿ prefix: "₿user@domain".
+        human_bitcoin_address: Option<String>,
     },
     LnurlPay {
         /// The LNURL-pay request, which includes information about
