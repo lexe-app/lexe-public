@@ -610,7 +610,7 @@ pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(Invoice),
     Offer(Offer),
-    LnurlPayRequest(LnurlPayRequest),
+    LnurlPay(LnurlPay),
 }
 
 impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
@@ -637,10 +637,14 @@ impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
                 ..Offer::from(offer)
             }),
             lexe_payment_uri::PaymentMethod::LnurlPay {
-                lnurl: _,
                 pay_request,
-                ..
-            } => Self::LnurlPayRequest(LnurlPayRequest::from(pay_request)),
+                lnurl,
+                lightning_address,
+            } => Self::LnurlPay(LnurlPay {
+                pay_request: LnurlPayRequest::from(pay_request),
+                lnurl,
+                lightning_address,
+            }),
         }
     }
 }
@@ -777,6 +781,16 @@ impl From<OfferRs> for Offer {
     fn from(value: OfferRs) -> Self {
         Self::from(&value)
     }
+}
+
+/// A resolved LNURL-pay payment method.
+pub struct LnurlPay {
+    pub pay_request: LnurlPayRequest,
+    /// An LNURL-pay URI.
+    pub lnurl: String,
+    /// The Lightning Address (`user@domain`) this LNURL-pay endpoint was
+    /// resolved from, if it originated from one rather than a raw LNURL.
+    pub lightning_address: Option<String>,
 }
 
 pub struct LnurlPayRequest {

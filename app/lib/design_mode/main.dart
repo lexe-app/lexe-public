@@ -24,6 +24,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ClientPaymentId,
         Config,
         Invoice,
+        LnurlPay,
         LnurlPayRequest,
         LnurlPayRequestMetadata,
         Offer,
@@ -762,21 +763,24 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             balance: mockApp.balance,
             cid: cid,
             fiatRate: mockFiatRate,
-            paymentMethod: PaymentMethod.lnurlPayRequest(
-              LnurlPayRequest(
-                callback: "https://example.com/pay",
-                commentAllowed: 140,
-                minSendableMsat: 1000,
-                maxSendableMsat: 10000,
-                metadata: LnurlPayRequestMetadata(
-                  description: "Donate to philip@lexe.app",
-                  longDescription:
-                      "here a really long description that should be displayed in the details page might be long enough to wrap around",
-                  email: "philip@lexe.app",
-                  raw:
-                      "lnurl1dp68gurn8ghj7mrww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn",
-                  descriptionHash: U8Array32.init(),
+            paymentMethod: PaymentMethod.lnurlPay(
+              LnurlPay(
+                payRequest: LnurlPayRequest(
+                  callback: "https://example.com/pay",
+                  commentAllowed: 140,
+                  minSendableMsat: 1000,
+                  maxSendableMsat: 10000,
+                  metadata: LnurlPayRequestMetadata(
+                    description: "Donate to philip@lexe.app",
+                    longDescription:
+                        "here a really long description that should be displayed in the details page might be long enough to wrap around",
+                    email: "philip@lexe.app",
+                    raw:
+                        "lnurl1dp68gurn8ghj7mrww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn5m9hrpazx2ep0un9x5e3v9e0l9ghj7mmww4exctt5dahkccn",
+                    descriptionHash: U8Array32.init(),
+                  ),
                 ),
+                lnurl: "lnurlp://lexe.app/.well-known/lnurlp/philip",
               ),
             ),
           ),

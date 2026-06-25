@@ -14,7 +14,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_Invoice,
         PaymentMethod,
         PaymentMethod_Invoice,
-        PaymentMethod_LnurlPayRequest,
+        PaymentMethod_LnurlPay,
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentRail,
@@ -152,7 +152,7 @@ extension PaymentMethodExt on PaymentMethod {
     PaymentMethod_Onchain() => const PaymentRail_Onchain(),
     PaymentMethod_Invoice() => const PaymentRail_Invoice(),
     PaymentMethod_Offer() => const PaymentRail_Offer(),
-    PaymentMethod_LnurlPayRequest() => const PaymentRail_Invoice(),
+    PaymentMethod_LnurlPay() => const PaymentRail_Invoice(),
   };
 }
 

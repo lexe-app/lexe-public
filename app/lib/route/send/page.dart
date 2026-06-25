@@ -20,7 +20,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_WaivedChannelFee,
         PaymentKind_WaivedLiquidityFee,
         PaymentMethod_Invoice,
-        PaymentMethod_LnurlPayRequest,
+        PaymentMethod_LnurlPay,
         PaymentMethod_Offer,
         PaymentMethod_Onchain;
 import 'package:app_rs_dart/ffi/types.ext.dart';
@@ -219,7 +219,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           );
           return Err("Must send at least $minAmountStr");
         }
-      case PaymentMethod_LnurlPayRequest():
+      case PaymentMethod_LnurlPay():
         break;
     }
 
@@ -233,8 +233,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     PaymentMethod_Onchain(:final field0) =>
       field0.message?.nonEmpty() ?? field0.label?.nonEmpty(),
     PaymentMethod_Offer(:final field0) => field0.description?.nonEmpty(),
-    PaymentMethod_LnurlPayRequest(:final field0) =>
-      field0.metadata.description.nonEmpty(),
+    PaymentMethod_LnurlPay(:final field0) =>
+      field0.payRequest.metadata.description.nonEmpty(),
   };
 
   Widget? extraDetails() => switch (this.widget.sendCtx.paymentMethod) {
@@ -243,22 +243,21 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     PaymentMethod_Offer(:final field0) => OfferPayRequestDetails(
       request: field0,
     ),
-    PaymentMethod_LnurlPayRequest(:final field0) => LnurlPayRequestDetails(
-      request: field0,
+    PaymentMethod_LnurlPay(:final field0) => LnurlPayRequestDetails(
+      request: field0.payRequest,
     ),
   };
 
   /// Max message length if the recipient supports it.
   int? maxMessageLen() => switch (this.widget.sendCtx.paymentMethod) {
     PaymentMethod_Offer() => MAX_OFFER_PAYMENT_NOTE_CHARS,
-    PaymentMethod_LnurlPayRequest(:final field0) => field0.commentAllowed,
+    PaymentMethod_LnurlPay(:final field0) => field0.payRequest.commentAllowed,
     _ => null,
   };
 
   String messageHintText() => switch (this.widget.sendCtx.paymentMethod) {
     PaymentMethod_Offer() => "Optional message (visible to recipient)",
-    PaymentMethod_LnurlPayRequest() =>
-      "Optional comment (visible to recipient)",
+    PaymentMethod_LnurlPay() => "Optional comment (visible to recipient)",
     _ => "Optional message (visible to recipient)",
   };
 
@@ -267,7 +266,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     PaymentMethod_Invoice() => null,
     PaymentMethod_Onchain() => null,
     PaymentMethod_Offer(:final field0) => field0.minAmountSats,
-    PaymentMethod_LnurlPayRequest() => null,
+    PaymentMethod_LnurlPay() => null,
   };
 
   @override

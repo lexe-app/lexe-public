@@ -32,7 +32,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_Onchain,
         PaymentMethod,
         PaymentMethod_Invoice,
-        PaymentMethod_LnurlPayRequest,
+        PaymentMethod_LnurlPay,
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus;
@@ -96,9 +96,9 @@ class SendState_NeedAmount implements SendState {
     PaymentMethod_Onchain(:final field0) => field0.amountSats,
     PaymentMethod_Invoice(:final field0) => field0.amountSats,
     PaymentMethod_Offer(:final field0) => field0.bip321AmountSats,
-    PaymentMethod_LnurlPayRequest(:final field0) =>
-      field0.minSendableMsat == field0.maxSendableMsat
-          ? field0.minSendableMsat ~/ 1000
+    PaymentMethod_LnurlPay(:final field0) =>
+      field0.payRequest.minSendableMsat == field0.payRequest.maxSendableMsat
+          ? field0.payRequest.minSendableMsat ~/ 1000
           : null,
   };
 
@@ -185,11 +185,11 @@ class SendState_NeedAmount implements SendState {
             return Err(err);
         }
 
-      case PaymentMethod_LnurlPayRequest(:final field0):
-        final lnurlPayRequest = field0;
+      case PaymentMethod_LnurlPay(:final field0):
+        final lnurlPay = field0;
         final result = await Result.tryFfiAsync(
           () => this.app.resolveLnurlPayRequest(
-            req: lnurlPayRequest,
+            req: lnurlPay.payRequest,
             amountMsats: amountSats * 1000,
             comment: message,
           ),
@@ -214,14 +214,17 @@ class SendState_NeedAmount implements SendState {
 
         switch (preflightResult) {
           case Ok(:final ok):
+            final lightningAddress = lnurlPay.lightningAddress;
             preflighted = PreflightedPayment_Invoice(
               invoice: invoice,
               amountSats: amountSats,
               preflight: ok,
               message: message,
               sendTo:
-                  lnurlPayRequest.metadata.email ??
-                  lnurlPayRequest.metadata.identifier,
+                  lightningAddress ??
+                  lnurlPay.payRequest.metadata.email ??
+                  lnurlPay.payRequest.metadata.identifier,
+              lightningAddress: lightningAddress,
             );
           case Err(:final err):
             return Err(err);
@@ -440,6 +443,7 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
     required this.preflight,
     this.message,
     this.sendTo,
+    this.lightningAddress,
   });
 
   final Invoice invoice;
@@ -449,6 +453,10 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
   /// Message sent to the recipient.
   final String? message;
   final String? sendTo;
+
+  /// The Lightning Address (`user@domain`) this invoice was resolved from, if
+  /// any. If set, the payment will have payment kind `LightningAddress`.
+  final String? lightningAddress;
 
   @override
   PaymentKind kind() => const PaymentKind_Invoice();

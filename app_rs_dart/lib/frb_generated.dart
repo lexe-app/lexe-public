@@ -3526,6 +3526,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlPay dco_decode_box_autoadd_lnurl_pay(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_lnurl_pay(raw);
+  }
+
+  @protected
   LnurlPayRequest dco_decode_box_autoadd_lnurl_pay_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_lnurl_pay_request(raw);
@@ -4050,6 +4056,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlPay dco_decode_lnurl_pay(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return LnurlPay(
+      payRequest: dco_decode_lnurl_pay_request(arr[0]),
+      lnurl: dco_decode_String(arr[1]),
+      lightningAddress: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
   LnurlPayRequest dco_decode_lnurl_pay_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4488,9 +4507,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case 2:
         return PaymentMethod_Offer(dco_decode_box_autoadd_offer(raw[1]));
       case 3:
-        return PaymentMethod_LnurlPayRequest(
-          dco_decode_box_autoadd_lnurl_pay_request(raw[1]),
-        );
+        return PaymentMethod_LnurlPay(dco_decode_box_autoadd_lnurl_pay(raw[1]));
       default:
         throw Exception("unreachable");
     }
@@ -5197,6 +5214,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlPay sse_decode_box_autoadd_lnurl_pay(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_lnurl_pay(deserializer));
+  }
+
+  @protected
   LnurlPayRequest sse_decode_box_autoadd_lnurl_pay_request(
     SseDeserializer deserializer,
   ) {
@@ -5794,6 +5817,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       ans_.add(sse_decode_revocable_client(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  LnurlPay sse_decode_lnurl_pay(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_payRequest = sse_decode_lnurl_pay_request(deserializer);
+    var var_lnurl = sse_decode_String(deserializer);
+    var var_lightningAddress = sse_decode_opt_String(deserializer);
+    return LnurlPay(
+      payRequest: var_payRequest,
+      lnurl: var_lnurl,
+      lightningAddress: var_lightningAddress,
+    );
   }
 
   @protected
@@ -6413,8 +6449,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         var var_field0 = sse_decode_box_autoadd_offer(deserializer);
         return PaymentMethod_Offer(var_field0);
       case 3:
-        var var_field0 = sse_decode_box_autoadd_lnurl_pay_request(deserializer);
-        return PaymentMethod_LnurlPayRequest(var_field0);
+        var var_field0 = sse_decode_box_autoadd_lnurl_pay(deserializer);
+        return PaymentMethod_LnurlPay(var_field0);
       default:
         throw UnimplementedError('');
     }
@@ -7121,6 +7157,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_lnurl_pay(
+    LnurlPay self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lnurl_pay(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_lnurl_pay_request(
     LnurlPayRequest self,
     SseSerializer serializer,
@@ -7696,6 +7741,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_lnurl_pay(LnurlPay self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lnurl_pay_request(self.payRequest, serializer);
+    sse_encode_String(self.lnurl, serializer);
+    sse_encode_opt_String(self.lightningAddress, serializer);
+  }
+
+  @protected
   void sse_encode_lnurl_pay_request(
     LnurlPayRequest self,
     SseSerializer serializer,
@@ -8207,9 +8260,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case PaymentMethod_Offer(field0: final field0):
         sse_encode_i_32(2, serializer);
         sse_encode_box_autoadd_offer(field0, serializer);
-      case PaymentMethod_LnurlPayRequest(field0: final field0):
+      case PaymentMethod_LnurlPay(field0: final field0):
         sse_encode_i_32(3, serializer);
-        sse_encode_box_autoadd_lnurl_pay_request(field0, serializer);
+        sse_encode_box_autoadd_lnurl_pay(field0, serializer);
     }
   }
 

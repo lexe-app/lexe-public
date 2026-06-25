@@ -206,6 +206,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
 
   @protected
+  LnurlPay dco_decode_box_autoadd_lnurl_pay(dynamic raw);
+
+  @protected
   LnurlPayRequest dco_decode_box_autoadd_lnurl_pay_request(dynamic raw);
 
   @protected
@@ -404,6 +407,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   List<RevocableClient> dco_decode_list_revocable_client(dynamic raw);
+
+  @protected
+  LnurlPay dco_decode_lnurl_pay(dynamic raw);
 
   @protected
   LnurlPayRequest dco_decode_lnurl_pay_request(dynamic raw);
@@ -804,6 +810,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
 
   @protected
+  LnurlPay sse_decode_box_autoadd_lnurl_pay(SseDeserializer deserializer);
+
+  @protected
   LnurlPayRequest sse_decode_box_autoadd_lnurl_pay_request(
     SseDeserializer deserializer,
   );
@@ -1062,6 +1071,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   List<RevocableClient> sse_decode_list_revocable_client(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LnurlPay sse_decode_lnurl_pay(SseDeserializer deserializer);
 
   @protected
   LnurlPayRequest sse_decode_lnurl_pay_request(SseDeserializer deserializer);
@@ -1542,6 +1554,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_lnurl_pay(
+    LnurlPay self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_lnurl_pay_request(
     LnurlPayRequest self,
     SseSerializer serializer,
@@ -1849,6 +1867,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
     List<RevocableClient> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_lnurl_pay(LnurlPay self, SseSerializer serializer);
 
   @protected
   void sse_encode_lnurl_pay_request(

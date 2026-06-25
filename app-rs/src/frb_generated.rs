@@ -2058,6 +2058,24 @@ impl SseDecode for Vec<crate::ffi::types::RevocableClient> {
     }
 }
 
+impl SseDecode for crate::ffi::types::LnurlPay {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_payRequest =
+            <crate::ffi::types::LnurlPayRequest>::sse_decode(deserializer);
+        let mut var_lnurl = <String>::sse_decode(deserializer);
+        let mut var_lightningAddress =
+            <Option<String>>::sse_decode(deserializer);
+        return crate::ffi::types::LnurlPay {
+            pay_request: var_payRequest,
+            lnurl: var_lnurl,
+            lightning_address: var_lightningAddress,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::LnurlPayRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2815,12 +2833,8 @@ impl SseDecode for crate::ffi::types::PaymentMethod {
             }
             3 => {
                 let mut var_field0 =
-                    <crate::ffi::types::LnurlPayRequest>::sse_decode(
-                        deserializer,
-                    );
-                return crate::ffi::types::PaymentMethod::LnurlPayRequest(
-                    var_field0,
-                );
+                    <crate::ffi::types::LnurlPay>::sse_decode(deserializer);
+                return crate::ffi::types::PaymentMethod::LnurlPay(var_field0);
             }
             _ => {
                 unimplemented!("");
@@ -4065,6 +4079,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::ListChannelsResponse>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlPay {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.pay_request.into_into_dart().into_dart(),
+            self.lnurl.into_into_dart().into_dart(),
+            self.lightning_address.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LnurlPay
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LnurlPay>
+    for crate::ffi::types::LnurlPay
+{
+    fn into_into_dart(self) -> crate::ffi::types::LnurlPay {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlPayRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4585,7 +4621,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentMethod {
                 [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             crate::ffi::types::PaymentMethod::Offer(field0) =>
                 [2.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::ffi::types::PaymentMethod::LnurlPayRequest(field0) =>
+            crate::ffi::types::PaymentMethod::LnurlPay(field0) =>
                 [3.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
@@ -5797,6 +5833,21 @@ impl SseEncode for Vec<crate::ffi::types::RevocableClient> {
     }
 }
 
+impl SseEncode for crate::ffi::types::LnurlPay {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::ffi::types::LnurlPayRequest>::sse_encode(
+            self.pay_request,
+            serializer,
+        );
+        <String>::sse_encode(self.lnurl, serializer);
+        <Option<String>>::sse_encode(self.lightning_address, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::LnurlPayRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -6433,11 +6484,9 @@ impl SseEncode for crate::ffi::types::PaymentMethod {
                 <i32>::sse_encode(2, serializer);
                 <crate::ffi::types::Offer>::sse_encode(field0, serializer);
             }
-            crate::ffi::types::PaymentMethod::LnurlPayRequest(field0) => {
+            crate::ffi::types::PaymentMethod::LnurlPay(field0) => {
                 <i32>::sse_encode(3, serializer);
-                <crate::ffi::types::LnurlPayRequest>::sse_encode(
-                    field0, serializer,
-                );
+                <crate::ffi::types::LnurlPay>::sse_encode(field0, serializer);
             }
             _ => {
                 unimplemented!("");

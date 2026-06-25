@@ -4,7 +4,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ClaimMethod_LnurlWithdraw,
         PaymentMethod,
         PaymentMethod_Invoice,
-        PaymentMethod_LnurlPayRequest,
+        PaymentMethod_LnurlPay,
         PaymentMethod_Offer,
         PaymentMethod_Onchain;
 import 'package:flutter/material.dart';
@@ -373,7 +373,7 @@ class SendOrClaimChoiceSheet extends StatelessWidget {
     final sendKind = switch (this.paymentMethod) {
       PaymentMethod_Onchain() => "onchain",
       PaymentMethod_Invoice() => "invoice",
-      PaymentMethod_LnurlPayRequest() => "LNURL",
+      PaymentMethod_LnurlPay() => "LNURL",
       PaymentMethod_Offer() => "offer",
     };
     final claimKind = switch (this.claimMethod) {

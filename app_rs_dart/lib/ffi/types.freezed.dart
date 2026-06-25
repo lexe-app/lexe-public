@@ -1164,18 +1164,18 @@ String toString() {
 /// @nodoc
 
 
-class PaymentMethod_LnurlPayRequest extends PaymentMethod {
-  const PaymentMethod_LnurlPayRequest(this.field0): super._();
+class PaymentMethod_LnurlPay extends PaymentMethod {
+  const PaymentMethod_LnurlPay(this.field0): super._();
   
 
-@override final  LnurlPayRequest field0;
+@override final  LnurlPay field0;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentMethod_LnurlPayRequest&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentMethod_LnurlPay&&(identical(other.field0, field0) || other.field0 == field0));
 }
 
 
@@ -1184,7 +1184,7 @@ int get hashCode => Object.hash(runtimeType,field0);
 
 @override
 String toString() {
-  return 'PaymentMethod.lnurlPayRequest(field0: $field0)';
+  return 'PaymentMethod.lnurlPay(field0: $field0)';
 }
 
 

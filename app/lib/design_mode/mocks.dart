@@ -56,6 +56,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         GDriveStatus,
         Invoice,
         LexeScope,
+        LnurlPay,
         LnurlPayRequest,
         LnurlPayRequestMetadata,
         LnurlWithdrawRequest,
@@ -74,7 +75,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_WaivedChannelFee,
         PaymentMethod,
         PaymentMethod_Invoice,
-        PaymentMethod_LnurlPayRequest,
+        PaymentMethod_LnurlPay,
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus,
@@ -511,12 +512,19 @@ class MockAppHandle extends AppHandle {
     }
 
     if (uriStr == "lnurl@lexe.app") {
-      return (PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest), null);
+      return (
+        PaymentMethod_LnurlPay(
+          LnurlPay(payRequest: defaultLnurlPayRequest, lnurl: defaultLnurl),
+        ),
+        null,
+      );
     }
 
     if (uriStr.startsWith("lnurlw")) {
       return (
-        PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest),
+        PaymentMethod_LnurlPay(
+          LnurlPay(payRequest: defaultLnurlPayRequest, lnurl: defaultLnurl),
+        ),
         ClaimMethod_LnurlWithdraw(
           httpUrl:
               "https://send.laisee.org/withdraw/api/v1/lnurl/5AXKHMxBFNqFseJFFNSTye",
@@ -526,7 +534,12 @@ class MockAppHandle extends AppHandle {
     }
 
     if (uriStr.startsWith("lnurl")) {
-      return (PaymentMethod_LnurlPayRequest(defaultLnurlPayRequest), null);
+      return (
+        PaymentMethod_LnurlPay(
+          LnurlPay(payRequest: defaultLnurlPayRequest, lnurl: defaultLnurl),
+        ),
+        null,
+      );
     }
 
     if (uriStr.startsWith("lno")) {
@@ -1795,6 +1808,8 @@ const Offer defaultOffer = Offer(
   payee: "shrek@lexe.app",
   payeePubkey: null,
 );
+
+const String defaultLnurl = "lnurlp://lexe.app/.well-known/lnurlp/satoshi";
 
 final LnurlPayRequest defaultLnurlPayRequest = LnurlPayRequest(
   callback: "https://example.com/callback",

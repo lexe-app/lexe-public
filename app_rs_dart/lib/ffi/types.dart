@@ -172,6 +172,37 @@ sealed class Invoice with _$Invoice {
 
 enum LexeScope { all, gatewayProxy }
 
+/// A resolved LNURL-pay payment method.
+class LnurlPay {
+  final LnurlPayRequest payRequest;
+
+  /// An LNURL-pay URI.
+  final String lnurl;
+
+  /// The Lightning Address (`user@domain`) this LNURL-pay endpoint was
+  /// resolved from, if it originated from one rather than a raw LNURL.
+  final String? lightningAddress;
+
+  const LnurlPay({
+    required this.payRequest,
+    required this.lnurl,
+    this.lightningAddress,
+  });
+
+  @override
+  int get hashCode =>
+      payRequest.hashCode ^ lnurl.hashCode ^ lightningAddress.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LnurlPay &&
+          runtimeType == other.runtimeType &&
+          payRequest == other.payRequest &&
+          lnurl == other.lnurl &&
+          lightningAddress == other.lightningAddress;
+}
+
 class LnurlPayRequest {
   final String callback;
   final int minSendableMsat;
@@ -461,8 +492,8 @@ sealed class PaymentMethod with _$PaymentMethod {
   const factory PaymentMethod.onchain(Onchain field0) = PaymentMethod_Onchain;
   const factory PaymentMethod.invoice(Invoice field0) = PaymentMethod_Invoice;
   const factory PaymentMethod.offer(Offer field0) = PaymentMethod_Offer;
-  const factory PaymentMethod.lnurlPayRequest(LnurlPayRequest field0) =
-      PaymentMethod_LnurlPayRequest;
+  const factory PaymentMethod.lnurlPay(LnurlPay field0) =
+      PaymentMethod_LnurlPay;
 }
 
 @freezed
