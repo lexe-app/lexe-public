@@ -3797,13 +3797,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   CreateInvoiceRequest dco_decode_create_invoice_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return CreateInvoiceRequest(
       expirySecs: dco_decode_u_32(arr[0]),
       amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
       description: dco_decode_opt_String(arr[2]),
       personalNote: dco_decode_opt_String(arr[3]),
+      kind: dco_decode_payment_kind(arr[4]),
     );
   }
 
@@ -4331,13 +4332,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   PayInvoiceRequest dco_decode_pay_invoice_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return PayInvoiceRequest(
       invoice: dco_decode_String(arr[0]),
       fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
       message: dco_decode_opt_String(arr[2]),
       personalNote: dco_decode_opt_String(arr[3]),
+      kind: dco_decode_payment_kind(arr[4]),
     );
   }
 
@@ -5507,11 +5509,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
+    var var_kind = sse_decode_payment_kind(deserializer);
     return CreateInvoiceRequest(
       expirySecs: var_expirySecs,
       amountSats: var_amountSats,
       description: var_description,
       personalNote: var_personalNote,
+      kind: var_kind,
     );
   }
 
@@ -6222,11 +6226,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     );
     var var_message = sse_decode_opt_String(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
+    var var_kind = sse_decode_payment_kind(deserializer);
     return PayInvoiceRequest(
       invoice: var_invoice,
       fallbackAmountSats: var_fallbackAmountSats,
       message: var_message,
       personalNote: var_personalNote,
+      kind: var_kind,
     );
   }
 
@@ -7442,6 +7448,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_opt_String(self.description, serializer);
     sse_encode_opt_String(self.personalNote, serializer);
+    sse_encode_payment_kind(self.kind, serializer);
   }
 
   @protected
@@ -8055,6 +8062,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
     sse_encode_opt_String(self.message, serializer);
     sse_encode_opt_String(self.personalNote, serializer);
+    sse_encode_payment_kind(self.kind, serializer);
   }
 
   @protected

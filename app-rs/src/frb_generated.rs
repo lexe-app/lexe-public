@@ -1687,11 +1687,14 @@ impl SseDecode for crate::ffi::api::CreateInvoiceRequest {
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
         let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         return crate::ffi::api::CreateInvoiceRequest {
             expiry_secs: var_expirySecs,
             amount_sats: var_amountSats,
             description: var_description,
             personal_note: var_personalNote,
+            kind: var_kind,
         };
     }
 }
@@ -2568,11 +2571,14 @@ impl SseDecode for crate::ffi::api::PayInvoiceRequest {
             <Option<u64>>::sse_decode(deserializer);
         let mut var_message = <Option<String>>::sse_decode(deserializer);
         let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         return crate::ffi::api::PayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
             message: var_message,
             personal_note: var_personalNote,
+            kind: var_kind,
         };
     }
 }
@@ -3708,6 +3714,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateInvoiceRequest {
             self.amount_sats.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
             self.personal_note.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4327,6 +4334,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayInvoiceRequest {
             self.fallback_amount_sats.into_into_dart().into_dart(),
             self.message.into_into_dart().into_dart(),
             self.personal_note.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5455,6 +5463,7 @@ impl SseEncode for crate::ffi::api::CreateInvoiceRequest {
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <Option<String>>::sse_encode(self.description, serializer);
         <Option<String>>::sse_encode(self.personal_note, serializer);
+        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
     }
 }
 
@@ -6217,6 +6226,7 @@ impl SseEncode for crate::ffi::api::PayInvoiceRequest {
         <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
         <Option<String>>::sse_encode(self.message, serializer);
         <Option<String>>::sse_encode(self.personal_note, serializer);
+        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
     }
 }
 

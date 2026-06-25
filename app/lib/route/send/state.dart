@@ -337,6 +337,8 @@ class SendState_Preflighted implements SendState {
     final PreflightedPayment_Invoice preflighted,
     final String? personalNote,
   ) async {
+    final PaymentKind kind = preflighted.kind();
+
     final req = PayInvoiceRequest(
       invoice: preflighted.invoice.string,
       fallbackAmountSats: (preflighted.invoice.amountSats == null)
@@ -344,6 +346,7 @@ class SendState_Preflighted implements SendState {
           : null,
       message: preflighted.message,
       personalNote: personalNote,
+      kind: kind,
     );
 
     final res = await Result.tryFfiAsync(() => this.app.payInvoice(req: req));
@@ -351,7 +354,7 @@ class SendState_Preflighted implements SendState {
       (resp) => SendFlowResult(
         payment: Payment(
           index: resp.index,
-          kind: const PaymentKind_Invoice(),
+          kind: kind,
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",

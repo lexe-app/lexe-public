@@ -7,7 +7,8 @@ use lexe_api::{
     types::{
         bounded_string::BoundedString,
         payments::{
-            ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentStatus,
+            ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentKind,
+            PaymentStatus,
         },
     },
 };
@@ -963,6 +964,7 @@ impl LexeWallet {
                     fallback_amount,
                     message,
                     personal_note,
+                    kind: PaymentKind::Invoice,
                 };
                 let resp = self
                     .node_client
@@ -1053,6 +1055,7 @@ impl LexeWallet {
                     fallback_amount: None,
                     message: truncated_comment,
                     personal_note,
+                    kind: PaymentKind::Invoice,
                 };
                 let resp = self
                     .node_client
@@ -1344,6 +1347,7 @@ impl LexeWallet {
             fallback_amount: None,
             message: truncated_comment,
             personal_note,
+            kind: PaymentKind::Invoice,
         };
         let invoice_resp = self
             .node_client

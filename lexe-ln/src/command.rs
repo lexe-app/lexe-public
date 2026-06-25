@@ -35,6 +35,7 @@ use lexe_api::{
         partners::PartnersInfo,
         payments::{
             PartnerFeeFields, PaymentDirection, PaymentId, PaymentKind,
+            PaymentRail,
         },
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
@@ -825,13 +826,13 @@ where
         }
     };
 
-    let kind = PaymentKind::Invoice;
+    req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
     let iipwm = InboundInvoicePaymentV2::new(
         invoice.clone(),
         hash.into(),
         secret.into(),
         preimage.into(),
-        kind,
+        req.kind,
         req.message,
         req.personal_note,
         partner_fee,
@@ -1000,6 +1001,8 @@ where
         message: None,
         // User note not relevant for pre-flight.
         personal_note: None,
+        // Kind not relevant for pre-flight.
+        kind: PaymentKind::Invoice,
     };
     let preflight = preflight_pay_invoice_inner(
         req,
@@ -1407,12 +1410,12 @@ where
 
     let recipient_fields = recipient_onion_fields(&invoice);
 
-    let kind = PaymentKind::Invoice;
+    req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
     let amount = lx_route.amount();
     let fees = lx_route.fees();
     let oipwm = OutboundInvoicePaymentV2::new(
         invoice,
-        kind,
+        req.kind,
         amount,
         fees,
         req.message,

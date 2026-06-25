@@ -84,6 +84,7 @@ sealed class CreateInvoiceRequest with _$CreateInvoiceRequest {
     int? amountSats,
     String? description,
     String? personalNote,
+    required PaymentKind kind,
   }) = _CreateInvoiceRequest;
 }
 
@@ -187,6 +188,7 @@ sealed class PayInvoiceRequest with _$PayInvoiceRequest {
     int? fallbackAmountSats,
     String? message,
     String? personalNote,
+    required PaymentKind kind,
   }) = _PayInvoiceRequest;
 }
 

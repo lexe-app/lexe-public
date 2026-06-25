@@ -10,8 +10,8 @@ use lexe_api::{
         invoice::Invoice,
         lnurl::LnurlPayRequest,
         payments::{
-            ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentSecret,
-            PaymentUpdatedIndex,
+            ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentKind,
+            PaymentSecret, PaymentUpdatedIndex,
         },
     },
 };
@@ -359,6 +359,8 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
                 .personal_note
                 .map(BoundedString::new)
                 .transpose()?,
+            // We intentionally do not expose the payment kind in the Lexe SDK.
+            kind: PaymentKind::Invoice,
             partner_pk: req.partner_pk.map(|pk| pk.unstable()),
             partner_prop_fee: req.partner_prop_fee,
             partner_base_fee: req.partner_base_fee,
@@ -394,6 +396,8 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid personal note")?,
+            // We intentionally do not expose the payment kind in the Lexe SDK.
+            kind: PaymentKind::Invoice,
         })
     }
 }

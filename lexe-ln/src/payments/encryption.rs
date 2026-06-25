@@ -345,7 +345,8 @@ fn decrypt_payment_v2(
     //
     // compat: The db-vs-ciphertext equality check was dropped in node-v0.9.11.
     // DB-only column edits can only be made once all nodes <= v0.9.10 are gone.
-    payment.set_kind(PaymentKind::from_str(&db_kind).expect("Infallible"));
+    payment
+        .set_kind(PaymentKind::from_str(&db_kind).context("invalid db kind")?);
 
     ensure!(
         payment.direction().as_str() == db_direction,

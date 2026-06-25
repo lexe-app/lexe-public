@@ -6,6 +6,7 @@ import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart' show CreateInvoiceRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/types.dart' show PaymentKind_Invoice;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:lexeapp/components.dart'
@@ -56,6 +57,7 @@ class _BuyPageState extends State<BuyPage> {
       // `public/lexe-api-core/src/types/payments.rs`, which uses this exact
       // string to hide unpaid Buy invoices from the payments list.
       description: "Cash App Buy",
+      kind: const PaymentKind_Invoice(),
     );
 
     final result = await showModalAsyncFlow(

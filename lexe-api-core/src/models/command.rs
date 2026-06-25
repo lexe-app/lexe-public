@@ -29,7 +29,8 @@ use crate::types::{
     invoice::Invoice,
     offer::{MaxQuantity, Offer},
     payments::{
-        ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentUpdatedIndex,
+        ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentKind,
+        PaymentUpdatedIndex,
     },
     username::Username,
 };
@@ -370,7 +371,12 @@ pub struct UpdatePersonalNote {
 
 // --- BOLT11 Invoice Payments --- //
 
-#[derive(Default, Serialize, Deserialize)]
+/// The default [`PaymentKind`] for invoice-rail request endpoints.
+fn default_invoice_kind() -> PaymentKind {
+    PaymentKind::Invoice
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
 
@@ -407,6 +413,15 @@ pub struct CreateInvoiceRequest {
     /// Added in `node-v0.9.10`
     pub personal_note: Option<BoundedString>,
 
+    /// The [`PaymentKind`] to label this inbound invoice payment with.
+    /// `kind.rail()` must == `PaymentRail::Invoice` (or `kind` must be
+    /// unknown), otherwise the request is rejected.
+    ///
+    /// Defaults to [`PaymentKind::Invoice`] if not set.
+    // Added in `node-v0.9.11`
+    #[serde(default = "default_invoice_kind")]
+    pub kind: PaymentKind,
+
     /// The partner's user_pk, if the partner is setting the fee for this
     /// payment instead of using Lexe's default fees.
     ///
@@ -431,6 +446,23 @@ pub struct CreateInvoiceRequest {
     // Added in `node-v0.9.6`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub partner_base_fee: Option<Amount>,
+}
+
+impl Default for CreateInvoiceRequest {
+    fn default() -> Self {
+        Self {
+            expiry_secs: 0,
+            amount: None,
+            description: None,
+            description_hash: None,
+            message: None,
+            personal_note: None,
+            kind: default_invoice_kind(),
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -462,6 +494,14 @@ pub struct PayInvoiceRequest {
     // compat: Alias added in node-v0.9.7
     #[serde(rename = "note", alias = "personal_note")]
     pub personal_note: Option<BoundedString>,
+    /// The [`PaymentKind`] to label this outbound invoice payment with.
+    /// `kind.rail()` must == `PaymentRail::Invoice` (or `kind` must be
+    /// unknown), otherwise the request is rejected.
+    ///
+    /// Defaults to [`PaymentKind::Invoice`] if not set.
+    // Added in `node-v0.9.11`
+    #[serde(default = "default_invoice_kind")]
+    pub kind: PaymentKind,
 }
 
 #[derive(Serialize, Deserialize)]

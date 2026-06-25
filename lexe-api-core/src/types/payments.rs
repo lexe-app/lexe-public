@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     collections::HashSet,
-    convert::Infallible,
     fmt::{self, Display},
     num::NonZeroU64,
     str::FromStr,
@@ -462,6 +461,9 @@ pub enum PaymentRail {
 // [`PaymentKind`] for it, instead of incorporating it into an existing kind.
 // We can always add another OR in a WHERE clause, but cannot easily separate
 // out data once it has already been unified.
+//
+// NOTE: When adding a variant, add a representative mock payment for it in the
+// app's `mocks.dart` so its list/detail UI can be previewed in design mode.
 #[rustfmt::skip]
 #[derive(Clone, Debug, Eq, PartialEq, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -540,7 +542,8 @@ pub enum PaymentKind {
     Unknown(
         #[cfg_attr(
             any(test, feature = "test-utils"),
-            proptest(strategy = "arbitrary::any_string().prop_map(Box::from)")
+            proptest(strategy = "arbitrary::any_bounded_string(\
+                PaymentKind::MAX_UNKNOWN_LEN).prop_map(Box::from)")
         )]
         Box<str>,
     ),
@@ -1353,6 +1356,10 @@ impl Serialize for PaymentRail {
 // --- impl PaymentKind --- //
 
 impl PaymentKind {
+    /// Max byte length of an [`Unknown`](Self::Unknown) kind string.
+    /// Limits what a client can inject via an unrecognized `kind` field.
+    pub const MAX_UNKNOWN_LEN: usize = 32;
+
     /// All non-unknown variants.
     pub const KNOWN_VARIANTS: &'static [Self] = const {
         // Trigger a compilation failure if a new variant is added.
@@ -1415,9 +1422,25 @@ impl PaymentKind {
 
         Ok(())
     }
+
+    /// Like [`expect_rail`], but also accepts [`Unknown`] kinds (from a newer
+    /// client). Lets a rail-specific request endpoint reject a recognized kind
+    /// on the wrong rail while still accepting forward-compatible kinds.
+    ///
+    /// [`expect_rail`]: Self::expect_rail
+    /// [`Unknown`]: Self::Unknown
+    pub fn expect_rail_or_unknown(
+        &self,
+        expected: PaymentRail,
+    ) -> anyhow::Result<()> {
+        if matches!(self, Self::Unknown(_)) {
+            return Ok(());
+        }
+        self.expect_rail(expected)
+    }
 }
 impl FromStr for PaymentKind {
-    type Err = Infallible;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let kind = match s {
             "invoice" => Self::Invoice,
@@ -1427,7 +1450,12 @@ impl FromStr for PaymentKind {
             "waived_channel_fee" => Self::WaivedChannelFee,
             "waived_liquidity_fee" => Self::WaivedLiquidityFee,
             "buy_cash_app" => Self::BuyCashApp,
-            unknown => Self::Unknown(Box::from(unknown)),
+            unknown => {
+                let len = unknown.len();
+                let max = Self::MAX_UNKNOWN_LEN;
+                ensure!(len <= max, "Unknown kind too long: {len} > {max}");
+                Self::Unknown(Box::from(unknown))
+            }
         };
         Ok(kind)
     }
@@ -1795,6 +1823,30 @@ mod test {
         // `Display` for `PaymentPreimage` and `PaymentSecret` are redacted
         // roundtrip::fromstr_display_roundtrip_proptest::<PaymentPreimage>();
         // roundtrip::fromstr_display_roundtrip_proptest::<PaymentSecret>();
+    }
+
+    #[test]
+    fn payment_kind_expect_rail_or_unknown() {
+        use PaymentKind::*;
+
+        // A kind on the expected rail is accepted.
+        assert!(Invoice.expect_rail_or_unknown(PaymentRail::Invoice).is_ok());
+        assert!(
+            BuyCashApp
+                .expect_rail_or_unknown(PaymentRail::Invoice)
+                .is_ok()
+        );
+
+        // An unknown kind is always accepted.
+        let unknown = Unknown(Box::from("future_kind"));
+        assert!(unknown.expect_rail_or_unknown(PaymentRail::Invoice).is_ok());
+
+        // A recognized kind on a different rail is rejected.
+        assert!(
+            Onchain
+                .expect_rail_or_unknown(PaymentRail::Invoice)
+                .is_err()
+        );
     }
 
     #[test]

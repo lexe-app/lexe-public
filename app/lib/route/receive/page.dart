@@ -8,7 +8,8 @@ import 'package:app_rs_dart/ffi/api.dart'
     show CreateInvoiceRequest, CreateOfferRequest, FiatRate;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/settings.dart' show OnboardingStatus, Settings;
-import 'package:app_rs_dart/ffi/types.dart' show Invoice, Offer;
+import 'package:app_rs_dart/ffi/types.dart'
+    show Invoice, Offer, PaymentKind_Invoice;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -521,6 +522,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       expirySecs: 24 * 60 * 60,
       amountSats: inputs.amountSats,
       description: inputs.description,
+      kind: const PaymentKind_Invoice(),
     );
 
     info("ReceivePaymentPage: fetchLnInvoice: inputs: $inputs");

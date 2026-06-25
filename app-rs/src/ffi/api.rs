@@ -69,7 +69,7 @@ use lexe_crypto::ed25519;
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LexeScope,
     LnurlWithdrawRequest, LxChannelDetails, Offer, PaymentCreatedIndex,
-    RevocableClient, UserChannelId, Username,
+    PaymentKind, RevocableClient, UserChannelId, Username,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -397,6 +397,7 @@ pub struct CreateInvoiceRequest {
     pub amount_sats: Option<u64>,
     pub description: Option<String>,
     pub personal_note: Option<String>,
+    pub kind: PaymentKind,
 }
 
 impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
@@ -415,6 +416,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
                 .personal_note
                 .map(BoundedString::new)
                 .transpose()?,
+            kind: value.kind.into(),
             partner_pk: None,
             partner_prop_fee: None,
             partner_base_fee: None,
@@ -445,6 +447,7 @@ pub struct PayInvoiceRequest {
     pub fallback_amount_sats: Option<u64>,
     pub message: Option<String>,
     pub personal_note: Option<String>,
+    pub kind: PaymentKind,
 }
 
 impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
@@ -472,6 +475,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
                 .personal_note
                 .map(validate_note)
                 .transpose()?,
+            kind: value.kind.into(),
         })
     }
 }

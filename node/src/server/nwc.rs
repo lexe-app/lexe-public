@@ -1,11 +1,14 @@
 use anyhow::Context;
 use bitcoin::hashes::Hash;
-use lexe_api::models::{
-    command::CreateInvoiceRequest,
-    nwc::nip47::{
-        GetInfoResult, MakeInvoiceParams, MakeInvoiceResult, NwcError,
-        NwcMethod, NwcRequestPayload,
+use lexe_api::{
+    models::{
+        command::CreateInvoiceRequest,
+        nwc::nip47::{
+            GetInfoResult, MakeInvoiceParams, MakeInvoiceResult, NwcError,
+            NwcMethod, NwcRequestPayload,
+        },
     },
+    types::payments::PaymentKind,
 };
 use lexe_common::ln::{amount::Amount, network::Network};
 use lexe_hex::hex;
@@ -95,6 +98,7 @@ async fn handle_make_invoice(
         description_hash,
         message: None,
         personal_note: None,
+        kind: PaymentKind::Invoice,
         partner_pk: None,
         partner_prop_fee: None,
         partner_base_fee: None,

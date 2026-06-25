@@ -66,6 +66,14 @@ pub fn any_string() -> impl Strategy<Value = String> {
     vec(any::<char>(), 0..=256).prop_map(String::from_iter)
 }
 
+/// Like [`any_string`], but bounds the UTF-8 byte length to `max_bytes`.
+pub fn any_bounded_string(max_bytes: usize) -> impl Strategy<Value = String> {
+    any_string().prop_map(move |mut s| {
+        lexe_std::string::truncate_bytes(&mut s, max_bytes);
+        s
+    })
+}
+
 /// An [`Option`] version of [`any_string`].
 ///
 /// The option has a 50% probability of being [`Some`].
