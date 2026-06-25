@@ -213,10 +213,7 @@ const fn channel_config() -> ChannelConfig {
         max_dust_htlc_exposure: MaxDustHTLCExposure::FixedLimitMsat(
             100_000_000,
         ),
-        // Pay up to 1000 sats ($1 assuming $100K per BTC) to avoid waiting up
-        // to `their_to_self_delay` time (currently set to ~1 day) in the case
-        // of a unilateral close initiated by us. In practice our LSP should
-        // always be online so this should rarely, if ever, be paid.
+        // LDK always adds this to the funder's coop-close max_fee.
         force_close_avoidance_max_fee_satoshis:
             constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS,
     }

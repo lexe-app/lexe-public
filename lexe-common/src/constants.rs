@@ -96,10 +96,25 @@ pub const LSP_RESERVE_PROPORTION: Ppm = ppm!(1.0%);
 // 0.00005000 BTC = $2.50 at $50k/BTC or $5 at $100k/BTC
 pub const LSP_USERNODE_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000;
 
+/// Unconditional extra fee the LSP<->user channel funder will pay for
+/// coop-close in order to avoid a potential force-close due to fee
+/// disagreement.
+///
+/// During modern "legacy" (not "simple_close") coop-close, the channel funder
+/// proposes a `[min fee, max fee]` range that it's willing to pay. An LDK
+/// counterparty then chooses the `max_fee`.
+///
+/// An LDK funder determines the `max_fee` by estimating the feerate for
+/// [`ConfirmationTarget::NonAnchorChannelFee`] plus this
+/// `FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS` value.
+///
+/// 2026-06-24: Prior to this date, this was 1000 sats, which meant all our
+/// LSP<->User coop-closes overpaid on-chain fees by ~7-8x market rate.
+///
 /// See: [`lightning::util::config::ChannelConfig::force_close_avoidance_max_fee_satoshis`]
-//
-// 1,000 sats = $1.00 assuming $100k/BTC
-pub const FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS: u64 = 1_000;
+///
+/// [`ConfirmationTarget::NonAnchorChannelFee`]: lightning::chain::chaininterface::ConfirmationTarget::NonAnchorChannelFee
+pub const FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS: u64 = 50;
 
 // --- Persistence --- //
 
