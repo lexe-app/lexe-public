@@ -1221,8 +1221,10 @@ where
         offer: req.offer,
         amount: req.amount,
         message: None,
-        // User note not relevant for pre-flight.
+
+        // User note and kind not relevant for pre-flight.
         personal_note: None,
+        kind: PaymentKind::Offer,
     };
     let PreflightedPayOffer {
         oopwm,
@@ -1550,14 +1552,14 @@ where
 
     let amount = lx_route.amount();
     let routing_fee = lx_route.fees();
-    let kind = PaymentKind::Offer;
+    req.kind.expect_rail_or_unknown(PaymentRail::Offer)?;
 
     // TODO(max): Include `payer_name` in `PayOfferRequest`
     let payer_name = None;
     let oopwm = OutboundOfferPaymentV2::new(
         req.cid,
         offer,
-        kind,
+        req.kind,
         amount,
         quantity,
         routing_fee,

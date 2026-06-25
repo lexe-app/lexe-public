@@ -4376,14 +4376,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   PayOfferRequest dco_decode_pay_offer_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return PayOfferRequest(
       cid: dco_decode_client_payment_id(arr[0]),
       offer: dco_decode_String(arr[1]),
       amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
       message: dco_decode_opt_String(arr[3]),
       personalNote: dco_decode_opt_String(arr[4]),
+      kind: dco_decode_payment_kind(arr[5]),
     );
   }
 
@@ -6296,12 +6297,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_message = sse_decode_opt_String(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
+    var var_kind = sse_decode_payment_kind(deserializer);
     return PayOfferRequest(
       cid: var_cid,
       offer: var_offer,
       amountSats: var_amountSats,
       message: var_message,
       personalNote: var_personalNote,
+      kind: var_kind,
     );
   }
 
@@ -8150,6 +8153,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_opt_String(self.message, serializer);
     sse_encode_opt_String(self.personalNote, serializer);
+    sse_encode_payment_kind(self.kind, serializer);
   }
 
   @protected

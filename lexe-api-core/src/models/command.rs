@@ -630,6 +630,11 @@ pub struct PreflightPayOfferResponse {
     pub route: LxRoute,
 }
 
+/// The default [`PaymentKind`] for offer-rail request endpoints.
+fn default_offer_kind() -> PaymentKind {
+    PaymentKind::Offer
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct PayOfferRequest {
     /// The user-provided idempotency id for this payment.
@@ -653,6 +658,14 @@ pub struct PayOfferRequest {
     // compat: Alias added in node-v0.9.7
     #[serde(rename = "note", alias = "personal_note")]
     pub personal_note: Option<BoundedString>,
+    /// The [`PaymentKind`] to label this outbound offer payment with.
+    /// `kind.rail()` must == `PaymentRail::Offer` (or `kind` must be unknown),
+    /// otherwise the request is rejected.
+    ///
+    /// Defaults to [`PaymentKind::Offer`] if not set.
+    // Added in `node-v0.9.11`
+    #[serde(default = "default_offer_kind")]
+    pub kind: PaymentKind,
 }
 
 #[derive(Serialize, Deserialize)]

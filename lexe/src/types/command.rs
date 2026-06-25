@@ -490,6 +490,8 @@ impl PayOfferRequest {
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid personal note")?,
+            // We intentionally do not expose the payment kind in the Lexe SDK.
+            kind: PaymentKind::Offer,
         })
     }
 }

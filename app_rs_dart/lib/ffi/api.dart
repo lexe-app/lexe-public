@@ -213,6 +213,7 @@ sealed class PayOfferRequest with _$PayOfferRequest {
     required int amountSats,
     String? message,
     String? personalNote,
+    required PaymentKind kind,
   }) = _PayOfferRequest;
 }
 

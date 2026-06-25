@@ -654,6 +654,7 @@ pub struct PayOfferRequest {
     pub amount_sats: u64,
     pub message: Option<String>,
     pub personal_note: Option<String>,
+    pub kind: PaymentKind,
 }
 
 impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
@@ -669,6 +670,7 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
                 .personal_note
                 .map(validate_note)
                 .transpose()?,
+            kind: value.kind.into(),
         })
     }
 }

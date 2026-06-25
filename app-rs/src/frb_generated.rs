@@ -2626,12 +2626,15 @@ impl SseDecode for crate::ffi::api::PayOfferRequest {
         let mut var_amountSats = <u64>::sse_decode(deserializer);
         let mut var_message = <Option<String>>::sse_decode(deserializer);
         let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         return crate::ffi::api::PayOfferRequest {
             cid: var_cid,
             offer: var_offer,
             amount_sats: var_amountSats,
             message: var_message,
             personal_note: var_personalNote,
+            kind: var_kind,
         };
     }
 }
@@ -4422,6 +4425,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOfferRequest {
             self.amount_sats.into_into_dart().into_dart(),
             self.message.into_into_dart().into_dart(),
             self.personal_note.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6319,6 +6323,7 @@ impl SseEncode for crate::ffi::api::PayOfferRequest {
         <u64>::sse_encode(self.amount_sats, serializer);
         <Option<String>>::sse_encode(self.message, serializer);
         <Option<String>>::sse_encode(self.personal_note, serializer);
+        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
     }
 }
 

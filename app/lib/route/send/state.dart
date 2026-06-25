@@ -27,6 +27,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Payment,
         PaymentDirection,
         PaymentKind,
+        PaymentKind_HumanBitcoinAddress,
         PaymentKind_Invoice,
         PaymentKind_LightningAddress,
         PaymentKind_Offer,
@@ -181,6 +182,7 @@ class SendState_NeedAmount implements SendState {
               amountSats: amountSats,
               preflight: ok,
               message: message,
+              humanBitcoinAddress: offer.humanBitcoinAddress,
             );
           case Err(:final err):
             return Err(err);
@@ -386,12 +388,15 @@ class SendState_Preflighted implements SendState {
     final PreflightedPayment_Offer preflighted,
     final String? personalNote,
   ) async {
+    final PaymentKind kind = preflighted.kind();
+
     final req = PayOfferRequest(
       cid: this.cid,
       offer: preflighted.offer.string,
       amountSats: preflighted.amountSats,
       message: preflighted.message,
       personalNote: personalNote,
+      kind: kind,
     );
 
     final res = await Result.tryFfiAsync(() => this.app.payOffer(req: req));
@@ -399,7 +404,7 @@ class SendState_Preflighted implements SendState {
       (resp) => SendFlowResult(
         payment: Payment(
           index: resp.index,
-          kind: const PaymentKind_Offer(),
+          kind: kind,
           direction: PaymentDirection.outbound,
           status: PaymentStatus.pending,
           statusStr: "syncing from node",
@@ -487,6 +492,7 @@ class PreflightedPayment_Offer implements PreflightedPayment {
     required this.amountSats,
     required this.preflight,
     required this.message,
+    this.humanBitcoinAddress,
   });
 
   final Offer offer;
@@ -494,6 +500,12 @@ class PreflightedPayment_Offer implements PreflightedPayment {
   final PreflightPayOfferResponse preflight;
   final String? message;
 
+  /// The Human Bitcoin Address (BIP353, `₿user@domain`) this offer was resolved
+  /// from, if any. If set, the payment will have kind `HumanBitcoinAddress`.
+  final String? humanBitcoinAddress;
+
   @override
-  PaymentKind kind() => const PaymentKind_Offer();
+  PaymentKind kind() => (this.humanBitcoinAddress != null)
+      ? const PaymentKind_HumanBitcoinAddress()
+      : const PaymentKind_Offer();
 }
