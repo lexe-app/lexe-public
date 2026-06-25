@@ -16,6 +16,8 @@ This repository contains all public code including the user Lightning node, iOS 
 
 More information is available on our website: [lexe.app](https://lexe.app)
 
+See our [features and roadmap](https://docs.lexe.app/roadmap/) for what Lexe supports today and what's coming next.
+
 ## Lexe SDKs
 
 Looking for Lexe's SDKs? This repo only contains source code. You can find the
