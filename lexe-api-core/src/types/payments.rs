@@ -507,6 +507,10 @@ pub enum PaymentKind {
     /// A liquidity fee that would have been paid but was waived.
     WaivedLiquidityFee, // rail: WaivedFee
 
+    /// A buy funded via Cash App, where the app mints a BOLT11 invoice to
+    /// receive the bought funds.
+    BuyCashApp, // rail: Invoice
+
     // /// A routing fee that would have been paid but was waived.
     // WaivedRoutingFee, // rail: WaivedFee
 
@@ -1360,6 +1364,7 @@ impl PaymentKind {
             | Self::Spontaneous
             | Self::WaivedChannelFee
             | Self::WaivedLiquidityFee
+            | Self::BuyCashApp
             | Self::Unknown(_) => (),
         }
 
@@ -1370,6 +1375,7 @@ impl PaymentKind {
             Self::Spontaneous,
             Self::WaivedChannelFee,
             Self::WaivedLiquidityFee,
+            Self::BuyCashApp,
         ]
     };
 
@@ -1381,6 +1387,7 @@ impl PaymentKind {
             Self::Spontaneous => Cow::Borrowed("spontaneous"),
             Self::WaivedChannelFee => Cow::Borrowed("waived_channel_fee"),
             Self::WaivedLiquidityFee => Cow::Borrowed("waived_liquidity_fee"),
+            Self::BuyCashApp => Cow::Borrowed("buy_cash_app"),
             Self::Unknown(s) => Cow::Owned(s.to_string()),
         }
     }
@@ -1393,6 +1400,7 @@ impl PaymentKind {
             Self::Spontaneous => PaymentRail::Spontaneous,
             Self::WaivedChannelFee => PaymentRail::WaivedFee,
             Self::WaivedLiquidityFee => PaymentRail::WaivedFee,
+            Self::BuyCashApp => PaymentRail::Invoice,
             Self::Unknown(s) => PaymentRail::Unknown(Box::from(format!(
                 "(Unknown: parent of '{s}')"
             ))),
@@ -1418,6 +1426,7 @@ impl FromStr for PaymentKind {
             "spontaneous" => Self::Spontaneous,
             "waived_channel_fee" => Self::WaivedChannelFee,
             "waived_liquidity_fee" => Self::WaivedLiquidityFee,
+            "buy_cash_app" => Self::BuyCashApp,
             unknown => Self::Unknown(Box::from(unknown)),
         };
         Ok(kind)
@@ -1744,7 +1753,7 @@ mod test {
             PaymentRail::KNOWN_VARIANTS,
             expected_ser,
         );
-        let expected_ser = r#"["onchain","invoice","offer","spontaneous","waived_channel_fee","waived_liquidity_fee"]"#;
+        let expected_ser = r#"["onchain","invoice","offer","spontaneous","waived_channel_fee","waived_liquidity_fee","buy_cash_app"]"#;
         roundtrip::json_unit_enum_backwards_compat_with_unknown(
             PaymentKind::KNOWN_VARIANTS,
             expected_ser,

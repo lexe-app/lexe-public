@@ -1851,6 +1851,7 @@ Application-level kind for a payment.
 - **SPONTANEOUS** -- Spontaneous (keysend) Lightning payment.
 - **WAIVED_CHANNEL_FEE** -- Waived channel fee.
 - **WAIVED_LIQUIDITY_FEE** -- Waived liquidity fee.
+- **BUY_CASH_APP** -- A buy funded via Cash App.
 - **UNKNOWN** -- Unknown kind from a newer node version.
 """
 

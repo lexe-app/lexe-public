@@ -335,6 +335,7 @@ pub enum PaymentKind {
     Spontaneous,
     WaivedChannelFee,
     WaivedLiquidityFee,
+    BuyCashApp,
     Unknown(String),
 }
 
@@ -347,6 +348,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::Spontaneous => Self::Spontaneous,
             PaymentKindRs::WaivedChannelFee => Self::WaivedChannelFee,
             PaymentKindRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+            PaymentKindRs::BuyCashApp => Self::BuyCashApp,
             PaymentKindRs::Unknown(s) => Self::Unknown(String::from(s)),
         }
     }
@@ -361,6 +363,7 @@ impl From<PaymentKind> for PaymentKindRs {
             PaymentKind::Spontaneous => Self::Spontaneous,
             PaymentKind::WaivedChannelFee => Self::WaivedChannelFee,
             PaymentKind::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+            PaymentKind::BuyCashApp => Self::BuyCashApp,
             PaymentKind::Unknown(s) => Self::Unknown(Box::from(s)),
         }
     }

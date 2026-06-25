@@ -2388,6 +2388,8 @@ pub enum PaymentKind {
     WaivedChannelFee,
     /// Waived liquidity fee payment.
     WaivedLiquidityFee,
+    /// A buy funded via Cash App.
+    BuyCashApp,
     /// Unknown kind from a newer version of node.
     Unknown { inner: String },
 }
@@ -2401,6 +2403,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::Spontaneous => Self::Spontaneous,
             PaymentKindRs::WaivedChannelFee => Self::WaivedChannelFee,
             PaymentKindRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+            PaymentKindRs::BuyCashApp => Self::BuyCashApp,
             PaymentKindRs::Unknown(s) => Self::Unknown {
                 inner: String::from(s),
             },

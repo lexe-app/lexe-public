@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ConfirmationPriority,
         LnurlPayRequest,
         Offer,
+        PaymentKind_BuyCashApp,
         PaymentKind_Invoice,
         PaymentKind_Offer,
         PaymentKind_Onchain,
@@ -706,9 +707,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       PaymentKind_Spontaneous() =>
         "Sending bitcoin via lightning spontaneous payment",
       PaymentKind_Offer() => "Sending bitcoin via lightning offer",
-      // Waived fees are not send payment kinds; should never happen here.
+      // These are not send payment kinds; should never happen here.
       PaymentKind_WaivedChannelFee() ||
       PaymentKind_WaivedLiquidityFee() ||
+      PaymentKind_BuyCashApp() ||
       PaymentKind_Unknown() => "(invalid)",
     };
 

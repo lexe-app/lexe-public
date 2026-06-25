@@ -4465,6 +4465,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case 5:
         return PaymentKind_WaivedLiquidityFee();
       case 6:
+        return PaymentKind_BuyCashApp();
+      case 7:
         return PaymentKind_Unknown(dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -6376,6 +6378,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case 5:
         return PaymentKind_WaivedLiquidityFee();
       case 6:
+        return PaymentKind_BuyCashApp();
+      case 7:
         var var_field0 = sse_decode_String(deserializer);
         return PaymentKind_Unknown(var_field0);
       default:
@@ -8168,8 +8172,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_i_32(4, serializer);
       case PaymentKind_WaivedLiquidityFee():
         sse_encode_i_32(5, serializer);
-      case PaymentKind_Unknown(field0: final field0):
+      case PaymentKind_BuyCashApp():
         sse_encode_i_32(6, serializer);
+      case PaymentKind_Unknown(field0: final field0):
+        sse_encode_i_32(7, serializer);
         sse_encode_String(field0, serializer);
     }
   }

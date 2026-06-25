@@ -944,6 +944,38 @@ String toString() {
 /// @nodoc
 
 
+class PaymentKind_BuyCashApp extends PaymentKind {
+  const PaymentKind_BuyCashApp(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_BuyCashApp);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.buyCashApp()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
 class PaymentKind_Unknown extends PaymentKind {
   const PaymentKind_Unknown(this.field0): super._();
   
