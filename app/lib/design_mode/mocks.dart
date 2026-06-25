@@ -69,6 +69,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentDirection,
         PaymentKind_BuyCashApp,
         PaymentKind_Invoice,
+        PaymentKind_LightningAddress,
         PaymentKind_Offer,
         PaymentKind_Onchain,
         PaymentKind_Spontaneous,
@@ -1649,6 +1650,37 @@ const Payment dummyBuyCashAppInbound01 = Payment(
   finalizedAt: 1749200003000,
 );
 
+/// Inbound Lightning payment received via the user's Lightning Address.
+const Payment dummyLightningAddressInbound01 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001749210000000-ln_c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7089a1b2c3d4e5f607",
+  ),
+  kind: PaymentKind_LightningAddress(),
+  direction: PaymentDirection.inbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt154660n1pn6ap5xdqgf36kucmgpp5fj5ekaf5muaf3takjatmwu86ll4d3vrefewkrramlx6vl5032l8ssp50sn9getawgwsuzmlll5rfk0cqydw4hhdgct47k424f7r9s4pya9s9qyysgqcqpcxq8pn6aph2dzwjlq2vjtmducjrdgjpk6pvr23c7a3s4qrh4770a7qj00pph3vpurg0av8ps689pxt8exufuf45vd8mladjsky2rxtdqtwdpmdj38qp7k5cz7",
+    createdAt: 1749209990000,
+    expiresAt: 1749210090000,
+    amountSats: 21000,
+    description: "satoshi@bitcoin.org",
+    payeePubkey:
+        "036d5a2631b3f1c25ef9a004973762b3c1af5fb892ad14b166e9573b93b83088926667d1c431271a8f06adf5510ac79763f0dfbf66904a449fd55aff60639905",
+  ),
+  amountSats: 21000 * 995 ~/ 1000,
+  feesSats: 21000 * 5 ~/ 1000,
+  amountMsats: 21000 * 995,
+  feesMsats: 21000 * 5,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  payerName: "satoshi@bitcoin.org",
+  message: "Thanks for the coffee!",
+  personalNote: null,
+  createdAt: 1749210000000,
+  finalizedAt: 1749210002000,
+);
+
 // Default set of sample payments
 List<Payment> defaultDummyPayments = [
   dummyOnchainInboundPending01,
@@ -1662,6 +1694,7 @@ List<Payment> defaultDummyPayments = [
   dummyOfferOutboundPayment01,
   dummyOfferInboundPayment01,
   dummyBuyCashAppInbound01,
+  dummyLightningAddressInbound01,
 ].sortedBy((payment) => payment.index.field0);
 
 //

@@ -707,11 +707,12 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       PaymentKind_Spontaneous() =>
         "Sending bitcoin via lightning spontaneous payment",
       PaymentKind_Offer() => "Sending bitcoin via lightning offer",
+      PaymentKind_LightningAddress() =>
+        "Sending bitcoin to a lightning address",
       // These are not send payment kinds; should never happen here.
       PaymentKind_WaivedChannelFee() ||
       PaymentKind_WaivedLiquidityFee() ||
       PaymentKind_BuyCashApp() ||
-      PaymentKind_LightningAddress() ||
       PaymentKind_Unknown() => "(invalid)",
     };
 

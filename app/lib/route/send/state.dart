@@ -28,6 +28,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentDirection,
         PaymentKind,
         PaymentKind_Invoice,
+        PaymentKind_LightningAddress,
         PaymentKind_Offer,
         PaymentKind_Onchain,
         PaymentMethod,
@@ -459,7 +460,9 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
   final String? lightningAddress;
 
   @override
-  PaymentKind kind() => const PaymentKind_Invoice();
+  PaymentKind kind() => (this.lightningAddress != null)
+      ? const PaymentKind_LightningAddress()
+      : const PaymentKind_Invoice();
 }
 
 @immutable
