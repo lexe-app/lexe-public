@@ -66,6 +66,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Payment,
         PaymentCreatedIndex,
         PaymentDirection,
+        PaymentKind_BuyCashApp,
         PaymentKind_Invoice,
         PaymentKind_Offer,
         PaymentKind_Onchain,
@@ -1606,6 +1607,35 @@ const Payment dummyWaivedChannelFee01 = Payment(
   finalizedAt: 1749100001000,
 );
 
+/// Inbound Lightning payment from buying bitcoin via Cash App.
+const Payment dummyBuyCashAppInbound01 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001749200000000-ln_b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7089a1b2c3d4e5f6",
+  ),
+  kind: PaymentKind_BuyCashApp(),
+  direction: PaymentDirection.inbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
+    createdAt: 1749199990000,
+    expiresAt: 1749286390000,
+    amountSats: 50000,
+    description: "Cash App Buy",
+    payeePubkey:
+        "28157d6ca3555a0a3275817d0832c535955b28b20a55f9596f6873434feebfd797d4b245397fab8f8f94dcdd32aac475d64893aa042f18b8d725e116082ae909",
+  ),
+  amountSats: 50000,
+  feesSats: 0,
+  amountMsats: 50000 * 1000,
+  feesMsats: 0,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  personalNote: null,
+  createdAt: 1749200000000,
+  finalizedAt: 1749200003000,
+);
+
 // Default set of sample payments
 List<Payment> defaultDummyPayments = [
   dummyOnchainInboundPending01,
@@ -1618,6 +1648,7 @@ List<Payment> defaultDummyPayments = [
   dummyOnchainOutboundCompleted01,
   dummyOfferOutboundPayment01,
   dummyOfferInboundPayment01,
+  dummyBuyCashAppInbound01,
 ].sortedBy((payment) => payment.index.field0);
 
 //

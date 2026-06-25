@@ -859,11 +859,7 @@ impl BasicPaymentV2 {
         // Inbound BOLT11 invoices are junk unless paid when either:
         // - The amount or description is missing (e.g., the receive UI
         //   generates one of these on every page open), OR
-        // - The description is the "Cash App Buy" tag the app sets on the
-        //   invoices it mints to fund a buy via Cash App.
-        //
-        // NOTE: keep "Cash App Buy" in sync with
-        // `public/app/lib/route/buy.dart`.
+        // - The invoice funds a buy via Cash App.
         //
         // TODO(phlip9): also don't show pending/failed "superseded" invoices,
         // where the user edited the amount/description.
@@ -872,7 +868,7 @@ impl BasicPaymentV2 {
             && self.direction == PaymentDirection::Inbound
             && (self.amount.is_none()
                 || self.note_or_description().is_none()
-                || self.note_or_description() == Some("Cash App Buy"))
+                || self.kind == PaymentKind::BuyCashApp)
     }
 
     /// Returns the user's note or invoice description, prefering note over
