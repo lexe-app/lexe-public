@@ -11,6 +11,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         LnurlPayRequest,
         Offer,
         PaymentKind_BuyCashApp,
+        PaymentKind_HumanBitcoinAddress,
         PaymentKind_Invoice,
         PaymentKind_LightningAddress,
         PaymentKind_Offer,
@@ -709,6 +710,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       PaymentKind_Offer() => "Sending bitcoin via lightning offer",
       PaymentKind_LightningAddress() =>
         "Sending bitcoin to a lightning address",
+      PaymentKind_HumanBitcoinAddress() =>
+        "Sending bitcoin to a human bitcoin address",
       // These are not send payment kinds; should never happen here.
       PaymentKind_WaivedChannelFee() ||
       PaymentKind_WaivedLiquidityFee() ||

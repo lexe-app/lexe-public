@@ -1853,6 +1853,8 @@ Application-level kind for a payment.
 - **WAIVED_LIQUIDITY_FEE** -- Waived liquidity fee.
 - **BUY_CASH_APP** -- A buy funded via Cash App.
 - **LIGHTNING_ADDRESS** -- A payment to or from a Lightning Address.
+- **HUMAN_BITCOIN_ADDRESS** -- A payment to or from a BIP353 Human Bitcoin
+  Address.
 - **UNKNOWN** -- Unknown kind from a newer node version.
 """
 

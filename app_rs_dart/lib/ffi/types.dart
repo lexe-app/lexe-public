@@ -476,6 +476,8 @@ sealed class PaymentKind with _$PaymentKind {
       PaymentKind_WaivedLiquidityFee;
   const factory PaymentKind.buyCashApp() = PaymentKind_BuyCashApp;
   const factory PaymentKind.lightningAddress() = PaymentKind_LightningAddress;
+  const factory PaymentKind.humanBitcoinAddress() =
+      PaymentKind_HumanBitcoinAddress;
   const factory PaymentKind.unknown(String field0) = PaymentKind_Unknown;
 
   /// The coarse [`PaymentRail`] (protocol) this fine-grained kind maps to.

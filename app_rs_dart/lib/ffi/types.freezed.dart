@@ -1009,6 +1009,38 @@ String toString() {
 /// @nodoc
 
 
+class PaymentKind_HumanBitcoinAddress extends PaymentKind {
+  const PaymentKind_HumanBitcoinAddress(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_HumanBitcoinAddress);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.humanBitcoinAddress()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
 class PaymentKind_Unknown extends PaymentKind {
   const PaymentKind_Unknown(this.field0): super._();
   
