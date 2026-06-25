@@ -1,14 +1,4 @@
 import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate;
-import 'package:app_rs_dart/ffi/types.dart'
-    show
-        PaymentKind,
-        PaymentKind_Invoice,
-        PaymentKind_Offer,
-        PaymentKind_Onchain,
-        PaymentKind_Spontaneous,
-        PaymentKind_Unknown,
-        PaymentKind_WaivedChannelFee,
-        PaymentKind_WaivedLiquidityFee;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/int_ext.dart';
 
@@ -45,20 +35,7 @@ final class FiatAmount {
 
 /// A Lexe user has multiple balances. Currently we support on-chain Bitcoin and
 /// outbound Lightning channel balances.
-enum BalanceKind {
-  onchain,
-  lightning;
-
-  static BalanceKind fromPaymentKind(final PaymentKind kind) => switch (kind) {
-    PaymentKind_Onchain() => BalanceKind.onchain,
-    PaymentKind_Invoice() ||
-    PaymentKind_Spontaneous() ||
-    PaymentKind_Offer() ||
-    PaymentKind_WaivedChannelFee() ||
-    PaymentKind_WaivedLiquidityFee() ||
-    PaymentKind_Unknown() => BalanceKind.lightning,
-  };
-}
+enum BalanceKind { onchain, lightning }
 
 /// The current wallet balances, combined with the current preferred [FiatRate].
 class BalanceState {

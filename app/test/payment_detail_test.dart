@@ -1,3 +1,4 @@
+import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/api.dart' show FiatRate;
 import 'package:app_rs_dart/ffi/types.dart' show Payment;
 import 'package:flutter/material.dart';
@@ -56,6 +57,10 @@ Payment _paymentWithPayerFields(
 }
 
 void main() {
+  setUpAll(() async {
+    await app_rs_dart.init();
+  });
+
   testWidgets("outbound offer shows payer note as message to recipient", (
     tester,
   ) async {

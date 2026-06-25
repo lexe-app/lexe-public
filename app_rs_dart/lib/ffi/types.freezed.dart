@@ -1130,6 +1130,226 @@ String toString() {
 
 
 /// @nodoc
+mixin _$PaymentRail {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentRail);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentRail()';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class PaymentRail_Onchain extends PaymentRail {
+  const PaymentRail_Onchain(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentRail_Onchain);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentRail.onchain()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentRail_Invoice extends PaymentRail {
+  const PaymentRail_Invoice(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentRail_Invoice);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentRail.invoice()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentRail_Offer extends PaymentRail {
+  const PaymentRail_Offer(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentRail_Offer);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentRail.offer()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentRail_Spontaneous extends PaymentRail {
+  const PaymentRail_Spontaneous(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentRail_Spontaneous);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentRail.spontaneous()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentRail_WaivedFee extends PaymentRail {
+  const PaymentRail_WaivedFee(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentRail_WaivedFee);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentRail.waivedFee()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PaymentRail_Unknown extends PaymentRail {
+  const PaymentRail_Unknown(this.field0): super._();
+  
+
+ final  String field0;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentRail_Unknown&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'PaymentRail.unknown(field0: $field0)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$ShortPayment {
 
  PaymentCreatedIndex get index; PaymentKind get kind; PaymentDirection get direction; int? get amountSats; int get feesSats; PaymentStatus get status; String? get description; String? get message; String? get personalNote; int get createdAt;

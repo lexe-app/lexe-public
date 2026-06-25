@@ -2,7 +2,7 @@
 library;
 
 import 'package:app_rs_dart/ffi/api.dart' show Balance, FiatRate, FiatRates;
-import 'package:app_rs_dart/ffi/types.dart' show PaymentKind;
+import 'package:app_rs_dart/ffi/types.dart' show PaymentRail;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:collection/collection.dart';
 
@@ -11,11 +11,8 @@ import 'package:collection/collection.dart';
 //
 
 extension BalanceExt on Balance {
-  int balanceByKind(final PaymentKind kind) =>
-      (kind.isLightning()) ? this.lightningSats : this.onchainSats;
-
-  int maxSendableByKind(final PaymentKind kind) =>
-      (kind.isLightning()) ? this.lightningMaxSendableSats : this.onchainSats;
+  int maxSendableByRail(final PaymentRail rail) =>
+      (rail.isLightning()) ? this.lightningMaxSendableSats : this.onchainSats;
 }
 
 //

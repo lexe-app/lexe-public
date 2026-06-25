@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
@@ -443,6 +443,13 @@ sealed class PaymentKind with _$PaymentKind {
   const factory PaymentKind.waivedLiquidityFee() =
       PaymentKind_WaivedLiquidityFee;
   const factory PaymentKind.unknown(String field0) = PaymentKind_Unknown;
+
+  /// The coarse [`PaymentRail`] (protocol) this fine-grained kind maps to.
+  /// Many kinds can share a rail (e.g. `lightning_address` -> `invoice`).
+  ///
+  /// flutter_rust_bridge:sync
+  PaymentRail rail() =>
+      AppRs.instance.api.crateFfiTypesPaymentKindRail(that: this);
 }
 
 @freezed
@@ -454,6 +461,18 @@ sealed class PaymentMethod with _$PaymentMethod {
   const factory PaymentMethod.offer(Offer field0) = PaymentMethod_Offer;
   const factory PaymentMethod.lnurlPayRequest(LnurlPayRequest field0) =
       PaymentMethod_LnurlPayRequest;
+}
+
+@freezed
+sealed class PaymentRail with _$PaymentRail {
+  const PaymentRail._();
+
+  const factory PaymentRail.onchain() = PaymentRail_Onchain;
+  const factory PaymentRail.invoice() = PaymentRail_Invoice;
+  const factory PaymentRail.offer() = PaymentRail_Offer;
+  const factory PaymentRail.spontaneous() = PaymentRail_Spontaneous;
+  const factory PaymentRail.waivedFee() = PaymentRail_WaivedFee;
+  const factory PaymentRail.unknown(String field0) = PaymentRail_Unknown;
 }
 
 enum PaymentStatus { pending, completed, failed }

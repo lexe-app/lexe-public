@@ -23,9 +23,17 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_WaivedChannelFee,
         PaymentKind_WaivedLiquidityFee,
         PaymentMethod,
+        PaymentRail,
+        PaymentRail_Invoice,
+        PaymentRail_Offer,
+        PaymentRail_Onchain,
+        PaymentRail_Spontaneous,
+        PaymentRail_Unknown,
+        PaymentRail_WaivedFee,
         PaymentStatus,
         ShortPayment;
-import 'package:app_rs_dart/ffi/types.ext.dart' show ShortPaymentExt;
+import 'package:app_rs_dart/ffi/types.ext.dart'
+    show PaymentRailExt, ShortPaymentExt;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
@@ -656,17 +664,15 @@ class WalletPageState extends State<WalletPage> {
 
     // Lightning payments actually have a chance to finalize in the next few
     // seconds, so start a burst refresh.
-    switch (payment.kind) {
-      case PaymentKind_Invoice() ||
-          PaymentKind_Spontaneous() ||
-          PaymentKind_Offer():
+    switch (payment.kind.rail()) {
+      case PaymentRail_Invoice() ||
+          PaymentRail_Spontaneous() ||
+          PaymentRail_Offer():
         this.triggerBurstRefresh();
-      case PaymentKind_Onchain():
+      case PaymentRail_Onchain():
         this.triggerRefresh();
       // Waived fee payments are info entries, no special refresh needed.
-      case PaymentKind_WaivedChannelFee() ||
-          PaymentKind_WaivedLiquidityFee() ||
-          PaymentKind_Unknown():
+      case PaymentRail_WaivedFee() || PaymentRail_Unknown():
         break;
     }
 
@@ -2474,9 +2480,7 @@ class PaymentsListEntry extends StatelessWidget {
       PaymentDirection.info => this.payment.amountSats,
     };
 
-    final leadingIcon = PaymentListIcon(
-      kind: BalanceKind.fromPaymentKind(kind),
-    );
+    final leadingIcon = PaymentListIcon(rail: kind.rail());
 
     // TODO(phlip9): figure out a heuristic to get the counterparty name.
     final String primaryStr = switch ((status, direction)) {
@@ -2653,13 +2657,12 @@ class PaymentsListEntry extends StatelessWidget {
 }
 
 class PaymentListIcon extends StatelessWidget {
-  const PaymentListIcon({super.key, required this.kind});
+  const PaymentListIcon({super.key, required this.rail});
 
-  final BalanceKind kind;
+  final PaymentRail rail;
 
   @override
-  Widget build(BuildContext context) => switch (this.kind) {
-    BalanceKind.lightning => const ListIcon.lightning(),
-    BalanceKind.onchain => const ListIcon.bitcoin(),
-  };
+  Widget build(BuildContext context) => this.rail.isLightning()
+      ? const ListIcon.lightning()
+      : const ListIcon.bitcoin();
 }

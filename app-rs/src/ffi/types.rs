@@ -26,7 +26,8 @@ use lexe_api::{
             ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentDirection as PaymentDirectionRs,
-            PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
+            PaymentKind as PaymentKindRs, PaymentRail as PaymentRailRs,
+            PaymentStatus as PaymentStatusRs,
         },
         username::Username as UsernameRs,
     },
@@ -347,6 +348,54 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::WaivedChannelFee => Self::WaivedChannelFee,
             PaymentKindRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
             PaymentKindRs::Unknown(s) => Self::Unknown(String::from(s)),
+        }
+    }
+}
+
+impl From<PaymentKind> for PaymentKindRs {
+    fn from(value: PaymentKind) -> Self {
+        match value {
+            PaymentKind::Onchain => Self::Onchain,
+            PaymentKind::Invoice => Self::Invoice,
+            PaymentKind::Offer => Self::Offer,
+            PaymentKind::Spontaneous => Self::Spontaneous,
+            PaymentKind::WaivedChannelFee => Self::WaivedChannelFee,
+            PaymentKind::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+            PaymentKind::Unknown(s) => Self::Unknown(Box::from(s)),
+        }
+    }
+}
+
+impl PaymentKind {
+    /// The coarse [`PaymentRail`] (protocol) this fine-grained kind maps to.
+    /// Many kinds can share a rail (e.g. `lightning_address` -> `invoice`).
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn rail(&self) -> PaymentRail {
+        PaymentRail::from(PaymentKindRs::from(self.clone()).rail())
+    }
+}
+
+/// See [`lexe_api::types::payments::PaymentRail`].
+#[derive(Clone)]
+pub enum PaymentRail {
+    Onchain,
+    Invoice,
+    Offer,
+    Spontaneous,
+    WaivedFee,
+    Unknown(String),
+}
+
+impl From<PaymentRailRs> for PaymentRail {
+    fn from(value: PaymentRailRs) -> Self {
+        match value {
+            PaymentRailRs::Onchain => Self::Onchain,
+            PaymentRailRs::Invoice => Self::Invoice,
+            PaymentRailRs::Offer => Self::Offer,
+            PaymentRailRs::Spontaneous => Self::Spontaneous,
+            PaymentRailRs::WaivedFee => Self::WaivedFee,
+            PaymentRailRs::Unknown(s) => Self::Unknown(String::from(s)),
         }
     }
 }

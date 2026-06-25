@@ -7,14 +7,13 @@ import 'package:app_rs_dart/ffi/types.dart'
         Payment,
         PaymentCreatedIndex,
         PaymentDirection,
-        PaymentKind,
-        PaymentKind_Invoice,
-        PaymentKind_Offer,
-        PaymentKind_Onchain,
-        PaymentKind_Spontaneous,
-        PaymentKind_Unknown,
-        PaymentKind_WaivedChannelFee,
-        PaymentKind_WaivedLiquidityFee,
+        PaymentRail,
+        PaymentRail_Invoice,
+        PaymentRail_Offer,
+        PaymentRail_Onchain,
+        PaymentRail_Spontaneous,
+        PaymentRail_Unknown,
+        PaymentRail_WaivedFee,
         PaymentStatus;
 import 'package:app_rs_dart/ffi/types.ext.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -283,7 +282,7 @@ class PaymentDetailPageInner extends StatelessWidget {
       body: ValueListenableBuilder(
         valueListenable: this.payment,
         builder: (context, payment, _child) {
-          final kind = payment.kind;
+          final rail = payment.kind.rail();
           final status = payment.status;
           final direction = payment.direction;
           final createdAt = DateTime.fromMillisecondsSinceEpoch(
@@ -325,7 +324,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                   // Big LN/BTC icon + status badge
                   Align(
                     alignment: Alignment.topCenter,
-                    child: PaymentDetailIcon(kind: kind, status: status),
+                    child: PaymentDetailIcon(rail: rail, status: status),
                   ),
 
                   const SizedBox(height: Space.s500),
@@ -336,7 +335,7 @@ class PaymentDetailPageInner extends StatelessWidget {
                     builder: (_, now, child) => PaymentDetailDirectionTime(
                       status: status,
                       direction: direction,
-                      paymentKind: kind,
+                      paymentRail: rail,
                       createdAt: createdAt,
                       now: now,
                     ),
@@ -522,21 +521,20 @@ class PaymentDetailBottomSheet extends StatelessWidget {
               ValueListenableBuilder(
                 valueListenable: this.payment,
                 builder: (context, payment, _child) {
-                  final kind = payment.kind;
+                  final rail = payment.kind.rail();
                   final status = payment.status;
                   final direction = payment.direction;
                   final directionLabel = switch (direction) {
                     PaymentDirection.inbound => "received",
                     PaymentDirection.outbound => "sent",
-                    PaymentDirection.info => switch (payment.kind) {
-                      PaymentKind_WaivedChannelFee() ||
-                      PaymentKind_WaivedLiquidityFee() => "waived",
+                    PaymentDirection.info => switch (rail) {
+                      PaymentRail_WaivedFee() => "waived",
                       // Shouldn't happen with info direction.
-                      PaymentKind_Onchain() ||
-                      PaymentKind_Invoice() ||
-                      PaymentKind_Offer() ||
-                      PaymentKind_Spontaneous() ||
-                      PaymentKind_Unknown() => "(invalid)",
+                      PaymentRail_Onchain() ||
+                      PaymentRail_Invoice() ||
+                      PaymentRail_Offer() ||
+                      PaymentRail_Spontaneous() ||
+                      PaymentRail_Unknown() => "(invalid)",
                     },
                   };
 
@@ -584,33 +582,32 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                       : null;
 
                   // Label should be kept in sync with "lexe_api::types::payments::LxPaymentId"
-                  final InfoRow? paymentIdRow = switch ((kind, direction)) {
+                  final InfoRow? paymentIdRow = switch ((rail, direction)) {
                     // Onchain receive -> we'll use the txid field
-                    (PaymentKind_Onchain(), PaymentDirection.inbound) => null,
-                    (PaymentKind_Onchain(), PaymentDirection.outbound) =>
+                    (PaymentRail_Onchain(), PaymentDirection.inbound) => null,
+                    (PaymentRail_Onchain(), PaymentDirection.outbound) =>
                       InfoRow(
                         label: "Client payment id",
                         value: this.paymentIdxBody(),
                       ),
-                    (PaymentKind_Offer(), PaymentDirection.inbound) => InfoRow(
+                    (PaymentRail_Offer(), PaymentDirection.inbound) => InfoRow(
                       label: "Offer claim id",
                       value: this.paymentIdxBody(),
                     ),
-                    (PaymentKind_Offer(), PaymentDirection.outbound) => InfoRow(
+                    (PaymentRail_Offer(), PaymentDirection.outbound) => InfoRow(
                       label: "Client payment id",
                       value: this.paymentIdxBody(),
                     ),
                     // Invoices use hash, but it's displayed independently
-                    (PaymentKind_Invoice(), _) ||
-                    (PaymentKind_Spontaneous(), _) ||
+                    (PaymentRail_Invoice(), _) ||
+                    (PaymentRail_Spontaneous(), _) ||
                     // Waived fee payments don't have a meaningful payment ID.
-                    (PaymentKind_WaivedChannelFee(), _) ||
-                    (PaymentKind_WaivedLiquidityFee(), _) => null,
+                    (PaymentRail_WaivedFee(), _) => null,
                     // Invalid combinations
-                    (PaymentKind_Onchain(), PaymentDirection.info) ||
-                    (PaymentKind_Offer(), PaymentDirection.info) ||
+                    (PaymentRail_Onchain(), PaymentDirection.info) ||
+                    (PaymentRail_Offer(), PaymentDirection.info) ||
                     (
-                      PaymentKind_Unknown(),
+                      PaymentRail_Unknown(),
                       _,
                     ) => InfoRow(label: "Unknown", value: "???"),
                   };
@@ -816,16 +813,16 @@ class PaymentDetailBottomSheet extends StatelessWidget {
 class PaymentDetailIcon extends StatelessWidget {
   const PaymentDetailIcon({
     super.key,
-    required this.kind,
+    required this.rail,
     required this.status,
   });
 
-  final PaymentKind kind;
+  final PaymentRail rail;
   final PaymentStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final isLightning = this.kind.isLightning();
+    final isLightning = this.rail.isLightning();
     const size = Space.s700;
     const color = LxColors.fgSecondary;
 
@@ -902,14 +899,14 @@ class PaymentDetailDirectionTime extends StatelessWidget {
     super.key,
     required this.status,
     required this.direction,
-    required this.paymentKind,
+    required this.paymentRail,
     required this.createdAt,
     required this.now,
   });
 
   final PaymentStatus status;
   final PaymentDirection direction;
-  final PaymentKind paymentKind;
+  final PaymentRail paymentRail;
   final DateTime createdAt;
   final DateTime now;
 
@@ -919,38 +916,35 @@ class PaymentDetailDirectionTime extends StatelessWidget {
       (PaymentStatus.pending, PaymentDirection.inbound) => "Receiving",
       (PaymentStatus.pending, PaymentDirection.outbound) => "Sending",
       (PaymentStatus.pending, PaymentDirection.info) =>
-        switch (this.paymentKind) {
-          PaymentKind_WaivedChannelFee() ||
-          PaymentKind_WaivedLiquidityFee() => "Waiving",
-          PaymentKind_Onchain() ||
-          PaymentKind_Invoice() ||
-          PaymentKind_Offer() ||
-          PaymentKind_Spontaneous() ||
-          PaymentKind_Unknown() => "(invalid)",
+        switch (this.paymentRail) {
+          PaymentRail_WaivedFee() => "Waiving",
+          PaymentRail_Onchain() ||
+          PaymentRail_Invoice() ||
+          PaymentRail_Offer() ||
+          PaymentRail_Spontaneous() ||
+          PaymentRail_Unknown() => "(invalid)",
         },
       (PaymentStatus.completed, PaymentDirection.inbound) => "Received",
       (PaymentStatus.completed, PaymentDirection.outbound) => "Sent",
       (PaymentStatus.completed, PaymentDirection.info) =>
-        switch (this.paymentKind) {
-          PaymentKind_WaivedChannelFee() ||
-          PaymentKind_WaivedLiquidityFee() => "Waived",
-          PaymentKind_Onchain() ||
-          PaymentKind_Invoice() ||
-          PaymentKind_Offer() ||
-          PaymentKind_Spontaneous() ||
-          PaymentKind_Unknown() => "(invalid)",
+        switch (this.paymentRail) {
+          PaymentRail_WaivedFee() => "Waived",
+          PaymentRail_Onchain() ||
+          PaymentRail_Invoice() ||
+          PaymentRail_Offer() ||
+          PaymentRail_Spontaneous() ||
+          PaymentRail_Unknown() => "(invalid)",
         },
       (PaymentStatus.failed, PaymentDirection.inbound) => "Failed to receive",
       (PaymentStatus.failed, PaymentDirection.outbound) => "Failed to send",
       (PaymentStatus.failed, PaymentDirection.info) =>
-        switch (this.paymentKind) {
-          PaymentKind_WaivedChannelFee() ||
-          PaymentKind_WaivedLiquidityFee() => "Failed: waived",
-          PaymentKind_Onchain() ||
-          PaymentKind_Invoice() ||
-          PaymentKind_Offer() ||
-          PaymentKind_Spontaneous() ||
-          PaymentKind_Unknown() => "(invalid)",
+        switch (this.paymentRail) {
+          PaymentRail_WaivedFee() => "Failed: waived",
+          PaymentRail_Onchain() ||
+          PaymentRail_Invoice() ||
+          PaymentRail_Offer() ||
+          PaymentRail_Spontaneous() ||
+          PaymentRail_Unknown() => "(invalid)",
         },
     };
 

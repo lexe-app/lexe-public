@@ -241,6 +241,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentCreatedIndex dco_decode_box_autoadd_payment_created_index(dynamic raw);
 
   @protected
+  PaymentKind dco_decode_box_autoadd_payment_kind(dynamic raw);
+
+  @protected
   PaymentMethod dco_decode_box_autoadd_payment_method(dynamic raw);
 
   @protected
@@ -528,6 +531,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PaymentMethod dco_decode_payment_method(dynamic raw);
+
+  @protected
+  PaymentRail dco_decode_payment_rail(dynamic raw);
 
   @protected
   PaymentStatus dco_decode_payment_status(dynamic raw);
@@ -845,6 +851,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentCreatedIndex sse_decode_box_autoadd_payment_created_index(
     SseDeserializer deserializer,
   );
+
+  @protected
+  PaymentKind sse_decode_box_autoadd_payment_kind(SseDeserializer deserializer);
 
   @protected
   PaymentMethod sse_decode_box_autoadd_payment_method(
@@ -1216,6 +1225,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentMethod sse_decode_payment_method(SseDeserializer deserializer);
 
   @protected
+  PaymentRail sse_decode_payment_rail(SseDeserializer deserializer);
+
+  @protected
   PaymentStatus sse_decode_payment_status(SseDeserializer deserializer);
 
   @protected
@@ -1583,6 +1595,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_payment_created_index(
     PaymentCreatedIndex self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_payment_kind(
+    PaymentKind self,
     SseSerializer serializer,
   );
 
@@ -2035,6 +2053,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_payment_method(PaymentMethod self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_payment_rail(PaymentRail self, SseSerializer serializer);
 
   @protected
   void sse_encode_payment_status(PaymentStatus self, SseSerializer serializer);

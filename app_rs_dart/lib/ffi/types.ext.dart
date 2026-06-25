@@ -12,17 +12,18 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentDirection,
         PaymentKind,
         PaymentKind_Invoice,
-        PaymentKind_Offer,
-        PaymentKind_Onchain,
-        PaymentKind_Spontaneous,
-        PaymentKind_Unknown,
-        PaymentKind_WaivedChannelFee,
-        PaymentKind_WaivedLiquidityFee,
         PaymentMethod,
         PaymentMethod_Invoice,
         PaymentMethod_LnurlPayRequest,
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
+        PaymentRail,
+        PaymentRail_Invoice,
+        PaymentRail_Offer,
+        PaymentRail_Onchain,
+        PaymentRail_Spontaneous,
+        PaymentRail_Unknown,
+        PaymentRail_WaivedFee,
         PaymentStatus,
         ShortPayment;
 
@@ -147,23 +148,21 @@ extension PaymentExt on Payment {
 //
 
 extension PaymentMethodExt on PaymentMethod {
-  PaymentKind kind() => switch (this) {
-    PaymentMethod_Onchain() => const PaymentKind_Onchain(),
-    PaymentMethod_Invoice() => const PaymentKind_Invoice(),
-    PaymentMethod_Offer() => const PaymentKind_Offer(),
-    PaymentMethod_LnurlPayRequest() => const PaymentKind_Invoice(),
+  PaymentRail rail() => switch (this) {
+    PaymentMethod_Onchain() => const PaymentRail_Onchain(),
+    PaymentMethod_Invoice() => const PaymentRail_Invoice(),
+    PaymentMethod_Offer() => const PaymentRail_Offer(),
+    PaymentMethod_LnurlPayRequest() => const PaymentRail_Invoice(),
   };
 }
 
-extension PaymentKindExt on PaymentKind {
+extension PaymentRailExt on PaymentRail {
   bool isLightning() => switch (this) {
-    PaymentKind_Onchain() => false,
-    PaymentKind_Invoice() => true,
-    PaymentKind_Spontaneous() => true,
-    PaymentKind_Offer() => true,
-    PaymentKind_WaivedChannelFee() ||
-    PaymentKind_WaivedLiquidityFee() ||
-    PaymentKind_Unknown() => false,
+    PaymentRail_Onchain() => false,
+    PaymentRail_Invoice() ||
+    PaymentRail_Offer() ||
+    PaymentRail_Spontaneous() => true,
+    PaymentRail_WaivedFee() || PaymentRail_Unknown() => false,
   };
 }
 

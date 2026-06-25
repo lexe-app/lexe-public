@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1914831796;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1830790975;
 
 // Section: executor
 
@@ -1107,6 +1107,19 @@ fn wire__crate__ffi__form__parse_mnemonic_phrase_impl(
             let api_raw = <String>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
                      let output_ok = crate::ffi::form::parse_mnemonic_phrase(api_raw)?;   Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__types__payment_kind_rail_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "payment_kind_rail", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::types::PaymentKind>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Result::<_,()>::Ok(crate::ffi::types::PaymentKind::rail(&api_that))?;   Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__types__root_seed_expose_secret_hex_impl(
@@ -2804,6 +2817,39 @@ impl SseDecode for crate::ffi::types::PaymentMethod {
     }
 }
 
+impl SseDecode for crate::ffi::types::PaymentRail {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::ffi::types::PaymentRail::Onchain;
+            }
+            1 => {
+                return crate::ffi::types::PaymentRail::Invoice;
+            }
+            2 => {
+                return crate::ffi::types::PaymentRail::Offer;
+            }
+            3 => {
+                return crate::ffi::types::PaymentRail::Spontaneous;
+            }
+            4 => {
+                return crate::ffi::types::PaymentRail::WaivedFee;
+            }
+            5 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::ffi::types::PaymentRail::Unknown(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::ffi::types::PaymentStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -3287,8 +3333,8 @@ fn pde_ffi_dispatcher_primary_impl(
 66 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
 67 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
 68 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-82 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-83 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+83 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+84 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3332,19 +3378,20 @@ fn pde_ffi_dispatcher_sync_impl(
 69 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
 70 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
 71 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
-72 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
-73 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
-74 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
-75 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-76 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-77 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-78 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-79 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-80 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-81 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
-84 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-85 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-86 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+72 => wire__crate__ffi__types__payment_kind_rail_impl(ptr, rust_vec_len, data_len),
+73 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
+74 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
+75 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
+76 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
+77 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+78 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+79 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+80 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+81 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+82 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
+85 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+86 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+87 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -4536,6 +4583,39 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentMethod>
     for crate::ffi::types::PaymentMethod
 {
     fn into_into_dart(self) -> crate::ffi::types::PaymentMethod {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentRail {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::ffi::types::PaymentRail::Onchain =>
+                [0.into_dart()].into_dart(),
+            crate::ffi::types::PaymentRail::Invoice =>
+                [1.into_dart()].into_dart(),
+            crate::ffi::types::PaymentRail::Offer =>
+                [2.into_dart()].into_dart(),
+            crate::ffi::types::PaymentRail::Spontaneous =>
+                [3.into_dart()].into_dart(),
+            crate::ffi::types::PaymentRail::WaivedFee =>
+                [4.into_dart()].into_dart(),
+            crate::ffi::types::PaymentRail::Unknown(field0) =>
+                [5.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::PaymentRail
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentRail>
+    for crate::ffi::types::PaymentRail
+{
+    fn into_into_dart(self) -> crate::ffi::types::PaymentRail {
         self
     }
 }
@@ -6332,6 +6412,39 @@ impl SseEncode for crate::ffi::types::PaymentMethod {
                 <crate::ffi::types::LnurlPayRequest>::sse_encode(
                     field0, serializer,
                 );
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseEncode for crate::ffi::types::PaymentRail {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        match self {
+            crate::ffi::types::PaymentRail::Onchain => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::ffi::types::PaymentRail::Invoice => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::ffi::types::PaymentRail::Offer => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::ffi::types::PaymentRail::Spontaneous => {
+                <i32>::sse_encode(3, serializer);
+            }
+            crate::ffi::types::PaymentRail::WaivedFee => {
+                <i32>::sse_encode(4, serializer);
+            }
+            crate::ffi::types::PaymentRail::Unknown(field0) => {
+                <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(field0, serializer);
             }
             _ => {
                 unimplemented!("");

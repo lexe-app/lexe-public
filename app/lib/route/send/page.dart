@@ -191,9 +191,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 
   Result<(), String> validateAmount(int amount) {
-    final kind = this.widget.sendCtx.paymentMethod.kind();
+    final rail = this.widget.sendCtx.paymentMethod.rail();
     final balance = this.widget.sendCtx.balance;
-    final balanceMaxSendableSats = balance.maxSendableByKind(kind);
+    final balanceMaxSendableSats = balance.maxSendableByRail(rail);
     if (amount > balanceMaxSendableSats) {
       final balanceMaxSendableStr = currency_format.formatSatsAmount(
         balanceMaxSendableSats,
@@ -271,10 +271,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   @override
   Widget build(BuildContext context) {
     final paymentMethod = this.widget.sendCtx.paymentMethod;
-    final kind = paymentMethod.kind();
+    final rail = paymentMethod.rail();
     final balance = this.widget.sendCtx.balance;
     final balanceMaxSendableStr = currency_format.formatSatsAmount(
-      balance.maxSendableByKind(kind),
+      balance.maxSendableByRail(rail),
       bitcoinSymbol: true,
     );
 
