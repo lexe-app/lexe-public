@@ -976,6 +976,38 @@ String toString() {
 /// @nodoc
 
 
+class PaymentKind_LightningAddress extends PaymentKind {
+  const PaymentKind_LightningAddress(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentKind_LightningAddress);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PaymentKind.lightningAddress()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
 class PaymentKind_Unknown extends PaymentKind {
   const PaymentKind_Unknown(this.field0): super._();
   

@@ -1852,6 +1852,7 @@ Application-level kind for a payment.
 - **WAIVED_CHANNEL_FEE** -- Waived channel fee.
 - **WAIVED_LIQUIDITY_FEE** -- Waived liquidity fee.
 - **BUY_CASH_APP** -- A buy funded via Cash App.
+- **LIGHTNING_ADDRESS** -- A payment to or from a Lightning Address.
 - **UNKNOWN** -- Unknown kind from a newer node version.
 """
 

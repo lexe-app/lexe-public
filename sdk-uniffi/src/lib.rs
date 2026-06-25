@@ -2390,6 +2390,8 @@ pub enum PaymentKind {
     WaivedLiquidityFee,
     /// A buy funded via Cash App.
     BuyCashApp,
+    /// A payment to or from a Lightning Address.
+    LightningAddress,
     /// Unknown kind from a newer version of node.
     Unknown { inner: String },
 }
@@ -2404,6 +2406,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::WaivedChannelFee => Self::WaivedChannelFee,
             PaymentKindRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
             PaymentKindRs::BuyCashApp => Self::BuyCashApp,
+            PaymentKindRs::LightningAddress => Self::LightningAddress,
             PaymentKindRs::Unknown(s) => Self::Unknown {
                 inner: String::from(s),
             },
