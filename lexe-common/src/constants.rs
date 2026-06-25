@@ -78,7 +78,9 @@ pub const LDK_DUST_LIMIT_SATS: u32 = 354;
 pub const FREE_LIQUIDITY_SAT: u32 = 50_000;
 
 /// The maximum amount of liquidity that Lexe will supply to a user in one tx.
-pub const MAX_LIQUIDITY_SAT: u32 = 10_000_000; // 0.1 BTC
+//
+// TODO(phlip9): increase once new liquidity model is in
+pub const MAX_LIQUIDITY_SAT: u32 = 1_000_000; // 0.01 BTC
 
 /// User nodes and the LSP will reject new inbound channels with total channel
 /// value larger than this value in satoshis.
