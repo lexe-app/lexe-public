@@ -188,17 +188,6 @@ impl AppBackendApi for GatewayClient {
         debug_assert!(false, "Use `signup_v2`");
         Err(BackendApiError::not_found("Use `/app/v2/signup`"))
     }
-
-    async fn enclaves_to_provision(
-        &self,
-        req: &EnclavesToProvisionRequest,
-        auth: BearerAuthToken,
-    ) -> Result<EnclavesToProvision, BackendApiError> {
-        let gateway_url = &self.gateway_url;
-        let url = format!("{gateway_url}/app/v1/enclaves_to_provision");
-        let req = self.rest.post(url, req).bearer_auth(&auth);
-        self.rest.send(req).await
-    }
 }
 
 #[async_trait]
@@ -223,6 +212,17 @@ impl AppGatewayApi for GatewayClient {
         let req = self
             .rest
             .get(format!("{gateway_url}/app/v1/fiat_rates"), &Empty {});
+        self.rest.send(req).await
+    }
+
+    async fn enclaves_to_provision(
+        &self,
+        req: &EnclavesToProvisionRequest,
+        auth: BearerAuthToken,
+    ) -> Result<EnclavesToProvision, GatewayApiError> {
+        let gateway_url = &self.gateway_url;
+        let url = format!("{gateway_url}/app/v1/enclaves_to_provision");
+        let req = self.rest.post(url, req).bearer_auth(&auth);
         self.rest.send(req).await
     }
 
@@ -490,33 +490,17 @@ impl NodeClient {
         Ok(long_lived_connect_token.token)
     }
 
-    /// Mint a short-lived [`LexeScope::All`] token for provisioning. Fails for
-    /// client credentials, which can't mint `All`-scoped tokens.
+    /// Get a [`LexeScope::GatewayProxy`] token for requests to the gateway.
     //
-    // Uncached one-shot mint (cf. `request_long_lived_connect_token`): `All` is
-    // our most powerful scope, so we keep it short-lived rather than caching a
-    // default-lifetime token in the authenticator.
-    pub async fn request_provision_token(
-        &self,
-    ) -> anyhow::Result<BearerAuthToken> {
-        let user_key_pair = self.inner.authenticator.user_key_pair().context(
-            "Can't mint a provision token from static client credentials; \
-             authenticate with root seed credentials instead.",
-        )?;
-
+    // This helper exists because `GatewayClient::enclaves_to_provision` needs a
+    // token, but `GatewayClient` doesn't hold a `BearerAuthenticator`.
+    pub async fn get_gateway_token(&self) -> anyhow::Result<BearerAuthToken> {
         let now = SystemTime::now();
-        let lifetime_secs = 60; // 1 minute
-        let token = lexe_api::auth::helpers::do_bearer_auth(
-            &self.inner.gateway_client,
-            now,
-            user_key_pair,
-            lifetime_secs,
-            LexeScope::All,
-        )
-        .await
-        .context("Failed to get provision token")?;
-
-        Ok(token.token)
+        self.inner
+            .authenticator
+            .get_token(&self.inner.gateway_client, now, LexeScope::GatewayProxy)
+            .await
+            .context("Failed to get gateway token")
     }
 }
 

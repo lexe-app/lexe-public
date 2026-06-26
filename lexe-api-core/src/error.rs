@@ -1285,6 +1285,17 @@ impl GatewayApiError {
             ..Default::default()
         }
     }
+
+    /// Wrap a backend error returned from a request made on the user's behalf.
+    pub fn backend(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = GatewayErrorKind::Server;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
 }
 
 impl LspApiError {

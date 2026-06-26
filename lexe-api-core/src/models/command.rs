@@ -187,6 +187,16 @@ pub struct EnclavesToProvisionRequest {
     pub trusted_measurements: BTreeSet<Measurement>,
 }
 
+/// The gateway→backend form of [`EnclavesToProvisionRequest`], carrying the
+/// `user_pk` that the gateway verified from the app's bearer auth token.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct EnclavesToProvisionForUser {
+    pub user_pk: UserPk,
+    /// The enclave measurements the client trusts.
+    pub trusted_measurements: BTreeSet<Measurement>,
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct SetupGDrive {

@@ -2,7 +2,7 @@ use std::{path::PathBuf, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
-    def::{AppBackendApi, AppNodeRunApi},
+    def::{AppBackendApi, AppGatewayApi, AppNodeRunApi},
     models::command::{self, GetUpdatedPayments},
     types::{
         bounded_string::BoundedString,
@@ -562,7 +562,7 @@ impl LexeWallet {
         // Get a bearer token for authentication.
         let token = self
             .node_client
-            .request_provision_token()
+            .get_gateway_token()
             .await
             .context("Could not get bearer token")?;
 

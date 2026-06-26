@@ -149,6 +149,12 @@ pub trait AppBackendApi {
         &self,
         signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError>;
+}
+
+/// Defines the api that the gateway directly exposes to the app.
+pub trait AppGatewayApi {
+    /// GET /app/v1/fiat_rates [`Empty`] -> [`FiatRates`]
+    async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;
 
     /// Query which node enclaves the user needs to provision to.
     ///
@@ -158,13 +164,7 @@ pub trait AppBackendApi {
         &self,
         req: &EnclavesToProvisionRequest,
         auth: BearerAuthToken,
-    ) -> Result<EnclavesToProvision, BackendApiError>;
-}
-
-/// Defines the api that the gateway directly exposes to the app.
-pub trait AppGatewayApi {
-    /// GET /app/v1/fiat_rates [`Empty`] -> [`FiatRates`]
-    async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;
+    ) -> Result<EnclavesToProvision, GatewayApiError>;
 
     /// Get the measurement and semver version of the latest node release.
     ///
