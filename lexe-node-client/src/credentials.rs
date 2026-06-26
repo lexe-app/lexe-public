@@ -7,7 +7,7 @@ use base64::Engine;
 use lexe_api::auth::BearerAuthenticator;
 use lexe_common::{
     api::{
-        auth::{BearerAuthToken, Scope},
+        auth::{BearerAuthToken, LexeScope},
         revocable_clients::CreateRevocableClientResponse,
         user::UserPk,
     },
@@ -127,21 +127,18 @@ impl<'a> CredentialsRef<'a> {
     }
 
     /// Create a [`BearerAuthenticator`] appropriate for the given credentials.
-    ///
-    /// Currently limits to [`Scope::NodeConnect`] for [`RootSeed`] credentials.
     pub fn bearer_authenticator(&self) -> Arc<BearerAuthenticator> {
         match self {
-            Self::RootSeed(root_seed) => {
-                let maybe_cached_token = None;
-                Arc::new(BearerAuthenticator::new_with_scope(
-                    root_seed.derive_user_key_pair(),
-                    maybe_cached_token,
-                    Some(Scope::NodeConnect),
-                ))
-            }
+            // A root seed can mint tokens of any scope on demand.
+            Self::RootSeed(root_seed) => Arc::new(BearerAuthenticator::new(
+                root_seed.derive_user_key_pair(),
+            )),
+            // A client credential holds a single long-lived `GatewayProxy`
+            // token, good only for connecting to the user's node.
             Self::ClientCredentials(client_credentials) =>
                 Arc::new(BearerAuthenticator::new_static_token(
                     client_credentials.lexe_auth_token.clone(),
+                    LexeScope::GatewayProxy,
                 )),
         }
     }

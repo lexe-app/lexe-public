@@ -16,7 +16,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::{auth::Scope, revocable_clients},
+    api::{auth::LexeScope, revocable_clients},
     constants,
     ln::amount::Amount,
     ppm::Ppm,
@@ -673,7 +673,7 @@ pub struct ClientInfo {
     pub expires_at: Option<TimestampMs>,
     /// An optional label for the client.
     pub label: Option<String>,
-    // TODO(nicole): Add scope when it's useful
+    // TODO(nicole): Add the application scope when it's useful
     // scope: Scope,
 }
 
@@ -716,7 +716,7 @@ pub struct CreateClientRequest {
     /// Must be less than 64 UTF-8 bytes if provided.
     pub label: Option<String>,
     // TODO(nicole): Add scope when it's useful
-    // pub scope: Scope,
+    // pub scope: LexeScope,
 }
 
 // If this breaks, update the docs above.
@@ -730,7 +730,7 @@ impl From<CreateClientRequest>
             expires_at: req.expires_at,
             label: req.label,
             // TODO(nicole): Allow configuring scope when it becomes useful
-            scope: Scope::All,
+            scope: LexeScope::All,
         }
     }
 }

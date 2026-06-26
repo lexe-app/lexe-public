@@ -287,8 +287,7 @@ impl UserNode {
         let mut static_tasks = Vec::new();
 
         // If we're in staging or prod, init a GoogleVfs.
-        let authenticator =
-            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+        let authenticator = Arc::new(BearerAuthenticator::new(user_key_pair));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
 
         let (maybe_google_vfs, gdrive_status) =

@@ -53,7 +53,10 @@ pub enum Error {
         "auth token's granted scope ({granted:?}) is not sufficient for \
          requested scope ({requested:?})"
     )]
-    InsufficientScope { granted: Scope, requested: Scope },
+    InsufficientScope {
+        granted: LexeScope,
+        requested: LexeScope,
+    },
 }
 
 /// The inner, signed part of the request a new user makes when they first sign
@@ -127,11 +130,10 @@ pub struct BearerAuthRequest {
     /// server clock.
     pub lifetime_secs: u32,
 
-    /// The allowed API scope for the bearer auth token. If unset, the issued
-    /// token currently defaults to [`Scope::All`].
+    /// The [`LexeScope`] requested for the new bearer auth token.
     // TODO(phlip9): implement proper scope attenuation from identity's allowed
     // scopes
-    pub scope: Option<Scope>,
+    pub scope: LexeScope,
 }
 
 /// A client's request for a new [`BearerAuthToken`].
@@ -160,19 +162,42 @@ pub struct BearerAuthRequestWireV1 {
 pub struct BearerAuthRequestWireV2 {
     // v2 includes all fields from v1
     v1: BearerAuthRequestWireV1,
-    scope: Option<Scope>,
+    // node-v0.7.9 added this field as `Option` along with the V2 wire format.
+    //
+    // We must keep this `Option` so that we can continue deserializing those
+    // older `None` requests (and assume `LexeScope::All` in such a case);
+    // current clients always send `Some`.
+    scope: Option<LexeScope>,
 }
 
-/// The allowed API scope for the bearer auth token.
+/// An infra-level scope which gates a bearer auth token's access to Lexe-run
+/// services and resources.
+///
+/// This is distinct from the *application-level* authorization that determines
+/// which node endpoints a given client credential may call; that lives with the
+/// revocable client machinery, not here. A `LexeScope` answers "what may this
+/// token do against *Lexe's* infrastructure", e.g. the backend or the gateway
+/// CONNECT proxy.
+///
+/// Scopes form a lattice: a token granted a broader scope is accepted wherever
+/// a narrower scope is required (see [`LexeScope::has_permission_for`]).
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Scope {
-    /// The token is valid for all scopes.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum LexeScope {
+    /// Full access to all Lexe-run services. Short-lived (max 1 hour).
     All,
 
-    /// The token is only allowed to connect to a user node via the gateway.
+    /// Authorizes the gateway to act as the user's proxy, in either of two
+    /// ways:
+    /// - a CONNECT tunnel to the user's own node, or
+    /// - a request the gateway makes to the backend (`AppBackendApi`) on the
+    ///   user's behalf, using its own backend credentials.
+    ///
+    /// This grants neither direct backend access nor forwarding of this token
+    /// to the backend; that's [`LexeScope::All`]. May be long-lived (max 20
+    /// years), so it can back a long-lived client credential.
     // TODO(phlip9): should be a fine-grained scope
-    NodeConnect,
+    GatewayProxy,
     //
     // // TODO(phlip9): fine-grained scopes?
     // Restricted { .. },
@@ -262,7 +287,7 @@ impl BearerAuthRequest {
     pub fn new(
         now: SystemTime,
         token_lifetime_secs: u32,
-        scope: Option<Scope>,
+        scope: LexeScope,
     ) -> Self {
         Self {
             request_timestamp_secs: now
@@ -289,15 +314,18 @@ impl BearerAuthRequest {
 impl From<BearerAuthRequestWire> for BearerAuthRequest {
     fn from(wire: BearerAuthRequestWire) -> Self {
         match wire {
+            // V1 predates scopes; fall back to the broadest scope for these
+            // (very old) clients.
             BearerAuthRequestWire::V1(v1) => Self {
                 request_timestamp_secs: v1.request_timestamp_secs,
                 lifetime_secs: v1.lifetime_secs,
-                scope: None,
+                scope: LexeScope::All,
             },
+            // A V2 client that omits the scope likewise defaults to `All`.
             BearerAuthRequestWire::V2(v2) => Self {
                 request_timestamp_secs: v2.v1.request_timestamp_secs,
                 lifetime_secs: v2.v1.lifetime_secs,
-                scope: v2.scope,
+                scope: v2.scope.unwrap_or(LexeScope::All),
             },
         }
     }
@@ -310,7 +338,7 @@ impl From<BearerAuthRequest> for BearerAuthRequestWire {
                 request_timestamp_secs: req.request_timestamp_secs,
                 lifetime_secs: req.lifetime_secs,
             },
-            scope: req.scope,
+            scope: Some(req.scope),
         })
     }
 }
@@ -388,17 +416,15 @@ mod arbitrary_impl {
     }
 }
 
-// --- impl Scope --- //
+// --- impl LexeScope --- //
 
-impl Scope {
-    /// Returns `true` if the `requested_scope` is allowed by this granted
-    /// scope.
-    pub fn has_permission_for(&self, requested_scope: &Self) -> bool {
-        let granted_scope = self;
-        match (granted_scope, requested_scope) {
-            (Scope::All, _) => true,
-            (Scope::NodeConnect, Scope::All) => false,
-            (Scope::NodeConnect, Scope::NodeConnect) => true,
+impl LexeScope {
+    /// Returns `true` if this granted scope covers the `requested` scope.
+    pub fn has_permission_for(&self, requested: &Self) -> bool {
+        match (self, requested) {
+            (LexeScope::All, _) => true,
+            (LexeScope::GatewayProxy, LexeScope::All) => false,
+            (LexeScope::GatewayProxy, LexeScope::GatewayProxy) => true,
         }
     }
 }
@@ -458,24 +484,24 @@ mod test {
                 request_timestamp_secs: 1234567890,
                 lifetime_secs: 10 * 60,
             },
-            scope: Some(Scope::NodeConnect),
+            scope: Some(LexeScope::GatewayProxy),
         });
         bcs_roundtrip_ok(&hex::decode(input).unwrap(), &req);
     }
 
     #[test]
     fn test_auth_scope_canonical() {
-        bcs_roundtrip_proptest::<Scope>();
+        bcs_roundtrip_proptest::<LexeScope>();
     }
 
     #[test]
     fn test_auth_scope_snapshot() {
         let input = b"\x00";
-        let scope = Scope::All;
+        let scope = LexeScope::All;
         bcs_roundtrip_ok(input, &scope);
 
         let input = b"\x01";
-        let scope = Scope::NodeConnect;
+        let scope = LexeScope::GatewayProxy;
         bcs_roundtrip_ok(input, &scope);
     }
 

@@ -55,8 +55,8 @@ use lexe_api::{
 use lexe_common::{
     api::{
         auth::{
-            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken, Scope,
-            TokenWithExpiration, UserSignupRequestWire,
+            BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken,
+            LexeScope, TokenWithExpiration, UserSignupRequestWire,
             UserSignupRequestWireV1,
         },
         fiat_rates::FiatRates,
@@ -322,7 +322,9 @@ impl NodeClient {
 
         // Get an unexpired auth token. This is probably a new token, but we may
         // race with other tasks here, so we could also get a cached token.
-        let auth_token = self.get_auth_token(now).await?;
+        // Connecting to the user node only requires `GatewayProxy`.
+        let auth_token =
+            self.get_auth_token(now, LexeScope::GatewayProxy).await?;
 
         // Check again if another task concurrently swapped in a fresh client.
         // A little hacky, but significantly reduces the chance that we create
@@ -364,15 +366,16 @@ impl NodeClient {
         }
     }
 
-    /// Get an unexpired auth token (maybe cached, maybe new) for the gateway
-    /// CONNECT proxy.
+    /// Get an unexpired auth token (maybe cached, maybe new) for the given
+    /// `scope`.
     async fn get_auth_token(
         &self,
         now: SystemTime,
+        scope: LexeScope,
     ) -> Result<TokenWithExpiration, NodeApiError> {
         self.inner
             .authenticator
-            .get_token_with_exp(&self.inner.gateway_client, now)
+            .get_token_with_exp(&self.inner.gateway_client, now, scope)
             .await
             // TODO(phlip9): how to best convert `BackendApiError` to
             //               `NodeApiError`?
@@ -460,7 +463,8 @@ impl NodeClient {
     }
 
     /// Get a new long-lived auth token scoped only for the gateway connect
-    /// proxy. Used for the SDK to connect to the node.
+    /// proxy. Used by SDK clients which use Lexe client credentials to connect
+    /// to their node.
     async fn request_long_lived_connect_token(
         &self,
     ) -> anyhow::Result<BearerAuthToken> {
@@ -473,13 +477,12 @@ impl NodeClient {
 
         let now = SystemTime::now();
         let lifetime_secs = 10 * 365 * 24 * 60 * 60; // 10 years
-        let scope = Some(Scope::NodeConnect);
-        let long_lived_connect_token = lexe_api::auth::do_bearer_auth(
+        let long_lived_connect_token = lexe_api::auth::helpers::do_bearer_auth(
             &self.inner.gateway_client,
             now,
             user_key_pair,
             lifetime_secs,
-            scope,
+            LexeScope::GatewayProxy,
         )
         .await
         .context("Failed to get long-lived connect token")?;
@@ -487,28 +490,31 @@ impl NodeClient {
         Ok(long_lived_connect_token.token)
     }
 
-    /// Get a short-lived auth token with [`Scope::All`] for provisioning.
+    /// Mint a short-lived [`LexeScope::All`] token for provisioning. Fails for
+    /// client credentials, which can't mint `All`-scoped tokens.
+    //
+    // Uncached one-shot mint (cf. `request_long_lived_connect_token`): `All` is
+    // our most powerful scope, so we keep it short-lived rather than caching a
+    // default-lifetime token in the authenticator.
     pub async fn request_provision_token(
         &self,
     ) -> anyhow::Result<BearerAuthToken> {
-        let user_key_pair = self
-            .inner
-            .authenticator
-            .user_key_pair()
-            .context("Somehow using a static bearer auth token")?;
+        let user_key_pair = self.inner.authenticator.user_key_pair().context(
+            "Can't mint a provision token from static client credentials; \
+             authenticate with root seed credentials instead.",
+        )?;
 
         let now = SystemTime::now();
         let lifetime_secs = 60; // 1 minute
-        let scope = Some(Scope::All);
-        let token = lexe_api::auth::do_bearer_auth(
+        let token = lexe_api::auth::helpers::do_bearer_auth(
             &self.inner.gateway_client,
             now,
             user_key_pair,
             lifetime_secs,
-            scope,
+            LexeScope::All,
         )
         .await
-        .context("Failed to get app token")?;
+        .context("Failed to get provision token")?;
 
         Ok(token.token)
     }
@@ -525,8 +531,11 @@ impl AppNodeProvisionApi for NodeClient {
         let provision_dns = node_provision_dns(&mr_short);
         let provision_url = format!("https://{provision_dns}");
 
-        // Create rest client on the fly
-        let auth_token = self.get_auth_token(now).await?.token;
+        // Create rest client on the fly.
+        let auth_token = self
+            .get_auth_token(now, LexeScope::GatewayProxy)
+            .await?
+            .token;
         let provision_rest = self
             .provision_rest_client(&provision_url, auth_token, measurement)
             .context("Failed to build provision rest client")
@@ -959,7 +968,7 @@ impl RunRestClient {
     /// Returns `true` if we should refresh the token (i.e., it's expired or
     /// about to expire).
     fn token_needs_refresh(&self, now: SystemTime) -> bool {
-        auth::token_needs_refresh(now, self.token_expiration)
+        auth::helpers::token_needs_refresh(now, self.token_expiration)
     }
 }
 

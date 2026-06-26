@@ -13,7 +13,7 @@ use lexe_api::{
     error::BackendErrorKind,
     vfs::{VfsFile, VfsFileId},
 };
-use lexe_common::constants::IMPORTANT_PERSIST_RETRIES;
+use lexe_common::{api::auth::LexeScope, constants::IMPORTANT_PERSIST_RETRIES};
 use lexe_crypto::aes::AesMasterKey;
 use lexe_ln::persister;
 use lexe_std::backoff;
@@ -32,7 +32,7 @@ pub(super) async fn read(
 ) -> anyhow::Result<Option<Secret<Vec<u8>>>> {
     let read_from_lexe = async {
         let token = authenticator
-            .get_token(backend_api, SystemTime::now())
+            .get_token(backend_api, SystemTime::now(), LexeScope::All)
             .await
             .context("Could not get token")?;
         backend_api
@@ -131,7 +131,7 @@ pub(super) async fn upsert(
     };
     let lexe_upsert_future = async {
         let token = authenticator
-            .get_token(backend_api, SystemTime::now())
+            .get_token(backend_api, SystemTime::now(), LexeScope::All)
             .await
             .context("Could not get token")?;
         backend_api
@@ -175,7 +175,7 @@ pub(super) async fn delete(
     };
     let delete_from_lexe = async {
         let token = authenticator
-            .get_token(backend_api, SystemTime::now())
+            .get_token(backend_api, SystemTime::now(), LexeScope::All)
             .await
             .context("Could not get token")?;
         backend_api

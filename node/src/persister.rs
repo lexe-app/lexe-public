@@ -67,7 +67,7 @@ use lexe_api::{
 };
 use lexe_common::{
     api::{
-        auth::BearerAuthToken,
+        auth::{BearerAuthToken, LexeScope},
         user::{Scid, Scids},
     },
     constants,
@@ -150,7 +150,7 @@ pub(crate) async fn persist_file(
     file: &VfsFile,
 ) -> anyhow::Result<()> {
     let token = authenticator
-        .get_token(backend_api, SystemTime::now())
+        .get_token(backend_api, SystemTime::now(), LexeScope::All)
         .await
         .context("Could not get auth token")?;
 
@@ -184,7 +184,7 @@ pub(crate) async fn read_gdrive_credentials(
     let file_id =
         VfsFileId::new(SINGLETON_DIRECTORY, GDRIVE_CREDENTIALS_FILENAME);
     let token = authenticator
-        .get_token(backend_api, SystemTime::now())
+        .get_token(backend_api, SystemTime::now(), LexeScope::All)
         .await
         .context("Could not get auth token")?;
 
@@ -216,7 +216,7 @@ pub(crate) async fn persist_gvfs_root(
         persister::encrypt_json(rng, vfs_master_key, file_id, &gvfs_root);
 
     let token = authenticator
-        .get_token(backend_api, SystemTime::now())
+        .get_token(backend_api, SystemTime::now(), LexeScope::All)
         .await
         .context("Could not get auth token")?;
 
@@ -235,7 +235,7 @@ pub(crate) async fn read_gvfs_root(
 ) -> anyhow::Result<Option<GvfsRoot>> {
     let file_id = VfsFileId::new(SINGLETON_DIRECTORY, GVFS_ROOT_FILENAME);
     let token = authenticator
-        .get_token(backend_api, SystemTime::now())
+        .get_token(backend_api, SystemTime::now(), LexeScope::All)
         .await
         .context("Could not get auth token")?;
 
@@ -301,7 +301,7 @@ pub(crate) async fn read_approved_versions(
 ) -> anyhow::Result<Option<ApprovedVersions>> {
     let file_id = VfsFileId::new(SINGLETON_DIRECTORY, "approved_versions");
     let token = authenticator
-        .get_token(backend_api, SystemTime::now())
+        .get_token(backend_api, SystemTime::now(), LexeScope::All)
         .await
         .context("Could not get auth token")?;
 
@@ -344,7 +344,7 @@ pub(crate) async fn persist_approved_versions(
     );
 
     let token = authenticator
-        .get_token(backend_api, SystemTime::now())
+        .get_token(backend_api, SystemTime::now(), LexeScope::All)
         .await
         .context("Could not get auth token")?;
 
@@ -385,7 +385,7 @@ impl NodePersister {
         &self,
     ) -> Result<BearerAuthToken, BackendApiError> {
         self.authenticator
-            .get_token(&*self.backend_api, SystemTime::now())
+            .get_token(&*self.backend_api, SystemTime::now(), LexeScope::All)
             .await
     }
 

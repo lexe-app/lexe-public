@@ -68,7 +68,7 @@ use lexe_api_core::{
     axum_helpers,
     error::{CommonApiError, CommonErrorKind},
 };
-use lexe_common::api::auth::{self, Scope};
+use lexe_common::api::auth::{self, LexeScope};
 use lexe_crypto::ed25519;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{Serialize, de::DeserializeOwned};
@@ -678,8 +678,8 @@ impl LxRejection {
     }
 
     pub fn scope_unauthorized(
-        granted_scope: &Scope,
-        requested_scope: &Scope,
+        granted_scope: &LexeScope,
+        requested_scope: &LexeScope,
     ) -> Self {
         Self {
             kind: LxRejectionKind::Unauthorized,

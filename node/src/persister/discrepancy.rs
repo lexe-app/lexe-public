@@ -14,7 +14,7 @@ use lexe_api::{
     def::NodeBackendApi,
     vfs::{VfsFile, VfsFileId},
 };
-use lexe_common::{Secret, debug_panic_release_log};
+use lexe_common::{Secret, api::auth::LexeScope, debug_panic_release_log};
 use lexe_crypto::aes::AesMasterKey;
 use lexe_ln::persister;
 use tracing::{error, warn};
@@ -80,7 +80,7 @@ pub(super) async fn evaluate_and_resolve(
             warn!("Google-Lexe file mismatch: {file_id}");
 
             let token = authenticator
-                .get_token(backend_api, SystemTime::now())
+                .get_token(backend_api, SystemTime::now(), LexeScope::All)
                 .await
                 .context("Could not get auth token")?;
             let correct_file = maybe_google_file.expect("google_bytes is Some");
@@ -106,7 +106,7 @@ pub(super) async fn evaluate_and_resolve(
             error!("File found in GDrive but not in Lexe's DB: {file_id}");
 
             let token = authenticator
-                .get_token(backend_api, SystemTime::now())
+                .get_token(backend_api, SystemTime::now(), LexeScope::All)
                 .await
                 .context("Could not get auth token")?;
             let correct_file = maybe_google_file.expect("google_bytes is Some");

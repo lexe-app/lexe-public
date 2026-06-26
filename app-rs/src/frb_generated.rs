@@ -1618,7 +1618,7 @@ impl SseDecode for crate::ffi::api::CreateClientRequest {
     ) -> Self {
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_scope =
-            <crate::ffi::types::Scope>::sse_decode(deserializer);
+            <crate::ffi::types::LexeScope>::sse_decode(deserializer);
         return crate::ffi::api::CreateClientRequest {
             label: var_label,
             scope: var_scope,
@@ -1913,6 +1913,20 @@ impl SseDecode for crate::ffi::types::Invoice {
             expires_at: var_expiresAt,
             amount_sats: var_amountSats,
             payee_pubkey: var_payeePubkey,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::LexeScope {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ffi::types::LexeScope::All,
+            1 => crate::ffi::types::LexeScope::GatewayProxy,
+            _ => unreachable!("Invalid variant for LexeScope: {}", inner),
         };
     }
 }
@@ -2972,7 +2986,7 @@ impl SseDecode for crate::ffi::types::RevocableClient {
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_scope =
-            <crate::ffi::types::Scope>::sse_decode(deserializer);
+            <crate::ffi::types::LexeScope>::sse_decode(deserializer);
         return crate::ffi::types::RevocableClient {
             pubkey: var_pubkey,
             created_at: var_createdAt,
@@ -2990,20 +3004,6 @@ impl SseDecode for crate::ffi::types::RootSeed {
         let mut var_sdk =
             <RustOpaqueNom<SdkRootSeed>>::sse_decode(deserializer);
         return crate::ffi::types::RootSeed { sdk: var_sdk };
-    }
-}
-
-impl SseDecode for crate::ffi::types::Scope {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::ffi::types::Scope::All,
-            1 => crate::ffi::types::Scope::NodeConnect,
-            _ => unreachable!("Invalid variant for Scope: {}", inner),
-        };
     }
 }
 
@@ -3970,6 +3970,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Invoice>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LexeScope {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::All => 0.into_dart(),
+            Self::GatewayProxy => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LexeScope
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LexeScope>
+    for crate::ffi::types::LexeScope
+{
+    fn into_into_dart(self) -> crate::ffi::types::LexeScope {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::ListChannelsResponse {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.channels.into_into_dart().into_dart()].into_dart()
@@ -4798,27 +4819,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::RootSeed>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::types::Scope {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::All => 0.into_dart(),
-            Self::NodeConnect => 1.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::types::Scope
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Scope>
-    for crate::ffi::types::Scope
-{
-    fn into_into_dart(self) -> crate::ffi::types::Scope {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::secret_store::SecretStore {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.inner.into_into_dart().into_dart()].into_dart()
@@ -5330,7 +5330,7 @@ impl SseEncode for crate::ffi::api::CreateClientRequest {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <Option<String>>::sse_encode(self.label, serializer);
-        <crate::ffi::types::Scope>::sse_encode(self.scope, serializer);
+        <crate::ffi::types::LexeScope>::sse_encode(self.scope, serializer);
     }
 }
 
@@ -5587,6 +5587,25 @@ impl SseEncode for crate::ffi::types::Invoice {
         <i64>::sse_encode(self.expires_at, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <String>::sse_encode(self.payee_pubkey, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::types::LexeScope {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(
+            match self {
+                crate::ffi::types::LexeScope::All => 0,
+                crate::ffi::types::LexeScope::GatewayProxy => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -6487,7 +6506,7 @@ impl SseEncode for crate::ffi::types::RevocableClient {
         <String>::sse_encode(self.pubkey, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
-        <crate::ffi::types::Scope>::sse_encode(self.scope, serializer);
+        <crate::ffi::types::LexeScope>::sse_encode(self.scope, serializer);
     }
 }
 
@@ -6498,25 +6517,6 @@ impl SseEncode for crate::ffi::types::RootSeed {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <RustOpaqueNom<SdkRootSeed>>::sse_encode(self.sdk, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::types::Scope {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <i32>::sse_encode(
-            match self {
-                crate::ffi::types::Scope::All => 0,
-                crate::ffi::types::Scope::NodeConnect => 1,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
     }
 }
 

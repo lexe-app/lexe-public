@@ -170,6 +170,8 @@ sealed class Invoice with _$Invoice {
   }) = _Invoice;
 }
 
+enum LexeScope { all, gatewayProxy }
+
 class LnurlPayRequest {
   final String callback;
   final int minSendableMsat;
@@ -460,7 +462,7 @@ class RevocableClient {
   final String pubkey;
   final int createdAt;
   final String? label;
-  final Scope scope;
+  final LexeScope scope;
 
   const RevocableClient({
     required this.pubkey,
@@ -520,8 +522,6 @@ class RootSeed {
       identical(this, other) ||
       other is RootSeed && runtimeType == other.runtimeType && sdk == other.sdk;
 }
-
-enum Scope { all, nodeConnect }
 
 /// Just the info we need to display an entry in the payments list UI.
 ///

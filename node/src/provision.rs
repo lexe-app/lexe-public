@@ -29,8 +29,11 @@ use lexe_api::{
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
-    api::provision::NodeProvisionRequest, constants, env::DeployEnv,
-    ln::network::Network, net,
+    api::{auth::LexeScope, provision::NodeProvisionRequest},
+    constants,
+    env::DeployEnv,
+    ln::network::Network,
+    net,
 };
 use lexe_crypto::rng::{Crng, SysRng};
 use lexe_enclave::enclave;
@@ -261,11 +264,13 @@ mod handlers {
         // valid Lexe user before taxing our gDrive API quotas.
         let user_key_pair = req.root_seed.derive_user_key_pair();
         let user_pk = UserPk::new(user_key_pair.public_key().to_array());
-        let maybe_token = None;
-        let authenticator =
-            BearerAuthenticator::new(user_key_pair, maybe_token);
+        let authenticator = BearerAuthenticator::new(user_key_pair);
         let token = authenticator
-            .get_token(state.backend_api.as_ref(), SystemTime::now())
+            .get_token(
+                state.backend_api.as_ref(),
+                SystemTime::now(),
+                LexeScope::All,
+            )
             .await
             .context("Node unable to authenticate")
             .map_err(NodeApiError::bad_auth)?;
@@ -432,7 +437,7 @@ mod helpers {
         // Ok to delete serially bc usually there's only 1
         for (revoked_version, revoked_measurement) in revoked {
             let token = authenticator
-                .get_token(backend_api, SystemTime::now())
+                .get_token(backend_api, SystemTime::now(), LexeScope::All)
                 .await
                 .context("Node unable to authenticate")
                 .map_err(NodeApiError::bad_auth)?;

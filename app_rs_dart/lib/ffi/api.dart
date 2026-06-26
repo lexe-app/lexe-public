@@ -43,7 +43,7 @@ sealed class CloseChannelRequest with _$CloseChannelRequest {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class CreateClientRequest with _$CreateClientRequest {
-  const factory CreateClientRequest({String? label, required Scope scope}) =
+  const factory CreateClientRequest({String? label, required LexeScope scope}) =
       _CreateClientRequest;
 }
 

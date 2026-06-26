@@ -138,7 +138,7 @@ String toString() {
 /// @nodoc
 mixin _$CreateClientRequest {
 
- String? get label; Scope get scope;
+ String? get label; LexeScope get scope;
 
 
 
@@ -171,7 +171,7 @@ class _CreateClientRequest implements CreateClientRequest {
   
 
 @override final  String? label;
-@override final  Scope scope;
+@override final  LexeScope scope;
 
 
 

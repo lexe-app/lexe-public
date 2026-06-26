@@ -49,7 +49,7 @@ use lexe_api::{
 };
 use lexe_common::{
     api::{
-        auth::Scope as ScopeRs,
+        auth::LexeScope as ScopeRs,
         fiat_rates::FiatRates as FiatRatesRs,
         revocable_clients::{
             CreateRevocableClientRequest as CreateRevocableClientRequestRs,
@@ -64,9 +64,9 @@ use lexe_common::{
 use lexe_crypto::ed25519;
 
 use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
-    LxChannelDetails, Offer, PaymentCreatedIndex, RevocableClient, Scope,
-    UserChannelId, Username,
+    ClientPaymentId, ConfirmationPriority, Invoice, LexeScope,
+    LnurlWithdrawRequest, LxChannelDetails, Offer, PaymentCreatedIndex,
+    RevocableClient, UserChannelId, Username,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -741,7 +741,7 @@ impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRs {
 #[derive(Clone)]
 pub struct CreateClientRequest {
     pub label: Option<String>,
-    pub scope: Scope,
+    pub scope: LexeScope,
 }
 
 impl From<CreateClientRequest> for CreateRevocableClientRequestRs {

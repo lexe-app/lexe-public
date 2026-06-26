@@ -3726,7 +3726,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return CreateClientRequest(
       label: dco_decode_opt_String(arr[0]),
-      scope: dco_decode_scope(arr[1]),
+      scope: dco_decode_lexe_scope(arr[1]),
     );
   }
 
@@ -3946,6 +3946,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
       payeePubkey: dco_decode_String(arr[5]),
     );
+  }
+
+  @protected
+  LexeScope dco_decode_lexe_scope(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LexeScope.values[raw as int];
   }
 
   @protected
@@ -4609,7 +4615,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       pubkey: dco_decode_String(arr[0]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[1]),
       label: dco_decode_opt_String(arr[2]),
-      scope: dco_decode_scope(arr[3]),
+      scope: dco_decode_lexe_scope(arr[3]),
     );
   }
 
@@ -4620,12 +4626,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return RootSeed(sdk: dco_decode_RustOpaque_SdkRootSeed(arr[0]));
-  }
-
-  @protected
-  Scope dco_decode_scope(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return Scope.values[raw as int];
   }
 
   @protected
@@ -5399,7 +5399,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_label = sse_decode_opt_String(deserializer);
-    var var_scope = sse_decode_scope(deserializer);
+    var var_scope = sse_decode_lexe_scope(deserializer);
     return CreateClientRequest(label: var_label, scope: var_scope);
   }
 
@@ -5627,6 +5627,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       amountSats: var_amountSats,
       payeePubkey: var_payeePubkey,
     );
+  }
+
+  @protected
+  LexeScope sse_decode_lexe_scope(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LexeScope.values[inner];
   }
 
   @protected
@@ -6479,7 +6486,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_pubkey = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
-    var var_scope = sse_decode_scope(deserializer);
+    var var_scope = sse_decode_lexe_scope(deserializer);
     return RevocableClient(
       pubkey: var_pubkey,
       createdAt: var_createdAt,
@@ -6493,13 +6500,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_sdk = sse_decode_RustOpaque_SdkRootSeed(deserializer);
     return RootSeed(sdk: var_sdk);
-  }
-
-  @protected
-  Scope sse_decode_scope(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return Scope.values[inner];
   }
 
   @protected
@@ -7313,7 +7313,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_String(self.label, serializer);
-    sse_encode_scope(self.scope, serializer);
+    sse_encode_lexe_scope(self.scope, serializer);
   }
 
   @protected
@@ -7494,6 +7494,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_String(self.payeePubkey, serializer);
+  }
+
+  @protected
+  void sse_encode_lexe_scope(LexeScope self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -8225,19 +8231,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.pubkey, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
     sse_encode_opt_String(self.label, serializer);
-    sse_encode_scope(self.scope, serializer);
+    sse_encode_lexe_scope(self.scope, serializer);
   }
 
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_RustOpaque_SdkRootSeed(self.sdk, serializer);
-  }
-
-  @protected
-  void sse_encode_scope(Scope self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

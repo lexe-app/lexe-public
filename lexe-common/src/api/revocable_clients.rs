@@ -13,7 +13,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::{auth::Scope, user::UserPk},
+    api::{auth::LexeScope, user::UserPk},
     time::TimestampMs,
 };
 
@@ -72,7 +72,7 @@ pub struct RevocableClient {
     pub label: Option<String>,
     /// The authorization scopes allowed for this client.
     // TODO(max): This scope is currently ineffective.
-    pub scope: Scope,
+    pub scope: LexeScope,
     /// Whether this client has been revoked. Revocation is permanent.
     pub is_revoked: bool,
     // TODO(phlip9): add "pausing" a client's access temporarily?
@@ -118,7 +118,7 @@ pub struct CreateRevocableClientRequest {
     /// Optional user-provided label for this client.
     pub label: Option<String>,
     /// The authorization scopes allowed for this client.
-    pub scope: Scope,
+    pub scope: LexeScope,
 }
 
 /// The response to [`CreateRevocableClientRequest`].
@@ -176,7 +176,7 @@ pub struct UpdateClientRequest {
 
     /// Set the authorization scopes allowed for this client.
     #[serde(skip_serializing_if = "none")]
-    pub scope: Option<Scope>,
+    pub scope: Option<LexeScope>,
 
     /// Set this to revoke or unrevoke the client. Revocation is permanent, so
     /// you cannot unrevoke a client once it is revoked.
@@ -279,7 +279,7 @@ mod test {
             created_at: TimestampMs::from_secs_u32(69),
             expires_at: Some(TimestampMs::from_secs_u32(420)),
             label: Some("deez".to_string()),
-            scope: Scope::All,
+            scope: LexeScope::All,
             is_revoked: false,
         };
         let client_json = serde_json::to_string_pretty(&client1).unwrap();

@@ -34,7 +34,7 @@ use lexe_api::{
 use lexe_common::{
     ByteArray,
     api::{
-        auth::Scope as ScopeRs,
+        auth::LexeScope as ScopeRs,
         revocable_clients::RevocableClient as RevocableClientRs,
     },
     env::DeployEnv as DeployEnvRs,
@@ -936,25 +936,25 @@ impl From<LxChannelDetailsRs> for LxChannelDetails {
 }
 
 #[derive(Clone)]
-pub enum Scope {
+pub enum LexeScope {
     All,
-    NodeConnect,
+    GatewayProxy,
 }
 
-impl From<Scope> for ScopeRs {
-    fn from(value: Scope) -> Self {
+impl From<LexeScope> for ScopeRs {
+    fn from(value: LexeScope) -> Self {
         match value {
-            Scope::All => Self::All,
-            Scope::NodeConnect => Self::NodeConnect,
+            LexeScope::All => Self::All,
+            LexeScope::GatewayProxy => Self::GatewayProxy,
         }
     }
 }
 
-impl From<ScopeRs> for Scope {
+impl From<ScopeRs> for LexeScope {
     fn from(value: ScopeRs) -> Self {
         match value {
             ScopeRs::All => Self::All,
-            ScopeRs::NodeConnect => Self::NodeConnect,
+            ScopeRs::GatewayProxy => Self::GatewayProxy,
         }
     }
 }
@@ -963,7 +963,7 @@ pub struct RevocableClient {
     pub pubkey: String,
     pub created_at: i64,
     pub label: Option<String>,
-    pub scope: Scope,
+    pub scope: LexeScope,
 }
 
 impl From<RevocableClientRs> for RevocableClient {
@@ -972,7 +972,7 @@ impl From<RevocableClientRs> for RevocableClient {
             pubkey: value.pubkey.to_string(),
             created_at: value.created_at.to_i64(),
             label: value.label,
-            scope: Scope::from(value.scope),
+            scope: LexeScope::from(value.scope),
         }
     }
 }

@@ -370,6 +370,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice dco_decode_invoice(dynamic raw);
 
   @protected
+  LexeScope dco_decode_lexe_scope(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -583,9 +586,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed dco_decode_root_seed(dynamic raw);
-
-  @protected
-  Scope dco_decode_scope(dynamic raw);
 
   @protected
   SecretStore dco_decode_secret_store(dynamic raw);
@@ -1020,6 +1020,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice sse_decode_invoice(SseDeserializer deserializer);
 
   @protected
+  LexeScope sse_decode_lexe_scope(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -1273,9 +1276,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed sse_decode_root_seed(SseDeserializer deserializer);
-
-  @protected
-  Scope sse_decode_scope(SseDeserializer deserializer);
 
   @protected
   SecretStore sse_decode_secret_store(SseDeserializer deserializer);
@@ -1793,6 +1793,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_invoice(Invoice self, SseSerializer serializer);
 
   @protected
+  void sse_encode_lexe_scope(LexeScope self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -2113,9 +2116,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_scope(Scope self, SseSerializer serializer);
 
   @protected
   void sse_encode_secret_store(SecretStore self, SseSerializer serializer);

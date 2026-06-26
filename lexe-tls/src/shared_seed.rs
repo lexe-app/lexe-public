@@ -520,7 +520,7 @@ mod test {
 
     use certs::RevocableClientCert;
     use lexe_common::{
-        api::{auth::Scope, revocable_clients::RevocableClient},
+        api::{auth::LexeScope, revocable_clients::RevocableClient},
         env::DeployEnv,
         root_seed::RootSeed,
         time::TimestampMs,
@@ -679,7 +679,7 @@ mod test {
             created_at: TimestampMs::from_secs_u32(420),
             expires_at: expiration,
             label: Some("hullo".to_owned()),
-            scope: Scope::All,
+            scope: LexeScope::All,
             is_revoked,
         };
         let rev_client_certs = {
