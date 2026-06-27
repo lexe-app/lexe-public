@@ -769,8 +769,9 @@ pub struct ActiveHumanBitcoinAddress {
     /// The active HBA itself.
     pub hba: HumanBitcoinAddress,
     /// Whether the user can currently claim a *different* custom username.
-    /// `true` when the user has never claimed a custom HBA, is within the 24h
-    /// grace period, or is past the 90-day freeze; `false` while frozen.
+    /// `true` when the user has no active custom HBA (never claimed one, or
+    /// theirs has lapsed), is within the 24h grace period, or is past the
+    /// 90-day freeze; `false` while frozen with an active custom HBA.
     pub updatable: bool,
 }
 
