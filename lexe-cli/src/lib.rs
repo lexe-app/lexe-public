@@ -1,7 +1,10 @@
 //! `lexe-cli` wraps the Lexe Rust SDK (`lexe` crate) and exposes its methods
 //! via a command-line interface.
 
-use std::{borrow::Cow, path::PathBuf, str::FromStr, time::Duration};
+use std::{
+    borrow::Cow, collections::BTreeSet, path::PathBuf, str::FromStr,
+    time::Duration,
+};
 
 use anyhow::{Context, anyhow, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -9,7 +12,8 @@ use lexe::{
     config::{Network, WalletEnvConfig},
     types::{
         auth::{
-            ClientCredentials, Credentials, CredentialsRef, RootSeed, UserPk,
+            ClientCredentials, Credentials, CredentialsRef, RootSeed, Scope,
+            UserPk,
         },
         bitcoin::{
             Amount, ChannelId, ClaimMethod, Invoice, Offer, PaymentMethod,
@@ -145,6 +149,55 @@ impl From<ClapNetwork> for Network {
             ClapNetwork::Mainnet => Network::Mainnet,
             ClapNetwork::Testnet3 => Network::Testnet3,
             ClapNetwork::Regtest => Network::Regtest,
+        }
+    }
+}
+
+/// Scope enum for clap's ValueEnum derive.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+#[value(rename_all = "snake_case")]
+pub enum ClapScope {
+    /// Read basic node info: identity, balance, channels
+    ReadInfo,
+    /// Read all payments
+    ReadPayments,
+    /// Read everything; cannot spend funds
+    Read,
+    /// Create invoices, offers, and addresses; resync
+    Receive,
+    /// Open and close channels
+    ManageChannels,
+    /// Pay invoices, offers, and on-chain addresses
+    Spend,
+    /// Full admin access: every permission
+    Full,
+}
+
+impl ClapScope {
+    /// The scope's canonical name, matching its JSON serialization.
+    fn as_str(self) -> &'static str {
+        match self {
+            ClapScope::ReadInfo => "read_info",
+            ClapScope::ReadPayments => "read_payments",
+            ClapScope::Read => "read",
+            ClapScope::Receive => "receive",
+            ClapScope::ManageChannels => "manage_channels",
+            ClapScope::Spend => "spend",
+            ClapScope::Full => "full",
+        }
+    }
+}
+
+impl From<ClapScope> for Scope {
+    fn from(s: ClapScope) -> Self {
+        match s {
+            ClapScope::ReadInfo => Scope::ReadInfo,
+            ClapScope::ReadPayments => Scope::ReadPayments,
+            ClapScope::Read => Scope::Read,
+            ClapScope::Receive => Scope::Receive,
+            ClapScope::ManageChannels => Scope::ManageChannels,
+            ClapScope::Spend => Scope::Spend,
+            ClapScope::Full => Scope::Full,
         }
     }
 }
@@ -2097,8 +2150,12 @@ impl CloseChannelArgs {
     about = "List the clients authorized to control this node",
     long_about = "List the clients authorized to control this node.\n\
         \n\
-        Returns each client's public key, creation time, expiration (if any),\n\
-        and label (if any). Revoked and expired clients are not included.",
+        Returns each client's public key, creation time, expiration, label,\n\
+        scopes, explicit permissions, and effective permissions.\n\
+        Revoked and expired clients are not included.\n\
+        \n\
+        Unstable: permission ids are not part of the stable API and may be renamed.\n\
+        Avoid matching on specific ids; prefer scopes instead.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct ListClientsArgs {
@@ -2147,16 +2204,15 @@ impl ListClientsArgs {
     about = "Create a new client authorized to control this node",
     long_about = "Create a new client and its associated client credentials.\n\
         \n\
-        The returned credentials grant control of this node without exposing\n\
-        the root seed, and can be revoked at any time with `lexe \
-        revoke-client`.\n\
+        The returned credentials grant the node access selected via --scope\n\
+        and --permission, without exposing the root seed, and can be revoked\n\
+        at any time with `lexe revoke-client`.\n\
+        \n\
+        At least one --scope or --permission must be granted (see the --scope\n\
+        possible values); pass either option multiple times to grant several.\n\
         \n\
         An expiration must be chosen explicitly: pass --expiration-days and/or\n\
-        --expiration-secs to set one, or --never-expires to opt out.\n\
-        \n\
-        WARNING: Anyone with these credentials can control this node's funds.\n\
-        Store them somewhere safe.",
-        // TODO(nicole): edit the above warning when credential scopes are added
+        --expiration-secs to set one, or --never-expires to opt out.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct CreateClientArgs {
@@ -2165,6 +2221,22 @@ pub struct CreateClientArgs {
         help = "Label for the client. Maximum length: 64 UTF-8 bytes."
     )]
     label: Option<String>,
+
+    #[arg(
+        long = "scope",
+        value_enum,
+        help = "Permission scope to grant. Pass multiple times to\n\
+        grant multiple."
+    )]
+    scopes: Vec<ClapScope>,
+
+    #[arg(
+        long = "permission",
+        help = "Explicit permission id to grant.\nPass multiple times to grant \
+        multiple.\n\nUnstable: permission ids are not part of the stable API and may be\n\
+        renamed. Avoid matching on specific ids; prefer --scope instead."
+    )]
+    permissions: Vec<String>,
 
     /// Create a credential that never expires. Use carefully!
     #[arg(long, conflicts_with_all = ["expiration_days", "expiration_secs"])]
@@ -2208,9 +2280,24 @@ impl CreateClientArgs {
                 Some(e) => Some(e),
             }
         };
+        let scopes = self
+            .scopes
+            .iter()
+            .copied()
+            .map(Scope::from)
+            .collect::<BTreeSet<_>>();
+        let scope_names = self
+            .scopes
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<BTreeSet<_>>();
+        let permissions = self.permissions.into_iter().collect::<BTreeSet<_>>();
+
         let req = CreateClientRequest {
             expires_at,
             label: self.label.clone(),
+            scopes,
+            permissions: permissions.iter().cloned().collect(),
         };
         let resp = wallet
             .create_client(req)
@@ -2226,8 +2313,11 @@ impl CreateClientArgs {
                 "client_pk": resp.client_pk,
                 "client_credentials": credentials,
                 "created_at": resp.created_at,
+                "effective_permissions": resp.effective_permissions,
                 "expires_at": expires_at,
                 "label": self.label,
+                "scopes": scope_names,
+                "permissions": permissions,
             });
             return helpers::print_json_pretty(&json);
         }
@@ -2237,18 +2327,15 @@ impl CreateClientArgs {
             created_at: resp.created_at,
             expires_at,
             label: self.label,
+            scopes: scope_names.iter().map(ToString::to_string).collect(),
+            permissions: permissions.into_iter().collect(),
+            effective_permissions: resp.effective_permissions,
         };
 
         // Human-readable response
         println!("\nClient credentials:");
         // Don't wrap this to keep it copy/paste-able
         println!("{credentials}");
-
-        // TODO(nicole): edit when credential scopes are added
-        println!(
-            "\nWARNING: Anyone with these credentials can control this node's \
-             funds. Store them somewhere safe.\n"
-        );
 
         helpers::print_client_info(&client_info)
     }
@@ -2258,10 +2345,13 @@ impl CreateClientArgs {
 
 #[derive(Parser)]
 #[command(
-    about = "Update a client's label or expiration",
-    long_about = "Update the label or expiration of an existing client.\n\
+    about = "Update a client's label, expiration, scopes, or permissions",
+    long_about = "Update an existing client.\n\
         \n\
-        Only the provided fields are changed; omitted fields are left as-is.",
+        Omitted label and expiration fields are left as-is. If --scope or\n\
+        --permission is provided, together they replace the client's complete\n\
+        grant; an omitted set is treated as empty. The resulting grant must\n\
+        contain at least one scope or permission.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct UpdateClientArgs {
@@ -2297,6 +2387,22 @@ pub struct UpdateClientArgs {
     )]
     expiration_secs: Option<u32>,
 
+    #[arg(
+        long = "scope",
+        value_enum,
+        help = "Replacement permission scope. Pass multiple times to grant\n\
+        multiple."
+    )]
+    scopes: Option<Vec<ClapScope>>,
+
+    #[arg(
+        long = "permission",
+        help = "Replacement explicit permission id.\nPass multiple times to \
+        grant multiple.\n\nUnstable: permission ids are not part of the stable API and may be\n\
+        renamed. Avoid matching on specific ids; prefer --scope instead."
+    )]
+    permissions: Option<Vec<String>>,
+
     /// Display output as JSON
     #[arg(long)]
     json: bool,
@@ -2308,12 +2414,18 @@ impl UpdateClientArgs {
             self.expiration_days,
             self.expiration_secs,
         );
+        let scopes = self.scopes.map(|scopes| {
+            scopes.into_iter().map(Scope::from).collect::<BTreeSet<_>>()
+        });
+        let permissions = self.permissions.map(BTreeSet::from_iter);
         let req = UpdateClientRequest::new(
             self.client_pk,
             self.label,
             self.clear_label,
             expires_at,
             self.clear_expiration,
+            scopes,
+            permissions,
         )?;
         let resp = wallet
             .update_client(req)
@@ -2528,6 +2640,15 @@ mod helpers {
 
         if let Some(label) = &client.label {
             println!("    - label: {label}");
+        }
+
+        println!("    - scopes: {}", client.scopes.join(", "));
+        println!("    - permissions: {}", client.permissions.join(", "));
+        if !client.effective_permissions.is_empty() {
+            println!(
+                "    - effective_permissions: {}",
+                client.effective_permissions.join(", "),
+            );
         }
 
         Ok(())

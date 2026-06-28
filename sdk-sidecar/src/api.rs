@@ -3,12 +3,12 @@
 //! API types which we may reasonably expect our other SDKs to use should go in
 //! [`lexe::types`].
 
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::BTreeSet};
 
 use anyhow::ensure;
 use lexe::{
     types::{
-        auth::UserPk,
+        auth::{Scope, UserPk},
         bitcoin::Amount,
         command::{
             PayLnurlRequest as SdkPayLnurlRequest,
@@ -250,8 +250,9 @@ pub struct WaitForNextPaymentRequest {
 /// set/clear flags in place of its `Option<Option<_>>` fields, which JSON
 /// cannot easily express.
 ///
-/// Every field except `client_pk` is optional; omit a field to leave that
-/// property unchanged.
+/// Every field except `client_pk` is optional. Omitted label and expiration
+/// fields are unchanged; `scopes` and `permissions` follow the coupled
+/// replacement semantics documented below.
 #[derive(Serialize, Deserialize)]
 pub struct UpdateClientRequest {
     /// The public key of the client to update.
@@ -268,4 +269,19 @@ pub struct UpdateClientRequest {
     /// `expires_at`. Use carefully!
     #[serde(default)]
     pub clear_expiration: bool,
+    /// The updated scopes.
+    ///
+    /// If either `scopes` or `permissions` is provided, together they replace
+    /// the complete grant; an omitted set is empty. The resulting grant must
+    /// contain at least one scope or permission.
+    pub scopes: Option<BTreeSet<Scope>>,
+    /// The updated explicit permission ids.
+    ///
+    /// If either `scopes` or `permissions` is provided, together they replace
+    /// the complete grant; an omitted set is empty. The resulting grant must
+    /// contain at least one scope or permission.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    pub permissions: Option<BTreeSet<String>>,
 }

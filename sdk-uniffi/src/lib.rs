@@ -8,7 +8,11 @@
 //! [UniFFI]: https://mozilla.github.io/uniffi-rs/
 
 use std::{
-    collections::HashMap, fmt, path::PathBuf, str::FromStr, sync::Arc,
+    collections::{BTreeSet, HashMap},
+    fmt,
+    path::PathBuf,
+    str::FromStr,
+    sync::Arc,
     time::Duration,
 };
 
@@ -24,7 +28,7 @@ use lexe::{
         auth::{
             ClientCredentials as SdkClientCredentials,
             CredentialsRef as SdkCredentialsRef, RootSeed as SdkRootSeed,
-            UserPk,
+            Scope as SdkScope, UserPk,
         },
         bitcoin::{
             Amount as SdkAmount, ChannelId as SdkChannelId,
@@ -1519,38 +1523,62 @@ impl AsyncLexeWallet {
     /// Create a new client authorized to control this node, returning its
     /// public key and credentials.
     ///
+    /// `scopes` is the set of permission scopes to grant. `permissions` adds
+    /// explicit permission ids beyond those scopes. At least one scope or
+    /// permission is required.
+    ///
     /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
     /// epoch); `None` means the client never expires. Use carefully! `label`
     /// is an optional label of at most 64 UTF-8 bytes.
     ///
-    /// WARNING: Anyone with the returned credentials can control this node's
-    /// funds. Store them somewhere safe.
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     // Explicitly omit default expiration to force opting into no expiration
-    #[uniffi::method(default(label = None))]
+    #[uniffi::method(default(label = None, permissions = None))]
     pub async fn create_client(
         &self,
+        scopes: Vec<Scope>,
         expires_at_ms: Option<u64>,
         label: Option<String>,
+        permissions: Option<Vec<String>>,
     ) -> Result<CreateClientResponse, FfiError> {
+        let scopes = scopes
+            .into_iter()
+            .map(SdkScope::from)
+            .collect::<BTreeSet<_>>();
         let expires_at = expires_at_ms
             .map(TimestampMs::from_millis)
             .transpose()
             .context("expires_at_ms is too large")?;
-        let req = SdkCreateClientRequest { expires_at, label };
+        let req = SdkCreateClientRequest {
+            expires_at,
+            label,
+            scopes,
+            permissions: permissions.unwrap_or_default(),
+        };
         let resp = self.inner.create_client(req).await?;
         Ok(CreateClientResponse::from(resp))
     }
 
-    /// Update a client's label or expiration. Omitted fields are left as-is.
+    /// Update a client's label, expiration, scopes, or permissions.
     ///
     /// Set `clear_label` to remove an existing label (conflicts with `label`).
     /// Set `clear_expiration` to remove an existing expiration (conflicts with
     /// `expires_at_ms`). Use carefully!
+    ///
+    /// If either `scopes` or `permissions` is provided, together they replace
+    /// the client's complete grant; an omitted set is treated as empty. The
+    /// resulting grant must contain at least one scope or permission.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     #[uniffi::method(default(
         label = None,
         clear_label = false,
         expires_at_ms = None,
         clear_expiration = false,
+        scopes = None,
+        permissions = None,
     ))]
     pub async fn update_client(
         &self,
@@ -1559,6 +1587,8 @@ impl AsyncLexeWallet {
         clear_label: bool,
         expires_at_ms: Option<u64>,
         clear_expiration: bool,
+        scopes: Option<Vec<Scope>>,
+        permissions: Option<Vec<String>>,
     ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
@@ -1566,6 +1596,15 @@ impl AsyncLexeWallet {
             .map(TimestampMs::from_millis)
             .transpose()
             .context("expires_at_ms is too large")?;
+        let scopes = scopes.map(|scopes| {
+            scopes
+                .into_iter()
+                .map(SdkScope::from)
+                .collect::<BTreeSet<_>>()
+        });
+        let permissions = permissions.map(|permissions| {
+            permissions.into_iter().collect::<BTreeSet<_>>()
+        });
 
         let req = SdkUpdateClientRequest::new(
             client_pk,
@@ -1573,6 +1612,8 @@ impl AsyncLexeWallet {
             clear_label,
             expires_at,
             clear_expiration,
+            scopes,
+            permissions,
         )?;
         let resp = self.inner.update_client(req).await?;
         Ok(ClientInfo::from(resp.client))
@@ -2412,38 +2453,62 @@ impl BlockingLexeWallet {
     /// Create a new client authorized to control this node, returning its
     /// public key and credentials.
     ///
+    /// `scopes` is the set of permission scopes to grant. `permissions` adds
+    /// explicit permission ids beyond those scopes. At least one scope or
+    /// permission is required.
+    ///
     /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
     /// epoch); `None` means the client never expires. Use carefully! `label`
     /// is an optional label of at most 64 UTF-8 bytes.
     ///
-    /// WARNING: Anyone with the returned credentials can control this node's
-    /// funds. Store them somewhere safe.
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     // Explicitly omit default expiration to force opting into no expiration
-    #[uniffi::method(default(label = None))]
+    #[uniffi::method(default(label = None, permissions = None))]
     pub fn create_client(
         &self,
+        scopes: Vec<Scope>,
         expires_at_ms: Option<u64>,
         label: Option<String>,
+        permissions: Option<Vec<String>>,
     ) -> Result<CreateClientResponse, FfiError> {
+        let scopes = scopes
+            .into_iter()
+            .map(SdkScope::from)
+            .collect::<BTreeSet<_>>();
         let expires_at = expires_at_ms
             .map(TimestampMs::from_millis)
             .transpose()
             .context("expires_at_ms is too large")?;
-        let req = SdkCreateClientRequest { expires_at, label };
+        let req = SdkCreateClientRequest {
+            expires_at,
+            label,
+            scopes,
+            permissions: permissions.unwrap_or_default(),
+        };
         let resp = self.inner.create_client(req)?;
         Ok(CreateClientResponse::from(resp))
     }
 
-    /// Update a client's label or expiration. Omitted fields are left as-is.
+    /// Update a client's label, expiration, scopes, or permissions.
     ///
     /// Set `clear_label` to remove an existing label (conflicts with `label`).
     /// Set `clear_expiration` to remove an existing expiration (conflicts with
     /// `expires_at_ms`). Use carefully!
+    ///
+    /// If either `scopes` or `permissions` is provided, together they replace
+    /// the client's complete grant; an omitted set is treated as empty. The
+    /// resulting grant must contain at least one scope or permission.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     #[uniffi::method(default(
         label = None,
         clear_label = false,
         expires_at_ms = None,
         clear_expiration = false,
+        scopes = None,
+        permissions = None,
     ))]
     pub fn update_client(
         &self,
@@ -2452,6 +2517,8 @@ impl BlockingLexeWallet {
         clear_label: bool,
         expires_at_ms: Option<u64>,
         clear_expiration: bool,
+        scopes: Option<Vec<Scope>>,
+        permissions: Option<Vec<String>>,
     ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
@@ -2459,6 +2526,15 @@ impl BlockingLexeWallet {
             .map(TimestampMs::from_millis)
             .transpose()
             .context("expires_at_ms is too large")?;
+        let scopes = scopes.map(|scopes| {
+            scopes
+                .into_iter()
+                .map(SdkScope::from)
+                .collect::<BTreeSet<_>>()
+        });
+        let permissions = permissions.map(|permissions| {
+            permissions.into_iter().collect::<BTreeSet<_>>()
+        });
 
         let req = SdkUpdateClientRequest::new(
             client_pk,
@@ -2466,6 +2542,8 @@ impl BlockingLexeWallet {
             clear_label,
             expires_at,
             clear_expiration,
+            scopes,
+            permissions,
         )?;
         let resp = self.inner.update_client(req)?;
         Ok(ClientInfo::from(resp.client))
@@ -3560,6 +3638,45 @@ impl From<SdkOpenChannelResponse> for OpenChannelResponse {
 // --- Client credentials --- //
 // ========================== //
 
+/// A named bundle of permissions to grant a client credential.
+#[derive(Clone, uniffi::Enum)]
+pub enum Scope {
+    /// Read basic info: user identity, node version, balance, and channels.
+    ReadInfo,
+    /// Read all payments.
+    ReadPayments,
+    /// Read everything: `ReadInfo` + `ReadPayments`, plus on-chain
+    /// descriptors, Lexe SDK clients, and other miscellaneous data.
+    /// Cannot read any secrets that would allow spending funds.
+    Read,
+    /// Create invoices, offers, and addresses to receive to, and resync the
+    /// node. Cannot determine if invoices or offers were actually paid.
+    Receive,
+    /// Open and close channels.
+    ManageChannels,
+    /// Pay invoices, offers, and on-chain addresses; update payment notes.
+    Spend,
+    /// Full admin access: every permission granted by other scopes, plus
+    /// signing with the identity pubkey, managing and revoking SDK clients,
+    /// reading encrypted files, and updating the user's Human Bitcoin
+    /// Address.
+    Full,
+}
+
+impl From<Scope> for SdkScope {
+    fn from(scope: Scope) -> Self {
+        match scope {
+            Scope::ReadInfo => SdkScope::ReadInfo,
+            Scope::ReadPayments => SdkScope::ReadPayments,
+            Scope::Read => SdkScope::Read,
+            Scope::Receive => SdkScope::Receive,
+            Scope::ManageChannels => SdkScope::ManageChannels,
+            Scope::Spend => SdkScope::Spend,
+            Scope::Full => SdkScope::Full,
+        }
+    }
+}
+
 /// Information about a client authorized to control a Lexe node.
 #[derive(Clone, uniffi::Record)]
 pub struct ClientInfo {
@@ -3572,6 +3689,21 @@ pub struct ClientInfo {
     pub expires_at_ms: Option<u64>,
     /// Optional label for the client.
     pub label: Option<String>,
+    /// The scope aliases granted to this client.
+    pub scopes: Vec<String>,
+    /// Extra permissions granted explicitly, beyond those from `scopes`.
+    /// Each permission grants access to a single API endpoint,
+    /// e.g. `"create_invoice"`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    pub permissions: Vec<String>,
+    /// Every permission this client currently holds: the union of all
+    /// `scopes`' permissions plus the explicit `permissions`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    pub effective_permissions: Vec<String>,
 }
 
 impl From<SdkClientInfo> for ClientInfo {
@@ -3581,6 +3713,9 @@ impl From<SdkClientInfo> for ClientInfo {
             created_at_ms: info.created_at.to_millis(),
             expires_at_ms: info.expires_at.map(|t| t.to_millis()),
             label: info.label,
+            scopes: info.scopes,
+            permissions: info.permissions,
+            effective_permissions: info.effective_permissions,
         }
     }
 }
@@ -3594,6 +3729,11 @@ pub struct CreateClientResponse {
     pub created_at_ms: u64,
     /// The client credentials which authorize control of the node.
     pub client_credentials: Arc<ClientCredentials>,
+    /// Every permission this client currently holds.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    pub effective_permissions: Vec<String>,
 }
 
 impl From<SdkCreateClientResponse> for CreateClientResponse {
@@ -3604,6 +3744,7 @@ impl From<SdkCreateClientResponse> for CreateClientResponse {
             client_credentials: Arc::new(ClientCredentials {
                 sdk: resp.client_credentials,
             }),
+            effective_permissions: resp.effective_permissions,
         }
     }
 }

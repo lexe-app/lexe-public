@@ -790,6 +790,8 @@ mod node {
             req.clear_label,
             req.expires_at,
             req.clear_expiration,
+            req.scopes,
+            req.permissions,
         )
         .map_err(SdkApiError::command)?;
         let resp = wallet

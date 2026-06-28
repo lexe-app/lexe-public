@@ -451,9 +451,9 @@ impl NodeClient {
     pub async fn create_client_credentials(
         &self,
         req: CreateRevocableClientRequest,
-    ) -> anyhow::Result<(RevocableClient, ClientCredentials)> {
+    ) -> anyhow::Result<(RevocableClient, ClientCredentials, Vec<String>)> {
         // Register a new revocable client.
-        let resp = self.create_revocable_client(req.clone()).await?;
+        let mut resp = self.create_revocable_client(req.clone()).await?;
 
         let client = RevocableClient {
             pubkey: resp.pubkey,
@@ -464,9 +464,14 @@ impl NodeClient {
             is_revoked: false,
         };
 
+        let effective_permissions =
+            std::mem::take(&mut resp.effective_permissions)
+                .into_iter()
+                .map(Cow::into_owned)
+                .collect();
         let client_credentials = ClientCredentials::from(resp);
 
-        Ok((client, client_credentials))
+        Ok((client, client_credentials, effective_permissions))
     }
 
     /// Get a [`LexeScope::GatewayProxy`] token for requests to the gateway.

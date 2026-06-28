@@ -1267,17 +1267,17 @@ Example::
 _set_method_doc(LexeWallet, "create_client", """\
 Create a new client authorized to control this node.
 
-The returned credentials grant control of this node without exposing the
-root seed, and can be revoked at any time with :meth:`revoke_client`.
-
-.. warning::
-    Anyone with the returned credentials can control this node's funds.
-    Store them somewhere safe.
+The returned credentials grant the access selected via ``scopes`` and
+``permissions`` without exposing the root seed, and can be revoked at any time
+with :meth:`revoke_client`.
 
 Args:
+    scopes: Permission scopes to grant (e.g. ``[Scope.READ]``). At least one
+        scope or explicit permission is required.
     expires_at_ms: The client's expiration (ms since UNIX epoch), or
         ``None`` for a client that never expires. Use carefully!
     label: An optional label of at most 64 UTF-8 bytes.
+    permissions: Optional explicit permission ids beyond ``scopes``.
 
 Returns:
     A :class:`CreateClientResponse` with the new client's public key and
@@ -1289,14 +1289,21 @@ Raises:
 Example::
 
     # Pass expires_at_ms=None to opt into a never-expiring client.
-    resp = wallet.create_client(expires_at_ms=None, label="my-server")
+    resp = wallet.create_client([Scope.FULL], expires_at_ms=None, label="my-server")
     # Store the credentials somewhere safe; reload later with
     # ClientCredentials.from_string(...).
     creds_str = resp.client_credentials.export_string()
+
+**Unstable**: permission ids are not part of the stable API and may be renamed.
+Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(LexeWallet, "update_client", """\
-Update a client's label or expiration. Omitted fields are left as-is.
+Update a client's label, expiration, scopes, or permissions.
+
+If either ``scopes`` or ``permissions`` is provided, together they replace
+the client's complete grant; an omitted set is treated as empty. The resulting
+grant must contain at least one scope or permission.
 
 Args:
     client_pk: Hex-encoded public key of the client to update.
@@ -1306,6 +1313,10 @@ Args:
         leave it unchanged.
     clear_expiration: Clear the client's expiration, so it never expires.
         Use carefully! Conflicts with ``expires_at_ms``.
+    scopes: Replacement permission scopes, or ``None`` to leave the grant
+        unchanged when ``permissions`` is also ``None``.
+    permissions: Replacement explicit permission ids, or ``None`` to leave
+        the grant unchanged when ``scopes`` is also ``None``.
 
 Returns:
     The updated :class:`ClientInfo`.
@@ -1313,6 +1324,9 @@ Returns:
 Raises:
     FfiError: If ``client_pk`` is malformed, the arguments conflict, or the
         request fails.
+
+**Unstable**: permission ids are not part of the stable API and may be renamed.
+Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(LexeWallet, "revoke_client", """\
@@ -2100,17 +2114,17 @@ Example::
 _set_method_doc(AsyncLexeWallet, "create_client", """\
 Create a new client authorized to control this node.
 
-The returned credentials grant control of this node without exposing the
-root seed, and can be revoked at any time with :meth:`revoke_client`.
-
-.. warning::
-    Anyone with the returned credentials can control this node's funds.
-    Store them somewhere safe.
+The returned credentials grant the access selected via ``scopes`` and
+``permissions`` without exposing the root seed, and can be revoked at any time
+with :meth:`revoke_client`.
 
 Args:
+    scopes: Permission scopes to grant (e.g. ``[Scope.READ]``). At least one
+        scope or explicit permission is required.
     expires_at_ms: The client's expiration (ms since UNIX epoch), or
         ``None`` for a client that never expires. Use carefully!
     label: An optional label of at most 64 UTF-8 bytes.
+    permissions: Optional explicit permission ids beyond ``scopes``.
 
 Returns:
     A :class:`CreateClientResponse` with the new client's public key and
@@ -2122,14 +2136,21 @@ Raises:
 Example::
 
     # Pass expires_at_ms=None to opt into a never-expiring client.
-    resp = await wallet.create_client(expires_at_ms=None, label="my-server")
+    resp = await wallet.create_client([Scope.FULL], expires_at_ms=None, label="my-server")
     # Store the credentials somewhere safe; reload later with
     # ClientCredentials.from_string(...).
     creds_str = resp.client_credentials.export_string()
+
+**Unstable**: permission ids are not part of the stable API and may be renamed.
+Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(AsyncLexeWallet, "update_client", """\
-Update a client's label or expiration. Omitted fields are left as-is.
+Update a client's label, expiration, scopes, or permissions.
+
+If either ``scopes`` or ``permissions`` is provided, together they replace
+the client's complete grant; an omitted set is treated as empty. The resulting
+grant must contain at least one scope or permission.
 
 Args:
     client_pk: Hex-encoded public key of the client to update.
@@ -2139,6 +2160,10 @@ Args:
         leave it unchanged.
     clear_expiration: Clear the client's expiration, so it never expires.
         Use carefully! Conflicts with ``expires_at_ms``.
+    scopes: Replacement permission scopes, or ``None`` to leave the grant
+        unchanged when ``permissions`` is also ``None``.
+    permissions: Replacement explicit permission ids, or ``None`` to leave
+        the grant unchanged when ``scopes`` is also ``None``.
 
 Returns:
     The updated :class:`ClientInfo`.
@@ -2146,6 +2171,9 @@ Returns:
 Raises:
     FfiError: If ``client_pk`` is malformed, the arguments conflict, or the
         request fails.
+
+**Unstable**: permission ids are not part of the stable API and may be renamed.
+Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(AsyncLexeWallet, "revoke_client", """\
@@ -2652,6 +2680,16 @@ Attributes:
     expires_at_ms: Client expiration time (ms since UNIX epoch), or ``None``
         if the client never expires.
     label: Optional label for the client.
+    scopes: The scope aliases granted to this client.
+    permissions: Extra permissions granted explicitly, beyond those from
+        ``scopes``. Each permission grants access to a single API endpoint,
+        e.g. ``"create_invoice"``.
+    effective_permissions: Every permission this client currently holds:
+        the union of all ``scopes``' permissions plus the explicit
+        ``permissions``.
+
+**Unstable**: permission ids are not part of the stable API and may be renamed.
+Avoid matching on specific ids; prefer ``scopes`` instead.
 """
 
 lexe.CreateClientResponse.__doc__ = """\
@@ -2660,9 +2698,12 @@ Response from creating a new client.
 Attributes:
     client_pk: Hex-encoded public key of the created client.
     created_at_ms: Client creation time (ms since UNIX epoch).
-    client_credentials: The :class:`ClientCredentials` granting control
-        of the node. Anyone with the credentials can control the node's funds;
-        store them safely.
+    client_credentials: The :class:`ClientCredentials` granting the
+        selected access to the node.
+    effective_permissions: Every permission the client currently holds.
+
+**Unstable**: permission ids are not part of the stable API and may be renamed.
+Avoid matching on specific ids; prefer ``scopes`` instead.
 """
 
 # ================= #

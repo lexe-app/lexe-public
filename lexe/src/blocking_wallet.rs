@@ -593,9 +593,6 @@ impl BlockingLexeWallet {
     }
 
     /// Create new client credentials for this node.
-    ///
-    /// WARNING: Anyone with the returned credentials can control this node's
-    /// funds. Store them somewhere safe.
     pub fn create_client(
         &self,
         req: CreateClientRequest,
@@ -603,7 +600,11 @@ impl BlockingLexeWallet {
         block_on(self.inner.create_client(req))
     }
 
-    /// Update a client's label or expiration. Omitted fields are left as-is.
+    /// Update a client's label, expiration, scopes, or permissions.
+    ///
+    /// Omitted label and expiration fields are unchanged. If `new_scopes` or
+    /// `new_permissions` is provided, together they replace the client's
+    /// complete grant; an omitted set is treated as empty.
     pub fn update_client(
         &self,
         req: UpdateClientRequest,

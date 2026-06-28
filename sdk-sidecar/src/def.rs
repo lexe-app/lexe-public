@@ -320,10 +320,7 @@ pub trait UserSidecarApi {
     /// POST /v2/node/create_client [`CreateClientRequest`]
     ///                          -> [`CreateClientResponse`]
     ///
-    /// Create new client credentials for this node.
-    ///
-    /// WARNING: Anyone with the returned credentials can control this node's
-    /// funds. Store them somewhere safe.
+    /// Create a new client credential that can authenticate with the node.
     async fn create_client(
         &self,
         req: &CreateClientRequest,
@@ -332,7 +329,9 @@ pub trait UserSidecarApi {
     /// PUT /v2/node/update_client [`UpdateClientRequest`]
     ///                         -> [`ClientInfoResponse`]
     ///
-    /// Update a client's label or expiration. Omitted fields are left as-is.
+    /// Update a client's label, expiration, scopes, or permissions. Omitted
+    /// label and expiration fields are left as-is. If scopes or permissions
+    /// are provided, together they replace the client's complete grant.
     async fn update_client(
         &self,
         req: &UpdateClientRequest,

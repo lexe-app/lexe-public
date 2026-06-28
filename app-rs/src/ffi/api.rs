@@ -1,9 +1,10 @@
 //! API request and response types exposed to Dart.
 
-use std::str::FromStr;
+use std::{collections::BTreeSet, str::FromStr};
 
 use anyhow::{Context, anyhow};
 use lexe::types::{
+    auth::Scope as ScopeRs,
     bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
     command::{
         CreateClientRequest as CreateClientRequestRs,
@@ -758,6 +759,10 @@ impl From<CreateClientRequest> for CreateClientRequestRs {
         Self {
             expires_at: None,
             label: value.label,
+            // TODO(max): Expose scope selection through the FFI instead of
+            // hardcoding `full`, so the app doesn't over-request access.
+            scopes: BTreeSet::from([ScopeRs::Full]),
+            permissions: Vec::new(),
         }
     }
 }

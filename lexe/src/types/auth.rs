@@ -4,9 +4,12 @@ use std::{fmt, io::Write, path::Path, str::FromStr};
 
 use anyhow::Context;
 use bip39::Mnemonic;
-use lexe_api::credentials::{
-    ClientCredentials as UnstableClientCredentials,
-    CredentialsRef as UnstableCredentialsRef,
+use lexe_api::{
+    credentials::{
+        ClientCredentials as UnstableClientCredentials,
+        CredentialsRef as UnstableCredentialsRef,
+    },
+    revocable_clients::scopes,
 };
 use lexe_common::{
     ExposeSecret,
@@ -420,6 +423,87 @@ impl<'de> Deserialize<'de> for ClientCredentials {
 impl fmt::Debug for ClientCredentials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+// --- Scope --- //
+
+/// A named bundle of permissions to grant a [`ClientCredentials`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Scope {
+    /// Read basic info: user identity, node version, balance, and channels.
+    ReadInfo,
+    /// Read all payments.
+    ReadPayments,
+    /// Read everything: `ReadInfo` + `ReadPayments`, plus on-chain
+    /// descriptors, Lexe SDK clients, and other miscellaneous data.
+    /// Cannot read any secrets that would allow spending funds.
+    Read,
+    /// Create invoices, offers, and addresses to receive to, and resync the
+    /// node. Cannot determine if invoices or offers were actually paid.
+    Receive,
+    /// Open and close channels.
+    ManageChannels,
+    /// Pay invoices, offers, and on-chain addresses; update payment notes.
+    Spend,
+    /// Full admin access: every permission granted by other scopes, plus
+    /// signing with the identity pubkey, managing and revoking SDK clients,
+    /// reading encrypted files, and updating the user's Human Bitcoin
+    /// Address.
+    Full,
+}
+
+impl Scope {
+    /// The other scopes this scope fully covers, i.e. its "children".
+    /// Granting a scope implies each child, so granting a child alongside
+    /// its parent is redundant (but harmless).
+    pub fn children(self) -> Vec<Scope> {
+        scopes::Scope::from(self)
+            .children()
+            .iter()
+            .filter_map(|&scope| Self::from_unstable(scope))
+            .collect()
+    }
+
+    /// Scopes recommended to be granted alongside this one, but not implied
+    /// by it: e.g. most `Receive` clients also want the basic reads.
+    pub fn recommended(self) -> Vec<Scope> {
+        scopes::Scope::from(self)
+            .recommended()
+            .iter()
+            .filter_map(|&scope| Self::from_unstable(scope))
+            .collect()
+    }
+
+    /// Convert from the internal scope type.
+    /// `None` for scopes not exposed in the SDK (e.g. LSP-specific scopes).
+    fn from_unstable(scope: scopes::Scope) -> Option<Self> {
+        match scope {
+            scopes::Scope::ReadInfo => Some(Self::ReadInfo),
+            scopes::Scope::ReadPayments => Some(Self::ReadPayments),
+            scopes::Scope::Read => Some(Self::Read),
+            scopes::Scope::Receive => Some(Self::Receive),
+            scopes::Scope::ManageChannels => Some(Self::ManageChannels),
+            scopes::Scope::Spend => Some(Self::Spend),
+            scopes::Scope::LspOps => None,
+            scopes::Scope::Full => Some(Self::Full),
+        }
+    }
+}
+
+impl From<Scope> for scopes::Scope {
+    fn from(scope: Scope) -> Self {
+        match scope {
+            Scope::ReadInfo => Self::ReadInfo,
+            Scope::ReadPayments => Self::ReadPayments,
+            Scope::Read => Self::Read,
+            Scope::Receive => Self::Receive,
+            Scope::ManageChannels => Self::ManageChannels,
+            Scope::Spend => Self::Spend,
+            Scope::Full => Self::Full,
+        }
     }
 }
 

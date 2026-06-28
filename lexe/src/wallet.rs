@@ -2069,32 +2069,52 @@ impl LexeWallet {
     }
 
     /// Create new client credentials for this node.
-    ///
-    /// WARNING: Anyone with the returned credentials can control this node's
-    /// funds. Store them somewhere safe.
     #[instrument(skip_all, name = "(create-client)")]
     pub async fn create_client(
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
         let req =
-            revocable_clients::models::CreateRevocableClientRequest::from(req);
-        let (rev_client, client_creds) =
+            revocable_clients::models::CreateRevocableClientRequest::try_from(
+                req,
+            )?;
+        ensure!(
+            !req.permissions.is_empty(),
+            "Must grant at least one scope or permission"
+        );
+        let (rev_client, client_creds, effective_permissions) =
             self.node_client.create_client_credentials(req).await?;
+
         Ok(CreateClientResponse {
             client_pk: client_creds.client_pk,
             client_credentials: ClientCredentials::from_unstable(client_creds),
             created_at: rev_client.created_at,
+            effective_permissions,
         })
     }
 
-    /// Update a client's label or expiration. Omitted fields are left as-is.
+    /// Update a client's label, expiration, scopes, or permissions.
+    ///
+    /// Omitted label and expiration fields are unchanged. If `new_scopes` or
+    /// `new_permissions` is provided, together they replace the client's
+    /// complete grant; an omitted set is treated as empty.
     #[instrument(skip_all, name = "(update-client)")]
     pub async fn update_client(
         &self,
         req: UpdateClientRequest,
     ) -> anyhow::Result<ClientInfoResponse> {
-        let req = revocable_clients::models::UpdateClientRequest::from(req);
+        if req.new_scopes.is_some() || req.new_permissions.is_some() {
+            ensure!(
+                req.new_scopes.as_ref().is_some_and(|x| !x.is_empty())
+                    || req
+                        .new_permissions
+                        .as_ref()
+                        .is_some_and(|x| !x.is_empty()),
+                "Must grant at least one scope or permission",
+            );
+        }
+        let req =
+            revocable_clients::models::UpdateClientRequest::try_from(req)?;
         let client =
             self.node_client.update_revocable_client(req).await?.client;
         Ok(ClientInfoResponse {

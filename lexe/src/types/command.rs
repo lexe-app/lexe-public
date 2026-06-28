@@ -1,12 +1,15 @@
 //! Lexe SDK API request and response types.
 
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::{BTreeSet, HashMap},
+    time::Duration,
+};
 
 use anyhow::{Context, ensure};
 use lexe_api::{
     models::command,
     revocable_clients,
-    revocable_clients::scopes::{ClientPermissions, Scope},
+    revocable_clients::scopes::{self, ClientPermissions},
     types::{
         bounded_string::BoundedString,
         invoice::Invoice,
@@ -29,7 +32,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        auth::{ClientCredentials, Measurement, NodePk, UserPk},
+        auth::{ClientCredentials, Measurement, NodePk, Scope, UserPk},
         bitcoin::{ChannelId, Offer, OutPoint, PayerProof, UserChannelId},
         payment::Payment,
     },
@@ -926,17 +929,49 @@ pub struct ClientInfo {
     pub expires_at: Option<TimestampMs>,
     /// An optional label for the client.
     pub label: Option<String>,
-    // TODO(nicole): Add the application scope when it's useful
-    // scope: Scope,
+    /// The scope aliases granted to this client.
+    pub scopes: Vec<String>,
+    /// Extra permissions granted explicitly, beyond those from `scopes`.
+    /// Each permission grants access to a single API endpoint,
+    /// e.g. `"create_invoice"`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<String>,
+    /// Every permission this client currently holds: the union of all
+    /// `scopes`' permissions plus the explicit `permissions`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effective_permissions: Vec<String>,
 }
 
 impl From<revocable_clients::RevocableClient> for ClientInfo {
     fn from(value: revocable_clients::RevocableClient) -> Self {
+        let effective_permissions = value
+            .permissions
+            .resolve()
+            .iter()
+            .map(|p| p.as_str().to_owned())
+            .collect();
+        let ClientPermissions {
+            scopes,
+            permissions,
+        } = value.permissions;
+
         Self {
             client_pk: value.pubkey,
             created_at: value.created_at,
             expires_at: value.expires_at,
             label: value.label,
+            scopes: scopes.iter().map(|s| s.as_str().to_owned()).collect(),
+            permissions: permissions
+                .iter()
+                .map(|p| p.as_str().to_owned())
+                .collect(),
+            effective_permissions,
         }
     }
 }
@@ -968,23 +1003,45 @@ pub struct CreateClientRequest {
     ///
     /// Must be at most 64 UTF-8 bytes if provided.
     pub label: Option<String>,
-    // TODO(nicole): Add scope when it's useful
-    // pub scope: LexeScope,
+    /// The scopes to grant the client.
+    /// Any overlapping permissions are unioned together.
+    /// At least one of `scopes` or `permissions` must be non-empty.
+    pub scopes: BTreeSet<Scope>,
+    /// Extra permissions to grant explicitly, beyond those from `scopes`,
+    /// by string id (e.g. `"create_invoice"`). Each permission grants access
+    /// to a single API endpoint.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    #[serde(default)]
+    pub permissions: Vec<String>,
 }
 
 // If this breaks, update the docs above.
 const_assert_usize_eq!(revocable_clients::RevocableClient::MAX_LABEL_LEN, 64);
 
-impl From<CreateClientRequest>
+impl TryFrom<CreateClientRequest>
     for revocable_clients::models::CreateRevocableClientRequest
 {
-    fn from(req: CreateClientRequest) -> Self {
-        Self {
+    type Error = anyhow::Error;
+
+    fn try_from(req: CreateClientRequest) -> anyhow::Result<Self> {
+        let scopes = req.scopes.into_iter().map(scopes::Scope::from).collect();
+        let permissions = req
+            .permissions
+            .iter()
+            .map(|id| id.parse::<scopes::Permission>())
+            .collect::<Result<BTreeSet<_>, _>>()
+            .map_err(anyhow::Error::msg)?;
+
+        Ok(Self {
             expires_at: req.expires_at,
             label: req.label,
-            // TODO(nicole): Allow configuring scope when it becomes useful
-            permissions: ClientPermissions::from_single_scope(Scope::Full),
-        }
+            permissions: ClientPermissions {
+                scopes,
+                permissions,
+            },
+        })
     }
 }
 
@@ -998,6 +1055,12 @@ pub struct CreateClientResponse {
     /// The time at which the client was created,
     /// in milliseconds since the UNIX epoch.
     pub created_at: TimestampMs,
+    /// Every permission this client currently holds.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effective_permissions: Vec<String>,
 }
 
 /// A request to update the properties of an existing client.
@@ -1017,6 +1080,26 @@ pub struct UpdateClientRequest {
     /// - `Some(None)`: make the client never expire. Use carefully!
     /// - `Some(Some(expires_at))`: set the expiration.
     pub new_expires_at: Option<Option<TimestampMs>>,
+    /// The updated scopes for the client.
+    ///
+    /// If either `new_permissions` or `new_scopes` is provided, together they
+    /// replace the client's complete grant; an omitted set is treated as
+    /// empty. The resulting grant must contain at least one scope or
+    /// permission.
+    #[serde(default)]
+    pub new_scopes: Option<BTreeSet<Scope>>,
+    /// The updated extra permissions for the client, by string id
+    /// (e.g. `"create_invoice"`).
+    ///
+    /// If either `new_permissions` or `new_scopes` is provided, together they
+    /// replace the client's complete grant; an omitted set is treated as
+    /// empty. The resulting grant must contain at least one scope or
+    /// permission.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    #[serde(default)]
+    pub new_permissions: Option<BTreeSet<String>>,
 }
 
 impl UpdateClientRequest {
@@ -1026,12 +1109,15 @@ impl UpdateClientRequest {
     ///
     /// - At most one of `clear_label` or `label` can be set.
     /// - At most one of `clear_expiration` or `expires_at` can be set.
+    /// - `new_scopes` and `new_permissions` follow the field semantics above.
     pub fn new(
         client_pk: ed25519::PublicKey,
         label: Option<String>,
         clear_label: bool,
         expires_at: Option<TimestampMs>,
         clear_expiration: bool,
+        new_scopes: Option<BTreeSet<Scope>>,
+        new_permissions: Option<BTreeSet<String>>,
     ) -> anyhow::Result<Self> {
         ensure!(
             !(clear_label && label.is_some()),
@@ -1058,21 +1144,41 @@ impl UpdateClientRequest {
             client_pk,
             new_label,
             new_expires_at,
+            new_permissions,
+            new_scopes,
         })
     }
 }
 
-impl From<UpdateClientRequest>
+impl TryFrom<UpdateClientRequest>
     for revocable_clients::models::UpdateClientRequest
 {
-    fn from(req: UpdateClientRequest) -> Self {
-        Self {
+    type Error = anyhow::Error;
+
+    fn try_from(req: UpdateClientRequest) -> anyhow::Result<Self> {
+        let permissions = match (req.new_permissions, req.new_scopes) {
+            (None, None) => None,
+            (permissions, scopes) => Some(ClientPermissions {
+                scopes: scopes
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(scopes::Scope::from)
+                    .collect(),
+                permissions: permissions
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|id| id.parse::<scopes::Permission>())
+                    .collect::<Result<_, _>>()
+                    .map_err(anyhow::Error::msg)?,
+            }),
+        };
+        Ok(Self {
             pubkey: req.client_pk,
             expires_at: req.new_expires_at,
             label: req.new_label,
-            permissions: None,
+            permissions,
             is_revoked: None,
-        }
+        })
     }
 }
 
@@ -1098,7 +1204,9 @@ mod test {
         .unwrap();
         let ts = TimestampMs::from_millis(1_772_349_163_000).unwrap();
         let build = |label, clear, expires_at, never| {
-            UpdateClientRequest::new(pk, label, clear, expires_at, never)
+            UpdateClientRequest::new(
+                pk, label, clear, expires_at, never, None, None,
+            )
         };
 
         // Set: `Some(Some(_))`. Clear: `Some(None)`. Unchanged: `None`.
@@ -1117,5 +1225,55 @@ mod test {
         // Conflicting set + clear flags are rejected.
         assert!(build(Some("hi".into()), true, None, false).is_err());
         assert!(build(None, false, Some(ts), true).is_err());
+    }
+
+    #[test]
+    fn update_client_req_permissions() {
+        let client_pk = ed25519::PublicKey::from_str(
+            "b484a4890b47358ee68684bcd502d2eefa1bc66cc0f8ac2e5f06384676be74eb",
+        )
+        .unwrap();
+        let build = |new_permissions, new_scopes| UpdateClientRequest {
+            client_pk,
+            new_expires_at: None,
+            new_label: None,
+            new_permissions,
+            new_scopes,
+        };
+        let convert = |req| {
+            revocable_clients::models::UpdateClientRequest::try_from(req)
+                .unwrap()
+                .permissions
+                .unwrap()
+        };
+
+        let req =
+            build(Some(BTreeSet::from(["create_invoice".to_owned()])), None);
+        let permissions = convert(req);
+        assert!(permissions.scopes.is_empty());
+        assert_eq!(
+            permissions.permissions,
+            BTreeSet::from([scopes::Permission::CreateInvoice]),
+        );
+
+        let req = build(
+            Some(BTreeSet::from(["create_invoice".to_owned()])),
+            Some(BTreeSet::from([Scope::ReadInfo])),
+        );
+        let permissions = convert(req);
+        assert_eq!(
+            permissions.scopes,
+            BTreeSet::from([scopes::Scope::ReadInfo]),
+        );
+        assert_eq!(
+            permissions.permissions,
+            BTreeSet::from([scopes::Permission::CreateInvoice]),
+        );
+
+        let req = build(Some(BTreeSet::from(["invalid".to_owned()])), None);
+        assert!(
+            revocable_clients::models::UpdateClientRequest::try_from(req)
+                .is_err()
+        );
     }
 }
