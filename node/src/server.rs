@@ -14,7 +14,7 @@ use std::{
 use axum::{
     Router,
     extract::State,
-    routing::{get, post, put},
+    routing::{get, post},
 };
 use lexe_api::{
     cli::{LspInfo, OAuthConfig},
@@ -23,8 +23,10 @@ use lexe_api::{
         CreateInvoiceRequest, CreateInvoiceResponse, GDriveStatus,
         OnchainDescriptors,
     },
-    revocable_clients::RevocableClientsHandle,
-    server::LxJson,
+    revocable_clients::{
+        ListRevocableClientsHandle, RevocableClientsHandle, scopes::Permission,
+    },
+    server::{LxJson, client_authz::scoped},
     types::{partners::PartnersInfo, payments::OfferId},
 };
 use lexe_common::{
@@ -119,6 +121,12 @@ pub(crate) struct RouterState {
     pub shutdown: NotifyOnce,
 }
 
+impl ListRevocableClientsHandle for RouterState {
+    fn list_revocable_clients_handle(&self) -> &RevocableClientsHandle {
+        &self.revocable_clients
+    }
+}
+
 /// Implements [`UserNodeRunApi`] - endpoints only callable by the user.
 ///
 /// [`UserNodeRunApi`]: lexe_api::def::UserNodeRunApi
@@ -126,48 +134,79 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
     let user_pk = state.user_pk;
     let runner_tx = state.runner_tx.clone();
 
+    use Permission::*;
+
     #[rustfmt::skip]
     let user_routes = Router::new()
-        .route("/user/v2/node_info", get(user::node_info))
-        .route("/user/v1/debug_info", get(user::debug_info))
-        .route("/user/v1/list_channels", get(user::list_channels))
-        .route("/user/v1/sign_message", post(user::sign_message))
-        .route("/user/v1/verify_message", post(user::verify_message))
-        .route("/user/v1/open_channel", post(user::open_channel))
-        .route("/user/v1/open_channel_preflight", post(user::open_channel_preflight))
-        .route("/user/v1/close_channel", post(user::close_channel))
-        .route("/user/v1/close_channel_preflight", post(user::close_channel_preflight))
-        .route("/user/v1/create_invoice", post(shared::create_invoice))
-        .route("/user/v1/pay_invoice", post(user::pay_invoice))
-        .route("/user/v1/pay_invoice_preflight", post(user::pay_invoice_preflight))
-        .route("/user/v1/create_offer", post(user::create_offer))
-        .route("/user/v1/pay_offer", post(user::pay_offer))
-        .route("/user/v1/pay_offer_preflight", post(user::pay_offer_preflight))
-        .route("/user/v1/create_payer_proof", post(user::create_payer_proof))
-        .route("/user/v1/get_next_unused_address", post(user::get_next_unused_address))
-        .route("/user/v1/pay_onchain", post(user::pay_onchain))
-        .route("/user/v1/pay_onchain_preflight", post(user::pay_onchain_preflight))
-        .route("/user/v1/payments/id", get(user::get_payment_by_id))
-        .route("/user/v1/payments/updated", get(user::get_updated_payments))
-        .route("/user/v1/payments/note", put(user::update_personal_note))
+        .route("/user/v2/node_info",
+            scoped::get(NodeInfo, user::node_info))
+        .route("/user/v1/debug_info",
+            scoped::get(DebugInfo, user::debug_info))
+        .route("/user/v1/list_channels",
+            scoped::get(ListChannels, user::list_channels))
+        .route("/user/v1/sign_message",
+            scoped::post(SignMessage, user::sign_message))
+        .route("/user/v1/verify_message",
+            scoped::post(VerifyMessage, user::verify_message))
+        .route("/user/v1/open_channel",
+            scoped::post(OpenChannel, user::open_channel))
+        .route("/user/v1/open_channel_preflight",
+            scoped::post(OpenChannelPreflight, user::open_channel_preflight))
+        .route("/user/v1/close_channel",
+            scoped::post(CloseChannel, user::close_channel))
+        .route("/user/v1/close_channel_preflight",
+            scoped::post(CloseChannelPreflight, user::close_channel_preflight))
+        .route("/user/v1/create_invoice",
+            scoped::post(CreateInvoice, shared::create_invoice))
+        .route("/user/v1/pay_invoice",
+            scoped::post(PayInvoice, user::pay_invoice))
+        .route("/user/v1/pay_invoice_preflight",
+            scoped::post(PayInvoicePreflight, user::pay_invoice_preflight))
+        .route("/user/v1/create_offer",
+            scoped::post(CreateOffer, user::create_offer))
+        .route("/user/v1/pay_offer",
+            scoped::post(PayOffer, user::pay_offer))
+        .route("/user/v1/pay_offer_preflight",
+            scoped::post(PayOfferPreflight, user::pay_offer_preflight))
+        .route("/user/v1/create_payer_proof",
+            scoped::post(CreatePayerProof, user::create_payer_proof))
+        .route("/user/v1/get_next_unused_address",
+            scoped::post(GetNextUnusedAddress, user::get_next_unused_address))
+        .route("/user/v1/pay_onchain",
+            scoped::post(PayOnchain, user::pay_onchain))
+        .route("/user/v1/pay_onchain_preflight",
+            scoped::post(PayOnchainPreflight, user::pay_onchain_preflight))
+        .route("/user/v1/payments/id",
+            scoped::get(GetPaymentById, user::get_payment_by_id))
+        .route("/user/v1/payments/updated",
+            scoped::get(GetUpdatedPayments, user::get_updated_payments))
+        .route("/user/v1/payments/note",
+            scoped::put(UpdatePersonalNote, user::update_personal_note))
         .route("/user/v1/clients",
-            get(user::list_revocable_clients)
-                .post(user::create_revocable_client)
-                .put(user::update_revocable_client)
-        )
-        .route("/user/v1/list_broadcasted_txs", get(user::list_broadcasted_txs))
-        .route("/user/v1/backup", get(user::backup_info))
-        .route("/user/v1/backup/gdrive", post(user::setup_gdrive))
+            scoped::get(ListRevocableClients, user::list_revocable_clients)
+                .merge(scoped::post(
+                    CreateRevocableClient, user::create_revocable_client,
+                ))
+                .merge(scoped::put(
+                    UpdateRevocableClient, user::update_revocable_client,
+                )))
+        .route("/user/v1/list_broadcasted_txs",
+            scoped::get(ListBroadcastedTxs, user::list_broadcasted_txs))
+        .route("/user/v1/backup",
+            scoped::get(BackupInfo, user::backup_info))
+        .route("/user/v1/backup/gdrive",
+            scoped::post(SetupGdrive, user::setup_gdrive))
         .route("/user/v2/human_bitcoin_address",
-            get(user::get_human_bitcoin_address)
-            .put(user::upsert_custom_human_bitcoin_address)
-        )
+            scoped::get(GetHumanBitcoinAddress, user::get_human_bitcoin_address)
+                .merge(scoped::put(
+                    UpdateHumanBitcoinAddress,
+                    user::upsert_custom_human_bitcoin_address,
+                )))
         .route("/user/v1/nwc_clients",
-            get(user::list_nwc_clients)
-                .post(user::create_nwc_client)
-                .put(user::update_nwc_client)
-                .delete(user::delete_nwc_client)
-        );
+            scoped::get(ListNwcClients, user::list_nwc_clients)
+                .merge(scoped::post(CreateNwcClient, user::create_nwc_client))
+                .merge(scoped::put(UpdateNwcClient, user::update_nwc_client))
+                .merge(scoped::delete(DeleteNwcClient, user::delete_nwc_client)));
 
     // Legacy `/app/*` routes for clients predating the migration to `/user`.
     //
@@ -175,57 +214,91 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
     // clients are node-v0.9.12 or later
     #[rustfmt::skip]
     let legacy_app_routes = Router::new()
-        .route("/app/v2/node_info", get(user::node_info))
-        .route("/app/debug_info", get(user::debug_info))
-        .route("/app/list_channels", get(user::list_channels))
-        .route("/app/sign_message", post(user::sign_message))
-        .route("/app/verify_message", post(user::verify_message))
-        .route("/app/open_channel", post(user::open_channel))
-        .route("/app/preflight_open_channel", post(user::open_channel_preflight))
-        .route("/app/close_channel", post(user::close_channel))
-        .route("/app/preflight_close_channel", post(user::close_channel_preflight))
-        .route("/app/create_invoice", post(shared::create_invoice))
-        .route("/app/pay_invoice", post(user::pay_invoice))
-        .route("/app/preflight_pay_invoice", post(user::pay_invoice_preflight))
-        .route("/app/create_offer", post(user::create_offer))
-        .route("/app/pay_offer", post(user::pay_offer))
-        .route("/app/preflight_pay_offer", post(user::pay_offer_preflight))
-        .route("/app/get_address", post(user::get_next_unused_address))
-        .route("/app/pay_onchain", post(user::pay_onchain))
-        .route("/app/preflight_pay_onchain", post(user::pay_onchain_preflight))
-        .route("/app/v1/payments/id", get(user::get_payment_by_id))
+        .route("/app/v2/node_info",
+            scoped::get(NodeInfo, user::node_info))
+        .route("/app/debug_info",
+            scoped::get(DebugInfo, user::debug_info))
+        .route("/app/list_channels",
+            scoped::get(ListChannels, user::list_channels))
+        .route("/app/sign_message",
+            scoped::post(SignMessage, user::sign_message))
+        .route("/app/verify_message",
+            scoped::post(VerifyMessage, user::verify_message))
+        .route("/app/open_channel",
+            scoped::post(OpenChannel, user::open_channel))
+        .route("/app/preflight_open_channel",
+            scoped::post(OpenChannelPreflight, user::open_channel_preflight))
+        .route("/app/close_channel",
+            scoped::post(CloseChannel, user::close_channel))
+        .route("/app/preflight_close_channel",
+            scoped::post(CloseChannelPreflight, user::close_channel_preflight))
+        .route("/app/create_invoice",
+            scoped::post(CreateInvoice, shared::create_invoice))
+        .route("/app/pay_invoice",
+            scoped::post(PayInvoice, user::pay_invoice))
+        .route("/app/preflight_pay_invoice",
+            scoped::post(PayInvoicePreflight, user::pay_invoice_preflight))
+        .route("/app/create_offer",
+            scoped::post(CreateOffer, user::create_offer))
+        .route("/app/pay_offer",
+            scoped::post(PayOffer, user::pay_offer))
+        .route("/app/preflight_pay_offer",
+            scoped::post(PayOfferPreflight, user::pay_offer_preflight))
+        .route("/app/get_address",
+            scoped::post(GetNextUnusedAddress, user::get_next_unused_address))
+        .route("/app/pay_onchain",
+            scoped::post(PayOnchain, user::pay_onchain))
+        .route("/app/preflight_pay_onchain",
+            scoped::post(PayOnchainPreflight, user::pay_onchain_preflight))
+        .route("/app/v1/payments/id",
+            scoped::get(GetPaymentById, user::get_payment_by_id))
         // TODO(a-mpch): Deprecated since app-v0.8.9+29 and sdk-sidecar-v0.3.1.
         // Remove once unused.
-        .route("/app/payments/indexes", post(user::get_payments_by_indexes))
-        .route("/app/payments/new", get(user::get_new_payments))
-        .route("/app/payments/updated", get(user::get_updated_payments))
-        .route("/app/payments/note", put(user::update_personal_note))
+        .route("/app/payments/indexes",
+            scoped::post(GetPaymentsByIndexes, user::get_payments_by_indexes))
+        .route("/app/payments/new",
+            scoped::get(GetNewPayments, user::get_new_payments))
+        .route("/app/payments/updated",
+            scoped::get(GetUpdatedPayments, user::get_updated_payments))
+        .route("/app/payments/note",
+            scoped::put(UpdatePersonalNote, user::update_personal_note))
         .route("/app/clients",
-            get(user::list_revocable_clients)
-                .post(user::create_revocable_client)
-                .put(user::update_revocable_client)
-        )
-        .route("/app/list_broadcasted_txs", get(user::list_broadcasted_txs))
-        .route("/app/backup", get(user::backup_info))
-        .route("/app/backup/gdrive", post(user::setup_gdrive))
+            scoped::get(ListRevocableClients, user::list_revocable_clients)
+                .merge(scoped::post(
+                    CreateRevocableClient, user::create_revocable_client,
+                ))
+                .merge(scoped::put(
+                    UpdateRevocableClient, user::update_revocable_client,
+                )))
+        .route("/app/list_broadcasted_txs",
+            scoped::get(ListBroadcastedTxs, user::list_broadcasted_txs))
+        .route("/app/backup",
+            scoped::get(BackupInfo, user::backup_info))
+        .route("/app/backup/gdrive",
+            scoped::post(SetupGdrive, user::setup_gdrive))
         .route("/app/v2/human_bitcoin_address",
-            get(user::get_human_bitcoin_address)
-            .put(user::upsert_custom_human_bitcoin_address)
-        )
+            scoped::get(GetHumanBitcoinAddress, user::get_human_bitcoin_address)
+                .merge(scoped::put(
+                    UpdateHumanBitcoinAddress,
+                    user::upsert_custom_human_bitcoin_address,
+                )))
         // TODO(a-mpch): Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2.
         // Remove once unused.
-        .route("/app/payment_address", get(user::get_human_bitcoin_address_v1))
+        .route("/app/payment_address",
+            scoped::get(
+                GetHumanBitcoinAddress, user::get_human_bitcoin_address_v1,
+            ))
         // TODO(max): Deprecated since app-v0.9.11+49 and sdk-sidecar-v0.4.13.
         // Remove once unused.
         .route("/app/human_bitcoin_address",
-            get(user::get_human_bitcoin_address_v1)
-        )
+            scoped::get(
+                GetHumanBitcoinAddress, user::get_human_bitcoin_address_v1,
+            ))
         .route("/app/nwc_clients",
-            get(user::list_nwc_clients)
-                .post(user::create_nwc_client)
-                .put(user::update_nwc_client)
-                .delete(user::delete_nwc_client)
-        );
+            scoped::get(ListNwcClients, user::list_nwc_clients)
+                .merge(scoped::post(CreateNwcClient, user::create_nwc_client))
+                .merge(scoped::put(UpdateNwcClient, user::update_nwc_client))
+                .merge(scoped::delete(DeleteNwcClient, user::delete_nwc_client)));
 
     Router::new()
         .merge(user_routes)
@@ -273,6 +346,8 @@ fn activity_layer(
     })
 }
 
+/// Handlers shared by the app (`/app`) and Lexe-operator (`/lexe`) routers.
+/// These handlers may differ in the auth wrapper the router applies to them.
 mod shared {
     use super::*;
 

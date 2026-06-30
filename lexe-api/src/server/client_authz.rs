@@ -29,7 +29,8 @@ use crate::tls_acceptor::VerifiedTlsClientCert;
 ///
 /// Handlers call [`require`] to declare the [`Permission`] they
 /// need. Attenuation of auth scopes and expirations should be enforced using
-/// the [`require_permissions_covered`] and [`require_expiration_covered`] methods.
+/// the [`require_permissions_covered`] and [`require_expiration_covered`]
+/// methods.
 ///
 /// The resolved [`PermissionSet`] depends on the cert's issuing CA:
 ///
