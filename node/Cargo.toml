@@ -67,7 +67,6 @@ lexe-tokio = { workspace = true }
 # --- WORKSPACE --- #
 
 anyhow = { workspace = true }
-arc-swap = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 bitcoin = { workspace = true }
