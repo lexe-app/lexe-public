@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -14,7 +14,7 @@ use lexe_api::{
         bounded_string::BoundedString,
         invoice::Invoice,
         payments::{
-            LnClaimId, PaymentCreatedIndex, PaymentHash, PaymentId,
+            LnClaimId, OfferId, PaymentCreatedIndex, PaymentHash, PaymentId,
             PaymentKind, PaymentPreimage, PaymentStatus,
         },
     },
@@ -103,6 +103,24 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
     persister: PS,
     channel_manager: CM,
     router: Arc<LexeRouter>,
+
+    /// The user's current Human Bitcoin Address offer IDs.
+    /// Payments to these offers will have `PaymentKind::HumanBitcoinAddress`.
+    //
+    // TODO(max): Minor bug if/when we later allow primary HBAs to expire: if a
+    // custom primary lapses, payments to the generated fallback will not be
+    // labelled as HBA until the node restarts.
+    //
+    // - Fix option 1 (interim workaround): Fetch all of our HBA offers from
+    //   the backend at node start and check against `HashSet<OfferId>` when we
+    //   receive an inbound offer payment. Works even if the HBA expires while
+    //   we're running. If a new HBA is claimed, just insert into the set.
+    // - Fix option 2 (proper fix): Implement out-of-line offers storage.
+    //   Whenever an HBA offer is created, we set `is_hba == true` in the DB.
+    //   When we receive an inbound offer payment, simply look up the offer by
+    //   ID (which is also cacheable), and mark as HBA if the offer `is_hba`.
+    hba_offer_ids: Arc<RwLock<HashSet<OfferId>>>,
+
     test_event_tx: TestEventSender,
 }
 
@@ -169,6 +187,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         persister: PS,
         channel_manager: CM,
         router: Arc<LexeRouter>,
+        hba_offer_ids: Arc<RwLock<HashSet<OfferId>>>,
         finalized_cache_capacity: usize,
         esplora: Arc<LexeEsplora>,
         pending_payments: Vec<PaymentWithMetadata>,
@@ -210,6 +229,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             persister,
             channel_manager,
             router,
+            hba_offer_ids,
             test_event_tx,
         };
 
@@ -620,6 +640,19 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         let preimage = claim_ctx.preimage();
 
+        // If we're receiving to the user's active HBA,
+        // label the payment with `PaymentKind::HumanBitcoinAddress`.
+        let kind = match &claim_ctx {
+            LnClaimCtx::Bolt12Offer(ctx)
+                if self
+                    .hba_offer_ids
+                    .read()
+                    .unwrap()
+                    .contains(&ctx.offer_id) =>
+                PaymentKind::HumanBitcoinAddress,
+            _ => PaymentKind::Offer,
+        };
+
         // NOTE: avoid touching the ChannelManager while holding the lock
         let handle_claimable = || async {
             let mut locked_data = self.data.lock().await;
@@ -653,7 +686,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             // Check
             let checked =
                 // `check_payment_claimable` precondition: must not be finalized
-                locked_data.check_payment_claimable(claim_ctx, amount, skimmed_fee, now)?;
+                locked_data.check_payment_claimable(
+                    claim_ctx, amount, skimmed_fee, kind, now,
+                )?;
 
             // Persist
             let persisted = self
@@ -1467,6 +1502,7 @@ impl PaymentsData {
         claim_ctx: LnClaimCtx,
         amount: Amount,
         skimmed_fee: Option<Amount>,
+        kind: PaymentKind,
         now: TimestampMs,
     ) -> Result<CheckedPayment, ClaimableError> {
         let id = claim_ctx.id();
@@ -1487,7 +1523,6 @@ impl PaymentsData {
                         "Tried to claim non-existent inbound invoice payment"
                     ))),
                 LnClaimCtx::Bolt12Offer(ctx) => {
-                    let kind = PaymentKind::Offer;
                     let iorpwm = InboundOfferReusablePaymentV2::new(
                         ctx,
                         kind,
@@ -1968,6 +2003,7 @@ mod test {
                     claim_ctx.clone(),
                     amount,
                     skimmed_fee,
+                    PaymentKind::Offer,
                     now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
@@ -2015,6 +2051,7 @@ mod test {
                     claim_ctx.clone(),
                     recvd_amount,
                     skimmed_fee,
+                    PaymentKind::Offer,
                     now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));
@@ -2057,6 +2094,7 @@ mod test {
                     claim_ctx.clone(),
                     iorp.amount,
                     skimmed_fee,
+                    PaymentKind::Offer,
                     now,
                 )
                 .inspect_err(|err| assert!(!err.is_replay()));

@@ -68,6 +68,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind_BuyCashApp,
+        PaymentKind_HumanBitcoinAddress,
         PaymentKind_Invoice,
         PaymentKind_LightningAddress,
         PaymentKind_Offer,
@@ -1681,6 +1682,30 @@ const Payment dummyLightningAddressInbound01 = Payment(
   finalizedAt: 1749210002000,
 );
 
+/// Inbound BOLT12 offer payment received via the user's Human Bitcoin Address.
+const Payment dummyHumanBitcoinAddressInbound01 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001749220000000-fr_d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7089a1b2c3d4e5f60718",
+  ),
+  kind: PaymentKind_HumanBitcoinAddress(),
+  direction: PaymentDirection.inbound,
+  offerId: "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f901",
+  // Inbound offer payments don't have the `offer` field set.
+  offer: null,
+  amountSats: 88000 * 995 ~/ 1000,
+  feesSats: 88000 * 5 ~/ 1000,
+  amountMsats: 88000 * 995,
+  feesMsats: 88000 * 5,
+  status: PaymentStatus.completed,
+  statusStr: "completed",
+  payerName: "philip@lexe.app",
+  message: "Sats for the ramen 🍜",
+  personalNote: null,
+  createdAt: 1749220000000,
+  finalizedAt: 1749220002000,
+);
+
 // Default set of sample payments
 List<Payment> defaultDummyPayments = [
   dummyOnchainInboundPending01,
@@ -1695,6 +1720,7 @@ List<Payment> defaultDummyPayments = [
   dummyOfferInboundPayment01,
   dummyBuyCashAppInbound01,
   dummyLightningAddressInbound01,
+  dummyHumanBitcoinAddressInbound01,
 ].sortedBy((payment) => payment.index.field0);
 
 //

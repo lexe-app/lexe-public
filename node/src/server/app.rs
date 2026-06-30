@@ -725,11 +725,17 @@ async fn build_upsert_custom_hba_request(
         lexe_ln::command::create_offer(offer_req, &state.channel_manager)
             .await
             .map_err(NodeApiError::command)?;
+    let offer_id = offer.offer.id();
 
     let req = UpsertCustomHumanBitcoinAddress {
         username: req.username,
         offer: offer.offer,
     };
+
+    // Cache the fresh HBA offer ID so receives to the new offer are labeled
+    // with `PaymentKind::HumanBitcoinAddress`.
+    state.hba_offer_ids.write().unwrap().insert(offer_id);
+
     Ok((token, req))
 }
 

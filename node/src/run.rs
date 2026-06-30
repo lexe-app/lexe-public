@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     net::TcpListener,
     sync::{Arc, Mutex, RwLock},
     time::{Duration, Instant},
@@ -21,7 +22,7 @@ use lexe_api::{
         runner::UserLeaseRenewalRequest,
     },
     server::LayerConfig,
-    types::{ports::RunPorts, sealed_seed::SealedSeedId},
+    types::{payments::OfferId, ports::RunPorts, sealed_seed::SealedSeedId},
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_byte_array::ByteArray;
@@ -591,6 +592,12 @@ impl UserNode {
         )
         .context("Could not init NodeChannelManager")?;
 
+        // The active HBA offer ID, cached so the payments manager can label
+        // inbound receives to it with `PaymentKind::HumanBitcoinAddress`.
+        // Populated by `hba_task` once any claim/migration completes.
+        // Updated by the API server anytime the user updates their username.
+        let hba_offer_ids = Arc::new(RwLock::new(HashSet::new()));
+
         // Spawn a task to claim a Human Bitcoin Address (HBA) concurrently.
         // This task is joined before `init` returns.
         //
@@ -603,6 +610,7 @@ impl UserNode {
             persister.clone(),
             channel_manager.clone(),
             initial_migrations.clone(),
+            hba_offer_ids.clone(),
         );
 
         // Load the existing channel monitors into the chain monitor so that it
@@ -659,6 +667,7 @@ impl UserNode {
             persister.clone(),
             channel_manager.clone(),
             router.clone(),
+            hba_offer_ids.clone(),
             finalized_cache_capacity,
             esplora.clone(),
             pending_payments,
@@ -758,6 +767,7 @@ impl UserNode {
             legacy_descriptors,
             user_cache,
             partners,
+            hba_offer_ids: hba_offer_ids.clone(),
             // --- Actors --- //
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),
@@ -1263,15 +1273,14 @@ async fn fetch_provisioned_secrets(
 mod helpers {
     use super::*;
 
-    /// Spawns a task to claim a Human Bitcoin Address (HBA) concurrently.
-    ///
-    /// This task handles both:
-    /// 1. Initial HBA claim for fresh nodes
-    /// 2. Migration of existing HBAs to v2 offer format
+    /// Spawns a task to ensure that a Human Bitcoin Address (HBA) is claimed
+    /// and migrated to v2 offer format if necessary, then writes the active
+    /// offer ID into `hba_offer_ids`.
     pub(super) fn spawn_hba_task(
         persister: Arc<NodePersister>,
         channel_manager: NodeChannelManager,
         initial_migrations: Arc<Migrations>,
+        hba_offer_ids: Arc<RwLock<HashSet<OfferId>>>,
     ) -> LxTask<anyhow::Result<()>> {
         const SPAN_NAME: &str = "(claim-human-bitcoin-address)";
         LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
@@ -1295,6 +1304,7 @@ mod helpers {
                     lexe_ln::command::create_offer(offer_req, &channel_manager)
                         .await
                         .context("Failed to create HBA offer")?;
+                let offer_id = offer_resp.offer.id();
 
                 // Claim the HBA with generated username and associated offer
                 let req = ClaimGeneratedHumanBitcoinAddress {
@@ -1314,6 +1324,8 @@ mod helpers {
                 )
                 .await
                 .context("Failed to mark HBA offer v2 migration")?;
+
+                hba_offer_ids.write().unwrap().insert(offer_id);
             } else if !initial_migrations
                 .is_applied(migrations::MARKER_HBA_OFFER_V2)
             {
@@ -1341,6 +1353,7 @@ mod helpers {
                     )
                     .await
                     .context("Failed to create HBA offer")?;
+                    let offer_id = offer.offer.id();
 
                     let req = UpsertCustomHumanBitcoinAddress {
                         username,
@@ -1353,6 +1366,8 @@ mod helpers {
                         .context(
                             "upsert_custom_human_bitcoin_address failed",
                         )?;
+
+                    hba_offer_ids.write().unwrap().insert(offer_id);
                 }
 
                 // Migration complete
@@ -1362,6 +1377,18 @@ mod helpers {
                 )
                 .await
                 .context("Failed to mark HBA offer v2 migration")?;
+            } else {
+                // - Already on v2: just cache the active HBA offer. - //
+                let hba = persister
+                    .backend_api()
+                    .get_human_bitcoin_address(token)
+                    .await
+                    .context("get_human_bitcoin_address failed")?;
+                if let Some(offer_id) =
+                    hba.hba.as_ref().map(|active| active.hba.offer.id())
+                {
+                    hba_offer_ids.write().unwrap().insert(offer_id);
+                }
             }
 
             anyhow::Ok(())

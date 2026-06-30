@@ -6,7 +6,10 @@
 //! Lexe cannot spend funds on behalf of the user; Lexe's endpoints are either
 //! used purely for maintenance or only enabled in tests.
 
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
 use axum::{
     Router,
@@ -21,7 +24,7 @@ use lexe_api::{
         OnchainDescriptors,
     },
     server::LxJson,
-    types::partners::PartnersInfo,
+    types::{partners::PartnersInfo, payments::OfferId},
 };
 use lexe_common::{
     api::{
@@ -90,6 +93,7 @@ pub(crate) struct RouterState {
     pub legacy_descriptors: Option<OnchainDescriptors>,
     pub user_cache: Arc<UserCache>,
     pub partners: Arc<PartnersInfo>,
+    pub hba_offer_ids: Arc<RwLock<HashSet<OfferId>>>,
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,
