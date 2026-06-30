@@ -83,6 +83,9 @@ use tracing::{Instrument, debug, error, info, warn};
 
 use crate::{tls_acceptor::CertInjectorAcceptor, trace};
 
+/// Server-side helpers for the enforcement of client auth scopes.
+pub mod client_authz;
+
 /// A configuration object for Axum / Tower middleware.
 ///
 /// Defaults:

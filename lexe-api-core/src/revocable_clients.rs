@@ -1,6 +1,9 @@
 //! Information about a client
 
-use std::{collections::HashMap, sync::RwLock};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::anyhow;
 use lexe_common::{
@@ -21,6 +24,22 @@ use self::{
 pub mod models;
 /// Authorization scopes: `ClientPermissions`, `Scope`s, and `Permission`s.
 pub mod scopes;
+
+/// Trait to access a [`RevocableClientsHandle`].
+//
+// Required only to decouple the shared `VerifiedClientAuthorization` request
+// extractor from a concrete `RouterState`.
+pub trait ListRevocableClientsHandle {
+    fn list_revocable_clients_handle(&self) -> &RevocableClientsHandle;
+}
+
+impl<T: ListRevocableClientsHandle + ?Sized> ListRevocableClientsHandle
+    for Arc<T>
+{
+    fn list_revocable_clients_handle(&self) -> &RevocableClientsHandle {
+        (**self).list_revocable_clients_handle()
+    }
+}
 
 /// A locked [`RevocableClients`], newtyped so it can implement
 /// [`GetRevocableClientStatus`]. Share via `Arc<RevocableClientsHandle>`.
