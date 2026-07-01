@@ -16,13 +16,15 @@ use lexe::{
         auth::Credentials,
         bitcoin::PaymentMethod,
         command::{
-            AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            AnalyzeRequest, ClientInfoResponse, CreateClientRequest,
+            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
             GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
-            PayInvoiceRequest, PayLnurlRequest as SdkPayLnurlRequest,
-            PayOfferRequest, PayRequest as SdkPayRequest,
-            PayableDetails as SdkPayableDetails, PaymentSyncSummary,
+            GetUpdatedPaymentsResponse, ListClientsResponse,
+            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
+            PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
+            PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
+            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
@@ -99,6 +101,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             "/v2/node/update_personal_note",
             post(node::update_personal_note),
         )
+        .route("/v2/node/list_clients", get(node::list_clients))
+        .route("/v2/node/create_client", post(node::create_client))
+        .route("/v2/node/update_client", put(node::update_client))
+        .route("/v2/node/revoke_client", post(node::revoke_client))
         // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
         .route("/v1/node/node_info", get(node::node_info))
@@ -547,6 +553,54 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(Empty {}))
+    }
+
+    #[instrument(skip_all, name = "(list-clients)")]
+    pub(crate) async fn list_clients(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<ListClientsResponse>, SdkApiError> {
+        let resp = wallet.list_clients().await.map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(create-client)")]
+    pub(crate) async fn create_client(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<CreateClientRequest>,
+    ) -> Result<LxJson<CreateClientResponse>, SdkApiError> {
+        let resp = wallet
+            .create_client(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(update-client)")]
+    pub(crate) async fn update_client(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<UpdateClientRequest>,
+    ) -> Result<LxJson<ClientInfoResponse>, SdkApiError> {
+        let resp = wallet
+            .update_client(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(revoke-client)")]
+    pub(crate) async fn revoke_client(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<RevokeClientRequest>,
+    ) -> Result<LxJson<ClientInfoResponse>, SdkApiError> {
+        let resp = wallet
+            .revoke_client(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
     }
 }
 

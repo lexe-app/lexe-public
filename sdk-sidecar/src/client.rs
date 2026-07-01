@@ -1,11 +1,12 @@
 use lexe::types::{
     command::{
-        AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        AnalyzeRequest, ClientInfoResponse, CreateClientRequest,
+        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
         GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
-        PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
-        UpdatePersonalNoteRequest,
+        GetUpdatedPaymentsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
+        RevokeClientRequest, UpdateClientRequest, UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -217,6 +218,43 @@ impl UserSidecarApi for SidecarClient {
         let url =
             format!("{base}/v2/node/clear_payments", base = self.sidecar_url);
         let http_req = self.rest.post(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn list_clients(&self) -> Result<ListClientsResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/list_clients");
+        let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn create_client(
+        &self,
+        req: &CreateClientRequest,
+    ) -> Result<CreateClientResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/create_client");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn update_client(
+        &self,
+        req: &UpdateClientRequest,
+    ) -> Result<ClientInfoResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/update_client");
+        let http_req = self.rest.put(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn revoke_client(
+        &self,
+        req: &RevokeClientRequest,
+    ) -> Result<ClientInfoResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/revoke_client");
+        let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 }

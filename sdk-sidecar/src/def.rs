@@ -9,12 +9,13 @@
 
 use lexe::types::{
     command::{
-        AnalyzeRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+        AnalyzeRequest, ClientInfoResponse, CreateClientRequest,
+        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
         GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
-        PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
-        UpdatePersonalNoteRequest,
+        GetUpdatedPaymentsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
+        RevokeClientRequest, UpdateClientRequest, UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -201,4 +202,42 @@ pub trait UserSidecarApi {
         &self,
         req: &UpdatePersonalNoteRequest,
     ) -> Result<Empty, SdkApiError>;
+
+    /// GET /v2/node/list_clients [`Empty`] -> [`ListClientsResponse`]
+    ///
+    /// List the active client credentials for this node.
+    ///
+    /// Revoked and expired clients are not included.
+    async fn list_clients(&self) -> Result<ListClientsResponse, SdkApiError>;
+
+    /// POST /v2/node/create_client [`CreateClientRequest`]
+    ///                          -> [`CreateClientResponse`]
+    ///
+    /// Create new client credentials for this node.
+    ///
+    /// WARNING: Anyone with the returned credentials can control this node's
+    /// funds. Store them somewhere safe.
+    async fn create_client(
+        &self,
+        req: &CreateClientRequest,
+    ) -> Result<CreateClientResponse, SdkApiError>;
+
+    /// PUT /v2/node/update_client [`UpdateClientRequest`]
+    ///                         -> [`ClientInfoResponse`]
+    ///
+    /// Update a client's label or expiration.
+    async fn update_client(
+        &self,
+        req: &UpdateClientRequest,
+    ) -> Result<ClientInfoResponse, SdkApiError>;
+
+    /// POST /v2/node/revoke_client [`RevokeClientRequest`]
+    ///                          -> [`ClientInfoResponse`]
+    ///
+    /// Permanently revoke a client, making its credentials invalid for
+    /// authentication. This cannot be undone.
+    async fn revoke_client(
+        &self,
+        req: &RevokeClientRequest,
+    ) -> Result<ClientInfoResponse, SdkApiError>;
 }
