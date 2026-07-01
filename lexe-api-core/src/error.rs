@@ -8,12 +8,15 @@ use std::{error::Error, fmt};
 
 use anyhow::anyhow;
 use http::status::StatusCode;
-use lexe_common::api::{
-    MegaId, auth,
-    user::{NodePk, UserPk},
-};
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
+use lexe_common::{
+    api::{
+        MegaId, auth,
+        user::{NodePk, UserPk},
+    },
+    time::TimestampMs,
+};
 use lexe_enclave::enclave::{self, Measurement};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -24,10 +27,12 @@ use tracing::{error, warn};
 
 #[cfg(feature = "axum")]
 use crate::axum_helpers;
+use crate::revocable_clients::scopes::{Permission, PermissionSet};
 
 // Associated constants can't be imported.
 pub const CLIENT_400_BAD_REQUEST: StatusCode = StatusCode::BAD_REQUEST;
 pub const CLIENT_401_UNAUTHORIZED: StatusCode = StatusCode::UNAUTHORIZED;
+pub const CLIENT_403_FORBIDDEN: StatusCode = StatusCode::FORBIDDEN;
 pub const CLIENT_404_NOT_FOUND: StatusCode = StatusCode::NOT_FOUND;
 pub const CLIENT_409_CONFLICT: StatusCode = StatusCode::CONFLICT;
 pub const CLIENT_426_UPGRADE_REQUIRED: StatusCode =
@@ -535,6 +540,10 @@ pub enum CommonErrorKind {
     Rejection = 7,
     /// Server is currently at capacity; retry later
     AtCapacity = 8,
+    /// Client authentication failed; cert missing or malformed
+    ClientAuth = 9,
+    /// Client lacks the required permission
+    InsufficientScope = 10,
     // NOTE: If adding a variant, be sure to also update Self::KINDS!
 }
 
@@ -550,6 +559,8 @@ impl ToHttpStatus for CommonErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
         }
     }
 }
@@ -579,6 +590,10 @@ api_error_kind! {
         Rejection = 7,
         /// Server is at capacity
         AtCapacity = 8,
+        /// Client authentication failed; cert missing or malformed
+        ClientAuth = 9,
+        /// Client lacks the required permission
+        InsufficientScope = 10,
 
         // --- Backend --- //
 
@@ -621,6 +636,8 @@ impl ToHttpStatus for BackendErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
 
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
@@ -662,6 +679,10 @@ api_error_kind! {
         Rejection = 7,
         /// Server is at capacity
         AtCapacity = 8,
+        /// Client authentication failed; cert missing or malformed
+        ClientAuth = 9,
+        /// Client lacks the required permission
+        InsufficientScope = 10,
 
         // --- Gateway --- //
 
@@ -684,6 +705,8 @@ impl ToHttpStatus for GatewayErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
 
             FiatRatesMissing => SERVER_500_INTERNAL_SERVER_ERROR,
         }
@@ -715,6 +738,10 @@ api_error_kind! {
         Rejection = 7,
         /// Server is at capacity
         AtCapacity = 8,
+        /// Client authentication failed; cert missing or malformed
+        ClientAuth = 9,
+        /// Client lacks the required permission
+        InsufficientScope = 10,
 
         // --- LSP --- //
 
@@ -745,6 +772,8 @@ impl ToHttpStatus for LspErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
 
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Scid => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -779,6 +808,10 @@ api_error_kind! {
         Rejection = 7,
         /// Server is at capacity
         AtCapacity = 8,
+        /// Client authentication failed; cert missing or malformed
+        ClientAuth = 9,
+        /// Client lacks the required permission
+        InsufficientScope = 10,
 
         // --- Mega --- //
 
@@ -807,6 +840,8 @@ impl ToHttpStatus for MegaErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
 
             WrongMegaId => CLIENT_400_BAD_REQUEST,
             RunnerUnreachable => SERVER_503_SERVICE_UNAVAILABLE,
@@ -841,6 +876,10 @@ api_error_kind! {
         Rejection = 7,
         /// Server is at capacity
         AtCapacity = 8,
+        /// Client authentication failed; cert missing or malformed
+        ClientAuth = 9,
+        /// Client lacks the required permission
+        InsufficientScope = 10,
 
         // --- Node --- //
 
@@ -879,6 +918,8 @@ impl ToHttpStatus for NodeErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
 
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
@@ -917,6 +958,10 @@ api_error_kind! {
         Rejection = 7,
         /// Server is at capacity
         AtCapacity = 8,
+        /// Client authentication failed; cert missing or malformed
+        ClientAuth = 9,
+        /// Client lacks the required permission
+        InsufficientScope = 10,
 
         // --- Runner --- //
 
@@ -961,6 +1006,8 @@ impl ToHttpStatus for RunnerErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
 
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
             UnknownMeasurement => CLIENT_404_NOT_FOUND,
@@ -1002,6 +1049,10 @@ api_error_kind! {
         Rejection = 7,
         /// Server is at capacity
         AtCapacity = 8,
+        /// Client authentication failed; cert missing or malformed
+        ClientAuth = 9,
+        /// Client lacks the required permission
+        InsufficientScope = 10,
 
         // --- SDK --- //
 
@@ -1030,6 +1081,8 @@ impl ToHttpStatus for SdkErrorKind {
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
             Rejection => CLIENT_400_BAD_REQUEST,
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            ClientAuth => CLIENT_401_UNAUTHORIZED,
+            InsufficientScope => CLIENT_403_FORBIDDEN,
 
             Command => SERVER_500_INTERNAL_SERVER_ERROR,
             BadAuth => CLIENT_401_UNAUTHORIZED,
@@ -1042,6 +1095,44 @@ impl ToHttpStatus for SdkErrorKind {
 
 impl CommonApiError {
     pub fn new(kind: CommonErrorKind, msg: String) -> Self {
+        Self { kind, msg }
+    }
+
+    /// The client's mTLS cert was missing or malformed (HTTP 401).
+    pub fn client_auth(error: impl fmt::Display) -> Self {
+        let kind = CommonErrorKind::ClientAuth;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
+
+    /// The client lacks the [`Permission`] required by the endpoint (HTTP 403).
+    pub fn insufficient_scope(permission: Permission) -> Self {
+        let kind = CommonErrorKind::InsufficientScope;
+        let msg = format!("Client lacks the required permission: {permission}");
+        Self { kind, msg }
+    }
+
+    /// The client lacks one or more [`Permission`]s in `missing` (HTTP 403).
+    pub fn insufficient_scopes(missing: PermissionSet) -> Self {
+        let kind = CommonErrorKind::InsufficientScope;
+        let msg = format!("Client lacks the required permissions: {missing}");
+        Self { kind, msg }
+    }
+
+    /// The client requested an expiration later than its own (HTTP 403).
+    pub fn insufficient_expiration(
+        requested: Option<TimestampMs>,
+        own: TimestampMs,
+    ) -> Self {
+        let kind = CommonErrorKind::InsufficientScope;
+        let requested = match requested {
+            Some(ts) => ts.to_string(),
+            None => "never".to_owned(),
+        };
+        let msg = format!(
+            "Client cannot grant an expiration later than its own: \
+             requested {requested}, own expiration {own}"
+        );
         Self { kind, msg }
     }
 
@@ -1089,6 +1180,8 @@ impl CommonErrorKind {
         Self::Server,
         Self::Rejection,
         Self::AtCapacity,
+        Self::ClientAuth,
+        Self::InsufficientScope,
     ];
 
     #[inline]
