@@ -44,9 +44,9 @@ use crate::{
             AnalyzeRequest, AnalyzeResponse, ClaimableDetails, ClientInfo,
             ClientInfoResponse, CreateClientRequest, CreateClientResponse,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, GetClientResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListPaymentsResponse, NodeInfo,
+            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListClientsResponse, ListPaymentsResponse, NodeInfo,
             PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
             PayableDetails, PaymentSyncSummary, RevokeClientRequest,
             UpdateClientRequest, UpdatePersonalNoteRequest,
@@ -1636,9 +1636,11 @@ impl LexeWallet {
 
     // --- Client credentials management --- //
 
-    /// Get information about the active client credentials for this node.
-    #[instrument(skip_all, name = "(get-clients)")]
-    pub async fn get_clients(&self) -> anyhow::Result<GetClientResponse> {
+    /// List the active client credentials for this node.
+    ///
+    /// Revoked and expired clients are not included.
+    #[instrument(skip_all, name = "(list-clients)")]
+    pub async fn list_clients(&self) -> anyhow::Result<ListClientsResponse> {
         let req = revocable_clients::GetRevocableClients { valid_only: true };
         let clients = self
             .node_client
@@ -1649,21 +1651,21 @@ impl LexeWallet {
             .map(|(pk, rc)| (pk, ClientInfo::from(rc)))
             .collect();
 
-        Ok(GetClientResponse { clients })
+        Ok(ListClientsResponse { clients })
     }
 
     /// Create new client credentials for this node.
+    ///
+    /// WARNING: Anyone with the returned credentials can control this node's
+    /// funds. Store them somewhere safe.
     #[instrument(skip_all, name = "(create-client)")]
     pub async fn create_client(
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
-        let inner_req =
-            revocable_clients::CreateRevocableClientRequest::from(req);
-        let (rev_client, client_creds) = self
-            .node_client
-            .create_client_credentials(inner_req)
-            .await?;
+        let req = revocable_clients::CreateRevocableClientRequest::from(req);
+        let (rev_client, client_creds) =
+            self.node_client.create_client_credentials(req).await?;
         Ok(CreateClientResponse {
             client_pk: client_creds.client_pk,
             client_credentials: ClientCredentials::from_unstable(client_creds),
@@ -1671,25 +1673,22 @@ impl LexeWallet {
         })
     }
 
-    /// Update a set of client credentials used by this node.
+    /// Update a client's label or expiration.
     #[instrument(skip_all, name = "(update-client)")]
     pub async fn update_client(
         &self,
         req: UpdateClientRequest,
     ) -> anyhow::Result<ClientInfoResponse> {
-        let inner_req = revocable_clients::UpdateClientRequest::from(req);
-        let client = self
-            .node_client
-            .update_revocable_client(inner_req)
-            .await?
-            .client;
+        let req = revocable_clients::UpdateClientRequest::from(req);
+        let client =
+            self.node_client.update_revocable_client(req).await?.client;
         Ok(ClientInfoResponse {
             client: ClientInfo::from(client),
         })
     }
 
     /// Permanently revoke a client, making its credentials invalid for
-    /// authentication.
+    /// authentication. This cannot be undone.
     #[instrument(skip_all, name = "(revoke-client)")]
     pub async fn revoke_client(
         &self,

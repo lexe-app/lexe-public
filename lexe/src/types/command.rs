@@ -659,7 +659,7 @@ impl TryFrom<UpdatePersonalNoteRequest> for command::UpdatePersonalNote {
 // --- Client credentials management --- //
 
 /// Information about a client that can authenticate with a Lexe node.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ClientInfo {
     /// The public key of the client.
     pub client_pk: ed25519::PublicKey,
@@ -689,16 +689,15 @@ impl From<revocable_clients::RevocableClient> for ClientInfo {
 }
 
 /// A response containing information about a single client.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ClientInfoResponse {
     /// Information about the client.
     pub client: ClientInfo,
 }
 
-/// The response to a request to get information about active clients
-/// on a Lexe node.
-#[derive(Serialize)]
-pub struct GetClientResponse {
+/// The response to a request listing the active clients on a Lexe node.
+#[derive(Serialize, Deserialize)]
+pub struct ListClientsResponse {
     /// The clients that can authenticate with this node, mapped from
     /// client public key to client information.
     pub clients: HashMap<ed25519::PublicKey, ClientInfo>,
@@ -706,6 +705,7 @@ pub struct GetClientResponse {
 
 /// A request to create a new client and client credentials
 /// that can authenticate with a Lexe node.
+#[derive(Serialize, Deserialize)]
 pub struct CreateClientRequest {
     /// An optional expiration for the client.
     ///
@@ -713,7 +713,7 @@ pub struct CreateClientRequest {
     pub expires_at: Option<TimestampMs>,
     /// An optional label for the client.
     ///
-    /// Must be less than 64 UTF-8 bytes if provided.
+    /// Must be at most 64 UTF-8 bytes if provided.
     pub label: Option<String>,
     // TODO(nicole): Add scope when it's useful
     // pub scope: LexeScope,
@@ -736,6 +736,7 @@ impl From<CreateClientRequest>
 }
 
 /// The response to a request to create a new client.
+#[derive(Serialize, Deserialize)]
 pub struct CreateClientResponse {
     /// The public key of the created client.
     pub client_pk: ed25519::PublicKey,
@@ -747,6 +748,7 @@ pub struct CreateClientResponse {
 }
 
 /// A request to update the properties of an existing client.
+#[derive(Serialize, Deserialize)]
 pub struct UpdateClientRequest {
     /// The public key of the client to update.
     pub client_pk: ed25519::PublicKey,
@@ -777,7 +779,8 @@ impl From<UpdateClientRequest> for revocable_clients::UpdateClientRequest {
 }
 
 /// A request to permanently revoke a client, making its credentials invalid for
-/// authentication.
+/// authentication. This cannot be undone.
+#[derive(Serialize, Deserialize)]
 pub struct RevokeClientRequest {
     /// The public key of the client to revoke.
     pub client_pk: ed25519::PublicKey,

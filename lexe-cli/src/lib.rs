@@ -165,7 +165,7 @@ pub enum LexeCommand {
     GetPayment(GetPaymentArgs),
     GetUpdatedPayments(GetUpdatedPaymentsArgs),
     UpdatePersonalNote(UpdatePersonalNoteArgs),
-    GetClients(GetClientsArgs),
+    ListClients(ListClientsArgs),
     CreateClient(CreateClientArgs),
     UpdateClient(UpdateClientArgs),
     RevokeClient(RevokeClientArgs),
@@ -300,7 +300,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
         LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
         LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
-        LexeCommand::GetClients(a) => a.run(&wallet).await,
+        LexeCommand::ListClients(a) => a.run(&wallet).await,
         LexeCommand::CreateClient(a) => a.run(&wallet).await,
         LexeCommand::UpdateClient(a) => a.run(&wallet).await,
         LexeCommand::RevokeClient(a) => a.run(&wallet).await,
@@ -1649,7 +1649,7 @@ impl UpdatePersonalNoteArgs {
     }
 }
 
-// --- `get-clients` --- //
+// --- `list-clients` --- //
 
 #[derive(Parser)]
 #[command(
@@ -1660,18 +1660,18 @@ impl UpdatePersonalNoteArgs {
         and label (if any). Revoked and expired clients are not included.",
     help_template = HELP_TEMPLATE,
 )]
-pub struct GetClientsArgs {
+pub struct ListClientsArgs {
     /// Display output as JSON
     #[arg(long)]
     json: bool,
 }
 
-impl GetClientsArgs {
+impl ListClientsArgs {
     async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
         let resp = wallet
-            .get_clients()
+            .list_clients()
             .await
-            .context("Failed to get clients")?;
+            .context("Failed to list clients")?;
 
         // JSON response
         if self.json {
@@ -1682,16 +1682,17 @@ impl GetClientsArgs {
         let mut clients = resp.clients.into_values().collect::<Vec<_>>();
         clients.sort_by_key(|client| client.created_at);
 
+        // Print each entry, then the count summary last. A trailing blank line
+        // after each entry separates it from the next and from the summary.
+        println!();
+        for client in &clients {
+            helpers::print_client_info(client)?;
+            println!();
+        }
         match clients.len() {
             0 => println!("No clients found."),
-            1 => println!("Found 1 client:"),
-            n => println!("Found {n} clients:"),
-        }
-        // Blank line before each entry, separating it from the header above and
-        // from the preceding entry (`print_client_info` adds no leading break).
-        for client in &clients {
-            println!();
-            helpers::print_client_info(client)?;
+            1 => println!("Found 1 client."),
+            n => println!("Found {n} clients."),
         }
 
         Ok(())
@@ -1836,9 +1837,12 @@ pub struct UpdateClientArgs {
     #[arg(long)]
     clear_label: bool,
 
+    /// Make the client never expire. Use carefully!
+    #[arg(long, conflicts_with_all = ["expiration_days", "expiration_secs"])]
+    never_expires: bool,
+
     #[arg(
         long,
-        conflicts_with = "never_expires",
         help = "Set the client's expiration in days from now.\n\
         Adds to --expiration-secs."
     )]
@@ -1846,15 +1850,10 @@ pub struct UpdateClientArgs {
 
     #[arg(
         long,
-        conflicts_with = "never_expires",
         help = "Set the client's expiration in seconds from now.\n\
         Adds to --expiration-days."
     )]
     expiration_secs: Option<u32>,
-
-    /// Make the client never expire. Use carefully!
-    #[arg(long)]
-    never_expires: bool,
 
     /// Display output as JSON
     #[arg(long)]
@@ -1901,9 +1900,10 @@ impl UpdateClientArgs {
 
 #[derive(Parser)]
 #[command(
-    about = "Permanently revoke a client",
-    long_about = "Permanently revoke a client, making its credentials invalid\n\
-        for authentication. This cannot be undone.",
+    about = "Permanently revoke a client's access to your Lexe wallet",
+    long_about = "Permanently revoke a client's access to your Lexe wallet.\n\
+        \n\
+        This cannot be undone.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct RevokeClientArgs {

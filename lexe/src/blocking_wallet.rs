@@ -19,8 +19,8 @@ use crate::{
             AnalyzeRequest, AnalyzeResponse, ClientInfoResponse,
             CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetClientResponse, GetPaymentRequest, GetPaymentResponse,
-            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse, ListClientsResponse,
             ListPaymentsResponse, NodeInfo, PayInvoiceRequest, PayLnurlRequest,
             PayOfferRequest, PayRequest, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
@@ -480,12 +480,17 @@ impl BlockingLexeWallet {
 
     // --- Client credentials management --- //
 
-    /// Get information about the active client credentials for this node.
-    pub fn get_clients(&self) -> anyhow::Result<GetClientResponse> {
-        block_on(self.inner.get_clients())
+    /// List the active client credentials for this node.
+    ///
+    /// Revoked and expired clients are not included.
+    pub fn list_clients(&self) -> anyhow::Result<ListClientsResponse> {
+        block_on(self.inner.list_clients())
     }
 
     /// Create new client credentials for this node.
+    ///
+    /// WARNING: Anyone with the returned credentials can control this node's
+    /// funds. Store them somewhere safe.
     pub fn create_client(
         &self,
         req: CreateClientRequest,
@@ -493,7 +498,7 @@ impl BlockingLexeWallet {
         block_on(self.inner.create_client(req))
     }
 
-    /// Update a set of client credentials used by this node.
+    /// Update a client's label or expiration.
     pub fn update_client(
         &self,
         req: UpdateClientRequest,
@@ -502,7 +507,7 @@ impl BlockingLexeWallet {
     }
 
     /// Permanently revoke a client, making its credentials invalid for
-    /// authentication.
+    /// authentication. This cannot be undone.
     pub fn revoke_client(
         &self,
         req: RevokeClientRequest,
