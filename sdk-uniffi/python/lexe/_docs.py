@@ -1058,6 +1058,89 @@ Raises:
     FfiError: If the payment doesn't exist locally.
 """)
 
+_set_method_doc(LexeWallet, "list_clients", """\
+List the clients authorized to control this node.
+
+Revoked and expired clients are not included.
+
+Returns:
+    A dict mapping each client's hex-encoded public key to its
+    :class:`ClientInfo`.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    for pk, client in wallet.list_clients().items():
+        print(f"{pk}: {client.label}")
+""")
+
+_set_method_doc(LexeWallet, "create_client", """\
+Create a new client authorized to control this node.
+
+The returned credentials grant control of this node without exposing the
+root seed, and can be revoked at any time with :meth:`revoke_client`.
+
+.. warning::
+    Anyone with the returned credentials can control this node's funds.
+    Store them somewhere safe.
+
+Args:
+    expires_at_ms: The client's expiration (ms since UNIX epoch), or
+        ``None`` for a client that never expires. Use carefully!
+    label: An optional label of at most 64 UTF-8 bytes.
+
+Returns:
+    A :class:`CreateClientResponse` with the new client's public key and
+    credentials.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    # Pass expires_at_ms=None to opt into a never-expiring client.
+    resp = wallet.create_client(expires_at_ms=None, label="my-server")
+    # Store the credentials somewhere safe; reload later with
+    # ClientCredentials.from_string(...).
+    creds_str = resp.client_credentials.export_string()
+""")
+
+_set_method_doc(LexeWallet, "update_client", """\
+Update a client's label or expiration. Omitted fields are left as-is.
+
+Args:
+    client_pk: Hex-encoded public key of the client to update.
+    label: A new label, or ``None`` to leave it unchanged.
+    clear_label: Remove the client's label. Conflicts with ``label``.
+    expires_at_ms: A new expiration (ms since UNIX epoch), or ``None`` to
+        leave it unchanged.
+    never_expires: Make the client never expire. Use carefully! Conflicts
+        with ``expires_at_ms``.
+
+Returns:
+    The updated :class:`ClientInfo`.
+
+Raises:
+    FfiError: If ``client_pk`` is malformed, the arguments conflict, or the
+        request fails.
+""")
+
+_set_method_doc(LexeWallet, "revoke_client", """\
+Permanently revoke a client, making its credentials invalid for
+authentication. This cannot be undone.
+
+Args:
+    client_pk: Hex-encoded public key of the client to revoke.
+
+Returns:
+    The revoked :class:`ClientInfo`.
+
+Raises:
+    FfiError: If ``client_pk`` is malformed or the request fails.
+""")
+
 # ======================= #
 # --- AsyncLexeWallet --- #
 # ======================= #
@@ -1620,6 +1703,89 @@ Raises:
     FfiError: If the payment doesn't exist locally.
 """)
 
+_set_method_doc(AsyncLexeWallet, "list_clients", """\
+List the clients authorized to control this node.
+
+Revoked and expired clients are not included.
+
+Returns:
+    A dict mapping each client's hex-encoded public key to its
+    :class:`ClientInfo`.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    for pk, client in (await wallet.list_clients()).items():
+        print(f"{pk}: {client.label}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "create_client", """\
+Create a new client authorized to control this node.
+
+The returned credentials grant control of this node without exposing the
+root seed, and can be revoked at any time with :meth:`revoke_client`.
+
+.. warning::
+    Anyone with the returned credentials can control this node's funds.
+    Store them somewhere safe.
+
+Args:
+    expires_at_ms: The client's expiration (ms since UNIX epoch), or
+        ``None`` for a client that never expires. Use carefully!
+    label: An optional label of at most 64 UTF-8 bytes.
+
+Returns:
+    A :class:`CreateClientResponse` with the new client's public key and
+    credentials.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    # Pass expires_at_ms=None to opt into a never-expiring client.
+    resp = await wallet.create_client(expires_at_ms=None, label="my-server")
+    # Store the credentials somewhere safe; reload later with
+    # ClientCredentials.from_string(...).
+    creds_str = resp.client_credentials.export_string()
+""")
+
+_set_method_doc(AsyncLexeWallet, "update_client", """\
+Update a client's label or expiration. Omitted fields are left as-is.
+
+Args:
+    client_pk: Hex-encoded public key of the client to update.
+    label: A new label, or ``None`` to leave it unchanged.
+    clear_label: Remove the client's label. Conflicts with ``label``.
+    expires_at_ms: A new expiration (ms since UNIX epoch), or ``None`` to
+        leave it unchanged.
+    never_expires: Make the client never expire. Use carefully! Conflicts
+        with ``expires_at_ms``.
+
+Returns:
+    The updated :class:`ClientInfo`.
+
+Raises:
+    FfiError: If ``client_pk`` is malformed, the arguments conflict, or the
+        request fails.
+""")
+
+_set_method_doc(AsyncLexeWallet, "revoke_client", """\
+Permanently revoke a client, making its credentials invalid for
+authentication. This cannot be undone.
+
+Args:
+    client_pk: Hex-encoded public key of the client to revoke.
+
+Returns:
+    The revoked :class:`ClientInfo`.
+
+Raises:
+    FfiError: If ``client_pk`` is malformed or the request fails.
+""")
+
 # ================ #
 # --- Payments --- #
 # ================ #
@@ -1955,6 +2121,32 @@ Response from creating a BOLT 12 offer.
 
 Attributes:
     offer: BOLT 12 offer string.
+"""
+
+# ========================== #
+# --- Client credentials --- #
+# ========================== #
+
+lexe.ClientInfo.__doc__ = """\
+Information about a client authorized to control a Lexe node.
+
+Attributes:
+    client_pk: Hex-encoded public key of the client.
+    created_at_ms: Client creation time (ms since UNIX epoch).
+    expires_at_ms: Client expiration time (ms since UNIX epoch), or ``None``
+        if the client never expires.
+    label: Optional label for the client.
+"""
+
+lexe.CreateClientResponse.__doc__ = """\
+Response from creating a new client.
+
+Attributes:
+    client_pk: Hex-encoded public key of the created client.
+    created_at_ms: Client creation time (ms since UNIX epoch).
+    client_credentials: The :class:`ClientCredentials` granting control
+        of the node. Anyone with the credentials can control the node's funds;
+        store them safely.
 """
 
 # ================= #

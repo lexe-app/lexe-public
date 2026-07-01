@@ -7,7 +7,10 @@
 //!
 //! [UniFFI]: https://mozilla.github.io/uniffi-rs/
 
-use std::{fmt, path::PathBuf, str::FromStr, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap, fmt, path::PathBuf, str::FromStr, sync::Arc,
+    time::Duration,
+};
 
 use anyhow::{Context, anyhow};
 use lexe::{
@@ -27,7 +30,9 @@ use lexe::{
         },
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
-            AnalyzeResponse as SdkAnalyzeResponse,
+            AnalyzeResponse as SdkAnalyzeResponse, ClientInfo as SdkClientInfo,
+            CreateClientRequest as SdkCreateClientRequest,
+            CreateClientResponse as SdkCreateClientResponse,
             CreateInvoiceRequest as SdkCreateInvoiceRequest,
             CreateInvoiceResponse as SdkCreateInvoiceResponse,
             CreateOfferRequest as SdkCreateOfferRequest,
@@ -38,12 +43,16 @@ use lexe::{
             NodeInfo as SdkNodeInfo, PayInvoiceRequest as SdkPayInvoiceRequest,
             PayLnurlRequest as SdkPayLnurlRequest,
             PayOfferRequest as SdkPayOfferRequest, PayRequest as SdkPayRequest,
-            PayableDetails as SdkPayableDetails, UpdatePersonalNoteRequest,
+            PayableDetails as SdkPayableDetails,
+            RevokeClientRequest as SdkRevokeClientRequest,
+            UpdateClientRequest as SdkUpdateClientRequest,
+            UpdatePersonalNoteRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
         payment::Payment as SdkPayment,
-        util::Ppm,
+        util::{Ppm, TimestampMs},
     },
+    util::ed25519,
     wallet::LexeWallet as SdkLexeWallet,
 };
 use lexe_api_core::{
@@ -1322,6 +1331,118 @@ impl AsyncLexeWallet {
         self.inner.update_personal_note(req).await?;
         Ok(())
     }
+
+    // --- Client credentials management --- //
+
+    /// List the clients authorized to control this node, keyed by each
+    /// client's hex-encoded public key.
+    ///
+    /// Revoked and expired clients are not included.
+    pub async fn list_clients(&self) -> FfiResult<HashMap<String, ClientInfo>> {
+        let resp = self.inner.list_clients().await?;
+        let clients = resp
+            .clients
+            .into_iter()
+            .map(|(pk, info)| (pk.to_string(), ClientInfo::from(info)))
+            .collect();
+        Ok(clients)
+    }
+
+    /// Create a new client authorized to control this node, returning its
+    /// public key and credentials.
+    ///
+    /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
+    /// epoch); `None` means the client never expires. Use carefully! `label`
+    /// is an optional label of at most 64 UTF-8 bytes.
+    ///
+    /// WARNING: Anyone with the returned credentials can control this node's
+    /// funds. Store them somewhere safe.
+    // Explicitly omit default expiration to force opting into no expiration
+    #[uniffi::method(default(label = None))]
+    pub async fn create_client(
+        &self,
+        expires_at_ms: Option<u64>,
+        label: Option<String>,
+    ) -> FfiResult<CreateClientResponse> {
+        let expires_at = expires_at_ms
+            .map(TimestampMs::from_millis)
+            .transpose()
+            .context("expires_at_ms is too large")?;
+        let req = SdkCreateClientRequest { expires_at, label };
+        let resp = self.inner.create_client(req).await?;
+        Ok(CreateClientResponse::from(resp))
+    }
+
+    /// Update a client's label or expiration. Omitted fields are left as-is.
+    ///
+    /// Set `clear_label` to remove an existing label (conflicts with `label`).
+    /// Set `never_expires` to remove an existing expiration (conflicts with
+    /// `expires_at_ms`). Use carefully!
+    #[uniffi::method(default(
+        label = None,
+        clear_label = false,
+        expires_at_ms = None,
+        never_expires = false,
+    ))]
+    pub async fn update_client(
+        &self,
+        client_pk: String,
+        label: Option<String>,
+        clear_label: bool,
+        expires_at_ms: Option<u64>,
+        never_expires: bool,
+    ) -> FfiResult<ClientInfo> {
+        let client_pk = ed25519::PublicKey::from_str(&client_pk)
+            .context("Invalid client_pk")?;
+
+        // Each pair maps to the same field, so reject conflicting inputs
+        // rather than silently ignoring one of them.
+        if clear_label && label.is_some() {
+            let msg = "Set only one of `label`, `clear_label`";
+            return Err(anyhow!(msg).into());
+        }
+        if never_expires && expires_at_ms.is_some() {
+            let msg = "Set only one of `expires_at_ms`, `never_expires`";
+            return Err(anyhow!(msg).into());
+        }
+
+        // `Some(None)` clears the field; `None` leaves it unchanged.
+        let new_label = if clear_label {
+            Some(None)
+        } else {
+            label.map(Some)
+        };
+        let new_expires_at = if never_expires {
+            Some(None)
+        } else {
+            expires_at_ms
+                .map(TimestampMs::from_millis)
+                .transpose()
+                .context("expires_at_ms is too large")?
+                .map(Some)
+        };
+
+        let req = SdkUpdateClientRequest {
+            client_pk,
+            new_label,
+            new_expires_at,
+        };
+        let resp = self.inner.update_client(req).await?;
+        Ok(ClientInfo::from(resp.client))
+    }
+
+    /// Permanently revoke a client, making its credentials invalid for
+    /// authentication. This cannot be undone.
+    pub async fn revoke_client(
+        &self,
+        client_pk: String,
+    ) -> FfiResult<ClientInfo> {
+        let client_pk = ed25519::PublicKey::from_str(&client_pk)
+            .context("Invalid client_pk")?;
+        let req = SdkRevokeClientRequest { client_pk };
+        let resp = self.inner.revoke_client(req).await?;
+        Ok(ClientInfo::from(resp.client))
+    }
 }
 
 // ========================== //
@@ -1958,6 +2079,115 @@ impl BlockingLexeWallet {
         };
         self.inner.update_personal_note(req)?;
         Ok(())
+    }
+
+    // --- Client credentials management --- //
+
+    /// List the clients authorized to control this node, keyed by each
+    /// client's hex-encoded public key.
+    ///
+    /// Revoked and expired clients are not included.
+    pub fn list_clients(&self) -> FfiResult<HashMap<String, ClientInfo>> {
+        let resp = self.inner.list_clients()?;
+        let clients = resp
+            .clients
+            .into_iter()
+            .map(|(pk, info)| (pk.to_string(), ClientInfo::from(info)))
+            .collect();
+        Ok(clients)
+    }
+
+    /// Create a new client authorized to control this node, returning its
+    /// public key and credentials.
+    ///
+    /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
+    /// epoch); `None` means the client never expires. Use carefully! `label`
+    /// is an optional label of at most 64 UTF-8 bytes.
+    ///
+    /// WARNING: Anyone with the returned credentials can control this node's
+    /// funds. Store them somewhere safe.
+    // Explicitly omit default expiration to force opting into no expiration
+    #[uniffi::method(default(label = None))]
+    pub fn create_client(
+        &self,
+        expires_at_ms: Option<u64>,
+        label: Option<String>,
+    ) -> FfiResult<CreateClientResponse> {
+        let expires_at = expires_at_ms
+            .map(TimestampMs::from_millis)
+            .transpose()
+            .context("expires_at_ms is too large")?;
+        let req = SdkCreateClientRequest { expires_at, label };
+        let resp = self.inner.create_client(req)?;
+        Ok(CreateClientResponse::from(resp))
+    }
+
+    /// Update a client's label or expiration. Omitted fields are left as-is.
+    ///
+    /// Set `clear_label` to remove an existing label (conflicts with `label`).
+    /// Set `never_expires` to remove an existing expiration (conflicts with
+    /// `expires_at_ms`). Use carefully!
+    #[uniffi::method(default(
+        label = None,
+        clear_label = false,
+        expires_at_ms = None,
+        never_expires = false,
+    ))]
+    pub fn update_client(
+        &self,
+        client_pk: String,
+        label: Option<String>,
+        clear_label: bool,
+        expires_at_ms: Option<u64>,
+        never_expires: bool,
+    ) -> FfiResult<ClientInfo> {
+        let client_pk = ed25519::PublicKey::from_str(&client_pk)
+            .context("Invalid client_pk")?;
+
+        // Each pair maps to the same field, so reject conflicting inputs
+        // rather than silently ignoring one of them.
+        if clear_label && label.is_some() {
+            let msg = "Set only one of `label`, `clear_label`";
+            return Err(anyhow!(msg).into());
+        }
+        if never_expires && expires_at_ms.is_some() {
+            let msg = "Set only one of `expires_at_ms`, `never_expires`";
+            return Err(anyhow!(msg).into());
+        }
+
+        // `Some(None)` clears the field; `None` leaves it unchanged.
+        let new_label = if clear_label {
+            Some(None)
+        } else {
+            label.map(Some)
+        };
+        let new_expires_at = if never_expires {
+            Some(None)
+        } else {
+            expires_at_ms
+                .map(TimestampMs::from_millis)
+                .transpose()
+                .context("expires_at_ms is too large")?
+                .map(Some)
+        };
+
+        let req = SdkUpdateClientRequest {
+            client_pk,
+            new_label,
+            new_expires_at,
+        };
+        let resp = self.inner.update_client(req)?;
+        Ok(ClientInfo::from(resp.client))
+    }
+
+    /// Permanently revoke a client, making its credentials invalid for
+    /// authentication. This cannot be undone.
+    pub fn revoke_client(&self, client_pk: String) -> FfiResult<ClientInfo> {
+        let client_pk = ed25519::PublicKey::from_str(&client_pk)
+            .context("Invalid client_pk")?;
+        let req = SdkRevokeClientRequest { client_pk };
+        let resp = self.inner.revoke_client(req)?;
+        Ok(ClientInfo::from(resp.client))
     }
 }
 
@@ -2730,6 +2960,58 @@ impl From<SdkCreateOfferResponse> for CreateOfferResponse {
     fn from(resp: SdkCreateOfferResponse) -> Self {
         Self {
             offer: resp.offer.to_string(),
+        }
+    }
+}
+
+// ========================== //
+// --- Client credentials --- //
+// ========================== //
+
+/// Information about a client authorized to control a Lexe node.
+#[derive(Clone, uniffi::Record)]
+pub struct ClientInfo {
+    /// Hex-encoded public key of the client.
+    pub client_pk: String,
+    /// Client creation time (milliseconds since the UNIX epoch).
+    pub created_at_ms: u64,
+    /// Client expiration time (milliseconds since the UNIX epoch).
+    /// `None` means the client never expires.
+    pub expires_at_ms: Option<u64>,
+    /// Optional label for the client.
+    pub label: Option<String>,
+}
+
+impl From<SdkClientInfo> for ClientInfo {
+    fn from(info: SdkClientInfo) -> Self {
+        Self {
+            client_pk: info.client_pk.to_string(),
+            created_at_ms: info.created_at.to_millis(),
+            expires_at_ms: info.expires_at.map(|t| t.to_millis()),
+            label: info.label,
+        }
+    }
+}
+
+/// Response from creating a new client.
+#[derive(uniffi::Record)]
+pub struct CreateClientResponse {
+    /// Hex-encoded public key of the created client.
+    pub client_pk: String,
+    /// Client creation time (milliseconds since the UNIX epoch).
+    pub created_at_ms: u64,
+    /// The client credentials which authorize control of the node.
+    pub client_credentials: Arc<ClientCredentials>,
+}
+
+impl From<SdkCreateClientResponse> for CreateClientResponse {
+    fn from(resp: SdkCreateClientResponse) -> Self {
+        Self {
+            client_pk: resp.client_pk.to_string(),
+            created_at_ms: resp.created_at.to_millis(),
+            client_credentials: Arc::new(ClientCredentials {
+                sdk: resp.client_credentials,
+            }),
         }
     }
 }
