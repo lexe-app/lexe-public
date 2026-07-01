@@ -350,7 +350,6 @@ impl TryFrom<Mnemonic> for RootSeed {
 ///
 /// These are useful when you want node access without exposing the user's
 /// [`RootSeed`], which is irrevocable.
-#[cfg_attr(feature = "unstable", derive(Serialize, Deserialize))]
 #[derive(Clone)]
 pub struct ClientCredentials(UnstableClientCredentials);
 
@@ -397,6 +396,24 @@ impl FromStr for ClientCredentials {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         UnstableClientCredentials::try_from_base64_blob(s).map(Self)
+    }
+}
+
+impl Serialize for ClientCredentials {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.export_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for ClientCredentials {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
