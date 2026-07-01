@@ -1264,6 +1264,7 @@ impl From<auth::Error> for BackendApiError {
         let kind = match error {
             auth::Error::ClockDrift => BackendErrorKind::AuthExpired,
             auth::Error::Expired => BackendErrorKind::AuthExpired,
+            auth::Error::NotYetValid => BackendErrorKind::AuthExpired,
             _ => BackendErrorKind::Unauthenticated,
         };
         let msg = format!("{error:#}");

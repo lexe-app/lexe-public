@@ -20,37 +20,40 @@ use crate::test_utils::arbitrary;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("error verifying signed bearer auth request: {0}")]
+    #[error("Error verifying signed bearer auth request: {0}")]
     UserVerifyError(#[source] ed25519::Error),
 
     #[error("Decoded bearer auth token appears malformed")]
     MalformedToken,
 
-    #[error("issued timestamp is too far from current auth server clock")]
+    #[error("Issued timestamp is too far from current auth server clock")]
     ClockDrift,
 
-    #[error("auth token or auth request is expired")]
+    #[error("Auth token or auth request is expired")]
     Expired,
 
-    #[error("timestamp is not a valid unix timestamp")]
+    #[error("Auth token is not valid yet")]
+    NotYetValid,
+
+    #[error("Timestamp is not a valid unix timestamp")]
     InvalidTimestamp,
 
-    #[error("requested token lifetime is too long")]
+    #[error("Requested token lifetime is too long")]
     InvalidLifetime,
 
-    #[error("user not signed up yet")]
+    #[error("User not signed up yet")]
     NoUser,
 
-    #[error("bearer auth token is not valid base64")]
+    #[error("Bearer auth token is not valid base64")]
     Base64Decode,
 
-    #[error("bearer auth token was not provided")]
+    #[error("Bearer auth token was not provided")]
     Missing,
 
     // TODO(phlip9): this is an authorization error, not an authentication
     // error. Add a new type?
     #[error(
-        "auth token's granted scope ({granted:?}) is not sufficient for \
+        "Auth token's granted scope ({granted:?}) is not sufficient for \
          requested scope ({requested:?})"
     )]
     InsufficientScope {
