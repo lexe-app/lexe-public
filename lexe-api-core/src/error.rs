@@ -1287,8 +1287,8 @@ impl GatewayApiError {
         }
     }
 
-    /// Wrap a backend error returned from a request made on the user's behalf.
-    pub fn backend(error: impl fmt::Display) -> Self {
+    /// Wrap an error from a downstream Lexe service (backend, runner, node).
+    pub fn server(error: impl fmt::Display) -> Self {
         let msg = format!("{error:#}");
         let kind = GatewayErrorKind::Server;
         Self {
