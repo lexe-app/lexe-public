@@ -6,7 +6,7 @@ use lexe::types::{
         GetPaymentResponse, GetUpdatedPaymentsRequest,
         GetUpdatedPaymentsResponse, ListClientsResponse, ListPaymentsResponse,
         NodeInfo, PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdateClientRequest, UpdatePersonalNoteRequest,
+        RevokeClientRequest, UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -19,7 +19,8 @@ use lexe_api::{
 use crate::{
     api::{
         AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
-        PayLnurlRequest, PayRequest, SignupRequest, WithdrawLnurlRequest,
+        PayLnurlRequest, PayRequest, SignupRequest, UpdateClientRequest,
+        WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };

@@ -498,7 +498,7 @@ impl BlockingLexeWallet {
         block_on(self.inner.create_client(req))
     }
 
-    /// Update a client's label or expiration.
+    /// Update a client's label or expiration. Omitted fields are left as-is.
     pub fn update_client(
         &self,
         req: UpdateClientRequest,

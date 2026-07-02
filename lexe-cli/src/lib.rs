@@ -1838,9 +1838,9 @@ pub struct UpdateClientArgs {
     #[arg(long)]
     clear_label: bool,
 
-    /// Make the client never expire. Use carefully!
+    /// Clear the client's expiration, so it never expires. Use carefully!
     #[arg(long, conflicts_with_all = ["expiration_days", "expiration_secs"])]
-    never_expires: bool,
+    clear_expiration: bool,
 
     #[arg(
         long,
@@ -1863,26 +1863,17 @@ pub struct UpdateClientArgs {
 
 impl UpdateClientArgs {
     async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
-        let new_label = if self.clear_label {
-            Some(None)
-        } else {
-            self.label.map(Some)
-        };
-        let new_expires_at = if self.never_expires {
-            Some(None)
-        } else {
-            helpers::expiration_from_now(
-                self.expiration_days,
-                self.expiration_secs,
-            )
-            .map(Some)
-        };
-
-        let req = UpdateClientRequest {
-            client_pk: self.client_pk,
-            new_label,
-            new_expires_at,
-        };
+        let expires_at = helpers::expiration_from_now(
+            self.expiration_days,
+            self.expiration_secs,
+        );
+        let req = UpdateClientRequest::new(
+            self.client_pk,
+            self.label,
+            self.clear_label,
+            expires_at,
+            self.clear_expiration,
+        )?;
         let resp = wallet
             .update_client(req)
             .await

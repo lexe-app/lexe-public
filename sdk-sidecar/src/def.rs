@@ -15,7 +15,7 @@ use lexe::types::{
         GetPaymentResponse, GetUpdatedPaymentsRequest,
         GetUpdatedPaymentsResponse, ListClientsResponse, ListPaymentsResponse,
         NodeInfo, PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdateClientRequest, UpdatePersonalNoteRequest,
+        RevokeClientRequest, UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -23,7 +23,7 @@ use lexe_api::{error::SdkApiError, types::Empty};
 
 use crate::api::{
     AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest,
-    PayRequest, SignupRequest, WithdrawLnurlRequest,
+    PayRequest, SignupRequest, UpdateClientRequest, WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -225,7 +225,7 @@ pub trait UserSidecarApi {
     /// PUT /v2/node/update_client [`UpdateClientRequest`]
     ///                         -> [`ClientInfoResponse`]
     ///
-    /// Update a client's label or expiration.
+    /// Update a client's label or expiration. Omitted fields are left as-is.
     async fn update_client(
         &self,
         req: &UpdateClientRequest,

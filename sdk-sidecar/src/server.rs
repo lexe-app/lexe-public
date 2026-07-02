@@ -24,7 +24,8 @@ use lexe::{
             ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
             PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
             PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
-            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
+            PaymentSyncSummary, RevokeClientRequest,
+            UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
@@ -44,7 +45,7 @@ use crate::{
     api::{
         AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
         PayLnurlRequest, PayRequest, PayableDetails, SignupRequest,
-        WithdrawLnurlRequest,
+        UpdateClientRequest, WithdrawLnurlRequest,
     },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
@@ -583,6 +584,14 @@ mod node {
         WalletExtractor(wallet): WalletExtractor,
         LxJson(req): LxJson<UpdateClientRequest>,
     ) -> Result<LxJson<ClientInfoResponse>, SdkApiError> {
+        let req = SdkUpdateClientRequest::new(
+            req.client_pk,
+            req.label,
+            req.clear_label,
+            req.expires_at,
+            req.clear_expiration,
+        )
+        .map_err(SdkApiError::command)?;
         let resp = wallet
             .update_client(req)
             .await

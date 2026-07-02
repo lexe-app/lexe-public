@@ -6,14 +6,17 @@
 use std::borrow::Cow;
 
 use anyhow::ensure;
-use lexe::types::{
-    auth::UserPk,
-    bitcoin::Amount,
-    command::{
-        PayLnurlRequest as SdkPayLnurlRequest,
-        WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
+use lexe::{
+    types::{
+        auth::UserPk,
+        bitcoin::Amount,
+        command::{
+            PayLnurlRequest as SdkPayLnurlRequest,
+            WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
+        },
+        payment::{Order, PaymentCreatedIndex, PaymentFilter},
     },
-    payment::{Order, PaymentCreatedIndex, PaymentFilter},
+    util::ed25519,
 };
 use lexe_common::time::TimestampMs;
 use serde::{Deserialize, Serialize};
@@ -161,4 +164,28 @@ pub struct ListPaymentsRequest {
     pub order: Option<Order>,
     pub limit: Option<usize>,
     pub after: Option<PaymentCreatedIndex>,
+}
+
+/// Mirrors [`lexe::types::command::UpdateClientRequest`], but uses explicit
+/// set/clear flags in place of its `Option<Option<_>>` fields, which JSON
+/// cannot easily express.
+///
+/// Every field except `client_pk` is optional; omit a field to leave that
+/// property unchanged.
+#[derive(Serialize, Deserialize)]
+pub struct UpdateClientRequest {
+    /// The public key of the client to update.
+    pub client_pk: ed25519::PublicKey,
+    /// Set the client's label. Conflicts with `clear_label`.
+    pub label: Option<String>,
+    /// Clear the client's label. Conflicts with `label`.
+    #[serde(default)]
+    pub clear_label: bool,
+    /// Set the client's expiration, in milliseconds since the UNIX epoch.
+    /// Conflicts with `clear_expiration`.
+    pub expires_at: Option<TimestampMs>,
+    /// Clear the client's expiration, so it never expires. Conflicts with
+    /// `expires_at`. Use carefully!
+    #[serde(default)]
+    pub clear_expiration: bool,
 }

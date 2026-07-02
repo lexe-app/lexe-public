@@ -1376,13 +1376,13 @@ impl AsyncLexeWallet {
     /// Update a client's label or expiration. Omitted fields are left as-is.
     ///
     /// Set `clear_label` to remove an existing label (conflicts with `label`).
-    /// Set `never_expires` to remove an existing expiration (conflicts with
+    /// Set `clear_expiration` to remove an existing expiration (conflicts with
     /// `expires_at_ms`). Use carefully!
     #[uniffi::method(default(
         label = None,
         clear_label = false,
         expires_at_ms = None,
-        never_expires = false,
+        clear_expiration = false,
     ))]
     pub async fn update_client(
         &self,
@@ -1390,43 +1390,22 @@ impl AsyncLexeWallet {
         label: Option<String>,
         clear_label: bool,
         expires_at_ms: Option<u64>,
-        never_expires: bool,
+        clear_expiration: bool,
     ) -> FfiResult<ClientInfo> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
+        let expires_at = expires_at_ms
+            .map(TimestampMs::from_millis)
+            .transpose()
+            .context("expires_at_ms is too large")?;
 
-        // Each pair maps to the same field, so reject conflicting inputs
-        // rather than silently ignoring one of them.
-        if clear_label && label.is_some() {
-            let msg = "Set only one of `label`, `clear_label`";
-            return Err(anyhow!(msg).into());
-        }
-        if never_expires && expires_at_ms.is_some() {
-            let msg = "Set only one of `expires_at_ms`, `never_expires`";
-            return Err(anyhow!(msg).into());
-        }
-
-        // `Some(None)` clears the field; `None` leaves it unchanged.
-        let new_label = if clear_label {
-            Some(None)
-        } else {
-            label.map(Some)
-        };
-        let new_expires_at = if never_expires {
-            Some(None)
-        } else {
-            expires_at_ms
-                .map(TimestampMs::from_millis)
-                .transpose()
-                .context("expires_at_ms is too large")?
-                .map(Some)
-        };
-
-        let req = SdkUpdateClientRequest {
+        let req = SdkUpdateClientRequest::new(
             client_pk,
-            new_label,
-            new_expires_at,
-        };
+            label,
+            clear_label,
+            expires_at,
+            clear_expiration,
+        )?;
         let resp = self.inner.update_client(req).await?;
         Ok(ClientInfo::from(resp.client))
     }
@@ -2125,13 +2104,13 @@ impl BlockingLexeWallet {
     /// Update a client's label or expiration. Omitted fields are left as-is.
     ///
     /// Set `clear_label` to remove an existing label (conflicts with `label`).
-    /// Set `never_expires` to remove an existing expiration (conflicts with
+    /// Set `clear_expiration` to remove an existing expiration (conflicts with
     /// `expires_at_ms`). Use carefully!
     #[uniffi::method(default(
         label = None,
         clear_label = false,
         expires_at_ms = None,
-        never_expires = false,
+        clear_expiration = false,
     ))]
     pub fn update_client(
         &self,
@@ -2139,43 +2118,22 @@ impl BlockingLexeWallet {
         label: Option<String>,
         clear_label: bool,
         expires_at_ms: Option<u64>,
-        never_expires: bool,
+        clear_expiration: bool,
     ) -> FfiResult<ClientInfo> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
+        let expires_at = expires_at_ms
+            .map(TimestampMs::from_millis)
+            .transpose()
+            .context("expires_at_ms is too large")?;
 
-        // Each pair maps to the same field, so reject conflicting inputs
-        // rather than silently ignoring one of them.
-        if clear_label && label.is_some() {
-            let msg = "Set only one of `label`, `clear_label`";
-            return Err(anyhow!(msg).into());
-        }
-        if never_expires && expires_at_ms.is_some() {
-            let msg = "Set only one of `expires_at_ms`, `never_expires`";
-            return Err(anyhow!(msg).into());
-        }
-
-        // `Some(None)` clears the field; `None` leaves it unchanged.
-        let new_label = if clear_label {
-            Some(None)
-        } else {
-            label.map(Some)
-        };
-        let new_expires_at = if never_expires {
-            Some(None)
-        } else {
-            expires_at_ms
-                .map(TimestampMs::from_millis)
-                .transpose()
-                .context("expires_at_ms is too large")?
-                .map(Some)
-        };
-
-        let req = SdkUpdateClientRequest {
+        let req = SdkUpdateClientRequest::new(
             client_pk,
-            new_label,
-            new_expires_at,
-        };
+            label,
+            clear_label,
+            expires_at,
+            clear_expiration,
+        )?;
         let resp = self.inner.update_client(req)?;
         Ok(ClientInfo::from(resp.client))
     }

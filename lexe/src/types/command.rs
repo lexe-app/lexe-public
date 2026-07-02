@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::Context;
+use anyhow::{Context, ensure};
 use lexe_api::{
     models::command,
     types::{
@@ -772,6 +772,49 @@ pub struct UpdateClientRequest {
     pub new_expires_at: Option<Option<TimestampMs>>,
 }
 
+impl UpdateClientRequest {
+    /// Build a request from explicit set/clear flags, used by wrappers whose
+    /// serialization can't express the `Option<Option<_>>` fields, such as the
+    /// Sidecar's JSON API, UniFFI, and the CLI.
+    ///
+    /// - At most one of `clear_label` or `label` can be set.
+    /// - At most one of `clear_expiration` or `expires_at` can be set.
+    pub fn new(
+        client_pk: ed25519::PublicKey,
+        label: Option<String>,
+        clear_label: bool,
+        expires_at: Option<TimestampMs>,
+        clear_expiration: bool,
+    ) -> anyhow::Result<Self> {
+        ensure!(
+            !(clear_label && label.is_some()),
+            "Set only one of `label`, `clear_label`",
+        );
+        ensure!(
+            !(clear_expiration && expires_at.is_some()),
+            "Set only one of the expiration and `clear_expiration`",
+        );
+
+        // `Some(None)` clears the field; `None` leaves it unchanged.
+        let new_label = if clear_label {
+            Some(None)
+        } else {
+            label.map(Some)
+        };
+        let new_expires_at = if clear_expiration {
+            Some(None)
+        } else {
+            expires_at.map(Some)
+        };
+
+        Ok(Self {
+            client_pk,
+            new_label,
+            new_expires_at,
+        })
+    }
+}
+
 impl From<UpdateClientRequest> for revocable_clients::UpdateClientRequest {
     fn from(req: UpdateClientRequest) -> Self {
         Self {
@@ -790,4 +833,40 @@ impl From<UpdateClientRequest> for revocable_clients::UpdateClientRequest {
 pub struct RevokeClientRequest {
     /// The public key of the client to revoke.
     pub client_pk: ed25519::PublicKey,
+}
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn update_client_req_from_flags() {
+        let pk = ed25519::PublicKey::from_str(
+            "b484a4890b47358ee68684bcd502d2eefa1bc66cc0f8ac2e5f06384676be74eb",
+        )
+        .unwrap();
+        let ts = TimestampMs::from_millis(1_772_349_163_000).unwrap();
+        let build = |label, clear, expires_at, never| {
+            UpdateClientRequest::new(pk, label, clear, expires_at, never)
+        };
+
+        // Set: `Some(Some(_))`. Clear: `Some(None)`. Unchanged: `None`.
+        let set = build(Some("hi".into()), false, Some(ts), false).unwrap();
+        assert_eq!(set.new_label, Some(Some("hi".into())));
+        assert_eq!(set.new_expires_at, Some(Some(ts)));
+
+        let clear = build(None, true, None, true).unwrap();
+        assert_eq!(clear.new_label, Some(None));
+        assert_eq!(clear.new_expires_at, Some(None));
+
+        let unchanged = build(None, false, None, false).unwrap();
+        assert_eq!(unchanged.new_label, None);
+        assert_eq!(unchanged.new_expires_at, None);
+
+        // Conflicting set + clear flags are rejected.
+        assert!(build(Some("hi".into()), true, None, false).is_err());
+        assert!(build(None, false, Some(ts), true).is_err());
+    }
 }

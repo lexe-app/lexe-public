@@ -1684,7 +1684,7 @@ impl LexeWallet {
         })
     }
 
-    /// Update a client's label or expiration.
+    /// Update a client's label or expiration. Omitted fields are left as-is.
     #[instrument(skip_all, name = "(update-client)")]
     pub async fn update_client(
         &self,

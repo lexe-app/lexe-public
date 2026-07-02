@@ -1116,8 +1116,8 @@ Args:
     clear_label: Remove the client's label. Conflicts with ``label``.
     expires_at_ms: A new expiration (ms since UNIX epoch), or ``None`` to
         leave it unchanged.
-    never_expires: Make the client never expire. Use carefully! Conflicts
-        with ``expires_at_ms``.
+    clear_expiration: Clear the client's expiration, so it never expires.
+        Use carefully! Conflicts with ``expires_at_ms``.
 
 Returns:
     The updated :class:`ClientInfo`.
@@ -1761,8 +1761,8 @@ Args:
     clear_label: Remove the client's label. Conflicts with ``label``.
     expires_at_ms: A new expiration (ms since UNIX epoch), or ``None`` to
         leave it unchanged.
-    never_expires: Make the client never expire. Use carefully! Conflicts
-        with ``expires_at_ms``.
+    clear_expiration: Clear the client's expiration, so it never expires.
+        Use carefully! Conflicts with ``expires_at_ms``.
 
 Returns:
     The updated :class:`ClientInfo`.
