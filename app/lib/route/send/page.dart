@@ -220,8 +220,24 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           );
           return Err("Must send at least $minAmountStr");
         }
-      case PaymentMethod_LnurlPay():
-        break;
+      case PaymentMethod_LnurlPay(:final field0):
+        final payRequest = field0.payRequest;
+        final amountMsats = amount * 1000;
+        if (amountMsats < payRequest.minSendableMsat) {
+          // Round the msat minimum up to the next whole sat we can send.
+          final minStr = currency_format.formatSatsAmount(
+            (payRequest.minSendableMsat + 999) ~/ 1000,
+            bitcoinSymbol: true,
+          );
+          return Err("Must send at least $minStr");
+        }
+        if (amountMsats > payRequest.maxSendableMsat) {
+          final maxStr = currency_format.formatSatsAmount(
+            payRequest.maxSendableMsat ~/ 1000,
+            bitcoinSymbol: true,
+          );
+          return Err("Can't send more than $maxStr");
+        }
     }
 
     return const Ok(());
