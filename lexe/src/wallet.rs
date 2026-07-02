@@ -1647,7 +1647,7 @@ impl LexeWallet {
 
     // --- Client credentials management --- //
 
-    /// List the active client credentials for this node.
+    /// List the active clients for this node.
     ///
     /// Revoked and expired clients are not included.
     #[instrument(skip_all, name = "(list-clients)")]

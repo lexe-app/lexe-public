@@ -1778,7 +1778,8 @@ impl CreateClientArgs {
 
         let credentials = resp.client_credentials.export_string();
 
-        // JSON response
+        // Hand-assembled rather than serializing `resp` so we can also echo
+        // `expires_at` and `label`, which aren't on `CreateClientResponse`.
         if self.json {
             let json = serde_json::json!({
                 "client_pk": resp.client_pk,

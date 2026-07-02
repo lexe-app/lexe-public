@@ -205,7 +205,7 @@ pub trait UserSidecarApi {
 
     /// GET /v2/node/list_clients [`Empty`] -> [`ListClientsResponse`]
     ///
-    /// List the active client credentials for this node.
+    /// List the active clients for this node.
     ///
     /// Revoked and expired clients are not included.
     async fn list_clients(&self) -> Result<ListClientsResponse, SdkApiError>;

@@ -480,7 +480,7 @@ impl BlockingLexeWallet {
 
     // --- Client credentials management --- //
 
-    /// List the active client credentials for this node.
+    /// List the active clients for this node.
     ///
     /// Revoked and expired clients are not included.
     pub fn list_clients(&self) -> anyhow::Result<ListClientsResponse> {
