@@ -5,7 +5,7 @@ import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/debug.dart'
     show unconditionalError, unconditionalPanic;
 import 'package:app_rs_dart/frb.dart' show PanicException;
-import 'package:flutter_test/flutter_test.dart' show expect, test;
+import 'package:flutter_test/flutter_test.dart' show expect, setUpAll, test;
 import 'package:lexeapp/result.dart';
 
 int conjure3() => 3;
@@ -30,8 +30,10 @@ void expectFirstLineEq(final String? actual, final String? expected) {
   expect(actual?.split('\n').firstOrNull, expected);
 }
 
-Future<void> main() async {
-  await app_rs_dart.init();
+void main() {
+  setUpAll(() async {
+    await app_rs_dart.init();
+  });
 
   test("result : operator == and hashCode", () {
     const Result<int, void> ok1 = Ok(5);
