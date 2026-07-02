@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1830790975;
+  int get rustContentHash => -957881476;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -4589,11 +4589,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return PreflightPayInvoiceRequest(
       invoice: dco_decode_String(arr[0]),
       fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
+      kind: dco_decode_payment_kind(arr[2]),
     );
   }
 
@@ -6533,9 +6534,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
       deserializer,
     );
+    var var_kind = sse_decode_payment_kind(deserializer);
     return PreflightPayInvoiceRequest(
       invoice: var_invoice,
       fallbackAmountSats: var_fallbackAmountSats,
+      kind: var_kind,
     );
   }
 
@@ -8341,6 +8344,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.invoice, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
+    sse_encode_payment_kind(self.kind, serializer);
   }
 
   @protected

@@ -145,6 +145,7 @@ class SendState_NeedAmount implements SendState {
         final req = PreflightPayInvoiceRequest(
           invoice: invoice.string,
           fallbackAmountSats: (invoice.amountSats == null) ? amountSats : null,
+          kind: const PaymentKind_Invoice(),
         );
 
         final result = await Result.tryFfiAsync(
@@ -206,9 +207,13 @@ class SendState_NeedAmount implements SendState {
             return Err(err);
         }
 
+        final lightningAddress = lnurlPay.lightningAddress;
         final req = PreflightPayInvoiceRequest(
           invoice: invoice.string,
           fallbackAmountSats: (invoice.amountSats == null) ? amountSats : null,
+          kind: (lightningAddress != null)
+              ? const PaymentKind_LightningAddress()
+              : const PaymentKind_Invoice(),
         );
 
         final preflightResult = await Result.tryFfiAsync(
@@ -217,7 +222,6 @@ class SendState_NeedAmount implements SendState {
 
         switch (preflightResult) {
           case Ok(:final ok):
-            final lightningAddress = lnurlPay.lightningAddress;
             preflighted = PreflightedPayment_Invoice(
               invoice: invoice,
               amountSats: amountSats,

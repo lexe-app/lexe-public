@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1830790975;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -957881476;
 
 // Section: executor
 
@@ -2944,9 +2944,12 @@ impl SseDecode for crate::ffi::api::PreflightPayInvoiceRequest {
         let mut var_invoice = <String>::sse_decode(deserializer);
         let mut var_fallbackAmountSats =
             <Option<u64>>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
         return crate::ffi::api::PreflightPayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
+            kind: var_kind,
         };
     }
 }
@@ -4779,6 +4782,7 @@ impl flutter_rust_bridge::IntoDart
         [
             self.invoice.into_into_dart().into_dart(),
             self.fallback_amount_sats.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6604,6 +6608,7 @@ impl SseEncode for crate::ffi::api::PreflightPayInvoiceRequest {
     ) {
         <String>::sse_encode(self.invoice, serializer);
         <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
+        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
     }
 }
 

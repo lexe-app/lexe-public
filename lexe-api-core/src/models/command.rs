@@ -518,6 +518,10 @@ pub struct PreflightPayInvoiceRequest {
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be [`Some`] for amountless invoices.
     pub fallback_amount: Option<Amount>,
+    /// The [`PaymentKind`] the real payment will be labeled with.
+    // Added in `node-v0.9.11`
+    #[serde(default = "default_invoice_kind")]
+    pub kind: PaymentKind,
 }
 
 #[derive(Serialize, Deserialize)]

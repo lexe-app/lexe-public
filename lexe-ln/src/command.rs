@@ -1001,8 +1001,7 @@ where
         message: None,
         // User note not relevant for pre-flight.
         personal_note: None,
-        // Kind not relevant for pre-flight.
-        kind: PaymentKind::Invoice,
+        kind: req.kind,
     };
     let preflight = preflight_pay_invoice_inner(
         req,

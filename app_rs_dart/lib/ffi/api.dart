@@ -281,6 +281,7 @@ sealed class PreflightPayInvoiceRequest with _$PreflightPayInvoiceRequest {
   const factory PreflightPayInvoiceRequest({
     required String invoice,
     int? fallbackAmountSats,
+    required PaymentKind kind,
   }) = _PreflightPayInvoiceRequest;
 }
 

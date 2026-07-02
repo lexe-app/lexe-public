@@ -1564,22 +1564,22 @@ String toString() {
 /// @nodoc
 mixin _$PreflightPayInvoiceRequest {
 
- String get invoice; int? get fallbackAmountSats;
+ String get invoice; int? get fallbackAmountSats; PaymentKind get kind;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.kind, kind) || other.kind == kind));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats);
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,kind);
 
 @override
 String toString() {
-  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats)';
+  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, kind: $kind)';
 }
 
 
@@ -1593,27 +1593,28 @@ String toString() {
 
 
 class _PreflightPayInvoiceRequest implements PreflightPayInvoiceRequest {
-  const _PreflightPayInvoiceRequest({required this.invoice, this.fallbackAmountSats});
+  const _PreflightPayInvoiceRequest({required this.invoice, this.fallbackAmountSats, required this.kind});
   
 
 @override final  String invoice;
 @override final  int? fallbackAmountSats;
+@override final  PaymentKind kind;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.kind, kind) || other.kind == kind));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats);
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,kind);
 
 @override
 String toString() {
-  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats)';
+  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, kind: $kind)';
 }
 
 

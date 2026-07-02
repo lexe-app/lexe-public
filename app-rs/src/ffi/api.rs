@@ -44,7 +44,7 @@ use lexe_api::{
         payments::{
             ClientPaymentId as ClientPaymentIdRs,
             PaymentCreatedIndex as PaymentCreatedIndexRs,
-            PaymentId as PaymentIdRs,
+            PaymentId as PaymentIdRs, PaymentKind as PaymentKindRs,
         },
         username::Username as UsernameRs,
     },
@@ -416,7 +416,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
                 .personal_note
                 .map(BoundedString::new)
                 .transpose()?,
-            kind: value.kind.into(),
+            kind: PaymentKindRs::from(value.kind),
             partner_pk: None,
             partner_prop_fee: None,
             partner_base_fee: None,
@@ -475,7 +475,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
                 .personal_note
                 .map(validate_note)
                 .transpose()?,
-            kind: value.kind.into(),
+            kind: PaymentKindRs::from(value.kind),
         })
     }
 }
@@ -509,6 +509,7 @@ impl PayInvoiceResponse {
 pub struct PreflightPayInvoiceRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
+    pub kind: PaymentKind,
 }
 
 impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
@@ -533,6 +534,7 @@ impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
         Ok(Self {
             invoice,
             fallback_amount,
+            kind: PaymentKindRs::from(value.kind),
         })
     }
 }
@@ -670,7 +672,7 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
                 .personal_note
                 .map(validate_note)
                 .transpose()?,
-            kind: value.kind.into(),
+            kind: PaymentKindRs::from(value.kind),
         })
     }
 }
