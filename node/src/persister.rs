@@ -389,6 +389,18 @@ impl NodePersister {
             .await
     }
 
+    /// Mint a long-lived [`LexeScope::GatewayProxy`] token.
+    pub(crate) async fn mint_long_lived_gateway_proxy_token(
+        &self,
+    ) -> Result<BearerAuthToken, BackendApiError> {
+        self.authenticator
+            .mint_long_lived_gateway_proxy_token(
+                &*self.backend_api,
+                SystemTime::now(),
+            )
+            .await
+    }
+
     /// Get a reference to the underlying [`NodeBackendClient`].
     pub(crate) fn backend_api(&self) -> &NodeBackendClient {
         self.backend_api.as_ref()

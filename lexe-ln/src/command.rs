@@ -42,6 +42,7 @@ use lexe_api::{
 };
 use lexe_common::{
     api::{
+        auth::BearerAuthToken,
         revocable_clients::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
             RevocableClient, RevocableClients, UpdateClientRequest,
@@ -1828,6 +1829,7 @@ mod validate {
 #[instrument(skip_all, name = "(create-revocable-client)")]
 pub async fn create_revocable_client(
     user_pk: UserPk,
+    gateway_proxy_token: Option<BearerAuthToken>,
     persister: &impl LexePersister,
     eph_ca_cert_der: LxCertificateDer,
     rev_ca_cert: &RevocableIssuingCaCert,
@@ -1907,6 +1909,7 @@ pub async fn create_revocable_client(
         eph_ca_cert_der: eph_ca_cert_der.0,
         rev_client_cert_der: rev_client_cert_der.0,
         rev_client_cert_key_der: rev_client_cert_key_der.0,
+        gateway_proxy_token,
     })
 }
 

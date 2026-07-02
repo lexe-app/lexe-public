@@ -13,7 +13,10 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::{auth::LexeScope, user::UserPk},
+    api::{
+        auth::{BearerAuthToken, LexeScope},
+        user::UserPk,
+    },
     time::TimestampMs,
 };
 
@@ -131,6 +134,7 @@ pub struct CreateRevocableClientResponse {
 
     /// The client cert pubkey.
     pub pubkey: ed25519::PublicKey,
+
     /// When this client was created.
     pub created_at: TimestampMs,
 
@@ -149,6 +153,11 @@ pub struct CreateRevocableClientResponse {
     /// The DER-encoded client cert key.
     #[serde(with = "base64_or_bytes")]
     pub rev_client_cert_key_der: Vec<u8>,
+
+    /// A long-lived [`LexeScope::GatewayProxy`] token for connecting to the
+    /// user's node via the gateway proxy. Always `Some` for user nodes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway_proxy_token: Option<BearerAuthToken>,
 }
 
 /// A request to update a single [`RevocableClient`].

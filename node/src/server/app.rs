@@ -512,8 +512,15 @@ pub(super) async fn create_revocable_client(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<CreateRevocableClientRequest>,
 ) -> Result<LxJson<CreateRevocableClientResponse>, NodeApiError> {
+    let gateway_proxy_token = state
+        .persister
+        .mint_long_lived_gateway_proxy_token()
+        .await
+        .map_err(NodeApiError::command)?;
+
     lexe_ln::command::create_revocable_client(
         state.user_pk,
+        Some(gateway_proxy_token),
         &state.persister,
         state.eph_ca_cert_der.deref().clone(),
         &state.rev_ca_cert,

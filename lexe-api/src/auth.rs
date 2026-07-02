@@ -26,6 +26,9 @@ use lexe_crypto::ed25519;
 use crate::def::BearerAuthBackendApi;
 
 pub const DEFAULT_USER_TOKEN_LIFETIME_SECS: u32 = 10 * 60; // 10 min
+/// Lifetime of the long-lived [`LexeScope::GatewayProxy`] token.
+pub const LONG_LIVED_GATEWAY_PROXY_TOKEN_LIFETIME_SECS: u32 =
+    10 * 365 * 24 * 60 * 60; // 10 years
 /// The min remaining lifetime of a token before we'll proactively refresh.
 const EXPIRATION_BUFFER: Duration = Duration::from_secs(30);
 
@@ -163,6 +166,40 @@ impl BearerAuthenticator {
                 })
             }
         }
+    }
+
+    /// Mint a fresh, long-lived [`LexeScope::GatewayProxy`] token,
+    /// typically for use by a SDK client using client credentials.
+    ///
+    /// Requires an [`Ephemeral`](Self::Ephemeral) authenticator;
+    /// a [`Static`](Self::Static) one cannot mint new tokens.
+    pub async fn mint_long_lived_gateway_proxy_token<T>(
+        &self,
+        api: &T,
+        now: SystemTime,
+    ) -> Result<BearerAuthToken, BackendApiError>
+    where
+        T: BearerAuthBackendApi + ?Sized,
+    {
+        let user_key_pair =
+            self.user_key_pair().ok_or_else(|| BackendApiError {
+                kind: BackendErrorKind::Unauthorized,
+                msg: "Can't mint new tokens with a static auth token. \
+                      Authenticate with root seed credentials instead."
+                    .to_owned(),
+                ..Default::default()
+            })?;
+
+        let token_with_exp = helpers::do_bearer_auth(
+            api,
+            now,
+            user_key_pair,
+            LONG_LIVED_GATEWAY_PROXY_TOKEN_LIFETIME_SECS,
+            LexeScope::GatewayProxy,
+        )
+        .await?;
+
+        Ok(token_with_exp.token)
     }
 }
 

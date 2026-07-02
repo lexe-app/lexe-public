@@ -66,8 +66,6 @@ pub struct ClientCredentials {
     //     proptest(strategy = "any::<UserPk>().prop_map(Some)")
     // )]
     pub user_pk: Option<UserPk>,
-    /// The base64 encoded long-lived connect token.
-    pub lexe_auth_token: BearerAuthToken,
     /// The hex-encoded client public key.
     pub client_pk: ed25519::PublicKey,
     /// The DER-encoded client key.
@@ -76,6 +74,15 @@ pub struct ClientCredentials {
     pub rev_client_cert_der: LxCertificateDer,
     /// The DER-encoded cert of the ephemeral issuing CA.
     pub eph_ca_cert_der: LxCertificateDer,
+    /// The long-lived [`LexeScope::GatewayProxy`] token for connecting to the
+    /// user's node. Always `Some` for user nodes.
+    // compat: Alias added in lexe-node-client-v0.1.16
+    #[serde(
+        rename = "lexe_auth_token",
+        alias = "gateway_proxy_token",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub gateway_proxy_token: Option<BearerAuthToken>,
 }
 
 // --- impl Credentials / CredentialsRef --- //
@@ -127,19 +134,30 @@ impl<'a> CredentialsRef<'a> {
     }
 
     /// Create a [`BearerAuthenticator`] appropriate for the given credentials.
-    pub fn bearer_authenticator(&self) -> Arc<BearerAuthenticator> {
+    ///
+    /// Errors if these credentials are [`ClientCredentials`] and are missing a
+    /// [`LexeScope::GatewayProxy`] token.
+    pub fn bearer_authenticator(
+        &self,
+    ) -> anyhow::Result<Arc<BearerAuthenticator>> {
         match self {
             // A root seed can mint tokens of any scope on demand.
-            Self::RootSeed(root_seed) => Arc::new(BearerAuthenticator::new(
-                root_seed.derive_user_key_pair(),
+            Self::RootSeed(root_seed) => Ok(Arc::new(
+                BearerAuthenticator::new(root_seed.derive_user_key_pair()),
             )),
             // A client credential holds a single long-lived `GatewayProxy`
             // token, good only for connecting to the user's node.
-            Self::ClientCredentials(client_credentials) =>
-                Arc::new(BearerAuthenticator::new_static_token(
-                    client_credentials.lexe_auth_token.clone(),
+            Self::ClientCredentials(client_credentials) => {
+                let gateway_proxy_token =
+                    client_credentials.gateway_proxy_token.clone().context(
+                        "Cannot connect to note; exported client credentials \
+                         are missing a gateway proxy token.",
+                    )?;
+                Ok(Arc::new(BearerAuthenticator::new_static_token(
+                    gateway_proxy_token,
                     LexeScope::GatewayProxy,
-                )),
+                )))
+            }
         }
     }
 
@@ -183,23 +201,22 @@ impl FromStr for ClientCredentials {
     }
 }
 
-impl ClientCredentials {
-    pub fn from_response(
-        lexe_auth_token: BearerAuthToken,
-        resp: CreateRevocableClientResponse,
-    ) -> Self {
+impl From<CreateRevocableClientResponse> for ClientCredentials {
+    fn from(resp: CreateRevocableClientResponse) -> Self {
         ClientCredentials {
             user_pk: resp.user_pk,
-            lexe_auth_token,
             client_pk: resp.pubkey,
             rev_client_key_der: LxPrivatePkcs8KeyDer(
                 resp.rev_client_cert_key_der,
             ),
             rev_client_cert_der: LxCertificateDer(resp.rev_client_cert_der),
             eph_ca_cert_der: LxCertificateDer(resp.eph_ca_cert_der),
+            gateway_proxy_token: resp.gateway_proxy_token,
         }
     }
+}
 
+impl ClientCredentials {
     /// Encodes a [`ClientCredentials`] to a base64 blob using
     /// [`base64::engine::general_purpose::STANDARD_NO_PAD`].
     //
@@ -261,39 +278,42 @@ impl Arbitrary for ClientCredentials {
     fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
         let root_seed = any::<RootSeed>();
         let rng = any::<FastRng>();
-        let auth_token = any::<BearerAuthToken>();
+        let gateway_proxy_token = any::<Option<BearerAuthToken>>();
         let has_user_pk = any::<bool>();
 
-        (root_seed, rng, auth_token, has_user_pk)
-            .prop_map(|(root_seed, mut rng, auth_token, has_user_pk)| {
-                // Derive intermediaries
-                let eph_ca_cert =
-                    EphemeralIssuingCaCert::from_root_seed(&root_seed);
-                let rev_ca_cert =
-                    RevocableIssuingCaCert::from_root_seed(&root_seed);
-                let rev_client_cert =
-                    RevocableClientCert::generate_from_rng(&mut rng);
+        (root_seed, rng, gateway_proxy_token, has_user_pk)
+            .prop_map(
+                |(root_seed, mut rng, gateway_proxy_token, has_user_pk)| {
+                    // Derive intermediaries
+                    let eph_ca_cert =
+                        EphemeralIssuingCaCert::from_root_seed(&root_seed);
+                    let rev_ca_cert =
+                        RevocableIssuingCaCert::from_root_seed(&root_seed);
+                    let rev_client_cert =
+                        RevocableClientCert::generate_from_rng(&mut rng);
 
-                // Derive fields
-                let user_pk = has_user_pk.then(|| root_seed.derive_user_pk());
-                let lexe_auth_token = auth_token;
-                let client_pk = rev_client_cert.public_key().to_owned();
-                let rev_client_key_der = rev_client_cert.serialize_key_der();
-                let rev_client_cert_der = rev_client_cert
-                    .serialize_der_ca_signed(&rev_ca_cert)
-                    .unwrap();
-                let eph_ca_cert_der =
-                    eph_ca_cert.serialize_der_self_signed().unwrap();
+                    // Derive fields
+                    let user_pk =
+                        has_user_pk.then(|| root_seed.derive_user_pk());
+                    let client_pk = rev_client_cert.public_key().to_owned();
+                    let rev_client_key_der =
+                        rev_client_cert.serialize_key_der();
+                    let rev_client_cert_der = rev_client_cert
+                        .serialize_der_ca_signed(&rev_ca_cert)
+                        .unwrap();
+                    let eph_ca_cert_der =
+                        eph_ca_cert.serialize_der_self_signed().unwrap();
 
-                ClientCredentials {
-                    user_pk,
-                    lexe_auth_token,
-                    client_pk,
-                    rev_client_key_der,
-                    rev_client_cert_der,
-                    eph_ca_cert_der,
-                }
-            })
+                    ClientCredentials {
+                        user_pk,
+                        client_pk,
+                        rev_client_key_der,
+                        rev_client_cert_der,
+                        eph_ca_cert_der,
+                        gateway_proxy_token,
+                    }
+                },
+            )
             .boxed()
     }
 }
@@ -387,13 +407,13 @@ mod test {
 
         let credentials = ClientCredentials {
             user_pk: Some(user_pk),
-            lexe_auth_token: BearerAuthToken(ByteStr::from_static(
-                "9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE",
-            )),
             client_pk: *client_pk,
             rev_client_key_der,
             rev_client_cert_der,
             eph_ca_cert_der,
+            gateway_proxy_token: Some(BearerAuthToken(ByteStr::from_static(
+                "9dTCUvC8y7qcNyUbqynz3nwIQQHbQqPVKeMhXUj1Afr-vgj9E217_2tCS1IQM7LFqfBUC8Ec9fcb-dQiCRy6ot2FN-kR60edRFJUztAa2Rxao1Q0BS1s6vE8grgfhMYIAJDLMWgAAAAASE4zaAAAAABpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaQE",
+            ))),
         };
 
         let credentials_str = credentials.to_base64_blob();
@@ -403,7 +423,7 @@ mod test {
         // println!("json: {json_len}, base64: {base64_len}");
 
         // json: 2259 B, base64(json): 3012 B
-        let expected_str = "eyJ1c2VyX3BrIjoiNmZkNzY0MTU2OTMwNTA5ZmFkNTM2MWQzYjIyYjYxZjc1YWE5MWVkNjQwMjE1YjJjNDFjMmZmODZiMmJmYzQ3MiIsImxleGVfYXV0aF90b2tlbiI6IjlkVENVdkM4eTdxY055VWJxeW56M253SVFRSGJRcVBWS2VNaFhVajFBZnItdmdqOUUyMTdfMnRDUzFJUU03TEZxZkJVQzhFYzlmY2ItZFFpQ1J5Nm90MkZOLWtSNjBlZFJGSlV6dEFhMlJ4YW8xUTBCUzFzNnZFOGdyZ2ZoTVlJQUpETE1XZ0FBQUFBU0U0emFBQUFBQUJwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFRRSIsImNsaWVudF9wayI6IjcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGIiLCJyZXZfY2xpZW50X2tleV9kZXIiOiIzMDUxMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODk4MTIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwicmV2X2NsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiZXBoX2NhX2NlcnRfZGVyIjoiMzA4MjAxYWUzMDgyMDE2MGEwMDMwMjAxMDIwMjE0MTBjZDVjOTk4OWY5NjUyMDk0OWUwZTlhYjRjZTRkYmUxNDc2NjcxMDMwMDUwNjAzMmI2NTcwMzA1MDMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjEzMDFmMDYwMzU1MDQwMzBjMTg0YzY1Nzg2NTIwNzM2ODYxNzI2NTY0MjA3MzY1NjU2NDIwNDM0MTIwNjM2NTcyNzQzMDIwMTcwZDM3MzUzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMTgwZjM0MzAzOTM2MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTMwNTAzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTIxMzAxZjA2MDM1NTA0MDMwYzE4NGM2NTc4NjUyMDczNjg2MTcyNjU2NDIwNzM2NTY1NjQyMDQzNDEyMDYzNjU3Mjc0MzAyYTMwMDUwNjAzMmI2NTcwMDMyMTAwZWZlOWNlMWFiY2FlYWJjZWY4ZWEyZjU0YTU2OTU1MGRjZWQ0YThmM2E4Y2JiMDRjZDk0NWQxYjRlMjQ1ZjY4N2EzNGEzMDQ4MzAxMzA2MDM1NTFkMTEwNDBjMzAwYTgyMDg2YzY1Nzg2NTJlNjE3MDcwMzAxZDA2MDM1NTFkMGUwNDE2MDQxNDkwY2Q1Yzk5ODlmOTY1MjA5NDllMGU5YWI0Y2U0ZGJlMTQ3NjY3MTAzMDEyMDYwMzU1MWQxMzAxMDFmZjA0MDgzMDA2MDEwMWZmMDIwMTAwMzAwNTA2MDMyYjY1NzAwMzQxMDAzNzI1NDI5ZjViY2E4MDU2MjFjMmIyZGM0NDU4MDJlZDIxY2FiMjQ2YjQ1YWQxMjFkZDJhNDMyZWZhMmY5M2VmNzI1ZWZhMTc4MmU2NDEwOGQyMjk4ZTg2OTRmNDY4NmNlZDk4Y2U5MjgwZWQ3NDlkMGFkNGI0NGE0YTFjZWUwZCJ9";
+        let expected_str = "eyJ1c2VyX3BrIjoiNmZkNzY0MTU2OTMwNTA5ZmFkNTM2MWQzYjIyYjYxZjc1YWE5MWVkNjQwMjE1YjJjNDFjMmZmODZiMmJmYzQ3MiIsImNsaWVudF9wayI6IjcwODhhZjFmYzEyYWIwNGFkNmRkMTY1YmMzYTNjNWViMzA2MmI0MTFhMmY1NWExNjZiMGU0MDBiMzkwZmU0ZGIiLCJyZXZfY2xpZW50X2tleV9kZXIiOiIzMDUxMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODk4MTIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwicmV2X2NsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiZXBoX2NhX2NlcnRfZGVyIjoiMzA4MjAxYWUzMDgyMDE2MGEwMDMwMjAxMDIwMjE0MTBjZDVjOTk4OWY5NjUyMDk0OWUwZTlhYjRjZTRkYmUxNDc2NjcxMDMwMDUwNjAzMmI2NTcwMzA1MDMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjEzMDFmMDYwMzU1MDQwMzBjMTg0YzY1Nzg2NTIwNzM2ODYxNzI2NTY0MjA3MzY1NjU2NDIwNDM0MTIwNjM2NTcyNzQzMDIwMTcwZDM3MzUzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMTgwZjM0MzAzOTM2MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTMwNTAzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTIxMzAxZjA2MDM1NTA0MDMwYzE4NGM2NTc4NjUyMDczNjg2MTcyNjU2NDIwNzM2NTY1NjQyMDQzNDEyMDYzNjU3Mjc0MzAyYTMwMDUwNjAzMmI2NTcwMDMyMTAwZWZlOWNlMWFiY2FlYWJjZWY4ZWEyZjU0YTU2OTU1MGRjZWQ0YThmM2E4Y2JiMDRjZDk0NWQxYjRlMjQ1ZjY4N2EzNGEzMDQ4MzAxMzA2MDM1NTFkMTEwNDBjMzAwYTgyMDg2YzY1Nzg2NTJlNjE3MDcwMzAxZDA2MDM1NTFkMGUwNDE2MDQxNDkwY2Q1Yzk5ODlmOTY1MjA5NDllMGU5YWI0Y2U0ZGJlMTQ3NjY3MTAzMDEyMDYwMzU1MWQxMzAxMDFmZjA0MDgzMDA2MDEwMWZmMDIwMTAwMzAwNTA2MDMyYjY1NzAwMzQxMDAzNzI1NDI5ZjViY2E4MDU2MjFjMmIyZGM0NDU4MDJlZDIxY2FiMjQ2YjQ1YWQxMjFkZDJhNDMyZWZhMmY5M2VmNzI1ZWZhMTc4MmU2NDEwOGQyMjk4ZTg2OTRmNDY4NmNlZDk4Y2U5MjgwZWQ3NDlkMGFkNGI0NGE0YTFjZWUwZCIsImxleGVfYXV0aF90b2tlbiI6IjlkVENVdkM4eTdxY055VWJxeW56M253SVFRSGJRcVBWS2VNaFhVajFBZnItdmdqOUUyMTdfMnRDUzFJUU03TEZxZkJVQzhFYzlmY2ItZFFpQ1J5Nm90MkZOLWtSNjBlZFJGSlV6dEFhMlJ4YW8xUTBCUzFzNnZFOGdyZ2ZoTVlJQUpETE1XZ0FBQUFBU0U0emFBQUFBQUJwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFRRSJ9";
         assert_eq!(credentials_str, expected_str);
 
         let credentials2 =

@@ -275,7 +275,7 @@ impl NodeClient {
         );
 
         let user_pk = credentials.user_pk();
-        let authenticator = credentials.bearer_authenticator();
+        let authenticator = credentials.bearer_authenticator()?;
         let tls_config = credentials.tls_config(rng, deploy_env)?;
         let run_rest = ArcSwapOption::from(None);
 
@@ -442,10 +442,7 @@ impl NodeClient {
         &self,
         req: CreateRevocableClientRequest,
     ) -> anyhow::Result<(RevocableClient, ClientCredentials)> {
-        // Mint a new long-lived connect token
-        let lexe_auth_token = self.request_long_lived_connect_token().await?;
-
-        // Register a new revocable client
+        // Register a new revocable client.
         let resp = self.create_revocable_client(req.clone()).await?;
 
         let client = RevocableClient {
@@ -457,38 +454,9 @@ impl NodeClient {
             is_revoked: false,
         };
 
-        let client_credentials =
-            ClientCredentials::from_response(lexe_auth_token, resp);
+        let client_credentials = ClientCredentials::from(resp);
 
         Ok((client, client_credentials))
-    }
-
-    /// Get a new long-lived auth token scoped only for the gateway connect
-    /// proxy. Used by SDK clients which use Lexe client credentials to connect
-    /// to their node.
-    async fn request_long_lived_connect_token(
-        &self,
-    ) -> anyhow::Result<BearerAuthToken> {
-        // TODO(nicole): It should be possible to create client credentials
-        // with client credentials
-        let user_key_pair = self.inner.authenticator.user_key_pair().context(
-            "Can't use a bearer auth token to mint new bearer auth tokens. \
-             Authenticate with root seed credentials instead.",
-        )?;
-
-        let now = SystemTime::now();
-        let lifetime_secs = 10 * 365 * 24 * 60 * 60; // 10 years
-        let long_lived_connect_token = lexe_api::auth::helpers::do_bearer_auth(
-            &self.inner.gateway_client,
-            now,
-            user_key_pair,
-            lifetime_secs,
-            LexeScope::GatewayProxy,
-        )
-        .await
-        .context("Failed to get long-lived connect token")?;
-
-        Ok(long_lived_connect_token.token)
     }
 
     /// Get a [`LexeScope::GatewayProxy`] token for requests to the gateway.
