@@ -149,8 +149,17 @@ chrono = { version = "0.4", default-features = false, features = [
     "std",
     "clock"
 ] }
-# Derive-based command line argument parsing (used by cli)
-clap = { version = "4", default-features = false }
+# Derive-based CLI arg parsing. Enabled features:
+# - std: required for most functionality
+# - derive: Derive macros for `Parser`, `Subcommand`, `ValueEnum`
+# - env: #[arg(env = "MY_VARIABLE")] to read args from env vars
+# - error-context: Displays "invalid value 'yeet' for '--network'" vs
+#   "one of the values isn't valid for an argument" without the arg
+# - help: --help output, #[command(about=...)], #[command(long_about=...)]
+# - usage: Auto-generates "Usage: <command> [OPTIONS]" in --help output
+clap = { version = "4", default-features = false, features = [
+    "std", "derive", "env", "error-context", "help", "usage",
+] }
 # For verifying SGX Report MACs
 cmac = { version = "0.7", features = ["std", "zeroize"] }
 # Create and validate transferable DNS proofs (by BlueMatt)

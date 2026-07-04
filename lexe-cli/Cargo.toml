@@ -23,17 +23,7 @@ lexe-qr = { workspace = true }
 # --- WORKSPACE --- #
 
 anyhow = { workspace = true }
-# clap features:
-# - std: required for most functionality
-# - derive: Derive macros for `Parser`, `Subcommand`, `ValueEnum`
-# - env: #[arg(env = "MY_VARIABLE")] to read args from env vars
-# - error-context: Displays "invalid value 'yeet' for '--network'" vs
-#   "one of the values isn't valid for an argument" without the arg
-# - help: --help output, #[command(about=...)], #[command(long_about=...)]
-# - usage: Auto-generates "Usage: <command> [OPTIONS]" in --help output
-clap = { workspace = true, features = [
-    "std", "derive", "env", "error-context", "help", "usage",
-] }
+clap = { workspace = true }
 chrono = { workspace = true }
 dotenvy = { workspace = true }
 serde = { workspace = true }
