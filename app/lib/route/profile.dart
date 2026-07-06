@@ -93,9 +93,10 @@ class _EditHumanBitcoinAddressPageState
 
     final trimmed = username.trim();
 
-    // Username type enfoces 1 lenth minimum. Here we force it to be at least 4 characters.
-    if (trimmed.length < 4) {
-      return const Err("Username must be at least 4 characters");
+    // The `Username` type enforces a 1-char minimum; require at least 6 here to
+    // match `username::MIN_LENGTH` in the backend.
+    if (trimmed.length < 6) {
+      return const Err("Username must be at least 6 characters");
     }
 
     final result = Result.tryFfi(() => Username.parse(s: trimmed));

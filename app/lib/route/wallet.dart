@@ -805,7 +805,6 @@ class WalletPageState extends State<WalletPage> {
       drawer: WalletDrawer(
         config: this.widget.config,
         humanBitcoinAddressService: this.humanBitcoinAddressService,
-        featureFlags: this.widget.featureFlags,
         onChannelsMenuPressed: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
         onClientsMenuPressed: this.onClientsMenuPressed,
@@ -1354,7 +1353,6 @@ class WalletDrawer extends StatelessWidget {
     super.key,
     required this.config,
     required this.humanBitcoinAddressService,
-    required this.featureFlags,
     // this.onSettingsPressed,
     // this.onBackupPressed,
     // this.onSecurityPressed,
@@ -1371,7 +1369,6 @@ class WalletDrawer extends StatelessWidget {
 
   final Config config;
   final HumanBitcoinAddressService humanBitcoinAddressService;
-  final FeatureFlags featureFlags;
 
   // final VoidCallback? onSettingsPressed;
   // final VoidCallback? onBackupPressed;
@@ -1385,8 +1382,6 @@ class WalletDrawer extends StatelessWidget {
   final VoidCallback? onDocsMenuPressed;
   final VoidCallback? onProfileMenuPressed;
   // final VoidCallback? onInvitePressed;
-
-  bool get allowEditHumanAddress => this.featureFlags.allowEditHumanAddress;
 
   @override
   Widget build(BuildContext context) {
@@ -1470,10 +1465,7 @@ class WalletDrawer extends StatelessWidget {
                         this.humanBitcoinAddressService.humanBitcoinAddress,
                     builder: (context, humanBitcoinAddress, child) {
                       return DrawerProfile(
-                        allowEdit: this.allowEditHumanAddress,
-                        onEditProfilePressed: this.allowEditHumanAddress
-                            ? this.onProfileMenuPressed
-                            : null,
+                        onEditProfilePressed: this.onProfileMenuPressed,
                         humanBitcoinAddress: humanBitcoinAddress,
                       );
                     },
@@ -1559,11 +1551,9 @@ enum DrawerHbaStatus { error, notClaimed, claimed, updatable }
 class DrawerProfile extends StatelessWidget {
   const DrawerProfile({
     super.key,
-    this.allowEdit = false,
     this.onEditProfilePressed,
     this.humanBitcoinAddress,
   });
-  final bool allowEdit;
   final VoidCallback? onEditProfilePressed;
   final ActiveHumanBitcoinAddress? humanBitcoinAddress;
 
@@ -1609,18 +1599,17 @@ class DrawerProfile extends StatelessWidget {
           const SizedBox(height: Space.s200),
           switch (this.status) {
             DrawerHbaStatus.error => const SizedBox(),
-            DrawerHbaStatus.notClaimed =>
-              this.allowEdit
-                  ? ClaimHba(onTap: this.onEditProfilePressed)
-                  : const SizedBox(),
+            DrawerHbaStatus.notClaimed => ClaimHba(
+              onTap: this.onEditProfilePressed,
+            ),
             DrawerHbaStatus.claimed => ClaimedHba(
               humanBitcoinAddress: this.humanBitcoinAddress!,
               showEditButton: false,
             ),
             DrawerHbaStatus.updatable => ClaimedHba(
               humanBitcoinAddress: this.humanBitcoinAddress!,
-              showEditButton: this.allowEdit,
-              onTapEdit: this.allowEdit ? this.onEditProfilePressed : null,
+              showEditButton: true,
+              onTapEdit: this.onEditProfilePressed,
             ),
           },
         ],
