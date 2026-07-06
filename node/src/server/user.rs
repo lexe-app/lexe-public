@@ -38,7 +38,9 @@ use lexe_api::{
             ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
         },
     },
-    server::{LxJson, extract::LxQuery},
+    server::{
+        LxJson, client_authz::VerifiedClientAuthorization, extract::LxQuery,
+    },
     types::{
         Empty,
         continuation::LdkRouteContinuation,
@@ -527,6 +529,7 @@ pub(super) async fn list_revocable_clients(
 }
 
 pub(super) async fn create_revocable_client(
+    permissions: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<CreateRevocableClientRequest>,
 ) -> Result<LxJson<CreateRevocableClientResponse>, NodeApiError> {
@@ -537,6 +540,7 @@ pub(super) async fn create_revocable_client(
         .map_err(NodeApiError::command)?;
 
     lexe_ln::command::create_revocable_client(
+        &permissions,
         state.user_pk,
         Some(gateway_proxy_token),
         &state.persister,
@@ -547,21 +551,23 @@ pub(super) async fn create_revocable_client(
     )
     .await
     .map(LxJson)
-    .map_err(NodeApiError::command)
+    .map_err(NodeApiError::from)
 }
 
 pub(super) async fn update_revocable_client(
+    permissions: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UpdateClientRequest>,
 ) -> Result<LxJson<UpdateClientResponse>, NodeApiError> {
     lexe_ln::command::update_revocable_client(
+        &permissions,
         &state.persister,
         &state.revocable_clients.0,
         req,
     )
     .await
     .map(LxJson)
-    .map_err(NodeApiError::command)
+    .map_err(NodeApiError::from)
 }
 
 pub(super) async fn list_broadcasted_txs(

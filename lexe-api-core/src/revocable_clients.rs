@@ -199,8 +199,6 @@ impl RevocableClient {
         }
 
         if let Some(permissions) = req_permissions {
-            // TODO(max): Need some validation here; can't request broader
-            // permissions than the caller holds (attenuation).
             out.permissions = permissions;
         }
 

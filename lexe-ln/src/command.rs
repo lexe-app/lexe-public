@@ -14,6 +14,7 @@ use either::Either;
 use futures::Future;
 use lexe_api::{
     cli::{LspFees, LspInfo},
+    error::CommonApiError,
     models::command::{
         CloseChannelPreflightRequest, CloseChannelPreflightResponse,
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
@@ -34,6 +35,7 @@ use lexe_api::{
             ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
         },
     },
+    server::client_authz::VerifiedClientAuthorization,
     types::{
         Empty,
         bounded_string::BoundedString,
@@ -1973,6 +1975,7 @@ pub fn list_revocable_clients(
 
 #[instrument(skip_all, name = "(create-revocable-client)")]
 pub async fn create_revocable_client(
+    authz: &VerifiedClientAuthorization,
     user_pk: UserPk,
     gateway_proxy_token: Option<BearerAuthToken>,
     persister: &impl LexePersister,
@@ -1980,22 +1983,32 @@ pub async fn create_revocable_client(
     rev_ca_cert: &RevocableIssuingCaCert,
     revocable_clients: &RwLock<RevocableClients>,
     req: CreateRevocableClientRequest,
-) -> anyhow::Result<CreateRevocableClientResponse> {
+) -> Result<CreateRevocableClientResponse, CommonApiError> {
+    // Enforce client scope attenuation
+    authz.require_permissions_covered(&req.permissions)?;
+
+    // TODO(max): Implement budget attenuation: If the credential calling this
+    // endpoint has a budget, it cannot create another client with no budget.
+    // Furthermore, any budget assigned to the new credential must match the
+    // schedule of the calling credential, and any non-zero budget limit on the
+    // new credential must "come from" the calling credentials budget; e.g. if a
+    // $20/month credential wishes to assign $5/month to a child credential, its
+    // own budget must first be reduced to $15/month, then the child credential
+    // increased from $0/month to $5/month (to prevent crash + persist races).
+    //
+    // Probably easiest to just disallow credentials with budgets from creating
+    // or updating other credentials until someone has a need for this.
+
     let mut rng = SysRng::new();
 
     if let Some(label) = &req.label
         && label.len() > RevocableClient::MAX_LABEL_LEN
     {
-        return Err(anyhow!(
+        return Err(CommonApiError::general(format!(
             "Label must not be longer than {} bytes",
             RevocableClient::MAX_LABEL_LEN
-        ));
+        )));
     }
-
-    // TODO(max): Enforce attenuation here: the caller can't grant more
-    // permissions than it holds
-    // (`caller.permissions.covers(&req.permissions)`), and minting requires
-    // the `create_revocable_client` permission.
 
     let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
     let pubkey = *rev_client_cert.public_key();
@@ -2011,7 +2024,8 @@ pub async fn create_revocable_client(
 
     let rev_client_cert_der = rev_client_cert
         .serialize_der_ca_signed(rev_ca_cert)
-        .context("Failed to serialize revocable client cert")?;
+        .context("Failed to serialize revocable client cert")
+        .map_err(CommonApiError::general)?;
     let rev_client_cert_key_der = rev_client_cert.serialize_key_der();
     let effective_permissions = revocable_client
         .permissions
@@ -2030,7 +2044,8 @@ pub async fn create_revocable_client(
             &mut revocable_clients.clients,
             now,
             RevocableClients::MAX_LEN,
-        )?;
+        )
+        .map_err(CommonApiError::general)?;
 
         let existing =
             revocable_clients.clients.insert(pubkey, revocable_client);
@@ -2051,7 +2066,8 @@ pub async fn create_revocable_client(
     persister
         .persist_file(updated_file, retries)
         .await
-        .context("Failed to persist updated RevocableClients")?;
+        .context("Failed to persist updated RevocableClients")
+        .map_err(CommonApiError::general)?;
 
     Ok(CreateRevocableClientResponse {
         // Always `Some` since `node-v0.8.11`.
@@ -2109,22 +2125,43 @@ fn maybe_evict_revoked_clients(
 /// Update an existing [`RevocableClient`] (revoke, set expiration, etc...).
 #[instrument(skip_all, name = "(update-revocable-client)")]
 pub async fn update_revocable_client(
+    authz: &VerifiedClientAuthorization,
     persister: &impl LexePersister,
     revocable_clients: &RwLock<RevocableClients>,
     req: UpdateClientRequest,
-) -> anyhow::Result<UpdateClientResponse> {
+) -> Result<UpdateClientResponse, CommonApiError> {
+    if let Some(new_permissions) = &req.permissions {
+        // Enforce client scope attenuation
+        authz.require_permissions_covered(new_permissions)?;
+    }
+
+    // TODO(max): Implement budget attenuation: If the credential calling this
+    // endpoint has a budget, it cannot create another client with no budget.
+    // Furthermore, any budget assigned to the new credential must match the
+    // schedule of the calling credential, and any non-zero budget limit on the
+    // new credential must "come from" the calling credentials budget; e.g. if a
+    // $20/month credential wishes to assign $5/month to a child credential, its
+    // own budget must first be reduced to $15/month, then the child credential
+    // increased from $0/month to $5/month (to prevent crash + persist races).
+    //
+    // Probably easiest to just disallow credentials with budgets from creating
+    // or updating other credentials until someone has a need for this.
+
     let (updated_file, response) = {
         let mut revocable_clients = revocable_clients.write().unwrap();
 
         // Get the client
         let pubkey = req.pubkey;
-        let client = revocable_clients
-            .clients
-            .get_mut(&pubkey)
-            .ok_or_else(|| anyhow!("No revocable client with pk {pubkey}"))?;
+        let client =
+            revocable_clients.clients.get_mut(&pubkey).ok_or_else(|| {
+                CommonApiError::general(format!(
+                    "No revocable client with pk {pubkey}"
+                ))
+            })?;
 
         // Update
-        let updated_client = client.update(req)?;
+        let updated_client =
+            client.update(req).map_err(CommonApiError::general)?;
         *client = updated_client.clone();
         let response = UpdateClientResponse {
             client: updated_client,
@@ -2151,7 +2188,8 @@ pub async fn update_revocable_client(
     persister
         .persist_file(updated_file, retries)
         .await
-        .context("Failed to persisted updated RevocableClients")?;
+        .context("Failed to persisted updated RevocableClients")
+        .map_err(CommonApiError::general)?;
 
     Ok(response)
 }
