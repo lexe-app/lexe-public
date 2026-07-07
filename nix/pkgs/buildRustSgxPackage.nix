@@ -81,7 +81,10 @@ let
         "--locked"
         "--package=${pname}"
       ]
-      ++ (lib.optionals isSgx [ "--target=x86_64-fortanix-unknown-sgx" ])
+      ++ (lib.optionals isSgx [
+        "--target=${./rustc-target-specs}/x86_64-fortanix-unknown-sgx.json"
+        "-Zbuild-std=std,panic_abort"
+      ])
       ++ (lib.optionals isVerbose [ "-vv" ])
     );
 

@@ -7,7 +7,7 @@
 # <https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#rustdoc-map>
 crates-io = "https://docs.rs/"
 
-[target.x86_64-fortanix-unknown-sgx]
+[target.'cfg(target_env = "sgx")']
 # Use our custom SGX runner
 runner = "run-sgx-cargo"
 # Build with crypto intrinsics required at compile time. SGX enclaves don't
