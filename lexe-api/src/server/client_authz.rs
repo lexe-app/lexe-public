@@ -1,9 +1,16 @@
 //! Client authorization for HTTP endpoints, based on mTLS client certs.
 //!
-//! [`VerifiedClientAuthorization`] resolves an authenticated client's granted
-//! permissions from its certificate.
+//! `VerifiedClientAuthorization` resolves an authenticated client's granted
+//! permissions; `scoped` and `unscoped` are the axum routing verbs that
+//! enforce, or deliberately skip, a per-route `Permission` gate.
 
-use axum::{extract::FromRequestParts, http::request::Parts};
+use axum::{
+    extract::{FromRequestParts, Request, State},
+    handler::Handler,
+    http::request::Parts,
+    response::IntoResponse,
+    routing::{self, MethodRouter},
+};
 use lexe_api_core::{
     error::CommonApiError,
     revocable_clients::{
@@ -151,4 +158,153 @@ where
             expires_at,
         })
     }
+}
+
+// --- Scoped routing --- //
+
+/// Axum routing verbs that gate a route on a client [`Permission`].
+///
+/// ```ignore
+/// let router = Router::new()
+///     // Gated on a permission:
+///     .route("/app/node_info", scoped::get(Permission::NodeInfo, node_info))
+///     .route("/app/pay_invoice", scoped::post(Permission::PayInvoice, pay_invoice))
+///     // Deliberately ungated — see the `unscoped` module:
+///     .route("/lexe/test_event", unscoped::post(test_event))
+///     .with_state(state);
+/// ```
+///
+/// Each verb mirrors its axum counterpart with a leading `permission` and runs
+/// [`VerifiedClientAuthorization::require`] first, rejecting the request unless
+/// the caller holds `permission`.
+pub mod scoped {
+    use super::*;
+
+    /// Like [`axum::routing::get`], but rejects if the caller doesn't hold
+    /// `permission`.
+    pub fn get<H, T, S>(permission: Permission, handler: H) -> MethodRouter<S>
+    where
+        H: Handler<T, S>,
+        T: 'static,
+        S: ListRevocableClientsHandle + Clone + Send + Sync + 'static,
+    {
+        routing::get(
+            move |permissions: VerifiedClientAuthorization,
+                  State(state): State<S>,
+                  request: Request| {
+                let handler = handler.clone();
+                async move {
+                    if let Err(rejection) = permissions.require(permission) {
+                        return rejection.into_response();
+                    }
+                    handler.call(request, state).await
+                }
+            },
+        )
+    }
+
+    /// Like [`axum::routing::post`], but rejects if the caller doesn't hold
+    /// `permission`.
+    pub fn post<H, T, S>(permission: Permission, handler: H) -> MethodRouter<S>
+    where
+        H: Handler<T, S>,
+        T: 'static,
+        S: ListRevocableClientsHandle + Clone + Send + Sync + 'static,
+    {
+        routing::post(
+            move |permissions: VerifiedClientAuthorization,
+                  State(state): State<S>,
+                  request: Request| {
+                let handler = handler.clone();
+                async move {
+                    if let Err(rejection) = permissions.require(permission) {
+                        return rejection.into_response();
+                    }
+                    handler.call(request, state).await
+                }
+            },
+        )
+    }
+
+    /// Like [`axum::routing::put`], but rejects if the caller doesn't hold
+    /// `permission`.
+    pub fn put<H, T, S>(permission: Permission, handler: H) -> MethodRouter<S>
+    where
+        H: Handler<T, S>,
+        T: 'static,
+        S: ListRevocableClientsHandle + Clone + Send + Sync + 'static,
+    {
+        routing::put(
+            move |permissions: VerifiedClientAuthorization,
+                  State(state): State<S>,
+                  request: Request| {
+                let handler = handler.clone();
+                async move {
+                    if let Err(rejection) = permissions.require(permission) {
+                        return rejection.into_response();
+                    }
+                    handler.call(request, state).await
+                }
+            },
+        )
+    }
+
+    /// Like [`axum::routing::patch`], but rejects if the caller doesn't hold
+    /// `permission`.
+    pub fn patch<H, T, S>(permission: Permission, handler: H) -> MethodRouter<S>
+    where
+        H: Handler<T, S>,
+        T: 'static,
+        S: ListRevocableClientsHandle + Clone + Send + Sync + 'static,
+    {
+        routing::patch(
+            move |permissions: VerifiedClientAuthorization,
+                  State(state): State<S>,
+                  request: Request| {
+                let handler = handler.clone();
+                async move {
+                    if let Err(rejection) = permissions.require(permission) {
+                        return rejection.into_response();
+                    }
+                    handler.call(request, state).await
+                }
+            },
+        )
+    }
+
+    /// Like [`axum::routing::delete`], but rejects if the caller doesn't hold
+    /// `permission`.
+    pub fn delete<H, T, S>(
+        permission: Permission,
+        handler: H,
+    ) -> MethodRouter<S>
+    where
+        H: Handler<T, S>,
+        T: 'static,
+        S: ListRevocableClientsHandle + Clone + Send + Sync + 'static,
+    {
+        routing::delete(
+            move |permissions: VerifiedClientAuthorization,
+                  State(state): State<S>,
+                  request: Request| {
+                let handler = handler.clone();
+                async move {
+                    if let Err(rejection) = permissions.require(permission) {
+                        return rejection.into_response();
+                    }
+                    handler.call(request, state).await
+                }
+            },
+        )
+    }
+}
+
+// --- Unscoped routing --- //
+
+/// Axum routing verbs for routes deliberately left off the [`scoped`] gate:
+/// reachable by any authenticated client, no [`Permission`] required. The
+/// `unscoped::` prefix marks the absent scope as intentional, so it doesn't
+/// read as a forgotten [`scoped`] gate.
+pub mod unscoped {
+    pub use axum::routing::{delete, get, patch, post, put};
 }
