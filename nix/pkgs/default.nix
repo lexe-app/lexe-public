@@ -399,7 +399,7 @@ rec {
 
   # Convenience script to run `sgx-test`.
   run-sgx-test = pkgs.writeShellScriptBin "run-sgx-test" ''
-    ${run-sgx}/bin/run-sgx ${sgx-test}/bin/sgx-test.sgxs --debug
+    ${run-sgx}/bin/run-sgx ${sgx-test}/bin/sgx-test.sgxs --debug "$@"
   '';
 
   # Minimal `pkgs.mkShellNoCC` for `nix develop` that only
