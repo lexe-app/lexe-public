@@ -290,8 +290,22 @@ rec {
   # bitcoind - Bitcoin core wallet (just an alias)
   bitcoind = pkgs.bitcoind;
 
-  # Blockstream fork of electrs BTC chain index server, used in integration tests
-  blockstream-electrs = pkgs.blockstream-electrs;
+  # Blockstream fork of romanz/electrs BTC chain indexer service.
+  blockstream-electrs = pkgs.blockstream-electrs.overrideAttrs (prevAttrs: {
+    # Disable jemalloc, use glibc malloc. After some basic testing, appears to
+    # use a little less memory, which is our main constraint.
+    postPatch = (prevAttrs.postPatch or "") + ''
+      substituteInPlace src/bin/electrs.rs \
+        --replace-fail $'#[global_allocator]\nstatic GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;\n\n' ""
+    '';
+
+    # Don't dynamically link rocksdb, seeing segfaults in prod.
+    # TODO(phlip9): upstream
+    env = builtins.removeAttrs prevAttrs.env [
+      "ROCKSDB_INCLUDE_DIR"
+      "ROCKSDB_LIB_DIR"
+    ];
+  });
 
   # rust-sgx repo source
   rustSgxCargoSource =
