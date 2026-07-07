@@ -13,7 +13,7 @@ use lexe_api::{
     },
     vfs::{self, Vfs, VfsDirectory, VfsFile, VfsFileId},
 };
-use lexe_common::{constants, ln::channel::LxChannelId, time::TimestampMs};
+use lexe_common::{constants, ln::channel::ChannelId, time::TimestampMs};
 use lexe_crypto::{
     aes::AesMasterKey,
     rng::{Crng, SysRng},
@@ -179,7 +179,7 @@ pub trait LexePersisterMethods: Vfs {
     async fn persist_channel_monitor<PS: LexePersister>(
         &self,
         chain_monitor: &LexeChainMonitorType<PS>,
-        channel_id: &LxChannelId,
+        channel_id: &ChannelId,
         monitor_name: &LxMonitorName,
     ) -> anyhow::Result<()>;
 

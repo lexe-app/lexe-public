@@ -53,7 +53,7 @@ use lexe_common::{
     debug_panic_release_log,
     ln::{
         amount::Amount,
-        channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
+        channel::{ChannelId, LxChannelDetails, LxUserChannelId},
         network::Network,
         route::LxRoute,
     },
@@ -76,7 +76,6 @@ use lightning::{
             RetryableSendFailure,
         },
         msgs::RoutingMessageHandler,
-        types::ChannelId,
     },
     routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
@@ -341,8 +340,9 @@ where
 
         // Check if there's an existing channel with this `user_channel_id`.
         if let Some(channel) = maybe_channel {
-            let temp_channel_id =
-                ChannelId::from(user_channel_id.derive_temporary_channel_id());
+            let temp_channel_id = lightning::ln::types::ChannelId::from(
+                user_channel_id.derive_temporary_channel_id(),
+            );
 
             // If the channel doesn't have the `temp_channel_id` anymore, it
             // must be `Pending`. We can return it.
@@ -354,7 +354,7 @@ where
                     || (is_jit_channel && channel.is_channel_ready)
                 {
                     return Ok(OpenChannelResponse {
-                        channel_id: LxChannelId::from(channel_id),
+                        channel_id: ChannelId::from(channel_id),
                     });
                 }
             }
@@ -388,8 +388,9 @@ where
 
     // Tell LDK to start the open channel process.
     let push_msat = push_amount.map(|a| a.msat()).unwrap_or(0);
-    let temp_channel_id =
-        ChannelId::from(user_channel_id.derive_temporary_channel_id());
+    let temp_channel_id = lightning::ln::types::ChannelId::from(
+        user_channel_id.derive_temporary_channel_id(),
+    );
     channel_manager
         .create_channel(
             counterparty_node_pk.0,
@@ -497,7 +498,7 @@ where
         maybe_counterparty,
     } = req;
     let lx_channel_id = channel_id;
-    let ln_channel_id = ChannelId::from(lx_channel_id);
+    let ln_channel_id = lightning::ln::types::ChannelId::from(lx_channel_id);
 
     info!(%channel_id, ?force_close, "closing channel");
 

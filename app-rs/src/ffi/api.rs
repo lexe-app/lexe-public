@@ -60,7 +60,7 @@ use lexe_common::{
     },
     ln::{
         amount::Amount,
-        channel::{LxChannelId, LxUserChannelId as LxUserChannelIdRs},
+        channel::{ChannelId, LxUserChannelId as LxUserChannelIdRs},
     },
     time::TimestampMs,
 };
@@ -226,7 +226,7 @@ impl TryFrom<CloseChannelRequest> for CloseChannelRequestRs {
     type Error = anyhow::Error;
     fn try_from(value: CloseChannelRequest) -> anyhow::Result<Self> {
         Ok(Self {
-            channel_id: LxChannelId::from_str(&value.channel_id)?,
+            channel_id: ChannelId::from_str(&value.channel_id)?,
             force_close: false,
             maybe_counterparty: None,
         })

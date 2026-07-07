@@ -7,8 +7,7 @@ use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::Apply;
 use lightning::{
-    chain::transaction::OutPoint,
-    ln::{channel_state::ChannelDetails, types::ChannelId},
+    chain::transaction::OutPoint, ln::channel_state::ChannelDetails,
 };
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -28,19 +27,19 @@ use crate::{
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct LxChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
+pub struct ChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
-lexe_byte_array::impl_byte_array!(LxChannelId, 32);
-lexe_byte_array::impl_fromstr_fromhex!(LxChannelId, 32);
-lexe_byte_array::impl_debug_display_as_hex!(LxChannelId);
+lexe_byte_array::impl_byte_array!(ChannelId, 32);
+lexe_byte_array::impl_fromstr_fromhex!(ChannelId, 32);
+lexe_byte_array::impl_debug_display_as_hex!(ChannelId);
 
-impl From<ChannelId> for LxChannelId {
-    fn from(cid: ChannelId) -> Self {
+impl From<lightning::ln::types::ChannelId> for ChannelId {
+    fn from(cid: lightning::ln::types::ChannelId) -> Self {
         Self(cid.0)
     }
 }
-impl From<LxChannelId> for ChannelId {
-    fn from(cid: LxChannelId) -> Self {
+impl From<ChannelId> for lightning::ln::types::ChannelId {
+    fn from(cid: ChannelId) -> Self {
         Self(cid.0)
     }
 }
@@ -50,7 +49,7 @@ impl From<LxChannelId> for ChannelId {
 /// The user channel id lets us consistently identify a channel through its
 /// whole lifecycle.
 ///
-/// The main issue is that we don't know the [`LxChannelId`] until we've
+/// The main issue is that we don't know the [`ChannelId`] until we've
 /// actually talked to the remote node and agreed to open a channel. The second
 /// issue is that we can't easily observe and correlate any errors from channel
 /// negotiation beyond some basic checks before we send any messages.
@@ -69,8 +68,8 @@ impl LxUserChannelId {
         Self(rng.gen_bytes())
     }
 
-    pub fn derive_temporary_channel_id(&self) -> LxChannelId {
-        LxChannelId(sha256::digest(&self.0).to_array())
+    pub fn derive_temporary_channel_id(&self) -> ChannelId {
+        ChannelId(sha256::digest(&self.0).to_array())
     }
 }
 
@@ -95,7 +94,7 @@ impl From<LxUserChannelId> for u128 {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LxChannelDetails {
     // --- Basic info --- //
-    pub channel_id: LxChannelId,
+    pub channel_id: ChannelId,
     pub user_channel_id: LxUserChannelId,
     /// The position of the funding transaction in the chain.
     /// - Used as a short identifier in many places.
@@ -261,7 +260,7 @@ impl LxChannelDetails {
             funding_redeem_script: _,
         } = details;
 
-        let channel_id = LxChannelId::from(channel_id);
+        let channel_id = ChannelId::from(channel_id);
         let user_channel_id = LxUserChannelId::from(user_channel_id);
         let scid = short_channel_id.map(Scid);
         let funding_txo = funding_txo.map(LxOutPoint::from);

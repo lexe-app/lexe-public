@@ -52,7 +52,7 @@ use lexe_common::{
         user::{NodePk, UserPk},
     },
     debug_panic_release_log,
-    ln::{amount::Amount, channel::LxChannelId},
+    ln::{amount::Amount, channel::ChannelId},
 };
 use lexe_crypto::rng::{RngExt, ThreadFastRng};
 use lexe_ln::{
@@ -639,7 +639,7 @@ async fn do_handle_event(
             channel_id,
         } => {
             let channel_id =
-                LxChannelId::from(channel_id.expect("Launched after v0.0.107"));
+                ChannelId::from(channel_id.expect("Launched after v0.0.107"));
             event::handle_spendable_outputs(
                 ctx.channel_manager.clone(),
                 ctx.persister.clone(),

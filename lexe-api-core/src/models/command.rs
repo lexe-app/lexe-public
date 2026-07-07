@@ -10,7 +10,7 @@ use lexe_common::{
     ln::{
         amount::Amount,
         balance::{LightningBalance, OnchainBalance},
-        channel::{LxChannelDetails, LxChannelId, LxUserChannelId},
+        channel::{ChannelId, LxChannelDetails, LxUserChannelId},
         hashes::Txid,
         priority::ConfirmationPriority,
         route::LxRoute,
@@ -245,7 +245,7 @@ pub struct OpenChannelRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenChannelResponse {
     /// The Lightning protocol channel id of the newly created channel.
-    pub channel_id: LxChannelId,
+    pub channel_id: ChannelId,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -263,7 +263,7 @@ pub struct PreflightOpenChannelResponse {
 #[derive(Serialize, Deserialize)]
 pub struct CloseChannelRequest {
     /// The id of the channel we want to close.
-    pub channel_id: LxChannelId,
+    pub channel_id: ChannelId,
     /// Set to true if the channel should be force closed (unilateral).
     /// Set to false if the channel should be cooperatively closed (bilateral).
     pub force_close: bool,

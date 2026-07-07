@@ -1,4 +1,4 @@
-use lexe_common::ln::channel::{LxChannelId, LxUserChannelId};
+use lexe_common::ln::channel::{ChannelId, LxUserChannelId};
 use lightning::events::ClosureReason;
 
 /// Channel lifecycle events emitted from the node event handler.
@@ -10,22 +10,22 @@ use lightning::events::ClosureReason;
 pub enum ChannelEvent {
     Pending {
         user_channel_id: LxUserChannelId,
-        channel_id: LxChannelId,
+        channel_id: ChannelId,
         funding_txo: bitcoin::OutPoint,
     },
     Ready {
         user_channel_id: LxUserChannelId,
-        channel_id: LxChannelId,
+        channel_id: ChannelId,
     },
     Closed {
         user_channel_id: LxUserChannelId,
-        channel_id: LxChannelId,
+        channel_id: ChannelId,
         reason: ClosureReason,
     },
 }
 
 impl ChannelEvent {
-    pub fn channel_id(&self) -> &LxChannelId {
+    pub fn channel_id(&self) -> &ChannelId {
         match self {
             Self::Pending { channel_id, .. } => channel_id,
             Self::Ready { channel_id, .. } => channel_id,

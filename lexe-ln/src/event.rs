@@ -7,7 +7,7 @@ use lexe_api::vfs::{self, Vfs, VfsFile, VfsFileId};
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::test_event::TestEvent,
-    ln::channel::{LxChannelId, LxUserChannelId},
+    ln::channel::{ChannelId, LxUserChannelId},
     secp256k1_ctx::SECP256K1,
     time::TimestampMs,
 };
@@ -19,7 +19,6 @@ use lightning::{
         transaction,
     },
     events::{ClosureReason, Event, PathFailure, ReplayEvent},
-    ln::types::ChannelId,
     routing::scoring::ScoreUpdate,
     sign::SpendableOutputDescriptor,
     types::features::ChannelTypeFeatures,
@@ -482,7 +481,7 @@ pub fn handle_funding_generation_ready<CM, PS>(
     channel_manager: &CM,
     test_event_tx: &TestEventSender,
 
-    temporary_channel_id: ChannelId,
+    temporary_channel_id: lightning::ln::types::ChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     channel_value_satoshis: u64,
     output_script: bitcoin::ScriptBuf,
@@ -541,7 +540,7 @@ where
 
 /// Handles an [`Event::ChannelPending`]
 pub fn log_channel_pending(
-    channel_id: LxChannelId,
+    channel_id: ChannelId,
     user_channel_id: LxUserChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     funding_txo: bitcoin::OutPoint,
@@ -557,7 +556,7 @@ pub fn log_channel_pending(
 
 /// Logs an [`Event::ChannelReady`]
 pub fn log_channel_ready(
-    channel_id: LxChannelId,
+    channel_id: ChannelId,
     user_channel_id: LxUserChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     channel_type: ChannelTypeFeatures,
@@ -571,7 +570,7 @@ pub fn log_channel_ready(
 
 /// Logs an [`Event::ChannelClosed`].
 pub fn log_channel_closed(
-    channel_id: LxChannelId,
+    channel_id: ChannelId,
     user_channel_id: LxUserChannelId,
     reason: &ClosureReason,
     counterparty_node_id: Option<secp256k1::PublicKey>,
@@ -687,7 +686,7 @@ pub async fn handle_spendable_outputs<CM, PS>(
     gdrive_persister_tx: Option<&mpsc::Sender<VfsFile>>,
     event_id: &EventId,
     outputs: Vec<SpendableOutputDescriptor>,
-    channel_id: LxChannelId,
+    channel_id: ChannelId,
 ) -> Result<(), EventHandleError>
 where
     CM: LexeChannelManager<PS>,

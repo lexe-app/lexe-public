@@ -4,12 +4,9 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use futures::{StreamExt, stream::FuturesUnordered};
-use lexe_common::ln::channel::{LxChannelId, LxOutPoint};
+use lexe_common::ln::channel::{ChannelId, LxOutPoint};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use lightning::{
-    chain::transaction::OutPoint, ln::types::ChannelId,
-    util::persist::MonitorName,
-};
+use lightning::{chain::transaction::OutPoint, util::persist::MonitorName};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use tokio::sync::mpsc;
@@ -74,11 +71,11 @@ where
     updates_buf: Vec<LxChannelMonitorUpdate>,
 
     /// Per-channel monitor persist state.
-    chanmon_persist_states: HashMap<LxChannelId, MonitorPersistState>,
+    chanmon_persist_states: HashMap<ChannelId, MonitorPersistState>,
 
     /// Active persist operations that are currently in-flight.
     active_persists: FuturesUnordered<
-        LxTask<Result<(LxChannelId, LxMonitorName), FatalError>>,
+        LxTask<Result<(ChannelId, LxMonitorName), FatalError>>,
     >,
 
     /// The number of in-flight pending persists. This is
@@ -111,7 +108,7 @@ struct MonitorPersistState {
 /// the entire channel monitor, we can persist once and notify the chain monitor
 /// for all updates in the batch.
 struct UpdateBatch {
-    channel_id: LxChannelId,
+    channel_id: ChannelId,
     monitor_name: LxMonitorName,
     update_ids: Vec<u64>,
     span: tracing::Span,
@@ -121,7 +118,7 @@ struct UpdateBatch {
 pub struct LxChannelMonitorUpdate {
     #[allow(dead_code)] // Conceptually part of the update.
     kind: ChannelMonitorUpdateKind,
-    channel_id: LxChannelId,
+    channel_id: ChannelId,
     monitor_name: LxMonitorName,
     /// The ID of the channel monitor update, given by
     /// [`ChannelMonitorUpdate::update_id`] or
@@ -148,7 +145,7 @@ pub enum ChannelMonitorUpdateKind {
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub enum LxMonitorName {
     V1Channel(LxOutPoint),
-    V2Channel(LxChannelId),
+    V2Channel(ChannelId),
 }
 
 /// A fatal error that occurs during channel monitor persistence.
@@ -327,7 +324,7 @@ where
     async fn handle_persist_completion(
         &mut self,
         result: Result<
-            Result<(LxChannelId, LxMonitorName), FatalError>,
+            Result<(ChannelId, LxMonitorName), FatalError>,
             tokio::task::JoinError,
         >,
     ) -> Result<(), FatalError> {
@@ -431,7 +428,7 @@ where
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
         batch: UpdateBatch,
-    ) -> Result<(LxChannelId, LxMonitorName), FatalError> {
+    ) -> Result<(ChannelId, LxMonitorName), FatalError> {
         debug!("Handling channel monitor update");
 
         let result = Self::persist_monitor_batch_inner(
@@ -478,7 +475,7 @@ where
         for update_id in &batch.update_ids {
             chain_monitor
                 .channel_monitor_updated(
-                    ChannelId::from(batch.channel_id),
+                    lightning::ln::types::ChannelId::from(batch.channel_id),
                     *update_id,
                 )
                 .map_err(|e| {
@@ -495,7 +492,7 @@ where
 impl LxChannelMonitorUpdate {
     pub fn new(
         kind: ChannelMonitorUpdateKind,
-        channel_id: LxChannelId,
+        channel_id: ChannelId,
         monitor_name: LxMonitorName,
         update_id: u64,
     ) -> Self {
@@ -539,7 +536,7 @@ impl From<MonitorName> for LxMonitorName {
             MonitorName::V1Channel(funding_txo) =>
                 Self::V1Channel(LxOutPoint::from(funding_txo)),
             MonitorName::V2Channel(channel_id) =>
-                Self::V2Channel(LxChannelId::from(channel_id)),
+                Self::V2Channel(ChannelId::from(channel_id)),
         }
     }
 }
@@ -549,8 +546,9 @@ impl From<LxMonitorName> for MonitorName {
         match value {
             LxMonitorName::V1Channel(funding_txo) =>
                 Self::V1Channel(OutPoint::from(funding_txo)),
-            LxMonitorName::V2Channel(channel_id) =>
-                Self::V2Channel(ChannelId::from(channel_id)),
+            LxMonitorName::V2Channel(channel_id) => Self::V2Channel(
+                lightning::ln::types::ChannelId::from(channel_id),
+            ),
         }
     }
 }
@@ -568,7 +566,7 @@ impl FromStr for LxMonitorName {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() == 64 {
-            LxChannelId::from_str(s)
+            ChannelId::from_str(s)
                 .map(Self::V2Channel)
                 .context("Invalid channel id")
         } else {

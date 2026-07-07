@@ -71,7 +71,7 @@ use lexe_common::{
         user::{Scid, Scids},
     },
     constants,
-    ln::channel::LxChannelId,
+    ln::channel::ChannelId,
     time::TimestampMs,
 };
 use lexe_crypto::{
@@ -104,7 +104,7 @@ use lightning::{
         ChannelMonitorUpdateStatus, chainmonitor::Persist,
         channelmonitor::ChannelMonitorUpdate,
     },
-    ln::{channelmanager::ChannelManagerReadArgs, types::ChannelId},
+    ln::channelmanager::ChannelManagerReadArgs,
     util::{
         config::UserConfig,
         persist::MonitorName,
@@ -900,12 +900,12 @@ impl LexePersisterMethods for NodePersister {
     async fn persist_channel_monitor<PS: LexePersister>(
         &self,
         chain_monitor: &LexeChainMonitorType<PS>,
-        channel_id: &LxChannelId,
+        channel_id: &ChannelId,
         monitor_name: &LxMonitorName,
     ) -> anyhow::Result<()> {
         let file = {
             let locked_monitor = chain_monitor
-                .get_monitor(ChannelId::from(*channel_id))
+                .get_monitor(lightning::ln::types::ChannelId::from(*channel_id))
                 .map_err(|e| {
                     anyhow!("No monitor for this channel_id: {e:?}")
                 })?;
@@ -1257,7 +1257,7 @@ impl Persist<SignerType> for NodePersister {
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
         let kind = ChannelMonitorUpdateKind::New;
-        let channel_id = LxChannelId::from(monitor.channel_id());
+        let channel_id = ChannelId::from(monitor.channel_id());
         let name = LxMonitorName::from(name);
         let update_id = monitor.get_latest_update_id();
         let update =
@@ -1292,7 +1292,7 @@ impl Persist<SignerType> for NodePersister {
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
         let kind = ChannelMonitorUpdateKind::Updated;
-        let channel_id = LxChannelId::from(monitor.channel_id());
+        let channel_id = ChannelId::from(monitor.channel_id());
         let name = LxMonitorName::from(name);
         let update_id = update
             .as_ref()
