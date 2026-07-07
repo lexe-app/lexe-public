@@ -52,28 +52,28 @@ pub struct NodeInfo {
     /// The hex-encoded secp256k1 Lightning node public key; the `node_id`.
     pub node_pk: NodePk,
 
-    /// The sum of our `lightning_balance` and our `onchain_balance`, in sats.
+    /// The sum of our `lightning_balance` and our `onchain_balance`.
     pub balance: Amount,
 
-    /// Total Lightning balance in sats, summed over all of our channels.
+    /// Total Lightning balance, summed over all of our channels.
     pub lightning_balance: Amount,
-    /// An estimated upper bound, in sats, on how much of our Lightning balance
+    /// An estimated upper bound on how much of our Lightning balance
     /// we can send to most recipients on the Lightning Network, accounting for
     /// Lightning limits such as our channel reserve, pending HTLCs, fees, etc.
     /// You should usually be able to spend this amount.
     // User-facing name for `LightningBalance::sendable`
     pub lightning_sendable_balance: Amount,
     /// A hard upper bound on how much of our Lightning balance can be spent
-    /// right now, in sats. This is always >= `lightning_sendable_balance`.
+    /// right now. This is always >= `lightning_sendable_balance`.
     /// Generally it is only possible to spend exactly this amount if the
     /// recipient is a Lexe user.
     // User-facing name for `LightningBalance::max_sendable`
     pub lightning_max_sendable_balance: Amount,
 
-    /// Total on-chain balance in sats, including unconfirmed funds.
+    /// Total on-chain balance, including unconfirmed funds.
     // `OnchainBalance::total`
     pub onchain_balance: Amount,
-    /// Trusted on-chain balance in sats, including only confirmed funds and
+    /// Trusted on-chain balance, including only confirmed funds and
     /// unconfirmed outputs originating from our own wallet.
     // Equivalent to BDK's `trusted_spendable`, but with a better name.
     pub onchain_trusted_balance: Amount,
@@ -253,7 +253,7 @@ pub struct CreateInvoiceRequest {
     /// (1 day).
     pub expiration_secs: Option<u32>,
 
-    /// Optionally include an amount, in sats, to encode into the invoice.
+    /// Optionally include an amount to encode into the invoice.
     /// If no amount is provided, the payer will specify how much to pay.
     pub amount: Option<Amount>,
 
