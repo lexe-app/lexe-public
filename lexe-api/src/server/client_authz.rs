@@ -46,6 +46,7 @@ use crate::tls_acceptor::VerifiedTlsClientCert;
 /// [`require_update_covered`]: Self::require_update_covered
 /// [`ClientPermissions`]: lexe_api_core::revocable_clients::scopes::ClientPermissions
 /// [`RevocableClientsHandle`]: lexe_api_core::revocable_clients::RevocableClientsHandle
+#[derive(Clone)]
 pub struct VerifiedClientAuthorization {
     /// The verified cert kind: ephemeral (root seed) or revocable.
     cert_kind: ClientCertKind,
@@ -58,8 +59,8 @@ pub struct VerifiedClientAuthorization {
 
 impl VerifiedClientAuthorization {
     /// The verified cert kind: ephemeral (root seed) or revocable.
-    pub fn cert_kind(&self) -> &ClientCertKind {
-        &self.cert_kind
+    pub fn cert_kind(&self) -> ClientCertKind {
+        self.cert_kind
     }
 
     /// The client's resolved permission set.
@@ -173,6 +174,13 @@ where
         parts: &mut Parts,
         state: &S,
     ) -> Result<Self, Self::Rejection> {
+        // Get the memoized `VerifiedClientAuthorization`
+        if let Some(authz) = parts.extensions.get::<Self>() {
+            return Ok(authz.clone());
+        }
+
+        // The verified end-entity cert. `None` means no client cert was
+        // presented, but that should not happen.
         let cert = parts.extensions.get::<VerifiedTlsClientCert>().ok_or_else(
             || CommonApiError::client_auth("No TLS client certificate info"),
         )?;
@@ -183,9 +191,7 @@ where
         // NOTE: This cert came from `VerifiedTlsClientCert` so it is verified.
         let cert_kind = ClientCertKind::from_der_untrusted(cert_der.as_ref())
             .ok_or_else(|| {
-            CommonApiError::client_auth(
-                "Failed to parse client certificate type",
-            )
+            CommonApiError::client_auth("Failed to parse client cert kind")
         })?;
 
         let (permissions, expires_at) = match &cert_kind {
@@ -199,19 +205,37 @@ where
                     .clients
                     .get(client_pk)
                     .ok_or_else(|| {
-                        CommonApiError::client_auth(
-                            "Revocable client not found",
-                        )
+                        CommonApiError::general(format!(
+                            "No revocable client with pk {client_pk}"
+                        ))
                     })?;
+
+                // Check up-to-date client validity (cert injector is per-conn)
+                if client.is_revoked {
+                    return Err(CommonApiError::general(format!(
+                        "Client {client_pk} is revoked"
+                    )));
+                };
+                let now = TimestampMs::now();
+                if client.is_expired_at(now) {
+                    return Err(CommonApiError::general(format!(
+                        "Client {client_pk} is expired"
+                    )));
+                };
+
                 (client.permissions.resolve(), client.expires_at)
             }
         };
 
-        Ok(VerifiedClientAuthorization {
+        let authz = VerifiedClientAuthorization {
             cert_kind,
             permissions,
             expires_at,
-        })
+        };
+        // Request extensions are independent per-request, so any staleness from
+        // memoization can't carry over into a second request.
+        parts.extensions.insert(authz.clone());
+        Ok(authz)
     }
 }
 

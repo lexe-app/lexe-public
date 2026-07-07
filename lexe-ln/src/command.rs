@@ -1986,7 +1986,7 @@ pub fn client_info(
         ClientCertKind::Revocable { client_pk } => {
             let locked_clients = revocable_clients.read().unwrap();
             let client =
-                locked_clients.clients.get(client_pk).ok_or_else(|| {
+                locked_clients.clients.get(&client_pk).ok_or_else(|| {
                     // The authz extractor just resolved this client, so it can
                     // only be missing if it was revoked in the meantime.
                     CommonApiError::general("Revocable client not found")

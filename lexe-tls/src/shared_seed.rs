@@ -15,7 +15,7 @@
 //!    signed by the derived CA.
 //!
 //! 2) "Revocable": Node (server) deterministically derives a "revocable cert
-//!    issuing" CA. The app requests the node to issue an "revocable" client
+//!    issuing" CA. The app requests the node to issue a "revocable" client
 //!    cert. The issued client cert does not encode an expiration. Instead, its
 //!    expiration is managed at the application level via `revocable_clients`,
 //!    which tracks each client cert's pubkey and expiration. These client certs
@@ -358,7 +358,7 @@ impl ServerCertVerifier for UserNodeRunVerifier {
 }
 
 /// The client authentication kind, based on the CN of the certificate issuer.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ClientCertKind {
     /// Client authenticated with an ephemeral cert (derived from the
     /// RootSeed). Used by any root-seed client (e.g. the app); has full access.
