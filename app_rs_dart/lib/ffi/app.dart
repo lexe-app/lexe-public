@@ -38,6 +38,11 @@ class AppHandle {
   Future<BackupInfo> backupInfo() =>
       AppRs.instance.api.crateFfiAppAppHandleBackupInfo(that: this);
 
+  /// Buy Bitcoin with Cash App. Returns a Cash App URL; redirect the user
+  /// there to complete the purchase. The amount must be >= 5000 sats.
+  Future<String> buyWithCashApp({required int amountSats}) => AppRs.instance.api
+      .crateFfiAppAppHandleBuyWithCashApp(that: this, amountSats: amountSats);
+
   /// Clear both the local payment state and the on-disk payment db.
   Future<void> clearPaymentDb() =>
       AppRs.instance.api.crateFfiAppAppHandleClearPaymentDb(that: this);

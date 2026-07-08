@@ -2,7 +2,11 @@ use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     types::{
-        auth::UserPk, command::WithdrawLnurlRequest as WithdrawLnurlRequestRs,
+        auth::UserPk,
+        command::{
+            CashAppBuyRequest as CashAppBuyRequestRs,
+            WithdrawLnurlRequest as WithdrawLnurlRequestRs,
+        },
     },
     util::ByteArray,
 };
@@ -646,6 +650,19 @@ impl AppHandle {
         let req = WithdrawLnurlRequestRs::from(req);
         let resp = self.inner.wallet().withdraw_lnurl(req).await?;
         Ok(Payment::from(resp))
+    }
+
+    /// Buy Bitcoin with Cash App. Returns a Cash App URL; redirect the user
+    /// there to complete the purchase. The amount must be >= 5000 sats.
+    #[instrument(skip_all, name = "(buy-with-cash-app)")]
+    pub async fn buy_with_cash_app(
+        &self,
+        amount_sats: u64,
+    ) -> anyhow::Result<String> {
+        let amount = Amount::try_from_sats_u64(amount_sats)?;
+        let req = CashAppBuyRequestRs { amount };
+        let resp = self.inner.wallet().buy_with_cash_app(req).await?;
+        Ok(resp.redirect_url)
     }
 
     /// Get the [`ActiveHumanBitcoinAddress`] for the user, or `None` if not

@@ -1,12 +1,10 @@
-/// Buy page: prompts the user for an amount, mints a Lightning invoice for
-/// that amount, and opens the Cash App `lightning:` deep link to fund it.
+/// Buy page: prompts the user for an amount, then calls the SDK's
+/// `buy_with_cash_app` and opens the returned Cash App URL to fund the buy.
 library;
 
 import 'dart:async' show unawaited;
 
-import 'package:app_rs_dart/ffi/api.dart' show CreateInvoiceRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show PaymentKind_BuyCashApp;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:lexeapp/components.dart'
@@ -31,15 +29,17 @@ class BuyPage extends StatefulWidget {
 }
 
 class _BuyPageState extends State<BuyPage> {
-  /// Cash App's deep link will accept amounts lower than this, but we recommend
-  /// a minimum of 5k sats for a good user experience.
-  static const int minSats = 5000;
+  /// The Rust SDK enforces MINIMUM_BUY_SATS = 5000;
+  /// mirror it here for inline validation.
+  static const int minimumBuySats = 5000;
 
   final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
   final IntInputFormatter intInputFormatter = IntInputFormatter();
 
   Result<(), String> validateAmount(int amountSats) =>
-      amountSats >= minSats ? const Ok(()) : const Err("Enter at least ₿5000");
+      amountSats >= minimumBuySats
+      ? const Ok(())
+      : const Err("Enter at least ₿5000");
 
   Future<void> onConfirm() async {
     final amountState = this.amountFieldKey.currentState!;
@@ -48,20 +48,15 @@ class _BuyPageState extends State<BuyPage> {
     // `allowEmpty/Zero: false` + [validateAmount] guarantee `amountSats >= minSats`.
     final amountSats = this.intInputFormatter.tryParse(amountState.value!).ok!;
 
-    info("BuyPage: minting invoice for $amountSats sats");
-
-    final req = CreateInvoiceRequest(
-      expirySecs: 24 * 60 * 60,
-      amountSats: amountSats,
-      description: "Cash App Buy",
-      kind: const PaymentKind_BuyCashApp(),
-    );
+    info("BuyPage: Buying $amountSats sats with Cash App");
 
     final result = await showModalAsyncFlow(
       context: this.context,
-      future: Result.tryFfiAsync(() => this.widget.app.createInvoice(req: req)),
+      future: Result.tryFfiAsync(
+        () => this.widget.app.buyWithCashApp(amountSats: amountSats),
+      ),
       errorBuilder: (context, err) => AlertDialog(
-        title: const Text("Failed to create invoice"),
+        title: const Text("Failed to start Cash App buy"),
         content: Text(err.message),
         scrollable: true,
         actions: [
@@ -75,9 +70,8 @@ class _BuyPageState extends State<BuyPage> {
 
     if (!this.mounted || result == null) return;
     if (result case Ok(:final ok)) {
-      final bolt11 = ok.invoice.string;
-      info("BuyPage: opening Cash App deep link");
-      unawaited(url.open("https://cash.app/launch/lightning/$bolt11"));
+      info("BuyPage: opening Cash App");
+      unawaited(url.open(ok));
     }
   }
 
