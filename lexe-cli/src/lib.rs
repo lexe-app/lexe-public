@@ -13,10 +13,10 @@ use lexe::{
         },
         bitcoin::{Amount, ClaimMethod, Invoice, Offer, PaymentMethod},
         command::{
-            AnalyzeRequest, AnalyzeResponse, ClientInfo, CreateClientRequest,
-            CreateInvoiceRequest, CreateOfferRequest, GetPaymentRequest,
-            GetUpdatedPaymentsRequest, PayInvoiceRequest, PayLnurlRequest,
-            PayOfferRequest, PayRequest, PaymentSyncSummary,
+            AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest, ClientInfo,
+            CreateClientRequest, CreateInvoiceRequest, CreateOfferRequest,
+            GetPaymentRequest, GetUpdatedPaymentsRequest, PayInvoiceRequest,
+            PayLnurlRequest, PayOfferRequest, PayRequest, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WithdrawLnurlRequest,
         },
@@ -158,6 +158,7 @@ pub enum LexeCommand {
     PayOffer(PayOfferArgs),
     PayLnurl(PayLnurlArgs),
     WithdrawLnurl(WithdrawLnurlArgs),
+    BuyWithCashApp(BuyWithCashAppArgs),
     SyncPayments(SyncPaymentsArgs),
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
@@ -293,6 +294,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
         LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
+        LexeCommand::BuyWithCashApp(a) => a.run(&wallet).await,
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
@@ -967,9 +969,6 @@ pub struct CreateInvoiceArgs {
     partner_base_fee: Option<Amount>,
 
     /// Don't render the QR code
-    //
-    // Skips QR rendering, which may be useful for agents trying to limit
-    // token usage.
     #[arg(long)]
     no_qr: bool,
 
@@ -1112,9 +1111,6 @@ pub struct CreateOfferArgs {
     expiration_secs: Option<u32>,
 
     /// Don't render the QR code
-    //
-    // Skips QR rendering, which may be useful for agents trying to limit
-    // token usage.
     #[arg(long)]
     no_qr: bool,
 
@@ -1366,6 +1362,78 @@ impl WithdrawLnurlArgs {
         }
 
         helpers::print_payment(&payment)
+    }
+}
+
+// --- `buy-with-cash-app` --- //
+
+// Unlike the SDK docs which address a developer whose end user does the buying,
+// the CLI user is themselves the buyer, so this speaks to them directly.
+#[derive(Parser)]
+#[command(
+    about = "Buy Bitcoin with Cash App",
+    long_about = "Buy Bitcoin with Cash App.\n\
+        \n\
+        Given an amount of Bitcoin to buy, returns a Cash App URL. Open it to\n\
+        complete the purchase in Cash App. Cash App buys are instant and land\n\
+        directly into your Lexe wallet.\n\
+        \n\
+        For the smoothest experience, open this URL on a device where you have\n\
+        Cash App already set up.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct BuyWithCashAppArgs {
+    /// Amount to buy in satoshis. Minimum: 5000.
+    amount_sats: Amount,
+
+    /// Don't render the QR code
+    #[arg(long)]
+    no_qr: bool,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl BuyWithCashAppArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = CashAppBuyRequest {
+            amount: self.amount_sats,
+        };
+        let resp = wallet
+            .buy_with_cash_app(req)
+            .await
+            .context("Failed to start Cash App buy")?;
+
+        // Sync payments to persist the pending buy locally.
+        if wallet.persistence_enabled() {
+            wallet
+                .sync_payments()
+                .await
+                .context("Payment sync failed")?;
+        }
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        println!("\nOpen this Cash App URL to complete the buy:\n");
+        // Don't wrap this to keep it copy/paste-able
+        println!("{}", resp.redirect_url);
+        println!(
+            "\nPayment index (can be used with `lexe wait-for-payment` or \
+             `lexe get-payment`):\n"
+        );
+        println!("{}", resp.index);
+
+        if !self.no_qr {
+            // The URL likely needs to be opened on a phone with Cash App, so a
+            // QR code is easier than copying the URL across devices.
+            println!("\nScan this QR code to complete the buy:");
+            helpers::encode_and_print_qr(&resp.redirect_url)?;
+        }
+
+        Ok(())
     }
 }
 
