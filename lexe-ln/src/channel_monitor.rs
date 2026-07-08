@@ -4,9 +4,9 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use futures::{StreamExt, stream::FuturesUnordered};
-use lexe_common::ln::channel::{ChannelId, LxOutPoint};
+use lexe_common::ln::channel::{ChannelId, OutPoint};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use lightning::{chain::transaction::OutPoint, util::persist::MonitorName};
+use lightning::util::persist::MonitorName;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use tokio::sync::mpsc;
@@ -139,12 +139,13 @@ pub enum ChannelMonitorUpdateKind {
 
 /// Exactly [`MonitorName`] but uses our newtypes. This needs to support
 /// deserializing from the actual channel monitor filename, so it can't always
-/// contain the `channel_id`. We need a newtype here as [`LxOutPoint`] has a
-/// different serialization from LDK's `OutPoint` for historical reasons.
+/// contain the `channel_id`. We need a newtype here as [`OutPoint`] has a
+/// different serialization from LDK's `lightning::chain::transaction::OutPoint`
+/// for historical reasons.
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub enum LxMonitorName {
-    V1Channel(LxOutPoint),
+    V1Channel(OutPoint),
     V2Channel(ChannelId),
 }
 
@@ -534,7 +535,7 @@ impl From<MonitorName> for LxMonitorName {
     fn from(value: MonitorName) -> Self {
         match value {
             MonitorName::V1Channel(funding_txo) =>
-                Self::V1Channel(LxOutPoint::from(funding_txo)),
+                Self::V1Channel(OutPoint::from(funding_txo)),
             MonitorName::V2Channel(channel_id) =>
                 Self::V2Channel(ChannelId::from(channel_id)),
         }
@@ -544,8 +545,9 @@ impl From<MonitorName> for LxMonitorName {
 impl From<LxMonitorName> for MonitorName {
     fn from(value: LxMonitorName) -> Self {
         match value {
-            LxMonitorName::V1Channel(funding_txo) =>
-                Self::V1Channel(OutPoint::from(funding_txo)),
+            LxMonitorName::V1Channel(funding_txo) => Self::V1Channel(
+                lightning::chain::transaction::OutPoint::from(funding_txo),
+            ),
             LxMonitorName::V2Channel(channel_id) => Self::V2Channel(
                 lightning::ln::types::ChannelId::from(channel_id),
             ),
@@ -570,7 +572,7 @@ impl FromStr for LxMonitorName {
                 .map(Self::V2Channel)
                 .context("Invalid channel id")
         } else {
-            LxOutPoint::from_str(s).map(Self::V1Channel)
+            OutPoint::from_str(s).map(Self::V1Channel)
         }
     }
 }

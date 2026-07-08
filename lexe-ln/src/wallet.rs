@@ -71,7 +71,7 @@ use lexe_api::{
     vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_V2_FILENAME},
 };
 #[cfg(test)]
-use lexe_common::ln::channel::LxOutPoint;
+use lexe_common::ln::channel::OutPoint;
 use lexe_common::{
     constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
@@ -922,7 +922,7 @@ impl OnchainWallet {
     fn unconfirmed_utxo_evicted_at(
         &self,
         evicted_at: TimestampMs,
-        outpoint: LxOutPoint,
+        outpoint: OutPoint,
     ) -> anyhow::Result<()> {
         let mut locked_wallet = self.inner.write().unwrap();
         let outpoint = bitcoin::OutPoint::from(outpoint);
@@ -2208,7 +2208,7 @@ mod test {
 
         // Manually declare it evicted / replaced / dropped from the mempool
         let now = h.now();
-        let outpoint = LxOutPoint {
+        let outpoint = OutPoint {
             txid: Txid(tx_u.compute_txid()),
             index: 0,
         };
@@ -2221,7 +2221,7 @@ mod test {
         h.assert_spend_ok(4_000);
 
         // We can't evict a confirmed UTXO
-        let outpoint = LxOutPoint {
+        let outpoint = OutPoint {
             txid: Txid(tx_c.compute_txid()),
             index: 0,
         };

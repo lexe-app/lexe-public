@@ -6,9 +6,7 @@ use lexe_crypto::rng::{RngCore, RngExt};
 use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::Apply;
-use lightning::{
-    chain::transaction::OutPoint, ln::channel_state::ChannelDetails,
-};
+use lightning::ln::channel_state::ChannelDetails;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
@@ -116,7 +114,7 @@ pub struct LxChannelDetails {
     /// See [`ChannelDetails::outbound_scid_alias`] for details.
     // Introduced in node-v0.6.21, lsp-v0.6.37
     pub outbound_payment_scid: Option<Scid>,
-    pub funding_txo: Option<LxOutPoint>,
+    pub funding_txo: Option<OutPoint>,
     // Introduced in node-v0.6.16, lsp-v0.6.32
     pub counterparty_alias: Option<String>,
     pub counterparty_node_id: NodePk,
@@ -265,7 +263,7 @@ impl LxChannelDetails {
         let channel_id = ChannelId::from(channel_id);
         let user_channel_id = UserChannelId::from(user_channel_id);
         let scid = short_channel_id.map(Scid);
-        let funding_txo = funding_txo.map(LxOutPoint::from);
+        let funding_txo = funding_txo.map(OutPoint::from);
         let counterparty_node_id = NodePk(counterparty.node_id);
         let channel_value = Amount::try_from_sats_u64(channel_value_satoshis)
             .context("Channel value overflow")?;
@@ -379,22 +377,24 @@ impl LxChannelDetails {
     }
 }
 
-/// A newtype for [`OutPoint`] that provides [`FromStr`] / [`fmt::Display`]
-/// impls.
-///
-/// Since the persister relies on the string representation to identify
-/// channels, having a newtype (instead of upstreaming these impls to LDK)
-/// ensures that the serialization scheme does not change from beneath us.
+/// A reference to a specific transaction output: the `txid` of the transaction
+/// together with the `index` of the output within that transaction.
+//
+// A newtype for `lightning::chain::transaction::OutPoint` that provides
+// `FromStr` / `fmt::Display` impls. Since the persister relies on the string
+// representation to identify channels, having a newtype (instead of upstreaming
+// these impls to LDK) ensures that the serialization scheme does not change
+// from beneath us.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct LxOutPoint {
+pub struct OutPoint {
     pub txid: Txid,
     pub index: u16,
 }
 
-impl From<OutPoint> for LxOutPoint {
-    fn from(op: OutPoint) -> Self {
+impl From<lightning::chain::transaction::OutPoint> for OutPoint {
+    fn from(op: lightning::chain::transaction::OutPoint) -> Self {
         Self {
             txid: Txid(op.txid),
             index: op.index,
@@ -402,8 +402,8 @@ impl From<OutPoint> for LxOutPoint {
     }
 }
 
-impl From<LxOutPoint> for OutPoint {
-    fn from(op: LxOutPoint) -> Self {
+impl From<OutPoint> for lightning::chain::transaction::OutPoint {
+    fn from(op: OutPoint) -> Self {
         Self {
             txid: op.txid.0,
             index: op.index,
@@ -411,8 +411,8 @@ impl From<LxOutPoint> for OutPoint {
     }
 }
 
-impl From<LxOutPoint> for bitcoin::OutPoint {
-    fn from(op: LxOutPoint) -> Self {
+impl From<OutPoint> for bitcoin::OutPoint {
+    fn from(op: OutPoint) -> Self {
         bitcoin::OutPoint {
             txid: op.txid.0,
             vout: u32::from(op.index),
@@ -421,7 +421,7 @@ impl From<LxOutPoint> for bitcoin::OutPoint {
 }
 
 /// Deserializes from `<txid>_<index>`
-impl FromStr for LxOutPoint {
+impl FromStr for OutPoint {
     type Err = anyhow::Error;
     fn from_str(outpoint_str: &str) -> anyhow::Result<Self> {
         let mut txid_and_txindex = outpoint_str.split('_');
@@ -442,7 +442,7 @@ impl FromStr for LxOutPoint {
 }
 
 /// Serializes to `<txid>_<index>`
-impl fmt::Display for LxOutPoint {
+impl fmt::Display for OutPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}_{}", self.txid, self.index)
     }
@@ -455,6 +455,6 @@ mod test {
 
     #[test]
     fn outpoint_fromstr_display_roundtrip() {
-        roundtrip::fromstr_display_roundtrip_proptest::<LxOutPoint>();
+        roundtrip::fromstr_display_roundtrip_proptest::<OutPoint>();
     }
 }
