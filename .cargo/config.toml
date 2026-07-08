@@ -1,5 +1,3 @@
-# Set our baseline x86-64 support to CPUs 2015+ with standard crypto intrinsics.
-
 [doc.extern-map.registries]
 # Allows `cargo doc` to generate links to external documentation for crates
 # sourced from crates.io that don't have the `html_root_url` doc attribute defined.
@@ -10,9 +8,6 @@ crates-io = "https://docs.rs/"
 [target.'cfg(target_env = "sgx")']
 # Use our custom SGX runner
 runner = "run-sgx-cargo"
-# Build with crypto intrinsics required at compile time. SGX enclaves don't
-# support runtime feature detection with cpuid.
-rustflags = ["-Ctarget-cpu=x86-64-v3", "-Ctarget-feature=+adx,+aes,+pclmulqdq,+sha,+vaes"]
 
 # NOTE(phlip9): This was too aggressive for our cheaper dev VMs. We'll just
 # enable these flags manually for prod-relevant build artifacts.

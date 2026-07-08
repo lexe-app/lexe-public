@@ -92,7 +92,6 @@ rec {
         fenixPkgs.stable.rustc
         fenixPkgs.stable.cargo
         fenixPkgs.stable.rust-src
-        fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
       ];
 
       # make fenix Rust work in build sandbox on macOS
@@ -276,9 +275,14 @@ rec {
   # Shim a small set of libc fns so we can cross-compile SGX without glibc.
   sgx-libc-shim = pkgs.callPackage ./sgx-libc-shim.nix { };
 
+  # LLVM libunwind built for Fortanix SGX from our pinned rust-src.
+  sgxLlvmLibunwind = pkgs.callPackage ./sgxLlvmLibunwind.nix {
+    inherit llvmPackages rustLexeToolchain sgx-libc-shim;
+  };
+
   # Inject env vars for cross-compiling to SGX into your `buildPhase`.
   sgxCrossEnvBuildHook = pkgs.callPackage ./sgxCrossEnvBuildHook.nix {
-    inherit llvmPackages sgx-libc-shim;
+    inherit llvmPackages sgx-libc-shim sgxLlvmLibunwind;
   };
 
   # Generic rust builder for non-SGX crates. Supports shared nix cargo build
@@ -420,7 +424,10 @@ rec {
   x86_64-fortanix-unknown-sgx-nolvi-json =
     pkgs.callPackage ./x86_64-fortanix-unknown-sgx-nolvi-json.nix
       {
-        rustLexeToolchain = rustLexeToolchain;
+        rustLexeToolchain = fenixPkgs.combine [
+          fenixPkgs.stable.rustc
+          fenixPkgs.targets.x86_64-fortanix-unknown-sgx.stable.rust-std
+        ];
       };
 
   # Minimal `pkgs.mkShellNoCC` for `nix develop` that only

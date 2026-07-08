@@ -12,6 +12,7 @@
   # lexePkgs
   #
   sgx-libc-shim,
+  sgxLlvmLibunwind,
 }:
 let
   # Use the base, "unwrapped" clang toolchain without all the nix
@@ -59,6 +60,7 @@ makeSetupHook
         # `CARGO_TARGET_<target>_<var>` is for `cargo`.
         # See: <https://doc.rust-lang.org/cargo/reference/environment-variables.html#configuration-environment-variables>
         export CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_LINKER="${lld}/bin/ld.lld"
+        export CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_RUSTFLAGS="-Lnative=${sgxLlvmLibunwind}/lib"
         # `RUSTC_BOOTSTRAP=1` allows us to enable the one nightly feature we
         # need (sgx_platform) for a few SGX-patched crates, even with a stable
         # compiler.

@@ -6,4 +6,14 @@
 
 #define	_STDLIB_H	1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern char *getenv(const char *name);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* _STDLIB_H */

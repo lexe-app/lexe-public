@@ -5,9 +5,17 @@
 #define	__need_NULL
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void *memcpy (void *__restrict dest, const void *__restrict src, size_t n);
 extern void *memmove (void *dest, const void *src, size_t n);
 extern void *memset (void *s, int c, size_t n);
 extern int memcmp (const void *s1, const void *s2, size_t n);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _STRING_H */

@@ -1,12 +1,11 @@
 {
   "abi": "fortanix",
   "arch": "x86_64",
-  "cpu": "x86-64",
+  "cpu": "x86-64-v3",
   "crt-objects-fallback": "false",
   "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-  "default-uwtable": true,
   "env": "sgx",
-  "features": "+rdrnd,+rdseed",
+  "features": "+adx,+aes,+pclmul,+rdrnd,+rdseed,+sha,+vaes",
   "linker": "rust-lld",
   "linker-flavor": "gnu-lld",
   "llvm-args": [],
@@ -99,5 +98,6 @@
   },
   "relax-elf-relocations": true,
   "target-pointer-width": "64",
-  "vendor": "fortanix"
+  "vendor": "fortanix",
+  "default-uwtable": true
 }
