@@ -53,7 +53,7 @@ use lexe_common::{
     debug_panic_release_log,
     ln::{
         amount::Amount,
-        channel::{ChannelId, LxChannelDetails, LxUserChannelId},
+        channel::{ChannelId, LxChannelDetails, UserChannelId},
         network::Network,
         route::LxRoute,
     },
@@ -303,7 +303,7 @@ pub async fn open_channel<CM, PS, F>(
     channel_events_bus: &EventsBus<ChannelEvent>,
     wallet: &OnchainWallet,
     ensure_counterparty_connected: impl FnOnce() -> F,
-    user_channel_id: LxUserChannelId,
+    user_channel_id: UserChannelId,
     channel_value: Amount,
     counterparty_node_pk: &NodePk,
     user_config: UserConfig,
@@ -419,7 +419,7 @@ where
 async fn wait_for_our_channel_open_event(
     channel_events_rx: &mut EventsRx<'_, ChannelEvent>,
     is_jit_channel: bool,
-    user_channel_id: &LxUserChannelId,
+    user_channel_id: &UserChannelId,
 ) -> anyhow::Result<OpenChannelResponse> {
     let channel_event = channel_events_rx
         .recv_filtered(|event| {

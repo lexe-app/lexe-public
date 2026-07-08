@@ -44,21 +44,23 @@ impl From<ChannelId> for lightning::ln::types::ChannelId {
     }
 }
 
-/// See: [`lightning::ln::channel_state::ChannelDetails::user_channel_id`]
-///
-/// The user channel id lets us consistently identify a channel through its
-/// whole lifecycle.
-///
-/// The main issue is that we don't know the [`ChannelId`] until we've
-/// actually talked to the remote node and agreed to open a channel. The second
-/// issue is that we can't easily observe and correlate any errors from channel
-/// negotiation beyond some basic checks before we send any messages.
+/// A client-generated id that identifies a channel throughout its entire
+/// lifecycle, including before the channel is confirmed on-chain and assigned
+/// its [`ChannelId`].
+//
+// See: `lightning::ln::channel_state::ChannelDetails::user_channel_id`
+//
+// The user channel id lets us consistently identify a channel through its whole
+// lifecycle. The main issue is that we don't know the `ChannelId` until we've
+// actually talked to the remote node and agreed to open a channel. The second
+// issue is that we can't easily observe and correlate any errors from channel
+// negotiation beyond some basic checks before we send any messages.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct LxUserChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 16]);
+pub struct UserChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 16]);
 
-impl LxUserChannelId {
+impl UserChannelId {
     #[inline]
     pub fn to_u128(self) -> u128 {
         u128::from_le_bytes(self.0)
@@ -73,18 +75,18 @@ impl LxUserChannelId {
     }
 }
 
-lexe_byte_array::impl_byte_array!(LxUserChannelId, 16);
-lexe_byte_array::impl_fromstr_fromhex!(LxUserChannelId, 16);
-lexe_byte_array::impl_debug_display_as_hex!(LxUserChannelId);
+lexe_byte_array::impl_byte_array!(UserChannelId, 16);
+lexe_byte_array::impl_fromstr_fromhex!(UserChannelId, 16);
+lexe_byte_array::impl_debug_display_as_hex!(UserChannelId);
 
-impl From<u128> for LxUserChannelId {
+impl From<u128> for UserChannelId {
     fn from(value: u128) -> Self {
         Self(value.to_le_bytes())
     }
 }
 
-impl From<LxUserChannelId> for u128 {
-    fn from(value: LxUserChannelId) -> Self {
+impl From<UserChannelId> for u128 {
+    fn from(value: UserChannelId) -> Self {
         value.to_u128()
     }
 }
@@ -95,7 +97,7 @@ impl From<LxUserChannelId> for u128 {
 pub struct LxChannelDetails {
     // --- Basic info --- //
     pub channel_id: ChannelId,
-    pub user_channel_id: LxUserChannelId,
+    pub user_channel_id: UserChannelId,
     /// The position of the funding transaction in the chain.
     /// - Used as a short identifier in many places.
     /// - [`None`] if the funding tx hasn't been confirmed.
@@ -261,7 +263,7 @@ impl LxChannelDetails {
         } = details;
 
         let channel_id = ChannelId::from(channel_id);
-        let user_channel_id = LxUserChannelId::from(user_channel_id);
+        let user_channel_id = UserChannelId::from(user_channel_id);
         let scid = short_channel_id.map(Scid);
         let funding_txo = funding_txo.map(LxOutPoint::from);
         let counterparty_node_id = NodePk(counterparty.node_id);

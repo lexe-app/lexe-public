@@ -10,7 +10,7 @@ use lexe_common::{
     ln::{
         amount::Amount,
         balance::{LightningBalance, OnchainBalance},
-        channel::{ChannelId, LxChannelDetails, LxUserChannelId},
+        channel::{ChannelId, LxChannelDetails, UserChannelId},
         hashes::Txid,
         priority::ConfirmationPriority,
         route::LxRoute,
@@ -237,7 +237,7 @@ pub struct OpenChannelRequest {
     ///
     /// This id is also used for idempotency. Retrying a request with the same
     /// `user_channel_id` won't accidentally open another channel.
-    pub user_channel_id: LxUserChannelId,
+    pub user_channel_id: UserChannelId,
     /// The value of the channel we want to open.
     pub value: Amount,
 }

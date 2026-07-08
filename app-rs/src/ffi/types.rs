@@ -43,7 +43,7 @@ use lexe_common::{
         amount::Amount as AmountRs,
         channel::{
             LxChannelDetails as LxChannelDetailsRs,
-            LxUserChannelId as LxUserChannelIdRs,
+            UserChannelId as UserChannelIdRs,
         },
         network::Network as NetworkRs,
         priority::ConfirmationPriority as ConfirmationPriorityRs,
@@ -949,14 +949,14 @@ impl UserChannelId {
     /// flutter_rust_bridge:sync
     pub fn gen_new() -> Self {
         UserChannelId {
-            id: LxUserChannelIdRs::from_rng(&mut SysRng::new()).0,
+            id: UserChannelIdRs::from_rng(&mut SysRng::new()).0,
         }
     }
 }
 
-impl From<UserChannelId> for LxUserChannelIdRs {
-    fn from(value: UserChannelId) -> LxUserChannelIdRs {
-        LxUserChannelIdRs(value.id)
+impl From<UserChannelId> for UserChannelIdRs {
+    fn from(value: UserChannelId) -> UserChannelIdRs {
+        UserChannelIdRs(value.id)
     }
 }
 

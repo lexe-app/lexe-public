@@ -7,7 +7,7 @@ use lexe_api::vfs::{self, Vfs, VfsFile, VfsFileId};
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::test_event::TestEvent,
-    ln::channel::{ChannelId, LxUserChannelId},
+    ln::channel::{ChannelId, UserChannelId},
     secp256k1_ctx::SECP256K1,
     time::TimestampMs,
 };
@@ -541,7 +541,7 @@ where
 /// Handles an [`Event::ChannelPending`]
 pub fn log_channel_pending(
     channel_id: ChannelId,
-    user_channel_id: LxUserChannelId,
+    user_channel_id: UserChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     funding_txo: bitcoin::OutPoint,
     channel_type: Option<ChannelTypeFeatures>,
@@ -557,7 +557,7 @@ pub fn log_channel_pending(
 /// Logs an [`Event::ChannelReady`]
 pub fn log_channel_ready(
     channel_id: ChannelId,
-    user_channel_id: LxUserChannelId,
+    user_channel_id: UserChannelId,
     counterparty_node_id: secp256k1::PublicKey,
     channel_type: ChannelTypeFeatures,
 ) {
@@ -571,7 +571,7 @@ pub fn log_channel_ready(
 /// Logs an [`Event::ChannelClosed`].
 pub fn log_channel_closed(
     channel_id: ChannelId,
-    user_channel_id: LxUserChannelId,
+    user_channel_id: UserChannelId,
     reason: &ClosureReason,
     counterparty_node_id: Option<secp256k1::PublicKey>,
     capacity_sats: Option<u64>,

@@ -60,7 +60,7 @@ use lexe_common::{
     },
     ln::{
         amount::Amount,
-        channel::{ChannelId, LxUserChannelId as LxUserChannelIdRs},
+        channel::{ChannelId, UserChannelId as UserChannelIdRs},
     },
     time::TimestampMs,
 };
@@ -170,7 +170,7 @@ impl TryFrom<OpenChannelRequest> for OpenChannelRequestRs {
     type Error = anyhow::Error;
     fn try_from(req: OpenChannelRequest) -> Result<Self, Self::Error> {
         Ok(Self {
-            user_channel_id: LxUserChannelIdRs::from(req.user_channel_id),
+            user_channel_id: UserChannelIdRs::from(req.user_channel_id),
             value: Amount::try_from_sats_u64(req.value_sats)?,
         })
     }
