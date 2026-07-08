@@ -564,6 +564,29 @@ pub struct WithdrawLnurlRequest {
     pub personal_note: Option<String>,
 }
 
+/// A request to buy Bitcoin with Cash App.
+///
+/// See [`buy_with_cash_app`](crate::wallet::LexeWallet::buy_with_cash_app).
+#[derive(Serialize, Deserialize)]
+pub struct CashAppBuyRequest {
+    /// The amount of Bitcoin to buy, in sats. Must be at least 5000 sats.
+    pub amount: Amount,
+}
+
+/// The response to a [`CashAppBuyRequest`].
+#[derive(Serialize, Deserialize)]
+pub struct CashAppBuyResponse {
+    /// A Cash App URL that funds the purchase.
+    ///
+    /// Redirect your user to this URL to complete the purchase; for the
+    /// smoothest experience, have them open it on a device where Cash App is
+    /// already set up. The bought Bitcoin lands directly into Lexe wallet.
+    pub redirect_url: String,
+    /// Identifier for the inbound payment funding this buy. Use it to look up
+    /// the payment (e.g. `get_payment`) once Cash App has funded it.
+    pub index: PaymentCreatedIndex,
+}
+
 // --- Payment information and management --- //
 
 /// Summary of changes from a payment sync operation.

@@ -22,7 +22,8 @@ use lexe_common::{
         user::NodePkProof,
     },
     ln::{
-        amount::Amount, channel::UserChannelId, priority::ConfirmationPriority,
+        amount::Amount, channel::UserChannelId, network::Network,
+        priority::ConfirmationPriority,
     },
 };
 use lexe_crypto::rng::SysRng;
@@ -44,11 +45,12 @@ use crate::{
     types::{
         auth::{ClientCredentials, CredentialsRef, RootSeed, UserPk},
         command::{
-            AnalyzeRequest, AnalyzeResponse, ChannelDetails, ClaimableDetails,
-            ClientInfo, ClientInfoResponse, CloseChannelRequest,
-            CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
-            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest,
+            CashAppBuyResponse, ChannelDetails, ClaimableDetails, ClientInfo,
+            ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
+            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
+            CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+            GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -1455,6 +1457,75 @@ impl LexeWallet {
         self.wait_for_payment(invoice_resp.index, Some(TIMEOUT))
             .await
             .context("Couldn't receive withdrawal payment")
+    }
+
+    /// Buy Bitcoin with Cash App.
+    ///
+    /// Given an amount of Bitcoin that the user wants to buy, returns a Cash
+    /// App URL that you can redirect your user to complete the purchase.
+    /// Cash App buys are instant and land directly into Lexe wallet.
+    ///
+    /// For the smoothest user experience, you should encourage your user to
+    /// open this URL on a device where Cash App is already set up.
+    #[instrument(skip_all, name = "(buy-with-cash-app)")]
+    pub async fn buy_with_cash_app(
+        &self,
+        req: CashAppBuyRequest,
+    ) -> anyhow::Result<CashAppBuyResponse> {
+        /// Cash App accepts smaller amounts, but we enforce a minimum for a
+        /// good user experience.
+        // TODO(max): Consider lowering this once we have better support for
+        // small balances
+        const MINIMUM_BUY_SATS: u32 = 5_000;
+        /// The minted invoice's expiration, in seconds.
+        const EXPIRY_SECS: u32 = 60 * 60 * 2; // 2 hours
+
+        // Cash App buys real Bitcoin, so they only make sense on mainnet.
+        let network = self.user_config.env_config.wallet_env.network;
+        ensure!(
+            network == Network::Mainnet,
+            "Cash App buys are only available on mainnet. \
+             (Current network: {})",
+            network.as_str(),
+        );
+
+        let amount = req.amount;
+        let min_buy_amount = Amount::from_sats_u32(MINIMUM_BUY_SATS);
+        ensure!(
+            amount >= min_buy_amount,
+            "Cash App buy amount ({amount} sats) must be at least \
+             {min_buy_amount} sats"
+        );
+
+        // Create the invoice with our internal create_invoice API instead of
+        // SDK create_invoice so we can label it with `PaymentKind::BuyCashApp`.
+        let invoice_req = command::CreateInvoiceRequest {
+            expiry_secs: EXPIRY_SECS,
+            amount: Some(amount),
+            description: Some("Cash App Buy".to_owned()),
+            description_hash: None,
+            message: None,
+            personal_note: None,
+            kind: PaymentKind::BuyCashApp,
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
+        };
+        let resp = self
+            .node_client
+            .create_invoice(invoice_req)
+            .await
+            .context("Failed to create invoice")?;
+
+        let index = resp.created_index.context("Node is out of date")?;
+        let invoice = resp.invoice;
+        let redirect_url =
+            format!("https://cash.app/launch/lightning/{invoice}");
+
+        Ok(CashAppBuyResponse {
+            redirect_url,
+            index,
+        })
     }
 
     // --- Payment information and management --- //
