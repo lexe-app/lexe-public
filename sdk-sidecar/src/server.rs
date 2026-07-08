@@ -16,16 +16,16 @@ use lexe::{
         auth::Credentials,
         bitcoin::PaymentMethod,
         command::{
-            AnalyzeRequest, ClientInfoResponse, CreateClientRequest,
-            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListClientsResponse,
-            ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
-            PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
-            PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
-            PaymentSyncSummary, RevokeClientRequest,
-            UpdateClientRequest as SdkUpdateClientRequest,
+            AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
+            ClientInfoResponse, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListClientsResponse, ListPaymentsResponse, NodeInfo,
+            PayInvoiceRequest, PayLnurlRequest as SdkPayLnurlRequest,
+            PayOfferRequest, PayRequest as SdkPayRequest,
+            PayableDetails as SdkPayableDetails, PaymentSyncSummary,
+            RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
@@ -93,6 +93,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/pay_offer", post(node::pay_offer))
         .route("/v2/node/pay_lnurl", post(node::pay_lnurl))
         .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
+        .route("/v2/node/buy_with_cash_app", post(node::buy_with_cash_app))
         .route("/v2/node/sync_payments", put(node::sync_payments))
         .route("/v2/node/list_payments", get(node::list_payments))
         .route("/v2/node/clear_payments", post(node::clear_payments))
@@ -442,6 +443,25 @@ mod node {
     ) -> Result<LxJson<Payment>, SdkApiError> {
         let resp = wallet
             .withdraw_lnurl(SdkWithdrawLnurlRequest::from(req))
+            .await
+            .map_err(SdkApiError::command)?;
+
+        helpers::try_track_payment(&state, credentials, resp.index);
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(buy-with-cash-app)")]
+    pub(crate) async fn buy_with_cash_app(
+        State(state): State<Arc<RouterState>>,
+        WalletAndCredentialsExtractor {
+            wallet,
+            credentials,
+        }: WalletAndCredentialsExtractor,
+        LxJson(req): LxJson<CashAppBuyRequest>,
+    ) -> Result<LxJson<CashAppBuyResponse>, SdkApiError> {
+        let resp = wallet
+            .buy_with_cash_app(req)
             .await
             .map_err(SdkApiError::command)?;
 

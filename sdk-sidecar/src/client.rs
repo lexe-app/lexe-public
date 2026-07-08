@@ -1,12 +1,13 @@
 use lexe::types::{
     command::{
-        AnalyzeRequest, ClientInfoResponse, CreateClientRequest,
-        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-        GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListClientsResponse, ListPaymentsResponse,
-        NodeInfo, PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdatePersonalNoteRequest,
+        AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
+        ClientInfoResponse, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListClientsResponse, ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -149,6 +150,16 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<Payment, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/withdraw_lnurl");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn buy_with_cash_app(
+        &self,
+        req: &CashAppBuyRequest,
+    ) -> Result<CashAppBuyResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/buy_with_cash_app");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }

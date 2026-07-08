@@ -9,13 +9,14 @@
 
 use lexe::types::{
     command::{
-        AnalyzeRequest, ClientInfoResponse, CreateClientRequest,
-        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-        GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListClientsResponse, ListPaymentsResponse,
-        NodeInfo, PayInvoiceRequest, PayOfferRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdatePersonalNoteRequest,
+        AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
+        ClientInfoResponse, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListClientsResponse, ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -141,6 +142,22 @@ pub trait UserSidecarApi {
         &self,
         req: &WithdrawLnurlRequest,
     ) -> Result<Payment, SdkApiError>;
+
+    /// POST /v2/node/buy_with_cash_app [`CashAppBuyRequest`]
+    ///                              -> [`CashAppBuyResponse`]
+    ///
+    /// Buy Bitcoin with Cash App.
+    ///
+    /// Given an amount of Bitcoin that the user wants to buy, returns a Cash
+    /// App URL that you can redirect your user to complete the purchase. Cash
+    /// App buys are instant and land directly into Lexe wallet.
+    ///
+    /// For the smoothest user experience, you should encourage your user to
+    /// open this URL on a device where Cash App is already set up.
+    async fn buy_with_cash_app(
+        &self,
+        req: &CashAppBuyRequest,
+    ) -> Result<CashAppBuyResponse, SdkApiError>;
 
     /// PUT /v2/node/sync_payments [`Empty`] -> [`PaymentSyncSummary`]
     ///
