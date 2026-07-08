@@ -18,7 +18,7 @@ use lexe_api::{
 use lexe_common::{
     api::{auth::LexeScope, revocable_clients},
     constants,
-    ln::amount::Amount,
+    ln::{amount::Amount, channel::LxChannelDetails},
     ppm::Ppm,
     time::TimestampMs,
 };
@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         auth::{ClientCredentials, Measurement, NodePk, UserPk},
-        bitcoin::Offer,
+        bitcoin::{ChannelId, Offer, OutPoint, UserChannelId},
         payment::Payment,
     },
     util::ed25519,
@@ -833,6 +833,111 @@ impl From<UpdateClientRequest> for revocable_clients::UpdateClientRequest {
 pub struct RevokeClientRequest {
     /// The public key of the client to revoke.
     pub client_pk: ed25519::PublicKey,
+}
+
+// --- Channel management --- //
+
+/// Details about one of this node's Lightning channels.
+pub struct ChannelDetails {
+    /// The id of the channel.
+    pub channel_id: ChannelId,
+    /// A user-provided id for this channel that's associated with the channel
+    /// throughout its whole lifetime, as the Lightning protocol channel id is
+    /// only known after negotiating the channel and creating the funding tx.
+    pub user_channel_id: UserChannelId,
+    /// The channel's funding transaction output, or `None` if the funding
+    /// transaction has not yet been confirmed.
+    pub funding_txo: Option<OutPoint>,
+    /// Whether the channel is ready and its counterparty is online, so it can
+    /// send and receive payments right now.
+    pub is_usable: bool,
+
+    /// The total value of the channel.
+    pub channel_value: Amount,
+    /// Our balance in the channel.
+    pub our_balance: Amount,
+    /// The counterparty's balance in the channel.
+    pub their_balance: Amount,
+    /// The portion of our balance that the counterparty requires us to keep in
+    /// reserve as anti-cheating collateral. This is unspendable and does not
+    /// count towards `outbound_capacity`.
+    pub punishment_reserve: Amount,
+
+    /// How much of our balance is currently available to send.
+    pub outbound_capacity: Amount,
+    /// How much of the counterparty's balance is available for us to receive.
+    pub inbound_capacity: Amount,
+}
+
+impl From<LxChannelDetails> for ChannelDetails {
+    fn from(details: LxChannelDetails) -> Self {
+        Self {
+            channel_id: details.channel_id,
+            user_channel_id: details.user_channel_id,
+            funding_txo: details.funding_txo,
+            is_usable: details.is_usable,
+            channel_value: details.channel_value,
+            our_balance: details.our_balance,
+            their_balance: details.their_balance,
+            punishment_reserve: details.punishment_reserve,
+            outbound_capacity: details.outbound_capacity,
+            inbound_capacity: details.inbound_capacity,
+        }
+    }
+}
+
+/// The response to a request to list this node's Lightning channels.
+///
+/// All of this node's Lightning channels are connected to the Lexe LSP.
+pub struct ListChannelsResponse {
+    /// This node's Lightning channels. The counterparty is always the Lexe
+    /// LSP.
+    pub channels: Vec<ChannelDetails>,
+}
+
+/// A request to open a Lightning channel from this node to Lexe's LSP.
+pub struct OpenChannelRequest {
+    /// The value of the channel to open.
+    pub value: Amount,
+    /// A user-provided id for this channel that's associated with the channel
+    /// throughout its whole lifetime, as the Lightning protocol channel id is
+    /// only known after negotiating the channel and creating the funding tx.
+    ///
+    /// This id is also used for idempotency. Retrying a request with the same
+    /// `user_channel_id` won't accidentally open another channel.
+    ///
+    /// If `None`, a random id is generated, which provides no idempotency
+    /// across separate `open_channel` calls.
+    pub user_channel_id: Option<UserChannelId>,
+}
+
+/// The response to a request to open a channel to the LSP.
+pub struct OpenChannelResponse {
+    /// The id of the newly opened channel.
+    pub channel_id: ChannelId,
+    /// A user-provided id for this channel that's associated with the channel
+    /// throughout its whole lifetime, as the Lightning protocol channel id is
+    /// only known after negotiating the channel and creating the funding tx.
+    pub user_channel_id: UserChannelId,
+}
+
+/// A request to close a Lightning channel between this node and Lexe's LSP.
+pub struct CloseChannelRequest {
+    /// The id of the channel to close.
+    pub channel_id: ChannelId,
+}
+
+impl From<CloseChannelRequest> for command::CloseChannelRequest {
+    fn from(req: CloseChannelRequest) -> Self {
+        Self {
+            channel_id: req.channel_id,
+            // Always coop close; unilateral force close should be exposed
+            // in the CLI
+            force_close: false,
+            // Let the node determine the counterparty via `list_channels`.
+            maybe_counterparty: None,
+        }
+    }
 }
 
 #[cfg(test)]

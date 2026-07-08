@@ -21,6 +21,8 @@ use crate::{
 };
 
 /// A newtype for [`lightning::ln::types::ChannelId`].
+//
+// NOTE: This is exposed in the Rust SDK.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(RefCast, Serialize, Deserialize)]
@@ -53,6 +55,8 @@ impl From<ChannelId> for lightning::ln::types::ChannelId {
 // actually talked to the remote node and agreed to open a channel. The second
 // issue is that we can't easily observe and correlate any errors from channel
 // negotiation beyond some basic checks before we send any messages.
+//
+// NOTE: This is exposed in the Rust SDK.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, RefCast, Serialize, Deserialize)]
 #[repr(transparent)]
@@ -385,6 +389,8 @@ impl LxChannelDetails {
 // representation to identify channels, having a newtype (instead of upstreaming
 // these impls to LDK) ensures that the serialization scheme does not change
 // from beneath us.
+//
+// NOTE: This is exposed in the Rust SDK.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]

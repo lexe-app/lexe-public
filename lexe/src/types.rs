@@ -39,7 +39,10 @@ pub mod bitcoin {
         offer::Offer,
     };
     pub use lexe_common::ln::{
-        amount::Amount, hashes::Txid, priority::ConfirmationPriority,
+        amount::Amount,
+        channel::{ChannelId, OutPoint, UserChannelId},
+        hashes::Txid,
+        priority::ConfirmationPriority,
     };
     pub use lexe_payment_uri::{
         ClaimMethod, LnurlWithdrawRequest, PaymentMethod,

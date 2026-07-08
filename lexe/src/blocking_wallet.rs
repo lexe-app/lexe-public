@@ -17,13 +17,14 @@ use crate::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
             AnalyzeRequest, AnalyzeResponse, ClientInfoResponse,
-            CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
-            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListClientsResponse,
-            ListPaymentsResponse, NodeInfo, PayInvoiceRequest, PayLnurlRequest,
-            PayOfferRequest, PayRequest, PaymentSyncSummary,
-            RevokeClientRequest, UpdateClientRequest,
+            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
+            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentCreatedIndex, PaymentFilter},
@@ -513,6 +514,33 @@ impl BlockingLexeWallet {
         req: RevokeClientRequest,
     ) -> anyhow::Result<ClientInfoResponse> {
         block_on(self.inner.revoke_client(req))
+    }
+
+    // --- Channel management --- //
+
+    /// List this node's Lightning channels.
+    ///
+    /// All of this node's Lightning channels are connected to the Lexe LSP.
+    pub fn list_channels(&self) -> anyhow::Result<ListChannelsResponse> {
+        block_on(self.inner.list_channels())
+    }
+
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    ///
+    /// Returns the channel id of the newly opened channel.
+    pub fn open_channel(
+        &self,
+        req: OpenChannelRequest,
+    ) -> anyhow::Result<OpenChannelResponse> {
+        block_on(self.inner.open_channel(req))
+    }
+
+    /// Close a Lightning channel between this node and Lexe's LSP.
+    pub fn close_channel(
+        &self,
+        req: CloseChannelRequest,
+    ) -> anyhow::Result<()> {
+        block_on(self.inner.close_channel(req))
     }
 }
 
