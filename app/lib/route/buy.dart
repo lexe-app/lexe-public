@@ -98,7 +98,7 @@ class _BuyPageState extends State<BuyPage> {
 *You'll be redirected to Cash App to complete your Bitcoin purchase.*
 *Available in the US only.*
 
-Cash App charges **zero** fees!
+Cash App buys are instant!
 Your Bitcoin will land directly into Lexe Wallet. ⚡️
 
 Make sure to set up Cash App on this device before you proceed.
