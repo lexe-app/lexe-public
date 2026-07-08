@@ -35,4 +35,4 @@ sgx-isa = { workspace = true }
 [dev-dependencies]
 lexe-tls = { workspace = true, features = ["test-utils"] }
 
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "test-util"] }

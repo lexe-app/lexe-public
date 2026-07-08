@@ -189,7 +189,7 @@ mod test {
     /// Dump fresh attestation cert (intended for SGX only):
     ///
     /// ```bash
-    /// cargo test -p lexe-tls-attest-server --target=x86_64-fortanix-unknown-sgx dump_attest_cert -- --ignored --show-output
+    /// RUSTC_BOOTSTRAP=1 cargo test -p lexe-tls-attest-server --target=x86_64-fortanix-unknown-sgx dump_attest_cert -- --ignored --show-output
     /// ```
     #[test]
     #[cfg(target_env = "sgx")]
@@ -205,21 +205,34 @@ mod test {
         let dns_name = "localhost".to_owned();
         // Use a long lifetime so the test won't fail just bc the cert expired
         let lifetime = Duration::from_secs(60 * 60 * 24 * 365 * 1000);
+        let measurement = enclave::measurement();
 
         let attest_cert =
             AttestationCert::generate(&mut rng, &[&dns_name], lifetime)
                 .unwrap();
 
-        println!("measurement: '{}'", enclave::measurement());
-        println!("Set `SERVER_MRENCLAVE` to this value.");
-
         let cert_der = attest_cert.serialize_der_self_signed().unwrap();
         let cert_base64 = base64::engine::general_purpose::STANDARD
             .encode(cert_der.as_slice());
 
-        println!("attestation certificate:");
-        println!("-----BEGIN CERTIFICATE-----");
-        println!("{cert_base64}");
-        println!("-----END CERTIFICATE-----");
+        println!(
+            r#"
+
+1. Replace contents of `public/lexe-tls/test_data/attest_cert.pem`:
+
+```pem
+-----BEGIN CERTIFICATE-----
+{cert_base64}
+-----END CERTIFICATE-----
+```
+
+2. Replace `measurement` in `lexe_tls::attest_client::verifier::attest_cert_fixture`:
+
+```rust
+let measurement = Measurement::from_hex("{measurement}").unwrap();
+```
+
+"#
+        );
     }
 }

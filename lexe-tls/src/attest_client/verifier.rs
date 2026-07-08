@@ -838,7 +838,7 @@ mod test {
     // `lexe_tls_attest_server::cert::test::dump_attest_cert`.
     fn attest_cert_fixture() -> (CertificateDer<'static>, Measurement) {
         let measurement = Measurement::from_hex(
-            "738f61792535f905807365a0f6023275b6a44972f48986c94aa7976c31bf1eb6",
+            "f6331736910c50e065c4b2692932c5ed1b08f779607e2729a06eb35b9ab4b0bf",
         )
         .unwrap();
 
