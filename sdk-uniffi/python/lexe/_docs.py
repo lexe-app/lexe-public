@@ -905,6 +905,30 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
+_set_method_doc(LexeWallet, "buy_with_cash_app", """\
+Buy Bitcoin with Cash App.
+
+Given an amount of Bitcoin that the user wants to buy, returns a Cash App URL
+that you can redirect your user to complete the purchase. Cash App buys are
+instant and land directly into Lexe wallet.
+
+Args:
+    amount_sats: Amount of Bitcoin to buy in satoshis. Must be at least 5000.
+
+Returns:
+    A :class:`CashAppBuyResponse` whose ``redirect_url`` you should send your
+    user to, to complete the purchase. For the smoothest experience, encourage
+    them to open it on a device where Cash App is already set up.
+
+Raises:
+    FfiError: If the amount is below the minimum or the request fails.
+
+Example::
+
+    resp = wallet.buy_with_cash_app(5000)
+    print(resp.redirect_url)  # Redirect your user here
+""")
+
 _set_method_doc(LexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -1550,6 +1574,30 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
+_set_method_doc(AsyncLexeWallet, "buy_with_cash_app", """\
+Buy Bitcoin with Cash App.
+
+Given an amount of Bitcoin that the user wants to buy, returns a Cash App URL
+that you can redirect your user to complete the purchase. Cash App buys are
+instant and land directly into Lexe wallet.
+
+Args:
+    amount_sats: Amount of Bitcoin to buy in satoshis. Must be at least 5000.
+
+Returns:
+    A :class:`CashAppBuyResponse` whose ``redirect_url`` you should send your
+    user to, to complete the purchase. For the smoothest experience, encourage
+    them to open it on a device where Cash App is already set up.
+
+Raises:
+    FfiError: If the amount is below the minimum or the request fails.
+
+Example::
+
+    resp = await wallet.buy_with_cash_app(5000)
+    print(resp.redirect_url)  # Redirect your user here
+""")
+
 _set_method_doc(AsyncLexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -2130,6 +2178,17 @@ Response from creating a BOLT 12 offer.
 
 Attributes:
     offer: BOLT 12 offer string.
+"""
+
+lexe.CashAppBuyResponse.__doc__ = """\
+Response from buying Bitcoin with Cash App.
+
+Attributes:
+    redirect_url: Redirect your user to this URL to complete the purchase; for
+        the smoothest experience, have them open it on a device where Cash App
+        is already set up. The bought Bitcoin lands directly into Lexe wallet.
+    index: Identifier for the inbound payment funding this buy. Use it to look
+        up the payment (e.g. ``get_payment``) once Cash App has funded it.
 """
 
 # ========================== #

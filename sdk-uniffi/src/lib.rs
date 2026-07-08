@@ -30,7 +30,10 @@ use lexe::{
         },
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
-            AnalyzeResponse as SdkAnalyzeResponse, ClientInfo as SdkClientInfo,
+            AnalyzeResponse as SdkAnalyzeResponse,
+            CashAppBuyRequest as SdkCashAppBuyRequest,
+            CashAppBuyResponse as SdkCashAppBuyResponse,
+            ClientInfo as SdkClientInfo,
             CreateClientRequest as SdkCreateClientRequest,
             CreateClientResponse as SdkCreateClientResponse,
             CreateInvoiceRequest as SdkCreateInvoiceRequest,
@@ -1204,6 +1207,30 @@ impl AsyncLexeWallet {
         Ok(Payment::from(resp))
     }
 
+    /// Buy Bitcoin with Cash App.
+    ///
+    /// Given `amount_sats` of Bitcoin that the user wants to buy, returns a
+    /// `CashAppBuyResponse` with a Cash App URL that you can redirect your
+    /// user to complete the purchase. Cash App buys are instant and land
+    /// directly into Lexe wallet.
+    ///
+    /// For the smoothest user experience, you should encourage your user to
+    /// open this URL on a device where Cash App is already set up.
+    ///
+    /// `amount_sats` must be at least 5000.
+    pub async fn buy_with_cash_app(
+        &self,
+        amount_sats: u64,
+    ) -> Result<CashAppBuyResponse, FfiError> {
+        let amount = AmountRs::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+        let req = SdkCashAppBuyRequest { amount };
+
+        let resp = self.inner.buy_with_cash_app(req).await?;
+
+        Ok(CashAppBuyResponse::from(resp))
+    }
+
     // --- Payment information and management --- //
 
     /// Sync payments from the user node to the local payments cache.
@@ -1942,6 +1969,30 @@ impl BlockingLexeWallet {
         };
         let resp = self.inner.withdraw_lnurl(req)?;
         Ok(Payment::from(resp))
+    }
+
+    /// Buy Bitcoin with Cash App.
+    ///
+    /// Given `amount_sats` of Bitcoin that the user wants to buy, returns a
+    /// `CashAppBuyResponse` with a Cash App URL that you can redirect your
+    /// user to complete the purchase. Cash App buys are instant and land
+    /// directly into Lexe wallet.
+    ///
+    /// For the smoothest user experience, you should encourage your user to
+    /// open this URL on a device where Cash App is already set up.
+    ///
+    /// `amount_sats` must be at least 5000.
+    pub fn buy_with_cash_app(
+        &self,
+        amount_sats: u64,
+    ) -> Result<CashAppBuyResponse, FfiError> {
+        let amount = AmountRs::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+        let req = SdkCashAppBuyRequest { amount };
+
+        let resp = self.inner.buy_with_cash_app(req)?;
+
+        Ok(CashAppBuyResponse::from(resp))
     }
 
     // --- Payment information and management --- //
@@ -2961,6 +3012,27 @@ impl From<SdkCreateOfferResponse> for CreateOfferResponse {
     fn from(resp: SdkCreateOfferResponse) -> Self {
         Self {
             offer: resp.offer.to_string(),
+        }
+    }
+}
+
+/// Response from buying Bitcoin with Cash App.
+#[derive(Clone, uniffi::Record)]
+pub struct CashAppBuyResponse {
+    /// Redirect your user to this URL to complete the purchase; for the
+    /// smoothest experience, have them open it on a device where Cash App is
+    /// already set up. The bought Bitcoin lands directly into Lexe wallet.
+    pub redirect_url: String,
+    /// Identifier for the inbound payment funding this buy. Use it to look up
+    /// the payment (e.g. `get_payment`) once Cash App has funded it.
+    pub index: String,
+}
+
+impl From<SdkCashAppBuyResponse> for CashAppBuyResponse {
+    fn from(resp: SdkCashAppBuyResponse) -> Self {
+        Self {
+            redirect_url: resp.redirect_url,
+            index: resp.index.to_string(),
         }
     }
 }
