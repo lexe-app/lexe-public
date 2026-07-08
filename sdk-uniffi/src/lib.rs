@@ -88,10 +88,10 @@ uniffi::setup_scaffolding!("lexe");
 
 /// Returns the default Lexe data directory (`~/.lexe`).
 #[uniffi::export]
-pub fn default_lexe_data_dir() -> FfiResult<String> {
+pub fn default_lexe_data_dir() -> Result<String, FfiError> {
     lexe::default_lexe_data_dir()
         .map(|p| p.to_string_lossy().into_owned())
-        .map_err(Into::into)
+        .map_err(FfiError::from)
 }
 
 /// Initialize the Lexe logger with the given default log level.
@@ -145,8 +145,6 @@ impl fmt::Display for FfiError {
         write!(f, "{}", self.message)
     }
 }
-
-pub type FfiResult<T> = std::result::Result<T, FfiError>;
 
 /// Error type for seedphrase file operations.
 ///
@@ -326,7 +324,7 @@ impl WalletConfig {
     pub fn seedphrase_path(
         &self,
         lexe_data_dir: Option<String>,
-    ) -> FfiResult<String> {
+    ) -> Result<String, FfiError> {
         let dir = lexe_data_dir.map(Ok).unwrap_or_else(|| {
             lexe::default_lexe_data_dir()
                 .map(|p| p.to_string_lossy().into_owned())
@@ -472,7 +470,7 @@ impl RootSeed {
 
     /// Construct a root seed from a BIP39 mnemonic string.
     #[uniffi::constructor]
-    pub fn from_mnemonic(mnemonic: String) -> FfiResult<Arc<Self>> {
+    pub fn from_mnemonic(mnemonic: String) -> Result<Arc<Self>, FfiError> {
         let mnemonic = Mnemonic::from_str(&mnemonic)
             .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
         let sdk = SdkRootSeed::from_mnemonic(mnemonic)?;
@@ -483,7 +481,7 @@ impl RootSeed {
     ///
     /// The seed must be exactly 32 bytes.
     #[uniffi::constructor]
-    pub fn from_bytes(mut seed_bytes: Vec<u8>) -> FfiResult<Arc<Self>> {
+    pub fn from_bytes(mut seed_bytes: Vec<u8>) -> Result<Arc<Self>, FfiError> {
         let sdk = SdkRootSeed::try_from(seed_bytes.as_slice())?;
         seed_bytes.zeroize();
         Ok(Arc::new(Self { sdk }))
@@ -491,7 +489,7 @@ impl RootSeed {
 
     /// Construct a root seed from a 64-character hex string.
     #[uniffi::constructor]
-    pub fn from_hex(hex_string: String) -> FfiResult<Arc<Self>> {
+    pub fn from_hex(hex_string: String) -> Result<Arc<Self>, FfiError> {
         let sdk = SdkRootSeed::from_hex(&hex_string)?;
         Ok(Arc::new(Self { sdk }))
     }
@@ -528,8 +526,11 @@ impl RootSeed {
     // --- Encryption --- //
 
     /// Encrypt this root seed under the given password.
-    pub fn password_encrypt(&self, password: String) -> FfiResult<Vec<u8>> {
-        self.sdk.password_encrypt(&password).map_err(Into::into)
+    pub fn password_encrypt(
+        &self,
+        password: String,
+    ) -> Result<Vec<u8>, FfiError> {
+        self.sdk.password_encrypt(&password).map_err(FfiError::from)
     }
 
     /// Decrypt a password-encrypted root seed.
@@ -537,7 +538,7 @@ impl RootSeed {
     pub fn password_decrypt(
         password: String,
         encrypted: Vec<u8>,
-    ) -> FfiResult<Arc<Self>> {
+    ) -> Result<Arc<Self>, FfiError> {
         let sdk = SdkRootSeed::password_decrypt(&password, encrypted)?;
         Ok(Arc::new(Self { sdk }))
     }
@@ -563,7 +564,7 @@ pub struct ClientCredentials {
 impl ClientCredentials {
     /// Parse client credentials from a string.
     #[uniffi::constructor]
-    pub fn from_string(s: String) -> FfiResult<Arc<Self>> {
+    pub fn from_string(s: String) -> Result<Arc<Self>, FfiError> {
         let sdk = SdkClientCredentials::from_string(&s)?;
         Ok(Arc::new(Self { sdk }))
     }
@@ -719,7 +720,7 @@ impl AsyncLexeWallet {
         env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
-    ) -> FfiResult<Arc<Self>> {
+    ) -> Result<Arc<Self>, FfiError> {
         let inner = SdkLexeWallet::fresh(
             env_config.to_rs(),
             credentials.as_sdk(),
@@ -777,7 +778,7 @@ impl AsyncLexeWallet {
         env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
-    ) -> FfiResult<Arc<Self>> {
+    ) -> Result<Arc<Self>, FfiError> {
         let inner = SdkLexeWallet::load_or_fresh(
             env_config.to_rs(),
             credentials.as_sdk(),
@@ -795,7 +796,7 @@ impl AsyncLexeWallet {
     pub fn without_db(
         env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
-    ) -> FfiResult<Arc<Self>> {
+    ) -> Result<Arc<Self>, FfiError> {
         let inner = SdkLexeWallet::without_db(
             env_config.to_rs(),
             credentials.as_sdk(),
@@ -827,7 +828,7 @@ impl AsyncLexeWallet {
         &self,
         root_seed: Arc<RootSeed>,
         partner_pk: Option<String>,
-    ) -> FfiResult<()> {
+    ) -> Result<(), FfiError> {
         let partner = partner_pk
             .as_deref()
             .map(UserPk::from_str)
@@ -846,15 +847,15 @@ impl AsyncLexeWallet {
     pub async fn provision(
         &self,
         credentials: Arc<Credentials>,
-    ) -> FfiResult<()> {
+    ) -> Result<(), FfiError> {
         self.inner.provision(credentials.as_sdk()).await?;
         Ok(())
     }
 
     /// Get information about the node.
-    pub async fn node_info(&self) -> FfiResult<NodeInfo> {
+    pub async fn node_info(&self) -> Result<NodeInfo, FfiError> {
         let info = self.inner.node_info().await?;
-        Ok(info.into())
+        Ok(NodeInfo::from(info))
     }
 
     // --- Paying and receiving Bitcoin --- //
@@ -885,12 +886,15 @@ impl AsyncLexeWallet {
     ///
     /// `payable` is the string to analyze.
     #[uniffi::method]
-    pub async fn analyze(&self, payable: String) -> FfiResult<AnalyzeResponse> {
+    pub async fn analyze(
+        &self,
+        payable: String,
+    ) -> Result<AnalyzeResponse, FfiError> {
         let req = SdkAnalyzeRequest {
             payment_string: payable,
         };
         let resp = self.inner.analyze(req).await?;
-        Ok(resp.into())
+        Ok(AnalyzeResponse::from(resp))
     }
 
     /// Pay any string which encodes a Bitcoin or Lightning payment method.
@@ -931,7 +935,7 @@ impl AsyncLexeWallet {
         amount_sats: Option<u64>,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -943,7 +947,7 @@ impl AsyncLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay(req).await?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Create a BOLT11 invoice.
@@ -978,7 +982,7 @@ impl AsyncLexeWallet {
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
         partner_base_fee_sats: Option<u64>,
-    ) -> FfiResult<CreateInvoiceResponse> {
+    ) -> Result<CreateInvoiceResponse, FfiError> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1007,7 +1011,7 @@ impl AsyncLexeWallet {
             partner_base_fee,
         };
         let resp = self.inner.create_invoice(req).await?;
-        Ok(resp.into())
+        Ok(CreateInvoiceResponse::from(resp))
     }
 
     /// Pay a BOLT11 invoice.
@@ -1027,7 +1031,7 @@ impl AsyncLexeWallet {
         invoice: String,
         fallback_amount_sats: Option<u64>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let invoice =
             InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
@@ -1041,7 +1045,7 @@ impl AsyncLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay_invoice(req).await?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Create a BOLT 12 offer to receive Lightning payments.
@@ -1064,7 +1068,7 @@ impl AsyncLexeWallet {
         description: Option<String>,
         min_amount_sats: Option<u64>,
         expiration_secs: Option<u32>,
-    ) -> FfiResult<CreateOfferResponse> {
+    ) -> Result<CreateOfferResponse, FfiError> {
         let min_amount = min_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1076,7 +1080,7 @@ impl AsyncLexeWallet {
             expiration_secs,
         };
         let resp = self.inner.create_offer(req).await?;
-        Ok(resp.into())
+        Ok(CreateOfferResponse::from(resp))
     }
 
     /// Pay a BOLT 12 offer over Lightning.
@@ -1098,7 +1102,7 @@ impl AsyncLexeWallet {
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
@@ -1110,7 +1114,7 @@ impl AsyncLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay_offer(req).await?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Pay an LNURL via the `payRequest` flow.
@@ -1138,7 +1142,7 @@ impl AsyncLexeWallet {
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let amount = AmountRs::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
@@ -1150,7 +1154,7 @@ impl AsyncLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay_lnurl(req).await?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Withdraw an LNURL via the `withdrawRequest` flow.
@@ -1183,7 +1187,7 @@ impl AsyncLexeWallet {
         amount_sats: Option<u64>,
         description: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1197,7 +1201,7 @@ impl AsyncLexeWallet {
             personal_note,
         };
         let resp = self.inner.withdraw_lnurl(req).await?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     // --- Payment information and management --- //
@@ -1206,7 +1210,7 @@ impl AsyncLexeWallet {
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
     /// Returns an error if local persistence is disabled for this wallet.
-    pub async fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
+    pub async fn sync_payments(&self) -> Result<PaymentSyncSummary, FfiError> {
         let summary = self.inner.sync_payments().await?;
         Ok(PaymentSyncSummary {
             num_new: summary.num_new as u64,
@@ -1233,7 +1237,7 @@ impl AsyncLexeWallet {
         order: Option<Order>,
         limit: Option<u32>,
         after: Option<String>,
-    ) -> FfiResult<ListPaymentsResponse> {
+    ) -> Result<ListPaymentsResponse, FfiError> {
         let filter_rs = filter.to_rs();
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
@@ -1260,7 +1264,7 @@ impl AsyncLexeWallet {
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
     /// Returns an error if local persistence is disabled for this wallet.
-    pub fn clear_payments(&self) -> FfiResult<()> {
+    pub fn clear_payments(&self) -> Result<(), FfiError> {
         self.inner.clear_payments()?;
         Ok(())
     }
@@ -1275,9 +1279,10 @@ impl AsyncLexeWallet {
         &self,
         index: String,
         timeout_secs: Option<u32>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
+        let timeout =
+            timeout_secs.map(|secs| Duration::from_secs(u64::from(secs)));
         let payment = self.inner.wait_for_payment(index, timeout).await?;
         Ok(Payment::from(payment))
     }
@@ -1286,11 +1291,11 @@ impl AsyncLexeWallet {
     pub async fn get_payment(
         &self,
         index: String,
-    ) -> FfiResult<Option<Payment>> {
+    ) -> Result<Option<Payment>, FfiError> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req).await?;
-        Ok(resp.payment.map(Into::into))
+        Ok(resp.payment.map(Payment::from))
     }
 
     /// Get a batch of payments in ascending `updated_at` order, starting
@@ -1305,7 +1310,7 @@ impl AsyncLexeWallet {
         &self,
         start_index: Option<String>,
         limit: Option<u16>,
-    ) -> FfiResult<GetUpdatedPaymentsResponse> {
+    ) -> Result<GetUpdatedPaymentsResponse, FfiError> {
         let start_index = start_index
             .map(|s| PaymentUpdatedIndexRs::from_str(&s))
             .transpose()?;
@@ -1322,7 +1327,7 @@ impl AsyncLexeWallet {
         &self,
         index: String,
         personal_note: Option<String>,
-    ) -> FfiResult<()> {
+    ) -> Result<(), FfiError> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = UpdatePersonalNoteRequest {
             index,
@@ -1338,7 +1343,9 @@ impl AsyncLexeWallet {
     /// client's hex-encoded public key.
     ///
     /// Revoked and expired clients are not included.
-    pub async fn list_clients(&self) -> FfiResult<HashMap<String, ClientInfo>> {
+    pub async fn list_clients(
+        &self,
+    ) -> Result<HashMap<String, ClientInfo>, FfiError> {
         let resp = self.inner.list_clients().await?;
         let clients = resp
             .clients
@@ -1363,7 +1370,7 @@ impl AsyncLexeWallet {
         &self,
         expires_at_ms: Option<u64>,
         label: Option<String>,
-    ) -> FfiResult<CreateClientResponse> {
+    ) -> Result<CreateClientResponse, FfiError> {
         let expires_at = expires_at_ms
             .map(TimestampMs::from_millis)
             .transpose()
@@ -1391,7 +1398,7 @@ impl AsyncLexeWallet {
         clear_label: bool,
         expires_at_ms: Option<u64>,
         clear_expiration: bool,
-    ) -> FfiResult<ClientInfo> {
+    ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
         let expires_at = expires_at_ms
@@ -1415,7 +1422,7 @@ impl AsyncLexeWallet {
     pub async fn revoke_client(
         &self,
         client_pk: String,
-    ) -> FfiResult<ClientInfo> {
+    ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
         let req = SdkRevokeClientRequest { client_pk };
@@ -1453,7 +1460,7 @@ impl BlockingLexeWallet {
         env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
-    ) -> FfiResult<Arc<Self>> {
+    ) -> Result<Arc<Self>, FfiError> {
         let inner = SdkBlockingLexeWallet::fresh(
             env_config.to_rs(),
             credentials.as_sdk(),
@@ -1511,7 +1518,7 @@ impl BlockingLexeWallet {
         env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
         lexe_data_dir: Option<String>,
-    ) -> FfiResult<Arc<Self>> {
+    ) -> Result<Arc<Self>, FfiError> {
         let inner = SdkBlockingLexeWallet::load_or_fresh(
             env_config.to_rs(),
             credentials.as_sdk(),
@@ -1529,7 +1536,7 @@ impl BlockingLexeWallet {
     pub fn without_db(
         env_config: Arc<WalletConfig>,
         credentials: Arc<Credentials>,
-    ) -> FfiResult<Arc<Self>> {
+    ) -> Result<Arc<Self>, FfiError> {
         let inner = SdkBlockingLexeWallet::without_db(
             env_config.to_rs(),
             credentials.as_sdk(),
@@ -1561,7 +1568,7 @@ impl BlockingLexeWallet {
         &self,
         root_seed: Arc<RootSeed>,
         partner_pk: Option<String>,
-    ) -> FfiResult<()> {
+    ) -> Result<(), FfiError> {
         let partner = partner_pk
             .as_deref()
             .map(UserPk::from_str)
@@ -1577,15 +1584,18 @@ impl BlockingLexeWallet {
     /// Call this every time the wallet is loaded to ensure the node is running
     /// the most up-to-date enclave software. Fetches current enclaves from the
     /// gateway and provisions any that need updating.
-    pub fn provision(&self, credentials: Arc<Credentials>) -> FfiResult<()> {
+    pub fn provision(
+        &self,
+        credentials: Arc<Credentials>,
+    ) -> Result<(), FfiError> {
         self.inner.provision(credentials.as_sdk())?;
         Ok(())
     }
 
     /// Get information about the node.
-    pub fn node_info(&self) -> FfiResult<NodeInfo> {
+    pub fn node_info(&self) -> Result<NodeInfo, FfiError> {
         let info = self.inner.node_info()?;
-        Ok(info.into())
+        Ok(NodeInfo::from(info))
     }
 
     // --- Paying and receiving Bitcoin --- //
@@ -1616,12 +1626,15 @@ impl BlockingLexeWallet {
     ///
     /// `payable` is the string to analyze.
     #[uniffi::method]
-    pub fn analyze(&self, payable: String) -> FfiResult<AnalyzeResponse> {
+    pub fn analyze(
+        &self,
+        payable: String,
+    ) -> Result<AnalyzeResponse, FfiError> {
         let req = SdkAnalyzeRequest {
             payment_string: payable,
         };
         let resp = self.inner.analyze(req)?;
-        Ok(resp.into())
+        Ok(AnalyzeResponse::from(resp))
     }
 
     /// Pay any string which encodes a Bitcoin or Lightning payment method.
@@ -1662,7 +1675,7 @@ impl BlockingLexeWallet {
         amount_sats: Option<u64>,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1674,7 +1687,7 @@ impl BlockingLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay(req)?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Create a BOLT11 invoice.
@@ -1709,7 +1722,7 @@ impl BlockingLexeWallet {
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
         partner_base_fee_sats: Option<u64>,
-    ) -> FfiResult<CreateInvoiceResponse> {
+    ) -> Result<CreateInvoiceResponse, FfiError> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1738,7 +1751,7 @@ impl BlockingLexeWallet {
             partner_base_fee,
         };
         let resp = self.inner.create_invoice(req)?;
-        Ok(resp.into())
+        Ok(CreateInvoiceResponse::from(resp))
     }
 
     /// Pay a BOLT11 invoice.
@@ -1758,7 +1771,7 @@ impl BlockingLexeWallet {
         invoice: String,
         fallback_amount_sats: Option<u64>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let invoice =
             InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
@@ -1772,7 +1785,7 @@ impl BlockingLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay_invoice(req)?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Create a BOLT 12 offer to receive Lightning payments.
@@ -1795,7 +1808,7 @@ impl BlockingLexeWallet {
         description: Option<String>,
         min_amount_sats: Option<u64>,
         expiration_secs: Option<u32>,
-    ) -> FfiResult<CreateOfferResponse> {
+    ) -> Result<CreateOfferResponse, FfiError> {
         let min_amount = min_amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1807,7 +1820,7 @@ impl BlockingLexeWallet {
             expiration_secs,
         };
         let resp = self.inner.create_offer(req)?;
-        Ok(resp.into())
+        Ok(CreateOfferResponse::from(resp))
     }
 
     /// Pay a BOLT 12 offer over Lightning.
@@ -1829,7 +1842,7 @@ impl BlockingLexeWallet {
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
         let amount = AmountRs::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
@@ -1841,7 +1854,7 @@ impl BlockingLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay_offer(req)?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Pay an LNURL via the `payRequest` flow.
@@ -1869,7 +1882,7 @@ impl BlockingLexeWallet {
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let amount = AmountRs::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
@@ -1881,7 +1894,7 @@ impl BlockingLexeWallet {
             personal_note,
         };
         let resp = self.inner.pay_lnurl(req)?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     /// Withdraw an LNURL via the `withdrawRequest` flow.
@@ -1914,7 +1927,7 @@ impl BlockingLexeWallet {
         amount_sats: Option<u64>,
         description: Option<String>,
         personal_note: Option<String>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let amount = amount_sats
             .map(AmountRs::try_from_sats_u64)
             .transpose()
@@ -1928,7 +1941,7 @@ impl BlockingLexeWallet {
             personal_note,
         };
         let resp = self.inner.withdraw_lnurl(req)?;
-        Ok(resp.into())
+        Ok(Payment::from(resp))
     }
 
     // --- Payment information and management --- //
@@ -1937,7 +1950,7 @@ impl BlockingLexeWallet {
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
     /// Returns an error if local persistence is disabled for this wallet.
-    pub fn sync_payments(&self) -> FfiResult<PaymentSyncSummary> {
+    pub fn sync_payments(&self) -> Result<PaymentSyncSummary, FfiError> {
         let summary = self.inner.sync_payments()?;
         Ok(PaymentSyncSummary {
             num_new: summary.num_new as u64,
@@ -1964,7 +1977,7 @@ impl BlockingLexeWallet {
         order: Option<Order>,
         limit: Option<u32>,
         after: Option<String>,
-    ) -> FfiResult<ListPaymentsResponse> {
+    ) -> Result<ListPaymentsResponse, FfiError> {
         let filter_rs = filter.to_rs();
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
@@ -1991,7 +2004,7 @@ impl BlockingLexeWallet {
     ///
     /// Requires a wallet created with `fresh`, `load`, or `load_or_fresh`.
     /// Returns an error if local persistence is disabled for this wallet.
-    pub fn clear_payments(&self) -> FfiResult<()> {
+    pub fn clear_payments(&self) -> Result<(), FfiError> {
         self.inner.clear_payments()?;
         Ok(())
     }
@@ -2006,19 +2019,23 @@ impl BlockingLexeWallet {
         &self,
         index: String,
         timeout_secs: Option<u32>,
-    ) -> FfiResult<Payment> {
+    ) -> Result<Payment, FfiError> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
-        let timeout = timeout_secs.map(|secs| Duration::from_secs(secs.into()));
+        let timeout =
+            timeout_secs.map(|secs| Duration::from_secs(u64::from(secs)));
         let payment = self.inner.wait_for_payment(index, timeout)?;
         Ok(Payment::from(payment))
     }
 
     /// Get a payment by its `index` string.
-    pub fn get_payment(&self, index: String) -> FfiResult<Option<Payment>> {
+    pub fn get_payment(
+        &self,
+        index: String,
+    ) -> Result<Option<Payment>, FfiError> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req)?;
-        Ok(resp.payment.map(Into::into))
+        Ok(resp.payment.map(Payment::from))
     }
 
     /// Get a batch of payments in ascending `updated_at` order, starting
@@ -2033,7 +2050,7 @@ impl BlockingLexeWallet {
         &self,
         start_index: Option<String>,
         limit: Option<u16>,
-    ) -> FfiResult<GetUpdatedPaymentsResponse> {
+    ) -> Result<GetUpdatedPaymentsResponse, FfiError> {
         let start_index = start_index
             .map(|s| PaymentUpdatedIndexRs::from_str(&s))
             .transpose()?;
@@ -2050,7 +2067,7 @@ impl BlockingLexeWallet {
         &self,
         index: String,
         personal_note: Option<String>,
-    ) -> FfiResult<()> {
+    ) -> Result<(), FfiError> {
         let index = PaymentCreatedIndexRs::from_str(&index)?;
         let req = UpdatePersonalNoteRequest {
             index,
@@ -2066,7 +2083,9 @@ impl BlockingLexeWallet {
     /// client's hex-encoded public key.
     ///
     /// Revoked and expired clients are not included.
-    pub fn list_clients(&self) -> FfiResult<HashMap<String, ClientInfo>> {
+    pub fn list_clients(
+        &self,
+    ) -> Result<HashMap<String, ClientInfo>, FfiError> {
         let resp = self.inner.list_clients()?;
         let clients = resp
             .clients
@@ -2091,7 +2110,7 @@ impl BlockingLexeWallet {
         &self,
         expires_at_ms: Option<u64>,
         label: Option<String>,
-    ) -> FfiResult<CreateClientResponse> {
+    ) -> Result<CreateClientResponse, FfiError> {
         let expires_at = expires_at_ms
             .map(TimestampMs::from_millis)
             .transpose()
@@ -2119,7 +2138,7 @@ impl BlockingLexeWallet {
         clear_label: bool,
         expires_at_ms: Option<u64>,
         clear_expiration: bool,
-    ) -> FfiResult<ClientInfo> {
+    ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
         let expires_at = expires_at_ms
@@ -2140,7 +2159,10 @@ impl BlockingLexeWallet {
 
     /// Permanently revoke a client, making its credentials invalid for
     /// authentication. This cannot be undone.
-    pub fn revoke_client(&self, client_pk: String) -> FfiResult<ClientInfo> {
+    pub fn revoke_client(
+        &self,
+        client_pk: String,
+    ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
         let req = SdkRevokeClientRequest { client_pk };
@@ -2512,9 +2534,9 @@ impl From<SdkPayment> for Payment {
 
         Self {
             index: index.to_string(),
-            rail: rail.into(),
-            kind: kind.into(),
-            direction: direction.into(),
+            rail: PaymentRail::from(rail),
+            kind: PaymentKind::from(kind),
+            direction: PaymentDirection::from(direction),
             hash: hash.map(|h| h.to_hex()),
             preimage: preimage.map(|p| p.to_hex()),
             offer_id: offer_id.map(|o| o.to_hex()),
@@ -2524,7 +2546,7 @@ impl From<SdkPayment> for Payment {
             partner_pk: partner_pk.map(|pk| pk.to_hex()),
             partner_prop_fee_ppm: partner_prop_fee.map(|p| p.to_u32()),
             partner_base_fee_sats: partner_base_fee.map(|a| a.sats_u64()),
-            status: status.into(),
+            status: PaymentStatus::from(status),
             status_msg,
             address: address
                 .as_ref()
@@ -2533,7 +2555,7 @@ impl From<SdkPayment> for Payment {
             payer_name,
             message,
             personal_note,
-            priority: priority.map(Into::into),
+            priority: priority.map(ConfirmationPriority::from),
             expires_at_ms: expires_at.map(|t| t.to_millis()),
             finalized_at_ms: finalized_at.map(|t| t.to_millis()),
             created_at_ms: created_at.to_millis(),
