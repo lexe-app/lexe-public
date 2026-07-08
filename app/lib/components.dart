@@ -15,7 +15,7 @@ import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart'
-    show IntInputFormatter, MaxUtf8BytesInputFormatter;
+    show DecimalInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/string_ext.dart';
@@ -986,7 +986,7 @@ class PaymentAmountInput extends StatefulWidget {
 
 class PaymentAmountInputState extends State<PaymentAmountInput> {
   final GlobalKey<FormFieldState<String>> _fieldKey = GlobalKey();
-  final IntInputFormatter _formatter = IntInputFormatter();
+  final DecimalInputFormatter _formatter = DecimalInputFormatter();
 
   /// The entered amount in sats, or `null` when the field is empty or invalid.
   late final ValueNotifier<int?> _sats = ValueNotifier(
