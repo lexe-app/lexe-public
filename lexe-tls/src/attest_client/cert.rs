@@ -188,7 +188,6 @@ impl SgxPckExtensions {
     const OID_FMSPC: &[u64] = &[1, 2, 840, 113741, 1, 13, 1, 4];
 
     /// Dummy values for local dev with no SGX.
-    #[allow(dead_code)] // TODO(phlip9): remove
     pub(crate) const DUMMY: Self = Self {
         cpu_fmspc: CpuFmspc(hex::decode_const(b"00606a000000")),
         pce_svn: 123,

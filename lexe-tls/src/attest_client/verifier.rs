@@ -143,6 +143,32 @@ pub struct AttestationCertVerifier {
     pub enclave_policy: EnclavePolicy,
 }
 
+/// The result from [`SgxQuoteVerifier::verify`].
+///
+/// After verifying, we have confidence that:
+///
+/// 1. Intel has endorsed our Intel CPU platform as running genuine Intel
+///    hardware, with SGX support, at a specific TCB (Trusted Compute Base)
+///    level.
+/// 2. The endorsed CPU is running on a trustworthy CPU SKU (not on our FMSPC
+///    blocklist).
+/// 3. It's running a user application enclave with a certain identity.
+///
+/// However, we have yet to decide whether the enclave identity is trustworthy
+/// and is actually who we intend to communicate with. That verification happens
+/// in [`EnclavePolicy`].
+pub struct IntelEndorsedReport {
+    /// The Intel-endorsed enclave `Report`, which identifies the user
+    /// application enclave and binds a small amount of user-provided data
+    /// (`reportdata`), which binds the cert pubkey in our case.
+    pub enclave_report: sgx_isa::Report,
+
+    /// Intel-endorsed PCK (Provisioning Certification Key) leaf cert
+    /// extensions, which identify the Intel CPU platform the user enclave is
+    /// running on.
+    pub cpu_platform_info: SgxPckExtensions,
+}
+
 /// Whether the verifier is currently being used to verify client or server
 /// certs, along with any additional parameters if necessary.
 enum VerifierParams<'param> {
@@ -219,10 +245,16 @@ impl AttestationCertVerifier {
         // 2. extract enclave attestation quote from the cert
         let evidence = AttestEvidence::parse_cert_der(end_entity)?;
 
-        // 3. verify Quote
-        let enclave_report = if self.expect_dummy_quote {
-            sgx_isa::Report::try_copy_from(evidence.cert_ext.quote.as_ref())
-                .ok_or_else(|| rustls_err("Could not copy Report"))?
+        // 3. verify enclave Report (contained in Quote) is endorsed by Intel
+        let endorsed_report = if self.expect_dummy_quote {
+            let report = sgx_isa::Report::try_copy_from(
+                evidence.cert_ext.quote.as_ref(),
+            )
+            .ok_or_else(|| rustls_err("Could not copy Report"))?;
+            IntelEndorsedReport {
+                enclave_report: report,
+                cpu_platform_info: SgxPckExtensions::DUMMY,
+            }
         } else {
             let quote_verifier = SgxQuoteVerifier;
             quote_verifier
@@ -233,8 +265,10 @@ impl AttestationCertVerifier {
         };
 
         // 4. check that this enclave satisfies our enclave policy
-        let reportdata =
-            self.enclave_policy.verify(&enclave_report).map_err(|err| {
+        let reportdata = self
+            .enclave_policy
+            .verify(&endorsed_report.enclave_report)
+            .map_err(|err| {
                 rustls_err(format!(
                     "our trust policy rejected the remote enclave: {err:#}"
                 ))
@@ -430,12 +464,13 @@ impl<'a> AttestEvidence<'a> {
 pub struct SgxQuoteVerifier;
 
 impl SgxQuoteVerifier {
-    /// TODO(max): Needs docs - esp wrt the report returned here
+    /// Deserialize and verify that the enclave [`Report`](sgx_isa::Report) and
+    /// CPU platform are endorsed by Intel.
     pub fn verify(
         &self,
         quote_bytes: &[u8],
         now: UnixTime,
-    ) -> anyhow::Result<sgx_isa::Report> {
+    ) -> anyhow::Result<IntelEndorsedReport> {
         let quote = Quote::parse(quote_bytes)
             .map_err(DisplayErr::new)
             .context("Failed to parse SGX Quote")?;
@@ -483,6 +518,9 @@ impl SgxQuoteVerifier {
             !CPU_FMSPC_BLOCKLIST.contains(&pck_exts.cpu_fmspc),
             "remote Intel CPU is too old: CPU FMSPC={cpu_fmspc}",
         );
+
+        // TODO(phlip9): for certain FMSPCs, verify that Hyper-Threading is
+        // disabled. PCK Exts -> Configuration -> SMT Enabled.
 
         let pck_cert = webpki::EndEntityCert::try_from(&pck_cert_der)
             .context("Invalid PCK cert")?;
@@ -568,7 +606,10 @@ impl SgxQuoteVerifier {
         let report = report_try_from_truncated(quote.report_body())
             .context("Invalid application enclave Report")?;
 
-        Ok(report)
+        Ok(IntelEndorsedReport {
+            enclave_report: report,
+            cpu_platform_info: pck_exts,
+        })
     }
 }
 
@@ -872,7 +913,8 @@ mod test {
 
         let now = UnixTime::since_unix_epoch(Duration::from_secs(1779307188));
         let verifier = SgxQuoteVerifier;
-        let report = verifier.verify(&evidence.cert_ext.quote, now).unwrap();
+        let endorsed_report =
+            verifier.verify(&evidence.cert_ext.quote, now).unwrap();
 
         // println!("{:#?}", ReportDebug(&report));
 
@@ -881,7 +923,9 @@ mod test {
             trusted_mrenclaves: Some(vec![measurement]),
             trusted_mrsigner: None,
         };
-        enclave_policy.verify(&report).unwrap();
+        enclave_policy
+            .verify(&endorsed_report.enclave_report)
+            .unwrap();
     }
 
     #[test]

@@ -5,7 +5,9 @@ use lexe_crypto::{
 };
 use lexe_enclave::enclave;
 use lexe_hex::hex;
-use lexe_tls::attest_client::verifier::{EnclavePolicy, SgxQuoteVerifier};
+use lexe_tls::attest_client::verifier::{
+    EnclavePolicy, IntelEndorsedReport, SgxQuoteVerifier,
+};
 use lexe_tls_attest_server::quote;
 
 const HELP: &str = r#"
@@ -89,10 +91,15 @@ fn test_sgx() {
 
     let now = lexe_tls::rustls::pki_types::UnixTime::now();
     let quote_verifier = SgxQuoteVerifier;
-    let report = quote_verifier
+    let endorsed_report = quote_verifier
         .verify(&evidence.quote, now)
         .expect("Invalid SGX quote");
+    let IntelEndorsedReport {
+        enclave_report: report,
+        cpu_platform_info,
+    } = endorsed_report;
 
+    println!("\nSGX CPU platform info: {cpu_platform_info:#?}\n");
     println!("SGX enclave Report:");
     println!("measurement: {}", hex::display(&report.mrenclave));
     println!("mrsigner: {}", hex::display(&report.mrsigner));
@@ -101,7 +108,7 @@ fn test_sgx() {
     println!("miscselect: {:?}", report.miscselect);
     println!("cpusvn: {}", hex::display(&report.cpusvn));
     println!("isvsvn: {}", report.isvsvn);
-    println!("isvsvn: {}", report.isvprodid);
+    println!("isvprodid: {}", report.isvprodid);
 
     let enclave_policy = EnclavePolicy::trust_self();
     let reportdata = enclave_policy
