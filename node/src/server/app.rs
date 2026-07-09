@@ -56,7 +56,7 @@ use lexe_common::{
         },
     },
     constants::{self},
-    ln::{amount::Amount, channel::UserChannelId},
+    ln::amount::Amount,
 };
 use lexe_crypto::rng::SysRng;
 use lexe_ln::p2p;
@@ -165,9 +165,13 @@ pub(super) async fn open_channel(
         ..
     } = &*state;
 
-    ensure_channel_value_in_range(&req.value)?;
+    let OpenChannelRequest {
+        user_channel_id,
+        value,
+    } = req;
 
-    let user_channel_id = UserChannelId::from_rng(&mut SysRng::new());
+    ensure_channel_value_in_range(&value)?;
+
     let lsp_node_pk = &lsp_info.node_pk;
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
 
@@ -200,7 +204,7 @@ pub(super) async fn open_channel(
         wallet,
         ensure_lsp_connected,
         user_channel_id,
-        req.value,
+        value,
         lsp_node_pk,
         (*state.config).clone(),
         is_jit_channel,
