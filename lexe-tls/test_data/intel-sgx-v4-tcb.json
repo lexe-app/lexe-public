@@ -1,0 +1,1136 @@
+{
+  "tcbInfo": {
+    "id": "SGX",
+    "version": 3,
+    "issueDate": "2026-07-08T17:59:17Z",
+    "nextUpdate": "2026-08-07T17:59:17Z",
+    "fmspc": "00606a000000",
+    "pceId": "0000",
+    "tcbType": 0,
+    "tcbEvaluationDataNumber": 21,
+    "tcbLevels": [
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 15,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 16,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 1
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2026-02-11T00:00:00Z",
+        "tcbStatus": "SWHardeningNeeded",
+        "advisoryIDs": [
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 15,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 16,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2026-02-11T00:00:00Z",
+        "tcbStatus": "ConfigurationAndSWHardeningNeeded",
+        "advisoryIDs": [
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 15,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 15,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 1
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2024-11-13T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-01153",
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 15,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 15,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2024-11-13T00:00:00Z",
+        "tcbStatus": "OutOfDateConfigurationNeeded",
+        "advisoryIDs": [
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 14,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 14,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 1
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2024-03-13T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 14,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 14,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2024-03-13T00:00:00Z",
+        "tcbStatus": "OutOfDateConfigurationNeeded",
+        "advisoryIDs": [
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 12,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 12,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 1
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2023-08-09T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-00960",
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 12,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 12,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2023-08-09T00:00:00Z",
+        "tcbStatus": "OutOfDateConfigurationNeeded",
+        "advisoryIDs": [
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 11,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 11,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 1
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2023-02-15T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-00828",
+          "INTEL-SA-00837",
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 11,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 11,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2023-02-15T00:00:00Z",
+        "tcbStatus": "OutOfDateConfigurationNeeded",
+        "advisoryIDs": [
+          "INTEL-SA-00828",
+          "INTEL-SA-00837",
+          "INTEL-SA-00657",
+          "INTEL-SA-00767",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 7,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 9,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 1
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2022-08-10T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-00657",
+          "INTEL-SA-00730",
+          "INTEL-SA-00738",
+          "INTEL-SA-00767",
+          "INTEL-SA-00828",
+          "INTEL-SA-00837",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 7,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 9,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 13
+        },
+        "tcbDate": "2022-08-10T00:00:00Z",
+        "tcbStatus": "OutOfDateConfigurationNeeded",
+        "advisoryIDs": [
+          "INTEL-SA-00657",
+          "INTEL-SA-00730",
+          "INTEL-SA-00738",
+          "INTEL-SA-00767",
+          "INTEL-SA-00828",
+          "INTEL-SA-00837",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153",
+          "INTEL-SA-00615"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 4,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 4,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 11
+        },
+        "tcbDate": "2021-11-10T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-00586",
+          "INTEL-SA-00614",
+          "INTEL-SA-00615",
+          "INTEL-SA-00657",
+          "INTEL-SA-00730",
+          "INTEL-SA-00738",
+          "INTEL-SA-00767",
+          "INTEL-SA-00828",
+          "INTEL-SA-00837",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 4,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 4,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 10
+        },
+        "tcbDate": "2020-11-11T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-00477",
+          "INTEL-SA-00586",
+          "INTEL-SA-00614",
+          "INTEL-SA-00615",
+          "INTEL-SA-00657",
+          "INTEL-SA-00730",
+          "INTEL-SA-00738",
+          "INTEL-SA-00767",
+          "INTEL-SA-00828",
+          "INTEL-SA-00837",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153"
+        ]
+      },
+      {
+        "tcb": {
+          "sgxtcbcomponents": [
+            {
+              "svn": 4,
+              "category": "BIOS",
+              "type": "Early Microcode Update"
+            },
+            {
+              "svn": 4,
+              "category": "OS/VMM",
+              "type": "SGX Late Microcode Update"
+            },
+            {
+              "svn": 3,
+              "category": "OS/VMM",
+              "type": "TXT SINIT"
+            },
+            {
+              "svn": 3,
+              "category": "BIOS"
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 255
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            },
+            {
+              "svn": 0
+            }
+          ],
+          "pcesvn": 5
+        },
+        "tcbDate": "2018-01-04T00:00:00Z",
+        "tcbStatus": "OutOfDate",
+        "advisoryIDs": [
+          "INTEL-SA-00106",
+          "INTEL-SA-00115",
+          "INTEL-SA-00135",
+          "INTEL-SA-00203",
+          "INTEL-SA-00220",
+          "INTEL-SA-00233",
+          "INTEL-SA-00270",
+          "INTEL-SA-00293",
+          "INTEL-SA-00320",
+          "INTEL-SA-00329",
+          "INTEL-SA-00381",
+          "INTEL-SA-00389",
+          "INTEL-SA-00477",
+          "INTEL-SA-00586",
+          "INTEL-SA-00614",
+          "INTEL-SA-00615",
+          "INTEL-SA-00657",
+          "INTEL-SA-00730",
+          "INTEL-SA-00738",
+          "INTEL-SA-00767",
+          "INTEL-SA-00828",
+          "INTEL-SA-00837",
+          "INTEL-SA-00960",
+          "INTEL-SA-01079",
+          "INTEL-SA-01103",
+          "INTEL-SA-01153"
+        ]
+      }
+    ]
+  },
+  "signature": "2f74acbd9a342f066a34c14311284ef1052460d7382f18c5f42c76356bb49405a7179f99cc2b0b6ec4063c188adc8a3053ce00d6e330511cf0bac52b132fb1d2"
+}

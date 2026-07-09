@@ -38,6 +38,20 @@ use crate::{
     ed25519_ext::Ed25519PublicKeyExt,
 };
 
+/// The set of expected Intel Security Advisories for our current Intel Xeon-v3
+/// Ice Lake CPUs that we need hardware or software mitigations for.
+#[cfg(test)]
+const INTEL_SGX_EXPECTED_ADVISORIES: [&str; 1] = [
+    // Mitigated:
+    // - Our CPU platform has HyperThreading disabled, hence TCB status shows
+    //   "SWHardeningNeeded" instead of "ConfigurationAndSWHardeningNeeded".
+    // - The `copy_to_userspace` impl in `rust` implements the required
+    //   MMIO stale data copy mitigations (VERW+MFENCE+LFENCE) for
+    //   non-8B-aligned copies in
+    //   <https://github.com/rust-lang/rust/blob/main/library/std/src/sys/pal/sgx/abi/usercalls/alloc.rs#L404>.
+    "INTEL-SA-00615",
+];
+
 /// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
 /// Enclave (QE).
 const INTEL_QE_IDENTITY_MRSIGNER: Measurement =
@@ -953,6 +967,161 @@ mod test {
                 UnixTime::now(),
             )
             .unwrap();
+    }
+
+    // Test that our PCK cert is supported by the current pinned Intel SGX TCB
+    // with expected vulnerabilities, which we must have mitigations for.
+    //
+    // At a high level, Intel has an API that will tell you (for a specific CPU)
+    // (1) how trustworthy it is for running SGX enclaves and (2) what
+    // hardware/microcode/configuration/software mitigations you may need to
+    // apply in order to make it trustworthy.
+    //
+    // Fetch+update the current SGX TCB Info document from Intel:
+    //
+    // ```bash
+    // $ curl -sSL 'https://api.trustedservices.intel.com/sgx/certification/v4/tcb?fmspc=00606a000000&update=early' \
+    //     | jq . > public/lexe-tls/test_data/intel-sgx-v4-tcb.json
+    // ```
+    //
+    // SGX TCB Info API docs: <https://api.portal.trustedservices.intel.com/content/documentation.html#pcs-tcb-info-v4>
+    //
+    // ```
+    // Determining the status of a SGX TCB level for a given platform
+    // needs to be done using SGX TCB information according to the
+    // following algorithm:
+    //
+    // 1. Retrieve FMSPC value from SGX PCK Certificate assigned to a
+    //    given platform.
+    // 2. Retrieve SGX TCB Info matching the FMSPC value.
+    // 3. Go over the sorted collection of TCB Levels retrieved from TCB
+    //    Info starting from the first item on the list:
+    //     a. **Compare all** of the SGX TCB Comp SVNs retrieved from the
+    //        SGX PCK Certificate (from 01 to 16) with the corresponding
+    //        values of SVNs in sgxtcbcomponents array of TCB Level. If
+    //        all SGX TCB Comp SVNs in the certificate are greater or
+    //        equal to the corresponding values in TCB Level, go to 3.b,
+    //        otherwise move to the next item on TCB Levels list.
+    //     b. **Compare PCESVN** value retrieved from the SGX PCK
+    //        certificate with the corresponding value in the TCB Level.
+    //        If it is greater or equal to the value in TCB Level, read
+    //        status assigned to this TCB level. Otherwise, move to the
+    //        next item on TCB Levels list.
+    // 4. If no TCB level matches your SGX PCK Certificate, your TCB Level
+    //    is not supported.
+    // ```
+    #[test]
+    fn test_intel_sgx_tcb_level_supported() {
+        let (cert_der, _) = attest_cert_fixture();
+        let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
+        let pck_cert_der = pck_cert_der_from_quote(&evidence.cert_ext.quote);
+        let pck_exts = SgxPckExtensions::from_cert_der(&pck_cert_der).unwrap();
+
+        let tcb_info_str =
+            fs::read_to_string("test_data/intel-sgx-v4-tcb.json").unwrap();
+        let tcb_info_json: serde_json::Value =
+            serde_json::from_str(&tcb_info_str).unwrap();
+        let tcb_info = &tcb_info_json["tcbInfo"];
+
+        assert_eq!(tcb_info["id"].as_str().unwrap(), "SGX");
+        assert_eq!(tcb_info["version"].as_u64().unwrap(), 3);
+        assert_eq!(
+            CpuFmspc::from_hex(
+                &tcb_info["fmspc"].as_str().unwrap().to_ascii_lowercase()
+            )
+            .unwrap(),
+            pck_exts.cpu_fmspc,
+        );
+
+        let tcb_level = tcb_info["tcbLevels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|level| intel_sgx_tcb_level_matches_pck(level, &pck_exts))
+            .expect("No SGX TCB Info level matches attestation cert fixture");
+
+        let tcb_status = tcb_level["tcbStatus"].as_str().unwrap();
+        assert!(
+            intel_sgx_tcb_status_is_supported(tcb_status),
+            "SGX TCB status is not supported: {tcb_status}",
+        );
+
+        let advisory_ids = tcb_level["advisoryIDs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|advisory_id| advisory_id.as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            advisory_ids.as_slice(),
+            INTEL_SGX_EXPECTED_ADVISORIES,
+            "NOTE(phlip9): if an advisory is no longer on this list, great! We \
+             can remove it (and potentially remove an expensive mitigation) If \
+             there's a new advisory, then we need to determine which new \
+             hardware/software mitigations we have to apply."
+        );
+    }
+
+    /// Parse out PCK leaf cert DER from SGX attestation Quote.
+    fn pck_cert_der_from_quote(quote_bytes: &[u8]) -> CertificateDer<'static> {
+        let quote =
+            Quote::parse(quote_bytes).expect("Failed to parse SGX Quote");
+        let sig = quote
+            .signature::<Quote3SignatureEcdsaP256>()
+            .map_err(DisplayErr::new)
+            .expect("Failed to parse SGX ECDSA Quote signature");
+        assert_eq!(
+            sig.certification_data_type(),
+            CertificationDataType::PckCertificateChain,
+        );
+
+        let cert_chain_pem = sig
+            .certification_data::<RawQe3CertData>()
+            .map_err(DisplayErr::new)
+            .expect("Failed to parse PCK cert chain");
+        CertificateDer::pem_slice_iter(&cert_chain_pem)
+            .next()
+            .expect("Missing PCK cert")
+            .expect("Bad PCK cer DER")
+    }
+
+    /// Check whether the CPU platform identified in the `pck_exts` is supported
+    /// by a particular TCB level. The CPU platform is "supported" if the
+    /// security versions of all components are at least as strong/new as the
+    /// versions in this TCB level.
+    fn intel_sgx_tcb_level_matches_pck(
+        tcb_level: &serde_json::Value,
+        pck_exts: &SgxPckExtensions,
+    ) -> bool {
+        let tcb = &tcb_level["tcb"];
+        let sgxtcbcomponents = tcb["sgxtcbcomponents"].as_array().unwrap();
+        assert_eq!(sgxtcbcomponents.len(), 16);
+        let pck_pce_svn = u64::from(pck_exts.pce_svn);
+        let tcb_pce_svn = tcb["pcesvn"].as_u64().unwrap();
+
+        let are_tcb_comps_supported = sgxtcbcomponents
+            .iter()
+            .zip(pck_exts.sgx_tcb_comp_svns)
+            .all(|(tcb_comp, pck_svn)| {
+                u64::from(pck_svn) >= tcb_comp["svn"].as_u64().unwrap()
+            });
+
+        let is_pce_supported = pck_pce_svn >= tcb_pce_svn;
+
+        are_tcb_comps_supported && is_pce_supported
+    }
+
+    /// For this test, we intentionally want a stricter definition of support,
+    /// since "Configuration.*Needed" means we'll probably need to contact Azure
+    /// support to get them to update CPU microcode, tweak the BIOS, or move to
+    /// a new provider altogether.
+    fn intel_sgx_tcb_status_is_supported(tcb_status: &str) -> bool {
+        matches!(
+            tcb_status,
+            // "ConfigurationAndSWHardeningNeeded" |
+            // "ConfigurationNeeded" |
+            "SWHardeningNeeded" | "UpToDate"
+        )
     }
 
     // ```bash
