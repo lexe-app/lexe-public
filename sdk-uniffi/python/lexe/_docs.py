@@ -1165,6 +1165,59 @@ Raises:
     FfiError: If ``client_pk`` is malformed or the request fails.
 """)
 
+_set_method_doc(LexeWallet, "list_channels", """\
+List this node's Lightning channels.
+
+All of this node's Lightning channels are connected to the Lexe LSP.
+
+Returns:
+    A list of :class:`ChannelDetails`.
+
+Raises:
+    FfiError: If the node is unreachable.
+
+Example::
+
+    for channel in wallet.list_channels():
+        print(f"{channel.channel_id}: {channel.our_balance_sats} sats")
+""")
+
+_set_method_doc(LexeWallet, "open_channel", """\
+Open a Lightning channel from this node to Lexe's LSP.
+
+Args:
+    value_sats: The value of the channel to open, in satoshis.
+    user_channel_id: An optional idempotency key, serialized as a 32-character
+        hex string (16 bytes). Retrying with the same id won't open a duplicate
+        channel. A random id is generated if omitted.
+
+Returns:
+    An :class:`OpenChannelResponse` with the ids of the newly opened channel.
+
+Raises:
+    FfiError: If the channel could not be opened.
+
+Example::
+
+    resp = wallet.open_channel(value_sats=100_000)
+    print(f"Opened channel: {resp.channel_id}")
+""")
+
+_set_method_doc(LexeWallet, "close_channel", """\
+Close a Lightning channel.
+
+Args:
+    channel_id: The id of the channel to close, serialized as a 64-character hex
+        string (32 bytes).
+
+Raises:
+    FfiError: If the channel could not be closed.
+
+Example::
+
+    wallet.close_channel(channel_id)
+""")
+
 # ======================= #
 # --- AsyncLexeWallet --- #
 # ======================= #
@@ -1834,6 +1887,59 @@ Raises:
     FfiError: If ``client_pk`` is malformed or the request fails.
 """)
 
+_set_method_doc(AsyncLexeWallet, "list_channels", """\
+List this node's Lightning channels.
+
+All of this node's Lightning channels are connected to the Lexe LSP.
+
+Returns:
+    A list of :class:`ChannelDetails`.
+
+Raises:
+    FfiError: If the node is unreachable.
+
+Example::
+
+    for channel in await wallet.list_channels():
+        print(f"{channel.channel_id}: {channel.our_balance_sats} sats")
+""")
+
+_set_method_doc(AsyncLexeWallet, "open_channel", """\
+Open a Lightning channel from this node to Lexe's LSP.
+
+Args:
+    value_sats: The value of the channel to open, in satoshis.
+    user_channel_id: An optional idempotency key, serialized as a 32-character
+        hex string (16 bytes). Retrying with the same id won't open a duplicate
+        channel. A random id is generated if omitted.
+
+Returns:
+    An :class:`OpenChannelResponse` with the ids of the newly opened channel.
+
+Raises:
+    FfiError: If the channel could not be opened.
+
+Example::
+
+    resp = await wallet.open_channel(value_sats=100_000)
+    print(f"Opened channel: {resp.channel_id}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "close_channel", """\
+Close a Lightning channel.
+
+Args:
+    channel_id: The id of the channel to close, serialized as a 64-character hex
+        string (32 bytes).
+
+Raises:
+    FfiError: If the channel could not be closed.
+
+Example::
+
+    await wallet.close_channel(channel_id)
+""")
+
 # ================ #
 # --- Payments --- #
 # ================ #
@@ -2215,6 +2321,57 @@ Attributes:
     client_credentials: The :class:`ClientCredentials` granting control
         of the node. Anyone with the credentials can control the node's funds;
         store them safely.
+"""
+
+# ================ #
+# --- Channels --- #
+# ================ #
+
+lexe.ChannelDetails.__doc__ = """\
+Details about one of this node's Lightning channels.
+
+Attributes:
+    channel_id: Id of the channel, as a 64-character hex string (32 bytes).
+    user_channel_id: A user-provided id for this channel that's associated
+        with the channel throughout its whole lifetime, as the Lightning
+        protocol channel id is only known after negotiating the channel and
+        creating the funding tx. Serialized as 32-character hex string (16 bytes).
+    funding_txo: The channel's funding transaction output (as an
+        :class:`OutPoint`), or ``None`` if the funding transaction has not yet
+        been confirmed.
+    is_usable: Whether the channel can send and receive payments right now.
+    channel_value_sats: The total value of the channel, in satoshis.
+    our_balance_sats: Our balance in the channel, in satoshis.
+    their_balance_sats: The counterparty's balance in the channel, in satoshis.
+    punishment_reserve_sats: The portion of our balance that the counterparty
+        requires us to keep in reserve as anti-cheating collateral, in
+        satoshis. This is unspendable and does not count towards
+        ``outbound_capacity_sats``.
+    outbound_capacity_sats: How much of our balance is currently available to
+        send, in satoshis.
+    inbound_capacity_sats: How much of the counterparty's balance is available
+        for us to receive, in satoshis.
+"""
+
+lexe.OutPoint.__doc__ = """\
+A transaction output, identified by transaction id and output index.
+
+Attributes:
+    txid: Id of the transaction containing the output, as a 64-character hex
+        string (32 bytes).
+    index: Index of the output within the transaction.
+"""
+
+lexe.OpenChannelResponse.__doc__ = """\
+Response from opening a Lightning channel.
+
+Attributes:
+    channel_id: Id of the newly opened channel, as a 64-character hex string
+        (32 bytes).
+    user_channel_id: A user-provided id for this channel that's associated
+        with the channel throughout its whole lifetime, as the Lightning
+        protocol channel id is only known after negotiating the channel and
+        creating the funding tx. Serialized as a 32-character hex string (16 bytes).
 """
 
 # ================= #

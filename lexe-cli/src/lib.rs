@@ -11,11 +11,15 @@ use lexe::{
         auth::{
             ClientCredentials, Credentials, CredentialsRef, RootSeed, UserPk,
         },
-        bitcoin::{Amount, ClaimMethod, Invoice, Offer, PaymentMethod},
+        bitcoin::{
+            Amount, ChannelId, ClaimMethod, Invoice, Offer, PaymentMethod,
+            UserChannelId,
+        },
         command::{
-            AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest, ClientInfo,
-            CreateClientRequest, CreateInvoiceRequest, CreateOfferRequest,
-            GetPaymentRequest, GetUpdatedPaymentsRequest, PayInvoiceRequest,
+            AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest, ChannelDetails,
+            ClientInfo, CloseChannelRequest, CreateClientRequest,
+            CreateInvoiceRequest, CreateOfferRequest, GetPaymentRequest,
+            GetUpdatedPaymentsRequest, OpenChannelRequest, PayInvoiceRequest,
             PayLnurlRequest, PayOfferRequest, PayRequest, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WithdrawLnurlRequest,
@@ -170,6 +174,9 @@ pub enum LexeCommand {
     CreateClient(CreateClientArgs),
     UpdateClient(UpdateClientArgs),
     RevokeClient(RevokeClientArgs),
+    ListChannels(ListChannelsArgs),
+    OpenChannel(OpenChannelArgs),
+    CloseChannel(CloseChannelArgs),
     Export(ExportArgs),
 }
 
@@ -306,6 +313,9 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::CreateClient(a) => a.run(&wallet).await,
         LexeCommand::UpdateClient(a) => a.run(&wallet).await,
         LexeCommand::RevokeClient(a) => a.run(&wallet).await,
+        LexeCommand::ListChannels(a) => a.run(&wallet).await,
+        LexeCommand::OpenChannel(a) => a.run(&wallet).await,
+        LexeCommand::CloseChannel(a) => a.run(&wallet).await,
         LexeCommand::Export(a) => a.run(&credentials),
     }
 }
@@ -1993,6 +2003,195 @@ impl RevokeClientArgs {
         println!("Client revoked.");
         println!();
         helpers::print_client_info(&resp.client)
+    }
+}
+
+// --- `list-channels` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "List this node's Lightning channels",
+    long_about = "List this node's Lightning channels.\n\
+        \n\
+        All of this node's Lightning channels are connected to the Lexe LSP.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct ListChannelsArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl ListChannelsArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .list_channels()
+            .await
+            .context("Failed to list channels")?;
+
+        // JSON response
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        for channel in &resp.channels {
+            Self::print_channel_details(channel);
+            println!();
+        }
+        match resp.channels.len() {
+            0 => println!("No channels found."),
+            1 => println!("Found 1 channel."),
+            n => println!("Found {n} channels."),
+        }
+
+        Ok(())
+    }
+
+    /// Print a [`ChannelDetails`] as a human-readable block.
+    // Channel [<channel_id>]
+    //     - user channel id: <user_channel_id>
+    //     - funding transaction output txid: <txid> index: <index>
+    //
+    //     - channel value:      1000000 sats
+    //     - our balance:         750000 sats
+    //     ...
+    //
+    // UNUSABLE: Channel [<unusable_channel_id>]
+    //     ...
+    fn print_channel_details(channel: &ChannelDetails) {
+        // Static label-column widths, sized to each group's longest label.
+        const AMOUNTS_LABEL_WIDTH: usize = "punishment reserve:".len();
+
+        let usable_prefix = if channel.is_usable { "" } else { "UNUSABLE: " };
+        let channel_id = &channel.channel_id;
+        println!("{usable_prefix}Channel [{channel_id}]");
+        println!("    - user channel id: {}", channel.user_channel_id);
+
+        match &channel.funding_txo {
+            Some(txo) => {
+                println!("    - funding transaction output");
+                println!("        txid: {}", txo.txid);
+                println!("        index: {}", txo.index);
+            }
+            None =>
+                println!("    - funding transaction output: Not yet confirmed."),
+        }
+
+        println!();
+        let value_width = Self::print_sat_group(
+            &[
+                ("channel value:", channel.channel_value),
+                ("our balance:", channel.our_balance),
+                ("their balance:", channel.their_balance),
+                ("punishment reserve:", channel.punishment_reserve),
+            ],
+            AMOUNTS_LABEL_WIDTH,
+            None,
+        );
+
+        println!();
+        Self::print_sat_group(
+            &[
+                ("outbound_capacity:", channel.outbound_capacity),
+                ("inbound_capacity:", channel.inbound_capacity),
+            ],
+            AMOUNTS_LABEL_WIDTH,
+            Some(value_width),
+        );
+    }
+
+    /// Print a group of `(label, amount)` rows as `- <label> <sats> sats`,
+    ///
+    /// `label_width` left-pads the label column (pass the group's longest label
+    /// width); the whole-sat values are right-aligned to `value_width`.
+    ///
+    /// Returns the value width used.
+    fn print_sat_group(
+        rows: &[(&str, Amount)],
+        label_width: usize,
+        value_width_override: Option<usize>,
+    ) -> usize {
+        let values = rows
+            .iter()
+            .map(|(_, amt)| amt.sats_u64().to_string())
+            .collect::<Vec<_>>();
+        let value_width = value_width_override.unwrap_or_else(|| {
+            values.iter().map(String::len).max().unwrap_or(0)
+        });
+
+        for ((label, _), value) in rows.iter().zip(&values) {
+            println!("    - {label:<label_width$} {value:>value_width$} sats");
+        }
+        value_width
+    }
+}
+
+// --- `open-channel` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Open a Lightning channel from this node to Lexe's LSP",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct OpenChannelArgs {
+    #[arg(long, help = "The value of the channel to open, in satoshis.")]
+    value_sats: Amount,
+
+    #[arg(
+        long,
+        help = "An optional client-generated channel id for idempotency,\n\
+            serialized as a 32-character hex string (16 bytes).\n\
+            Retrying with the same id won't open a duplicate channel.\n\
+            A random id is generated if not provided."
+    )]
+    user_channel_id: Option<UserChannelId>,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl OpenChannelArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = OpenChannelRequest {
+            value: self.value_sats,
+            user_channel_id: self.user_channel_id,
+        };
+        let resp = wallet.open_channel(req).await?;
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        let channel_id = resp.channel_id;
+        let user_channel_id = resp.user_channel_id;
+        println!("Opened channel: {channel_id}");
+        println!("User channel id: {user_channel_id}");
+        anyhow::Ok(())
+    }
+}
+
+// --- `close-channel` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Close a Lightning channel between this node and Lexe's LSP",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct CloseChannelArgs {
+    #[arg(help = "The channel id to close, \n\
+        serialized as a 64-character hex string (32 bytes).")]
+    channel_id: ChannelId,
+}
+
+impl CloseChannelArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = CloseChannelRequest {
+            channel_id: self.channel_id,
+        };
+        wallet.close_channel(req).await?;
+        println!("Channel closed.");
+        anyhow::Ok(())
     }
 }
 

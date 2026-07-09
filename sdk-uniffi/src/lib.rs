@@ -26,14 +26,15 @@ use lexe::{
         bitcoin::{
             LnurlPayRequest as SdkLnurlPayRequest,
             LnurlPayRequestMetadata as SdkLnurlPayRequestMetadata,
-            PaymentMethod as SdkPaymentMethod,
+            OutPoint as SdkOutPoint, PaymentMethod as SdkPaymentMethod,
         },
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
             AnalyzeResponse as SdkAnalyzeResponse,
             CashAppBuyRequest as SdkCashAppBuyRequest,
             CashAppBuyResponse as SdkCashAppBuyResponse,
-            ClientInfo as SdkClientInfo,
+            ChannelDetails as SdkChannelDetails, ClientInfo as SdkClientInfo,
+            CloseChannelRequest as SdkCloseChannelRequest,
             CreateClientRequest as SdkCreateClientRequest,
             CreateClientResponse as SdkCreateClientResponse,
             CreateInvoiceRequest as SdkCreateInvoiceRequest,
@@ -43,7 +44,10 @@ use lexe::{
             GetPaymentRequest as SdkGetPaymentRequest,
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse as SdkGetUpdatedPaymentsResponse,
-            NodeInfo as SdkNodeInfo, PayInvoiceRequest as SdkPayInvoiceRequest,
+            NodeInfo as SdkNodeInfo,
+            OpenChannelRequest as SdkOpenChannelRequest,
+            OpenChannelResponse as SdkOpenChannelResponse,
+            PayInvoiceRequest as SdkPayInvoiceRequest,
             PayLnurlRequest as SdkPayLnurlRequest,
             PayOfferRequest as SdkPayOfferRequest, PayRequest as SdkPayRequest,
             PayableDetails as SdkPayableDetails,
@@ -77,7 +81,9 @@ use lexe_common::{
     ByteArray,
     env::DeployEnv as DeployEnvRs,
     ln::{
-        amount::Amount as AmountRs, network::Network as NetworkRs,
+        amount::Amount as AmountRs,
+        channel::{ChannelId as ChannelIdRs, UserChannelId as UserChannelIdRs},
+        network::Network as NetworkRs,
         priority::ConfirmationPriority as ConfirmationPriorityRs,
     },
 };
@@ -1456,6 +1462,62 @@ impl AsyncLexeWallet {
         let resp = self.inner.revoke_client(req).await?;
         Ok(ClientInfo::from(resp.client))
     }
+
+    // --- Channel management --- //
+
+    /// List this node's Lightning channels.
+    ///
+    /// All of this node's Lightning channels are connected to the Lexe LSP.
+    pub async fn list_channels(&self) -> Result<Vec<ChannelDetails>, FfiError> {
+        let resp = self.inner.list_channels().await?;
+        let channels = resp
+            .channels
+            .into_iter()
+            .map(ChannelDetails::from)
+            .collect();
+        Ok(channels)
+    }
+
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    ///
+    /// `value_sats` is the channel capacity in satoshis. `user_channel_id` is
+    /// an optional idempotency key, serialized as a 32-character hex string (16
+    /// bytes); retrying with the same id won't open a duplicate channel. A
+    /// random id is generated if `None`.
+    #[uniffi::method(default(user_channel_id = None))]
+    pub async fn open_channel(
+        &self,
+        value_sats: u64,
+        user_channel_id: Option<String>,
+    ) -> Result<OpenChannelResponse, FfiError> {
+        let value =
+            AmountRs::try_from_sats_u64(value_sats).context("Invalid value")?;
+        let user_channel_id = user_channel_id
+            .map(|s| UserChannelIdRs::from_str(&s))
+            .transpose()
+            .context("Invalid user_channel_id")?;
+        let req = SdkOpenChannelRequest {
+            value,
+            user_channel_id,
+        };
+        let resp = self.inner.open_channel(req).await?;
+        Ok(OpenChannelResponse::from(resp))
+    }
+
+    /// Close a Lightning channel.
+    ///
+    /// `channel_id` is the id of the channel to close, serialized as a
+    /// 64-character hex string (32 bytes).
+    pub async fn close_channel(
+        &self,
+        channel_id: String,
+    ) -> Result<(), FfiError> {
+        let channel_id =
+            ChannelIdRs::from_str(&channel_id).context("Invalid channel_id")?;
+        let req = SdkCloseChannelRequest { channel_id };
+        self.inner.close_channel(req).await?;
+        Ok(())
+    }
 }
 
 // ========================== //
@@ -2219,6 +2281,59 @@ impl BlockingLexeWallet {
         let req = SdkRevokeClientRequest { client_pk };
         let resp = self.inner.revoke_client(req)?;
         Ok(ClientInfo::from(resp.client))
+    }
+
+    // --- Channel management --- //
+
+    /// List this node's Lightning channels.
+    ///
+    /// All of this node's Lightning channels are connected to the Lexe LSP.
+    pub fn list_channels(&self) -> Result<Vec<ChannelDetails>, FfiError> {
+        let resp = self.inner.list_channels()?;
+        let channels = resp
+            .channels
+            .into_iter()
+            .map(ChannelDetails::from)
+            .collect();
+        Ok(channels)
+    }
+
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    ///
+    /// `value_sats` is the channel capacity in satoshis. `user_channel_id` is
+    /// an optional idempotency key, serialized as a 32-character hex string (16
+    /// bytes); retrying with the same id won't open a duplicate channel. A
+    /// random id is generated if `None`.
+    #[uniffi::method(default(user_channel_id = None))]
+    pub fn open_channel(
+        &self,
+        value_sats: u64,
+        user_channel_id: Option<String>,
+    ) -> Result<OpenChannelResponse, FfiError> {
+        let value =
+            AmountRs::try_from_sats_u64(value_sats).context("Invalid value")?;
+        let user_channel_id = user_channel_id
+            .map(|s| UserChannelIdRs::from_str(&s))
+            .transpose()
+            .context("Invalid user_channel_id")?;
+        let req = SdkOpenChannelRequest {
+            value,
+            user_channel_id,
+        };
+        let resp = self.inner.open_channel(req)?;
+        Ok(OpenChannelResponse::from(resp))
+    }
+
+    /// Close a Lightning channel.
+    ///
+    /// `channel_id` is the id of the channel to close, serialized as a
+    /// 64-character hex string (32 bytes).
+    pub fn close_channel(&self, channel_id: String) -> Result<(), FfiError> {
+        let channel_id =
+            ChannelIdRs::from_str(&channel_id).context("Invalid channel_id")?;
+        let req = SdkCloseChannelRequest { channel_id };
+        self.inner.close_channel(req)?;
+        Ok(())
     }
 }
 
@@ -3085,6 +3200,100 @@ impl From<SdkCreateClientResponse> for CreateClientResponse {
             client_credentials: Arc::new(ClientCredentials {
                 sdk: resp.client_credentials,
             }),
+        }
+    }
+}
+
+// ================ //
+// --- Channels --- //
+// ================ //
+
+/// Details about one of this node's Lightning channels.
+#[derive(Clone, uniffi::Record)]
+pub struct ChannelDetails {
+    /// Id of the channel, as a 64-character hex string (32 bytes).
+    pub channel_id: String,
+    /// A user-provided id for this channel that's associated with the channel
+    /// throughout its whole lifetime, as the Lightning protocol channel id is
+    /// only known after negotiating the channel and creating the funding tx.
+    /// Serialized as a 32-character hex string (16 bytes).
+    pub user_channel_id: String,
+    /// The channel's funding transaction output, or `None` if the funding
+    /// transaction has not yet been confirmed.
+    pub funding_txo: Option<OutPoint>,
+    /// Whether the channel can send and receive payments right now.
+    pub is_usable: bool,
+    /// The total value of the channel, in satoshis.
+    pub channel_value_sats: u64,
+    /// Our balance in the channel, in satoshis.
+    pub our_balance_sats: u64,
+    /// The counterparty's balance in the channel, in satoshis.
+    pub their_balance_sats: u64,
+    /// The portion of our balance that the counterparty requires us to keep in
+    /// reserve as anti-cheating collateral, in satoshis. This is unspendable
+    /// and does not count towards `outbound_capacity_sats`.
+    pub punishment_reserve_sats: u64,
+    /// How much of our balance is currently available to send, in satoshis.
+    pub outbound_capacity_sats: u64,
+    /// How much of the counterparty's balance is available for us to receive,
+    /// in satoshis.
+    pub inbound_capacity_sats: u64,
+}
+
+impl From<SdkChannelDetails> for ChannelDetails {
+    fn from(details: SdkChannelDetails) -> Self {
+        Self {
+            channel_id: details.channel_id.to_string(),
+            user_channel_id: details.user_channel_id.to_string(),
+            funding_txo: details.funding_txo.map(OutPoint::from),
+            is_usable: details.is_usable,
+            channel_value_sats: details.channel_value.sats_u64(),
+            our_balance_sats: details.our_balance.sats_u64(),
+            their_balance_sats: details.their_balance.sats_u64(),
+            punishment_reserve_sats: details.punishment_reserve.sats_u64(),
+            outbound_capacity_sats: details.outbound_capacity.sats_u64(),
+            inbound_capacity_sats: details.inbound_capacity.sats_u64(),
+        }
+    }
+}
+
+/// A transaction output, identified by transaction id and output index.
+#[derive(Clone, uniffi::Record)]
+pub struct OutPoint {
+    /// Id of the transaction containing the output, as a 64-character hex
+    /// string (32 bytes).
+    pub txid: String,
+    /// Index of the output within the transaction.
+    pub index: u16,
+}
+
+impl From<SdkOutPoint> for OutPoint {
+    fn from(outpoint: SdkOutPoint) -> Self {
+        Self {
+            txid: outpoint.txid.to_string(),
+            index: outpoint.index,
+        }
+    }
+}
+
+/// Response from opening a Lightning channel.
+#[derive(Clone, uniffi::Record)]
+pub struct OpenChannelResponse {
+    /// Id of the newly opened channel, as a 64-character hex string
+    /// (32 bytes).
+    pub channel_id: String,
+    /// A user-provided id for this channel that's associated with the channel
+    /// throughout its whole lifetime, as the Lightning protocol channel id is
+    /// only known after negotiating the channel and creating the funding tx.
+    /// Serialized as a 32-character hex string (16 bytes).
+    pub user_channel_id: String,
+}
+
+impl From<SdkOpenChannelResponse> for OpenChannelResponse {
+    fn from(resp: SdkOpenChannelResponse) -> Self {
+        Self {
+            channel_id: resp.channel_id.to_string(),
+            user_channel_id: resp.user_channel_id.to_string(),
         }
     }
 }

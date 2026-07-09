@@ -864,6 +864,7 @@ pub struct RevokeClientRequest {
 // --- Channel management --- //
 
 /// Details about one of this node's Lightning channels.
+#[derive(Serialize, Deserialize)]
 pub struct ChannelDetails {
     /// The id of the channel.
     pub channel_id: ChannelId,
@@ -915,6 +916,7 @@ impl From<LxChannelDetails> for ChannelDetails {
 /// The response to a request to list this node's Lightning channels.
 ///
 /// All of this node's Lightning channels are connected to the Lexe LSP.
+#[derive(Serialize, Deserialize)]
 pub struct ListChannelsResponse {
     /// This node's Lightning channels. The counterparty is always the Lexe
     /// LSP.
@@ -922,6 +924,7 @@ pub struct ListChannelsResponse {
 }
 
 /// A request to open a Lightning channel from this node to Lexe's LSP.
+#[derive(Serialize, Deserialize)]
 pub struct OpenChannelRequest {
     /// The value of the channel to open.
     pub value: Amount,
@@ -938,6 +941,7 @@ pub struct OpenChannelRequest {
 }
 
 /// The response to a request to open a channel to the LSP.
+#[derive(Serialize, Deserialize)]
 pub struct OpenChannelResponse {
     /// The id of the newly opened channel.
     pub channel_id: ChannelId,
@@ -948,6 +952,7 @@ pub struct OpenChannelResponse {
 }
 
 /// A request to close a Lightning channel between this node and Lexe's LSP.
+#[derive(Serialize, Deserialize)]
 pub struct CloseChannelRequest {
     /// The id of the channel to close.
     pub channel_id: ChannelId,

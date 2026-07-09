@@ -10,13 +10,14 @@
 use lexe::types::{
     command::{
         AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
-        ClientInfoResponse, CreateClientRequest, CreateClientResponse,
-        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
-        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-        ListClientsResponse, ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
-        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest,
+        ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
+        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
+        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+        GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
+        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -257,4 +258,26 @@ pub trait UserSidecarApi {
         &self,
         req: &RevokeClientRequest,
     ) -> Result<ClientInfoResponse, SdkApiError>;
+
+    /// GET /v2/node/list_channels [`Empty`] -> [`ListChannelsResponse`]
+    ///
+    /// List this node's Lightning channels.
+    async fn list_channels(&self) -> Result<ListChannelsResponse, SdkApiError>;
+
+    /// POST /v2/node/open_channel [`OpenChannelRequest`]
+    ///                         -> [`OpenChannelResponse`]
+    ///
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    async fn open_channel(
+        &self,
+        req: &OpenChannelRequest,
+    ) -> Result<OpenChannelResponse, SdkApiError>;
+
+    /// POST /v2/node/close_channel [`CloseChannelRequest`] -> [`Empty`]
+    ///
+    /// Close a Lightning channel between this node and Lexe's LSP.
+    async fn close_channel(
+        &self,
+        req: &CloseChannelRequest,
+    ) -> Result<Empty, SdkApiError>;
 }

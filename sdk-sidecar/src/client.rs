@@ -1,13 +1,14 @@
 use lexe::types::{
     command::{
         AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
-        ClientInfoResponse, CreateClientRequest, CreateClientResponse,
-        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, GetPaymentRequest, GetPaymentResponse,
-        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-        ListClientsResponse, ListPaymentsResponse, NodeInfo, PayInvoiceRequest,
-        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest,
+        ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
+        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
+        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+        GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
+        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -266,6 +267,33 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<ClientInfoResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/revoke_client");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn list_channels(&self) -> Result<ListChannelsResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/list_channels");
+        let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn open_channel(
+        &self,
+        req: &OpenChannelRequest,
+    ) -> Result<OpenChannelResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/open_channel");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn close_channel(
+        &self,
+        req: &CloseChannelRequest,
+    ) -> Result<Empty, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/close_channel");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
