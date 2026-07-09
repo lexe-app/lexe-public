@@ -9,7 +9,7 @@
 }:
 rec {
   # standard nixfmt formatter for *.nix files
-  nixfmt = pkgs.nixfmt-rfc-style;
+  nixfmt = pkgs.nixfmt;
 
   # can run nixfmt on a whole directory tree
   nixfmt-tree = pkgs.nixfmt-tree.override {
@@ -50,12 +50,12 @@ rec {
         # All darwin targets need libiconv
         depsTargetTargetPropagated = lib.optional pkgs.stdenv.targetPlatform.isDarwin pkgs.pkgsTargetTarget.iconv;
 
-        buildCommand = ''
-          ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
-            # darwin.cctools provides 'install_name_tool'
-            export PATH="$PATH:${pkgs.darwin.cctools}/bin"
-          ''}
+        nativeBuildInputs = (super.nativeBuildInputs or [ ]) ++ [
+          # darwin.cctools provides 'install_name_tool'
+          pkgs.darwin.cctools
+        ];
 
+        buildCommand = ''
           ${super.buildCommand}
 
           ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
@@ -474,33 +474,31 @@ rec {
   #
 
   # Rust with Android targets
-  #
-  # NOTE(phlip9): don't need to patch this toolchain since app builds don't work
-  # inside the sandbox :'). Instead we just use a devShell.
-  rustLexeToolchainAndroid = fenixPkgs.combine [
-    fenixPkgs.stable.rustc
-    fenixPkgs.stable.cargo
-    # arm64 and arm-v7 cover 99.7% of all Android devices
-    fenixPkgs.targets.aarch64-linux-android.stable.rust-std
-    fenixPkgs.targets.armv7-linux-androideabi.stable.rust-std
-    # but flutter seems to want x86_64...
-    fenixPkgs.targets.x86_64-linux-android.stable.rust-std
-  ];
+  rustLexeToolchainAndroid = patchFenixRustToolchainIfMacOS (
+    fenixPkgs.combine [
+      fenixPkgs.stable.rustc
+      fenixPkgs.stable.cargo
+      # arm64 and arm-v7 cover 99.7% of all Android devices
+      fenixPkgs.targets.aarch64-linux-android.stable.rust-std
+      fenixPkgs.targets.armv7-linux-androideabi.stable.rust-std
+      # but flutter seems to want x86_64...
+      fenixPkgs.targets.x86_64-linux-android.stable.rust-std
+    ]
+  );
 
   # Rust with iOS/macOS targets
-  #
-  # NOTE(phlip9): don't need to patch this toolchain since app builds don't work
-  # inside the sandbox :'). Instead we just use a devShell.
-  rustLexeToolchainiOSmacOS = fenixPkgs.combine [
-    fenixPkgs.stable.rustc
-    fenixPkgs.stable.cargo
+  rustLexeToolchainiOSmacOS = patchFenixRustToolchainIfMacOS (
+    fenixPkgs.combine [
+      fenixPkgs.stable.rustc
+      fenixPkgs.stable.cargo
 
-    # TODO(phlip9): x86_64-apple-darwin?
-    fenixPkgs.targets.aarch64-apple-darwin.stable.rust-std
-    # iOS uses a different target for simulator vs real HW
-    fenixPkgs.targets.aarch64-apple-ios.stable.rust-std
-    fenixPkgs.targets.aarch64-apple-ios-sim.stable.rust-std
-  ];
+      # TODO(phlip9): x86_64-apple-darwin?
+      fenixPkgs.targets.aarch64-apple-darwin.stable.rust-std
+      # iOS uses a different target for simulator vs real HW
+      fenixPkgs.targets.aarch64-apple-ios.stable.rust-std
+      fenixPkgs.targets.aarch64-apple-ios-sim.stable.rust-std
+    ]
+  );
 
   # Our flutter version
   flutter = pkgs.flutter332;

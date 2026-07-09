@@ -300,9 +300,8 @@ $ cargo test
 To get nix LSP support with basic autocomplete and formatting, we suggest using
 [`coc.nvim`](https://github.com/neoclide/coc.nvim) with
 [`nil`](https://github.com/oxalica/nil) as the language server and
-[`nixfmt`](https://github.com/NixOS/nixfmt) (packaged as `nixfmt-rfc-style` as
-of nixpkgs release 25.05). Then add the following to `.vim/coc-settings.json`
-in this repo:
+[`nixfmt`](https://github.com/NixOS/nixfmt). Then add the following to
+`.vim/coc-settings.json` in this repo:
 
 ```json
 {
