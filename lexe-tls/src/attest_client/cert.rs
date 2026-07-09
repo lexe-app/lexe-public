@@ -118,7 +118,7 @@ impl fmt::Debug for SgxAttestationExtension<'_> {
 
 /// Additional X509 cert extensions that Intel includes in the PCK leaf cert.
 //
-// See: [Intel SGX PCK Certificate Specification - 1.3.5 p.11](https://download.01.org/intel-sgx/sgx-dcap/1.10/linux/docs/Intel_SGX_PCK_Certificate_CRL_Spec-1.4.pdf)
+// See: [Intel SGX PCK Certificate Specification - 1.3.5 p.11](https://download.01.org/intel-sgx/sgx-dcap/1.26/linux/docs/SGX_PCK_Certificate_CRL_Spec-1.4.pdf)
 //
 // ```
 // X509v3 extensions:
@@ -152,15 +152,28 @@ impl fmt::Debug for SgxAttestationExtension<'_> {
 //       <SMT Enabled OID>: <SMT Enabled flag value>
 // ```
 //
-// | name           | oid                     | type               | description                               |
-// |----------------|-------------------------|--------------------|-------------------------------------------|
-// | SGX Extensions | 1.2.840.113741.1.13.1   | ASN.1 Sequence     | Sequence of Intel SGX PCK cert extensions |
-// | FMSPC          | 1.2.840.113741.1.13.1.4 | ASN.1 Octet String | Value of FMSPC (6 bytes)                  |
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct SgxPckExtensions {
+// | name           | oid                        | type               | description                                |
+// |----------------|----------------------------|--------------------|--------------------------------------------|
+// | SGX Extensions | 1.2.840.113741.1.13.1      | ASN.1 Sequence     | Sequence of Intel SGX PCK cert extensions  |
+// | TCB SVNs       | 1.2.840.113741.1.13.1.2    | ASN.1 Sequence     | Sequence of SGX TCB Component SVNs         |
+// | TCB CompXX SVN | 1.2.840.113741.1.13.1.2.XX | ASN.1 Integer      | SGX TCB Component XX SVN                   |
+// | PCESVN         | 1.2.840.113741.1.13.1.2.17 | ASN.1 Integer      | Platform Certification Enclave SVN         |
+// | CPUSVN         | 1.2.840.113741.1.13.1.2.18 | ASN.1 Octet String | Intel CPU hardware SVN (16 bytes)          |
+// | FMSPC          | 1.2.840.113741.1.13.1.4    | ASN.1 Octet String | Value of CPU FMSPC (6 bytes)               |
+#[derive(Debug)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+pub struct SgxPckExtensions {
     /// This field contains the Intel CPU family of the machine that made the
     /// attestation.
-    pub cpu_fmspc: CpuFmspc,
+    pub(crate) cpu_fmspc: CpuFmspc,
+
+    /// The Platform Certification Enclave (PCE) SVN.
+    #[allow(dead_code)] // Printed in `sgx-test`
+    pub(crate) pce_svn: u16,
+
+    /// The 16 SGX TCB component SVNs.
+    #[allow(dead_code)] // Printed in `sgx-test`
+    pub(crate) sgx_tcb_comp_svns: [u8; 16],
 }
 
 impl SgxPckExtensions {
@@ -168,8 +181,19 @@ impl SgxPckExtensions {
     #[rustfmt::skip]
     const OID: asn1_rs::Oid<'static> = asn1_rs::oid!(1.2.840.113741.1.13.1);
 
+    /// The asn1 OID prefix for SGX TCB entries in the outer sequence.
+    const OID_TCB: &[u64] = &[1, 2, 840, 113741, 1, 13, 1, 2];
+
     /// The asn1 OID for the inner FMSPC entry in the outer sequence.
     const OID_FMSPC: &[u64] = &[1, 2, 840, 113741, 1, 13, 1, 4];
+
+    /// Dummy values for local dev with no SGX.
+    #[allow(dead_code)] // TODO(phlip9): remove
+    pub(crate) const DUMMY: Self = Self {
+        cpu_fmspc: CpuFmspc(hex::decode_const(b"00606a000000")),
+        pce_svn: 123,
+        sgx_tcb_comp_svns: [42u8; 16],
+    };
 
     /// Try to parse from a whole DER-encoded x509 cert.
     pub(crate) fn from_cert_der(cert_der: &[u8]) -> anyhow::Result<Self> {
@@ -191,9 +215,11 @@ impl SgxPckExtensions {
     /// These are the bytes contained in the `"SGX Extensions"
     /// (oid=1.2.840.113741.1.13.1)` x509 cert extension.
     fn from_der_bytes(buf: &[u8]) -> yasna::ASN1Result<Self> {
-        // Inside `buf` is an ASN1 sequence. We just want the entry for FMSPC.
+        // Inside `buf` is an ASN1 sequence. We just want the entries for
+        // the FMSPC and TCB component SVNs.
 
         let mut fmspc = None;
+        let mut tcb = None;
 
         yasna::parse_der(buf, |reader| {
             reader.read_sequence_of(|reader| {
@@ -207,6 +233,11 @@ impl SgxPckExtensions {
                         if fmspc.replace(bytes).is_some() {
                             return Err(Self::invalid_asn1());
                         }
+                    } else if oid.as_ref() == Self::OID_TCB {
+                        let new_tcb = Self::read_tcb(reader)?;
+                        if tcb.replace(new_tcb).is_some() {
+                            return Err(Self::invalid_asn1());
+                        }
                     } else {
                         // Skip other extensions we don't care about
                         let _ = reader.next().read_der()?;
@@ -217,8 +248,65 @@ impl SgxPckExtensions {
             })?;
 
             let cpu_fmspc = CpuFmspc(fmspc.ok_or_else(Self::invalid_asn1)?);
-            Ok(Self { cpu_fmspc })
+            let (sgx_tcb_comp_svns, pce_svn) =
+                tcb.ok_or_else(Self::invalid_asn1)?;
+            Ok(Self {
+                cpu_fmspc,
+                pce_svn,
+                sgx_tcb_comp_svns,
+            })
         })
+    }
+
+    /// Try to parse the TCB Component SVNs and PCESVN
+    fn read_tcb(
+        reader: &mut yasna::BERReaderSeq<'_, '_>,
+    ) -> yasna::ASN1Result<([u8; 16], u16)> {
+        let mut pce_svn = None;
+        let mut sgx_tcb_comp_svns = [None; 16];
+
+        reader.next().read_sequence_of(|reader| {
+            reader.read_sequence(|reader| {
+                let oid = reader.next().read_oid()?;
+                let (idx, prefix) =
+                    oid.as_ref().split_last().ok_or_else(Self::invalid_asn1)?;
+                if prefix != Self::OID_TCB {
+                    return Err(Self::invalid_asn1());
+                }
+
+                match *idx {
+                    // SGX TCB Comp(01..=16)
+                    1..=16 => {
+                        let idx = (idx - 1) as usize;
+                        let svn = reader.next().read_u8()?;
+                        if sgx_tcb_comp_svns[idx].replace(svn).is_some() {
+                            return Err(Self::invalid_asn1());
+                        }
+                    }
+                    // PCESVN
+                    17 => {
+                        let svn = reader.next().read_u16()?;
+                        if pce_svn.replace(svn).is_some() {
+                            return Err(Self::invalid_asn1());
+                        }
+                    }
+                    // Ignore other fields, like CPUSVN
+                    _ => {
+                        let _ = reader.next().read_der()?;
+                    }
+                }
+
+                Ok(())
+            })
+        })?;
+
+        let pce_svn = pce_svn.ok_or_else(Self::invalid_asn1)?;
+        let mut svns = [0; 16];
+        for (svn, parsed_svn) in svns.iter_mut().zip(sgx_tcb_comp_svns) {
+            *svn = parsed_svn.ok_or_else(Self::invalid_asn1)?;
+        }
+
+        Ok((svns, pce_svn))
     }
 
     fn invalid_asn1() -> ASN1Error {
@@ -274,8 +362,14 @@ mod test {
         )
         .unwrap();
 
-        let extensions = SgxPckExtensions::from_cert_der(&cert_der).unwrap();
-        let fmspc = CpuFmspc::from_hex("00606a000000").unwrap();
-        assert_eq!(extensions.cpu_fmspc, fmspc);
+        let actual = SgxPckExtensions::from_cert_der(&cert_der).unwrap();
+        let expected = SgxPckExtensions {
+            cpu_fmspc: CpuFmspc::from_hex("00606a000000").unwrap(),
+            pce_svn: 13,
+            sgx_tcb_comp_svns: [
+                14, 14, 3, 3, 255, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        };
+        assert_eq!(actual, expected)
     }
 }
