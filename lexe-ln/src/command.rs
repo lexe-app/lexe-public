@@ -29,7 +29,7 @@ use lexe_api::{
         ResyncRequest,
     },
     revocable_clients::{
-        RevocableClient, RevocableClients,
+        RevocableClient, RevocableClients, RevocableClientsHandle,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
             ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
@@ -1984,8 +1984,9 @@ pub async fn create_revocable_client(
     revocable_clients: &RwLock<RevocableClients>,
     req: CreateRevocableClientRequest,
 ) -> Result<CreateRevocableClientResponse, CommonApiError> {
-    // Enforce client scope attenuation
+    // Enforce client scope + expiration attenuation
     authz.require_permissions_covered(&req.permissions)?;
+    authz.require_expiration_covered(req.expires_at)?;
 
     // TODO(max): Implement budget attenuation: If the credential calling this
     // endpoint has a budget, it cannot create another client with no budget.
@@ -2127,13 +2128,11 @@ fn maybe_evict_revoked_clients(
 pub async fn update_revocable_client(
     authz: &VerifiedClientAuthorization,
     persister: &impl LexePersister,
-    revocable_clients: &RwLock<RevocableClients>,
+    revocable_clients: &RevocableClientsHandle,
     req: UpdateClientRequest,
 ) -> Result<UpdateClientResponse, CommonApiError> {
-    if let Some(new_permissions) = &req.permissions {
-        // Enforce client scope attenuation
-        authz.require_permissions_covered(new_permissions)?;
-    }
+    // Enforce client scope + expiration attenuation
+    authz.require_update_covered(&req, revocable_clients)?;
 
     // TODO(max): Implement budget attenuation: If the credential calling this
     // endpoint has a budget, it cannot create another client with no budget.
@@ -2148,7 +2147,7 @@ pub async fn update_revocable_client(
     // or updating other credentials until someone has a need for this.
 
     let (updated_file, response) = {
-        let mut revocable_clients = revocable_clients.write().unwrap();
+        let mut revocable_clients = revocable_clients.0.write().unwrap();
 
         // Get the client
         let pubkey = req.pubkey;

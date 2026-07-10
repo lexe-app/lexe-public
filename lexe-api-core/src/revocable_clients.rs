@@ -110,7 +110,9 @@ pub struct RevocableClient {
     pub created_at: TimestampMs,
     /// The time after which the server will no longer accept this client.
     /// [`None`] indicates that the client will never expire (use carefully!).
-    /// This expiration time can be extended at any time.
+    ///
+    /// This expiration can be extended, but only by a client whose own
+    /// expiration covers the new one. Root seed clients are unbounded.
     pub expires_at: Option<TimestampMs>,
     /// Optional user-provided label for this client.
     #[cfg_attr(

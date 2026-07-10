@@ -12,9 +12,10 @@ use axum::{
     routing::{self, MethodRouter},
 };
 use lexe_api_core::{
-    error::CommonApiError,
+    error::{CommonApiError, CommonErrorKind},
     revocable_clients::{
-        ListRevocableClientsHandle,
+        ListRevocableClientsHandle, RevocableClientsHandle,
+        models::UpdateClientRequest,
         scopes::{ClientPermissions, Permission, PermissionSet, Scope},
     },
 };
@@ -29,8 +30,8 @@ use crate::tls_acceptor::VerifiedTlsClientCert;
 ///
 /// Handlers call [`require`] to declare the [`Permission`] they
 /// need. Attenuation of auth scopes and expirations should be enforced using
-/// the [`require_permissions_covered`] and [`require_expiration_covered`]
-/// methods.
+/// [`require_permissions_covered`] and [`require_expiration_covered`] when
+/// creating clients, and [`require_update_covered`] when updating them.
 ///
 /// The resolved [`PermissionSet`] depends on the cert's issuing CA:
 ///
@@ -42,6 +43,7 @@ use crate::tls_acceptor::VerifiedTlsClientCert;
 /// [`require`]: Self::require
 /// [`require_permissions_covered`]: Self::require_permissions_covered
 /// [`require_expiration_covered`]: Self::require_expiration_covered
+/// [`require_update_covered`]: Self::require_update_covered
 /// [`ClientPermissions`]: lexe_api_core::revocable_clients::scopes::ClientPermissions
 /// [`RevocableClientsHandle`]: lexe_api_core::revocable_clients::RevocableClientsHandle
 pub struct VerifiedClientAuthorization {
@@ -87,8 +89,8 @@ impl VerifiedClientAuthorization {
     /// Used to enforce expiration attenuation: a client may only create or
     /// update credentials to expire no later than itself. An unbounded
     /// client (`expires_at: None`) covers any expiration; a bounded client
-    /// covers only earlier-or-equal expirations. In particular, a bounded
-    /// client cannot extend its own expiration.
+    /// covers only earlier-or-equal expirations. A bounded client also cannot
+    /// extend its own expiration.
     pub fn require_expiration_covered(
         &self,
         requested: Option<TimestampMs>,
@@ -99,6 +101,43 @@ impl VerifiedClientAuthorization {
             (Some(own), req) =>
                 Err(CommonApiError::insufficient_expiration(req, own)),
         }
+    }
+
+    /// Enforce scope + expiration attenuation for an [`UpdateClientRequest`].
+    ///
+    /// If either the expiration or permissions are updated, our own credential
+    /// must cover the target's resulting expiration and permissions.
+    //
+    // The principle here is that a credential should never be able to cause
+    // another credential to be more powerful than itself.
+    //
+    // Example: a `full` caller expiring in an hour cannot grant `spend` to a
+    // never-expiring client. Likewise, a `spend` caller cannot extend a `full`
+    // client. Either would create a credential the caller could not mint.
+    pub fn require_update_covered(
+        &self,
+        req: &UpdateClientRequest,
+        revocable_clients: &RevocableClientsHandle,
+    ) -> Result<(), CommonApiError> {
+        if req.expires_at.is_none() && req.permissions.is_none() {
+            return Ok(());
+        }
+
+        let pubkey = req.pubkey;
+        let clients = revocable_clients.0.read().unwrap();
+        let target = clients.clients.get(&pubkey).ok_or_else(|| {
+            CommonApiError::new(
+                CommonErrorKind::Rejection,
+                format!("No revocable client with pk {pubkey}"),
+            )
+        })?;
+
+        let expires_at = req.expires_at.unwrap_or(target.expires_at);
+        let permissions =
+            req.permissions.as_ref().unwrap_or(&target.permissions);
+
+        self.require_permissions_covered(permissions)?;
+        self.require_expiration_covered(expires_at)
     }
 }
 
@@ -308,4 +347,80 @@ pub mod scoped {
 /// read as a forgotten [`scoped`] gate.
 pub mod unscoped {
     pub use axum::routing::{delete, get, patch, post, put};
+}
+
+#[cfg(test)]
+mod test {
+    use std::{collections::HashMap, sync::RwLock};
+
+    use lexe_api_core::revocable_clients::{RevocableClient, RevocableClients};
+    use lexe_crypto::ed25519;
+
+    use super::*;
+
+    #[test]
+    fn update_requires_resulting_authorization_covered() {
+        let make_target = |seed, expires_at, scope| {
+            let pubkey = *ed25519::KeyPair::for_test(seed).public_key();
+            RevocableClient {
+                pubkey,
+                created_at: TimestampMs::from_u8(0),
+                expires_at,
+                label: None,
+                permissions: ClientPermissions::from_single_scope(scope),
+                is_revoked: false,
+            }
+        };
+        let store = |target: RevocableClient| {
+            RevocableClientsHandle(RwLock::new(RevocableClients {
+                clients: HashMap::from([(target.pubkey, target)]),
+            }))
+        };
+        let expires_at = TimestampMs::from_u8(2);
+
+        // A permissions-only update must be covered for the target's stored
+        // expiration.
+        let target = make_target(1, None, Scope::ReadInfo);
+        let pubkey = target.pubkey;
+        let revocable_clients = store(target);
+        let caller = VerifiedClientAuthorization {
+            permissions: Scope::Full.permissions(),
+            expires_at: Some(expires_at),
+        };
+        let req = UpdateClientRequest {
+            pubkey,
+            expires_at: None,
+            label: None,
+            permissions: Some(ClientPermissions::from_single_scope(
+                Scope::Receive,
+            )),
+            is_revoked: None,
+        };
+        let err = caller
+            .require_update_covered(&req, &revocable_clients)
+            .unwrap_err();
+        assert!(err.msg.contains("expiration later than its own"));
+
+        // An expiration-only update must be covered for the target's stored
+        // permissions.
+        let target = make_target(2, Some(TimestampMs::from_u8(1)), Scope::Full);
+        let pubkey = target.pubkey;
+        let revocable_clients = store(target);
+        let caller = VerifiedClientAuthorization {
+            permissions: Scope::Spend.permissions(),
+            expires_at: Some(expires_at),
+        };
+        let req = UpdateClientRequest {
+            pubkey,
+            expires_at: Some(Some(expires_at)),
+            label: None,
+            permissions: None,
+            is_revoked: None,
+        };
+
+        let err = caller
+            .require_update_covered(&req, &revocable_clients)
+            .unwrap_err();
+        assert!(err.msg.contains("required permissions"));
+    }
 }

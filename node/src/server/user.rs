@@ -562,7 +562,7 @@ pub(super) async fn update_revocable_client(
     lexe_ln::command::update_revocable_client(
         &permissions,
         &state.persister,
-        &state.revocable_clients.0,
+        &state.revocable_clients,
         req,
     )
     .await
