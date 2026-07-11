@@ -57,7 +57,7 @@ use anyhow::Context;
 #[cfg(doc)]
 use lexe_api::types::payments::VecDbPaymentV2;
 use lexe_api::{
-    def::AppNodeRunApi,
+    def::UserNodeRunApi,
     error::NodeApiError,
     models::command,
     types::payments::{
@@ -143,7 +143,7 @@ const METADATA_FILENAME: &str = "metadata.json";
 #[allow(private_bounds)]
 pub(crate) async fn sync_payments<F: Ffs>(
     db: &PaymentsDb<F>,
-    node_client: &impl AppNodeRunSyncApi,
+    node_client: &impl UserNodeRunSyncApi,
     batch_size: u16,
 ) -> anyhow::Result<PaymentSyncSummary> {
     assert!(batch_size > 0);
@@ -197,11 +197,11 @@ pub(crate) async fn sync_payments<F: Ffs>(
     Ok(summary)
 }
 
-/// The specific `AppNodeRunApi` method that we need to sync payments.
+/// The specific `UserNodeRunApi` method that we need to sync payments.
 ///
 /// This lets us mock out the method in the tests below,
-/// without also mocking out the entire `AppNodeRunApi` trait.
-trait AppNodeRunSyncApi {
+/// without also mocking out the entire `UserNodeRunApi` trait.
+trait UserNodeRunSyncApi {
     /// GET /node/v1/payments/updated [`command::GetUpdatedPayments`]
     ///                            -> [`VecDbPaymentV2`]
     async fn get_updated_payments(
@@ -210,12 +210,12 @@ trait AppNodeRunSyncApi {
     ) -> Result<VecBasicPaymentV2, NodeApiError>;
 }
 
-impl AppNodeRunSyncApi for NodeClient {
+impl UserNodeRunSyncApi for NodeClient {
     async fn get_updated_payments(
         &self,
         req: command::GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError> {
-        AppNodeRunApi::get_updated_payments(self, req).await
+        UserNodeRunApi::get_updated_payments(self, req).await
     }
 }
 
@@ -899,7 +899,7 @@ mod test_utils {
         }
     }
 
-    impl AppNodeRunSyncApi for MockNode {
+    impl UserNodeRunSyncApi for MockNode {
         /// GET /node/v1/payments/updated [`command::GetUpdatedPayments`]
         ///                            -> [`VecDbPaymentV2`]
         async fn get_updated_payments(

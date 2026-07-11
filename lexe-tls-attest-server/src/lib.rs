@@ -78,9 +78,9 @@ pub mod cert;
 /// Get a quote for the running node enclave.
 pub mod quote;
 
-/// Server-side TLS config for `AppNodeProvisionApi`.
+/// Server-side TLS config for `UserNodeProvisionApi`.
 /// Also returns the node's DNS name.
-pub fn app_node_provision_server_config(
+pub fn user_node_provision_server_config(
     rng: &mut impl Crng,
     measurement: &Measurement,
 ) -> anyhow::Result<(rustls::ServerConfig, String)> {
@@ -216,18 +216,18 @@ mod test {
     use lexe_crypto::rng::FastRng;
     use lexe_enclave::enclave;
     use lexe_tls::{
-        attest_client::app_node_provision_client_config, test_utils,
+        attest_client::user_node_provision_client_config, test_utils,
     };
 
     use super::*;
 
     /// Sanity check an App->Node Provision TLS handshake
     #[tokio::test]
-    async fn app_node_provision_handshake_succeeds() {
+    async fn user_node_provision_handshake_succeeds() {
         let client_measurement = enclave::measurement();
 
         let [client_result, server_result] =
-            do_app_node_provision_tls_handshake(client_measurement).await;
+            do_user_node_provision_tls_handshake(client_measurement).await;
 
         client_result.unwrap();
         server_result.unwrap();
@@ -236,11 +236,11 @@ mod test {
     /// App->Node Provision TLS handshake should fail if the client trusts a
     /// different measurement from the one reported by the enclave.
     #[tokio::test]
-    async fn app_node_provision_negative_test() {
+    async fn user_node_provision_negative_test() {
         let client_measurement = Measurement::new([69; 32]);
 
         let [client_result, server_result] =
-            do_app_node_provision_tls_handshake(client_measurement).await;
+            do_user_node_provision_tls_handshake(client_measurement).await;
 
         let client_error = client_result.unwrap_err();
         assert!(client_error.contains("Client didn't connect"));
@@ -252,7 +252,7 @@ mod test {
     }
 
     // Shorthand to do a App->Node Provision TLS handshake.
-    async fn do_app_node_provision_tls_handshake(
+    async fn do_user_node_provision_tls_handshake(
         client_measurement: Measurement,
     ) -> [Result<(), String>; 2] {
         let mut rng = FastRng::from_u64(20240514);
@@ -266,14 +266,14 @@ mod test {
         let expected_dns =
             constants::node_provision_dns(&server_measurement.short());
 
-        let client_config = Arc::new(app_node_provision_client_config(
+        let client_config = Arc::new(user_node_provision_client_config(
             use_sgx,
             deploy_env,
             client_measurement,
         ));
 
         let server_config =
-            app_node_provision_server_config(&mut rng, &server_measurement)
+            user_node_provision_server_config(&mut rng, &server_measurement)
                 .map(|(config, _dns)| Arc::new(config))
                 .unwrap();
 

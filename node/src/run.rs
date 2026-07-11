@@ -732,7 +732,7 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // Start API server for app
+        // Start API server for user
         let lsp_info = args.lsp.clone();
         let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&root_seed);
         let eph_ca_cert_der = eph_ca_cert
@@ -787,19 +787,19 @@ impl UserNode {
             test_event_rx,
             shutdown: shutdown.clone(),
         });
-        let app_listener =
+        let user_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
-                .context("Failed to bind app listener")?;
-        let app_port = app_listener
+                .context("Failed to bind user listener")?;
+        let user_port = user_listener
             .local_addr()
-            .context("Couldn't get app addr")?
+            .context("Couldn't get user addr")?
             .port();
         // `[preflight_]pay_invoice` may call `max_flow`.
-        let app_layer_config = LayerConfig {
+        let user_layer_config = LayerConfig {
             handling_timeout: constants::MAX_FLOW_TIMEOUT,
             ..Default::default()
         };
-        let (app_tls_config, app_dns) =
+        let (user_tls_config, user_dns) =
             lexe_tls::shared_seed::node_run_server_config(
                 rng,
                 &eph_ca_cert,
@@ -808,19 +808,19 @@ impl UserNode {
                 revocable_clients,
             )
             .context("Failed to build owner service TLS config")?;
-        const APP_SERVER_SPAN_NAME: &str = "(app-node-run-server)";
-        let (app_server_task, _app_url) =
+        const USER_SERVER_SPAN_NAME: &str = "(user-node-run-server)";
+        let (user_server_task, _user_url) =
             lexe_api::server::spawn_server_task_with_listener(
-                app_listener,
-                server::app_router(router_state.clone()),
-                app_layer_config,
-                Some((app_tls_config, &app_dns)),
-                APP_SERVER_SPAN_NAME.into(),
-                info_span!(APP_SERVER_SPAN_NAME),
+                user_listener,
+                server::user_router(router_state.clone()),
+                user_layer_config,
+                Some((user_tls_config, &user_dns)),
+                USER_SERVER_SPAN_NAME.into(),
+                info_span!(USER_SERVER_SPAN_NAME),
                 shutdown.clone(),
             )
-            .context("Failed to spawn app node run server task")?;
-        static_tasks.push(app_server_task);
+            .context("Failed to spawn user node run server task")?;
+        static_tasks.push(user_server_task);
 
         let lexe_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
@@ -844,7 +844,7 @@ impl UserNode {
         // Prepare the ports that we'll notify the runner of once we're ready
         let run_ports = RunPorts {
             user_pk,
-            app_port,
+            user_port,
             lexe_port,
         };
 

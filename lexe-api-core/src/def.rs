@@ -136,17 +136,17 @@ use crate::{
 // TODO(max): To make clear that only upgradeable structs are being serialized,
 // these methods should take e.g. `&UserPkStruct` instead of `UserPk`.
 
-/// Defines the api that the backend exposes to the app (via the gateway).
-pub trait AppBackendApi {
-    /// POST /app/v2/signup [`ed25519::Signed<UserSignupRequestWire>`] ->
-    /// [`Empty`]
+/// Defines the api that the backend exposes to the user (via the gateway).
+pub trait UserBackendApi {
+    /// POST /user/v2/signup [`ed25519::Signed<UserSignupRequestWire>`]
+    ///                   -> [`Empty`]
     async fn signup_v2(
         &self,
         signed_req: &ed25519::Signed<&UserSignupRequestWire>,
     ) -> Result<Empty, BackendApiError>;
 
-    /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequestWireV1>`] ->
-    /// [`Empty`]
+    /// POST /user/v1/signup [`ed25519::Signed<UserSignupRequestWireV1>`]
+    ///                   -> [`Empty`]
     // TODO(phlip9): remove once all installed mobile clients above `app-v0.7.6`
     #[deprecated = "Use the `signup_v2` API instead"]
     async fn signup_v1(
@@ -155,14 +155,14 @@ pub trait AppBackendApi {
     ) -> Result<Empty, BackendApiError>;
 }
 
-/// Defines the api that the gateway directly exposes to the app.
-pub trait AppGatewayApi {
-    /// GET /app/v1/fiat_rates [`Empty`] -> [`FiatRates`]
+/// Defines the api that the gateway directly exposes to the user.
+pub trait UserGatewayApi {
+    /// GET /user/v1/fiat_rates [`Empty`] -> [`FiatRates`]
     async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;
 
     /// Query which node enclaves the user needs to provision to.
     ///
-    /// POST /app/v1/enclaves_to_provision
+    /// POST /user/v1/enclaves_to_provision
     /// [`EnclavesToProvisionRequest`] -> [`EnclavesToProvision`]
     async fn enclaves_to_provision(
         &self,
@@ -172,14 +172,14 @@ pub trait AppGatewayApi {
 
     /// Get the measurement and semver version of the latest node release.
     ///
-    /// GET /app/v1/latest_release [`Empty`] -> [`NodeEnclave`]
+    /// GET /user/v1/latest_release [`Empty`] -> [`NodeEnclave`]
     #[deprecated(note = "since app-v0.8.1: Use current_releases() instead")]
     async fn latest_release(&self) -> Result<NodeEnclave, GatewayApiError>;
 
     /// Get the measurements, enclave machine id and versions of all
     /// current node enclaves.
     ///
-    /// GET /app/v1/current_releases [`Empty`] -> [`CurrentEnclaves`]
+    /// GET /user/v1/current_releases [`Empty`] -> [`CurrentEnclaves`]
     #[deprecated(note = "since app-v0.8.8: Use current_enclaves() instead")]
     async fn current_releases(
         &self,
@@ -188,18 +188,18 @@ pub trait AppGatewayApi {
     /// Get the measurements, enclave machine id and versions of all
     /// current node enclaves.
     ///
-    /// GET /app/v1/current_enclaves [`Empty`] -> [`CurrentEnclaves`]
+    /// GET /user/v1/current_enclaves [`Empty`] -> [`CurrentEnclaves`]
     async fn current_enclaves(
         &self,
     ) -> Result<CurrentEnclaves, GatewayApiError>;
 }
 
-/// Defines the api that the node exposes to the app during provisioning.
-pub trait AppNodeProvisionApi {
+/// Defines the api that the node exposes to the user during provisioning.
+pub trait UserNodeProvisionApi {
     /// Provision a node with the given [`Measurement`]. The provisioning node's
     /// remote attestation will be checked against the given [`Measurement`].
     ///
-    /// POST /app/provision [`NodeProvisionRequest`] -> [`Empty`]
+    /// POST /user/provision [`NodeProvisionRequest`] -> [`Empty`]
     async fn provision(
         &self,
         measurement: Measurement,
@@ -207,19 +207,19 @@ pub trait AppNodeProvisionApi {
     ) -> Result<Empty, NodeApiError>;
 }
 
-/// Defines the api that the node exposes to the app during normal operation.
-pub trait AppNodeRunApi {
-    /// GET /app/v2/node_info [`Empty`] -> [`NodeInfo`]
+/// Defines the api that the node exposes to the user during normal operation.
+pub trait UserNodeRunApi {
+    /// GET /user/v2/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
-    /// GET /app/debug_info [`Empty`] -> [`DebugInfo`]
+    /// GET /user/debug_info [`Empty`] -> [`DebugInfo`]
     async fn debug_info(&self) -> Result<DebugInfo, NodeApiError>;
 
-    /// GET /app/list_channels [`Empty`] -> [`ListChannelsResponse`]
+    /// GET /user/list_channels [`Empty`] -> [`ListChannelsResponse`]
     async fn list_channels(&self)
     -> Result<ListChannelsResponse, NodeApiError>;
 
-    /// POST /app/sign_message [`SignMsgRequest`] -> [`SignMsgResponse`]
+    /// POST /user/sign_message [`SignMsgRequest`] -> [`SignMsgResponse`]
     ///
     /// Introduced in `node-v0.6.5`.
     async fn sign_message(
@@ -227,7 +227,7 @@ pub trait AppNodeRunApi {
         req: SignMsgRequest,
     ) -> Result<SignMsgResponse, NodeApiError>;
 
-    /// POST /app/verify_message [`VerifyMsgRequest`] -> [`VerifyMsgResponse`]
+    /// POST /user/verify_message [`VerifyMsgRequest`] -> [`VerifyMsgResponse`]
     ///
     /// Introduced in `node-v0.6.5`.
     async fn verify_message(
@@ -235,7 +235,8 @@ pub trait AppNodeRunApi {
         req: VerifyMsgRequest,
     ) -> Result<VerifyMsgResponse, NodeApiError>;
 
-    /// POST /app/open_channel [`OpenChannelRequest`] -> [`OpenChannelResponse`]
+    /// POST /user/open_channel [`OpenChannelRequest`]
+    ///                      -> [`OpenChannelResponse`]
     ///
     /// Opens a channel to the LSP.
     async fn open_channel(
@@ -243,18 +244,18 @@ pub trait AppNodeRunApi {
         req: OpenChannelRequest,
     ) -> Result<OpenChannelResponse, NodeApiError>;
 
-    /// POST /app/preflight_open_channel [`PreflightOpenChannelRequest`]
-    ///                                  -> [`PreflightOpenChannelResponse`]
+    /// POST /user/preflight_open_channel [`PreflightOpenChannelRequest`]
+    ///                                -> [`PreflightOpenChannelResponse`]
     ///
     /// Estimate on-chain fees required for an [`open_channel`] to the LSP.
     ///
-    /// [`open_channel`]: AppNodeRunApi::open_channel
+    /// [`open_channel`]: UserNodeRunApi::open_channel
     async fn preflight_open_channel(
         &self,
         req: PreflightOpenChannelRequest,
     ) -> Result<PreflightOpenChannelResponse, NodeApiError>;
 
-    /// POST /app/close_channel [`CloseChannelRequest`] -> [`Empty`]
+    /// POST /user/close_channel [`CloseChannelRequest`] -> [`Empty`]
     ///
     /// Closes a channel to the LSP.
     async fn close_channel(
@@ -262,32 +263,32 @@ pub trait AppNodeRunApi {
         req: CloseChannelRequest,
     ) -> Result<Empty, NodeApiError>;
 
-    /// POST /app/preflight_close_channel [`PreflightCloseChannelRequest`]
-    ///                                   -> [`PreflightCloseChannelResponse`]
+    /// POST /user/preflight_close_channel [`PreflightCloseChannelRequest`]
+    ///                                 -> [`PreflightCloseChannelResponse`]
     ///
     /// Estimate the on-chain fees required for a [`close_channel`].
     ///
-    /// [`close_channel`]: AppNodeRunApi::close_channel
+    /// [`close_channel`]: UserNodeRunApi::close_channel
     async fn preflight_close_channel(
         &self,
         req: PreflightCloseChannelRequest,
     ) -> Result<PreflightCloseChannelResponse, NodeApiError>;
 
-    /// POST /app/create_invoice [`CreateInvoiceRequest`]
-    ///                          -> [`CreateInvoiceResponse`]
+    /// POST /user/create_invoice [`CreateInvoiceRequest`]
+    ///                        -> [`CreateInvoiceResponse`]
     async fn create_invoice(
         &self,
         req: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError>;
 
-    /// POST /app/pay_invoice [`PayInvoiceRequest`] -> [`PayInvoiceResponse`]
+    /// POST /user/pay_invoice [`PayInvoiceRequest`] -> [`PayInvoiceResponse`]
     async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
     ) -> Result<PayInvoiceResponse, NodeApiError>;
 
-    /// POST /app/preflight_pay_invoice [`PreflightPayInvoiceRequest`]
-    ///                                 -> [`PreflightPayInvoiceResponse`]
+    /// POST /user/preflight_pay_invoice [`PreflightPayInvoiceRequest`]
+    ///                               -> [`PreflightPayInvoiceResponse`]
     ///
     /// This endpoint lets the app ask its node to "pre-flight" a BOLT11 invoice
     /// payment without going through with the actual payment. We verify as much
@@ -297,7 +298,8 @@ pub trait AppNodeRunApi {
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
 
-    /// POST /app/create_offer [`CreateOfferRequest`] -> [`CreateOfferResponse`]
+    /// POST /user/create_offer [`CreateOfferRequest`]
+    ///                      -> [`CreateOfferResponse`]
     ///
     /// Create a new Lightning offer (BOLT12).
     //
@@ -307,7 +309,7 @@ pub trait AppNodeRunApi {
         req: CreateOfferRequest,
     ) -> Result<CreateOfferResponse, NodeApiError>;
 
-    /// POST /app/pay_offer [`PayOfferRequest`] -> [`PayOfferResponse`]
+    /// POST /user/pay_offer [`PayOfferRequest`] -> [`PayOfferResponse`]
     ///
     /// Pay a Lightning offer (BOLT12).
     //
@@ -317,8 +319,8 @@ pub trait AppNodeRunApi {
         req: PayOfferRequest,
     ) -> Result<PayOfferResponse, NodeApiError>;
 
-    /// POST /app/preflight_pay_offer [`PreflightPayOfferRequest`]
-    ///                               -> [`PreflightPayOfferResponse`]
+    /// POST /user/preflight_pay_offer [`PreflightPayOfferRequest`]
+    ///                             -> [`PreflightPayOfferResponse`]
     ///
     /// This endpoint lets the app ask its node to "pre-flight" a Lightning
     /// offer (BOLT12) payment without going through with the actual payment. We
@@ -330,15 +332,15 @@ pub trait AppNodeRunApi {
         req: PreflightPayOfferRequest,
     ) -> Result<PreflightPayOfferResponse, NodeApiError>;
 
-    // TODO(phlip9): BOLT12: /app/request_refund
+    // TODO(phlip9): BOLT12: /user/request_refund
 
-    /// POST /app/get_address [`Empty`] -> [`GetAddressResponse`]
+    /// POST /user/get_address [`Empty`] -> [`GetAddressResponse`]
     ///
     /// Returns an address which can be used to receive funds. It is unused
     /// unless there is an incoming tx and BDK hasn't detected it yet.
     async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError>;
 
-    /// POST /app/pay_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
+    /// POST /user/pay_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
     ///
     /// Pay bitcoin onchain. If the address is valid and we have sufficient
     /// onchain funds, this will broadcast a new transaction to the bitcoin
@@ -348,8 +350,8 @@ pub trait AppNodeRunApi {
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError>;
 
-    /// POST /app/preflight_pay_onchain [`PreflightPayOnchainRequest`]
-    ///                              -> [`PreflightPayOnchainResponse`]
+    /// POST /user/preflight_pay_onchain [`PreflightPayOnchainRequest`]
+    ///                               -> [`PreflightPayOnchainResponse`]
     ///
     /// Returns estimated network fees for a potential onchain payment.
     async fn preflight_pay_onchain(
@@ -357,7 +359,7 @@ pub trait AppNodeRunApi {
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
 
-    /// GET /app/v1/payments/id [`PaymentIdStruct`] -> [`MaybeBasicPaymentV2`]
+    /// GET /user/v1/payments/id [`PaymentIdStruct`] -> [`MaybeBasicPaymentV2`]
     //
     // Added in `node-v0.8.10`.
     async fn get_payment_by_id(
@@ -390,14 +392,14 @@ pub trait AppNodeRunApi {
         req: GetNewPayments,
     ) -> Result<VecBasicPaymentV1, NodeApiError>;
 
-    /// GET /app/payments/updated [`GetUpdatedPayments`]
-    ///                        -> [`VecBasicPaymentV2`]
+    /// GET /user/payments/updated [`GetUpdatedPayments`]
+    ///                         -> [`VecBasicPaymentV2`]
     async fn get_updated_payments(
         &self,
         req: GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError>;
 
-    /// PUT /app/payments/note [`UpdatePersonalNote`] -> [`Empty`]
+    /// PUT /user/payments/note [`UpdatePersonalNote`] -> [`Empty`]
     async fn update_personal_note(
         &self,
         req: UpdatePersonalNote,
@@ -405,7 +407,7 @@ pub trait AppNodeRunApi {
 
     /// Lists all revocable clients.
     ///
-    /// GET /app/clients [`GetRevocableClients`] -> [`RevocableClients`]
+    /// GET /user/clients [`GetRevocableClients`] -> [`RevocableClients`]
     // Added in `node-0.7.9`
     async fn get_revocable_clients(
         &self,
@@ -414,8 +416,8 @@ pub trait AppNodeRunApi {
 
     /// Creates a new revocable client. Returns the newly issued client cert.
     ///
-    /// POST /app/clients [`CreateRevocableClientRequest`]
-    ///                   -> [`CreateRevocableClientResponse`]
+    /// POST /user/clients [`CreateRevocableClientRequest`]
+    ///                 -> [`CreateRevocableClientResponse`]
     // Added in `node-0.7.9`
     async fn create_revocable_client(
         &self,
@@ -424,7 +426,7 @@ pub trait AppNodeRunApi {
 
     /// Updates this revocable client. Returns the updated client.
     ///
-    /// PUT /app/clients [`UpdateClientRequest`] -> [`UpdateClientResponse`]
+    /// PUT /user/clients [`UpdateClientRequest`] -> [`UpdateClientResponse`]
     // Added in `node-0.7.9`
     async fn update_revocable_client(
         &self,
@@ -433,26 +435,26 @@ pub trait AppNodeRunApi {
 
     /// List all broadcasted transactions.
     ///
-    /// GET /app/list_broadcasted_txs [`Empty`] -> [`Vec<BroadcastedTxInfo>`]
+    /// GET /user/list_broadcasted_txs [`Empty`] -> [`Vec<BroadcastedTxInfo>`]
     async fn list_broadcasted_txs(
         &self,
     ) -> Result<serde_json::Value, NodeApiError>;
 
     /// Get the current status of Node backup.
     ///
-    /// GET /app/backup [`Empty`] -> [`BackupInfo`]
+    /// GET /user/backup [`Empty`] -> [`BackupInfo`]
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError>;
 
     /// Setup GDrive backup.
     ///
-    /// POST /app/backup/gdrive [`SetupGDrive`] -> [`Empty`]
+    /// POST /user/backup/gdrive [`SetupGDrive`] -> [`Empty`]
     async fn setup_gdrive(
         &self,
         req: SetupGDrive,
     ) -> Result<Empty, NodeApiError>;
 
-    /// GET /app/v2/human_bitcoin_address [`Empty`]
-    ///                                -> [`GetHumanBitcoinAddressResponse`]
+    /// GET /user/v2/human_bitcoin_address [`Empty`]
+    ///                                 -> [`GetHumanBitcoinAddressResponse`]
     async fn get_human_bitcoin_address(
         &self,
     ) -> Result<GetHumanBitcoinAddressResponse, NodeApiError>;
@@ -467,8 +469,8 @@ pub trait AppNodeRunApi {
         &self,
     ) -> Result<HumanBitcoinAddressV1, NodeApiError>;
 
-    /// PUT /app/v2/human_bitcoin_address [`UsernameStruct`]
-    ///                                -> [`UpsertHumanBitcoinAddressResponse`]
+    /// PUT /user/v2/human_bitcoin_address [`UsernameStruct`]
+    ///                                 -> [`UpsertHumanBitcoinAddressResponse`]
     async fn upsert_custom_human_bitcoin_address(
         &self,
         req: UsernameStruct,
@@ -487,7 +489,7 @@ pub trait AppNodeRunApi {
     /// List NWC clients for the current user.
     /// Returns client info without sensitive data (no connection strings).
     ///
-    /// GET /app/nwc_clients [`Empty`] -> [`ListNwcClientResponse`]
+    /// GET /user/nwc_clients [`Empty`] -> [`ListNwcClientResponse`]
     async fn list_nwc_clients(
         &self,
     ) -> Result<ListNwcClientResponse, NodeApiError>;
@@ -495,8 +497,8 @@ pub trait AppNodeRunApi {
     /// Create a new NWC client.
     /// Generates new keys and returns the connection string.
     ///
-    /// POST /app/nwc_clients [`CreateNwcClientRequest`]
-    ///                    -> [`CreateNwcClientResponse`]
+    /// POST /user/nwc_clients [`CreateNwcClientRequest`]
+    ///                     -> [`CreateNwcClientResponse`]
     async fn create_nwc_client(
         &self,
         req: CreateNwcClientRequest,
@@ -504,8 +506,8 @@ pub trait AppNodeRunApi {
 
     /// Update an existing NWC client's label.
     ///
-    /// PUT /app/nwc_clients [`UpdateNwcClientRequest`]
-    ///                   -> [`UpdateNwcClientResponse`]
+    /// PUT /user/nwc_clients [`UpdateNwcClientRequest`]
+    ///                    -> [`UpdateNwcClientResponse`]
     async fn update_nwc_client(
         &self,
         req: UpdateNwcClientRequest,
@@ -513,7 +515,7 @@ pub trait AppNodeRunApi {
 
     /// Delete an NWC client given its nostr client public key.
     ///
-    /// DELETE /app/nwc_clients [`NostrPkStruct`] -> [`Empty`]
+    /// DELETE /user/nwc_clients [`NostrPkStruct`] -> [`Empty`]
     async fn delete_nwc_client(
         &self,
         req: NostrPkStruct,

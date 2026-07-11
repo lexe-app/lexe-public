@@ -110,7 +110,7 @@ use crate::{
 /// TLS certs for shared [`RootSeed`]-based mTLS.
 pub mod certs;
 
-/// Server-side TLS config for `AppNodeRunApi`.
+/// Server-side TLS config for `UserNodeRunApi`.
 /// Also returns the node's DNS name.
 pub fn node_run_server_config(
     rng: &mut impl Crng,
@@ -150,8 +150,9 @@ pub fn node_run_server_config(
     Ok((Arc::new(config), dns_name.to_owned()))
 }
 
-/// Client-side TLS config for app (with root seed) -> node connections.
-pub fn app_node_run_client_config(
+/// Client-side TLS config for `UserNodeRunApi` which authenticates using
+/// the user's root seed.
+pub fn user_node_run_root_seed_client_config(
     rng: &mut impl Crng,
     deploy_env: DeployEnv,
     root_seed: &RootSeed,
@@ -168,7 +169,7 @@ pub fn app_node_run_client_config(
     let ephemeral_ca_verifier = ephemeral_ca_verifier(&eph_ca_cert_der)
         .context("Failed to build ephemeral CA verifier")?;
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
-    let server_cert_verifier = AppNodeRunVerifier {
+    let server_cert_verifier = UserNodeRunVerifier {
         ephemeral_ca_verifier,
         lexe_server_verifier,
     };
@@ -206,9 +207,9 @@ pub fn app_node_run_client_config(
     Ok(config)
 }
 
-/// Client-side TLS config for SDK (no root seed; client cert only)
-/// -> node connections.
-pub fn sdk_node_run_client_config(
+/// Client-side TLS config for `UserNodeRunApi` which authenticates with
+/// revocable client credentials.
+pub fn user_node_run_revocable_client_config(
     deploy_env: DeployEnv,
     eph_ca_cert_der: &LxCertificateDer,
     rev_client_cert_der: LxCertificateDer,
@@ -220,7 +221,7 @@ pub fn sdk_node_run_client_config(
     let ephemeral_ca_verifier = ephemeral_ca_verifier(eph_ca_cert_der)
         .context("Failed to build ephemeral CA verifier")?;
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
-    let server_cert_verifier = AppNodeRunVerifier {
+    let server_cert_verifier = UserNodeRunVerifier {
         ephemeral_ca_verifier,
         lexe_server_verifier,
     };
@@ -268,9 +269,9 @@ pub fn ephemeral_ca_verifier(
     Ok(verifier)
 }
 
-/// The client's [`ServerCertVerifier`] for `AppNodeRunApi` TLS.
+/// The client's [`ServerCertVerifier`] for `UserNodeRunApi` TLS.
 ///
-/// - When the app wishes to connect to a running node, it will make a request
+/// - When the user wishes to connect to a running node, it will make a request
 ///   to the node using a fake run DNS [`constants::NODE_RUN_DNS`]. However,
 ///   requests are first routed through lexe's reverse proxy, which parses the
 ///   fake run DNS in the SNI extension to determine whether we want to connect
@@ -278,20 +279,20 @@ pub fn ephemeral_ca_verifier(
 /// - The [`ServerName`] is given by the `NodeClient` reqwest client. This is
 ///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
 ///   node's fake run DNS. See `NodeClient`'s `run_url` for context.
-/// - The [`AppNodeRunVerifier`] thus chooses between two "sub-verifiers"
+/// - The [`UserNodeRunVerifier`] thus chooses between two "sub-verifiers"
 ///   according to the [`ServerName`] given to us by `reqwest`. We use the
 ///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the ephemeral CA verifier for the inner TLS
 ///   connection which terminates inside the user node SGX enclave.
 #[derive(Debug)]
-struct AppNodeRunVerifier {
+struct UserNodeRunVerifier {
     /// `run.lexe.app` verifier - trusts the "ephemeral issuing" CA
     ephemeral_ca_verifier: Arc<WebPkiServerVerifier>,
     /// Lexe server verifier - trusts the Lexe CA
     lexe_server_verifier: Arc<WebPkiServerVerifier>,
 }
 
-impl ServerCertVerifier for AppNodeRunVerifier {
+impl ServerCertVerifier for UserNodeRunVerifier {
     fn verify_server_cert(
         &self,
         end_entity: &CertificateDer,
@@ -532,12 +533,12 @@ mod test {
 
     /// App->Node TLS handshake should succeed when using the same seed.
     #[tokio::test]
-    async fn app_node_run_handshake_succeeds() {
+    async fn user_node_run_handshake_succeeds() {
         let client_seed = RootSeed::new(Secret::new([0x42; 32]));
         let server_seed = RootSeed::new(Secret::new([0x42; 32]));
 
         let [client_result, server_result] =
-            do_app_node_run_tls_handshake(&client_seed, &server_seed).await;
+            do_user_node_run_tls_handshake(&client_seed, &server_seed).await;
 
         client_result.unwrap();
         server_result.unwrap();
@@ -545,29 +546,32 @@ mod test {
 
     /// App->Node TLS handshake should fail when using different seeds.
     #[tokio::test]
-    async fn app_node_run_handshake_fails_with_different_seeds() {
+    async fn user_node_run_handshake_fails_with_different_seeds() {
         let client_seed = RootSeed::new(Secret::new([0x42; 32]));
         let server_seed = RootSeed::new(Secret::new([0x69; 32]));
 
         let [client_result, server_result] =
-            do_app_node_run_tls_handshake(&client_seed, &server_seed).await;
+            do_user_node_run_tls_handshake(&client_seed, &server_seed).await;
 
         assert!(client_result.unwrap_err().contains("Client didn't connect"));
         assert!(server_result.unwrap_err().contains("Server didn't accept"));
     }
 
     // Shorthand to do a App->Node Run TLS handshake.
-    async fn do_app_node_run_tls_handshake(
+    async fn do_user_node_run_tls_handshake(
         client_seed: &RootSeed,
         server_seed: &RootSeed,
     ) -> [Result<(), String>; 2] {
         let mut rng = FastRng::from_u64(20240514);
         let deploy_env = DeployEnv::Dev;
 
-        let client_config =
-            app_node_run_client_config(&mut rng, deploy_env, client_seed)
-                .map(Arc::new)
-                .unwrap();
+        let client_config = user_node_run_root_seed_client_config(
+            &mut rng,
+            deploy_env,
+            client_seed,
+        )
+        .map(Arc::new)
+        .unwrap();
 
         let (server_config, server_dns) = {
             let eph_ca_cert =
@@ -694,7 +698,7 @@ mod test {
 
         // SDK client config
         let deploy_env = DeployEnv::Dev;
-        let client_config = sdk_node_run_client_config(
+        let client_config = user_node_run_revocable_client_config(
             deploy_env,
             &eph_ca_cert_der,
             rev_client_cert_der,

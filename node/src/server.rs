@@ -1,6 +1,6 @@
 //! The API servers that the node uses to:
 //!
-//! 1) Accept commands from the app (get balance, send payment etc)
+//! 1) Accept commands from the user (get balance, send payment etc)
 //! 2) Accept housekeeping commands from Lexe (shutdown, health check, etc)
 //!
 //! Lexe cannot spend funds on behalf of the user; Lexe's endpoints are either
@@ -63,12 +63,12 @@ use crate::{
     user_cache::UserCache,
 };
 
-/// Handlers for commands that can only be initiated by the app.
-mod app;
 /// Handlers for commands that can only be initiated by the Lexe operators.
 mod lexe;
 /// Handlers for NWC (Nostr Wallet Connect) commands.
 mod nwc;
+/// Handlers for commands that can only be initiated by the user.
+mod user;
 
 pub(crate) struct RouterState {
     // --- Info --- //
@@ -115,74 +115,84 @@ pub(crate) struct RouterState {
     pub shutdown: NotifyOnce,
 }
 
-/// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
+/// Implements [`UserNodeRunApi`] - endpoints only callable by the user.
 ///
-/// [`AppNodeRunApi`]: lexe_api::def::AppNodeRunApi
-pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
+/// [`UserNodeRunApi`]: lexe_api::def::UserNodeRunApi
+pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
     let user_pk = state.user_pk;
     let runner_tx = state.runner_tx.clone();
 
+    // Current endpoints, served under both `/user/*` and legacy `/app/*`.
     #[rustfmt::skip]
-    let router = Router::new()
-        .route("/app/v2/node_info", get(app::node_info))
-        .route("/app/debug_info", get(app::debug_info))
-        .route("/app/list_channels", get(app::list_channels))
-        .route("/app/sign_message", post(app::sign_message))
-        .route("/app/verify_message", post(app::verify_message))
-        .route("/app/open_channel", post(app::open_channel))
-        .route("/app/preflight_open_channel", post(app::preflight_open_channel))
-        .route("/app/close_channel", post(app::close_channel))
-        .route("/app/preflight_close_channel", post(app::preflight_close_channel))
-        .route("/app/create_invoice", post(shared::create_invoice))
-        .route("/app/pay_invoice", post(app::pay_invoice))
-        .route("/app/preflight_pay_invoice", post(app::preflight_pay_invoice))
-        .route("/app/create_offer", post(app::create_offer))
-        .route("/app/pay_offer", post(app::pay_offer))
-        .route("/app/preflight_pay_offer", post(app::preflight_pay_offer))
-        .route("/app/pay_onchain", post(app::pay_onchain))
-        .route("/app/preflight_pay_onchain", post(app::preflight_pay_onchain))
-        .route("/app/get_address", post(app::get_address))
-        .route("/app/v1/payments/id", get(app::get_payment_by_id))
-        .route("/app/payments/indexes", post(app::get_payments_by_indexes))
-        .route("/app/payments/new", get(app::get_new_payments))
-        .route("/app/payments/updated", get(app::get_updated_payments))
-        .route("/app/payments/note", put(app::update_personal_note))
-        .route("/app/clients",
-            get(app::get_revocable_clients)
-                .post(app::create_revocable_client)
-                .put(app::update_revocable_client)
+    let user_routes = Router::new()
+        .route("/v2/node_info", get(user::node_info))
+        .route("/debug_info", get(user::debug_info))
+        .route("/list_channels", get(user::list_channels))
+        .route("/sign_message", post(user::sign_message))
+        .route("/verify_message", post(user::verify_message))
+        .route("/open_channel", post(user::open_channel))
+        .route("/preflight_open_channel", post(user::preflight_open_channel))
+        .route("/close_channel", post(user::close_channel))
+        .route("/preflight_close_channel", post(user::preflight_close_channel))
+        .route("/create_invoice", post(shared::create_invoice))
+        .route("/pay_invoice", post(user::pay_invoice))
+        .route("/preflight_pay_invoice", post(user::preflight_pay_invoice))
+        .route("/create_offer", post(user::create_offer))
+        .route("/pay_offer", post(user::pay_offer))
+        .route("/preflight_pay_offer", post(user::preflight_pay_offer))
+        .route("/pay_onchain", post(user::pay_onchain))
+        .route("/preflight_pay_onchain", post(user::preflight_pay_onchain))
+        .route("/get_address", post(user::get_address))
+        .route("/v1/payments/id", get(user::get_payment_by_id))
+        .route("/payments/updated", get(user::get_updated_payments))
+        .route("/payments/note", put(user::update_personal_note))
+        .route("/clients",
+            get(user::get_revocable_clients)
+                .post(user::create_revocable_client)
+                .put(user::update_revocable_client)
         )
-        .route("/app/list_broadcasted_txs", get(app::list_broadcasted_txs))
-        .route("/app/backup", get(app::backup_info))
-        .route("/app/backup/gdrive", post(app::setup_gdrive))
-        .route("/app/v2/human_bitcoin_address",
-            get(app::get_human_bitcoin_address)
-            .put(app::upsert_custom_human_bitcoin_address)
+        .route("/list_broadcasted_txs", get(user::list_broadcasted_txs))
+        .route("/backup", get(user::backup_info))
+        .route("/backup/gdrive", post(user::setup_gdrive))
+        .route("/v2/human_bitcoin_address",
+            get(user::get_human_bitcoin_address)
+            .put(user::upsert_custom_human_bitcoin_address)
         )
+        .route("/nwc_clients",
+            get(user::list_nwc_clients)
+                .post(user::create_nwc_client)
+                .put(user::update_nwc_client)
+                .delete(user::delete_nwc_client)
+        );
+
+    // Deprecated endpoints, served under `/app/*` only.
+    // Clients never expected these under `/user/*`.
+    #[rustfmt::skip]
+    let legacy_app_routes = Router::new()
+        // TODO(a-mpch): Deprecated since app-v0.8.9+29 and sdk-sidecar-v0.3.1.
+        // Remove once unused.
+        .route("/payments/indexes", post(user::get_payments_by_indexes))
+        .route("/payments/new", get(user::get_new_payments))
         // TODO(a-mpch): Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2.
         // Remove once unused.
-        .route("/app/payment_address",
-            get(app::get_human_bitcoin_address_v1)
-        )
+        .route("/payment_address", get(user::get_human_bitcoin_address_v1))
         // TODO(max): Deprecated since app-v0.9.11+49 and sdk-sidecar-v0.4.13.
         // Remove once unused.
-        .route("/app/human_bitcoin_address",
-            get(app::get_human_bitcoin_address_v1)
-        )
-        .route("/app/nwc_clients",
-            get(app::list_nwc_clients)
-                .post(app::create_nwc_client)
-                .put(app::update_nwc_client)
-                .delete(app::delete_nwc_client)
-        )
+        .route("/human_bitcoin_address",
+            get(user::get_human_bitcoin_address_v1)
+        );
+
+    Router::new()
+        .nest("/user", user_routes.clone())
+        // compat: Remove once all clients are node-v0.9.12 or later.
+        .nest("/app", user_routes.merge(legacy_app_routes))
         .with_state(state)
-        // Send an activity notification anytime /app is hit.
+        // Send an activity notification anytime a user endpoint is hit.
         .layer(MapRequestLayer::new(move |request| {
             let runner_cmd = UserRunnerCommand::UserActivity(user_pk);
             let _ = runner_tx.try_send(runner_cmd);
             request
-        }));
-    router
+        }))
 }
 
 /// Implements [`LexeNodeRunApi`] - only callable by the Lexe operators.

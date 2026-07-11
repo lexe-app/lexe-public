@@ -30,8 +30,8 @@ pub mod quote;
 /// Verify remote attestation endorsements directly or embedded in x509 certs.
 pub mod verifier;
 
-/// Client-side TLS config for `AppNodeProvisionApi`.
-pub fn app_node_provision_client_config(
+/// Client-side TLS config for `UserNodeProvisionApi`.
+pub fn user_node_provision_client_config(
     use_sgx: bool,
     deploy_env: DeployEnv,
     measurement: Measurement,
@@ -47,7 +47,7 @@ pub fn app_node_provision_client_config(
     };
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
 
-    let server_cert_verifier = AppNodeProvisionVerifier {
+    let server_cert_verifier = UserNodeProvisionVerifier {
         lexe_server_verifier,
         attestation_verifier,
     };
@@ -63,18 +63,19 @@ pub fn app_node_provision_client_config(
     config
 }
 
-/// The client's [`ServerCertVerifier`] for `AppNodeProvisionApi` TLS.
+/// The client's [`ServerCertVerifier`] for `UserNodeProvisionApi` TLS.
 ///
-/// - When the app wishes to provision, it will make a request to the node using
-///   a fake provision DNS given by [`constants::node_provision_dns`]. However,
-///   requests are first routed through lexe's reverse proxy, which parses the
-///   fake provision DNS in the SNI extension to determine (1) whether we want
-///   to connect to a running or provisioning node and (2) the [`MrShort`] of
-///   the measurement we wish to provision so it can route accordingly.
+/// - When the user wishes to provision, it will make a request to the node
+///   using a fake provision DNS given by [`constants::node_provision_dns`].
+///   However, requests are first routed through lexe's reverse proxy, which
+///   parses the fake provision DNS in the SNI extension to determine (1)
+///   whether we want to connect to a running or provisioning node and (2) the
+///   [`MrShort`] of the measurement we wish to provision so it can route
+///   accordingly.
 /// - The [`ServerName`] is given by the `NodeClient` reqwest client. This is
 ///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
 ///   node's fake provision DNS. See `NodeClient::provision` for details.
-/// - The [`AppNodeProvisionVerifier`] thus chooses between two "sub-verifiers"
+/// - The [`UserNodeProvisionVerifier`] thus chooses between two "sub-verifiers"
 ///   according to the [`ServerName`] given to us by `reqwest`. We use the
 ///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the remote attestation verifier for the inner
@@ -82,14 +83,14 @@ pub fn app_node_provision_client_config(
 ///
 /// [`MrShort`]: lexe_enclave::enclave::MrShort
 #[derive(Debug)]
-struct AppNodeProvisionVerifier {
+struct UserNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier
     attestation_verifier: verifier::AttestationCertVerifier,
     /// Lexe server verifier - trusts the Lexe CA
     lexe_server_verifier: Arc<WebPkiServerVerifier>,
 }
 
-impl ServerCertVerifier for AppNodeProvisionVerifier {
+impl ServerCertVerifier for UserNodeProvisionVerifier {
     fn verify_server_cert(
         &self,
         end_entity: &CertificateDer,

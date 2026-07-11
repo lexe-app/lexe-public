@@ -193,7 +193,7 @@ pub enum LexeScope {
     /// Authorizes the gateway to act as the user's proxy, in either of two
     /// ways:
     /// - a CONNECT tunnel to the user's own node, or
-    /// - a request the gateway makes to the backend (`AppBackendApi`) on the
+    /// - a request the gateway makes to the backend (`UserBackendApi`) on the
     ///   user's behalf, using its own backend credentials.
     ///
     /// This grants neither direct backend access nor forwarding of this token

@@ -771,7 +771,7 @@ mod helpers {
             async move {
                 let run_ports = RunPorts {
                     user_pk,
-                    app_port: user_pk.to_u64() as u16,
+                    user_port: user_pk.to_u64() as u16,
                     lexe_port: (user_pk.to_u64().wrapping_add(1)) as u16,
                 };
 

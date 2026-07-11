@@ -935,7 +935,7 @@ pub async fn default_fallback(
     let path = uri.path();
     LxRejection {
         kind: LxRejectionKind::BadEndpoint,
-        // e.g. "POST /app/node_info"
+        // e.g. "POST /user/v2/node_info"
         source_msg: format!("{method} {path}"),
     }
 }

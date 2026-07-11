@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Context;
-use lexe_api::def::AppNodeProvisionApi;
+use lexe_api::def::UserNodeProvisionApi;
 use lexe_common::{
     api::{provision::NodeProvisionRequest, version::NodeEnclave},
     constants,

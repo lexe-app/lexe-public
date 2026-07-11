@@ -171,12 +171,12 @@ impl<'a> CredentialsRef<'a> {
     ) -> anyhow::Result<rustls::ClientConfig> {
         match self {
             Self::RootSeed(root_seed) =>
-                shared_seed::app_node_run_client_config(
+                shared_seed::user_node_run_root_seed_client_config(
                     rng, deploy_env, root_seed,
                 )
                 .context("Failed to build RootSeed TLS client config"),
             Self::ClientCredentials(client_credentials) =>
-                shared_seed::sdk_node_run_client_config(
+                shared_seed::user_node_run_revocable_client_config(
                     deploy_env,
                     &client_credentials.eph_ca_cert_der,
                     client_credentials.rev_client_cert_der.clone(),

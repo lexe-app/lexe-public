@@ -9,7 +9,9 @@ pub type Port = u16;
 pub struct MegaPorts {
     pub mega_id: MegaId,
     pub measurement: Measurement,
-    pub app_provision_port: Port,
+    // compat: Remove alias once all nodes are node-v0.9.12+
+    #[serde(alias = "app_provision_port")]
+    pub user_provision_port: Port,
     pub lexe_mega_port: Port,
 }
 
@@ -17,7 +19,9 @@ pub struct MegaPorts {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct RunPorts {
     pub user_pk: UserPk,
-    pub app_port: Port,
+    // compat: Remove alias once all nodes are node-v0.9.12+
+    #[serde(alias = "app_port")]
+    pub user_port: Port,
     pub lexe_port: Port,
 }
 
@@ -25,14 +29,16 @@ pub struct RunPorts {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ProvisionPorts {
     pub measurement: Measurement,
-    pub app_port: Port,
+    // compat: Remove alias once all nodes are node-v0.9.12+
+    #[serde(alias = "app_port")]
+    pub user_port: Port,
 }
 
 impl From<MegaPorts> for ProvisionPorts {
     fn from(mega_ports: MegaPorts) -> Self {
         ProvisionPorts {
             measurement: mega_ports.measurement,
-            app_port: mega_ports.app_provision_port,
+            user_port: mega_ports.user_provision_port,
         }
     }
 }

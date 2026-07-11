@@ -1,7 +1,7 @@
 //! This module contains the code for the [`NodeClient`] and [`GatewayClient`]
-//! that the app uses to connect to the user node / gateway respectively, as
+//! that the user uses to connect to the user node / gateway respectively, as
 //! well as related TLS configurations and certificates for both the client side
-//! (app) and server side (node/gateway).
+//! (user) and server side (node/gateway).
 //!
 //! [`NodeClient`]: crate::client::NodeClient
 //! [`GatewayClient`]: crate::client::GatewayClient
@@ -18,8 +18,8 @@ use async_trait::async_trait;
 use lexe_api::{
     auth::{self, BearerAuthenticator},
     def::{
-        AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
-        BearerAuthBackendApi,
+        BearerAuthBackendApi, UserBackendApi, UserGatewayApi,
+        UserNodeProvisionApi, UserNodeRunApi,
     },
     error::{BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind},
     models::{
@@ -162,7 +162,7 @@ impl GatewayClient {
             gateway_url: Cow<'static, str>,
             user_agent: Cow<'static, str>,
         ) -> anyhow::Result<GatewayClient> {
-            let tls_config = lexe_ca::app_gateway_client_config(deploy_env);
+            let tls_config = lexe_ca::user_gateway_client_config(deploy_env);
             let rest = RestClient::new(user_agent, "gateway", tls_config);
             Ok(GatewayClient { rest, gateway_url })
         }
@@ -170,7 +170,7 @@ impl GatewayClient {
     }
 }
 
-impl AppBackendApi for GatewayClient {
+impl UserBackendApi for GatewayClient {
     async fn signup_v2(
         &self,
         signed_req: &ed25519::Signed<&UserSignupRequestWire>,
@@ -178,7 +178,7 @@ impl AppBackendApi for GatewayClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .builder(POST, format!("{gateway_url}/app/v2/signup"))
+            .builder(POST, format!("{gateway_url}/user/v2/signup"))
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send(req).await
@@ -189,7 +189,7 @@ impl AppBackendApi for GatewayClient {
         _signed_req: &ed25519::Signed<&UserSignupRequestWireV1>,
     ) -> Result<Empty, BackendApiError> {
         debug_assert!(false, "Use `signup_v2`");
-        Err(BackendApiError::not_found("Use `/app/v2/signup`"))
+        Err(BackendApiError::not_found("Use `/user/v2/signup`"))
     }
 }
 
@@ -202,19 +202,19 @@ impl BearerAuthBackendApi for GatewayClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .builder(POST, format!("{gateway_url}/app/bearer_auth"))
+            .builder(POST, format!("{gateway_url}/user/bearer_auth"))
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send(req).await
     }
 }
 
-impl AppGatewayApi for GatewayClient {
+impl UserGatewayApi for GatewayClient {
     async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError> {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .get(format!("{gateway_url}/app/v1/fiat_rates"), &Empty {});
+            .get(format!("{gateway_url}/user/v1/fiat_rates"), &Empty {});
         self.rest.send(req).await
     }
 
@@ -224,7 +224,7 @@ impl AppGatewayApi for GatewayClient {
         auth: BearerAuthToken,
     ) -> Result<EnclavesToProvision, GatewayApiError> {
         let gateway_url = &self.gateway_url;
-        let url = format!("{gateway_url}/app/v1/enclaves_to_provision");
+        let url = format!("{gateway_url}/user/v1/enclaves_to_provision");
         let req = self.rest.post(url, req).bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -233,7 +233,7 @@ impl AppGatewayApi for GatewayClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .get(format!("{gateway_url}/app/v1/latest_release"), &Empty {});
+            .get(format!("{gateway_url}/user/v1/latest_release"), &Empty {});
         self.rest.send(req).await
     }
 
@@ -243,7 +243,7 @@ impl AppGatewayApi for GatewayClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .get(format!("{gateway_url}/app/v1/current_releases"), &Empty {});
+            .get(format!("{gateway_url}/user/v1/current_releases"), &Empty {});
         self.rest.send(req).await
     }
 
@@ -253,7 +253,7 @@ impl AppGatewayApi for GatewayClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .get(format!("{gateway_url}/app/v1/current_enclaves"), &Empty {});
+            .get(format!("{gateway_url}/user/v1/current_enclaves"), &Empty {});
         self.rest.send(req).await
     }
 }
@@ -417,7 +417,7 @@ impl NodeClient {
         )
         .context("Invalid proxy config")?;
 
-        let tls_config = attest_client::app_node_provision_client_config(
+        let tls_config = attest_client::user_node_provision_client_config(
             self.inner.use_sgx,
             self.inner.deploy_env,
             measurement,
@@ -475,7 +475,7 @@ impl NodeClient {
     }
 }
 
-impl AppNodeProvisionApi for NodeClient {
+impl UserNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
         measurement: Measurement,
@@ -497,16 +497,16 @@ impl AppNodeProvisionApi for NodeClient {
             .map_err(NodeApiError::provision)?;
 
         let req = provision_rest
-            .post(format!("{provision_url}/app/provision"), &data);
+            .post(format!("{provision_url}/user/provision"), &data);
         provision_rest.send(req).await
     }
 }
 
-impl AppNodeRunApi for NodeClient {
+impl UserNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/v2/node_info");
+        let url = format!("{run_url}/user/v2/node_info");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
@@ -514,7 +514,7 @@ impl AppNodeRunApi for NodeClient {
     async fn debug_info(&self) -> Result<DebugInfo, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/debug_info");
+        let url = format!("{run_url}/user/debug_info");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
@@ -524,7 +524,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<ListChannelsResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/list_channels");
+        let url = format!("{run_url}/user/list_channels");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
@@ -535,7 +535,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<SignMsgResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/sign_message");
+        let url = format!("{run_url}/user/sign_message");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -546,7 +546,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<VerifyMsgResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/verify_message");
+        let url = format!("{run_url}/user/verify_message");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -557,7 +557,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<OpenChannelResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/open_channel");
+        let url = format!("{run_url}/user/open_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -568,7 +568,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PreflightOpenChannelResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/preflight_open_channel");
+        let url = format!("{run_url}/user/preflight_open_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -579,7 +579,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<Empty, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/close_channel");
+        let url = format!("{run_url}/user/close_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -590,7 +590,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PreflightCloseChannelResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/preflight_close_channel");
+        let url = format!("{run_url}/user/preflight_close_channel");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -601,7 +601,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<CreateInvoiceResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/create_invoice");
+        let url = format!("{run_url}/user/create_invoice");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -612,7 +612,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PayInvoiceResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/pay_invoice");
+        let url = format!("{run_url}/user/pay_invoice");
         // `pay_invoice` may call `max_flow` which takes a long time.
         let req = run_rest
             .post(url, &req)
@@ -626,7 +626,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/preflight_pay_invoice");
+        let url = format!("{run_url}/user/preflight_pay_invoice");
         // `preflight_pay_invoice` may call `max_flow` which takes a long time.
         let req = run_rest
             .post(url, &req)
@@ -640,7 +640,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PayOnchainResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/pay_onchain");
+        let url = format!("{run_url}/user/pay_onchain");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -651,7 +651,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/preflight_pay_onchain");
+        let url = format!("{run_url}/user/preflight_pay_onchain");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -662,7 +662,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<CreateOfferResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/create_offer");
+        let url = format!("{run_url}/user/create_offer");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -673,7 +673,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PayOfferResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/pay_offer");
+        let url = format!("{run_url}/user/pay_offer");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -684,7 +684,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<PreflightPayOfferResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/preflight_pay_offer");
+        let url = format!("{run_url}/user/preflight_pay_offer");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -692,7 +692,7 @@ impl AppNodeRunApi for NodeClient {
     async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/get_address");
+        let url = format!("{run_url}/user/get_address");
         let req = run_rest.post(url, &Empty {});
         run_rest.send(req).await
     }
@@ -717,7 +717,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<VecBasicPaymentV2, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/payments/updated");
+        let url = format!("{run_url}/user/payments/updated");
         let req = run_rest.get(url, &req);
         run_rest.send(req).await
     }
@@ -728,7 +728,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<MaybeBasicPaymentV2, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/v1/payments/id");
+        let url = format!("{run_url}/user/v1/payments/id");
         let req = run_rest.get(url, &req);
         run_rest.send(req).await
     }
@@ -739,7 +739,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<Empty, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/payments/note");
+        let url = format!("{run_url}/user/payments/note");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
     }
@@ -750,7 +750,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<RevocableClients, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/clients");
+        let url = format!("{run_url}/user/clients");
         let req = run_rest.get(url, &req);
         run_rest.send(req).await
     }
@@ -761,7 +761,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<CreateRevocableClientResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/clients");
+        let url = format!("{run_url}/user/clients");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -772,7 +772,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<UpdateClientResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/clients");
+        let url = format!("{run_url}/user/clients");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
     }
@@ -782,7 +782,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<serde_json::Value, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/list_broadcasted_txs");
+        let url = format!("{run_url}/user/list_broadcasted_txs");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
@@ -790,7 +790,7 @@ impl AppNodeRunApi for NodeClient {
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/backup");
+        let url = format!("{run_url}/user/backup");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
@@ -801,7 +801,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<Empty, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/backup/gdrive");
+        let url = format!("{run_url}/user/backup/gdrive");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -811,7 +811,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<GetHumanBitcoinAddressResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/v2/human_bitcoin_address");
+        let url = format!("{run_url}/user/v2/human_bitcoin_address");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
@@ -828,7 +828,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<UpsertHumanBitcoinAddressResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/v2/human_bitcoin_address");
+        let url = format!("{run_url}/user/v2/human_bitcoin_address");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
     }
@@ -844,7 +844,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<ListNwcClientResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/user/nwc_clients");
         let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
@@ -855,7 +855,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<CreateNwcClientResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/user/nwc_clients");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -866,7 +866,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<UpdateNwcClientResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/user/nwc_clients");
         let req = run_rest.put(url, &req);
         run_rest.send(req).await
     }
@@ -877,7 +877,7 @@ impl AppNodeRunApi for NodeClient {
     ) -> Result<Empty, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/app/nwc_clients");
+        let url = format!("{run_url}/user/nwc_clients");
         let req = run_rest.delete(url, &req);
         run_rest.send(req).await
     }

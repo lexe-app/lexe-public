@@ -11,7 +11,7 @@ use lexe::{
     util::ByteArray,
 };
 use lexe_api::{
-    def::{AppGatewayApi, AppNodeRunApi},
+    def::{UserGatewayApi, UserNodeRunApi},
     models::command::{
         GetAddressResponse, OpenChannelRequest as OpenChannelRequestRs,
         PayInvoiceRequest as PayInvoiceRequestRs,

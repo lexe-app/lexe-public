@@ -97,7 +97,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let ports = MegaPorts {
         mega_id,
         measurement,
-        app_provision_port: provision_ports.app_port,
+        user_provision_port: provision_ports.user_port,
         lexe_mega_port,
     };
     runner_client

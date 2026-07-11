@@ -2,7 +2,7 @@ use std::{path::PathBuf, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
-    def::{AppBackendApi, AppGatewayApi, AppNodeRunApi},
+    def::{UserBackendApi, UserGatewayApi, UserNodeRunApi},
     models::command::{self, GetUpdatedPayments},
     revocable_clients,
     types::{

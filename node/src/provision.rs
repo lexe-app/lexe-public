@@ -115,7 +115,7 @@ impl ProvisionInstance {
         // Set up the request context and API servers.
         let args = Arc::new(args);
         let client = gdrive::ReqwestClient::new();
-        let state = AppRouterState {
+        let state = UserRouterState {
             args: args.clone(),
             backend_api: Arc::new(backend_client),
             gdrive_client: client,
@@ -127,35 +127,35 @@ impl ProvisionInstance {
             untrusted_network: mega_ctx.untrusted_network,
         };
 
-        const APP_SERVER_SPAN_NAME: &str = "(app-node-provision-server)";
-        let app_listener =
+        const USER_SERVER_SPAN_NAME: &str = "(user-node-provision-server)";
+        let user_listener =
             TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
-                .context("Failed to bind app listener")?;
-        let app_port = app_listener
+                .context("Failed to bind user listener")?;
+        let user_port = user_listener
             .local_addr()
-            .context("Couldn't get app addr")?
+            .context("Couldn't get user addr")?
             .port();
-        let (app_tls_config, app_dns) =
-            tls_attest::app_node_provision_server_config(rng, &measurement)
+        let (user_tls_config, user_dns) =
+            tls_attest::user_node_provision_server_config(rng, &measurement)
                 .context("Failed to build TLS config for provisioning")?;
-        let (app_server_task, _app_url) =
+        let (user_server_task, _user_url) =
             server::spawn_server_task_with_listener(
-                app_listener,
-                app_router(state),
+                user_listener,
+                user_router(state),
                 LayerConfig::default(),
-                Some((Arc::new(app_tls_config), &app_dns)),
-                APP_SERVER_SPAN_NAME.into(),
-                info_span!(APP_SERVER_SPAN_NAME),
+                Some((Arc::new(user_tls_config), &user_dns)),
+                USER_SERVER_SPAN_NAME.into(),
+                info_span!(USER_SERVER_SPAN_NAME),
                 shutdown.clone(),
             )
-            .context("Failed to spawn app node provision server task")?;
+            .context("Failed to spawn user node provision server task")?;
 
-        let static_tasks = vec![app_server_task];
+        let static_tasks = vec![user_server_task];
 
         // Notify the runner that we're ready for a client connection
         let ports = ProvisionPorts {
             measurement,
-            app_port,
+            user_port,
         };
 
         Ok(Self {
@@ -194,7 +194,7 @@ impl ProvisionInstance {
 }
 
 #[derive(Clone)]
-struct AppRouterState {
+struct UserRouterState {
     args: Arc<ProvisionArgs>,
     backend_api: Arc<NodeBackendClient>,
     gdrive_client: gdrive::ReqwestClient,
@@ -206,12 +206,15 @@ struct AppRouterState {
     untrusted_network: Network,
 }
 
-/// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
+/// Implements [`UserNodeProvisionApi`] - only callable by the node owner.
 ///
-/// [`AppNodeProvisionApi`]: lexe_api::def::AppNodeProvisionApi
-fn app_router(state: AppRouterState) -> Router<()> {
+/// [`UserNodeProvisionApi`]: lexe_api::def::UserNodeProvisionApi
+fn user_router(state: UserRouterState) -> Router<()> {
+    let routes = Router::new().route("/provision", post(handlers::provision));
     Router::new()
-        .route("/app/provision", post(handlers::provision))
+        .nest("/user", routes.clone())
+        // compat: Remove once all clients are node-v0.9.12 or later.
+        .nest("/app", routes)
         .with_state(state)
 }
 
@@ -225,7 +228,7 @@ mod handlers {
     use super::*;
 
     pub(super) async fn provision(
-        State(mut state): State<AppRouterState>,
+        State(mut state): State<UserRouterState>,
         LxJson(req): LxJson<NodeProvisionRequest>,
     ) -> Result<LxJson<Empty>, NodeApiError> {
         debug!("Received provision request");
