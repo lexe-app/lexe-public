@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     convert::Infallible,
     num::NonZeroU64,
@@ -1991,9 +1992,10 @@ pub async fn create_revocable_client(
         ));
     }
 
-    // TODO(max): Might want some logic on req.scope here,
-    // e.g. the caller can't assign a more permissive scope than its own scope,
-    // and most clients shouldn't have the ability to create clients.
+    // TODO(max): Enforce attenuation here: the caller can't grant more
+    // permissions than it holds
+    // (`caller.permissions.covers(&req.permissions)`), and minting requires
+    // the `create_revocable_client` permission.
 
     let rev_client_cert = RevocableClientCert::generate_from_rng(&mut rng);
     let pubkey = *rev_client_cert.public_key();
@@ -2003,7 +2005,7 @@ pub async fn create_revocable_client(
         created_at: now,
         expires_at: req.expires_at,
         label: req.label,
-        scope: req.scope,
+        permissions: req.permissions,
         is_revoked: false,
     };
 
@@ -2011,6 +2013,12 @@ pub async fn create_revocable_client(
         .serialize_der_ca_signed(rev_ca_cert)
         .context("Failed to serialize revocable client cert")?;
     let rev_client_cert_key_der = rev_client_cert.serialize_key_der();
+    let effective_permissions = revocable_client
+        .permissions
+        .resolve()
+        .iter()
+        .map(|permission| Cow::Borrowed(permission.as_str()))
+        .collect();
 
     let updated_file = {
         let mut revocable_clients = revocable_clients.write().unwrap();
@@ -2050,6 +2058,7 @@ pub async fn create_revocable_client(
         user_pk: Some(user_pk),
         pubkey,
         created_at: now,
+        effective_permissions,
         eph_ca_cert_der: eph_ca_cert_der.0,
         rev_client_cert_der: rev_client_cert_der.0,
         rev_client_cert_key_der: rev_client_cert_key_der.0,

@@ -459,7 +459,7 @@ impl NodeClient {
             pubkey: resp.pubkey,
             created_at: resp.created_at,
             label: req.label,
-            scope: req.scope,
+            permissions: req.permissions,
             expires_at: req.expires_at,
             is_revoked: false,
         };

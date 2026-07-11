@@ -1,10 +1,9 @@
 //! Request and response types for the revocable client endpoints.
 
+use std::borrow::Cow;
+
 use lexe_common::{
-    api::{
-        auth::{BearerAuthToken, LexeScope},
-        user::UserPk,
-    },
+    api::{auth::BearerAuthToken, user::UserPk},
     time::TimestampMs,
 };
 use lexe_crypto::ed25519;
@@ -16,7 +15,9 @@ use lexe_serde::{
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use super::RevocableClient;
+use super::{
+    RevocableClient, grandfathered_permissions, scopes::ClientPermissions,
+};
 
 /// A request to list all revocable clients.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -34,8 +35,17 @@ pub struct CreateRevocableClientRequest {
     pub expires_at: Option<TimestampMs>,
     /// Optional user-provided label for this client.
     pub label: Option<String>,
-    /// The authorization scopes allowed for this client.
-    pub scope: LexeScope,
+    /// The authorization to grant this client.
+    //
+    // NOTE: This is safe to `default` to `full` because an omission can only
+    // come from a trusted app or SDK client predating `permissions`, which
+    // created clients with de-facto `full` access. An adversary cannot use this
+    // codepath to escalate, because the server enforces scope attenuation,
+    // such that only a `full` caller can trigger the default branch.
+    //
+    // compat: Remove this `default` once all clients are node-v0.9.12+.
+    #[serde(default = "grandfathered_permissions")]
+    pub permissions: ClientPermissions,
 }
 
 /// The response to [`CreateRevocableClientRequest`].
@@ -51,6 +61,14 @@ pub struct CreateRevocableClientResponse {
 
     /// When this client was created.
     pub created_at: TimestampMs,
+
+    /// Every permission the created client currently holds.
+    //
+    // Since clients aren't able to compute the scope -> permissions mapping,
+    // we compute this for them server-side so that clients have access to the
+    // effective permissions immediately upon creation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effective_permissions: Vec<Cow<'static, str>>,
 
     /// The DER-encoded ephemeral issuing CA cert that the client should trust.
     ///
@@ -99,9 +117,9 @@ pub struct UpdateClientRequest {
     #[cfg_attr(test, proptest(strategy = "arb::any_label_update()"))]
     pub label: Option<Option<String>>,
 
-    /// Set the authorization scopes allowed for this client.
+    /// Set the authorization granted to this client.
     #[serde(skip_serializing_if = "none")]
-    pub scope: Option<LexeScope>,
+    pub permissions: Option<ClientPermissions>,
 
     /// Set this to revoke or unrevoke the client. Revocation is permanent, so
     /// you cannot unrevoke a client once it is revoked.
@@ -130,10 +148,26 @@ mod test {
     use lexe_common::test_utils::roundtrip;
 
     use super::*;
+    use crate::revocable_clients::scopes::Scope;
 
     #[test]
     fn test_update_request_serde() {
         roundtrip::json_string_roundtrip_proptest::<UpdateClientRequest>();
+    }
+
+    /// Create requests from old clients predate the `permissions` key and
+    /// instead carry a legacy `scope` field. They must still deserialize
+    /// (`scope` ignored), grandfathered to `full`.
+    #[test]
+    fn create_client_request_backwards_compat() {
+        let json =
+            r#"{"expires_at": null, "label": "old client", "scope": "All"}"#;
+        let req =
+            serde_json::from_str::<CreateRevocableClientRequest>(json).unwrap();
+        assert_eq!(
+            req.permissions,
+            ClientPermissions::from_single_scope(Scope::Full)
+        );
     }
 
     #[test]

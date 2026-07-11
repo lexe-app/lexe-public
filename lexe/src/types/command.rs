@@ -6,6 +6,7 @@ use anyhow::{Context, ensure};
 use lexe_api::{
     models::command,
     revocable_clients,
+    revocable_clients::scopes::{ClientPermissions, Scope},
     types::{
         bounded_string::BoundedString,
         invoice::Invoice,
@@ -17,7 +18,6 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::auth::LexeScope,
     constants,
     ln::{amount::Amount, channel::LxChannelDetails},
     ppm::Ppm,
@@ -983,7 +983,7 @@ impl From<CreateClientRequest>
             expires_at: req.expires_at,
             label: req.label,
             // TODO(nicole): Allow configuring scope when it becomes useful
-            scope: LexeScope::All,
+            permissions: ClientPermissions::from_single_scope(Scope::Full),
         }
     }
 }
@@ -1070,7 +1070,7 @@ impl From<UpdateClientRequest>
             pubkey: req.client_pk,
             expires_at: req.new_expires_at,
             label: req.new_label,
-            scope: None,
+            permissions: None,
             is_revoked: None,
         }
     }

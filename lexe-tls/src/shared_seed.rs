@@ -557,11 +557,9 @@ mod test {
     use certs::RevocableClientCert;
     use lexe_api_core::revocable_clients::{
         RevocableClient, RevocableClients, RevocableClientsHandle,
+        scopes::{ClientPermissions, Scope},
     };
-    use lexe_common::{
-        api::auth::LexeScope, env::DeployEnv, root_seed::RootSeed,
-        time::TimestampMs,
-    };
+    use lexe_common::{env::DeployEnv, root_seed::RootSeed, time::TimestampMs};
     use lexe_crypto::rng::FastRng;
     use secrecy::Secret;
 
@@ -720,7 +718,7 @@ mod test {
             created_at: TimestampMs::from_secs_u32(420),
             expires_at: expiration,
             label: Some("hullo".to_owned()),
-            scope: LexeScope::All,
+            permissions: ClientPermissions::from_single_scope(Scope::Full),
             is_revoked,
         };
         let rev_client_certs = {

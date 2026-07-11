@@ -4,10 +4,7 @@ use std::{collections::HashMap, sync::RwLock};
 
 use anyhow::anyhow;
 use lexe_common::{
-    api::{
-        auth::LexeScope,
-        revocable_clients::{GetRevocableClientStatus, RevocableClientStatus},
-    },
+    api::revocable_clients::{GetRevocableClientStatus, RevocableClientStatus},
     time::TimestampMs,
 };
 use lexe_crypto::ed25519;
@@ -15,7 +12,10 @@ use lexe_crypto::ed25519;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use self::models::UpdateClientRequest;
+use self::{
+    models::UpdateClientRequest,
+    scopes::{ClientPermissions, Scope},
+};
 
 /// Request and response types for the revocable client endpoints.
 pub mod models;
@@ -99,12 +99,28 @@ pub struct RevocableClient {
         proptest(strategy = "arb::any_label()")
     )]
     pub label: Option<String>,
-    /// The authorization scopes allowed for this client.
-    // TODO(max): This scope is currently ineffective.
-    pub scope: LexeScope,
+    /// The authorization granted to this client.
+    //
+    // NOTE: This is safe to `default` to `full` because this field is only ever
+    // written by the user node itself, so an omission can only come from a
+    // trusted node version predating `permissions`, whose clients had de-facto
+    // `full` access.
+    //
+    // TODO(max): Remove this `default` attribute if/when we ever do a migration
+    #[serde(
+        default = "grandfathered_permissions",
+        deserialize_with = "ClientPermissions::deserialize_drop_unknown"
+    )]
+    pub permissions: ClientPermissions,
     /// Whether this client has been revoked. Revocation is permanent.
     pub is_revoked: bool,
     // TODO(phlip9): add "pausing" a client's access temporarily?
+}
+
+/// Permissions for grandfathered (pre-`permissions`) revocable clients, whose
+/// `scope` was never enforced and so granted de-facto full access.
+fn grandfathered_permissions() -> ClientPermissions {
+    ClientPermissions::from_single_scope(Scope::Full)
 }
 
 impl RevocableClient {
@@ -135,7 +151,7 @@ impl RevocableClient {
             pubkey: req_pubkey,
             expires_at: req_expires_at,
             label: req_label,
-            scope: req_scope,
+            permissions: req_permissions,
             is_revoked: req_is_revoked,
         } = req;
 
@@ -163,10 +179,10 @@ impl RevocableClient {
             out.label = maybe_label;
         }
 
-        if let Some(scope) = req_scope {
+        if let Some(permissions) = req_permissions {
             // TODO(max): Need some validation here; can't request broader
-            // scope, only some clients can call, etc.
-            out.scope = scope;
+            // permissions than the caller holds (attenuation).
+            out.permissions = permissions;
         }
 
         if let Some(revoke) = req_is_revoked {
@@ -186,14 +202,12 @@ mod arb {
 
     use proptest::{collection::vec, option, strategy::Strategy};
 
-    use super::*;
-
     pub fn any_label() -> impl Strategy<Value = Option<String>> {
         static RANGES: &[RangeInclusive<char>] =
             &['0'..='9', 'A'..='Z', 'a'..='z'];
         let any_alphanum_char = proptest::char::ranges(RANGES.into());
         option::of(
-            vec(any_alphanum_char, 0..=RevocableClient::MAX_LABEL_LEN)
+            vec(any_alphanum_char, 0..=super::RevocableClient::MAX_LABEL_LEN)
                 .prop_map(String::from_iter),
         )
     }
@@ -205,19 +219,74 @@ mod test {
 
     use super::*;
 
-    #[test]
-    fn rev_client_ser_basic() {
-        let client1 = RevocableClient {
+    fn test_client() -> RevocableClient {
+        RevocableClient {
             pubkey: *RootSeed::from_u64(1).derive_user_key_pair().public_key(),
             created_at: TimestampMs::from_secs_u32(69),
             expires_at: Some(TimestampMs::from_secs_u32(420)),
             label: Some("deez".to_string()),
-            scope: LexeScope::All,
+            permissions: ClientPermissions::from_single_scope(Scope::Full),
             is_revoked: false,
-        };
-        let client_json = serde_json::to_string_pretty(&client1).unwrap();
+        }
+    }
+
+    /// Snapshot of the current persisted format. Renaming or retyping a field
+    /// here breaks deserialization of records persisted in the past.
+    #[test]
+    fn rev_client_ser_basic() {
+        let client = test_client();
+        let client_json = serde_json::to_string_pretty(&client).unwrap();
         // println!("{client_json}");
         let client_json_snapshot = r#"{
+  "pubkey": "aa8e3e1a9bffdb073507f23474100619fdd4e392ef0ff1e89348252f287a06fc",
+  "created_at": 69000,
+  "expires_at": 420000,
+  "label": "deez",
+  "permissions": {
+    "scopes": [
+      "full"
+    ],
+    "permissions": []
+  },
+  "is_revoked": false
+}"#;
+        assert_eq!(client_json, client_json_snapshot);
+
+        let client2 =
+            serde_json::from_str::<RevocableClient>(&client_json).unwrap();
+        assert_eq!(client, client2);
+    }
+
+    /// Persisted grants may contain scope/permission ids written by a
+    /// different node version. They must still deserialize; unknown ids are
+    /// dropped.
+    #[test]
+    fn rev_client_unknown_ids_dropped() {
+        let json = r#"{
+  "pubkey": "aa8e3e1a9bffdb073507f23474100619fdd4e392ef0ff1e89348252f287a06fc",
+  "created_at": 69000,
+  "expires_at": 420000,
+  "label": "deez",
+  "permissions": {
+    "scopes": [
+      "full",
+      "scope_from_the_future"
+    ],
+    "permissions": [
+      "permission_from_the_future"
+    ]
+  },
+  "is_revoked": false
+}"#;
+        let client = serde_json::from_str::<RevocableClient>(json).unwrap();
+        assert_eq!(client, test_client());
+    }
+
+    /// Pre-`permissions` clients persisted an unenforced `scope` string and no
+    /// `permissions` key. They must still deserialize, grandfathered to `full`.
+    #[test]
+    fn rev_client_legacy_scope_compat() {
+        let legacy_json = r#"{
   "pubkey": "aa8e3e1a9bffdb073507f23474100619fdd4e392ef0ff1e89348252f287a06fc",
   "created_at": 69000,
   "expires_at": 420000,
@@ -225,10 +294,8 @@ mod test {
   "scope": "All",
   "is_revoked": false
 }"#;
-        assert_eq!(client_json, client_json_snapshot);
-
-        let client2 =
-            serde_json::from_str::<RevocableClient>(&client_json).unwrap();
-        assert_eq!(client1, client2);
+        let client =
+            serde_json::from_str::<RevocableClient>(legacy_json).unwrap();
+        assert_eq!(client, test_client());
     }
 }

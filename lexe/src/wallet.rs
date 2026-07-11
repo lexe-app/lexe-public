@@ -2114,7 +2114,7 @@ impl LexeWallet {
             is_revoked: Some(true),
             label: None,
             expires_at: None,
-            scope: None,
+            permissions: None,
         };
         let client =
             self.node_client.update_revocable_client(req).await?.client;
