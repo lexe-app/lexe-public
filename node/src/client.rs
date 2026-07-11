@@ -723,15 +723,9 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_human_bitcoin_address_v1(
         &self,
-        auth: BearerAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
-        let backend = &self.backend_url;
-        let data = Empty {};
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/human_bitcoin_address"), &data)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn upsert_custom_human_bitcoin_address(
@@ -749,15 +743,10 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn update_human_bitcoin_address_v1(
         &self,
-        req: UpsertCustomHumanBitcoinAddress,
-        auth: BearerAuthToken,
+        _req: UpsertCustomHumanBitcoinAddress,
+        _auth: BearerAuthToken,
     ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .put(format!("{backend}/node/v1/human_bitcoin_address"), &req)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated")
     }
 
     async fn claim_generated_human_bitcoin_address(
@@ -779,30 +768,11 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    #[allow(deprecated)]
-    async fn update_payment_address_v1(
-        &self,
-        req: UpsertCustomHumanBitcoinAddress,
-        auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
-        self.update_human_bitcoin_address_v1(req, auth).await
-    }
-
-    #[allow(deprecated)]
     async fn get_payment_address_v1(
         &self,
-        auth: BearerAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
-        self.get_human_bitcoin_address_v1(auth).await
-    }
-
-    #[allow(deprecated)]
-    async fn claim_generated_payment_address(
-        &self,
-        req: ClaimGeneratedHumanBitcoinAddress,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError> {
-        self.claim_generated_human_bitcoin_address(req, auth).await
+        unimplemented!("Deprecated")
     }
 
     async fn get_generated_username(

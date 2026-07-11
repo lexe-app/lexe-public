@@ -78,7 +78,7 @@ use crate::{
             GetAddressResponse, GetGeneratedUsernameResponse,
             GetHumanBitcoinAddressResponse, GetNewPayments,
             GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo, NodeInfoV1,
+            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
             PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
@@ -211,10 +211,6 @@ pub trait AppNodeProvisionApi {
 pub trait AppNodeRunApi {
     /// GET /app/v2/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
-
-    /// GET /app/node_info [`Empty`] -> [`NodeInfoV1`]
-    #[deprecated(note = "since node-v0.9.4: Use node_info instead")]
-    async fn node_info_v1(&self) -> Result<NodeInfoV1, NodeApiError>;
 
     /// GET /app/debug_info [`Empty`] -> [`DebugInfo`]
     async fn debug_info(&self) -> Result<DebugInfo, NodeApiError>;
@@ -462,7 +458,10 @@ pub trait AppNodeRunApi {
     ) -> Result<GetHumanBitcoinAddressResponse, NodeApiError>;
 
     /// GET /app/human_bitcoin_address [`Empty`] -> [`HumanBitcoinAddressV1`]
-    #[deprecated(note = "since app-v0.9.7 and sdk-sidecar-v0.4.7: \
+    //
+    // compat: app v0.9.2+36..=v0.9.10+48 use this to fetch the user's HBA.
+    // TODO(max): Remove once all apps are >= v0.9.11
+    #[deprecated(note = "since app-v0.9.11+49 and sdk-sidecar-v0.4.13: \
                          Use get_human_bitcoin_address instead")]
     async fn get_human_bitcoin_address_v1(
         &self,
@@ -475,28 +474,14 @@ pub trait AppNodeRunApi {
         req: UsernameStruct,
     ) -> Result<UpsertHumanBitcoinAddressResponse, NodeApiError>;
 
-    /// PUT /app/human_bitcoin_address [`UsernameStruct`]
-    ///                             -> [`HumanBitcoinAddressV1`]
-    #[deprecated(note = "since app-v0.9.7 and sdk-sidecar-v0.4.7: \
-                         Use upsert_custom_human_bitcoin_address instead")]
-    async fn update_human_bitcoin_address_v1(
-        &self,
-        req: UsernameStruct,
-    ) -> Result<HumanBitcoinAddressV1, NodeApiError>;
-
     /// GET /app/payment_address [`Empty`] -> [`HumanBitcoinAddressV1`]
+    //
+    // compat: app v0.8.9+28..=v0.9.1+33 use this to fetch the user's HBA.
+    // TODO(max): Remove once all apps are >= v0.9.2
     #[deprecated(note = "since app-v0.9.3 and sdk-sidecar-v0.4.2: \
                          Use get_human_bitcoin_address_v1 instead")]
     async fn get_payment_address_v1(
         &self,
-    ) -> Result<HumanBitcoinAddressV1, NodeApiError>;
-
-    /// PUT /app/payment_address [`UsernameStruct`] -> [`HumanBitcoinAddressV1`]
-    #[deprecated(note = "since app-v0.9.3 and sdk-sidecar-v0.4.2: \
-                         Use update_human_bitcoin_address_v1 instead")]
-    async fn update_payment_address_v1(
-        &self,
-        req: UsernameStruct,
     ) -> Result<HumanBitcoinAddressV1, NodeApiError>;
 
     /// List NWC clients for the current user.
@@ -996,7 +981,11 @@ pub trait NodeBackendApi {
 
     /// GET /node/v1/human_bitcoin_address [`Empty`]
     ///                                 -> [`HumanBitcoinAddressV1`]
-    #[deprecated(note = "since node-v0.9.7: \
+    //
+    // compat: nodes v0.9.3..=v0.9.10 use this to proxy app HBA fetches and
+    // in the startup HBA offer v2 migration.
+    // TODO(max): Remove once all nodes are >= v0.9.11
+    #[deprecated(note = "since node-v0.9.11: \
                          Use get_human_bitcoin_address instead")]
     async fn get_human_bitcoin_address_v1(
         &self,
@@ -1004,6 +993,9 @@ pub trait NodeBackendApi {
     ) -> Result<HumanBitcoinAddressV1, BackendApiError>;
 
     /// GET /node/v1/payment_address [`Empty`] -> [`HumanBitcoinAddressV1`]
+    //
+    // compat: nodes <= v0.9.2 use this to proxy app HBA fetches.
+    // TODO(max): Remove once all nodes are >= v0.9.3
     #[deprecated(note = "since node-v0.9.3: \
                          Use get_human_bitcoin_address_v1 instead")]
     async fn get_payment_address_v1(
@@ -1023,19 +1015,13 @@ pub trait NodeBackendApi {
 
     /// PUT /node/v1/human_bitcoin_address [`UpsertCustomHumanBitcoinAddress`]
     ///                                 -> [`HumanBitcoinAddressV1`]
-    #[deprecated(note = "since node-v0.9.7: \
+    //
+    // compat: nodes v0.9.5..=v0.9.10 use this in the startup HBA offer v2
+    // migration; v0.9.11 still uses it to proxy legacy app HBA edits.
+    // TODO(max): Remove once all nodes are >= v0.9.12
+    #[deprecated(note = "since node-v0.9.12: \
                          Use upsert_custom_human_bitcoin_address instead")]
     async fn update_human_bitcoin_address_v1(
-        &self,
-        req: UpsertCustomHumanBitcoinAddress,
-        auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddressV1, BackendApiError>;
-
-    /// PUT /node/v1/payment_address [`UpsertCustomHumanBitcoinAddress`]
-    ///                           -> [`HumanBitcoinAddressV1`]
-    #[deprecated(note = "since node-v0.9.3: \
-                         Use update_human_bitcoin_address_v1 instead")]
-    async fn update_payment_address_v1(
         &self,
         req: UpsertCustomHumanBitcoinAddress,
         auth: BearerAuthToken,
@@ -1053,6 +1039,9 @@ pub trait NodeBackendApi {
 
     /// POST /node/v1/claim_generated_payment_address
     ///   [`ClaimGeneratedHumanBitcoinAddress`] -> [`Empty`]
+    //
+    // compat: nodes v0.9.0..=v0.9.2 use this to claim generated HBAs.
+    // TODO(max): Remove once all nodes are >= v0.9.3
     #[deprecated(note = "since node-v0.9.3: \
                          Use claim_generated_human_bitcoin_address instead")]
     async fn claim_generated_payment_address(

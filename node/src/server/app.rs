@@ -11,7 +11,7 @@ use lexe_api::{
             BackupInfo, CloseChannelRequest, CreateOfferRequest,
             CreateOfferResponse, DebugInfo, GDriveStatus, GetAddressResponse,
             GetHumanBitcoinAddressResponse, GetNewPayments, GetUpdatedPayments,
-            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo, NodeInfoV1,
+            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
             PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
@@ -71,24 +71,6 @@ pub(super) async fn node_info(
 ) -> LxJson<NodeInfo> {
     let channels = state.channel_manager.list_channels();
     LxJson(lexe_ln::command::node_info(
-        state.version.clone(),
-        state.measurement,
-        state.user_pk,
-        &state.channel_manager,
-        &state.peer_manager,
-        &state.wallet,
-        &state.chain_monitor,
-        &channels,
-        state.lsp_info.lsp_fees(),
-    ))
-}
-
-pub(super) async fn node_info_v1(
-    State(state): State<Arc<RouterState>>,
-) -> LxJson<NodeInfoV1> {
-    let channels = state.channel_manager.list_channels();
-    #[allow(deprecated)]
-    LxJson(lexe_ln::command::node_info_v1(
         state.version.clone(),
         state.measurement,
         state.user_pk,
@@ -704,21 +686,6 @@ pub(super) async fn upsert_custom_human_bitcoin_address(
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(resp))
-}
-
-pub(super) async fn update_human_bitcoin_address_v1(
-    State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<UsernameStruct>,
-) -> Result<LxJson<HumanBitcoinAddressV1>, NodeApiError> {
-    let (token, req) = build_upsert_custom_hba_request(&state, req).await?;
-    #[allow(deprecated)]
-    let hba = state
-        .persister
-        .backend_api()
-        .update_human_bitcoin_address_v1(req, token)
-        .await
-        .map_err(NodeApiError::command)?;
-    Ok(LxJson(hba))
 }
 
 async fn build_upsert_custom_hba_request(

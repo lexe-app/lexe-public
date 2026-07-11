@@ -37,46 +37,7 @@ use crate::types::{
 
 // --- General --- //
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NodeInfoV1 {
-    pub version: semver::Version,
-    pub measurement: Measurement,
-    pub user_pk: UserPk,
-    pub node_pk: NodePk,
-    pub num_peers: usize,
-
-    pub num_usable_channels: usize,
-    pub num_channels: usize,
-    /// Our lightning channel balance
-    pub lightning_balance: LightningBalance,
-
-    /// Our on-chain wallet balance
-    pub onchain_balance: OnchainBalance,
-    /// The total # of UTXOs tracked by BDK.
-    pub num_utxos: usize,
-    /// The # of confirmed UTXOs tracked by BDK.
-    // TODO(max): LSP metrics should warn if this drops too low, as opening
-    // zeroconf with unconfirmed inputs risks double spending of channel funds.
-    pub num_confirmed_utxos: usize,
-    /// The # of unconfirmed UTXOs tracked by BDK.
-    pub num_unconfirmed_utxos: usize,
-
-    /// The channel manager's best synced block height.
-    pub best_block_height: u32,
-
-    /// The number of pending channel monitor updates.
-    /// If this isn't 0, it's likely that at least one channel is paused.
-    // TODO(max): This field is in the wrong place and should be removed.
-    // To my knowledge it is only used by integration tests (in a hacky way) to
-    // wait for a node to reach a quiescent state. The polling should be done
-    // inside the server handler rather than by the client in the test harness.
-    pub pending_monitor_updates: usize,
-}
-
 /// Information about the Lexe node.
-//
-// This is a cleaned-up version of [`NodeInfoV1`] with diagnostic fields
-// moved to [`DebugInfo`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeInfo {
     pub version: semver::Version,
@@ -95,23 +56,6 @@ pub struct NodeInfo {
 
     /// The channel manager's best synced block height.
     pub best_block_height: u32,
-}
-
-impl From<NodeInfoV1> for NodeInfo {
-    fn from(v1: NodeInfoV1) -> Self {
-        Self {
-            version: v1.version,
-            measurement: v1.measurement,
-            user_pk: v1.user_pk,
-            node_pk: v1.node_pk,
-            num_peers: v1.num_peers,
-            num_usable_channels: v1.num_usable_channels,
-            num_channels: v1.num_channels,
-            lightning_balance: v1.lightning_balance,
-            onchain_balance: v1.onchain_balance,
-            best_block_height: v1.best_block_height,
-        }
-    }
 }
 
 /// Diagnostic information for debugging purposes.

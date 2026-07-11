@@ -17,9 +17,9 @@ use lexe_api::{
     models::command::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
-        NodeInfo, NodeInfoV1, OpenChannelResponse, PayInvoiceRequest,
-        PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainRequest, PayOnchainResponse, PreflightCloseChannelRequest,
+        NodeInfo, OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
+        PayOnchainResponse, PreflightCloseChannelRequest,
         PreflightCloseChannelResponse, PreflightOpenChannelRequest,
         PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
         PreflightPayInvoiceResponse, PreflightPayOfferRequest,
@@ -192,65 +192,6 @@ where
         lightning_balance,
         onchain_balance,
         best_block_height,
-    }
-}
-
-/// Wrapper around [`node_info`] that adds the deprecated debug fields.
-#[deprecated(note = "since node-v0.9.4: Use node_info instead")]
-#[instrument(skip_all, name = "(node-info-v1)")]
-pub fn node_info_v1<CM, PM, PS, RMH>(
-    version: semver::Version,
-    measurement: Measurement,
-    user_pk: UserPk,
-    channel_manager: &CM,
-    peer_manager: &PM,
-    wallet: &OnchainWallet,
-    chain_monitor: &LexeChainMonitorType<PS>,
-    channels: &[ChannelDetails],
-    lsp_fees: LspFees,
-) -> NodeInfoV1
-where
-    CM: LexeChannelManager<PS>,
-    PM: LexePeerManager<CM, PS, RMH>,
-    PS: LexePersister,
-    RMH: Deref,
-    RMH::Target: RoutingMessageHandler,
-{
-    let info = node_info(
-        version,
-        measurement,
-        user_pk,
-        channel_manager,
-        peer_manager,
-        wallet,
-        chain_monitor,
-        channels,
-        lsp_fees,
-    );
-
-    // Debug fields
-    let utxo_counts = wallet.get_utxo_counts();
-    let pending_monitor_updates = chain_monitor
-        .list_pending_monitor_updates()
-        .values()
-        .map(|v| v.len())
-        .sum();
-
-    NodeInfoV1 {
-        version: info.version,
-        measurement: info.measurement,
-        user_pk: info.user_pk,
-        node_pk: info.node_pk,
-        num_peers: info.num_peers,
-        num_usable_channels: info.num_usable_channels,
-        num_channels: info.num_channels,
-        lightning_balance: info.lightning_balance,
-        onchain_balance: info.onchain_balance,
-        best_block_height: info.best_block_height,
-        num_utxos: utxo_counts.total,
-        num_confirmed_utxos: utxo_counts.confirmed,
-        num_unconfirmed_utxos: utxo_counts.unconfirmed,
-        pending_monitor_updates,
     }
 }
 

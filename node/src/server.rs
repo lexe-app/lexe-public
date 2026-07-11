@@ -125,8 +125,6 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
     #[rustfmt::skip]
     let router = Router::new()
         .route("/app/v2/node_info", get(app::node_info))
-        // TODO(max): Deprecated since node-v0.9.4. Remove once unused.
-        .route("/app/node_info", get(app::node_info_v1))
         .route("/app/debug_info", get(app::debug_info))
         .route("/app/list_channels", get(app::list_channels))
         .route("/app/sign_message", post(app::sign_message))
@@ -165,13 +163,11 @@ pub(crate) fn app_router(state: Arc<RouterState>) -> Router<()> {
         // Remove once unused.
         .route("/app/payment_address",
             get(app::get_human_bitcoin_address_v1)
-            .put(app::update_human_bitcoin_address_v1)
         )
-        // TODO(max): Deprecated since app-v0.9.7 and sdk-sidecar-v0.4.7.
+        // TODO(max): Deprecated since app-v0.9.11+49 and sdk-sidecar-v0.4.13.
         // Remove once unused.
         .route("/app/human_bitcoin_address",
             get(app::get_human_bitcoin_address_v1)
-            .put(app::update_human_bitcoin_address_v1)
         )
         .route("/app/nwc_clients",
             get(app::list_nwc_clients)
