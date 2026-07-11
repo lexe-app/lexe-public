@@ -72,25 +72,24 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, ClaimGeneratedHumanBitcoinAddress, CloseChannelRequest,
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
-            GetAddressResponse, GetGeneratedUsernameResponse,
-            GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            BackupInfo, ClaimGeneratedHumanBitcoinAddress,
+            CloseChannelPreflightRequest, CloseChannelPreflightResponse,
+            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
+            CreateOfferRequest, CreateOfferResponse, DebugInfo,
+            EnclavesToProvisionRequest, GetAddressResponse,
+            GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
+            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
             HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
+            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+            OpenChannelRequest, OpenChannelResponse,
+            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
+            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
             PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct,
-            PreflightCloseChannelRequest, PreflightCloseChannelResponse,
-            PreflightOpenChannelRequest, PreflightOpenChannelResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOfferRequest, PreflightPayOfferResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
-            ResyncRequest, SetupGDrive, UpdatePersonalNote,
-            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
-            VecPaymentId,
+            PaymentCreatedIndexes, PaymentIdStruct, ResyncRequest, SetupGDrive,
+            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
+            UpsertHumanBitcoinAddressResponse, VecPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -244,16 +243,16 @@ pub trait UserNodeRunApi {
         req: OpenChannelRequest,
     ) -> Result<OpenChannelResponse, NodeApiError>;
 
-    /// POST /user/preflight_open_channel [`PreflightOpenChannelRequest`]
-    ///                                -> [`PreflightOpenChannelResponse`]
+    /// POST /user/open_channel_preflight [`OpenChannelPreflightRequest`]
+    ///                                -> [`OpenChannelPreflightResponse`]
     ///
     /// Estimate on-chain fees required for an [`open_channel`] to the LSP.
     ///
     /// [`open_channel`]: UserNodeRunApi::open_channel
-    async fn preflight_open_channel(
+    async fn open_channel_preflight(
         &self,
-        req: PreflightOpenChannelRequest,
-    ) -> Result<PreflightOpenChannelResponse, NodeApiError>;
+        req: OpenChannelPreflightRequest,
+    ) -> Result<OpenChannelPreflightResponse, NodeApiError>;
 
     /// POST /user/close_channel [`CloseChannelRequest`] -> [`Empty`]
     ///
@@ -263,16 +262,16 @@ pub trait UserNodeRunApi {
         req: CloseChannelRequest,
     ) -> Result<Empty, NodeApiError>;
 
-    /// POST /user/preflight_close_channel [`PreflightCloseChannelRequest`]
-    ///                                 -> [`PreflightCloseChannelResponse`]
+    /// POST /user/close_channel_preflight [`CloseChannelPreflightRequest`]
+    ///                                 -> [`CloseChannelPreflightResponse`]
     ///
     /// Estimate the on-chain fees required for a [`close_channel`].
     ///
     /// [`close_channel`]: UserNodeRunApi::close_channel
-    async fn preflight_close_channel(
+    async fn close_channel_preflight(
         &self,
-        req: PreflightCloseChannelRequest,
-    ) -> Result<PreflightCloseChannelResponse, NodeApiError>;
+        req: CloseChannelPreflightRequest,
+    ) -> Result<CloseChannelPreflightResponse, NodeApiError>;
 
     /// POST /user/create_invoice [`CreateInvoiceRequest`]
     ///                        -> [`CreateInvoiceResponse`]
@@ -287,16 +286,16 @@ pub trait UserNodeRunApi {
         req: PayInvoiceRequest,
     ) -> Result<PayInvoiceResponse, NodeApiError>;
 
-    /// POST /user/preflight_pay_invoice [`PreflightPayInvoiceRequest`]
-    ///                               -> [`PreflightPayInvoiceResponse`]
+    /// POST /user/pay_invoice_preflight [`PayInvoicePreflightRequest`]
+    ///                               -> [`PayInvoicePreflightResponse`]
     ///
     /// This endpoint lets the app ask its node to "pre-flight" a BOLT11 invoice
     /// payment without going through with the actual payment. We verify as much
     /// as we can, find a route, and get the fee estimates.
-    async fn preflight_pay_invoice(
+    async fn pay_invoice_preflight(
         &self,
-        req: PreflightPayInvoiceRequest,
-    ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
+        req: PayInvoicePreflightRequest,
+    ) -> Result<PayInvoicePreflightResponse, NodeApiError>;
 
     /// POST /user/create_offer [`CreateOfferRequest`]
     ///                      -> [`CreateOfferResponse`]
@@ -319,18 +318,18 @@ pub trait UserNodeRunApi {
         req: PayOfferRequest,
     ) -> Result<PayOfferResponse, NodeApiError>;
 
-    /// POST /user/preflight_pay_offer [`PreflightPayOfferRequest`]
-    ///                             -> [`PreflightPayOfferResponse`]
+    /// POST /user/pay_offer_preflight [`PayOfferPreflightRequest`]
+    ///                             -> [`PayOfferPreflightResponse`]
     ///
     /// This endpoint lets the app ask its node to "pre-flight" a Lightning
     /// offer (BOLT12) payment without going through with the actual payment. We
     /// verify as much as we can, find a route, and get the fee estimates.
     //
     // Added in `node-v0.7.4`.
-    async fn preflight_pay_offer(
+    async fn pay_offer_preflight(
         &self,
-        req: PreflightPayOfferRequest,
-    ) -> Result<PreflightPayOfferResponse, NodeApiError>;
+        req: PayOfferPreflightRequest,
+    ) -> Result<PayOfferPreflightResponse, NodeApiError>;
 
     // TODO(phlip9): BOLT12: /user/request_refund
 
@@ -350,14 +349,14 @@ pub trait UserNodeRunApi {
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError>;
 
-    /// POST /user/preflight_pay_onchain [`PreflightPayOnchainRequest`]
-    ///                               -> [`PreflightPayOnchainResponse`]
+    /// POST /user/pay_onchain_preflight [`PayOnchainPreflightRequest`]
+    ///                               -> [`PayOnchainPreflightResponse`]
     ///
     /// Returns estimated network fees for a potential onchain payment.
-    async fn preflight_pay_onchain(
+    async fn pay_onchain_preflight(
         &self,
-        req: PreflightPayOnchainRequest,
-    ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
+        req: PayOnchainPreflightRequest,
+    ) -> Result<PayOnchainPreflightResponse, NodeApiError>;
 
     /// GET /user/v1/payments/id [`PaymentIdStruct`] -> [`MaybeBasicPaymentV2`]
     //

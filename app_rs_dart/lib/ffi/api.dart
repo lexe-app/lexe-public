@@ -51,6 +51,14 @@ sealed class Balance with _$Balance {
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
+sealed class CloseChannelPreflightResponse
+    with _$CloseChannelPreflightResponse {
+  const factory CloseChannelPreflightResponse({required int feeEstimateSats}) =
+      _CloseChannelPreflightResponse;
+}
+
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
 sealed class CloseChannelRequest with _$CloseChannelRequest {
   const factory CloseChannelRequest({required String channelId}) =
       _CloseChannelRequest;
@@ -164,6 +172,20 @@ sealed class NodeInfo with _$NodeInfo {
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
+sealed class OpenChannelPreflightRequest with _$OpenChannelPreflightRequest {
+  const factory OpenChannelPreflightRequest({required int valueSats}) =
+      _OpenChannelPreflightRequest;
+}
+
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class OpenChannelPreflightResponse with _$OpenChannelPreflightResponse {
+  const factory OpenChannelPreflightResponse({required int feeEstimateSats}) =
+      _OpenChannelPreflightResponse;
+}
+
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
 sealed class OpenChannelRequest with _$OpenChannelRequest {
   const factory OpenChannelRequest({
     required UserChannelId userChannelId,
@@ -176,6 +198,29 @@ sealed class OpenChannelRequest with _$OpenChannelRequest {
 sealed class OpenChannelResponse with _$OpenChannelResponse {
   const factory OpenChannelResponse({required String channelId}) =
       _OpenChannelResponse;
+}
+
+/// See `lexe_api::command::PayInvoicePreflightRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PayInvoicePreflightRequest with _$PayInvoicePreflightRequest {
+  const factory PayInvoicePreflightRequest({
+    required String invoice,
+    int? fallbackAmountSats,
+    required PaymentKind kind,
+  }) = _PayInvoicePreflightRequest;
+}
+
+/// See `lexe_api::command::PayInvoicePreflightResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PayInvoicePreflightResponse with _$PayInvoicePreflightResponse {
+  const factory PayInvoicePreflightResponse({
+    required int amountSats,
+    required int feesSats,
+  }) = _PayInvoicePreflightResponse;
 }
 
 /// Mirrors the `lexe_api::command::PayInvoiceRequest` type.
@@ -202,6 +247,29 @@ sealed class PayInvoiceResponse with _$PayInvoiceResponse {
       _PayInvoiceResponse;
 }
 
+/// See `lexe_api::command::PayOfferPreflightRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PayOfferPreflightRequest with _$PayOfferPreflightRequest {
+  const factory PayOfferPreflightRequest({
+    required ClientPaymentId cid,
+    required String offer,
+    required int amountSats,
+  }) = _PayOfferPreflightRequest;
+}
+
+/// See `lexe_api::command::PayOfferPreflightResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PayOfferPreflightResponse with _$PayOfferPreflightResponse {
+  const factory PayOfferPreflightResponse({
+    required int amountSats,
+    required int feesSats,
+  }) = _PayOfferPreflightResponse;
+}
+
 /// See `lexe_api::command::PayOfferResponse`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -224,6 +292,29 @@ sealed class PayOfferRequest with _$PayOfferRequest {
 sealed class PayOfferResponse with _$PayOfferResponse {
   const factory PayOfferResponse({required PaymentCreatedIndex index}) =
       _PayOfferResponse;
+}
+
+/// See `lexe_api::command::PayOnchainPreflightRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PayOnchainPreflightRequest with _$PayOnchainPreflightRequest {
+  const factory PayOnchainPreflightRequest({
+    required String address,
+    required int amountSats,
+  }) = _PayOnchainPreflightRequest;
+}
+
+/// See `lexe_api::command::PayOnchainPreflightResponse`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PayOnchainPreflightResponse with _$PayOnchainPreflightResponse {
+  const factory PayOnchainPreflightResponse({
+    FeeEstimate? high,
+    required FeeEstimate normal,
+    required FeeEstimate background,
+  }) = _PayOnchainPreflightResponse;
 }
 
 /// See `lexe_api::command::PayOnchainRequest`.
@@ -249,97 +340,6 @@ sealed class PayOnchainResponse with _$PayOnchainResponse {
     required PaymentCreatedIndex index,
     required String txid,
   }) = _PayOnchainResponse;
-}
-
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightCloseChannelResponse
-    with _$PreflightCloseChannelResponse {
-  const factory PreflightCloseChannelResponse({required int feeEstimateSats}) =
-      _PreflightCloseChannelResponse;
-}
-
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightOpenChannelRequest with _$PreflightOpenChannelRequest {
-  const factory PreflightOpenChannelRequest({required int valueSats}) =
-      _PreflightOpenChannelRequest;
-}
-
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightOpenChannelResponse with _$PreflightOpenChannelResponse {
-  const factory PreflightOpenChannelResponse({required int feeEstimateSats}) =
-      _PreflightOpenChannelResponse;
-}
-
-/// See `lexe_api::command::PreflightPayInvoiceRequest`.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightPayInvoiceRequest with _$PreflightPayInvoiceRequest {
-  const factory PreflightPayInvoiceRequest({
-    required String invoice,
-    int? fallbackAmountSats,
-    required PaymentKind kind,
-  }) = _PreflightPayInvoiceRequest;
-}
-
-/// See `lexe_api::command::PreflightPayInvoiceResponse`.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightPayInvoiceResponse with _$PreflightPayInvoiceResponse {
-  const factory PreflightPayInvoiceResponse({
-    required int amountSats,
-    required int feesSats,
-  }) = _PreflightPayInvoiceResponse;
-}
-
-/// See `lexe_api::command::PreflightPayOfferRequest`.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightPayOfferRequest with _$PreflightPayOfferRequest {
-  const factory PreflightPayOfferRequest({
-    required ClientPaymentId cid,
-    required String offer,
-    required int amountSats,
-  }) = _PreflightPayOfferRequest;
-}
-
-/// See `lexe_api::command::PreflightPayOfferResponse`.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightPayOfferResponse with _$PreflightPayOfferResponse {
-  const factory PreflightPayOfferResponse({
-    required int amountSats,
-    required int feesSats,
-  }) = _PreflightPayOfferResponse;
-}
-
-/// See `lexe_api::command::PreflightPayOnchainRequest`.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightPayOnchainRequest with _$PreflightPayOnchainRequest {
-  const factory PreflightPayOnchainRequest({
-    required String address,
-    required int amountSats,
-  }) = _PreflightPayOnchainRequest;
-}
-
-/// See `lexe_api::command::PreflightPayOnchainResponse`.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
-  const factory PreflightPayOnchainResponse({
-    FeeEstimate? high,
-    required FeeEstimate normal,
-    required FeeEstimate background,
-  }) = _PreflightPayOnchainResponse;
 }
 
 /// See `lexe_common::api::revocable_clients::models::UpdateClientRequest`.

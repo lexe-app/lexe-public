@@ -13,11 +13,12 @@ use lexe::{
 use lexe_api::{
     def::{UserGatewayApi, UserNodeRunApi},
     models::command::{
-        GetAddressResponse, OpenChannelRequest as OpenChannelRequestRs,
+        GetAddressResponse,
+        OpenChannelPreflightRequest as OpenChannelPreflightRequestRs,
+        OpenChannelRequest as OpenChannelRequestRs,
         PayInvoiceRequest as PayInvoiceRequestRs,
         PayOfferRequest as PayOfferRequestRs,
         PayOnchainRequest as PayOnchainRequestRs,
-        PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
         UpdatePersonalNote as UpdatePersonalNoteRs,
     },
     revocable_clients::models::{
@@ -39,19 +40,18 @@ use tracing::instrument;
 
 use crate::ffi::{
     api::{
-        ActiveHumanBitcoinAddress, CloseChannelRequest, CreateClientRequest,
-        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, FiatRates,
-        ListChannelsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-        PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, UpdateClientRequest, UpdatePersonalNote,
-        WithdrawLnurlRequest,
+        ActiveHumanBitcoinAddress, CloseChannelPreflightRequest,
+        CloseChannelPreflightResponse, CloseChannelRequest,
+        CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
+        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+        FiatRates, ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
+        OpenChannelPreflightResponse, OpenChannelRequest, OpenChannelResponse,
+        PayInvoicePreflightRequest, PayInvoicePreflightResponse,
+        PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
+        PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+        PayOnchainRequest, PayOnchainResponse, UpdateClientRequest,
+        UpdatePersonalNote, WithdrawLnurlRequest,
     },
     app_data::AppDataDb,
     settings::SettingsDb,
@@ -224,17 +224,17 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    #[instrument(skip_all, name = "(preflight-open-channel)")]
-    pub async fn preflight_open_channel(
+    #[instrument(skip_all, name = "(open-channel-preflight)")]
+    pub async fn open_channel_preflight(
         &self,
-        req: PreflightOpenChannelRequest,
-    ) -> anyhow::Result<PreflightOpenChannelResponse> {
-        let req = PreflightOpenChannelRequestRs::try_from(req)?;
+        req: OpenChannelPreflightRequest,
+    ) -> anyhow::Result<OpenChannelPreflightResponse> {
+        let req = OpenChannelPreflightRequestRs::try_from(req)?;
         self.inner
             .node_client()?
-            .preflight_open_channel(req)
+            .open_channel_preflight(req)
             .await
-            .map(PreflightOpenChannelResponse::from)
+            .map(OpenChannelPreflightResponse::from)
             .map_err(anyhow::Error::new)
     }
 
@@ -251,16 +251,16 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    #[instrument(skip_all, name = "(preflight-close-channel)")]
-    pub async fn preflight_close_channel(
+    #[instrument(skip_all, name = "(close-channel-preflight)")]
+    pub async fn close_channel_preflight(
         &self,
-        req: PreflightCloseChannelRequest,
-    ) -> anyhow::Result<PreflightCloseChannelResponse> {
+        req: CloseChannelPreflightRequest,
+    ) -> anyhow::Result<CloseChannelPreflightResponse> {
         self.inner
             .node_client()?
-            .preflight_close_channel(req.try_into()?)
+            .close_channel_preflight(req.try_into()?)
             .await
-            .map(PreflightCloseChannelResponse::from)
+            .map(CloseChannelPreflightResponse::from)
             .map_err(anyhow::Error::new)
     }
 
@@ -289,16 +289,16 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    #[instrument(skip_all, name = "(preflight-pay-onchain)")]
-    pub async fn preflight_pay_onchain(
+    #[instrument(skip_all, name = "(pay-onchain-preflight)")]
+    pub async fn pay_onchain_preflight(
         &self,
-        req: PreflightPayOnchainRequest,
-    ) -> anyhow::Result<PreflightPayOnchainResponse> {
+        req: PayOnchainPreflightRequest,
+    ) -> anyhow::Result<PayOnchainPreflightResponse> {
         self.inner
             .node_client()?
-            .preflight_pay_onchain(req.try_into()?)
+            .pay_onchain_preflight(req.try_into()?)
             .await
-            .map(PreflightPayOnchainResponse::from)
+            .map(PayOnchainPreflightResponse::from)
             .map_err(anyhow::Error::new)
     }
 
@@ -327,16 +327,16 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    #[instrument(skip_all, name = "(preflight-pay-invoice)")]
-    pub async fn preflight_pay_invoice(
+    #[instrument(skip_all, name = "(pay-invoice-preflight)")]
+    pub async fn pay_invoice_preflight(
         &self,
-        req: PreflightPayInvoiceRequest,
-    ) -> anyhow::Result<PreflightPayInvoiceResponse> {
+        req: PayInvoicePreflightRequest,
+    ) -> anyhow::Result<PayInvoicePreflightResponse> {
         self.inner
             .node_client()?
-            .preflight_pay_invoice(req.try_into()?)
+            .pay_invoice_preflight(req.try_into()?)
             .await
-            .map(PreflightPayInvoiceResponse::from)
+            .map(PayInvoicePreflightResponse::from)
             .map_err(anyhow::Error::new)
     }
 
@@ -368,16 +368,16 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    #[instrument(skip_all, name = "(preflight-pay-offer)")]
-    pub async fn preflight_pay_offer(
+    #[instrument(skip_all, name = "(pay-offer-preflight)")]
+    pub async fn pay_offer_preflight(
         &self,
-        req: PreflightPayOfferRequest,
-    ) -> anyhow::Result<PreflightPayOfferResponse> {
+        req: PayOfferPreflightRequest,
+    ) -> anyhow::Result<PayOfferPreflightResponse> {
         self.inner
             .node_client()?
-            .preflight_pay_offer(req.try_into()?)
+            .pay_offer_preflight(req.try_into()?)
             .await
-            .map(PreflightPayOfferResponse::from)
+            .map(PayOfferPreflightResponse::from)
             .map_err(anyhow::Error::new)
     }
 

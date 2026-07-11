@@ -5,7 +5,7 @@ import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show CloseChannelRequest, FiatRate, PreflightCloseChannelResponse;
+    show CloseChannelPreflightResponse, CloseChannelRequest, FiatRate;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -103,11 +103,11 @@ class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
 
     // Preflight the channel close to get fee estimates
     final req = CloseChannelRequest(channelId: channel.channelId);
-    final Result<PreflightCloseChannelResponse, FfiError>? res =
+    final Result<CloseChannelPreflightResponse, FfiError>? res =
         await showModalAsyncFlow(
           context: this.context,
           future: Result.tryFfiAsync(
-            () => this.widget.app.preflightCloseChannel(req: req),
+            () => this.widget.app.closeChannelPreflight(req: req),
           ),
           barrierDismissible: true,
           errorBuilder: (context, err) => AlertDialog(
@@ -126,7 +126,7 @@ class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
     info("CloseChannelChoosePage: preflight: $res");
     if (!this.mounted || res == null) return;
 
-    final PreflightCloseChannelResponse preflight;
+    final CloseChannelPreflightResponse preflight;
     switch (res) {
       case Ok(:final ok):
         preflight = ok;
@@ -242,7 +242,7 @@ class CloseChannelConfirmPage extends StatefulWidget {
   final int channelOurBalanceSats;
 
   /// The preflight/fee estimate for closing this channel.
-  final PreflightCloseChannelResponse preflight;
+  final CloseChannelPreflightResponse preflight;
 
   @override
   State<CloseChannelConfirmPage> createState() =>

@@ -8,20 +8,21 @@ use lexe_api::{
     error::NodeApiError,
     models::{
         command::{
-            BackupInfo, CloseChannelRequest, CreateOfferRequest,
-            CreateOfferResponse, DebugInfo, GDriveStatus, GetAddressResponse,
-            GetHumanBitcoinAddressResponse, GetNewPayments, GetUpdatedPayments,
-            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
-            PaymentIdStruct, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-            PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, SetupGDrive, UpdatePersonalNote,
-            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
+            BackupInfo, CloseChannelPreflightRequest,
+            CloseChannelPreflightResponse, CloseChannelRequest,
+            CreateOfferRequest, CreateOfferResponse, DebugInfo, GDriveStatus,
+            GetAddressResponse, GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetUpdatedPayments, HumanBitcoinAddressV1, ListChannelsResponse,
+            NodeInfo, OpenChannelPreflightRequest,
+            OpenChannelPreflightResponse, OpenChannelRequest,
+            OpenChannelResponse, PayInvoicePreflightRequest,
+            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferPreflightRequest, PayOfferPreflightResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentCreatedIndexes, PaymentIdStruct, SetupGDrive,
+            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
+            UpsertHumanBitcoinAddressResponse,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
@@ -198,13 +199,13 @@ pub(super) async fn open_channel(
     .map_err(NodeApiError::command)
 }
 
-pub(super) async fn preflight_open_channel(
+pub(super) async fn open_channel_preflight(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<PreflightOpenChannelRequest>,
-) -> Result<LxJson<PreflightOpenChannelResponse>, NodeApiError> {
+    LxJson(req): LxJson<OpenChannelPreflightRequest>,
+) -> Result<LxJson<OpenChannelPreflightResponse>, NodeApiError> {
     ensure_channel_value_in_range(&req.value)?;
 
-    lexe_ln::command::preflight_open_channel(&state.wallet, req)
+    lexe_ln::command::open_channel_preflight(&state.wallet, req)
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)
@@ -281,11 +282,11 @@ pub(super) async fn close_channel(
     .map_err(NodeApiError::command)
 }
 
-pub(super) async fn preflight_close_channel(
+pub(super) async fn close_channel_preflight(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<PreflightCloseChannelRequest>,
-) -> Result<LxJson<PreflightCloseChannelResponse>, NodeApiError> {
-    lexe_ln::command::preflight_close_channel(
+    LxJson(req): LxJson<CloseChannelPreflightRequest>,
+) -> Result<LxJson<CloseChannelPreflightResponse>, NodeApiError> {
+    lexe_ln::command::close_channel_preflight(
         &state.channel_manager,
         &state.chain_monitor,
         &state.fee_estimates,
@@ -314,11 +315,11 @@ pub(super) async fn pay_invoice(
     .map_err(NodeApiError::command)
 }
 
-pub(super) async fn preflight_pay_invoice(
+pub(super) async fn pay_invoice_preflight(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<PreflightPayInvoiceRequest>,
-) -> Result<LxJson<PreflightPayInvoiceResponse>, NodeApiError> {
-    lexe_ln::command::preflight_pay_invoice(
+    LxJson(req): LxJson<PayInvoicePreflightRequest>,
+) -> Result<LxJson<PayInvoicePreflightResponse>, NodeApiError> {
+    lexe_ln::command::pay_invoice_preflight(
         req,
         &state.router,
         &state.channel_manager,
@@ -361,11 +362,11 @@ pub(super) async fn pay_offer(
     .map_err(NodeApiError::command)
 }
 
-pub(super) async fn preflight_pay_offer(
+pub(super) async fn pay_offer_preflight(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<PreflightPayOfferRequest>,
-) -> Result<LxJson<PreflightPayOfferResponse>, NodeApiError> {
-    lexe_ln::command::preflight_pay_offer(
+    LxJson(req): LxJson<PayOfferPreflightRequest>,
+) -> Result<LxJson<PayOfferPreflightResponse>, NodeApiError> {
+    lexe_ln::command::pay_offer_preflight(
         req,
         &state.router,
         &state.channel_manager,
@@ -397,11 +398,11 @@ pub(super) async fn pay_onchain(
     Ok(LxJson(response))
 }
 
-pub(super) async fn preflight_pay_onchain(
+pub(super) async fn pay_onchain_preflight(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<PreflightPayOnchainRequest>,
-) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
-    lexe_ln::command::preflight_pay_onchain(req, &state.wallet, state.network)
+    LxJson(req): LxJson<PayOnchainPreflightRequest>,
+) -> Result<LxJson<PayOnchainPreflightResponse>, NodeApiError> {
+    lexe_ln::command::pay_onchain_preflight(req, &state.wallet, state.network)
         .map(LxJson)
         .map_err(NodeApiError::command)
 }

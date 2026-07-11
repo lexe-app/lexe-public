@@ -24,21 +24,21 @@ use lexe_api::{
     error::{BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind},
     models::{
         command::{
-            BackupInfo, CloseChannelRequest, CreateInvoiceRequest,
-            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            DebugInfo, EnclavesToProvisionRequest, GetAddressResponse,
-            GetHumanBitcoinAddressResponse, GetNewPayments, GetUpdatedPayments,
-            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayInvoiceResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
-            PaymentIdStruct, PreflightCloseChannelRequest,
-            PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-            PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-            PreflightPayOfferResponse, PreflightPayOnchainRequest,
-            PreflightPayOnchainResponse, SetupGDrive, UpdatePersonalNote,
-            UpsertHumanBitcoinAddressResponse,
+            BackupInfo, CloseChannelPreflightRequest,
+            CloseChannelPreflightResponse, CloseChannelRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
+            GetAddressResponse, GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetUpdatedPayments, HumanBitcoinAddressV1, ListChannelsResponse,
+            NodeInfo, OpenChannelPreflightRequest,
+            OpenChannelPreflightResponse, OpenChannelRequest,
+            OpenChannelResponse, PayInvoicePreflightRequest,
+            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferPreflightRequest, PayOfferPreflightResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentCreatedIndexes, PaymentIdStruct, SetupGDrive,
+            UpdatePersonalNote, UpsertHumanBitcoinAddressResponse,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -562,13 +562,13 @@ impl UserNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn preflight_open_channel(
+    async fn open_channel_preflight(
         &self,
-        data: PreflightOpenChannelRequest,
-    ) -> Result<PreflightOpenChannelResponse, NodeApiError> {
+        data: OpenChannelPreflightRequest,
+    ) -> Result<OpenChannelPreflightResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/user/preflight_open_channel");
+        let url = format!("{run_url}/user/open_channel_preflight");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -584,13 +584,13 @@ impl UserNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn preflight_close_channel(
+    async fn close_channel_preflight(
         &self,
-        data: PreflightCloseChannelRequest,
-    ) -> Result<PreflightCloseChannelResponse, NodeApiError> {
+        data: CloseChannelPreflightRequest,
+    ) -> Result<CloseChannelPreflightResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/user/preflight_close_channel");
+        let url = format!("{run_url}/user/close_channel_preflight");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }
@@ -620,14 +620,14 @@ impl UserNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn preflight_pay_invoice(
+    async fn pay_invoice_preflight(
         &self,
-        req: PreflightPayInvoiceRequest,
-    ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
+        req: PayInvoicePreflightRequest,
+    ) -> Result<PayInvoicePreflightResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/user/preflight_pay_invoice");
-        // `preflight_pay_invoice` may call `max_flow` which takes a long time.
+        let url = format!("{run_url}/user/pay_invoice_preflight");
+        // `pay_invoice_preflight` may call `max_flow` which takes a long time.
         let req = run_rest
             .post(url, &req)
             .timeout(constants::MAX_FLOW_TIMEOUT + Duration::from_secs(2));
@@ -645,13 +645,13 @@ impl UserNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn preflight_pay_onchain(
+    async fn pay_onchain_preflight(
         &self,
-        req: PreflightPayOnchainRequest,
-    ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
+        req: PayOnchainPreflightRequest,
+    ) -> Result<PayOnchainPreflightResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/user/preflight_pay_onchain");
+        let url = format!("{run_url}/user/pay_onchain_preflight");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
@@ -678,13 +678,13 @@ impl UserNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn preflight_pay_offer(
+    async fn pay_offer_preflight(
         &self,
-        req: PreflightPayOfferRequest,
-    ) -> Result<PreflightPayOfferResponse, NodeApiError> {
+        req: PayOfferPreflightRequest,
+    ) -> Result<PayOfferPreflightResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/user/preflight_pay_offer");
+        let url = format!("{run_url}/user/pay_offer_preflight");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }

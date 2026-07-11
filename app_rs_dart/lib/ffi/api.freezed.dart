@@ -141,6 +141,66 @@ String toString() {
 
 
 /// @nodoc
+mixin _$CloseChannelPreflightResponse {
+
+ int get feeEstimateSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CloseChannelPreflightResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'CloseChannelPreflightResponse(feeEstimateSats: $feeEstimateSats)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _CloseChannelPreflightResponse implements CloseChannelPreflightResponse {
+  const _CloseChannelPreflightResponse({required this.feeEstimateSats});
+  
+
+@override final  int feeEstimateSats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CloseChannelPreflightResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'CloseChannelPreflightResponse(feeEstimateSats: $feeEstimateSats)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$CloseChannelRequest {
 
  String get channelId;
@@ -887,6 +947,126 @@ String toString() {
 
 
 /// @nodoc
+mixin _$OpenChannelPreflightRequest {
+
+ int get valueSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OpenChannelPreflightRequest&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,valueSats);
+
+@override
+String toString() {
+  return 'OpenChannelPreflightRequest(valueSats: $valueSats)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _OpenChannelPreflightRequest implements OpenChannelPreflightRequest {
+  const _OpenChannelPreflightRequest({required this.valueSats});
+  
+
+@override final  int valueSats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OpenChannelPreflightRequest&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,valueSats);
+
+@override
+String toString() {
+  return 'OpenChannelPreflightRequest(valueSats: $valueSats)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$OpenChannelPreflightResponse {
+
+ int get feeEstimateSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OpenChannelPreflightResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'OpenChannelPreflightResponse(feeEstimateSats: $feeEstimateSats)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _OpenChannelPreflightResponse implements OpenChannelPreflightResponse {
+  const _OpenChannelPreflightResponse({required this.feeEstimateSats});
+  
+
+@override final  int feeEstimateSats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OpenChannelPreflightResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,feeEstimateSats);
+
+@override
+String toString() {
+  return 'OpenChannelPreflightResponse(feeEstimateSats: $feeEstimateSats)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$OpenChannelRequest {
 
  UserChannelId get userChannelId; int get valueSats;
@@ -999,6 +1179,129 @@ int get hashCode => Object.hash(runtimeType,channelId);
 @override
 String toString() {
   return 'OpenChannelResponse(channelId: $channelId)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$PayInvoicePreflightRequest {
+
+ String get invoice; int? get fallbackAmountSats; PaymentKind get kind;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoicePreflightRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.kind, kind) || other.kind == kind));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,kind);
+
+@override
+String toString() {
+  return 'PayInvoicePreflightRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, kind: $kind)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _PayInvoicePreflightRequest implements PayInvoicePreflightRequest {
+  const _PayInvoicePreflightRequest({required this.invoice, this.fallbackAmountSats, required this.kind});
+  
+
+@override final  String invoice;
+@override final  int? fallbackAmountSats;
+@override final  PaymentKind kind;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoicePreflightRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.kind, kind) || other.kind == kind));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,kind);
+
+@override
+String toString() {
+  return 'PayInvoicePreflightRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, kind: $kind)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$PayInvoicePreflightResponse {
+
+ int get amountSats; int get feesSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoicePreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PayInvoicePreflightResponse(amountSats: $amountSats, feesSats: $feesSats)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _PayInvoicePreflightResponse implements PayInvoicePreflightResponse {
+  const _PayInvoicePreflightResponse({required this.amountSats, required this.feesSats});
+  
+
+@override final  int amountSats;
+@override final  int feesSats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoicePreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PayInvoicePreflightResponse(amountSats: $amountSats, feesSats: $feesSats)';
 }
 
 
@@ -1123,6 +1426,129 @@ int get hashCode => Object.hash(runtimeType,index);
 @override
 String toString() {
   return 'PayInvoiceResponse(index: $index)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$PayOfferPreflightRequest {
+
+ ClientPaymentId get cid; String get offer; int get amountSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferPreflightRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats);
+
+@override
+String toString() {
+  return 'PayOfferPreflightRequest(cid: $cid, offer: $offer, amountSats: $amountSats)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _PayOfferPreflightRequest implements PayOfferPreflightRequest {
+  const _PayOfferPreflightRequest({required this.cid, required this.offer, required this.amountSats});
+  
+
+@override final  ClientPaymentId cid;
+@override final  String offer;
+@override final  int amountSats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferPreflightRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,cid,offer,amountSats);
+
+@override
+String toString() {
+  return 'PayOfferPreflightRequest(cid: $cid, offer: $offer, amountSats: $amountSats)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$PayOfferPreflightResponse {
+
+ int get amountSats; int get feesSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferPreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PayOfferPreflightResponse(amountSats: $amountSats, feesSats: $feesSats)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _PayOfferPreflightResponse implements PayOfferPreflightResponse {
+  const _PayOfferPreflightResponse({required this.amountSats, required this.feesSats});
+  
+
+@override final  int amountSats;
+@override final  int feesSats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferPreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+
+@override
+String toString() {
+  return 'PayOfferPreflightResponse(amountSats: $amountSats, feesSats: $feesSats)';
 }
 
 
@@ -1257,6 +1683,129 @@ String toString() {
 
 
 /// @nodoc
+mixin _$PayOnchainPreflightRequest {
+
+ String get address; int get amountSats;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainPreflightRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,address,amountSats);
+
+@override
+String toString() {
+  return 'PayOnchainPreflightRequest(address: $address, amountSats: $amountSats)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _PayOnchainPreflightRequest implements PayOnchainPreflightRequest {
+  const _PayOnchainPreflightRequest({required this.address, required this.amountSats});
+  
+
+@override final  String address;
+@override final  int amountSats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainPreflightRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,address,amountSats);
+
+@override
+String toString() {
+  return 'PayOnchainPreflightRequest(address: $address, amountSats: $amountSats)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$PayOnchainPreflightResponse {
+
+ FeeEstimate? get high; FeeEstimate get normal; FeeEstimate get background;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainPreflightResponse&&(identical(other.high, high) || other.high == high)&&(identical(other.normal, normal) || other.normal == normal)&&(identical(other.background, background) || other.background == background));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,high,normal,background);
+
+@override
+String toString() {
+  return 'PayOnchainPreflightResponse(high: $high, normal: $normal, background: $background)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _PayOnchainPreflightResponse implements PayOnchainPreflightResponse {
+  const _PayOnchainPreflightResponse({this.high, required this.normal, required this.background});
+  
+
+@override final  FeeEstimate? high;
+@override final  FeeEstimate normal;
+@override final  FeeEstimate background;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainPreflightResponse&&(identical(other.high, high) || other.high == high)&&(identical(other.normal, normal) || other.normal == normal)&&(identical(other.background, background) || other.background == background));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,high,normal,background);
+
+@override
+String toString() {
+  return 'PayOnchainPreflightResponse(high: $high, normal: $normal, background: $background)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$PayOnchainRequest {
 
  ClientPaymentId get cid; String get address; int get amountSats; ConfirmationPriority get priority; String? get personalNote;
@@ -1373,555 +1922,6 @@ int get hashCode => Object.hash(runtimeType,index,txid);
 @override
 String toString() {
   return 'PayOnchainResponse(index: $index, txid: $txid)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightCloseChannelResponse {
-
- int get feeEstimateSats;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightCloseChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,feeEstimateSats);
-
-@override
-String toString() {
-  return 'PreflightCloseChannelResponse(feeEstimateSats: $feeEstimateSats)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightCloseChannelResponse implements PreflightCloseChannelResponse {
-  const _PreflightCloseChannelResponse({required this.feeEstimateSats});
-  
-
-@override final  int feeEstimateSats;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightCloseChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,feeEstimateSats);
-
-@override
-String toString() {
-  return 'PreflightCloseChannelResponse(feeEstimateSats: $feeEstimateSats)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightOpenChannelRequest {
-
- int get valueSats;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightOpenChannelRequest&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,valueSats);
-
-@override
-String toString() {
-  return 'PreflightOpenChannelRequest(valueSats: $valueSats)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightOpenChannelRequest implements PreflightOpenChannelRequest {
-  const _PreflightOpenChannelRequest({required this.valueSats});
-  
-
-@override final  int valueSats;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightOpenChannelRequest&&(identical(other.valueSats, valueSats) || other.valueSats == valueSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,valueSats);
-
-@override
-String toString() {
-  return 'PreflightOpenChannelRequest(valueSats: $valueSats)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightOpenChannelResponse {
-
- int get feeEstimateSats;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightOpenChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,feeEstimateSats);
-
-@override
-String toString() {
-  return 'PreflightOpenChannelResponse(feeEstimateSats: $feeEstimateSats)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightOpenChannelResponse implements PreflightOpenChannelResponse {
-  const _PreflightOpenChannelResponse({required this.feeEstimateSats});
-  
-
-@override final  int feeEstimateSats;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightOpenChannelResponse&&(identical(other.feeEstimateSats, feeEstimateSats) || other.feeEstimateSats == feeEstimateSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,feeEstimateSats);
-
-@override
-String toString() {
-  return 'PreflightOpenChannelResponse(feeEstimateSats: $feeEstimateSats)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightPayInvoiceRequest {
-
- String get invoice; int? get fallbackAmountSats; PaymentKind get kind;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.kind, kind) || other.kind == kind));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,kind);
-
-@override
-String toString() {
-  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, kind: $kind)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightPayInvoiceRequest implements PreflightPayInvoiceRequest {
-  const _PreflightPayInvoiceRequest({required this.invoice, this.fallbackAmountSats, required this.kind});
-  
-
-@override final  String invoice;
-@override final  int? fallbackAmountSats;
-@override final  PaymentKind kind;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.kind, kind) || other.kind == kind));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,kind);
-
-@override
-String toString() {
-  return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, kind: $kind)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightPayInvoiceResponse {
-
- int get amountSats; int get feesSats;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayInvoiceResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
-
-@override
-String toString() {
-  return 'PreflightPayInvoiceResponse(amountSats: $amountSats, feesSats: $feesSats)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightPayInvoiceResponse implements PreflightPayInvoiceResponse {
-  const _PreflightPayInvoiceResponse({required this.amountSats, required this.feesSats});
-  
-
-@override final  int amountSats;
-@override final  int feesSats;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayInvoiceResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
-
-@override
-String toString() {
-  return 'PreflightPayInvoiceResponse(amountSats: $amountSats, feesSats: $feesSats)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightPayOfferRequest {
-
- ClientPaymentId get cid; String get offer; int get amountSats;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,cid,offer,amountSats);
-
-@override
-String toString() {
-  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightPayOfferRequest implements PreflightPayOfferRequest {
-  const _PreflightPayOfferRequest({required this.cid, required this.offer, required this.amountSats});
-  
-
-@override final  ClientPaymentId cid;
-@override final  String offer;
-@override final  int amountSats;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOfferRequest&&(identical(other.cid, cid) || other.cid == cid)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,cid,offer,amountSats);
-
-@override
-String toString() {
-  return 'PreflightPayOfferRequest(cid: $cid, offer: $offer, amountSats: $amountSats)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightPayOfferResponse {
-
- int get amountSats; int get feesSats;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOfferResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
-
-@override
-String toString() {
-  return 'PreflightPayOfferResponse(amountSats: $amountSats, feesSats: $feesSats)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightPayOfferResponse implements PreflightPayOfferResponse {
-  const _PreflightPayOfferResponse({required this.amountSats, required this.feesSats});
-  
-
-@override final  int amountSats;
-@override final  int feesSats;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOfferResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
-
-@override
-String toString() {
-  return 'PreflightPayOfferResponse(amountSats: $amountSats, feesSats: $feesSats)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightPayOnchainRequest {
-
- String get address; int get amountSats;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOnchainRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,address,amountSats);
-
-@override
-String toString() {
-  return 'PreflightPayOnchainRequest(address: $address, amountSats: $amountSats)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightPayOnchainRequest implements PreflightPayOnchainRequest {
-  const _PreflightPayOnchainRequest({required this.address, required this.amountSats});
-  
-
-@override final  String address;
-@override final  int amountSats;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOnchainRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,address,amountSats);
-
-@override
-String toString() {
-  return 'PreflightPayOnchainRequest(address: $address, amountSats: $amountSats)';
-}
-
-
-}
-
-
-
-
-/// @nodoc
-mixin _$PreflightPayOnchainResponse {
-
- FeeEstimate? get high; FeeEstimate get normal; FeeEstimate get background;
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreflightPayOnchainResponse&&(identical(other.high, high) || other.high == high)&&(identical(other.normal, normal) || other.normal == normal)&&(identical(other.background, background) || other.background == background));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,high,normal,background);
-
-@override
-String toString() {
-  return 'PreflightPayOnchainResponse(high: $high, normal: $normal, background: $background)';
-}
-
-
-}
-
-
-
-
-
-/// @nodoc
-
-
-class _PreflightPayOnchainResponse implements PreflightPayOnchainResponse {
-  const _PreflightPayOnchainResponse({this.high, required this.normal, required this.background});
-  
-
-@override final  FeeEstimate? high;
-@override final  FeeEstimate normal;
-@override final  FeeEstimate background;
-
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PreflightPayOnchainResponse&&(identical(other.high, high) || other.high == high)&&(identical(other.normal, normal) || other.normal == normal)&&(identical(other.background, background) || other.background == background));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,high,normal,background);
-
-@override
-String toString() {
-  return 'PreflightPayOnchainResponse(high: $high, normal: $normal, background: $background)';
 }
 
 

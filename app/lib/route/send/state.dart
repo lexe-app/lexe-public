@@ -6,15 +6,15 @@ import 'package:app_rs_dart/ffi/api.dart'
     show
         Balance,
         FiatRate,
+        PayInvoicePreflightRequest,
+        PayInvoicePreflightResponse,
         PayInvoiceRequest,
+        PayOfferPreflightRequest,
+        PayOfferPreflightResponse,
         PayOfferRequest,
-        PayOnchainRequest,
-        PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest,
-        PreflightPayOfferResponse,
-        PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse;
+        PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse,
+        PayOnchainRequest;
 import 'package:app_rs_dart/ffi/app.dart';
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -118,13 +118,13 @@ class SendState_NeedAmount implements SendState {
       case PaymentMethod_Onchain(:final field0):
         final onchain = field0;
 
-        final req = PreflightPayOnchainRequest(
+        final req = PayOnchainPreflightRequest(
           address: onchain.address,
           amountSats: amountSats,
         );
 
         final result = await Result.tryFfiAsync(
-          () => this.app.preflightPayOnchain(req: req),
+          () => this.app.payOnchainPreflight(req: req),
         );
 
         switch (result) {
@@ -142,14 +142,14 @@ class SendState_NeedAmount implements SendState {
       case PaymentMethod_Invoice(:final field0):
         final invoice = field0;
 
-        final req = PreflightPayInvoiceRequest(
+        final req = PayInvoicePreflightRequest(
           invoice: invoice.string,
           fallbackAmountSats: (invoice.amountSats == null) ? amountSats : null,
           kind: const PaymentKind_Invoice(),
         );
 
         final result = await Result.tryFfiAsync(
-          () => this.app.preflightPayInvoice(req: req),
+          () => this.app.payInvoicePreflight(req: req),
         );
 
         switch (result) {
@@ -166,14 +166,14 @@ class SendState_NeedAmount implements SendState {
       // BOLT12 Offer
       case PaymentMethod_Offer(:final field0):
         final offer = field0;
-        final req = PreflightPayOfferRequest(
+        final req = PayOfferPreflightRequest(
           cid: this.cid,
           offer: offer.string,
           amountSats: amountSats,
         );
 
         final result = await Result.tryFfiAsync(
-          () => this.app.preflightPayOffer(req: req),
+          () => this.app.payOfferPreflight(req: req),
         );
 
         switch (result) {
@@ -208,7 +208,7 @@ class SendState_NeedAmount implements SendState {
         }
 
         final lightningAddress = lnurlPay.lightningAddress;
-        final req = PreflightPayInvoiceRequest(
+        final req = PayInvoicePreflightRequest(
           invoice: invoice.string,
           fallbackAmountSats: (invoice.amountSats == null) ? amountSats : null,
           kind: (lightningAddress != null)
@@ -217,7 +217,7 @@ class SendState_NeedAmount implements SendState {
         );
 
         final preflightResult = await Result.tryFfiAsync(
-          () => this.app.preflightPayInvoice(req: req),
+          () => this.app.payInvoicePreflight(req: req),
         );
 
         switch (preflightResult) {
@@ -458,7 +458,7 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
 
   final Invoice invoice;
   final int amountSats;
-  final PreflightPayInvoiceResponse preflight;
+  final PayInvoicePreflightResponse preflight;
 
   /// Message sent to the recipient.
   final String? message;
@@ -484,7 +484,7 @@ class PreflightedPayment_Onchain implements PreflightedPayment {
 
   final Onchain onchain;
   final int amountSats;
-  final PreflightPayOnchainResponse preflight;
+  final PayOnchainPreflightResponse preflight;
 
   @override
   PaymentKind kind() => const PaymentKind_Onchain();
@@ -501,7 +501,7 @@ class PreflightedPayment_Offer implements PreflightedPayment {
 
   final Offer offer;
   final int amountSats;
-  final PreflightPayOfferResponse preflight;
+  final PayOfferPreflightResponse preflight;
   final String? message;
 
   /// The Human Bitcoin Address (BIP353, `₿user@domain`) this offer was resolved

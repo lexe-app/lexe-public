@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1997441455;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1354940382;
 
 // Section: executor
 
@@ -167,6 +167,22 @@ fn wire__crate__ffi__app__app_handle_close_channel_impl(
 let api_req = <crate::ffi::api::CloseChannelRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::app::AppHandle::close_channel(&api_that, api_req).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__ffi__app__app_handle_close_channel_preflight_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_close_channel_preflight", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
+let api_req = <crate::ffi::api::CloseChannelRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::close_channel_preflight(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -503,6 +519,22 @@ let api_req = <crate::ffi::api::OpenChannelRequest>::sse_decode(&mut deserialize
                     })().await)
                 } })
 }
+fn wire__crate__ffi__app__app_handle_open_channel_preflight_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_open_channel_preflight", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
+let api_req = <crate::ffi::api::OpenChannelPreflightRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::open_channel_preflight(&api_that, api_req).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
 fn wire__crate__ffi__app__app_handle_pay_invoice_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -516,6 +548,22 @@ fn wire__crate__ffi__app__app_handle_pay_invoice_impl(
 let api_req = <crate::ffi::api::PayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::app::AppHandle::pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__ffi__app__app_handle_pay_invoice_preflight_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_pay_invoice_preflight", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
+let api_req = <crate::ffi::api::PayInvoicePreflightRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::pay_invoice_preflight(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -535,6 +583,22 @@ let api_req = <crate::ffi::api::PayOfferRequest>::sse_decode(&mut deserializer);
                     })().await)
                 } })
 }
+fn wire__crate__ffi__app__app_handle_pay_offer_preflight_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_pay_offer_preflight", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
+let api_req = <crate::ffi::api::PayOfferPreflightRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::pay_offer_preflight(&api_that, api_req).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
 fn wire__crate__ffi__app__app_handle_pay_onchain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -551,83 +615,19 @@ let api_req = <crate::ffi::api::PayOnchainRequest>::sse_decode(&mut deserializer
                     })().await)
                 } })
 }
-fn wire__crate__ffi__app__app_handle_preflight_close_channel_impl(
+fn wire__crate__ffi__app__app_handle_pay_onchain_preflight_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_preflight_close_channel", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_pay_onchain_preflight", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::api::CloseChannelRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_req = <crate::ffi::api::PayOnchainPreflightRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::preflight_close_channel(&api_that, api_req).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__ffi__app__app_handle_preflight_open_channel_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_preflight_open_channel", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::api::PreflightOpenChannelRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
-                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::preflight_open_channel(&api_that, api_req).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_preflight_pay_invoice", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::api::PreflightPayInvoiceRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
-                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::preflight_pay_invoice(&api_that, api_req).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__ffi__app__app_handle_preflight_pay_offer_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_preflight_pay_offer", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::api::PreflightPayOfferRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
-                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::preflight_pay_offer(&api_that, api_req).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_preflight_pay_onchain", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::api::PreflightPayOnchainRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
-                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::preflight_pay_onchain(&api_that, api_req).await?;   Ok(output_ok)
+                         let output_ok = crate::ffi::app::AppHandle::pay_onchain_preflight(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -1608,6 +1608,18 @@ impl SseDecode for crate::ffi::types::ClientPaymentId {
     }
 }
 
+impl SseDecode for crate::ffi::api::CloseChannelPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_feeEstimateSats = <u64>::sse_decode(deserializer);
+        return crate::ffi::api::CloseChannelPreflightResponse {
+            fee_estimate_sats: var_feeEstimateSats,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::api::CloseChannelRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2294,6 +2306,30 @@ impl SseDecode for crate::ffi::types::Onchain {
     }
 }
 
+impl SseDecode for crate::ffi::api::OpenChannelPreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_valueSats = <u64>::sse_decode(deserializer);
+        return crate::ffi::api::OpenChannelPreflightRequest {
+            value_sats: var_valueSats,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::api::OpenChannelPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_feeEstimateSats = <u64>::sse_decode(deserializer);
+        return crate::ffi::api::OpenChannelPreflightResponse {
+            fee_estimate_sats: var_feeEstimateSats,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::api::OpenChannelRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2598,6 +2634,38 @@ impl SseDecode for Option<crate::ffi::settings::WalletFundingState> {
     }
 }
 
+impl SseDecode for crate::ffi::api::PayInvoicePreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_invoice = <String>::sse_decode(deserializer);
+        let mut var_fallbackAmountSats =
+            <Option<u64>>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
+        return crate::ffi::api::PayInvoicePreflightRequest {
+            invoice: var_invoice,
+            fallback_amount_sats: var_fallbackAmountSats,
+            kind: var_kind,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::api::PayInvoicePreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_amountSats = <u64>::sse_decode(deserializer);
+        let mut var_feesSats = <u64>::sse_decode(deserializer);
+        return crate::ffi::api::PayInvoicePreflightResponse {
+            amount_sats: var_amountSats,
+            fees_sats: var_feesSats,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::api::PayInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2628,6 +2696,37 @@ impl SseDecode for crate::ffi::api::PayInvoiceResponse {
         let mut var_index =
             <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         return crate::ffi::api::PayInvoiceResponse { index: var_index };
+    }
+}
+
+impl SseDecode for crate::ffi::api::PayOfferPreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_cid =
+            <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
+        let mut var_offer = <String>::sse_decode(deserializer);
+        let mut var_amountSats = <u64>::sse_decode(deserializer);
+        return crate::ffi::api::PayOfferPreflightRequest {
+            cid: var_cid,
+            offer: var_offer,
+            amount_sats: var_amountSats,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::api::PayOfferPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_amountSats = <u64>::sse_decode(deserializer);
+        let mut var_feesSats = <u64>::sse_decode(deserializer);
+        return crate::ffi::api::PayOfferPreflightResponse {
+            amount_sats: var_amountSats,
+            fees_sats: var_feesSats,
+        };
     }
 }
 
@@ -2663,6 +2762,39 @@ impl SseDecode for crate::ffi::api::PayOfferResponse {
         let mut var_index =
             <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
         return crate::ffi::api::PayOfferResponse { index: var_index };
+    }
+}
+
+impl SseDecode for crate::ffi::api::PayOnchainPreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_address = <String>::sse_decode(deserializer);
+        let mut var_amountSats = <u64>::sse_decode(deserializer);
+        return crate::ffi::api::PayOnchainPreflightRequest {
+            address: var_address,
+            amount_sats: var_amountSats,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::api::PayOnchainPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_high =
+            <Option<crate::ffi::api::FeeEstimate>>::sse_decode(deserializer);
+        let mut var_normal =
+            <crate::ffi::api::FeeEstimate>::sse_decode(deserializer);
+        let mut var_background =
+            <crate::ffi::api::FeeEstimate>::sse_decode(deserializer);
+        return crate::ffi::api::PayOnchainPreflightResponse {
+            high: var_high,
+            normal: var_normal,
+            background: var_background,
+        };
     }
 }
 
@@ -2912,138 +3044,6 @@ impl SseDecode for crate::ffi::types::PaymentStatus {
             1 => crate::ffi::types::PaymentStatus::Completed,
             2 => crate::ffi::types::PaymentStatus::Failed,
             _ => unreachable!("Invalid variant for PaymentStatus: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightCloseChannelResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_feeEstimateSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightCloseChannelResponse {
-            fee_estimate_sats: var_feeEstimateSats,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightOpenChannelRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_valueSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightOpenChannelRequest {
-            value_sats: var_valueSats,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightOpenChannelResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_feeEstimateSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightOpenChannelResponse {
-            fee_estimate_sats: var_feeEstimateSats,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightPayInvoiceRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_invoice = <String>::sse_decode(deserializer);
-        let mut var_fallbackAmountSats =
-            <Option<u64>>::sse_decode(deserializer);
-        let mut var_kind =
-            <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightPayInvoiceRequest {
-            invoice: var_invoice,
-            fallback_amount_sats: var_fallbackAmountSats,
-            kind: var_kind,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightPayInvoiceResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_amountSats = <u64>::sse_decode(deserializer);
-        let mut var_feesSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightPayInvoiceResponse {
-            amount_sats: var_amountSats,
-            fees_sats: var_feesSats,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightPayOfferRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_cid =
-            <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
-        let mut var_offer = <String>::sse_decode(deserializer);
-        let mut var_amountSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightPayOfferRequest {
-            cid: var_cid,
-            offer: var_offer,
-            amount_sats: var_amountSats,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightPayOfferResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_amountSats = <u64>::sse_decode(deserializer);
-        let mut var_feesSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightPayOfferResponse {
-            amount_sats: var_amountSats,
-            fees_sats: var_feesSats,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightPayOnchainRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_address = <String>::sse_decode(deserializer);
-        let mut var_amountSats = <u64>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightPayOnchainRequest {
-            address: var_address,
-            amount_sats: var_amountSats,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::api::PreflightPayOnchainResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_high =
-            <Option<crate::ffi::api::FeeEstimate>>::sse_decode(deserializer);
-        let mut var_normal =
-            <crate::ffi::api::FeeEstimate>::sse_decode(deserializer);
-        let mut var_background =
-            <crate::ffi::api::FeeEstimate>::sse_decode(deserializer);
-        return crate::ffi::api::PreflightPayOnchainResponse {
-            high: var_high,
-            normal: var_normal,
-            background: var_background,
         };
     }
 }
@@ -3351,26 +3351,26 @@ fn pde_ffi_dispatcher_primary_impl(
 6 => wire__crate__ffi__app__app_handle_buy_with_cash_app_impl(port, ptr, rust_vec_len, data_len),
 7 => wire__crate__ffi__app__app_handle_clear_payment_db_impl(port, ptr, rust_vec_len, data_len),
 8 => wire__crate__ffi__app__app_handle_close_channel_impl(port, ptr, rust_vec_len, data_len),
-9 => wire__crate__ffi__app__app_handle_create_client_impl(port, ptr, rust_vec_len, data_len),
-10 => wire__crate__ffi__app__app_handle_create_invoice_impl(port, ptr, rust_vec_len, data_len),
-11 => wire__crate__ffi__app__app_handle_create_offer_impl(port, ptr, rust_vec_len, data_len),
-12 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
-13 => wire__crate__ffi__app__app_handle_get_address_impl(port, ptr, rust_vec_len, data_len),
-16 => wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
-26 => wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(port, ptr, rust_vec_len, data_len),
-27 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
-28 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
-29 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
-30 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
-31 => wire__crate__ffi__app__app_handle_open_channel_impl(port, ptr, rust_vec_len, data_len),
-32 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
-33 => wire__crate__ffi__app__app_handle_pay_offer_impl(port, ptr, rust_vec_len, data_len),
-34 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
-35 => wire__crate__ffi__app__app_handle_preflight_close_channel_impl(port, ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__app__app_handle_preflight_open_channel_impl(port, ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__app__app_handle_preflight_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__app__app_handle_preflight_pay_offer_impl(port, ptr, rust_vec_len, data_len),
-39 => wire__crate__ffi__app__app_handle_preflight_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
+9 => wire__crate__ffi__app__app_handle_close_channel_preflight_impl(port, ptr, rust_vec_len, data_len),
+10 => wire__crate__ffi__app__app_handle_create_client_impl(port, ptr, rust_vec_len, data_len),
+11 => wire__crate__ffi__app__app_handle_create_invoice_impl(port, ptr, rust_vec_len, data_len),
+12 => wire__crate__ffi__app__app_handle_create_offer_impl(port, ptr, rust_vec_len, data_len),
+13 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
+14 => wire__crate__ffi__app__app_handle_get_address_impl(port, ptr, rust_vec_len, data_len),
+17 => wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
+27 => wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(port, ptr, rust_vec_len, data_len),
+28 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
+29 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
+30 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
+31 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
+32 => wire__crate__ffi__app__app_handle_open_channel_impl(port, ptr, rust_vec_len, data_len),
+33 => wire__crate__ffi__app__app_handle_open_channel_preflight_impl(port, ptr, rust_vec_len, data_len),
+34 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
+35 => wire__crate__ffi__app__app_handle_pay_invoice_preflight_impl(port, ptr, rust_vec_len, data_len),
+36 => wire__crate__ffi__app__app_handle_pay_offer_impl(port, ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__app__app_handle_pay_offer_preflight_impl(port, ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
+39 => wire__crate__ffi__app__app_handle_pay_onchain_preflight_impl(port, ptr, rust_vec_len, data_len),
 40 => wire__crate__ffi__app__app_handle_provision_impl(port, ptr, rust_vec_len, data_len),
 41 => wire__crate__ffi__app__app_handle_resolve_best_impl(port, ptr, rust_vec_len, data_len),
 42 => wire__crate__ffi__app__app_handle_resolve_lnurl_pay_request_impl(port, ptr, rust_vec_len, data_len),
@@ -3406,17 +3406,17 @@ fn pde_ffi_dispatcher_sync_impl(
 2 => wire__crate__ffi__app_data__app_data_db_reset_impl(ptr, rust_vec_len, data_len),
 3 => wire__crate__ffi__app_data__app_data_db_update_impl(ptr, rust_vec_len, data_len),
 4 => wire__crate__ffi__app__app_handle_app_data_db_impl(ptr, rust_vec_len, data_len),
-14 => wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-15 => wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-17 => wire__crate__ffi__app__app_handle_get_num_finalized_not_junk_payments_impl(ptr, rust_vec_len, data_len),
-18 => wire__crate__ffi__app__app_handle_get_num_finalized_payments_impl(ptr, rust_vec_len, data_len),
-19 => wire__crate__ffi__app__app_handle_get_num_payments_impl(ptr, rust_vec_len, data_len),
-20 => wire__crate__ffi__app__app_handle_get_num_pending_not_junk_payments_impl(ptr, rust_vec_len, data_len),
-21 => wire__crate__ffi__app__app_handle_get_num_pending_payments_impl(ptr, rust_vec_len, data_len),
-22 => wire__crate__ffi__app__app_handle_get_payment_by_created_index_impl(ptr, rust_vec_len, data_len),
-23 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-24 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-25 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+15 => wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+16 => wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+18 => wire__crate__ffi__app__app_handle_get_num_finalized_not_junk_payments_impl(ptr, rust_vec_len, data_len),
+19 => wire__crate__ffi__app__app_handle_get_num_finalized_payments_impl(ptr, rust_vec_len, data_len),
+20 => wire__crate__ffi__app__app_handle_get_num_payments_impl(ptr, rust_vec_len, data_len),
+21 => wire__crate__ffi__app__app_handle_get_num_pending_not_junk_payments_impl(ptr, rust_vec_len, data_len),
+22 => wire__crate__ffi__app__app_handle_get_num_pending_payments_impl(ptr, rust_vec_len, data_len),
+23 => wire__crate__ffi__app__app_handle_get_payment_by_created_index_impl(ptr, rust_vec_len, data_len),
+24 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+25 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+26 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
 44 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
 50 => wire__crate__ffi__app__app_handle_wallet_user_impl(ptr, rust_vec_len, data_len),
 52 => wire__crate__ffi__types__client_payment_id_generate_impl(ptr, rust_vec_len, data_len),
@@ -3642,6 +3642,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ClientPaymentId>
     for crate::ffi::types::ClientPaymentId
 {
     fn into_into_dart(self) -> crate::ffi::types::ClientPaymentId {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::CloseChannelPreflightResponse
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.fee_estimate_sats.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::CloseChannelPreflightResponse
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::CloseChannelPreflightResponse,
+    > for crate::ffi::api::CloseChannelPreflightResponse
+{
+    fn into_into_dart(self) -> crate::ffi::api::CloseChannelPreflightResponse {
         self
     }
 }
@@ -4358,6 +4379,48 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Onchain>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::OpenChannelPreflightRequest
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.value_sats.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::OpenChannelPreflightRequest
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::OpenChannelPreflightRequest,
+    > for crate::ffi::api::OpenChannelPreflightRequest
+{
+    fn into_into_dart(self) -> crate::ffi::api::OpenChannelPreflightRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::OpenChannelPreflightResponse
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.fee_estimate_sats.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::OpenChannelPreflightResponse
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::OpenChannelPreflightResponse,
+    > for crate::ffi::api::OpenChannelPreflightResponse
+{
+    fn into_into_dart(self) -> crate::ffi::api::OpenChannelPreflightResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::OpenChannelRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4392,6 +4455,57 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::OpenChannelResponse>
     for crate::ffi::api::OpenChannelResponse
 {
     fn into_into_dart(self) -> crate::ffi::api::OpenChannelResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::PayInvoicePreflightRequest
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.invoice.into_into_dart().into_dart(),
+            self.fallback_amount_sats.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::PayInvoicePreflightRequest
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::PayInvoicePreflightRequest,
+    > for crate::ffi::api::PayInvoicePreflightRequest
+{
+    fn into_into_dart(self) -> crate::ffi::api::PayInvoicePreflightRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::PayInvoicePreflightResponse
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.amount_sats.into_into_dart().into_dart(),
+            self.fees_sats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::PayInvoicePreflightResponse
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::PayInvoicePreflightResponse,
+    > for crate::ffi::api::PayInvoicePreflightResponse
+{
+    fn into_into_dart(self) -> crate::ffi::api::PayInvoicePreflightResponse {
         self
     }
 }
@@ -4437,6 +4551,56 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayInvoiceResponse>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::PayOfferPreflightRequest
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.cid.into_into_dart().into_dart(),
+            self.offer.into_into_dart().into_dart(),
+            self.amount_sats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::PayOfferPreflightRequest
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayOfferPreflightRequest>
+    for crate::ffi::api::PayOfferPreflightRequest
+{
+    fn into_into_dart(self) -> crate::ffi::api::PayOfferPreflightRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::PayOfferPreflightResponse
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.amount_sats.into_into_dart().into_dart(),
+            self.fees_sats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::PayOfferPreflightResponse
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::PayOfferPreflightResponse,
+    > for crate::ffi::api::PayOfferPreflightResponse
+{
+    fn into_into_dart(self) -> crate::ffi::api::PayOfferPreflightResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOfferRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4475,6 +4639,57 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayOfferResponse>
     for crate::ffi::api::PayOfferResponse
 {
     fn into_into_dart(self) -> crate::ffi::api::PayOfferResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::PayOnchainPreflightRequest
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.address.into_into_dart().into_dart(),
+            self.amount_sats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::PayOnchainPreflightRequest
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::PayOnchainPreflightRequest,
+    > for crate::ffi::api::PayOnchainPreflightRequest
+{
+    fn into_into_dart(self) -> crate::ffi::api::PayOnchainPreflightRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::api::PayOnchainPreflightResponse
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.high.into_into_dart().into_dart(),
+            self.normal.into_into_dart().into_dart(),
+            self.background.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::PayOnchainPreflightResponse
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::ffi::api::PayOnchainPreflightResponse,
+    > for crate::ffi::api::PayOnchainPreflightResponse
+{
+    fn into_into_dart(self) -> crate::ffi::api::PayOnchainPreflightResponse {
         self
     }
 }
@@ -4725,221 +4940,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentStatus>
     for crate::ffi::types::PaymentStatus
 {
     fn into_into_dart(self) -> crate::ffi::types::PaymentStatus {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightCloseChannelResponse
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.fee_estimate_sats.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightCloseChannelResponse
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightCloseChannelResponse,
-    > for crate::ffi::api::PreflightCloseChannelResponse
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightCloseChannelResponse {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightOpenChannelRequest
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.value_sats.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightOpenChannelRequest
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightOpenChannelRequest,
-    > for crate::ffi::api::PreflightOpenChannelRequest
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightOpenChannelRequest {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightOpenChannelResponse
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.fee_estimate_sats.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightOpenChannelResponse
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightOpenChannelResponse,
-    > for crate::ffi::api::PreflightOpenChannelResponse
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightOpenChannelResponse {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightPayInvoiceRequest
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.invoice.into_into_dart().into_dart(),
-            self.fallback_amount_sats.into_into_dart().into_dart(),
-            self.kind.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightPayInvoiceRequest
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightPayInvoiceRequest,
-    > for crate::ffi::api::PreflightPayInvoiceRequest
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightPayInvoiceRequest {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightPayInvoiceResponse
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.amount_sats.into_into_dart().into_dart(),
-            self.fees_sats.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightPayInvoiceResponse
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightPayInvoiceResponse,
-    > for crate::ffi::api::PreflightPayInvoiceResponse
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightPayInvoiceResponse {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightPayOfferRequest
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.cid.into_into_dart().into_dart(),
-            self.offer.into_into_dart().into_dart(),
-            self.amount_sats.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightPayOfferRequest
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PreflightPayOfferRequest>
-    for crate::ffi::api::PreflightPayOfferRequest
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightPayOfferRequest {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightPayOfferResponse
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.amount_sats.into_into_dart().into_dart(),
-            self.fees_sats.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightPayOfferResponse
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightPayOfferResponse,
-    > for crate::ffi::api::PreflightPayOfferResponse
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightPayOfferResponse {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightPayOnchainRequest
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.address.into_into_dart().into_dart(),
-            self.amount_sats.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightPayOnchainRequest
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightPayOnchainRequest,
-    > for crate::ffi::api::PreflightPayOnchainRequest
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightPayOnchainRequest {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::ffi::api::PreflightPayOnchainResponse
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.high.into_into_dart().into_dart(),
-            self.normal.into_into_dart().into_dart(),
-            self.background.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::PreflightPayOnchainResponse
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::ffi::api::PreflightPayOnchainResponse,
-    > for crate::ffi::api::PreflightPayOnchainResponse
-{
-    fn into_into_dart(self) -> crate::ffi::api::PreflightPayOnchainResponse {
         self
     }
 }
@@ -5454,6 +5454,16 @@ impl SseEncode for crate::ffi::types::ClientPaymentId {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <[u8; 32]>::sse_encode(self.id, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::api::CloseChannelPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <u64>::sse_encode(self.fee_estimate_sats, serializer);
     }
 }
 
@@ -6028,6 +6038,26 @@ impl SseEncode for crate::ffi::types::Onchain {
     }
 }
 
+impl SseEncode for crate::ffi::api::OpenChannelPreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <u64>::sse_encode(self.value_sats, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::api::OpenChannelPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <u64>::sse_encode(self.fee_estimate_sats, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::api::OpenChannelRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -6307,6 +6337,29 @@ impl SseEncode for Option<crate::ffi::settings::WalletFundingState> {
     }
 }
 
+impl SseEncode for crate::ffi::api::PayInvoicePreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.invoice, serializer);
+        <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
+        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::api::PayInvoicePreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <u64>::sse_encode(self.amount_sats, serializer);
+        <u64>::sse_encode(self.fees_sats, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::api::PayInvoiceRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -6330,6 +6383,29 @@ impl SseEncode for crate::ffi::api::PayInvoiceResponse {
         <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
             self.index, serializer,
         );
+    }
+}
+
+impl SseEncode for crate::ffi::api::PayOfferPreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::ffi::types::ClientPaymentId>::sse_encode(self.cid, serializer);
+        <String>::sse_encode(self.offer, serializer);
+        <u64>::sse_encode(self.amount_sats, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::api::PayOfferPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <u64>::sse_encode(self.amount_sats, serializer);
+        <u64>::sse_encode(self.fees_sats, serializer);
     }
 }
 
@@ -6357,6 +6433,31 @@ impl SseEncode for crate::ffi::api::PayOfferResponse {
         <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
             self.index, serializer,
         );
+    }
+}
+
+impl SseEncode for crate::ffi::api::PayOnchainPreflightRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.address, serializer);
+        <u64>::sse_encode(self.amount_sats, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::api::PayOnchainPreflightResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <Option<crate::ffi::api::FeeEstimate>>::sse_encode(
+            self.high, serializer,
+        );
+        <crate::ffi::api::FeeEstimate>::sse_encode(self.normal, serializer);
+        <crate::ffi::api::FeeEstimate>::sse_encode(self.background, serializer);
     }
 }
 
@@ -6584,107 +6685,6 @@ impl SseEncode for crate::ffi::types::PaymentStatus {
             },
             serializer,
         );
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightCloseChannelResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.fee_estimate_sats, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightOpenChannelRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.value_sats, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightOpenChannelResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.fee_estimate_sats, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightPayInvoiceRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <String>::sse_encode(self.invoice, serializer);
-        <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
-        <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightPayInvoiceResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.amount_sats, serializer);
-        <u64>::sse_encode(self.fees_sats, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightPayOfferRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <crate::ffi::types::ClientPaymentId>::sse_encode(self.cid, serializer);
-        <String>::sse_encode(self.offer, serializer);
-        <u64>::sse_encode(self.amount_sats, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightPayOfferResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.amount_sats, serializer);
-        <u64>::sse_encode(self.fees_sats, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightPayOnchainRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <String>::sse_encode(self.address, serializer);
-        <u64>::sse_encode(self.amount_sats, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::api::PreflightPayOnchainResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <Option<crate::ffi::api::FeeEstimate>>::sse_encode(
-            self.high, serializer,
-        );
-        <crate::ffi::api::FeeEstimate>::sse_encode(self.normal, serializer);
-        <crate::ffi::api::FeeEstimate>::sse_encode(self.background, serializer);
     }
 }
 

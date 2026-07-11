@@ -5,9 +5,9 @@ import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
-        OpenChannelRequest,
-        PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse;
+        OpenChannelPreflightRequest,
+        OpenChannelPreflightResponse,
+        OpenChannelRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart' show UserChannelId;
 import 'package:flutter/foundation.dart';
@@ -156,9 +156,9 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     this.estimatingFee.value = true;
 
     // Preflight channel open. Check for enough balance and return est. fees
-    final req = PreflightOpenChannelRequest(valueSats: valueSats);
+    final req = OpenChannelPreflightRequest(valueSats: valueSats);
     final result = await Result.tryFfiAsync(
-      () => this.widget.app.preflightOpenChannel(req: req),
+      () => this.widget.app.openChannelPreflight(req: req),
     );
     if (!this.mounted) return;
 
@@ -166,7 +166,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     this.estimatingFee.value = false;
 
     // Check if preflight was successful, or show an error message.
-    final PreflightOpenChannelResponse resp;
+    final OpenChannelPreflightResponse resp;
     switch (result) {
       case Ok(:final ok):
         this.estimateFeeError.value = null;
@@ -180,7 +180,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
         return;
     }
 
-    info("preflight_open_channel($valueSats) -> fees: ${resp.feeEstimateSats}");
+    info("open_channel_preflight($valueSats) -> fees: ${resp.feeEstimateSats}");
 
     // Navigate to confirm page and pop with the result if successful
     final OpenChannelFlowResult? flowResult = await Navigator.of(this.context)
@@ -290,7 +290,7 @@ class OpenChannelConfirmPage extends StatefulWidget {
   final UserChannelId userChannelId;
 
   /// The estimated fees for this channel open.
-  final PreflightOpenChannelResponse preflight;
+  final OpenChannelPreflightResponse preflight;
 
   @override
   State<OpenChannelConfirmPage> createState() => _OpenChannelConfirmPageState();

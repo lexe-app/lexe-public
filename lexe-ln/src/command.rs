@@ -15,16 +15,16 @@ use futures::Future;
 use lexe_api::{
     cli::{LspFees, LspInfo},
     models::command::{
+        CloseChannelPreflightRequest, CloseChannelPreflightResponse,
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
-        NodeInfo, OpenChannelResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferRequest, PayOfferResponse, PayOnchainRequest,
-        PayOnchainResponse, PreflightCloseChannelRequest,
-        PreflightCloseChannelResponse, PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse, PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse, PreflightPayOfferRequest,
-        PreflightPayOfferResponse, PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse, ResyncRequest,
+        NodeInfo, OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+        OpenChannelResponse, PayInvoicePreflightRequest,
+        PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferPreflightRequest, PayOfferPreflightResponse, PayOfferRequest,
+        PayOfferResponse, PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+        ResyncRequest,
     },
     rest::API_REQUEST_TIMEOUT,
     revocable_clients::{
@@ -401,12 +401,12 @@ async fn wait_for_our_channel_open_event(
 
 /// Check if we actually have enough on-chain funds for this channel and return
 /// the on-chain fees required.
-pub async fn preflight_open_channel(
+pub async fn open_channel_preflight(
     wallet: &OnchainWallet,
-    req: PreflightOpenChannelRequest,
-) -> anyhow::Result<PreflightOpenChannelResponse> {
+    req: OpenChannelPreflightRequest,
+) -> anyhow::Result<OpenChannelPreflightResponse> {
     let fee_estimate = wallet.preflight_channel_funding_tx(req.value)?;
-    Ok(PreflightOpenChannelResponse { fee_estimate })
+    Ok(OpenChannelPreflightResponse { fee_estimate })
 }
 
 /// Close a channel and wait for the corresponding [`Event::ChannelClosed`].
@@ -510,12 +510,12 @@ where
 }
 
 /// Estimate the on-chain fees required to close this channel.
-pub async fn preflight_close_channel<CM, PS>(
+pub async fn close_channel_preflight<CM, PS>(
     channel_manager: &CM,
     chain_monitor: &LexeChainMonitorType<PS>,
     fee_estimates: &FeeEstimates,
-    req: PreflightCloseChannelRequest,
-) -> anyhow::Result<PreflightCloseChannelResponse>
+    req: CloseChannelPreflightRequest,
+) -> anyhow::Result<CloseChannelPreflightResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -535,7 +535,7 @@ where
     let monitor = match monitor {
         Some(x) => x,
         None =>
-            return Ok(PreflightCloseChannelResponse {
+            return Ok(CloseChannelPreflightResponse {
                 fee_estimate: Amount::ZERO,
             }),
     };
@@ -546,7 +546,7 @@ where
     let fee_estimate = Amount::try_from_sats_u64(fee_estimate)?;
 
     // TODO(phlip9): include est. blocks to confirmation? Esp. for force close.
-    Ok(PreflightCloseChannelResponse { fee_estimate })
+    Ok(CloseChannelPreflightResponse { fee_estimate })
 }
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
@@ -817,7 +817,7 @@ where
         ldk_route,
         recipient_fields,
         ..
-    } = preflight_pay_invoice_inner(
+    } = pay_invoice_preflight_inner(
         req,
         router,
         channel_manager,
@@ -926,16 +926,16 @@ where
     }
 }
 
-#[instrument(skip_all, name = "(preflight-pay-invoice)")]
-pub async fn preflight_pay_invoice<CM, PS>(
-    req: PreflightPayInvoiceRequest,
+#[instrument(skip_all, name = "(pay-invoice-preflight)")]
+pub async fn pay_invoice_preflight<CM, PS>(
+    req: PayInvoicePreflightRequest,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
-) -> anyhow::Result<PreflightPayInvoiceResponse>
+) -> anyhow::Result<PayInvoicePreflightResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -948,7 +948,7 @@ where
         personal_note: None,
         kind: req.kind,
     };
-    let preflight = preflight_pay_invoice_inner(
+    let preflight = pay_invoice_preflight_inner(
         req,
         router,
         channel_manager,
@@ -958,7 +958,7 @@ where
         lsp_fees,
     )
     .await?;
-    Ok(PreflightPayInvoiceResponse {
+    Ok(PayInvoicePreflightResponse {
         amount: preflight.oipwm.payment.amount,
         fees: preflight.oipwm.payment.routing_fee,
         route: preflight.lx_route,
@@ -1066,7 +1066,7 @@ where
         oopwm,
         route: _,
         routing_context,
-    } = preflight_pay_offer_inner(
+    } = pay_offer_preflight_inner(
         req,
         router,
         channel_manager,
@@ -1145,9 +1145,9 @@ where
     return Ok(PayOfferResponse { created_at });
 }
 
-#[instrument(skip_all, name = "(preflight-pay-offer)")]
-pub async fn preflight_pay_offer<CM, PS>(
-    req: PreflightPayOfferRequest,
+#[instrument(skip_all, name = "(pay-offer-preflight)")]
+pub async fn pay_offer_preflight<CM, PS>(
+    req: PayOfferPreflightRequest,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -1155,7 +1155,7 @@ pub async fn preflight_pay_offer<CM, PS>(
     network_graph: &NetworkGraphType,
     lsp_fees: LspFees,
     lsp_node_pk: &NodePk,
-) -> anyhow::Result<PreflightPayOfferResponse>
+) -> anyhow::Result<PayOfferPreflightResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -1174,7 +1174,7 @@ where
         oopwm,
         route,
         routing_context: _,
-    } = preflight_pay_offer_inner(
+    } = pay_offer_preflight_inner(
         req,
         router,
         channel_manager,
@@ -1185,7 +1185,7 @@ where
         lsp_node_pk,
     )
     .await?;
-    Ok(PreflightPayOfferResponse {
+    Ok(PayOfferPreflightResponse {
         amount: oopwm.payment.amount,
         fees: oopwm.payment.routing_fee,
         route,
@@ -1244,12 +1244,12 @@ where
 }
 
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
-pub fn preflight_pay_onchain(
-    req: PreflightPayOnchainRequest,
+pub fn pay_onchain_preflight(
+    req: PayOnchainPreflightRequest,
     wallet: &OnchainWallet,
     network: Network,
-) -> anyhow::Result<PreflightPayOnchainResponse> {
-    wallet.preflight_pay_onchain(req, network)
+) -> anyhow::Result<PayOnchainPreflightResponse> {
+    wallet.pay_onchain_preflight(req, network)
 }
 
 // A preflighted BOLT11 invoice payment. That is, this is the outcome of
@@ -1265,7 +1265,7 @@ struct PreflightedPayInvoice {
 
 // Preflight (validate and route) a new potential BOLT11 invoice that we might
 // pay.
-async fn preflight_pay_invoice_inner<CM, PS>(
+async fn pay_invoice_preflight_inner<CM, PS>(
     req: PayInvoiceRequest,
     router: &RouterType,
     channel_manager: &CM,
@@ -1387,7 +1387,7 @@ struct PreflightedPayOffer {
     routing_context: RoutingContext,
 }
 
-async fn preflight_pay_offer_inner<CM, PS>(
+async fn pay_offer_preflight_inner<CM, PS>(
     req: PayOfferRequest,
     router: &RouterType,
     channel_manager: &CM,

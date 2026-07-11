@@ -3,18 +3,18 @@ library;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
+        PayInvoicePreflightRequest,
+        PayInvoicePreflightResponse,
         PayInvoiceRequest,
         PayInvoiceResponse,
+        PayOfferPreflightRequest,
+        PayOfferPreflightResponse,
         PayOfferRequest,
         PayOfferResponse,
+        PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse,
         PayOnchainRequest,
-        PayOnchainResponse,
-        PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest,
-        PreflightPayOfferResponse,
-        PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse;
+        PayOnchainResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show ClaimMethod, Invoice, LnurlPayRequest, Network, PaymentMethod;
@@ -59,9 +59,9 @@ Object? _resolveLnurlPayRequestArgs(Invocation invocation) => (
 const payInvoice = Stub<PayInvoiceRequest, PayInvoiceResponse>._(#payInvoice, _reqArg);
 const payOffer = Stub<PayOfferRequest, PayOfferResponse>._(#payOffer, _reqArg);
 const payOnchain = Stub<PayOnchainRequest, PayOnchainResponse>._(#payOnchain, _reqArg);
-const preflightPayInvoice = Stub<PreflightPayInvoiceRequest, PreflightPayInvoiceResponse>._(#preflightPayInvoice, _reqArg);
-const preflightPayOffer = Stub<PreflightPayOfferRequest, PreflightPayOfferResponse>._(#preflightPayOffer, _reqArg);
-const preflightPayOnchain = Stub<PreflightPayOnchainRequest, PreflightPayOnchainResponse>._(#preflightPayOnchain, _reqArg);
+const payInvoicePreflight = Stub<PayInvoicePreflightRequest, PayInvoicePreflightResponse>._(#payInvoicePreflight, _reqArg);
+const payOfferPreflight = Stub<PayOfferPreflightRequest, PayOfferPreflightResponse>._(#payOfferPreflight, _reqArg);
+const payOnchainPreflight = Stub<PayOnchainPreflightRequest, PayOnchainPreflightResponse>._(#payOnchainPreflight, _reqArg);
 const resolveBest = Stub<(Network, String), (PaymentMethod?, ClaimMethod?)>._(#resolveBest, _resolveBestArgs);
 const resolveLnurlPayRequest = Stub<(LnurlPayRequest, int, String?), Invoice>._(#resolveLnurlPayRequest, _resolveLnurlPayRequestArgs);
 // dart format on

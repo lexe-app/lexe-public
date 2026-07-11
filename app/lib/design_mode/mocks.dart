@@ -8,6 +8,7 @@ import 'package:app_rs_dart/ffi/api.dart'
     show
         ActiveHumanBitcoinAddress,
         Balance,
+        CloseChannelPreflightResponse,
         CloseChannelRequest,
         CreateClientRequest,
         CreateClientResponse,
@@ -20,23 +21,22 @@ import 'package:app_rs_dart/ffi/api.dart'
         FiatRates,
         ListChannelsResponse,
         NodeInfo,
+        OpenChannelPreflightRequest,
+        OpenChannelPreflightResponse,
         OpenChannelRequest,
         OpenChannelResponse,
+        PayInvoicePreflightRequest,
+        PayInvoicePreflightResponse,
         PayInvoiceRequest,
         PayInvoiceResponse,
+        PayOfferPreflightRequest,
+        PayOfferPreflightResponse,
         PayOfferRequest,
         PayOfferResponse,
+        PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse,
         PayOnchainRequest,
         PayOnchainResponse,
-        PreflightCloseChannelResponse,
-        PreflightOpenChannelRequest,
-        PreflightOpenChannelResponse,
-        PreflightPayInvoiceRequest,
-        PreflightPayInvoiceResponse,
-        PreflightPayOfferRequest,
-        PreflightPayOfferResponse,
-        PreflightPayOnchainRequest,
-        PreflightPayOnchainResponse,
         UpdateClientRequest,
         UpdatePersonalNote,
         WithdrawLnurlRequest;
@@ -171,11 +171,11 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
-  Future<PreflightOpenChannelResponse> preflightOpenChannel({
-    required PreflightOpenChannelRequest req,
+  Future<OpenChannelPreflightResponse> openChannelPreflight({
+    required OpenChannelPreflightRequest req,
   }) => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => const PreflightOpenChannelResponse(feeEstimateSats: 123),
+    () => const OpenChannelPreflightResponse(feeEstimateSats: 123),
   );
 
   @override
@@ -190,11 +190,11 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1000), () {});
 
   @override
-  Future<PreflightCloseChannelResponse> preflightCloseChannel({
+  Future<CloseChannelPreflightResponse> closeChannelPreflight({
     required CloseChannelRequest req,
   }) => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+    () => const CloseChannelPreflightResponse(feeEstimateSats: 1100),
   );
 
   @override
@@ -227,11 +227,11 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
-  Future<PreflightPayOnchainResponse> preflightPayOnchain({
-    required PreflightPayOnchainRequest req,
+  Future<PayOnchainPreflightResponse> payOnchainPreflight({
+    required PayOnchainPreflightRequest req,
   }) => Future.delayed(
     const Duration(seconds: 1),
-    () => const PreflightPayOnchainResponse(
+    () => const PayOnchainPreflightResponse(
       high: FeeEstimate(amountSats: 849),
       normal: FeeEstimate(amountSats: 722),
       background: FeeEstimate(amountSats: 563),
@@ -286,12 +286,12 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
-  Future<PreflightPayInvoiceResponse> preflightPayInvoice({
-    required PreflightPayInvoiceRequest req,
+  Future<PayInvoicePreflightResponse> payInvoicePreflight({
+    required PayInvoicePreflightRequest req,
   }) => Future.delayed(
     const Duration(seconds: 1),
     // () => throw FfiError("Request timed out").toFfi(),
-    () => PreflightPayInvoiceResponse(
+    () => PayInvoicePreflightResponse(
       amountSats: req.fallbackAmountSats ?? 9999,
       feesSats: 123,
     ),
@@ -328,12 +328,12 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<PreflightPayOfferResponse> preflightPayOffer({
-    required PreflightPayOfferRequest req,
+  Future<PayOfferPreflightResponse> payOfferPreflight({
+    required PayOfferPreflightRequest req,
   }) => Future.delayed(
     const Duration(seconds: 1),
     // () => throw FfiError("Request timed out").toFfi(),
-    () => PreflightPayOfferResponse(amountSats: req.amountSats, feesSats: 123),
+    () => PayOfferPreflightResponse(amountSats: req.amountSats, feesSats: 123),
   );
 
   @override
@@ -662,8 +662,8 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<PreflightPayOnchainResponse> preflightPayOnchain({
-    required PreflightPayOnchainRequest req,
+  Future<PayOnchainPreflightResponse> payOnchainPreflight({
+    required PayOnchainPreflightRequest req,
   }) => Future.delayed(
     const Duration(milliseconds: 1000),
     () => throw const FfiError(
@@ -672,8 +672,8 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<PreflightOpenChannelResponse> preflightOpenChannel({
-    required PreflightOpenChannelRequest req,
+  Future<OpenChannelPreflightResponse> openChannelPreflight({
+    required OpenChannelPreflightRequest req,
   }) => Future.delayed(
     const Duration(milliseconds: 1000),
     () => throw const FfiError(
@@ -691,7 +691,7 @@ class MockAppHandleErr extends MockAppHandle {
       );
 
   @override
-  Future<PreflightCloseChannelResponse> preflightCloseChannel({
+  Future<CloseChannelPreflightResponse> closeChannelPreflight({
     required CloseChannelRequest req,
   }) => Future.delayed(
     const Duration(milliseconds: 1000),

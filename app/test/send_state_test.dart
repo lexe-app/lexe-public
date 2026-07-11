@@ -8,12 +8,12 @@ import 'package:app_rs_dart/ffi/api.dart'
         Balance,
         FeeEstimate,
         FiatRate,
+        PayInvoicePreflightResponse,
         PayInvoiceResponse,
+        PayOfferPreflightResponse,
         PayOfferResponse,
-        PayOnchainResponse,
-        PreflightPayInvoiceResponse,
-        PreflightPayOfferResponse,
-        PreflightPayOnchainResponse;
+        PayOnchainPreflightResponse,
+        PayOnchainResponse;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         ClientPaymentId,
@@ -117,8 +117,8 @@ void main() {
         const paymentMethod = PaymentMethod.onchain(onchain);
 
         mockApp.mock(
-          preflightPayOnchain,
-          (_) async => const PreflightPayOnchainResponse(
+          payOnchainPreflight,
+          (_) async => const PayOnchainPreflightResponse(
             high: FeeEstimate(amountSats: 500),
             normal: FeeEstimate(amountSats: 300),
             background: FeeEstimate(amountSats: 100),
@@ -167,7 +167,7 @@ void main() {
         const onchain = Onchain(address: address, amountSats: 5000);
         const paymentMethod = PaymentMethod.onchain(onchain);
         mockApp.mock(
-          preflightPayOnchain,
+          payOnchainPreflight,
           (_) async => throw AnyhowException('Insufficient balance'),
         );
 
@@ -246,8 +246,8 @@ void main() {
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       );
       mockApp.mock(
-        preflightPayOnchain,
-        (_) async => const PreflightPayOnchainResponse(
+        payOnchainPreflight,
+        (_) async => const PayOnchainPreflightResponse(
           high: FeeEstimate(amountSats: 500),
           normal: FeeEstimate(amountSats: 300),
           background: FeeEstimate(amountSats: 100),
@@ -277,9 +277,9 @@ void main() {
         payeePubkey: 'abc123',
       );
       mockApp.mock(
-        preflightPayInvoice,
+        payInvoicePreflight,
         (_) async =>
-            const PreflightPayInvoiceResponse(amountSats: 5000, feesSats: 10),
+            const PayInvoicePreflightResponse(amountSats: 5000, feesSats: 10),
       );
 
       final state = SendState_NeedAmount(
@@ -300,9 +300,9 @@ void main() {
     test('preflight succeeds for offer payment', () async {
       const offer = Offer(string: testOffer);
       mockApp.mock(
-        preflightPayOffer,
+        payOfferPreflight,
         (_) async =>
-            const PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
+            const PayOfferPreflightResponse(amountSats: 3000, feesSats: 5),
       );
 
       final state = SendState_NeedAmount(
@@ -328,7 +328,7 @@ void main() {
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       );
       mockApp.mock(
-        preflightPayOnchain,
+        payOnchainPreflight,
         (_) async => throw AnyhowException('Network error'),
       );
 
@@ -424,8 +424,8 @@ void main() {
         const onchain = Onchain(address: address);
         const paymentMethod = PaymentMethod.onchain(onchain);
         mockApp.mock(
-          preflightPayOnchain,
-          (_) async => const PreflightPayOnchainResponse(
+          payOnchainPreflight,
+          (_) async => const PayOnchainPreflightResponse(
             high: FeeEstimate(amountSats: 500),
             normal: FeeEstimate(amountSats: 300),
             background: FeeEstimate(amountSats: 100),
@@ -484,7 +484,7 @@ SendState_Preflighted _createPreflightedOnchain(
     preflightedPayment: const PreflightedPayment_Onchain(
       onchain: Onchain(address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'),
       amountSats: 10000,
-      preflight: PreflightPayOnchainResponse(
+      preflight: PayOnchainPreflightResponse(
         high: FeeEstimate(amountSats: 500),
         normal: FeeEstimate(amountSats: 300),
         background: FeeEstimate(amountSats: 100),
@@ -513,7 +513,7 @@ SendState_Preflighted _createPreflightedInvoice(
         payeePubkey: 'abc123',
       ),
       amountSats: 1000,
-      preflight: PreflightPayInvoiceResponse(amountSats: 1000, feesSats: 10),
+      preflight: PayInvoicePreflightResponse(amountSats: 1000, feesSats: 10),
     ),
   );
 }
@@ -533,7 +533,7 @@ SendState_Preflighted _createPreflightedOffer(
     preflightedPayment: PreflightedPayment_Offer(
       offer: Offer(string: testOffer),
       amountSats: 3000,
-      preflight: PreflightPayOfferResponse(amountSats: 3000, feesSats: 5),
+      preflight: PayOfferPreflightResponse(amountSats: 3000, feesSats: 5),
       message: message,
     ),
   );

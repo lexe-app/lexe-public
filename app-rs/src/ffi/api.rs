@@ -10,6 +10,7 @@ use lexe::types::{
 use lexe_api::{
     models::command::{
         ActiveHumanBitcoinAddress as ActiveHumanBitcoinAddressRs,
+        CloseChannelPreflightResponse as CloseChannelPreflightResponseRs,
         CloseChannelRequest as CloseChannelRequestRs,
         CreateInvoiceRequest as CreateInvoiceRequestRs,
         CreateInvoiceResponse as CreateInvoiceResponseRs,
@@ -18,23 +19,22 @@ use lexe_api::{
         FeeEstimate as FeeEstimateRs,
         HumanBitcoinAddress as HumanBitcoinAddressRs,
         ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
+        OpenChannelPreflightRequest as OpenChannelPreflightRequestRs,
+        OpenChannelPreflightResponse as OpenChannelPreflightResponseRs,
         OpenChannelRequest as OpenChannelRequestRs,
         OpenChannelResponse as OpenChannelResponseRs,
+        PayInvoicePreflightRequest as PayInvoicePreflightRequestRs,
+        PayInvoicePreflightResponse as PayInvoicePreflightResponseRs,
         PayInvoiceRequest as PayInvoiceRequestRs,
         PayInvoiceResponse as PayInvoiceResponseRs,
+        PayOfferPreflightRequest as PayOfferPreflightRequestRs,
+        PayOfferPreflightResponse as PayOfferPreflightResponseRs,
         PayOfferRequest as PayOfferRequestRs,
         PayOfferResponse as PayOfferResponseRs,
+        PayOnchainPreflightRequest as PayOnchainPreflightRequestRs,
+        PayOnchainPreflightResponse as PayOnchainPreflightResponseRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PayOnchainResponse as PayOnchainResponseRs,
-        PreflightCloseChannelResponse as PreflightCloseChannelResponseRs,
-        PreflightOpenChannelRequest as PreflightOpenChannelRequestRs,
-        PreflightOpenChannelResponse as PreflightOpenChannelResponseRs,
-        PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
-        PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
-        PreflightPayOfferRequest as PreflightPayOfferRequestRs,
-        PreflightPayOfferResponse as PreflightPayOfferResponseRs,
-        PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
-        PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
         UpdatePersonalNote as UpdatePersonalNoteRs,
     },
     revocable_clients::models::{
@@ -187,13 +187,13 @@ impl From<OpenChannelResponseRs> for OpenChannelResponse {
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightOpenChannelRequest {
+pub struct OpenChannelPreflightRequest {
     pub value_sats: u64,
 }
 
-impl TryFrom<PreflightOpenChannelRequest> for PreflightOpenChannelRequestRs {
+impl TryFrom<OpenChannelPreflightRequest> for OpenChannelPreflightRequestRs {
     type Error = anyhow::Error;
-    fn try_from(req: PreflightOpenChannelRequest) -> Result<Self, Self::Error> {
+    fn try_from(req: OpenChannelPreflightRequest) -> Result<Self, Self::Error> {
         Ok(Self {
             value: Amount::try_from_sats_u64(req.value_sats)?,
         })
@@ -201,12 +201,12 @@ impl TryFrom<PreflightOpenChannelRequest> for PreflightOpenChannelRequestRs {
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightOpenChannelResponse {
+pub struct OpenChannelPreflightResponse {
     pub fee_estimate_sats: u64,
 }
 
-impl From<PreflightOpenChannelResponseRs> for PreflightOpenChannelResponse {
-    fn from(resp: PreflightOpenChannelResponseRs) -> Self {
+impl From<OpenChannelPreflightResponseRs> for OpenChannelPreflightResponse {
+    fn from(resp: OpenChannelPreflightResponseRs) -> Self {
         Self {
             fee_estimate_sats: resp.fee_estimate.sats_u64(),
         }
@@ -230,15 +230,15 @@ impl TryFrom<CloseChannelRequest> for CloseChannelRequestRs {
     }
 }
 
-pub type PreflightCloseChannelRequest = CloseChannelRequest;
+pub type CloseChannelPreflightRequest = CloseChannelRequest;
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightCloseChannelResponse {
+pub struct CloseChannelPreflightResponse {
     pub fee_estimate_sats: u64,
 }
 
-impl From<PreflightCloseChannelResponseRs> for PreflightCloseChannelResponse {
-    fn from(value: PreflightCloseChannelResponseRs) -> Self {
+impl From<CloseChannelPreflightResponseRs> for CloseChannelPreflightResponse {
+    fn from(value: CloseChannelPreflightResponseRs) -> Self {
         Self {
             fee_estimate_sats: value.fee_estimate.sats_u64(),
         }
@@ -332,18 +332,18 @@ impl PayOnchainResponse {
     }
 }
 
-/// See `lexe_api::command::PreflightPayOnchainRequest`.
+/// See `lexe_api::command::PayOnchainPreflightRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightPayOnchainRequest {
+pub struct PayOnchainPreflightRequest {
     pub address: String,
     pub amount_sats: u64,
 }
 
-impl TryFrom<PreflightPayOnchainRequest> for PreflightPayOnchainRequestRs {
+impl TryFrom<PayOnchainPreflightRequest> for PayOnchainPreflightRequestRs {
     type Error = anyhow::Error;
 
-    fn try_from(req: PreflightPayOnchainRequest) -> anyhow::Result<Self> {
+    fn try_from(req: PayOnchainPreflightRequest) -> anyhow::Result<Self> {
         let address = bitcoin::Address::from_str(&req.address)
             .map_err(|_| anyhow!("The bitcoin address isn't valid."))?;
         let amount = Amount::try_from_sats_u64(req.amount_sats)?;
@@ -352,17 +352,17 @@ impl TryFrom<PreflightPayOnchainRequest> for PreflightPayOnchainRequestRs {
     }
 }
 
-/// See `lexe_api::command::PreflightPayOnchainResponse`.
+/// See `lexe_api::command::PayOnchainPreflightResponse`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightPayOnchainResponse {
+pub struct PayOnchainPreflightResponse {
     pub high: Option<FeeEstimate>,
     pub normal: FeeEstimate,
     pub background: FeeEstimate,
 }
 
-impl From<PreflightPayOnchainResponseRs> for PreflightPayOnchainResponse {
-    fn from(resp: PreflightPayOnchainResponseRs) -> Self {
+impl From<PayOnchainPreflightResponseRs> for PayOnchainPreflightResponse {
+    fn from(resp: PayOnchainPreflightResponseRs) -> Self {
         Self {
             high: resp.high.map(FeeEstimate::from),
             normal: FeeEstimate::from(resp.normal),
@@ -500,19 +500,19 @@ impl PayInvoiceResponse {
     }
 }
 
-/// See `lexe_api::command::PreflightPayInvoiceRequest`.
+/// See `lexe_api::command::PayInvoicePreflightRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightPayInvoiceRequest {
+pub struct PayInvoicePreflightRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
     pub kind: PaymentKind,
 }
 
-impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
+impl TryFrom<PayInvoicePreflightRequest> for PayInvoicePreflightRequestRs {
     type Error = anyhow::Error;
     fn try_from(
-        value: PreflightPayInvoiceRequest,
+        value: PayInvoicePreflightRequest,
     ) -> Result<Self, Self::Error> {
         let invoice = InvoiceRs::from_str(&value.invoice)
             .context("Failed to parse invoice")?;
@@ -536,16 +536,16 @@ impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
     }
 }
 
-/// See `lexe_api::command::PreflightPayInvoiceResponse`.
+/// See `lexe_api::command::PayInvoicePreflightResponse`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightPayInvoiceResponse {
+pub struct PayInvoicePreflightResponse {
     pub amount_sats: u64,
     pub fees_sats: u64,
 }
 
-impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
-    fn from(value: PreflightPayInvoiceResponseRs) -> Self {
+impl From<PayInvoicePreflightResponseRs> for PayInvoicePreflightResponse {
+    fn from(value: PayInvoicePreflightResponseRs) -> Self {
         // TODO(phlip9): display some route visualization in UI?
         Self {
             amount_sats: value.amount.sats_u64(),
@@ -605,18 +605,18 @@ impl From<CreateOfferResponseRs> for CreateOfferResponse {
     }
 }
 
-/// See `lexe_api::command::PreflightPayOfferRequest`.
+/// See `lexe_api::command::PayOfferPreflightRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightPayOfferRequest {
+pub struct PayOfferPreflightRequest {
     pub cid: ClientPaymentId,
     pub offer: String,
     pub amount_sats: u64,
 }
 
-impl TryFrom<PreflightPayOfferRequest> for PreflightPayOfferRequestRs {
+impl TryFrom<PayOfferPreflightRequest> for PayOfferPreflightRequestRs {
     type Error = anyhow::Error;
-    fn try_from(value: PreflightPayOfferRequest) -> Result<Self, Self::Error> {
+    fn try_from(value: PayOfferPreflightRequest) -> Result<Self, Self::Error> {
         Ok(Self {
             cid: ClientPaymentIdRs::from(value.cid),
             offer: OfferRs::from_str(&value.offer)
@@ -626,16 +626,16 @@ impl TryFrom<PreflightPayOfferRequest> for PreflightPayOfferRequestRs {
     }
 }
 
-/// See `lexe_api::command::PreflightPayOfferResponse`.
+/// See `lexe_api::command::PayOfferPreflightResponse`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct PreflightPayOfferResponse {
+pub struct PayOfferPreflightResponse {
     pub amount_sats: u64,
     pub fees_sats: u64,
 }
 
-impl From<PreflightPayOfferResponseRs> for PreflightPayOfferResponse {
-    fn from(value: PreflightPayOfferResponseRs) -> Self {
+impl From<PayOfferPreflightResponseRs> for PayOfferPreflightResponse {
+    fn from(value: PayOfferPreflightResponseRs) -> Self {
         // TODO(phlip9): display some route visualization in UI?
         Self {
             amount_sats: value.amount.sats_u64(),

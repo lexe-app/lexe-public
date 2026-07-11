@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1997441455;
+  int get rustContentHash => -1354940382;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -112,6 +112,12 @@ abstract class AppRsApi extends BaseApi {
   Future<void> crateFfiAppAppHandleClearPaymentDb({required AppHandle that});
 
   Future<void> crateFfiAppAppHandleCloseChannel({
+    required AppHandle that,
+    required CloseChannelRequest req,
+  });
+
+  Future<CloseChannelPreflightResponse>
+  crateFfiAppAppHandleCloseChannelPreflight({
     required AppHandle that,
     required CloseChannelRequest req,
   });
@@ -204,9 +210,20 @@ abstract class AppRsApi extends BaseApi {
     required OpenChannelRequest req,
   });
 
+  Future<OpenChannelPreflightResponse>
+  crateFfiAppAppHandleOpenChannelPreflight({
+    required AppHandle that,
+    required OpenChannelPreflightRequest req,
+  });
+
   Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice({
     required AppHandle that,
     required PayInvoiceRequest req,
+  });
+
+  Future<PayInvoicePreflightResponse> crateFfiAppAppHandlePayInvoicePreflight({
+    required AppHandle that,
+    required PayInvoicePreflightRequest req,
   });
 
   Future<PayOfferResponse> crateFfiAppAppHandlePayOffer({
@@ -214,36 +231,19 @@ abstract class AppRsApi extends BaseApi {
     required PayOfferRequest req,
   });
 
+  Future<PayOfferPreflightResponse> crateFfiAppAppHandlePayOfferPreflight({
+    required AppHandle that,
+    required PayOfferPreflightRequest req,
+  });
+
   Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain({
     required AppHandle that,
     required PayOnchainRequest req,
   });
 
-  Future<PreflightCloseChannelResponse>
-  crateFfiAppAppHandlePreflightCloseChannel({
+  Future<PayOnchainPreflightResponse> crateFfiAppAppHandlePayOnchainPreflight({
     required AppHandle that,
-    required CloseChannelRequest req,
-  });
-
-  Future<PreflightOpenChannelResponse>
-  crateFfiAppAppHandlePreflightOpenChannel({
-    required AppHandle that,
-    required PreflightOpenChannelRequest req,
-  });
-
-  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice({
-    required AppHandle that,
-    required PreflightPayInvoiceRequest req,
-  });
-
-  Future<PreflightPayOfferResponse> crateFfiAppAppHandlePreflightPayOffer({
-    required AppHandle that,
-    required PreflightPayOfferRequest req,
-  });
-
-  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain({
-    required AppHandle that,
-    required PreflightPayOnchainRequest req,
+    required PayOnchainPreflightRequest req,
   });
 
   Future<void> crateFfiAppAppHandleProvision({required AppHandle that});
@@ -730,6 +730,42 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<CloseChannelPreflightResponse>
+  crateFfiAppAppHandleCloseChannelPreflight({
+    required AppHandle that,
+    required CloseChannelRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_close_channel_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_close_channel_preflight_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleCloseChannelPreflightConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleCloseChannelPreflightConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_close_channel_preflight",
+        argNames: ["that", "req"],
+      );
+
+  @override
   Future<CreateClientResponse> crateFfiAppAppHandleCreateClient({
     required AppHandle that,
     required CreateClientRequest req,
@@ -743,7 +779,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -778,7 +814,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -813,7 +849,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -844,7 +880,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -875,7 +911,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -908,7 +944,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_short_payment,
@@ -941,7 +977,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_short_payment,
@@ -973,7 +1009,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -1004,7 +1040,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_CastedPrimitive_usize,
@@ -1031,7 +1067,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_CastedPrimitive_usize,
@@ -1057,7 +1093,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_CastedPrimitive_usize,
@@ -1085,7 +1121,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_CastedPrimitive_usize,
@@ -1112,7 +1148,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_CastedPrimitive_usize,
@@ -1142,7 +1178,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_box_autoadd_payment_created_index(createdIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_payment,
@@ -1172,7 +1208,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_short_payment,
@@ -1205,7 +1241,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_short_payment,
@@ -1237,7 +1273,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_short_payment,
@@ -1269,7 +1305,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1302,7 +1338,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1335,7 +1371,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1366,7 +1402,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1394,7 +1430,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1429,7 +1465,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1451,6 +1487,45 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<OpenChannelPreflightResponse>
+  crateFfiAppAppHandleOpenChannelPreflight({
+    required AppHandle that,
+    required OpenChannelPreflightRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_open_channel_preflight_request(
+            req,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_open_channel_preflight_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleOpenChannelPreflightConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleOpenChannelPreflightConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_open_channel_preflight",
+        argNames: ["that", "req"],
+      );
+
+  @override
   Future<PayInvoiceResponse> crateFfiAppAppHandlePayInvoice({
     required AppHandle that,
     required PayInvoiceRequest req,
@@ -1464,7 +1539,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1486,6 +1561,41 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<PayInvoicePreflightResponse> crateFfiAppAppHandlePayInvoicePreflight({
+    required AppHandle that,
+    required PayInvoicePreflightRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_pay_invoice_preflight_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_pay_invoice_preflight_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePayInvoicePreflightConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandlePayInvoicePreflightConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_pay_invoice_preflight",
+        argNames: ["that", "req"],
+      );
+
+  @override
   Future<PayOfferResponse> crateFfiAppAppHandlePayOffer({
     required AppHandle that,
     required PayOfferRequest req,
@@ -1499,7 +1609,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1521,6 +1631,41 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<PayOfferPreflightResponse> crateFfiAppAppHandlePayOfferPreflight({
+    required AppHandle that,
+    required PayOfferPreflightRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_pay_offer_preflight_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 37,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_pay_offer_preflight_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandlePayOfferPreflightConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandlePayOfferPreflightConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_pay_offer_preflight",
+        argNames: ["that", "req"],
+      );
+
+  @override
   Future<PayOnchainResponse> crateFfiAppAppHandlePayOnchain({
     required AppHandle that,
     required PayOnchainRequest req,
@@ -1534,7 +1679,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1556,161 +1701,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<PreflightCloseChannelResponse>
-  crateFfiAppAppHandlePreflightCloseChannel({
+  Future<PayOnchainPreflightResponse> crateFfiAppAppHandlePayOnchainPreflight({
     required AppHandle that,
-    required CloseChannelRequest req,
+    required PayOnchainPreflightRequest req,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_close_channel_request(req, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 35,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_preflight_close_channel_response,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiAppAppHandlePreflightCloseChannelConstMeta,
-        argValues: [that, req],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiAppAppHandlePreflightCloseChannelConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_preflight_close_channel",
-        argNames: ["that", "req"],
-      );
-
-  @override
-  Future<PreflightOpenChannelResponse>
-  crateFfiAppAppHandlePreflightOpenChannel({
-    required AppHandle that,
-    required PreflightOpenChannelRequest req,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_preflight_open_channel_request(
-            req,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 36,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_preflight_open_channel_response,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiAppAppHandlePreflightOpenChannelConstMeta,
-        argValues: [that, req],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiAppAppHandlePreflightOpenChannelConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_preflight_open_channel",
-        argNames: ["that", "req"],
-      );
-
-  @override
-  Future<PreflightPayInvoiceResponse> crateFfiAppAppHandlePreflightPayInvoice({
-    required AppHandle that,
-    required PreflightPayInvoiceRequest req,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_preflight_pay_invoice_request(req, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 37,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_preflight_pay_invoice_response,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiAppAppHandlePreflightPayInvoiceConstMeta,
-        argValues: [that, req],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiAppAppHandlePreflightPayInvoiceConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_preflight_pay_invoice",
-        argNames: ["that", "req"],
-      );
-
-  @override
-  Future<PreflightPayOfferResponse> crateFfiAppAppHandlePreflightPayOffer({
-    required AppHandle that,
-    required PreflightPayOfferRequest req,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_preflight_pay_offer_request(req, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 38,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_preflight_pay_offer_response,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiAppAppHandlePreflightPayOfferConstMeta,
-        argValues: [that, req],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiAppAppHandlePreflightPayOfferConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_preflight_pay_offer",
-        argNames: ["that", "req"],
-      );
-
-  @override
-  Future<PreflightPayOnchainResponse> crateFfiAppAppHandlePreflightPayOnchain({
-    required AppHandle that,
-    required PreflightPayOnchainRequest req,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_preflight_pay_onchain_request(req, serializer);
+          sse_encode_box_autoadd_pay_onchain_preflight_request(req, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1719,19 +1719,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_preflight_pay_onchain_response,
+          decodeSuccessData: sse_decode_pay_onchain_preflight_response,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateFfiAppAppHandlePreflightPayOnchainConstMeta,
+        constMeta: kCrateFfiAppAppHandlePayOnchainPreflightConstMeta,
         argValues: [that, req],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateFfiAppAppHandlePreflightPayOnchainConstMeta =>
+  TaskConstMeta get kCrateFfiAppAppHandlePayOnchainPreflightConstMeta =>
       const TaskConstMeta(
-        debugName: "app_handle_preflight_pay_onchain",
+        debugName: "app_handle_pay_onchain_preflight",
         argNames: ["that", "req"],
       );
 
@@ -3604,9 +3604,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  OpenChannelPreflightRequest
+  dco_decode_box_autoadd_open_channel_preflight_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_open_channel_preflight_request(raw);
+  }
+
+  @protected
   OpenChannelRequest dco_decode_box_autoadd_open_channel_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_open_channel_request(raw);
+  }
+
+  @protected
+  PayInvoicePreflightRequest
+  dco_decode_box_autoadd_pay_invoice_preflight_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_pay_invoice_preflight_request(raw);
   }
 
   @protected
@@ -3616,9 +3630,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  PayOfferPreflightRequest dco_decode_box_autoadd_pay_offer_preflight_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_pay_offer_preflight_request(raw);
+  }
+
+  @protected
   PayOfferRequest dco_decode_box_autoadd_pay_offer_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_pay_offer_request(raw);
+  }
+
+  @protected
+  PayOnchainPreflightRequest
+  dco_decode_box_autoadd_pay_onchain_preflight_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_pay_onchain_preflight_request(raw);
   }
 
   @protected
@@ -3651,35 +3680,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   PaymentMethod dco_decode_box_autoadd_payment_method(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_payment_method(raw);
-  }
-
-  @protected
-  PreflightOpenChannelRequest
-  dco_decode_box_autoadd_preflight_open_channel_request(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_preflight_open_channel_request(raw);
-  }
-
-  @protected
-  PreflightPayInvoiceRequest
-  dco_decode_box_autoadd_preflight_pay_invoice_request(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_preflight_pay_invoice_request(raw);
-  }
-
-  @protected
-  PreflightPayOfferRequest dco_decode_box_autoadd_preflight_pay_offer_request(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_preflight_pay_offer_request(raw);
-  }
-
-  @protected
-  PreflightPayOnchainRequest
-  dco_decode_box_autoadd_preflight_pay_onchain_request(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_preflight_pay_onchain_request(raw);
   }
 
   @protected
@@ -3781,6 +3781,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return ClientPaymentId(id: dco_decode_u_8_array_32(arr[0]));
+  }
+
+  @protected
+  CloseChannelPreflightResponse dco_decode_close_channel_preflight_response(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return CloseChannelPreflightResponse(
+      feeEstimateSats: dco_decode_CastedPrimitive_u_64(arr[0]),
+    );
   }
 
   @protected
@@ -4244,6 +4257,32 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  OpenChannelPreflightRequest dco_decode_open_channel_preflight_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return OpenChannelPreflightRequest(
+      valueSats: dco_decode_CastedPrimitive_u_64(arr[0]),
+    );
+  }
+
+  @protected
+  OpenChannelPreflightResponse dco_decode_open_channel_preflight_response(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return OpenChannelPreflightResponse(
+      feeEstimateSats: dco_decode_CastedPrimitive_u_64(arr[0]),
+    );
+  }
+
+  @protected
   OpenChannelRequest dco_decode_open_channel_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4389,6 +4428,35 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  PayInvoicePreflightRequest dco_decode_pay_invoice_preflight_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return PayInvoicePreflightRequest(
+      invoice: dco_decode_String(arr[0]),
+      fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
+      kind: dco_decode_payment_kind(arr[2]),
+    );
+  }
+
+  @protected
+  PayInvoicePreflightResponse dco_decode_pay_invoice_preflight_response(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PayInvoicePreflightResponse(
+      amountSats: dco_decode_CastedPrimitive_u_64(arr[0]),
+      feesSats: dco_decode_CastedPrimitive_u_64(arr[1]),
+    );
+  }
+
+  @protected
   PayInvoiceRequest dco_decode_pay_invoice_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4410,6 +4478,33 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return PayInvoiceResponse(index: dco_decode_payment_created_index(arr[0]));
+  }
+
+  @protected
+  PayOfferPreflightRequest dco_decode_pay_offer_preflight_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return PayOfferPreflightRequest(
+      cid: dco_decode_client_payment_id(arr[0]),
+      offer: dco_decode_String(arr[1]),
+      amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
+    );
+  }
+
+  @protected
+  PayOfferPreflightResponse dco_decode_pay_offer_preflight_response(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PayOfferPreflightResponse(
+      amountSats: dco_decode_CastedPrimitive_u_64(arr[0]),
+      feesSats: dco_decode_CastedPrimitive_u_64(arr[1]),
+    );
   }
 
   @protected
@@ -4435,6 +4530,35 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return PayOfferResponse(index: dco_decode_payment_created_index(arr[0]));
+  }
+
+  @protected
+  PayOnchainPreflightRequest dco_decode_pay_onchain_preflight_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PayOnchainPreflightRequest(
+      address: dco_decode_String(arr[0]),
+      amountSats: dco_decode_CastedPrimitive_u_64(arr[1]),
+    );
+  }
+
+  @protected
+  PayOnchainPreflightResponse dco_decode_pay_onchain_preflight_response(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return PayOnchainPreflightResponse(
+      high: dco_decode_opt_box_autoadd_fee_estimate(arr[0]),
+      normal: dco_decode_fee_estimate(arr[1]),
+      background: dco_decode_fee_estimate(arr[2]),
+    );
   }
 
   @protected
@@ -4582,130 +4706,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   PaymentStatus dco_decode_payment_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return PaymentStatus.values[raw as int];
-  }
-
-  @protected
-  PreflightCloseChannelResponse dco_decode_preflight_close_channel_response(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return PreflightCloseChannelResponse(
-      feeEstimateSats: dco_decode_CastedPrimitive_u_64(arr[0]),
-    );
-  }
-
-  @protected
-  PreflightOpenChannelRequest dco_decode_preflight_open_channel_request(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return PreflightOpenChannelRequest(
-      valueSats: dco_decode_CastedPrimitive_u_64(arr[0]),
-    );
-  }
-
-  @protected
-  PreflightOpenChannelResponse dco_decode_preflight_open_channel_response(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return PreflightOpenChannelResponse(
-      feeEstimateSats: dco_decode_CastedPrimitive_u_64(arr[0]),
-    );
-  }
-
-  @protected
-  PreflightPayInvoiceRequest dco_decode_preflight_pay_invoice_request(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return PreflightPayInvoiceRequest(
-      invoice: dco_decode_String(arr[0]),
-      fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
-      kind: dco_decode_payment_kind(arr[2]),
-    );
-  }
-
-  @protected
-  PreflightPayInvoiceResponse dco_decode_preflight_pay_invoice_response(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return PreflightPayInvoiceResponse(
-      amountSats: dco_decode_CastedPrimitive_u_64(arr[0]),
-      feesSats: dco_decode_CastedPrimitive_u_64(arr[1]),
-    );
-  }
-
-  @protected
-  PreflightPayOfferRequest dco_decode_preflight_pay_offer_request(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return PreflightPayOfferRequest(
-      cid: dco_decode_client_payment_id(arr[0]),
-      offer: dco_decode_String(arr[1]),
-      amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
-    );
-  }
-
-  @protected
-  PreflightPayOfferResponse dco_decode_preflight_pay_offer_response(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return PreflightPayOfferResponse(
-      amountSats: dco_decode_CastedPrimitive_u_64(arr[0]),
-      feesSats: dco_decode_CastedPrimitive_u_64(arr[1]),
-    );
-  }
-
-  @protected
-  PreflightPayOnchainRequest dco_decode_preflight_pay_onchain_request(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return PreflightPayOnchainRequest(
-      address: dco_decode_String(arr[0]),
-      amountSats: dco_decode_CastedPrimitive_u_64(arr[1]),
-    );
-  }
-
-  @protected
-  PreflightPayOnchainResponse dco_decode_preflight_pay_onchain_response(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return PreflightPayOnchainResponse(
-      high: dco_decode_opt_box_autoadd_fee_estimate(arr[0]),
-      normal: dco_decode_fee_estimate(arr[1]),
-      background: dco_decode_fee_estimate(arr[2]),
-    );
   }
 
   @protected
@@ -5301,11 +5301,29 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  OpenChannelPreflightRequest
+  sse_decode_box_autoadd_open_channel_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_open_channel_preflight_request(deserializer));
+  }
+
+  @protected
   OpenChannelRequest sse_decode_box_autoadd_open_channel_request(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_open_channel_request(deserializer));
+  }
+
+  @protected
+  PayInvoicePreflightRequest
+  sse_decode_box_autoadd_pay_invoice_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_pay_invoice_preflight_request(deserializer));
   }
 
   @protected
@@ -5317,11 +5335,28 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  PayOfferPreflightRequest sse_decode_box_autoadd_pay_offer_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_pay_offer_preflight_request(deserializer));
+  }
+
+  @protected
   PayOfferRequest sse_decode_box_autoadd_pay_offer_request(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_pay_offer_request(deserializer));
+  }
+
+  @protected
+  PayOnchainPreflightRequest
+  sse_decode_box_autoadd_pay_onchain_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_pay_onchain_preflight_request(deserializer));
   }
 
   @protected
@@ -5360,41 +5395,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_payment_method(deserializer));
-  }
-
-  @protected
-  PreflightOpenChannelRequest
-  sse_decode_box_autoadd_preflight_open_channel_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_preflight_open_channel_request(deserializer));
-  }
-
-  @protected
-  PreflightPayInvoiceRequest
-  sse_decode_box_autoadd_preflight_pay_invoice_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_preflight_pay_invoice_request(deserializer));
-  }
-
-  @protected
-  PreflightPayOfferRequest sse_decode_box_autoadd_preflight_pay_offer_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_preflight_pay_offer_request(deserializer));
-  }
-
-  @protected
-  PreflightPayOnchainRequest
-  sse_decode_box_autoadd_preflight_pay_onchain_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_preflight_pay_onchain_request(deserializer));
   }
 
   @protected
@@ -5506,6 +5506,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_u_8_array_32(deserializer);
     return ClientPaymentId(id: var_id);
+  }
+
+  @protected
+  CloseChannelPreflightResponse sse_decode_close_channel_preflight_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_feeEstimateSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    return CloseChannelPreflightResponse(feeEstimateSats: var_feeEstimateSats);
   }
 
   @protected
@@ -6048,6 +6057,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  OpenChannelPreflightRequest sse_decode_open_channel_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_valueSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    return OpenChannelPreflightRequest(valueSats: var_valueSats);
+  }
+
+  @protected
+  OpenChannelPreflightResponse sse_decode_open_channel_preflight_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_feeEstimateSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    return OpenChannelPreflightResponse(feeEstimateSats: var_feeEstimateSats);
+  }
+
+  @protected
   OpenChannelRequest sse_decode_open_channel_request(
     SseDeserializer deserializer,
   ) {
@@ -6301,6 +6328,36 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  PayInvoicePreflightRequest sse_decode_pay_invoice_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_invoice = sse_decode_String(deserializer);
+    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
+    var var_kind = sse_decode_payment_kind(deserializer);
+    return PayInvoicePreflightRequest(
+      invoice: var_invoice,
+      fallbackAmountSats: var_fallbackAmountSats,
+      kind: var_kind,
+    );
+  }
+
+  @protected
+  PayInvoicePreflightResponse sse_decode_pay_invoice_preflight_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    return PayInvoicePreflightResponse(
+      amountSats: var_amountSats,
+      feesSats: var_feesSats,
+    );
+  }
+
+  @protected
   PayInvoiceRequest sse_decode_pay_invoice_request(
     SseDeserializer deserializer,
   ) {
@@ -6331,6 +6388,34 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  PayOfferPreflightRequest sse_decode_pay_offer_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_cid = sse_decode_client_payment_id(deserializer);
+    var var_offer = sse_decode_String(deserializer);
+    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    return PayOfferPreflightRequest(
+      cid: var_cid,
+      offer: var_offer,
+      amountSats: var_amountSats,
+    );
+  }
+
+  @protected
+  PayOfferPreflightResponse sse_decode_pay_offer_preflight_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    return PayOfferPreflightResponse(
+      amountSats: var_amountSats,
+      feesSats: var_feesSats,
+    );
+  }
+
+  @protected
   PayOfferRequest sse_decode_pay_offer_request(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_cid = sse_decode_client_payment_id(deserializer);
@@ -6354,6 +6439,34 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_created_index(deserializer);
     return PayOfferResponse(index: var_index);
+  }
+
+  @protected
+  PayOnchainPreflightRequest sse_decode_pay_onchain_preflight_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_address = sse_decode_String(deserializer);
+    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    return PayOnchainPreflightRequest(
+      address: var_address,
+      amountSats: var_amountSats,
+    );
+  }
+
+  @protected
+  PayOnchainPreflightResponse sse_decode_pay_onchain_preflight_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_high = sse_decode_opt_box_autoadd_fee_estimate(deserializer);
+    var var_normal = sse_decode_fee_estimate(deserializer);
+    var var_background = sse_decode_fee_estimate(deserializer);
+    return PayOnchainPreflightResponse(
+      high: var_high,
+      normal: var_normal,
+      background: var_background,
+    );
   }
 
   @protected
@@ -6536,119 +6649,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return PaymentStatus.values[inner];
-  }
-
-  @protected
-  PreflightCloseChannelResponse sse_decode_preflight_close_channel_response(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_feeEstimateSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    return PreflightCloseChannelResponse(feeEstimateSats: var_feeEstimateSats);
-  }
-
-  @protected
-  PreflightOpenChannelRequest sse_decode_preflight_open_channel_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_valueSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    return PreflightOpenChannelRequest(valueSats: var_valueSats);
-  }
-
-  @protected
-  PreflightOpenChannelResponse sse_decode_preflight_open_channel_response(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_feeEstimateSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    return PreflightOpenChannelResponse(feeEstimateSats: var_feeEstimateSats);
-  }
-
-  @protected
-  PreflightPayInvoiceRequest sse_decode_preflight_pay_invoice_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_invoice = sse_decode_String(deserializer);
-    var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
-      deserializer,
-    );
-    var var_kind = sse_decode_payment_kind(deserializer);
-    return PreflightPayInvoiceRequest(
-      invoice: var_invoice,
-      fallbackAmountSats: var_fallbackAmountSats,
-      kind: var_kind,
-    );
-  }
-
-  @protected
-  PreflightPayInvoiceResponse sse_decode_preflight_pay_invoice_response(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    return PreflightPayInvoiceResponse(
-      amountSats: var_amountSats,
-      feesSats: var_feesSats,
-    );
-  }
-
-  @protected
-  PreflightPayOfferRequest sse_decode_preflight_pay_offer_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_cid = sse_decode_client_payment_id(deserializer);
-    var var_offer = sse_decode_String(deserializer);
-    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    return PreflightPayOfferRequest(
-      cid: var_cid,
-      offer: var_offer,
-      amountSats: var_amountSats,
-    );
-  }
-
-  @protected
-  PreflightPayOfferResponse sse_decode_preflight_pay_offer_response(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    return PreflightPayOfferResponse(
-      amountSats: var_amountSats,
-      feesSats: var_feesSats,
-    );
-  }
-
-  @protected
-  PreflightPayOnchainRequest sse_decode_preflight_pay_onchain_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_address = sse_decode_String(deserializer);
-    var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    return PreflightPayOnchainRequest(
-      address: var_address,
-      amountSats: var_amountSats,
-    );
-  }
-
-  @protected
-  PreflightPayOnchainResponse sse_decode_preflight_pay_onchain_response(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_high = sse_decode_opt_box_autoadd_fee_estimate(deserializer);
-    var var_normal = sse_decode_fee_estimate(deserializer);
-    var var_background = sse_decode_fee_estimate(deserializer);
-    return PreflightPayOnchainResponse(
-      high: var_high,
-      normal: var_normal,
-      background: var_background,
-    );
   }
 
   @protected
@@ -7258,12 +7258,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_open_channel_preflight_request(
+    OpenChannelPreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_open_channel_preflight_request(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_open_channel_request(
     OpenChannelRequest self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_open_channel_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_pay_invoice_preflight_request(
+    PayInvoicePreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_pay_invoice_preflight_request(self, serializer);
   }
 
   @protected
@@ -7276,12 +7294,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_pay_offer_preflight_request(
+    PayOfferPreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_pay_offer_preflight_request(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_pay_offer_request(
     PayOfferRequest self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_pay_offer_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_pay_onchain_preflight_request(
+    PayOnchainPreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_pay_onchain_preflight_request(self, serializer);
   }
 
   @protected
@@ -7324,42 +7360,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_method(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_preflight_open_channel_request(
-    PreflightOpenChannelRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_preflight_open_channel_request(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_preflight_pay_invoice_request(
-    PreflightPayInvoiceRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_preflight_pay_invoice_request(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_preflight_pay_offer_request(
-    PreflightPayOfferRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_preflight_pay_offer_request(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_preflight_pay_onchain_request(
-    PreflightPayOnchainRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_preflight_pay_onchain_request(self, serializer);
   }
 
   @protected
@@ -7488,6 +7488,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8_array_32(self.id, serializer);
+  }
+
+  @protected
+  void sse_encode_close_channel_preflight_response(
+    CloseChannelPreflightResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.feeEstimateSats, serializer);
   }
 
   @protected
@@ -7913,6 +7922,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_open_channel_preflight_request(
+    OpenChannelPreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.valueSats, serializer);
+  }
+
+  @protected
+  void sse_encode_open_channel_preflight_response(
+    OpenChannelPreflightResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.feeEstimateSats, serializer);
+  }
+
+  @protected
   void sse_encode_open_channel_request(
     OpenChannelRequest self,
     SseSerializer serializer,
@@ -8164,6 +8191,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_pay_invoice_preflight_request(
+    PayInvoicePreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.invoice, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
+    sse_encode_payment_kind(self.kind, serializer);
+  }
+
+  @protected
+  void sse_encode_pay_invoice_preflight_response(
+    PayInvoicePreflightResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
+  }
+
+  @protected
   void sse_encode_pay_invoice_request(
     PayInvoiceRequest self,
     SseSerializer serializer,
@@ -8183,6 +8231,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_created_index(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_pay_offer_preflight_request(
+    PayOfferPreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_client_payment_id(self.cid, serializer);
+    sse_encode_String(self.offer, serializer);
+    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
+  }
+
+  @protected
+  void sse_encode_pay_offer_preflight_response(
+    PayOfferPreflightResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
+    sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
   }
 
   @protected
@@ -8206,6 +8275,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_created_index(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_pay_onchain_preflight_request(
+    PayOnchainPreflightRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.address, serializer);
+    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
+  }
+
+  @protected
+  void sse_encode_pay_onchain_preflight_response(
+    PayOnchainPreflightResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_fee_estimate(self.high, serializer);
+    sse_encode_fee_estimate(self.normal, serializer);
+    sse_encode_fee_estimate(self.background, serializer);
   }
 
   @protected
@@ -8347,96 +8437,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_payment_status(PaymentStatus self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_close_channel_response(
-    PreflightCloseChannelResponse self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.feeEstimateSats, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_open_channel_request(
-    PreflightOpenChannelRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.valueSats, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_open_channel_response(
-    PreflightOpenChannelResponse self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.feeEstimateSats, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_pay_invoice_request(
-    PreflightPayInvoiceRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.invoice, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
-    sse_encode_payment_kind(self.kind, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_pay_invoice_response(
-    PreflightPayInvoiceResponse self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
-    sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_pay_offer_request(
-    PreflightPayOfferRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_client_payment_id(self.cid, serializer);
-    sse_encode_String(self.offer, serializer);
-    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_pay_offer_response(
-    PreflightPayOfferResponse self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
-    sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_pay_onchain_request(
-    PreflightPayOnchainRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.address, serializer);
-    sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
-  }
-
-  @protected
-  void sse_encode_preflight_pay_onchain_response(
-    PreflightPayOnchainResponse self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_fee_estimate(self.high, serializer);
-    sse_encode_fee_estimate(self.normal, serializer);
-    sse_encode_fee_estimate(self.background, serializer);
   }
 
   @protected

@@ -50,6 +50,13 @@ class AppHandle {
   Future<void> closeChannel({required CloseChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleCloseChannel(that: this, req: req);
 
+  Future<CloseChannelPreflightResponse> closeChannelPreflight({
+    required CloseChannelRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandleCloseChannelPreflight(
+    that: this,
+    req: req,
+  );
+
   Future<CreateClientResponse> createClient({
     required CreateClientRequest req,
   }) =>
@@ -164,46 +171,39 @@ class AppHandle {
   Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleOpenChannel(that: this, req: req);
 
+  Future<OpenChannelPreflightResponse> openChannelPreflight({
+    required OpenChannelPreflightRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandleOpenChannelPreflight(
+    that: this,
+    req: req,
+  );
+
   Future<PayInvoiceResponse> payInvoice({required PayInvoiceRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayInvoice(that: this, req: req);
+
+  Future<PayInvoicePreflightResponse> payInvoicePreflight({
+    required PayInvoicePreflightRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePayInvoicePreflight(
+    that: this,
+    req: req,
+  );
 
   Future<PayOfferResponse> payOffer({required PayOfferRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayOffer(that: this, req: req);
 
+  Future<PayOfferPreflightResponse> payOfferPreflight({
+    required PayOfferPreflightRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePayOfferPreflight(
+    that: this,
+    req: req,
+  );
+
   Future<PayOnchainResponse> payOnchain({required PayOnchainRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandlePayOnchain(that: this, req: req);
 
-  Future<PreflightCloseChannelResponse> preflightCloseChannel({
-    required CloseChannelRequest req,
-  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightCloseChannel(
-    that: this,
-    req: req,
-  );
-
-  Future<PreflightOpenChannelResponse> preflightOpenChannel({
-    required PreflightOpenChannelRequest req,
-  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightOpenChannel(
-    that: this,
-    req: req,
-  );
-
-  Future<PreflightPayInvoiceResponse> preflightPayInvoice({
-    required PreflightPayInvoiceRequest req,
-  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightPayInvoice(
-    that: this,
-    req: req,
-  );
-
-  Future<PreflightPayOfferResponse> preflightPayOffer({
-    required PreflightPayOfferRequest req,
-  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightPayOffer(
-    that: this,
-    req: req,
-  );
-
-  Future<PreflightPayOnchainResponse> preflightPayOnchain({
-    required PreflightPayOnchainRequest req,
-  }) => AppRs.instance.api.crateFfiAppAppHandlePreflightPayOnchain(
+  Future<PayOnchainPreflightResponse> payOnchainPreflight({
+    required PayOnchainPreflightRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandlePayOnchainPreflight(
     that: this,
     req: req,
   );

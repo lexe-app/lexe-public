@@ -64,8 +64,8 @@ use bitcoin::{
 };
 use lexe_api::{
     models::command::{
-        FeeEstimate, OnchainDescriptors, PayOnchainRequest,
-        PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+        FeeEstimate, OnchainDescriptors, PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse, PayOnchainRequest,
     },
     types::payments::PaymentKind,
     vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_V2_FILENAME},
@@ -1147,11 +1147,11 @@ impl OnchainWallet {
     ///
     /// This fn deliberately avoids modifying the wallet state. We don't want to
     /// generate unnecessary addresses that we need to watch and sync.
-    pub(crate) fn preflight_pay_onchain(
+    pub(crate) fn pay_onchain_preflight(
         &self,
-        req: PreflightPayOnchainRequest,
+        req: PayOnchainPreflightRequest,
         network: Network,
-    ) -> anyhow::Result<PreflightPayOnchainResponse> {
+    ) -> anyhow::Result<PayOnchainPreflightResponse> {
         let high_prio = ConfirmationPriority::High;
         let normal_prio = ConfirmationPriority::Normal;
         let background_prio = ConfirmationPriority::Background;
@@ -1166,14 +1166,14 @@ impl OnchainWallet {
 
         // We _require_ a tx to at least be able to use normal fee rate.
         let address = req.address.require_network(network.into())?;
-        let normal_fee = Self::preflight_pay_onchain_inner(
+        let normal_fee = Self::pay_onchain_preflight_inner(
             locked_wallet.deref_mut(),
             self.coin_selector,
             &address,
             req.amount,
             normal_feerate,
         )?;
-        let background_fee = Self::preflight_pay_onchain_inner(
+        let background_fee = Self::pay_onchain_preflight_inner(
             locked_wallet.deref_mut(),
             self.coin_selector,
             &address,
@@ -1182,7 +1182,7 @@ impl OnchainWallet {
         )?;
 
         // The high fee rate tx is allowed to fail with insufficient balance.
-        let high_fee = Self::preflight_pay_onchain_inner(
+        let high_fee = Self::pay_onchain_preflight_inner(
             locked_wallet.deref_mut(),
             self.coin_selector,
             &address,
@@ -1191,14 +1191,14 @@ impl OnchainWallet {
         )
         .ok();
 
-        Ok(PreflightPayOnchainResponse {
+        Ok(PayOnchainPreflightResponse {
             high: high_fee,
             normal: normal_fee,
             background: background_fee,
         })
     }
 
-    fn preflight_pay_onchain_inner(
+    fn pay_onchain_preflight_inner(
         wallet: &mut Wallet,
         coin_selector: LexeCoinSelector,
         address: &bitcoin::Address,
@@ -2093,25 +2093,25 @@ mod test {
         h.ww().fund(External, sat!(123_456));
         assert_eq!(h.wallet.get_balance().confirmed.to_sat(), 123_456);
 
-        // preflight_open_channel
+        // open_channel_preflight
         h.assert_no_persists_in(|h| {
             let fee =
                 h.wallet.preflight_channel_funding_tx(sat!(12_345)).unwrap();
             assert_eq!(fee.sats_u64(), 305);
         });
 
-        // preflight_pay_onchain
+        // pay_onchain_preflight
         let address = {
             let network = h.network.to_bitcoin();
             let script = Script::from_bytes(&[0x42; 10]);
             Address::p2wsh(script, network).into_unchecked()
         };
         h.assert_no_persists_in(|h| {
-            let req = PreflightPayOnchainRequest {
+            let req = PayOnchainPreflightRequest {
                 address: address.clone(),
                 amount: sat!(12_345),
             };
-            let fee = h.wallet.preflight_pay_onchain(req, h.network).unwrap();
+            let fee = h.wallet.pay_onchain_preflight(req, h.network).unwrap();
             assert_eq!(fee.high.map(|x| x.amount.sats_u64()), Some(382));
             assert_eq!(fee.normal.amount.sats_u64(), 305);
             assert_eq!(fee.background.amount.sats_u64(), 185);
@@ -2124,20 +2124,20 @@ mod test {
         h.ww().fund(External, sat!(11_500));
         h.ww().fund(External, sat!(11_500));
 
-        // preflight_open_channel
+        // open_channel_preflight
         h.assert_no_persists_in(|h| {
             let amount = sat!(12_345);
             let fee = h.wallet.preflight_channel_funding_tx(amount).unwrap();
             assert_eq!(fee.sats_u64(), 441);
         });
 
-        // preflight_pay_onchain
+        // pay_onchain_preflight
         h.assert_no_persists_in(|h| {
-            let req = PreflightPayOnchainRequest {
+            let req = PayOnchainPreflightRequest {
                 address: address.clone(),
                 amount: sat!(12_345),
             };
-            let fee = h.wallet.preflight_pay_onchain(req, h.network).unwrap();
+            let fee = h.wallet.pay_onchain_preflight(req, h.network).unwrap();
             assert_eq!(fee.high.map(|x| x.amount.sats_u64()), Some(552));
             assert_eq!(fee.normal.amount.sats_u64(), 441);
             assert_eq!(fee.background.amount.sats_u64(), 267);

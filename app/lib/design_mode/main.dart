@@ -7,14 +7,14 @@ import 'dart:convert' show utf8;
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:app_rs_dart/ffi/api.dart'
     show
+        CloseChannelPreflightResponse,
         FeeEstimate,
         FiatRate,
         ListChannelsResponse,
         NodeInfo,
-        PreflightCloseChannelResponse,
-        PreflightOpenChannelResponse,
-        PreflightPayInvoiceResponse,
-        PreflightPayOnchainResponse;
+        OpenChannelPreflightResponse,
+        PayInvoicePreflightResponse,
+        PayOnchainPreflightResponse;
 import 'package:app_rs_dart/ffi/app.dart' show U8Array16;
 import 'package:app_rs_dart/ffi/settings.dart' show WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
@@ -303,7 +303,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       fiatRate: mockFiatRate,
     );
 
-    const feeEstimates = PreflightPayOnchainResponse(
+    const feeEstimates = PayOnchainPreflightResponse(
       high: FeeEstimate(amountSats: 849),
       normal: FeeEstimate(amountSats: 722),
       background: FeeEstimate(amountSats: 563),
@@ -837,7 +837,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               final amountSats = invoice.amountSats!;
               return PreflightedPayment_Invoice(
                 invoice: invoice,
-                preflight: PreflightPayInvoiceResponse(
+                preflight: PayInvoicePreflightResponse(
                   amountSats: amountSats,
                   feesSats: (0.0095 * amountSats).truncate(),
                 ),
@@ -1028,7 +1028,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           channelValueSats: 6500,
           userChannelId: UserChannelId(id: U8Array16.init()),
-          preflight: const PreflightOpenChannelResponse(feeEstimateSats: 122),
+          preflight: const OpenChannelPreflightResponse(feeEstimateSats: 122),
         ),
       ),
       Component(
@@ -1044,7 +1044,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           channelValueSats: 6500,
           userChannelId: UserChannelId(id: U8Array16.init()),
-          preflight: const PreflightOpenChannelResponse(feeEstimateSats: 122),
+          preflight: const OpenChannelPreflightResponse(feeEstimateSats: 122),
         ),
       ),
       Component(
@@ -1080,7 +1080,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           channelId:
               "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
           channelOurBalanceSats: 300231,
-          preflight: const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+          preflight: const CloseChannelPreflightResponse(feeEstimateSats: 1100),
         ),
       ),
       Component(
@@ -1092,7 +1092,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           channelId:
               "2607641588c8a779a6f7e7e2d110b0c67bc1f01b9bb9a89bbe98c144f0f4b04c",
           channelOurBalanceSats: 300231,
-          preflight: const PreflightCloseChannelResponse(feeEstimateSats: 1100),
+          preflight: const CloseChannelPreflightResponse(feeEstimateSats: 1100),
         ),
       ),
       Component(
@@ -1225,7 +1225,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     mocks.dummyInvoiceOutboundPending01.invoice!.payeePubkey,
                 amountSats: 10000,
               ),
-              preflight: const PreflightPayInvoiceResponse(
+              preflight: const PayInvoicePreflightResponse(
                 amountSats: 10000,
                 feesSats: 92,
               ),
@@ -1425,7 +1425,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           channelValueSats: 80000,
           userChannelId: UserChannelId(id: U8Array16.init()),
-          preflight: const PreflightOpenChannelResponse(feeEstimateSats: 123),
+          preflight: const OpenChannelPreflightResponse(feeEstimateSats: 123),
         ),
         screenshot:
             "lexe-docs/docs.lexe.app/images/getting-started/12-open-channel-confirm.png",
@@ -1505,7 +1505,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               final amountSats = invoice.amountSats!;
               return PreflightedPayment_Invoice(
                 invoice: invoice,
-                preflight: PreflightPayInvoiceResponse(
+                preflight: PayInvoicePreflightResponse(
                   amountSats: amountSats,
                   feesSats: 28,
                 ),

@@ -193,13 +193,13 @@ pub struct OpenChannelResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PreflightOpenChannelRequest {
+pub struct OpenChannelPreflightRequest {
     /// The value of the channel we want to open.
     pub value: Amount,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PreflightOpenChannelResponse {
+pub struct OpenChannelPreflightResponse {
     /// The estimated on-chain fee required to execute the channel open.
     pub fee_estimate: Amount,
 }
@@ -221,10 +221,10 @@ pub struct CloseChannelRequest {
     pub maybe_counterparty: Option<NodePk>,
 }
 
-pub type PreflightCloseChannelRequest = CloseChannelRequest;
+pub type CloseChannelPreflightRequest = CloseChannelRequest;
 
 #[derive(Serialize, Deserialize)]
-pub struct PreflightCloseChannelResponse {
+pub struct CloseChannelPreflightResponse {
     /// The estimated on-chain fee required to execute the channel close.
     pub fee_estimate: Amount,
 }
@@ -456,7 +456,7 @@ pub struct PayInvoiceResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PreflightPayInvoiceRequest {
+pub struct PayInvoicePreflightRequest {
     /// The invoice we want to pay.
     pub invoice: Invoice,
     /// Specifies the amount we will pay if the invoice to be paid is
@@ -469,7 +469,7 @@ pub struct PreflightPayInvoiceRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PreflightPayInvoiceResponse {
+pub struct PayInvoicePreflightResponse {
     /// The total amount to-be-paid for the pre-flighted [`Invoice`],
     /// excluding the fees.
     ///
@@ -541,7 +541,7 @@ pub struct CreateOfferResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PreflightPayOfferRequest {
+pub struct PayOfferPreflightRequest {
     /// The user-provided idempotency id for this payment.
     pub cid: ClientPaymentId,
     /// The offer we want to pay.
@@ -556,7 +556,7 @@ pub struct PreflightPayOfferRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PreflightPayOfferResponse {
+pub struct PayOfferPreflightResponse {
     /// The total amount to-be-paid for the pre-flighted [`Offer`],
     /// excluding the fees.
     ///
@@ -668,7 +668,7 @@ pub struct PayOnchainResponse {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct PreflightPayOnchainRequest {
+pub struct PayOnchainPreflightRequest {
     /// The address we want to send funds to.
     pub address: bitcoin::Address<NetworkUnchecked>,
     /// How much Bitcoin we want to send.
@@ -676,7 +676,7 @@ pub struct PreflightPayOnchainRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PreflightPayOnchainResponse {
+pub struct PayOnchainPreflightResponse {
     /// Corresponds with [`ConfirmationPriority::High`]
     ///
     /// The high estimate is optional--we don't want to block the user from
@@ -855,7 +855,7 @@ mod arbitrary_impl {
 
     use super::*;
 
-    impl Arbitrary for PreflightPayOnchainRequest {
+    impl Arbitrary for PayOnchainPreflightRequest {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
@@ -876,8 +876,8 @@ mod test {
     use super::*;
 
     #[test]
-    fn preflight_pay_onchain_roundtrip() {
-        roundtrip::query_string_roundtrip_proptest::<PreflightPayOnchainRequest>(
+    fn pay_onchain_preflight_roundtrip() {
+        roundtrip::query_string_roundtrip_proptest::<PayOnchainPreflightRequest>(
         );
     }
 

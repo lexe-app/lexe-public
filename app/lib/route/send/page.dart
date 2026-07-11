@@ -3,7 +3,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show FeeEstimate, FiatRate, PreflightPayOnchainResponse;
+    show FeeEstimate, FiatRate, PayOnchainPreflightResponse;
 import 'package:app_rs_dart/ffi/api.ext.dart';
 import 'package:app_rs_dart/ffi/types.dart'
     show
@@ -1018,7 +1018,7 @@ class ChooseOnchainFeeDialog extends StatelessWidget {
     required this.selected,
   });
 
-  final PreflightPayOnchainResponse feeEstimates;
+  final PayOnchainPreflightResponse feeEstimates;
   final ConfirmationPriority selected;
 
   @override

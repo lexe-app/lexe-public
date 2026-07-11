@@ -131,17 +131,17 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         .route("/sign_message", post(user::sign_message))
         .route("/verify_message", post(user::verify_message))
         .route("/open_channel", post(user::open_channel))
-        .route("/preflight_open_channel", post(user::preflight_open_channel))
+        .route("/open_channel_preflight", post(user::open_channel_preflight))
         .route("/close_channel", post(user::close_channel))
-        .route("/preflight_close_channel", post(user::preflight_close_channel))
+        .route("/close_channel_preflight", post(user::close_channel_preflight))
         .route("/create_invoice", post(shared::create_invoice))
         .route("/pay_invoice", post(user::pay_invoice))
-        .route("/preflight_pay_invoice", post(user::preflight_pay_invoice))
+        .route("/pay_invoice_preflight", post(user::pay_invoice_preflight))
         .route("/create_offer", post(user::create_offer))
         .route("/pay_offer", post(user::pay_offer))
-        .route("/preflight_pay_offer", post(user::preflight_pay_offer))
+        .route("/pay_offer_preflight", post(user::pay_offer_preflight))
         .route("/pay_onchain", post(user::pay_onchain))
-        .route("/preflight_pay_onchain", post(user::preflight_pay_onchain))
+        .route("/pay_onchain_preflight", post(user::pay_onchain_preflight))
         .route("/get_address", post(user::get_address))
         .route("/v1/payments/id", get(user::get_payment_by_id))
         .route("/payments/updated", get(user::get_updated_payments))
@@ -180,7 +180,14 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         // Remove once unused.
         .route("/human_bitcoin_address",
             get(user::get_human_bitcoin_address_v1)
-        );
+        )
+        // Pre-rename `preflight_*` paths, used by clients predating the
+        // `/user/*` routes. Remove with the `/app` mount.
+        .route("/preflight_open_channel", post(user::open_channel_preflight))
+        .route("/preflight_close_channel", post(user::close_channel_preflight))
+        .route("/preflight_pay_invoice", post(user::pay_invoice_preflight))
+        .route("/preflight_pay_offer", post(user::pay_offer_preflight))
+        .route("/preflight_pay_onchain", post(user::pay_onchain_preflight));
 
     Router::new()
         .nest("/user", user_routes.clone())
