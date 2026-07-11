@@ -52,7 +52,7 @@ use lexe_api::{
         RevocableClient, RevocableClients,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, UpdateClientRequest, UpdateClientResponse,
+            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
         },
     },
     types::{
@@ -747,9 +747,9 @@ impl UserNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn get_revocable_clients(
+    async fn list_revocable_clients(
         &self,
-        req: GetRevocableClients,
+        req: ListRevocableClients,
     ) -> Result<RevocableClients, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;

@@ -108,7 +108,7 @@ use crate::{
         RevocableClients,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, UpdateClientRequest, UpdateClientResponse,
+            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
         },
     },
     types::{
@@ -410,11 +410,11 @@ pub trait UserNodeRunApi {
 
     /// Lists all revocable clients.
     ///
-    /// GET /user/clients [`GetRevocableClients`] -> [`RevocableClients`]
+    /// GET /user/clients [`ListRevocableClients`] -> [`RevocableClients`]
     // Added in `node-0.7.9`
-    async fn get_revocable_clients(
+    async fn list_revocable_clients(
         &self,
-        req: GetRevocableClients,
+        req: ListRevocableClients,
     ) -> Result<RevocableClients, NodeApiError>;
 
     /// Creates a new revocable client. Returns the newly issued client cert.

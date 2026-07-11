@@ -1732,11 +1732,12 @@ impl LexeWallet {
     /// Revoked and expired clients are not included.
     #[instrument(skip_all, name = "(list-clients)")]
     pub async fn list_clients(&self) -> anyhow::Result<ListClientsResponse> {
-        let req =
-            revocable_clients::models::GetRevocableClients { valid_only: true };
+        let req = revocable_clients::models::ListRevocableClients {
+            valid_only: true,
+        };
         let clients = self
             .node_client
-            .get_revocable_clients(req)
+            .list_revocable_clients(req)
             .await?
             .clients
             .into_iter()

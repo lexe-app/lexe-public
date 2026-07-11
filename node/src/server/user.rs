@@ -34,7 +34,7 @@ use lexe_api::{
         RevocableClients,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetRevocableClients, UpdateClientRequest, UpdateClientResponse,
+            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
         },
     },
     server::{LxJson, extract::LxQuery},
@@ -478,9 +478,9 @@ pub(super) async fn update_personal_note(
     Ok(LxJson(Empty {}))
 }
 
-pub(super) async fn get_revocable_clients(
+pub(super) async fn list_revocable_clients(
     State(state): State<Arc<RouterState>>,
-    LxQuery(req): LxQuery<GetRevocableClients>,
+    LxQuery(req): LxQuery<ListRevocableClients>,
 ) -> Result<LxJson<RevocableClients>, NodeApiError> {
     let locked_revocable_clients = state.revocable_clients.0.read().unwrap();
 

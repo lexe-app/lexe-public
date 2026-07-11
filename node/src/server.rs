@@ -147,7 +147,7 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         .route("/payments/updated", get(user::get_updated_payments))
         .route("/payments/note", put(user::update_personal_note))
         .route("/clients",
-            get(user::get_revocable_clients)
+            get(user::list_revocable_clients)
                 .post(user::create_revocable_client)
                 .put(user::update_revocable_client)
         )

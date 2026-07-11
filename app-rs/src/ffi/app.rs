@@ -23,7 +23,7 @@ use lexe_api::{
     },
     revocable_clients::models::{
         CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-        GetRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
+        ListRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
     },
     types::{
         Empty,
@@ -547,8 +547,12 @@ impl AppHandle {
     #[instrument(skip_all, name = "(list-clients)")]
     pub async fn list_clients(&self) -> anyhow::Result<Vec<RevocableClient>> {
         // Only care about unrevoked and unexpired clients
-        let req = GetRevocableClients { valid_only: true };
-        let resp = self.inner.node_client()?.get_revocable_clients(req).await?;
+        let req = ListRevocableClients { valid_only: true };
+        let resp = self
+            .inner
+            .node_client()?
+            .list_revocable_clients(req)
+            .await?;
         let clients = resp
             .clients
             .into_values()
