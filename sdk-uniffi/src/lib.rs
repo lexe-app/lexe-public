@@ -16,7 +16,10 @@ use anyhow::{Context, anyhow};
 use lexe::{
     bip39::Mnemonic,
     blocking_wallet::BlockingLexeWallet as SdkBlockingLexeWallet,
-    config::WalletEnvConfig as SdkWalletEnvConfig,
+    config::{
+        DeployEnv as SdkDeployEnv, Network as SdkNetwork,
+        WalletEnvConfig as SdkWalletEnvConfig,
+    },
     types::{
         auth::{
             ClientCredentials as SdkClientCredentials,
@@ -24,9 +27,13 @@ use lexe::{
             UserPk,
         },
         bitcoin::{
-            LnurlPayRequest as SdkLnurlPayRequest,
+            Amount as SdkAmount, ChannelId as SdkChannelId,
+            ConfirmationPriority as SdkConfirmationPriority,
+            Invoice as SdkInvoice, LnurlPayRequest as SdkLnurlPayRequest,
             LnurlPayRequestMetadata as SdkLnurlPayRequestMetadata,
-            OutPoint as SdkOutPoint, PaymentMethod as SdkPaymentMethod,
+            Offer as SdkOffer, OutPoint as SdkOutPoint,
+            PaymentMethod as SdkPaymentMethod,
+            UserChannelId as SdkUserChannelId,
         },
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
@@ -57,37 +64,20 @@ use lexe::{
             UpdatePersonalNoteRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
-        payment::Payment as SdkPayment,
+        payment::{
+            ClientPaymentId as SdkClientPaymentId, Payment as SdkPayment,
+            PaymentCreatedIndex as SdkPaymentCreatedIndex,
+            PaymentDirection as SdkPaymentDirection,
+            PaymentKind as SdkPaymentKind, PaymentRail as SdkPaymentRail,
+            PaymentStatus as SdkPaymentStatus,
+            PaymentUpdatedIndex as SdkPaymentUpdatedIndex,
+        },
         util::{Ppm, TimestampMs},
     },
-    util::ed25519,
+    util::{ByteArray, ed25519},
     wallet::LexeWallet as SdkLexeWallet,
 };
-use lexe_api_core::{
-    error::GatewayApiError as GatewayApiErrorRs,
-    types::{
-        invoice::Invoice as InvoiceRs,
-        offer::Offer as OfferRs,
-        payments::{
-            ClientPaymentId as ClientPaymentIdRs,
-            PaymentCreatedIndex as PaymentCreatedIndexRs,
-            PaymentDirection as PaymentDirectionRs,
-            PaymentKind as PaymentKindRs, PaymentRail as PaymentRailRs,
-            PaymentStatus as PaymentStatusRs,
-            PaymentUpdatedIndex as PaymentUpdatedIndexRs,
-        },
-    },
-};
-use lexe_common::{
-    ByteArray,
-    env::DeployEnv as DeployEnvRs,
-    ln::{
-        amount::Amount as AmountRs,
-        channel::{ChannelId as ChannelIdRs, UserChannelId as UserChannelIdRs},
-        network::Network as NetworkRs,
-        priority::ConfirmationPriority as ConfirmationPriorityRs,
-    },
-};
+use lexe_api_core::error::GatewayApiError as GatewayApiErrorRs;
 use secrecy::Zeroize;
 
 uniffi::setup_scaffolding!("lexe");
@@ -203,7 +193,7 @@ pub enum DeployEnv {
     Prod,
 }
 
-impl From<DeployEnv> for DeployEnvRs {
+impl From<DeployEnv> for SdkDeployEnv {
     fn from(env: DeployEnv) -> Self {
         match env {
             DeployEnv::Dev => Self::Dev,
@@ -228,7 +218,7 @@ pub enum Network {
     Regtest,
 }
 
-impl From<Network> for NetworkRs {
+impl From<Network> for SdkNetwork {
     fn from(network: Network) -> Self {
         match network {
             Network::Mainnet => Self::Mainnet,
@@ -240,14 +230,14 @@ impl From<Network> for NetworkRs {
     }
 }
 
-impl From<NetworkRs> for Network {
-    fn from(network: NetworkRs) -> Self {
+impl From<SdkNetwork> for Network {
+    fn from(network: SdkNetwork) -> Self {
         match network {
-            NetworkRs::Mainnet => Self::Mainnet,
-            NetworkRs::Testnet3 => Self::Testnet3,
-            NetworkRs::Testnet4 => Self::Testnet4,
-            NetworkRs::Signet => Self::Signet,
-            NetworkRs::Regtest => Self::Regtest,
+            SdkNetwork::Mainnet => Self::Mainnet,
+            SdkNetwork::Testnet3 => Self::Testnet3,
+            SdkNetwork::Testnet4 => Self::Testnet4,
+            SdkNetwork::Signet => Self::Signet,
+            SdkNetwork::Regtest => Self::Regtest,
         }
     }
 }
@@ -318,9 +308,9 @@ impl WalletConfig {
         match self.deploy_env {
             DeployEnv::Dev => self.gateway_url.clone(),
             DeployEnv::Staging =>
-                Some(DeployEnvRs::Staging.gateway_url(None).into_owned()),
+                Some(SdkDeployEnv::Staging.gateway_url(None).into_owned()),
             DeployEnv::Prod =>
-                Some(DeployEnvRs::Prod.gateway_url(None).into_owned()),
+                Some(SdkDeployEnv::Prod.gateway_url(None).into_owned()),
         }
     }
 
@@ -947,7 +937,7 @@ impl AsyncLexeWallet {
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let amount = amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .map_err(|e| anyhow!("Invalid amount: {e}"))?;
         let req = SdkPayRequest {
@@ -994,7 +984,7 @@ impl AsyncLexeWallet {
         partner_base_fee_sats: Option<u64>,
     ) -> Result<CreateInvoiceResponse, FfiError> {
         let amount = amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid amount")?;
 
@@ -1007,7 +997,7 @@ impl AsyncLexeWallet {
         let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
 
         let partner_base_fee = partner_base_fee_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid partner_base_fee")?;
 
@@ -1043,9 +1033,9 @@ impl AsyncLexeWallet {
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let invoice =
-            InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
+            SdkInvoice::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid fallback amount")?;
 
@@ -1080,7 +1070,7 @@ impl AsyncLexeWallet {
         expiration_secs: Option<u32>,
     ) -> Result<CreateOfferResponse, FfiError> {
         let min_amount = min_amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid min_amount")?;
 
@@ -1113,8 +1103,8 @@ impl AsyncLexeWallet {
         message: Option<String>,
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
-        let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
-        let amount = AmountRs::try_from_sats_u64(amount_sats)
+        let offer = SdkOffer::from_str(&offer).context("Invalid offer")?;
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
         let req = SdkPayOfferRequest {
@@ -1153,7 +1143,7 @@ impl AsyncLexeWallet {
         message: Option<String>,
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
-        let amount = AmountRs::try_from_sats_u64(amount_sats)
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
         let req = SdkPayLnurlRequest {
@@ -1199,7 +1189,7 @@ impl AsyncLexeWallet {
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let amount = amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid amount")?;
 
@@ -1229,7 +1219,7 @@ impl AsyncLexeWallet {
         &self,
         amount_sats: u64,
     ) -> Result<CashAppBuyResponse, FfiError> {
-        let amount = AmountRs::try_from_sats_u64(amount_sats)
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
         let req = SdkCashAppBuyRequest { amount };
 
@@ -1289,7 +1279,7 @@ impl AsyncLexeWallet {
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
         let after_rs = after
-            .map(|s| PaymentCreatedIndexRs::from_str(&s))
+            .map(|s| SdkPaymentCreatedIndex::from_str(&s))
             .transpose()?;
         let resp = self.inner.list_payments(
             &filter_rs,
@@ -1327,7 +1317,7 @@ impl AsyncLexeWallet {
         index: String,
         timeout_secs: Option<u32>,
     ) -> Result<Payment, FfiError> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
         let timeout =
             timeout_secs.map(|secs| Duration::from_secs(u64::from(secs)));
         let payment = self.inner.wait_for_payment(index, timeout).await?;
@@ -1339,7 +1329,7 @@ impl AsyncLexeWallet {
         &self,
         index: String,
     ) -> Result<Option<Payment>, FfiError> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req).await?;
         Ok(resp.payment.map(Payment::from))
@@ -1359,7 +1349,7 @@ impl AsyncLexeWallet {
         limit: Option<u16>,
     ) -> Result<GetUpdatedPaymentsResponse, FfiError> {
         let start_index = start_index
-            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
+            .map(|s| SdkPaymentUpdatedIndex::from_str(&s))
             .transpose()?;
         let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
         let resp = self.inner.get_updated_payments(req).await?;
@@ -1375,7 +1365,7 @@ impl AsyncLexeWallet {
         index: String,
         personal_note: Option<String>,
     ) -> Result<(), FfiError> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
         let req = UpdatePersonalNoteRequest {
             index,
             personal_note,
@@ -1504,10 +1494,10 @@ impl AsyncLexeWallet {
         value_sats: u64,
         user_channel_id: Option<String>,
     ) -> Result<OpenChannelResponse, FfiError> {
-        let value =
-            AmountRs::try_from_sats_u64(value_sats).context("Invalid value")?;
+        let value = SdkAmount::try_from_sats_u64(value_sats)
+            .context("Invalid value")?;
         let user_channel_id = user_channel_id
-            .map(|s| UserChannelIdRs::from_str(&s))
+            .map(|s| SdkUserChannelId::from_str(&s))
             .transpose()
             .context("Invalid user_channel_id")?;
         let req = SdkOpenChannelRequest {
@@ -1526,8 +1516,8 @@ impl AsyncLexeWallet {
         &self,
         channel_id: String,
     ) -> Result<(), FfiError> {
-        let channel_id =
-            ChannelIdRs::from_str(&channel_id).context("Invalid channel_id")?;
+        let channel_id = SdkChannelId::from_str(&channel_id)
+            .context("Invalid channel_id")?;
         let req = SdkCloseChannelRequest { channel_id };
         self.inner.close_channel(req).await?;
         Ok(())
@@ -1780,7 +1770,7 @@ impl BlockingLexeWallet {
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let amount = amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .map_err(|e| anyhow!("Invalid amount: {e}"))?;
         let req = SdkPayRequest {
@@ -1827,7 +1817,7 @@ impl BlockingLexeWallet {
         partner_base_fee_sats: Option<u64>,
     ) -> Result<CreateInvoiceResponse, FfiError> {
         let amount = amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid amount")?;
 
@@ -1840,7 +1830,7 @@ impl BlockingLexeWallet {
         let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
 
         let partner_base_fee = partner_base_fee_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid partner_base_fee")?;
 
@@ -1876,9 +1866,9 @@ impl BlockingLexeWallet {
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let invoice =
-            InvoiceRs::from_str(&invoice).context("Invalid invoice")?;
+            SdkInvoice::from_str(&invoice).context("Invalid invoice")?;
         let fallback_amount = fallback_amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid fallback amount")?;
 
@@ -1913,7 +1903,7 @@ impl BlockingLexeWallet {
         expiration_secs: Option<u32>,
     ) -> Result<CreateOfferResponse, FfiError> {
         let min_amount = min_amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid min_amount")?;
 
@@ -1946,8 +1936,8 @@ impl BlockingLexeWallet {
         message: Option<String>,
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
-        let offer = OfferRs::from_str(&offer).context("Invalid offer")?;
-        let amount = AmountRs::try_from_sats_u64(amount_sats)
+        let offer = SdkOffer::from_str(&offer).context("Invalid offer")?;
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
         let req = SdkPayOfferRequest {
@@ -1986,7 +1976,7 @@ impl BlockingLexeWallet {
         message: Option<String>,
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
-        let amount = AmountRs::try_from_sats_u64(amount_sats)
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
         let req = SdkPayLnurlRequest {
@@ -2032,7 +2022,7 @@ impl BlockingLexeWallet {
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let amount = amount_sats
-            .map(AmountRs::try_from_sats_u64)
+            .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid amount")?;
 
@@ -2062,7 +2052,7 @@ impl BlockingLexeWallet {
         &self,
         amount_sats: u64,
     ) -> Result<CashAppBuyResponse, FfiError> {
-        let amount = AmountRs::try_from_sats_u64(amount_sats)
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
         let req = SdkCashAppBuyRequest { amount };
 
@@ -2122,7 +2112,7 @@ impl BlockingLexeWallet {
         let order_rs = order.map(|o| o.to_rs());
         let limit_rs = limit.map(|l| l as usize);
         let after_rs = after
-            .map(|s| PaymentCreatedIndexRs::from_str(&s))
+            .map(|s| SdkPaymentCreatedIndex::from_str(&s))
             .transpose()?;
         let resp = self.inner.list_payments(
             &filter_rs,
@@ -2160,7 +2150,7 @@ impl BlockingLexeWallet {
         index: String,
         timeout_secs: Option<u32>,
     ) -> Result<Payment, FfiError> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
         let timeout =
             timeout_secs.map(|secs| Duration::from_secs(u64::from(secs)));
         let payment = self.inner.wait_for_payment(index, timeout)?;
@@ -2172,7 +2162,7 @@ impl BlockingLexeWallet {
         &self,
         index: String,
     ) -> Result<Option<Payment>, FfiError> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req)?;
         Ok(resp.payment.map(Payment::from))
@@ -2192,7 +2182,7 @@ impl BlockingLexeWallet {
         limit: Option<u16>,
     ) -> Result<GetUpdatedPaymentsResponse, FfiError> {
         let start_index = start_index
-            .map(|s| PaymentUpdatedIndexRs::from_str(&s))
+            .map(|s| SdkPaymentUpdatedIndex::from_str(&s))
             .transpose()?;
         let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
         let resp = self.inner.get_updated_payments(req)?;
@@ -2208,7 +2198,7 @@ impl BlockingLexeWallet {
         index: String,
         personal_note: Option<String>,
     ) -> Result<(), FfiError> {
-        let index = PaymentCreatedIndexRs::from_str(&index)?;
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
         let req = UpdatePersonalNoteRequest {
             index,
             personal_note,
@@ -2337,10 +2327,10 @@ impl BlockingLexeWallet {
         value_sats: u64,
         user_channel_id: Option<String>,
     ) -> Result<OpenChannelResponse, FfiError> {
-        let value =
-            AmountRs::try_from_sats_u64(value_sats).context("Invalid value")?;
+        let value = SdkAmount::try_from_sats_u64(value_sats)
+            .context("Invalid value")?;
         let user_channel_id = user_channel_id
-            .map(|s| UserChannelIdRs::from_str(&s))
+            .map(|s| SdkUserChannelId::from_str(&s))
             .transpose()
             .context("Invalid user_channel_id")?;
         let req = SdkOpenChannelRequest {
@@ -2356,8 +2346,8 @@ impl BlockingLexeWallet {
     /// `channel_id` is the id of the channel to close, serialized as a
     /// 64-character hex string (32 bytes).
     pub fn close_channel(&self, channel_id: String) -> Result<(), FfiError> {
-        let channel_id =
-            ChannelIdRs::from_str(&channel_id).context("Invalid channel_id")?;
+        let channel_id = SdkChannelId::from_str(&channel_id)
+            .context("Invalid channel_id")?;
         let req = SdkCloseChannelRequest { channel_id };
         self.inner.close_channel(req)?;
         Ok(())
@@ -2374,7 +2364,7 @@ impl BlockingLexeWallet {
 /// Its primary purpose is to prevent accidental double payments.
 #[derive(uniffi::Object)]
 pub struct ClientPaymentId {
-    inner: ClientPaymentIdRs,
+    inner: SdkClientPaymentId,
 }
 
 #[uniffi::export]
@@ -2383,7 +2373,7 @@ impl ClientPaymentId {
     #[uniffi::constructor]
     pub fn generate() -> Arc<Self> {
         Arc::new(Self {
-            inner: ClientPaymentIdRs::generate(),
+            inner: SdkClientPaymentId::generate(),
         })
     }
 
@@ -2409,7 +2399,7 @@ pub enum ConfirmationPriority {
     Background,
 }
 
-impl From<ConfirmationPriority> for ConfirmationPriorityRs {
+impl From<ConfirmationPriority> for SdkConfirmationPriority {
     fn from(priority: ConfirmationPriority) -> Self {
         match priority {
             ConfirmationPriority::High => Self::High,
@@ -2419,12 +2409,12 @@ impl From<ConfirmationPriority> for ConfirmationPriorityRs {
     }
 }
 
-impl From<ConfirmationPriorityRs> for ConfirmationPriority {
-    fn from(priority: ConfirmationPriorityRs) -> Self {
+impl From<SdkConfirmationPriority> for ConfirmationPriority {
+    fn from(priority: SdkConfirmationPriority) -> Self {
         match priority {
-            ConfirmationPriorityRs::High => Self::High,
-            ConfirmationPriorityRs::Normal => Self::Normal,
-            ConfirmationPriorityRs::Background => Self::Background,
+            SdkConfirmationPriority::High => Self::High,
+            SdkConfirmationPriority::Normal => Self::Normal,
+            SdkConfirmationPriority::Background => Self::Background,
         }
     }
 }
@@ -2440,12 +2430,12 @@ pub enum PaymentDirection {
     Info,
 }
 
-impl From<PaymentDirectionRs> for PaymentDirection {
-    fn from(direction: PaymentDirectionRs) -> Self {
+impl From<SdkPaymentDirection> for PaymentDirection {
+    fn from(direction: SdkPaymentDirection) -> Self {
         match direction {
-            PaymentDirectionRs::Inbound => Self::Inbound,
-            PaymentDirectionRs::Outbound => Self::Outbound,
-            PaymentDirectionRs::Info => Self::Info,
+            SdkPaymentDirection::Inbound => Self::Inbound,
+            SdkPaymentDirection::Outbound => Self::Outbound,
+            SdkPaymentDirection::Info => Self::Info,
         }
     }
 }
@@ -2467,15 +2457,15 @@ pub enum PaymentRail {
     Unknown,
 }
 
-impl From<PaymentRailRs> for PaymentRail {
-    fn from(rail: PaymentRailRs) -> Self {
+impl From<SdkPaymentRail> for PaymentRail {
+    fn from(rail: SdkPaymentRail) -> Self {
         match rail {
-            PaymentRailRs::Onchain => Self::Onchain,
-            PaymentRailRs::Invoice => Self::Invoice,
-            PaymentRailRs::Offer => Self::Offer,
-            PaymentRailRs::Spontaneous => Self::Spontaneous,
-            PaymentRailRs::WaivedFee => Self::WaivedFee,
-            PaymentRailRs::Unknown(_) => Self::Unknown,
+            SdkPaymentRail::Onchain => Self::Onchain,
+            SdkPaymentRail::Invoice => Self::Invoice,
+            SdkPaymentRail::Offer => Self::Offer,
+            SdkPaymentRail::Spontaneous => Self::Spontaneous,
+            SdkPaymentRail::WaivedFee => Self::WaivedFee,
+            SdkPaymentRail::Unknown(_) => Self::Unknown,
         }
     }
 }
@@ -2491,12 +2481,12 @@ pub enum PaymentStatus {
     Failed,
 }
 
-impl From<PaymentStatusRs> for PaymentStatus {
-    fn from(status: PaymentStatusRs) -> Self {
+impl From<SdkPaymentStatus> for PaymentStatus {
+    fn from(status: SdkPaymentStatus) -> Self {
         match status {
-            PaymentStatusRs::Pending => Self::Pending,
-            PaymentStatusRs::Completed => Self::Completed,
-            PaymentStatusRs::Failed => Self::Failed,
+            SdkPaymentStatus::Pending => Self::Pending,
+            SdkPaymentStatus::Completed => Self::Completed,
+            SdkPaymentStatus::Failed => Self::Failed,
         }
     }
 }
@@ -2571,19 +2561,19 @@ pub enum PaymentKind {
     Unknown { inner: String },
 }
 
-impl From<PaymentKindRs> for PaymentKind {
-    fn from(kind: PaymentKindRs) -> Self {
+impl From<SdkPaymentKind> for PaymentKind {
+    fn from(kind: SdkPaymentKind) -> Self {
         match kind {
-            PaymentKindRs::Onchain => Self::Onchain,
-            PaymentKindRs::Invoice => Self::Invoice,
-            PaymentKindRs::Offer => Self::Offer,
-            PaymentKindRs::Spontaneous => Self::Spontaneous,
-            PaymentKindRs::WaivedChannelFee => Self::WaivedChannelFee,
-            PaymentKindRs::WaivedLiquidityFee => Self::WaivedLiquidityFee,
-            PaymentKindRs::BuyCashApp => Self::BuyCashApp,
-            PaymentKindRs::LightningAddress => Self::LightningAddress,
-            PaymentKindRs::HumanBitcoinAddress => Self::HumanBitcoinAddress,
-            PaymentKindRs::Unknown(s) => Self::Unknown {
+            SdkPaymentKind::Onchain => Self::Onchain,
+            SdkPaymentKind::Invoice => Self::Invoice,
+            SdkPaymentKind::Offer => Self::Offer,
+            SdkPaymentKind::Spontaneous => Self::Spontaneous,
+            SdkPaymentKind::WaivedChannelFee => Self::WaivedChannelFee,
+            SdkPaymentKind::WaivedLiquidityFee => Self::WaivedLiquidityFee,
+            SdkPaymentKind::BuyCashApp => Self::BuyCashApp,
+            SdkPaymentKind::LightningAddress => Self::LightningAddress,
+            SdkPaymentKind::HumanBitcoinAddress => Self::HumanBitcoinAddress,
+            SdkPaymentKind::Unknown(s) => Self::Unknown {
                 inner: String::from(s),
             },
         }
@@ -3060,8 +3050,8 @@ pub struct Invoice {
     pub payee_pubkey: String,
 }
 
-impl From<&InvoiceRs> for Invoice {
-    fn from(invoice: &InvoiceRs) -> Self {
+impl From<&SdkInvoice> for Invoice {
+    fn from(invoice: &SdkInvoice) -> Self {
         Self {
             string: invoice.to_string(),
             description: invoice.description_str().map(String::from),
@@ -3130,8 +3120,8 @@ pub struct Offer {
     pub payee_pubkey: Option<String>,
 }
 
-impl From<OfferRs> for Offer {
-    fn from(offer: OfferRs) -> Self {
+impl From<SdkOffer> for Offer {
+    fn from(offer: SdkOffer) -> Self {
         Self {
             string: offer.to_string(),
             description: offer.description().map(String::from),
