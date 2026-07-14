@@ -278,8 +278,11 @@ void main() {
       );
       mockApp.mock(
         payInvoicePreflight,
-        (_) async =>
-            const PayInvoicePreflightResponse(amountSats: 5000, feesSats: 10),
+        (_) async => PayInvoicePreflightResponse(
+          amountSats: 5000,
+          feesSats: 10,
+          ldkRoute: Uint8List(0),
+        ),
       );
 
       final state = SendState_NeedAmount(
@@ -504,8 +507,8 @@ SendState_Preflighted _createPreflightedInvoice(
     balance: testBalance(),
     cid: testCid(),
     fiatRate: fiatRate,
-    preflightedPayment: const PreflightedPayment_Invoice(
-      invoice: Invoice(
+    preflightedPayment: PreflightedPayment_Invoice(
+      invoice: const Invoice(
         string: testInvoice,
         amountSats: 1000,
         createdAt: 1700000000000,
@@ -513,7 +516,11 @@ SendState_Preflighted _createPreflightedInvoice(
         payeePubkey: 'abc123',
       ),
       amountSats: 1000,
-      preflight: PayInvoicePreflightResponse(amountSats: 1000, feesSats: 10),
+      preflight: PayInvoicePreflightResponse(
+        amountSats: 1000,
+        feesSats: 10,
+        ldkRoute: Uint8List(0),
+      ),
     ),
   );
 }

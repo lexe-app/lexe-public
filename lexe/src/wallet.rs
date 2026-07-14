@@ -975,6 +975,9 @@ impl LexeWallet {
                     message,
                     personal_note,
                     kind: PaymentKind::Invoice,
+                    // TODO(nicole): Consider reusing the preflighted route by
+                    // having `analyze` return a `state` field for the caller to
+                    // pass back into `pay`.
                     ldk_route: None,
                 };
                 let resp = self

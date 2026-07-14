@@ -521,6 +521,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
+
+  @protected
   PayInvoicePreflightRequest dco_decode_pay_invoice_preflight_request(
     dynamic raw,
   );
@@ -1207,6 +1210,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   WalletFundingState? sse_decode_opt_box_autoadd_wallet_funding_state(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   PayInvoicePreflightRequest sse_decode_pay_invoice_preflight_request(
@@ -2033,6 +2039,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_wallet_funding_state(
     WalletFundingState? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
     SseSerializer serializer,
   );
 

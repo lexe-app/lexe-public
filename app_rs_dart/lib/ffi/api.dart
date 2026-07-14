@@ -220,6 +220,7 @@ sealed class PayInvoicePreflightResponse with _$PayInvoicePreflightResponse {
   const factory PayInvoicePreflightResponse({
     required int amountSats,
     required int feesSats,
+    required Uint8List ldkRoute,
   }) = _PayInvoicePreflightResponse;
 }
 
@@ -234,6 +235,7 @@ sealed class PayInvoiceRequest with _$PayInvoiceRequest {
     String? message,
     String? personalNote,
     required PaymentKind kind,
+    Uint8List? ldkRoute,
   }) = _PayInvoiceRequest;
 }
 

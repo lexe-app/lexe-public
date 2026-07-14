@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
@@ -294,6 +295,7 @@ class MockAppHandle extends AppHandle {
     () => PayInvoicePreflightResponse(
       amountSats: req.fallbackAmountSats ?? 9999,
       feesSats: 123,
+      ldkRoute: Uint8List(0),
     ),
   );
 

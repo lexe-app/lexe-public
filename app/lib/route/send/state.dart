@@ -357,6 +357,7 @@ class SendState_Preflighted implements SendState {
       message: preflighted.message,
       personalNote: personalNote,
       kind: kind,
+      ldkRoute: preflighted.preflight.ldkRoute,
     );
 
     final res = await Result.tryFfiAsync(() => this.app.payInvoice(req: req));

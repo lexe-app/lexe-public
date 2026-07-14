@@ -1252,22 +1252,22 @@ String toString() {
 /// @nodoc
 mixin _$PayInvoicePreflightResponse {
 
- int get amountSats; int get feesSats;
+ int get amountSats; int get feesSats; Uint8List get ldkRoute;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoicePreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoicePreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats,const DeepCollectionEquality().hash(ldkRoute));
 
 @override
 String toString() {
-  return 'PayInvoicePreflightResponse(amountSats: $amountSats, feesSats: $feesSats)';
+  return 'PayInvoicePreflightResponse(amountSats: $amountSats, feesSats: $feesSats, ldkRoute: $ldkRoute)';
 }
 
 
@@ -1281,27 +1281,28 @@ String toString() {
 
 
 class _PayInvoicePreflightResponse implements PayInvoicePreflightResponse {
-  const _PayInvoicePreflightResponse({required this.amountSats, required this.feesSats});
+  const _PayInvoicePreflightResponse({required this.amountSats, required this.feesSats, required this.ldkRoute});
   
 
 @override final  int amountSats;
 @override final  int feesSats;
+@override final  Uint8List ldkRoute;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoicePreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoicePreflightResponse&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.feesSats, feesSats) || other.feesSats == feesSats)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,amountSats,feesSats);
+int get hashCode => Object.hash(runtimeType,amountSats,feesSats,const DeepCollectionEquality().hash(ldkRoute));
 
 @override
 String toString() {
-  return 'PayInvoicePreflightResponse(amountSats: $amountSats, feesSats: $feesSats)';
+  return 'PayInvoicePreflightResponse(amountSats: $amountSats, feesSats: $feesSats, ldkRoute: $ldkRoute)';
 }
 
 
@@ -1313,22 +1314,22 @@ String toString() {
 /// @nodoc
 mixin _$PayInvoiceRequest {
 
- String get invoice; int? get fallbackAmountSats; String? get message; String? get personalNote; PaymentKind get kind;
+ String get invoice; int? get fallbackAmountSats; String? get message; String? get personalNote; PaymentKind get kind; Uint8List? get ldkRoute;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote,kind);
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote,kind,const DeepCollectionEquality().hash(ldkRoute));
 
 @override
 String toString() {
-  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote, kind: $kind)';
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote, kind: $kind, ldkRoute: $ldkRoute)';
 }
 
 
@@ -1342,7 +1343,7 @@ String toString() {
 
 
 class _PayInvoiceRequest implements PayInvoiceRequest {
-  const _PayInvoiceRequest({required this.invoice, this.fallbackAmountSats, this.message, this.personalNote, required this.kind});
+  const _PayInvoiceRequest({required this.invoice, this.fallbackAmountSats, this.message, this.personalNote, required this.kind, this.ldkRoute});
   
 
 @override final  String invoice;
@@ -1350,22 +1351,23 @@ class _PayInvoiceRequest implements PayInvoiceRequest {
 @override final  String? message;
 @override final  String? personalNote;
 @override final  PaymentKind kind;
+@override final  Uint8List? ldkRoute;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote,kind);
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote,kind,const DeepCollectionEquality().hash(ldkRoute));
 
 @override
 String toString() {
-  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote, kind: $kind)';
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote, kind: $kind, ldkRoute: $ldkRoute)';
 }
 
 

@@ -2634,6 +2634,19 @@ impl SseDecode for Option<crate::ffi::settings::WalletFundingState> {
     }
 }
 
+impl SseDecode for Option<Vec<u8>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<u8>>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for crate::ffi::api::PayInvoicePreflightRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2659,9 +2672,11 @@ impl SseDecode for crate::ffi::api::PayInvoicePreflightResponse {
     ) -> Self {
         let mut var_amountSats = <u64>::sse_decode(deserializer);
         let mut var_feesSats = <u64>::sse_decode(deserializer);
+        let mut var_ldkRoute = <Vec<u8>>::sse_decode(deserializer);
         return crate::ffi::api::PayInvoicePreflightResponse {
             amount_sats: var_amountSats,
             fees_sats: var_feesSats,
+            ldk_route: var_ldkRoute,
         };
     }
 }
@@ -2678,12 +2693,14 @@ impl SseDecode for crate::ffi::api::PayInvoiceRequest {
         let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         let mut var_kind =
             <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
+        let mut var_ldkRoute = <Option<Vec<u8>>>::sse_decode(deserializer);
         return crate::ffi::api::PayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
             message: var_message,
             personal_note: var_personalNote,
             kind: var_kind,
+            ldk_route: var_ldkRoute,
         };
     }
 }
@@ -4492,6 +4509,7 @@ impl flutter_rust_bridge::IntoDart
         [
             self.amount_sats.into_into_dart().into_dart(),
             self.fees_sats.into_into_dart().into_dart(),
+            self.ldk_route.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4518,6 +4536,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayInvoiceRequest {
             self.message.into_into_dart().into_dart(),
             self.personal_note.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
+            self.ldk_route.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6337,6 +6356,19 @@ impl SseEncode for Option<crate::ffi::settings::WalletFundingState> {
     }
 }
 
+impl SseEncode for Option<Vec<u8>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<u8>>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::ffi::api::PayInvoicePreflightRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -6357,6 +6389,7 @@ impl SseEncode for crate::ffi::api::PayInvoicePreflightResponse {
     ) {
         <u64>::sse_encode(self.amount_sats, serializer);
         <u64>::sse_encode(self.fees_sats, serializer);
+        <Vec<u8>>::sse_encode(self.ldk_route, serializer);
     }
 }
 
@@ -6371,6 +6404,7 @@ impl SseEncode for crate::ffi::api::PayInvoiceRequest {
         <Option<String>>::sse_encode(self.message, serializer);
         <Option<String>>::sse_encode(self.personal_note, serializer);
         <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
+        <Option<Vec<u8>>>::sse_encode(self.ldk_route, serializer);
     }
 }
 

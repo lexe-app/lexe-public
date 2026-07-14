@@ -4428,6 +4428,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
+  }
+
+  @protected
   PayInvoicePreflightRequest dco_decode_pay_invoice_preflight_request(
     dynamic raw,
   ) {
@@ -4448,11 +4454,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return PayInvoicePreflightResponse(
       amountSats: dco_decode_CastedPrimitive_u_64(arr[0]),
       feesSats: dco_decode_CastedPrimitive_u_64(arr[1]),
+      ldkRoute: dco_decode_list_prim_u_8_strict(arr[2]),
     );
   }
 
@@ -4460,14 +4467,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   PayInvoiceRequest dco_decode_pay_invoice_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return PayInvoiceRequest(
       invoice: dco_decode_String(arr[0]),
       fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
       message: dco_decode_opt_String(arr[2]),
       personalNote: dco_decode_opt_String(arr[3]),
       kind: dco_decode_payment_kind(arr[4]),
+      ldkRoute: dco_decode_opt_list_prim_u_8_strict(arr[5]),
     );
   }
 
@@ -6328,6 +6336,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_prim_u_8_strict(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   PayInvoicePreflightRequest sse_decode_pay_invoice_preflight_request(
     SseDeserializer deserializer,
   ) {
@@ -6351,9 +6370,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_feesSats = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_ldkRoute = sse_decode_list_prim_u_8_strict(deserializer);
     return PayInvoicePreflightResponse(
       amountSats: var_amountSats,
       feesSats: var_feesSats,
+      ldkRoute: var_ldkRoute,
     );
   }
 
@@ -6369,12 +6390,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_message = sse_decode_opt_String(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
     var var_kind = sse_decode_payment_kind(deserializer);
+    var var_ldkRoute = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return PayInvoiceRequest(
       invoice: var_invoice,
       fallbackAmountSats: var_fallbackAmountSats,
       message: var_message,
       personalNote: var_personalNote,
       kind: var_kind,
+      ldkRoute: var_ldkRoute,
     );
   }
 
@@ -8191,6 +8214,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_prim_u_8_strict(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_pay_invoice_preflight_request(
     PayInvoicePreflightRequest self,
     SseSerializer serializer,
@@ -8209,6 +8245,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.feesSats, serializer);
+    sse_encode_list_prim_u_8_strict(self.ldkRoute, serializer);
   }
 
   @protected
@@ -8222,6 +8259,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_String(self.message, serializer);
     sse_encode_opt_String(self.personalNote, serializer);
     sse_encode_payment_kind(self.kind, serializer);
+    sse_encode_opt_list_prim_u_8_strict(self.ldkRoute, serializer);
   }
 
   @protected

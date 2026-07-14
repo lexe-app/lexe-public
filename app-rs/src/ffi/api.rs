@@ -445,6 +445,7 @@ pub struct PayInvoiceRequest {
     pub message: Option<String>,
     pub personal_note: Option<String>,
     pub kind: PaymentKind,
+    pub ldk_route: Option<Vec<u8>>,
 }
 
 impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
@@ -473,8 +474,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
                 .map(validate_note)
                 .transpose()?,
             kind: PaymentKindRs::from(value.kind),
-            // TODO(nicole): propagate `ldk_route` field to app
-            ldk_route: None,
+            ldk_route: value.ldk_route,
         })
     }
 }
@@ -544,7 +544,7 @@ impl TryFrom<PayInvoicePreflightRequest> for PayInvoicePreflightRequestRs {
 pub struct PayInvoicePreflightResponse {
     pub amount_sats: u64,
     pub fees_sats: u64,
-    // TODO(nicole): add `ldk_route` field for app
+    pub ldk_route: Vec<u8>,
 }
 
 impl From<PayInvoicePreflightResponseRs> for PayInvoicePreflightResponse {
@@ -553,6 +553,7 @@ impl From<PayInvoicePreflightResponseRs> for PayInvoicePreflightResponse {
         Self {
             amount_sats: value.amount.sats_u64(),
             fees_sats: value.fees.sats_u64(),
+            ldk_route: value.ldk_route,
         }
     }
 }

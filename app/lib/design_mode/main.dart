@@ -840,6 +840,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 preflight: PayInvoicePreflightResponse(
                   amountSats: amountSats,
                   feesSats: (0.0095 * amountSats).truncate(),
+                  ldkRoute: Uint8List(0),
                 ),
                 amountSats: amountSats,
                 message: "You grind my beans just right",
@@ -1225,9 +1226,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     mocks.dummyInvoiceOutboundPending01.invoice!.payeePubkey,
                 amountSats: 10000,
               ),
-              preflight: const PayInvoicePreflightResponse(
+              preflight: PayInvoicePreflightResponse(
                 amountSats: 10000,
                 feesSats: 92,
+                ldkRoute: Uint8List(0),
               ),
               amountSats: 10092,
             ),
@@ -1508,6 +1510,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 preflight: PayInvoicePreflightResponse(
                   amountSats: amountSats,
                   feesSats: 28,
+                  ldkRoute: Uint8List(0),
                 ),
                 amountSats: amountSats,
               );
