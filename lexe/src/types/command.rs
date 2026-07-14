@@ -589,6 +589,33 @@ pub struct CashAppBuyResponse {
     pub index: PaymentCreatedIndex,
 }
 
+/// The user's Human Bitcoin Address.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GetHumanBitcoinAddressResponse {
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`.
+    pub human_bitcoin_address: String,
+    /// The Lightning Address, e.g. `satoshi@lexe.app`.
+    pub lightning_address: String,
+    /// The BOLT 12 offer that the Human Bitcoin Address resolves to.
+    pub offer: Offer,
+    /// Whether the username can currently be changed. Usernames are
+    /// updatable for 24 hours after being claimed, then frozen for 90 days.
+    pub updatable: bool,
+}
+
+impl From<command::ActiveHumanBitcoinAddress>
+    for GetHumanBitcoinAddressResponse
+{
+    fn from(active: command::ActiveHumanBitcoinAddress) -> Self {
+        Self {
+            human_bitcoin_address: active.hba.username.human_bitcoin_address(),
+            lightning_address: active.hba.username.lightning_address(),
+            offer: active.hba.offer,
+            updatable: active.updatable,
+        }
+    }
+}
+
 // --- Payment information and management --- //
 
 /// Summary of changes from a payment sync operation.

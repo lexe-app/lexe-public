@@ -20,7 +20,8 @@ use crate::{
             CashAppBuyResponse, ClientInfoResponse, CloseChannelRequest,
             CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetHumanBitcoinAddressResponse, GetPaymentRequest,
+            GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -408,6 +409,18 @@ impl BlockingLexeWallet {
         req: CashAppBuyRequest,
     ) -> anyhow::Result<CashAppBuyResponse> {
         block_on(self.inner.buy_with_cash_app(req))
+    }
+
+    /// Get the user's Human Bitcoin Address.
+    ///
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`, is a
+    /// human-readable address which others can pay to send Bitcoin to this
+    /// wallet. It also works as a Lightning Address (`satoshi@lexe.app`) for
+    /// senders which support LNURL but not BIP 353.
+    pub fn get_human_bitcoin_address(
+        &self,
+    ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
+        block_on(self.inner.get_human_bitcoin_address())
     }
 
     // --- Payment information and management --- //

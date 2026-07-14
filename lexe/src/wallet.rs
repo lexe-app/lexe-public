@@ -49,7 +49,8 @@ use crate::{
             CashAppBuyResponse, ChannelDetails, ClaimableDetails, ClientInfo,
             ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
             CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+            CreateOfferRequest, CreateOfferResponse,
+            GetHumanBitcoinAddressResponse, GetPaymentRequest,
             GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
@@ -1532,6 +1533,24 @@ impl LexeWallet {
             redirect_url,
             index,
         })
+    }
+
+    /// Get the user's Human Bitcoin Address.
+    ///
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`, is a
+    /// human-readable address which others can pay to send Bitcoin to this
+    /// wallet. It also works as a Lightning Address (`satoshi@lexe.app`) for
+    /// senders which support LNURL but not BIP 353.
+    #[instrument(skip_all, name = "(get-human-bitcoin-address)")]
+    pub async fn get_human_bitcoin_address(
+        &self,
+    ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
+        let resp = self
+            .node_client
+            .get_human_bitcoin_address()
+            .await
+            .context("Failed to get Human Bitcoin Address")?;
+        Ok(GetHumanBitcoinAddressResponse::from(resp.hba))
     }
 
     // --- Payment information and management --- //
