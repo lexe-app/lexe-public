@@ -1,4 +1,4 @@
-import 'package:app_rs_dart/ffi/api.dart' show ActiveHumanBitcoinAddress;
+import 'package:app_rs_dart/ffi/api.dart' show GetHumanBitcoinAddressResponse;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/app_data.dart' show AppData;
 import 'package:app_rs_dart/ffi/types.dart' show Username;
@@ -8,6 +8,12 @@ import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
 import 'package:lexeapp/prelude.dart';
+
+/// Convenience accessors on the HBA response.
+extension GetHumanBitcoinAddressResponseExt on GetHumanBitcoinAddressResponse {
+  /// The bare username, e.g. "satoshi" for `satoshi@lexe.app`.
+  String get username => this.lightningAddress.split('@').first;
+}
 
 /// Merge states from [AppHandle.getHumanBitcoinAddress] and
 /// [AppData.humanBitcoinAddress] but instrumented with various signals for UI
@@ -25,7 +31,7 @@ class HumanBitcoinAddressService {
   DateTime? _lastFetchedAt;
 
   /// The most recent HBA. `null` if we haven't stored any yet.
-  ValueListenable<ActiveHumanBitcoinAddress?> get humanBitcoinAddress =>
+  ValueListenable<GetHumanBitcoinAddressResponse?> get humanBitcoinAddress =>
       this._appData.humanBitcoinAddress;
 
   /// Notifies after each completed fetch, successful or otherwise.
@@ -114,10 +120,10 @@ class HumanBitcoinAddressService {
     this.isDisposed = true;
   }
 
-  Future<Result<ActiveHumanBitcoinAddress?, void>> _fetch() async =>
+  Future<Result<GetHumanBitcoinAddressResponse, void>> _fetch() async =>
       Result.tryFfiAsync(this._app.getHumanBitcoinAddress);
 
-  Future<Result<ActiveHumanBitcoinAddress?, void>?> _fetchWithRetries({
+  Future<Result<GetHumanBitcoinAddressResponse, void>?> _fetchWithRetries({
     required bool Function() isCanceled,
     void Function(String)? onError,
   }) async => retryWithBackoff(

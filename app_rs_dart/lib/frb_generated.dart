@@ -150,7 +150,7 @@ abstract class AppRsApi extends BaseApi {
     required int scrollIdx,
   });
 
-  Future<ActiveHumanBitcoinAddress?>
+  Future<GetHumanBitcoinAddressResponse>
   crateFfiAppAppHandleGetHumanBitcoinAddress({required AppHandle that});
 
   Future<String> crateFfiAppAppHandleGetNextUnusedAddress({
@@ -290,7 +290,7 @@ abstract class AppRsApi extends BaseApi {
     required UpdatePersonalNote req,
   });
 
-  Future<ActiveHumanBitcoinAddress>
+  Future<GetHumanBitcoinAddressResponse>
   crateFfiAppAppHandleUpsertCustomHumanBitcoinAddress({
     required AppHandle that,
     required Username username,
@@ -970,7 +970,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<ActiveHumanBitcoinAddress?>
+  Future<GetHumanBitcoinAddressResponse>
   crateFfiAppAppHandleGetHumanBitcoinAddress({required AppHandle that}) {
     return handler.executeNormal(
       NormalTask(
@@ -985,8 +985,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_opt_box_autoadd_active_human_bitcoin_address,
+          decodeSuccessData: sse_decode_get_human_bitcoin_address_response,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateFfiAppAppHandleGetHumanBitcoinAddressConstMeta,
@@ -2053,7 +2052,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<ActiveHumanBitcoinAddress>
+  Future<GetHumanBitcoinAddressResponse>
   crateFfiAppAppHandleUpsertCustomHumanBitcoinAddress({
     required AppHandle that,
     required Username username,
@@ -2072,7 +2071,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_active_human_bitcoin_address,
+          decodeSuccessData: sse_decode_get_human_bitcoin_address_response,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta:
@@ -3355,24 +3354,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  ActiveHumanBitcoinAddress dco_decode_active_human_bitcoin_address(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
-    return ActiveHumanBitcoinAddress(
-      username: dco_decode_username(arr[0]),
-      offer: dco_decode_offer(arr[1]),
-      updatedAt: dco_decode_CastedPrimitive_i_64(arr[2]),
-      expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[3]),
-      isGenerated: dco_decode_bool(arr[4]),
-      updatable: dco_decode_bool(arr[5]),
-    );
-  }
-
-  @protected
   AppData dco_decode_app_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3380,7 +3361,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return AppData(
       humanBitcoinAddress:
-          dco_decode_opt_box_autoadd_active_human_bitcoin_address(arr[0]),
+          dco_decode_opt_box_autoadd_get_human_bitcoin_address_response(arr[0]),
     );
   }
 
@@ -3445,14 +3426,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
-  }
-
-  @protected
-  ActiveHumanBitcoinAddress dco_decode_box_autoadd_active_human_bitcoin_address(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_active_human_bitcoin_address(raw);
   }
 
   @protected
@@ -3561,6 +3534,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_g_drive_signup_credentials(raw);
+  }
+
+  @protected
+  GetHumanBitcoinAddressResponse
+  dco_decode_box_autoadd_get_human_bitcoin_address_response(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_get_human_bitcoin_address_response(raw);
   }
 
   @protected
@@ -4019,6 +3999,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  GetHumanBitcoinAddressResponse dco_decode_get_human_bitcoin_address_response(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return GetHumanBitcoinAddressResponse(
+      humanBitcoinAddress: dco_decode_String(arr[0]),
+      lightningAddress: dco_decode_String(arr[1]),
+      offer: dco_decode_offer(arr[2]),
+      updatable: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -4317,15 +4313,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  ActiveHumanBitcoinAddress?
-  dco_decode_opt_box_autoadd_active_human_bitcoin_address(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null
-        ? null
-        : dco_decode_box_autoadd_active_human_bitcoin_address(raw);
-  }
-
-  @protected
   AppHandle? dco_decode_opt_box_autoadd_app_handle(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_app_handle(raw);
@@ -4356,6 +4343,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_g_drive_signup_credentials(raw);
+  }
+
+  @protected
+  GetHumanBitcoinAddressResponse?
+  dco_decode_opt_box_autoadd_get_human_bitcoin_address_response(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_get_human_bitcoin_address_response(raw);
   }
 
   @protected
@@ -5038,31 +5034,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  ActiveHumanBitcoinAddress sse_decode_active_human_bitcoin_address(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_username = sse_decode_username(deserializer);
-    var var_offer = sse_decode_offer(deserializer);
-    var var_updatedAt = sse_decode_CastedPrimitive_i_64(deserializer);
-    var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
-    var var_isGenerated = sse_decode_bool(deserializer);
-    var var_updatable = sse_decode_bool(deserializer);
-    return ActiveHumanBitcoinAddress(
-      username: var_username,
-      offer: var_offer,
-      updatedAt: var_updatedAt,
-      expiresAt: var_expiresAt,
-      isGenerated: var_isGenerated,
-      updatable: var_updatable,
-    );
-  }
-
-  @protected
   AppData sse_decode_app_data(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_humanBitcoinAddress =
-        sse_decode_opt_box_autoadd_active_human_bitcoin_address(deserializer);
+        sse_decode_opt_box_autoadd_get_human_bitcoin_address_response(
+          deserializer,
+        );
     return AppData(humanBitcoinAddress: var_humanBitcoinAddress);
   }
 
@@ -5123,14 +5100,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
-  ActiveHumanBitcoinAddress sse_decode_box_autoadd_active_human_bitcoin_address(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_active_human_bitcoin_address(deserializer));
   }
 
   @protected
@@ -5249,6 +5218,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_g_drive_signup_credentials(deserializer));
+  }
+
+  @protected
+  GetHumanBitcoinAddressResponse
+  sse_decode_box_autoadd_get_human_bitcoin_address_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_get_human_bitcoin_address_response(deserializer));
   }
 
   @protected
@@ -5745,6 +5723,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  GetHumanBitcoinAddressResponse sse_decode_get_human_bitcoin_address_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_humanBitcoinAddress = sse_decode_String(deserializer);
+    var var_lightningAddress = sse_decode_String(deserializer);
+    var var_offer = sse_decode_offer(deserializer);
+    var var_updatable = sse_decode_bool(deserializer);
+    return GetHumanBitcoinAddressResponse(
+      humanBitcoinAddress: var_humanBitcoinAddress,
+      lightningAddress: var_lightningAddress,
+      offer: var_offer,
+      updatable: var_updatable,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -6121,22 +6116,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  ActiveHumanBitcoinAddress?
-  sse_decode_opt_box_autoadd_active_human_bitcoin_address(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_active_human_bitcoin_address(
-        deserializer,
-      ));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
   AppHandle? sse_decode_opt_box_autoadd_app_handle(
     SseDeserializer deserializer,
   ) {
@@ -6195,6 +6174,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_g_drive_signup_credentials(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  GetHumanBitcoinAddressResponse?
+  sse_decode_opt_box_autoadd_get_human_bitcoin_address_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_get_human_bitcoin_address_response(
+        deserializer,
+      ));
     } else {
       return null;
     }
@@ -6998,23 +6993,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_active_human_bitcoin_address(
-    ActiveHumanBitcoinAddress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_username(self.username, serializer);
-    sse_encode_offer(self.offer, serializer);
-    sse_encode_CastedPrimitive_i_64(self.updatedAt, serializer);
-    sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
-    sse_encode_bool(self.isGenerated, serializer);
-    sse_encode_bool(self.updatable, serializer);
-  }
-
-  @protected
   void sse_encode_app_data(AppData self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_active_human_bitcoin_address(
+    sse_encode_opt_box_autoadd_get_human_bitcoin_address_response(
       self.humanBitcoinAddress,
       serializer,
     );
@@ -7060,15 +7041,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_active_human_bitcoin_address(
-    ActiveHumanBitcoinAddress self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_active_human_bitcoin_address(self, serializer);
   }
 
   @protected
@@ -7204,6 +7176,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_g_drive_signup_credentials(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_get_human_bitcoin_address_response(
+    GetHumanBitcoinAddressResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_get_human_bitcoin_address_response(self, serializer);
   }
 
   @protected
@@ -7688,6 +7669,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_get_human_bitcoin_address_response(
+    GetHumanBitcoinAddressResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.humanBitcoinAddress, serializer);
+    sse_encode_String(self.lightningAddress, serializer);
+    sse_encode_offer(self.offer, serializer);
+    sse_encode_bool(self.updatable, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -7991,19 +7984,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_active_human_bitcoin_address(
-    ActiveHumanBitcoinAddress? self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_active_human_bitcoin_address(self, serializer);
-    }
-  }
-
-  @protected
   void sse_encode_opt_box_autoadd_app_handle(
     AppHandle? self,
     SseSerializer serializer,
@@ -8062,6 +8042,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_g_drive_signup_credentials(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_get_human_bitcoin_address_response(
+    GetHumanBitcoinAddressResponse? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_get_human_bitcoin_address_response(
+        self,
+        serializer,
+      );
     }
   }
 

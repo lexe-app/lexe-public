@@ -19,24 +19,6 @@ part 'api.freezed.dart';
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
-/// The user's active human Bitcoin address, plus the per-user `updatable`
-/// policy flag (whether the user can claim a different custom username now).
-///
-/// The FFI-flattened form of [`ActiveHumanBitcoinAddressRs`].
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-@freezed
-sealed class ActiveHumanBitcoinAddress with _$ActiveHumanBitcoinAddress {
-  const factory ActiveHumanBitcoinAddress({
-    required Username username,
-    required Offer offer,
-    required int updatedAt,
-    int? expiresAt,
-    required bool isGenerated,
-    required bool updatable,
-  }) = _ActiveHumanBitcoinAddress;
-}
-
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Balance with _$Balance {
@@ -150,6 +132,22 @@ sealed class FiatRates with _$FiatRates {
     required int timestampMs,
     required List<FiatRate> rates,
   }) = _FiatRates;
+}
+
+/// The user's Human Bitcoin Address.
+///
+/// The FFI form of the SDK's [`GetHumanBitcoinAddressResponseRs`].
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class GetHumanBitcoinAddressResponse
+    with _$GetHumanBitcoinAddressResponse {
+  const factory GetHumanBitcoinAddressResponse({
+    required String humanBitcoinAddress,
+    required String lightningAddress,
+    required Offer offer,
+    required bool updatable,
+  }) = _GetHumanBitcoinAddressResponse;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")

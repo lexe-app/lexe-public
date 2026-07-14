@@ -1,8 +1,7 @@
 //! App state database.
 
 use anyhow::Context;
-use lexe::ffs::Ffs;
-use lexe_api::models::command::ActiveHumanBitcoinAddress;
+use lexe::{ffs::Ffs, types::command::GetHumanBitcoinAddressResponse};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::db::{SchemaVersion, Update, WritebackDb};
@@ -22,7 +21,7 @@ pub(crate) struct AppDataRs {
     /// migration) deserializes to `None` rather than failing the whole load;
     /// the next `get_human_bitcoin_address` repopulates it.
     #[serde(default, deserialize_with = "deserialize_drop_invalid")]
-    pub human_bitcoin_address: Option<ActiveHumanBitcoinAddress>,
+    pub human_bitcoin_address: Option<GetHumanBitcoinAddressResponse>,
 }
 
 impl AppDataRs {
@@ -46,7 +45,7 @@ impl Update for AppDataRs {
 }
 
 // The cached HBA is replaced wholesale, never field-merged.
-impl Update for ActiveHumanBitcoinAddress {}
+impl Update for GetHumanBitcoinAddressResponse {}
 
 impl Default for AppDataRs {
     fn default() -> Self {
@@ -62,7 +61,7 @@ impl Default for AppDataRs {
 /// self-describing JSON format (the only format this db is (de)serialized as).
 fn deserialize_drop_invalid<'de, D>(
     deserializer: D,
-) -> Result<Option<ActiveHumanBitcoinAddress>, D::Error>
+) -> Result<Option<GetHumanBitcoinAddressResponse>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -75,11 +74,7 @@ mod test {
     use std::{ops::Deref, str::FromStr};
 
     use lexe::ffs::DiskFs;
-    use lexe_api::{
-        models::command::HumanBitcoinAddress,
-        types::{offer::Offer, username::Username},
-    };
-    use lexe_common::time::TimestampMs;
+    use lexe_api::types::{offer::Offer, username::Username};
 
     use super::*;
 
@@ -87,19 +82,16 @@ mod test {
         WritebackDb::<AppDataRs>::load(ffs, APP_JSON, "test")
     }
 
-    fn dummy_hba(username: &str) -> ActiveHumanBitcoinAddress {
+    fn dummy_hba(username: &str) -> GetHumanBitcoinAddressResponse {
         let offer = Offer::from_str(
             "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q",
         )
         .unwrap();
-        ActiveHumanBitcoinAddress {
-            hba: HumanBitcoinAddress {
-                username: Username::parse(username).unwrap(),
-                offer,
-                updated_at: TimestampMs::try_from(1686743442000_i64).unwrap(),
-                expires_at: None,
-                is_generated: false,
-            },
+        let username = Username::parse(username).unwrap();
+        GetHumanBitcoinAddressResponse {
+            human_bitcoin_address: username.human_bitcoin_address(),
+            lightning_address: username.lightning_address(),
+            offer,
             updatable: true,
         }
     }
@@ -166,6 +158,19 @@ mod test {
         }"#;
         let app_data: AppDataRs = serde_json::from_str(legacy)
             .expect("legacy app.json must still deserialize");
+        assert!(app_data.human_bitcoin_address.is_none());
+
+        // Legacy nested cache shape (from before the app cached the SDK's
+        // flattened `GetHumanBitcoinAddressResponse`): dropped.
+        let legacy_nested = r#"{
+            "schema": 1,
+            "human_bitcoin_address": {
+                "hba": { "username": "alice" },
+                "updatable": true
+            }
+        }"#;
+        let app_data: AppDataRs = serde_json::from_str(legacy_nested)
+            .expect("legacy nested cached HBA must not fail the load");
         assert!(app_data.human_bitcoin_address.is_none());
 
         // Malformed value under the current key: dropped, load still succeeds.

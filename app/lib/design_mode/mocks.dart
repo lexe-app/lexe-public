@@ -7,7 +7,6 @@ import 'dart:typed_data';
 
 import 'package:app_rs_dart/ffi/api.dart'
     show
-        ActiveHumanBitcoinAddress,
         Balance,
         CloseChannelPreflightResponse,
         CloseChannelRequest,
@@ -20,6 +19,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         FeeEstimate,
         FiatRate,
         FiatRates,
+        GetHumanBitcoinAddressResponse,
         ListChannelsResponse,
         NodeInfo,
         OpenChannelPreflightRequest,
@@ -599,27 +599,26 @@ class MockAppHandle extends AppHandle {
   });
 
   @override
-  Future<ActiveHumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
-    const Duration(milliseconds: 1000),
-    () => ActiveHumanBitcoinAddress(
-      username: const Username(field0: "user"),
-      offer: defaultOffer,
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-      isGenerated: false,
-      updatable: true,
-    ),
-  );
+  Future<GetHumanBitcoinAddressResponse> getHumanBitcoinAddress() =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => GetHumanBitcoinAddressResponse(
+          humanBitcoinAddress: "₿user@lexe.app",
+          lightningAddress: "user@lexe.app",
+          offer: defaultOffer,
+          updatable: true,
+        ),
+      );
 
   @override
-  Future<ActiveHumanBitcoinAddress> upsertCustomHumanBitcoinAddress({
+  Future<GetHumanBitcoinAddressResponse> upsertCustomHumanBitcoinAddress({
     required Username username,
   }) => Future.delayed(
     const Duration(milliseconds: 1500),
-    () => ActiveHumanBitcoinAddress(
-      username: username,
+    () => GetHumanBitcoinAddressResponse(
+      humanBitcoinAddress: "₿${username.field0}@lexe.app",
+      lightningAddress: "${username.field0}@lexe.app",
       offer: defaultOffer,
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-      isGenerated: false,
       updatable: true,
     ),
   );
@@ -750,15 +749,16 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<ActiveHumanBitcoinAddress> getHumanBitcoinAddress() => Future.delayed(
-    const Duration(milliseconds: 1000),
-    () => throw const FfiError(
-      "[106=Command] Failed to get Human Bitcoin Address",
-    ).toFfi(),
-  );
+  Future<GetHumanBitcoinAddressResponse> getHumanBitcoinAddress() =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => throw const FfiError(
+          "[106=Command] Failed to get Human Bitcoin Address",
+        ).toFfi(),
+      );
 
   @override
-  Future<ActiveHumanBitcoinAddress> upsertCustomHumanBitcoinAddress({
+  Future<GetHumanBitcoinAddressResponse> upsertCustomHumanBitcoinAddress({
     required Username username,
   }) => Future.delayed(
     const Duration(milliseconds: 1500),

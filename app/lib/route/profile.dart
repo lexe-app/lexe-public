@@ -18,7 +18,7 @@ import 'package:lexeapp/components.dart'
         baseInputDecoration;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/human_bitcoin_address.dart'
-    show HumanBitcoinAddressService;
+    show GetHumanBitcoinAddressResponseExt, HumanBitcoinAddressService;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// The entry point for the profile flow.
@@ -71,8 +71,7 @@ class _EditHumanBitcoinAddressPageState
       .humanBitcoinAddressService
       .humanBitcoinAddress
       .value
-      ?.username
-      .field0;
+      ?.username;
 
   @override
   void initState() {

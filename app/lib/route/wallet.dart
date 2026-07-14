@@ -4,7 +4,7 @@ import 'dart:async' show StreamSubscription, TimeoutException, unawaited;
 import 'dart:math' as math;
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show ActiveHumanBitcoinAddress, FiatRate, NodeInfo;
+    show FiatRate, GetHumanBitcoinAddressResponse, NodeInfo;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/settings.dart'
     show Settings, WalletFundingState;
@@ -91,7 +91,7 @@ import 'package:lexeapp/service/background_error.dart'
     show BackgroundError, BackgroundErrorKind, BackgroundErrorService;
 import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
 import 'package:lexeapp/service/human_bitcoin_address.dart'
-    show HumanBitcoinAddressService;
+    show GetHumanBitcoinAddressResponseExt, HumanBitcoinAddressService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/payment_sync.dart' show PaymentSyncService;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
@@ -1546,7 +1546,7 @@ class WalletDrawer extends StatelessWidget {
   }
 }
 
-enum DrawerHbaStatus { error, notClaimed, claimed, updatable }
+enum DrawerHbaStatus { error, claimed, updatable }
 
 class DrawerProfile extends StatelessWidget {
   const DrawerProfile({
@@ -1555,15 +1555,11 @@ class DrawerProfile extends StatelessWidget {
     this.humanBitcoinAddress,
   });
   final VoidCallback? onEditProfilePressed;
-  final ActiveHumanBitcoinAddress? humanBitcoinAddress;
+  final GetHumanBitcoinAddressResponse? humanBitcoinAddress;
 
   DrawerHbaStatus get status {
     if (this.humanBitcoinAddress == null) {
       return DrawerHbaStatus.error;
-    }
-
-    if (this.humanBitcoinAddress?.username == null) {
-      return DrawerHbaStatus.notClaimed;
     }
 
     if (this.humanBitcoinAddress?.updatable == true) {
@@ -1599,9 +1595,6 @@ class DrawerProfile extends StatelessWidget {
           const SizedBox(height: Space.s200),
           switch (this.status) {
             DrawerHbaStatus.error => const SizedBox(),
-            DrawerHbaStatus.notClaimed => ClaimHba(
-              onTap: this.onEditProfilePressed,
-            ),
             DrawerHbaStatus.claimed => ClaimedHba(
               humanBitcoinAddress: this.humanBitcoinAddress!,
               showEditButton: false,
@@ -1625,13 +1618,13 @@ class ClaimedHba extends StatelessWidget {
     required this.showEditButton,
     this.onTapEdit,
   });
-  final ActiveHumanBitcoinAddress humanBitcoinAddress;
+  final GetHumanBitcoinAddressResponse humanBitcoinAddress;
   final bool showEditButton;
   final VoidCallback? onTapEdit;
 
-  String get username => this.humanBitcoinAddress.username.field0;
-  String get emailLikeUsername => "${this.username}@lexe.app";
-  String get displayUsername => "₿${this.emailLikeUsername}";
+  String get username => this.humanBitcoinAddress.username;
+  String get emailLikeUsername => this.humanBitcoinAddress.lightningAddress;
+  String get displayUsername => this.humanBitcoinAddress.humanBitcoinAddress;
 
   double get fontSize {
     return switch (this.username.length) {
@@ -1706,58 +1699,6 @@ class ClaimedHba extends StatelessWidget {
                 ),
               ),
           ],
-        ),
-      ],
-    );
-  }
-}
-
-class ClaimHba extends StatelessWidget {
-  const ClaimHba({super.key, required this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text.rich(
-          TextSpan(
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size600,
-              fontVariations: [Fonts.weightMedium],
-              color: LxColors.foreground,
-            ),
-            children: [
-              TextSpan(text: "₿"),
-              TextSpan(
-                text: "you",
-                style: TextStyle(color: LxColors.grey600),
-              ),
-              TextSpan(text: "@lexe.app"),
-            ],
-          ),
-        ),
-        const SizedBox(width: Space.s300),
-        InkWell(
-          splashColor: LxColors.clearB50,
-          onTap: this.onTap,
-          child: Chip(
-            labelPadding: EdgeInsets.zero,
-            backgroundColor: LxColors.moneyGoUp,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: Space.s200),
-            label: Text(
-              "Claim",
-              style: TextStyle(
-                fontSize: Fonts.size300,
-                color: Colors.white,
-                fontVariations: [Fonts.weightMedium],
-              ),
-            ),
-          ),
         ),
       ],
     );

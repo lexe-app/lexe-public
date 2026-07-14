@@ -93,9 +93,8 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
-  /// Get the [`ActiveHumanBitcoinAddress`] for the user, or `None` if not
-  /// claimed.
-  Future<ActiveHumanBitcoinAddress?> getHumanBitcoinAddress() =>
+  /// Get the user's [`GetHumanBitcoinAddressResponse`].
+  Future<GetHumanBitcoinAddressResponse> getHumanBitcoinAddress() =>
       AppRs.instance.api.crateFfiAppAppHandleGetHumanBitcoinAddress(that: this);
 
   Future<String> getNextUnusedAddress() =>
@@ -280,7 +279,7 @@ class AppHandle {
       .api
       .crateFfiAppAppHandleUpdatePersonalNote(that: this, req: req);
 
-  Future<ActiveHumanBitcoinAddress> upsertCustomHumanBitcoinAddress({
+  Future<GetHumanBitcoinAddressResponse> upsertCustomHumanBitcoinAddress({
     required Username username,
   }) => AppRs.instance.api.crateFfiAppAppHandleUpsertCustomHumanBitcoinAddress(
     that: this,

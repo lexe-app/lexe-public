@@ -20,7 +20,7 @@ import 'types.dart';
 abstract class WritebackDbRsAppDataRs implements RustOpaqueInterface {}
 
 class AppData {
-  final ActiveHumanBitcoinAddress? humanBitcoinAddress;
+  final GetHumanBitcoinAddressResponse? humanBitcoinAddress;
 
   const AppData({this.humanBitcoinAddress});
 

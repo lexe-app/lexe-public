@@ -6,6 +6,7 @@ use lexe::{
         command::{
             CashAppBuyRequest as CashAppBuyRequestRs,
             CreateClientRequest as CreateClientRequestRs,
+            GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs,
             RevokeClientRequest as RevokeClientRequestRs,
             WithdrawLnurlRequest as WithdrawLnurlRequestRs,
         },
@@ -38,11 +39,11 @@ use tracing::instrument;
 
 use crate::ffi::{
     api::{
-        ActiveHumanBitcoinAddress, CloseChannelPreflightRequest,
-        CloseChannelPreflightResponse, CloseChannelRequest,
-        CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
-        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-        FiatRates, ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
+        CloseChannelPreflightRequest, CloseChannelPreflightResponse,
+        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, FiatRates, GetHumanBitcoinAddressResponse,
+        ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
         OpenChannelPreflightResponse, OpenChannelRequest, OpenChannelResponse,
         PayInvoicePreflightRequest, PayInvoicePreflightResponse,
         PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
@@ -652,23 +653,19 @@ impl AppHandle {
         Ok(resp.redirect_url)
     }
 
-    /// Get the [`ActiveHumanBitcoinAddress`] for the user.
-    // TODO(max): The `Option` is vestigial; remove it from the FFI signature.
+    /// Get the user's [`GetHumanBitcoinAddressResponse`].
+    #[instrument(skip_all, name = "(get-human-bitcoin-address)")]
     pub async fn get_human_bitcoin_address(
         &self,
-    ) -> anyhow::Result<Option<ActiveHumanBitcoinAddress>> {
-        let resp = self
-            .inner
-            .node_client()?
-            .get_human_bitcoin_address()
-            .await?;
-        Ok(Some(ActiveHumanBitcoinAddress::from(resp.hba)))
+    ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
+        let resp = self.inner.wallet()?.get_human_bitcoin_address().await?;
+        Ok(GetHumanBitcoinAddressResponse::from(resp))
     }
 
     pub async fn upsert_custom_human_bitcoin_address(
         &self,
         username: Username,
-    ) -> anyhow::Result<ActiveHumanBitcoinAddress> {
+    ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
         let req = UsernameStructRs {
             username: UsernameRs::try_from(username)?,
         };
@@ -677,6 +674,7 @@ impl AppHandle {
             .node_client()?
             .upsert_custom_human_bitcoin_address(req)
             .await?;
-        Ok(ActiveHumanBitcoinAddress::from(resp.hba))
+        let resp = GetHumanBitcoinAddressResponseRs::from(resp.hba);
+        Ok(GetHumanBitcoinAddressResponse::from(resp))
     }
 }

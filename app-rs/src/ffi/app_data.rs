@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe_api::models::command::ActiveHumanBitcoinAddress as ActiveHumanBitcoinAddressRs;
+use lexe::types::command::GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs;
 
 use crate::{
     app_data::AppDataRs, db::WritebackDb as WritebackDbRs,
-    ffi::api::ActiveHumanBitcoinAddress,
+    ffi::api::GetHumanBitcoinAddressResponse,
 };
 
 pub struct AppDataDb {
@@ -14,7 +14,7 @@ pub struct AppDataDb {
 }
 
 pub struct AppData {
-    pub human_bitcoin_address: Option<ActiveHumanBitcoinAddress>,
+    pub human_bitcoin_address: Option<GetHumanBitcoinAddressResponse>,
 }
 
 //  --- impl AppDataDb --- //
@@ -59,7 +59,7 @@ impl From<AppDataRs> for AppData {
         Self {
             human_bitcoin_address: a
                 .human_bitcoin_address
-                .map(ActiveHumanBitcoinAddress::from),
+                .map(GetHumanBitcoinAddressResponse::from),
         }
     }
 }
@@ -70,7 +70,7 @@ impl TryFrom<AppData> for AppDataRs {
     fn try_from(a: AppData) -> anyhow::Result<Self> {
         let human_bitcoin_address = a
             .human_bitcoin_address
-            .map(ActiveHumanBitcoinAddressRs::try_from)
+            .map(GetHumanBitcoinAddressResponseRs::try_from)
             .transpose()
             .context("Invalid cached HBA")?;
         Ok(Self {

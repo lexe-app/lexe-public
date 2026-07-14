@@ -8,13 +8,13 @@ use lexe::types::{
     command::{
         CreateClientRequest as CreateClientRequestRs,
         CreateClientResponse as CreateClientResponseRs,
+        GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs,
         RevokeClientRequest as RevokeClientRequestRs,
         WithdrawLnurlRequest as WithdrawLnurlRequestRs,
     },
 };
 use lexe_api::{
     models::command::{
-        ActiveHumanBitcoinAddress as ActiveHumanBitcoinAddressRs,
         CloseChannelPreflightResponse as CloseChannelPreflightResponseRs,
         CloseChannelRequest as CloseChannelRequestRs,
         CreateInvoiceRequest as CreateInvoiceRequestRs,
@@ -22,7 +22,6 @@ use lexe_api::{
         CreateOfferRequest as CreateOfferRequestRs,
         CreateOfferResponse as CreateOfferResponseRs,
         FeeEstimate as FeeEstimateRs,
-        HumanBitcoinAddress as HumanBitcoinAddressRs,
         ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
         OpenChannelPreflightRequest as OpenChannelPreflightRequestRs,
         OpenChannelPreflightResponse as OpenChannelPreflightResponseRs,
@@ -51,7 +50,6 @@ use lexe_api::{
             PaymentCreatedIndex as PaymentCreatedIndexRs,
             PaymentId as PaymentIdRs, PaymentKind as PaymentKindRs,
         },
-        username::Username as UsernameRs,
     },
 };
 use lexe_common::{
@@ -60,14 +58,12 @@ use lexe_common::{
         amount::Amount,
         channel::{ChannelId, UserChannelId as UserChannelIdRs},
     },
-    time::TimestampMs,
 };
 use lexe_crypto::ed25519;
 
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
     LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind, UserChannelId,
-    Username,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -798,54 +794,43 @@ impl TryFrom<RevokeClientRequest> for RevokeClientRequestRs {
     }
 }
 
-/// The user's active human Bitcoin address, plus the per-user `updatable`
-/// policy flag (whether the user can claim a different custom username now).
+/// The user's Human Bitcoin Address.
 ///
-/// The FFI-flattened form of [`ActiveHumanBitcoinAddressRs`].
+/// The FFI form of the SDK's [`GetHumanBitcoinAddressResponseRs`].
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct ActiveHumanBitcoinAddress {
-    // --- The HBA --- //
-    pub username: Username,
+pub struct GetHumanBitcoinAddressResponse {
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`.
+    pub human_bitcoin_address: String,
+    /// The Lightning Address, e.g. `satoshi@lexe.app`.
+    pub lightning_address: String,
+    /// The BOLT 12 offer that the Human Bitcoin Address resolves to.
     pub offer: Offer,
-    pub updated_at: i64,
-    pub expires_at: Option<i64>,
-    pub is_generated: bool,
-
-    // --- Per-user policy --- //
+    /// Whether the username can currently be changed.
     pub updatable: bool,
 }
 
-impl From<ActiveHumanBitcoinAddressRs> for ActiveHumanBitcoinAddress {
-    fn from(active: ActiveHumanBitcoinAddressRs) -> Self {
-        let ActiveHumanBitcoinAddressRs { hba, updatable } = active;
+impl From<GetHumanBitcoinAddressResponseRs> for GetHumanBitcoinAddressResponse {
+    fn from(resp: GetHumanBitcoinAddressResponseRs) -> Self {
         Self {
-            username: hba.username.into(),
-            offer: hba.offer.into(),
-            updated_at: hba.updated_at.to_i64(),
-            expires_at: hba.expires_at.map(|ts| ts.to_i64()),
-            is_generated: hba.is_generated,
-            updatable,
+            human_bitcoin_address: resp.human_bitcoin_address,
+            lightning_address: resp.lightning_address,
+            offer: resp.offer.into(),
+            updatable: resp.updatable,
         }
     }
 }
 
-impl TryFrom<ActiveHumanBitcoinAddress> for ActiveHumanBitcoinAddressRs {
+impl TryFrom<GetHumanBitcoinAddressResponse>
+    for GetHumanBitcoinAddressResponseRs
+{
     type Error = anyhow::Error;
 
-    fn try_from(ffi: ActiveHumanBitcoinAddress) -> anyhow::Result<Self> {
-        let hba = HumanBitcoinAddressRs {
-            username: UsernameRs::try_from(ffi.username)?,
-            offer: OfferRs::from_str(&ffi.offer.string)?,
-            updated_at: TimestampMs::try_from(ffi.updated_at)?,
-            expires_at: ffi
-                .expires_at
-                .map(TimestampMs::try_from)
-                .transpose()?,
-            is_generated: ffi.is_generated,
-        };
+    fn try_from(ffi: GetHumanBitcoinAddressResponse) -> anyhow::Result<Self> {
         Ok(Self {
-            hba,
+            human_bitcoin_address: ffi.human_bitcoin_address,
+            lightning_address: ffi.lightning_address,
+            offer: OfferRs::from_str(&ffi.offer.string)?,
             updatable: ffi.updatable,
         })
     }
