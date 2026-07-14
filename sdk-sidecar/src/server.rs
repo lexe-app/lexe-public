@@ -19,7 +19,8 @@ use lexe::{
             AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
             ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
             CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
+            CreateOfferRequest, CreateOfferResponse,
+            GetHumanBitcoinAddressResponse, GetPaymentRequest,
             GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
@@ -96,6 +97,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/pay_lnurl", post(node::pay_lnurl))
         .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
         .route("/v2/node/buy_with_cash_app", post(node::buy_with_cash_app))
+        .route(
+            "/v2/node/human_bitcoin_address",
+            get(node::get_human_bitcoin_address),
+        )
         .route("/v2/node/sync_payments", put(node::sync_payments))
         .route("/v2/node/list_payments", get(node::list_payments))
         .route("/v2/node/clear_payments", post(node::clear_payments))
@@ -472,6 +477,18 @@ mod node {
 
         helpers::try_track_payment(&state, credentials, resp.index);
 
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(get-human-bitcoin-address)")]
+    pub(crate) async fn get_human_bitcoin_address(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<GetHumanBitcoinAddressResponse>, SdkApiError> {
+        let resp = wallet
+            .get_human_bitcoin_address()
+            .await
+            .map_err(SdkApiError::command)?;
         Ok(LxJson(resp))
     }
 

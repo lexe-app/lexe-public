@@ -12,12 +12,13 @@ use lexe::types::{
         AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
         ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
         CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-        GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
+        CreateOfferRequest, CreateOfferResponse,
+        GetHumanBitcoinAddressResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -159,6 +160,19 @@ pub trait UserSidecarApi {
         &self,
         req: &CashAppBuyRequest,
     ) -> Result<CashAppBuyResponse, SdkApiError>;
+
+    /// GET /v2/node/human_bitcoin_address [`Empty`]
+    ///                                 -> [`GetHumanBitcoinAddressResponse`]
+    ///
+    /// Get the user's Human Bitcoin Address.
+    ///
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`, is a
+    /// human-readable address which others can pay to send Bitcoin to this
+    /// wallet. It also works as a Lightning Address (`satoshi@lexe.app`) for
+    /// senders which support LNURL but not BIP 353.
+    async fn get_human_bitcoin_address(
+        &self,
+    ) -> Result<GetHumanBitcoinAddressResponse, SdkApiError>;
 
     /// PUT /v2/node/sync_payments [`Empty`] -> [`PaymentSyncSummary`]
     ///

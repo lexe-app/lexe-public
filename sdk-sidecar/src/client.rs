@@ -3,12 +3,13 @@ use lexe::types::{
         AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
         ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
         CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, GetPaymentRequest,
-        GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
+        CreateOfferRequest, CreateOfferResponse,
+        GetHumanBitcoinAddressResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest,
     },
     payment::Payment,
 };
@@ -162,6 +163,15 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/buy_with_cash_app");
         let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn get_human_bitcoin_address(
+        &self,
+    ) -> Result<GetHumanBitcoinAddressResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/human_bitcoin_address");
+        let http_req = self.rest.get(url, &Empty {});
         self.rest.send(http_req).await
     }
 
