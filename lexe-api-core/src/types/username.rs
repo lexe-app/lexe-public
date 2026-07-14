@@ -77,6 +77,18 @@ impl Username {
     pub fn into_inner(self) -> String {
         self.0
     }
+
+    /// The canonical Human Bitcoin Address (BIP353): `₿{username}@lexe.app`.
+    pub fn human_bitcoin_address(&self) -> String {
+        let username = &self.0;
+        format!("₿{username}@lexe.app")
+    }
+
+    /// The canonical Lightning Address: `{username}@lexe.app`.
+    pub fn lightning_address(&self) -> String {
+        let username = &self.0;
+        format!("{username}@lexe.app")
+    }
 }
 
 impl<'de> Deserialize<'de> for Username {

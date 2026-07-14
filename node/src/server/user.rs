@@ -699,7 +699,7 @@ async fn build_upsert_custom_hba_request(
         .await
         .map_err(NodeApiError::command)?;
 
-    let offer_req = lexe_ln::command::hba_offer_request(req.username.inner())
+    let offer_req = lexe_ln::command::hba_offer_request(&req.username)
         .context("Failed to build HBA offer request")
         .map_err(NodeApiError::command)?;
     let offer =

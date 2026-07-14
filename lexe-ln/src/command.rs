@@ -44,6 +44,7 @@ use lexe_api::{
             PartnerFeeFields, PaymentDirection, PaymentId, PaymentKind,
             PaymentRail,
         },
+        username::Username,
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
 };
@@ -998,8 +999,10 @@ where
 /// The resulting offer will have:
 /// - Description: `"Pay to ₿{username}@lexe.app"`
 /// - Issuer: `"₿{username}@lexe.app"`
-pub fn hba_offer_request(username: &str) -> anyhow::Result<CreateOfferRequest> {
-    let issuer = BoundedString::new(format!("₿{username}@lexe.app"))
+pub fn hba_offer_request(
+    username: &Username,
+) -> anyhow::Result<CreateOfferRequest> {
+    let issuer = BoundedString::new(username.human_bitcoin_address())
         .context("Issuer too long")?;
     let description = BoundedString::new(format!("Pay to {issuer}"))
         .context("Description too long")?;
