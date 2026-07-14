@@ -19,7 +19,7 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_enclave::enclave::Measurement;
-use lexe_serde::hexstr_or_bytes;
+use lexe_serde::{base64_or_bytes, base64_or_bytes_opt, hexstr_or_bytes};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -446,6 +446,19 @@ pub struct PayInvoiceRequest {
     // Added in `node-v0.9.11`
     #[serde(default = "default_invoice_kind")]
     pub kind: PaymentKind,
+    /// The precomputed route from [`PayInvoicePreflightResponse`], which the
+    /// caller should pass here to ensure that:
+    ///
+    /// 1) The preflighted fee that the user sees is actually what they pay
+    /// 2) `pay_invoice` doesn't need to recompute the route, saving time and
+    ///    compute.
+    //
+    // Added in `node-v0.9.12`
+    //
+    // NOTE: `default` is needed to support old clients despite `Option`:
+    // `#[serde(with)]` disables serde's implicit missing-field handling.
+    #[serde(default, with = "base64_or_bytes_opt")]
+    pub ldk_route: Option<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -478,10 +491,20 @@ pub struct PayInvoicePreflightResponse {
     pub amount: Amount,
     /// The total amount of fees to-be-paid for the pre-flighted [`Invoice`].
     pub fees: Amount,
-    /// The route this invoice will be paid over.
-    // Added in node,lsp-v0.7.8
-    // TODO(max): We don't actually pay over this route.
+    /// The route used in the preflight, to be used for informational purposes.
+    ///
+    /// See `ldk_route` for how to pay the invoice along this route.
+    // Added in `node-v0.7.8`
     pub route: LxRoute,
+    /// A precomputed route that the caller should pass into
+    /// [`PayInvoiceRequest`] to ensure that:
+    ///
+    /// 1) The preflighted fee that the user sees is actually what they pay
+    /// 2) `pay_invoice` doesn't need to recompute the route, saving time and
+    ///    compute.
+    // Added in `node-v0.9.12`
+    #[serde(with = "base64_or_bytes")]
+    pub ldk_route: Vec<u8>,
 }
 
 // --- BOLT12 Offer payments --- //
@@ -1011,5 +1034,22 @@ mod test {
         );
         assert!(back.legacy_descriptors.is_none());
         assert_eq!(back.pending_monitor_updates, Some(0));
+    }
+
+    /// Compat: a new node must accept a `PayInvoiceRequest` from an old client
+    /// that predates (and so omits) the `ldk_route` field.
+    #[test]
+    fn pay_invoice_request_compat() {
+        // A `PayInvoiceRequest` as serialized by a node-v0.9.11 client, which
+        // predates the `ldk_route` field (added in node-v0.9.12).
+        let json = r#"{
+  "invoice": "lnbc1pn79l2rdqqpp5y3u8cttsjvusa34xnx9ceh8watmrvy99qw7pwpsvxjq3zl2mm8wscqpcsp5p4wrl7xfrgxj3w05ksjv2qtccyt0feg2c0suwcjc5pyrawxvlt0q9qyysgqxqyz5vqnp4q0vzagw8x7r9eyalw35t0u6syql8rtqf9tejep0z6xrwkqrua5advrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wrf0egqqy2sqqcqqqqqqqqqqhwqqfqrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wzmk4uqqj5sqqyqqqqqqqqqqhwqqfqrzjqv22wafr68wtchd4vzq7mj7zf2uzpv67xsaxcemfzak7wp7p0r29wz2g6uqqt5cqqcqqqqqqqqqqhwqqfqd5xs0luhzmmdmevhqtcyuwrcr43pq3xpmtdvdenvcsslg8vuhmfyqtcs3y54yxpsw8wlt5epz0y0y64ul7fc37zt5cklumx0u6at2dcphm9mhh",
+  "fallback_amount": null,
+  "payer_note": null,
+  "note": null,
+  "kind": "invoice"
+}"#;
+        let req = serde_json::from_str::<PayInvoiceRequest>(json).unwrap();
+        assert!(req.ldk_route.is_none());
     }
 }

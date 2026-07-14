@@ -975,6 +975,7 @@ impl LexeWallet {
                     message,
                     personal_note,
                     kind: PaymentKind::Invoice,
+                    ldk_route: None,
                 };
                 let resp = self
                     .node_client
@@ -1067,6 +1068,7 @@ impl LexeWallet {
                     message: truncated_comment,
                     personal_note,
                     kind: PaymentKind::Invoice,
+                    ldk_route: None,
                 };
                 let resp = self
                     .node_client
@@ -1360,6 +1362,7 @@ impl LexeWallet {
             message: truncated_comment,
             personal_note,
             kind: PaymentKind::Invoice,
+            ldk_route: None,
         };
         let invoice_resp = self
             .node_client

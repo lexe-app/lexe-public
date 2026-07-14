@@ -81,7 +81,10 @@ use lightning::{
     },
     routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
-    util::config::UserConfig,
+    util::{
+        config::UserConfig,
+        ser::{Readable, Writeable},
+    },
 };
 use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
@@ -811,22 +814,44 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    // Pre-flight the invoice payment (verify and route).
-    let PreflightedPayInvoice {
-        oipwm,
-        ldk_route,
-        recipient_fields,
-        ..
-    } = pay_invoice_preflight_inner(
-        req,
-        router,
-        channel_manager,
-        payments_manager,
-        network_graph,
-        chain_monitor,
-        lsp_fees,
-    )
-    .await?;
+    // Preflight the invoice payment (verify and route).
+    // Compute an `ldk_route` if the caller didn't supply one.
+    let preflight = match req.ldk_route {
+        Some(ldk_route_bin) => {
+            let ldk_route = Route::read(&mut &ldk_route_bin[..])
+                .map_err(|e| anyhow!("Invalid `ldk_route`: {e:?}"))?;
+            let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
+            let recipient_fields = recipient_onion_fields(&req.invoice);
+            req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
+            let oipwm = OutboundInvoicePaymentV2::new(
+                req.invoice,
+                req.kind,
+                lx_route.amount(),
+                lx_route.fees(),
+                req.message,
+                req.personal_note,
+            )
+            .context("Failed to create payment")?;
+            PreflightedPayInvoice {
+                oipwm,
+                ldk_route,
+                lx_route,
+                recipient_fields,
+            }
+        }
+        None =>
+            pay_invoice_preflight_inner(
+                req,
+                router,
+                channel_manager,
+                payments_manager,
+                network_graph,
+                chain_monitor,
+                lsp_fees,
+            )
+            .await?,
+    };
+    let oipwm = preflight.oipwm;
     let hash = oipwm.payment.hash;
     let id = oipwm.payment.id();
     let amount = oipwm.payment.amount;
@@ -866,9 +891,9 @@ where
 
     // Send the payment using send_payment_with_route (Lexe manages retries).
     match channel_manager.send_payment_with_route(
-        ldk_route,
+        preflight.ldk_route,
         lightning::types::payment::PaymentHash::from(hash),
-        recipient_fields,
+        preflight.recipient_fields,
         ldk_payment_id,
     ) {
         Ok(()) => {
@@ -947,6 +972,8 @@ where
         // User note not relevant for pre-flight.
         personal_note: None,
         kind: req.kind,
+        // Not used for pre-flight
+        ldk_route: None,
     };
     let preflight = pay_invoice_preflight_inner(
         req,
@@ -962,6 +989,7 @@ where
         amount: preflight.oipwm.payment.amount,
         fees: preflight.oipwm.payment.routing_fee,
         route: preflight.lx_route,
+        ldk_route: preflight.ldk_route.encode(),
     })
 }
 

@@ -473,6 +473,8 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
                 .map(validate_note)
                 .transpose()?,
             kind: PaymentKindRs::from(value.kind),
+            // TODO(nicole): propagate `ldk_route` field to app
+            ldk_route: None,
         })
     }
 }
@@ -542,6 +544,7 @@ impl TryFrom<PayInvoicePreflightRequest> for PayInvoicePreflightRequestRs {
 pub struct PayInvoicePreflightResponse {
     pub amount_sats: u64,
     pub fees_sats: u64,
+    // TODO(nicole): add `ldk_route` field for app
 }
 
 impl From<PayInvoicePreflightResponseRs> for PayInvoicePreflightResponse {

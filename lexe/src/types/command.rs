@@ -399,6 +399,8 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
                 .context("Invalid personal note")?,
             // We intentionally do not expose the payment kind in the Lexe SDK.
             kind: PaymentKind::Invoice,
+            // TODO(nicole): expose preflight endpoints
+            ldk_route: None,
         })
     }
 }
