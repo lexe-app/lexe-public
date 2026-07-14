@@ -929,6 +929,28 @@ Example::
     print(resp.redirect_url)  # Redirect your user here
 """)
 
+_set_method_doc(LexeWallet, "get_human_bitcoin_address", """\
+Get the user's Human Bitcoin Address.
+
+The Human Bitcoin Address (BIP 353), e.g. ``₿satoshi@lexe.app``, is a
+human-readable address which others can pay to send Bitcoin to this wallet.
+It also works as a Lightning Address (``satoshi@lexe.app``) for senders which
+support LNURL but not BIP 353.
+
+Returns:
+    A :class:`GetHumanBitcoinAddressResponse` with the Human Bitcoin Address,
+    the Lightning Address, the BOLT 12 offer that the address resolves to,
+    and whether the username can currently be changed.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    resp = wallet.get_human_bitcoin_address()
+    print(resp.human_bitcoin_address)
+""")
+
 _set_method_doc(LexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -1651,6 +1673,28 @@ Example::
     print(resp.redirect_url)  # Redirect your user here
 """)
 
+_set_method_doc(AsyncLexeWallet, "get_human_bitcoin_address", """\
+Get the user's Human Bitcoin Address.
+
+The Human Bitcoin Address (BIP 353), e.g. ``₿satoshi@lexe.app``, is a
+human-readable address which others can pay to send Bitcoin to this wallet.
+It also works as a Lightning Address (``satoshi@lexe.app``) for senders which
+support LNURL but not BIP 353.
+
+Returns:
+    A :class:`GetHumanBitcoinAddressResponse` with the Human Bitcoin Address,
+    the Lightning Address, the BOLT 12 offer that the address resolves to,
+    and whether the username can currently be changed.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    resp = await wallet.get_human_bitcoin_address()
+    print(resp.human_bitcoin_address)
+""")
+
 _set_method_doc(AsyncLexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -2295,6 +2339,18 @@ Attributes:
         is already set up. The bought Bitcoin lands directly into Lexe wallet.
     index: Identifier for the inbound payment funding this buy. Use it to look
         up the payment (e.g. ``get_payment``) once Cash App has funded it.
+"""
+
+lexe.GetHumanBitcoinAddressResponse.__doc__ = """\
+The user's Human Bitcoin Address.
+
+Attributes:
+    human_bitcoin_address: The Human Bitcoin Address (BIP 353), e.g.
+        ``₿satoshi@lexe.app``.
+    lightning_address: The Lightning Address, e.g. ``satoshi@lexe.app``.
+    offer: The BOLT 12 offer that the Human Bitcoin Address resolves to.
+    updatable: Whether the username can currently be changed. Usernames are
+        updatable for 24 hours after being claimed, then frozen for 90 days.
 """
 
 # ========================== #

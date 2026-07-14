@@ -41,6 +41,7 @@ use lexe::{
             CreateInvoiceResponse as SdkCreateInvoiceResponse,
             CreateOfferRequest as SdkCreateOfferRequest,
             CreateOfferResponse as SdkCreateOfferResponse,
+            GetHumanBitcoinAddressResponse as SdkGetHumanBitcoinAddressResponse,
             GetPaymentRequest as SdkGetPaymentRequest,
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse as SdkGetUpdatedPaymentsResponse,
@@ -1237,6 +1238,19 @@ impl AsyncLexeWallet {
         Ok(CashAppBuyResponse::from(resp))
     }
 
+    /// Get the user's Human Bitcoin Address.
+    ///
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`, is a
+    /// human-readable address which others can pay to send Bitcoin to this
+    /// wallet. It also works as a Lightning Address (`satoshi@lexe.app`) for
+    /// senders which support LNURL but not BIP 353.
+    pub async fn get_human_bitcoin_address(
+        &self,
+    ) -> Result<GetHumanBitcoinAddressResponse, FfiError> {
+        let resp = self.inner.get_human_bitcoin_address().await?;
+        Ok(GetHumanBitcoinAddressResponse::from(resp))
+    }
+
     // --- Payment information and management --- //
 
     /// Sync payments from the user node to the local payments cache.
@@ -2055,6 +2069,19 @@ impl BlockingLexeWallet {
         let resp = self.inner.buy_with_cash_app(req)?;
 
         Ok(CashAppBuyResponse::from(resp))
+    }
+
+    /// Get the user's Human Bitcoin Address.
+    ///
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`, is a
+    /// human-readable address which others can pay to send Bitcoin to this
+    /// wallet. It also works as a Lightning Address (`satoshi@lexe.app`) for
+    /// senders which support LNURL but not BIP 353.
+    pub fn get_human_bitcoin_address(
+        &self,
+    ) -> Result<GetHumanBitcoinAddressResponse, FfiError> {
+        let resp = self.inner.get_human_bitcoin_address()?;
+        Ok(GetHumanBitcoinAddressResponse::from(resp))
     }
 
     // --- Payment information and management --- //
@@ -3148,6 +3175,33 @@ impl From<SdkCashAppBuyResponse> for CashAppBuyResponse {
         Self {
             redirect_url: resp.redirect_url,
             index: resp.index.to_string(),
+        }
+    }
+}
+
+/// The user's Human Bitcoin Address.
+#[derive(Clone, uniffi::Record)]
+pub struct GetHumanBitcoinAddressResponse {
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`.
+    pub human_bitcoin_address: String,
+    /// The Lightning Address, e.g. `satoshi@lexe.app`.
+    pub lightning_address: String,
+    /// The BOLT 12 offer that the Human Bitcoin Address resolves to.
+    pub offer: Offer,
+    /// Whether the username can currently be changed. Usernames are
+    /// updatable for 24 hours after being claimed, then frozen for 90 days.
+    pub updatable: bool,
+}
+
+impl From<SdkGetHumanBitcoinAddressResponse>
+    for GetHumanBitcoinAddressResponse
+{
+    fn from(resp: SdkGetHumanBitcoinAddressResponse) -> Self {
+        Self {
+            human_bitcoin_address: resp.human_bitcoin_address,
+            lightning_address: resp.lightning_address,
+            offer: Offer::from(resp.offer),
+            updatable: resp.updatable,
         }
     }
 }
