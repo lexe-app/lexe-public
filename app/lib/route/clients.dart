@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show CreateClientRequest, CreateClientResponse, UpdateClientRequest;
+    show CreateClientRequest, CreateClientResponse, RevokeClientRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show LexeScope, RevocableClient;
+import 'package:app_rs_dart/ffi/types.dart' show RevocableClient;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -82,9 +82,9 @@ class _ClientsPageState extends State<ClientsPage> {
   Future<void> onRevokePressed(RevocableClient client) async {
     info("pressed revoke client (${client.pubkey})");
 
-    final req = UpdateClientRequest(pubkey: client.pubkey, isRevoked: true);
+    final req = RevokeClientRequest(pubkey: client.pubkey);
     final fut = Result.tryFfiAsync(
-      () => this.widget.app.updateClient(req: req),
+      () => this.widget.app.revokeClient(req: req),
     );
 
     final res = await showModalAsyncFlow(
@@ -267,8 +267,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
 
     this.isPending.value = true;
 
-    // TODO(phlip9): allow configuring scope once there are more useful scopes
-    final req = CreateClientRequest(label: label, scope: LexeScope.all);
+    final req = CreateClientRequest(label: label);
     final res = await Result.tryFfiAsync(
       () => this.widget.app.createClient(req: req),
     );
@@ -279,7 +278,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
     switch (res) {
       case Ok(:final ok):
         final CreateClientResponse response = ok;
-        info("create-client: created: ${response.client.pubkey}");
+        info("create-client: created: ${response.pubkey}");
         Navigator.of(this.context).pop(ok);
       case Err(:final err):
         error("create-client: error: ${err.message}");

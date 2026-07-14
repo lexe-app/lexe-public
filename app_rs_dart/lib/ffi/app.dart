@@ -249,6 +249,9 @@ class AppHandle {
     rootSeed: rootSeed,
   );
 
+  Future<void> revokeClient({required RevokeClientRequest req}) =>
+      AppRs.instance.api.crateFfiAppAppHandleRevokeClient(that: this, req: req);
+
   /// flutter_rust_bridge:sync
   SettingsDb settingsDb() =>
       AppRs.instance.api.crateFfiAppAppHandleSettingsDb(that: this);
@@ -271,9 +274,6 @@ class AppHandle {
   /// payment list UI.
   Future<bool> syncPayments() =>
       AppRs.instance.api.crateFfiAppAppHandleSyncPayments(that: this);
-
-  Future<void> updateClient({required UpdateClientRequest req}) =>
-      AppRs.instance.api.crateFfiAppAppHandleUpdateClient(that: this, req: req);
 
   Future<void> updatePersonalNote({required UpdatePersonalNote req}) => AppRs
       .instance

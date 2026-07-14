@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1366558413;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 88239404;
 
 // Section: executor
 
@@ -698,6 +698,22 @@ let api_root_seed = <crate::ffi::types::RootSeed>::sse_decode(&mut deserializer)
                     })().await)
                 } })
 }
+fn wire__crate__ffi__app__app_handle_revoke_client_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_revoke_client", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
+let api_req = <crate::ffi::api::RevokeClientRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::revoke_client(&api_that, api_req).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
 fn wire__crate__ffi__app__app_handle_settings_db_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -741,22 +757,6 @@ fn wire__crate__ffi__app__app_handle_sync_payments_impl(
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::app::AppHandle::sync_payments(&api_that).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__ffi__app__app_handle_update_client_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_update_client", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
-let api_req = <crate::ffi::api::UpdateClientRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
-                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::update_client(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -1682,12 +1682,7 @@ impl SseDecode for crate::ffi::api::CreateClientRequest {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut var_label = <Option<String>>::sse_decode(deserializer);
-        let mut var_scope =
-            <crate::ffi::types::LexeScope>::sse_decode(deserializer);
-        return crate::ffi::api::CreateClientRequest {
-            label: var_label,
-            scope: var_scope,
-        };
+        return crate::ffi::api::CreateClientRequest { label: var_label };
     }
 }
 
@@ -1696,11 +1691,10 @@ impl SseDecode for crate::ffi::api::CreateClientResponse {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut var_client =
-            <crate::ffi::types::RevocableClient>::sse_decode(deserializer);
+        let mut var_pubkey = <String>::sse_decode(deserializer);
         let mut var_credentials = <String>::sse_decode(deserializer);
         return crate::ffi::api::CreateClientResponse {
-            client: var_client,
+            pubkey: var_pubkey,
             credentials: var_credentials,
         };
     }
@@ -1961,20 +1955,6 @@ impl SseDecode for crate::ffi::types::Invoice {
             expires_at: var_expiresAt,
             amount_sats: var_amountSats,
             payee_pubkey: var_payeePubkey,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::types::LexeScope {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::ffi::types::LexeScope::All,
-            1 => crate::ffi::types::LexeScope::GatewayProxy,
-            _ => unreachable!("Invalid variant for LexeScope: {}", inner),
         };
     }
 }
@@ -3093,14 +3073,21 @@ impl SseDecode for crate::ffi::types::RevocableClient {
         let mut var_pubkey = <String>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
-        let mut var_scope =
-            <crate::ffi::types::LexeScope>::sse_decode(deserializer);
         return crate::ffi::types::RevocableClient {
             pubkey: var_pubkey,
             created_at: var_createdAt,
             label: var_label,
-            scope: var_scope,
         };
+    }
+}
+
+impl SseDecode for crate::ffi::api::RevokeClientRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_pubkey = <String>::sse_decode(deserializer);
+        return crate::ffi::api::RevokeClientRequest { pubkey: var_pubkey };
     }
 }
 
@@ -3258,20 +3245,6 @@ impl SseDecode for () {
     }
 }
 
-impl SseDecode for crate::ffi::api::UpdateClientRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_pubkey = <String>::sse_decode(deserializer);
-        let mut var_isRevoked = <Option<bool>>::sse_decode(deserializer);
-        return crate::ffi::api::UpdateClientRequest {
-            pubkey: var_pubkey,
-            is_revoked: var_isRevoked,
-        };
-    }
-}
-
 impl SseDecode for crate::ffi::api::UpdatePersonalNote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -3392,9 +3365,9 @@ fn pde_ffi_dispatcher_primary_impl(
 41 => wire__crate__ffi__app__app_handle_resolve_best_impl(port, ptr, rust_vec_len, data_len),
 42 => wire__crate__ffi__app__app_handle_resolve_lnurl_pay_request_impl(port, ptr, rust_vec_len, data_len),
 43 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
-45 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
-46 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
-47 => wire__crate__ffi__app__app_handle_update_client_impl(port, ptr, rust_vec_len, data_len),
+44 => wire__crate__ffi__app__app_handle_revoke_client_impl(port, ptr, rust_vec_len, data_len),
+46 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
+47 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
 48 => wire__crate__ffi__app__app_handle_update_personal_note_impl(port, ptr, rust_vec_len, data_len),
 49 => wire__crate__ffi__app__app_handle_upsert_custom_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
 51 => wire__crate__ffi__app__app_handle_withdraw_lnurl_impl(port, ptr, rust_vec_len, data_len),
@@ -3434,7 +3407,7 @@ fn pde_ffi_dispatcher_sync_impl(
 24 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
 25 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
 26 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-44 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
+45 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
 50 => wire__crate__ffi__app__app_handle_wallet_user_impl(ptr, rust_vec_len, data_len),
 52 => wire__crate__ffi__types__client_payment_id_generate_impl(ptr, rust_vec_len, data_len),
 54 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
@@ -3751,11 +3724,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ConfirmationPriority>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateClientRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.label.into_into_dart().into_dart(),
-            self.scope.into_into_dart().into_dart(),
-        ]
-        .into_dart()
+        [self.label.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -3773,7 +3742,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::CreateClientRequest>
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateClientResponse {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.client.into_into_dart().into_dart(),
+            self.pubkey.into_into_dart().into_dart(),
             self.credentials.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4104,27 +4073,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Invoice>
     for crate::ffi::types::Invoice
 {
     fn into_into_dart(self) -> crate::ffi::types::Invoice {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::types::LexeScope {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::All => 0.into_dart(),
-            Self::GatewayProxy => 1.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::types::LexeScope
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LexeScope>
-    for crate::ffi::types::LexeScope
-{
-    fn into_into_dart(self) -> crate::ffi::types::LexeScope {
         self
     }
 }
@@ -4969,7 +4917,6 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::RevocableClient {
             self.pubkey.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
-            self.scope.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4982,6 +4929,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::RevocableClient>
     for crate::ffi::types::RevocableClient
 {
     fn into_into_dart(self) -> crate::ffi::types::RevocableClient {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::RevokeClientRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.pubkey.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::RevokeClientRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::RevokeClientRequest>
+    for crate::ffi::api::RevokeClientRequest
+{
+    fn into_into_dart(self) -> crate::ffi::api::RevokeClientRequest {
         self
     }
 }
@@ -5085,27 +5049,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ShortPayment>
     for crate::ffi::types::ShortPayment
 {
     fn into_into_dart(self) -> crate::ffi::types::ShortPayment {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::api::UpdateClientRequest {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.pubkey.into_into_dart().into_dart(),
-            self.is_revoked.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::api::UpdateClientRequest
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::UpdateClientRequest>
-    for crate::ffi::api::UpdateClientRequest
-{
-    fn into_into_dart(self) -> crate::ffi::api::UpdateClientRequest {
         self
     }
 }
@@ -5539,7 +5482,6 @@ impl SseEncode for crate::ffi::api::CreateClientRequest {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         <Option<String>>::sse_encode(self.label, serializer);
-        <crate::ffi::types::LexeScope>::sse_encode(self.scope, serializer);
     }
 }
 
@@ -5549,10 +5491,7 @@ impl SseEncode for crate::ffi::api::CreateClientResponse {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <crate::ffi::types::RevocableClient>::sse_encode(
-            self.client,
-            serializer,
-        );
+        <String>::sse_encode(self.pubkey, serializer);
         <String>::sse_encode(self.credentials, serializer);
     }
 }
@@ -5781,25 +5720,6 @@ impl SseEncode for crate::ffi::types::Invoice {
         <i64>::sse_encode(self.expires_at, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <String>::sse_encode(self.payee_pubkey, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::types::LexeScope {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <i32>::sse_encode(
-            match self {
-                crate::ffi::types::LexeScope::All => 0,
-                crate::ffi::types::LexeScope::GatewayProxy => 1,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
     }
 }
 
@@ -6751,7 +6671,16 @@ impl SseEncode for crate::ffi::types::RevocableClient {
         <String>::sse_encode(self.pubkey, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
-        <crate::ffi::types::LexeScope>::sse_encode(self.scope, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::api::RevokeClientRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.pubkey, serializer);
     }
 }
 
@@ -6905,17 +6834,6 @@ impl SseEncode for () {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-    }
-}
-
-impl SseEncode for crate::ffi::api::UpdateClientRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <String>::sse_encode(self.pubkey, serializer);
-        <Option<bool>>::sse_encode(self.is_revoked, serializer);
     }
 }
 

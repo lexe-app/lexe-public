@@ -7,14 +7,13 @@ use lexe::{
     types::{
         auth::RootSeed as SdkRootSeed,
         bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
-        payment::Payment as PaymentRs,
+        command::ClientInfo as ClientInfoRs, payment::Payment as PaymentRs,
     },
 };
 use lexe_api::{
     models::command::{
         BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
     },
-    revocable_clients::RevocableClient as RevocableClientRs,
     types::{
         invoice::Invoice as InvoiceRs,
         lnurl::{
@@ -35,7 +34,6 @@ use lexe_api::{
 };
 use lexe_common::{
     ByteArray,
-    api::auth::LexeScope as ScopeRs,
     env::DeployEnv as DeployEnvRs,
     ln::{
         amount::Amount as AmountRs,
@@ -1013,44 +1011,19 @@ impl From<LxChannelDetailsRs> for LxChannelDetails {
     }
 }
 
-#[derive(Clone)]
-pub enum LexeScope {
-    All,
-    GatewayProxy,
-}
-
-impl From<LexeScope> for ScopeRs {
-    fn from(value: LexeScope) -> Self {
-        match value {
-            LexeScope::All => Self::All,
-            LexeScope::GatewayProxy => Self::GatewayProxy,
-        }
-    }
-}
-
-impl From<ScopeRs> for LexeScope {
-    fn from(value: ScopeRs) -> Self {
-        match value {
-            ScopeRs::All => Self::All,
-            ScopeRs::GatewayProxy => Self::GatewayProxy,
-        }
-    }
-}
-
+/// See `lexe::types::command::ClientInfo`.
 pub struct RevocableClient {
     pub pubkey: String,
     pub created_at: i64,
     pub label: Option<String>,
-    pub scope: LexeScope,
 }
 
-impl From<RevocableClientRs> for RevocableClient {
-    fn from(value: RevocableClientRs) -> Self {
+impl From<ClientInfoRs> for RevocableClient {
+    fn from(value: ClientInfoRs) -> Self {
         Self {
-            pubkey: value.pubkey.to_string(),
+            pubkey: value.client_pk.to_string(),
             created_at: value.created_at.to_i64(),
             label: value.label,
-            scope: LexeScope::from(value.scope),
         }
     }
 }

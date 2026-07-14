@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1366558413;
+  int get rustContentHash => 88239404;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -269,6 +269,11 @@ abstract class AppRsApi extends BaseApi {
     required RootSeed rootSeed,
   });
 
+  Future<void> crateFfiAppAppHandleRevokeClient({
+    required AppHandle that,
+    required RevokeClientRequest req,
+  });
+
   SettingsDb crateFfiAppAppHandleSettingsDb({required AppHandle that});
 
   Future<AppHandle> crateFfiAppAppHandleSignup({
@@ -279,11 +284,6 @@ abstract class AppRsApi extends BaseApi {
   });
 
   Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that});
-
-  Future<void> crateFfiAppAppHandleUpdateClient({
-    required AppHandle that,
-    required UpdateClientRequest req,
-  });
 
   Future<void> crateFfiAppAppHandleUpdatePersonalNote({
     required AppHandle that,
@@ -1885,13 +1885,48 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<void> crateFfiAppAppHandleRevokeClient({
+    required AppHandle that,
+    required RevokeClientRequest req,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_revoke_client_request(req, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 44,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleRevokeClientConstMeta,
+        argValues: [that, req],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleRevokeClientConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_revoke_client",
+        argNames: ["that", "req"],
+      );
+
+  @override
   SettingsDb crateFfiAppAppHandleSettingsDb({required AppHandle that}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_settings_db,
@@ -1931,7 +1966,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1961,7 +1996,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1980,41 +2015,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(
         debugName: "app_handle_sync_payments",
         argNames: ["that"],
-      );
-
-  @override
-  Future<void> crateFfiAppAppHandleUpdateClient({
-    required AppHandle that,
-    required UpdateClientRequest req,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_update_client_request(req, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 47,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiAppAppHandleUpdateClientConstMeta,
-        argValues: [that, req],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiAppAppHandleUpdateClientConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_update_client",
-        argNames: ["that", "req"],
       );
 
   @override
@@ -3687,6 +3687,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RevokeClientRequest dco_decode_box_autoadd_revoke_client_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_revoke_client_request(raw);
+  }
+
+  @protected
   RootSeed dco_decode_box_autoadd_root_seed(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_root_seed(raw);
@@ -3726,14 +3734,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
-  }
-
-  @protected
-  UpdateClientRequest dco_decode_box_autoadd_update_client_request(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_update_client_request(raw);
   }
 
   @protected
@@ -3836,12 +3836,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   CreateClientRequest dco_decode_create_client_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return CreateClientRequest(
-      label: dco_decode_opt_String(arr[0]),
-      scope: dco_decode_lexe_scope(arr[1]),
-    );
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return CreateClientRequest(label: dco_decode_opt_String(arr[0]));
   }
 
   @protected
@@ -3851,7 +3848,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return CreateClientResponse(
-      client: dco_decode_revocable_client(arr[0]),
+      pubkey: dco_decode_String(arr[0]),
       credentials: dco_decode_String(arr[1]),
     );
   }
@@ -4047,12 +4044,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
       payeePubkey: dco_decode_String(arr[5]),
     );
-  }
-
-  @protected
-  LexeScope dco_decode_lexe_scope(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return LexeScope.values[raw as int];
   }
 
   @protected
@@ -4740,14 +4731,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RevocableClient dco_decode_revocable_client(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return RevocableClient(
       pubkey: dco_decode_String(arr[0]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[1]),
       label: dco_decode_opt_String(arr[2]),
-      scope: dco_decode_lexe_scope(arr[3]),
     );
+  }
+
+  @protected
+  RevokeClientRequest dco_decode_revoke_client_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return RevokeClientRequest(pubkey: dco_decode_String(arr[0]));
   }
 
   @protected
@@ -4853,18 +4852,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void dco_decode_unit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return;
-  }
-
-  @protected
-  UpdateClientRequest dco_decode_update_client_request(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return UpdateClientRequest(
-      pubkey: dco_decode_String(arr[0]),
-      isRevoked: dco_decode_opt_box_autoadd_bool(arr[1]),
-    );
   }
 
   @protected
@@ -5410,6 +5397,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RevokeClientRequest sse_decode_box_autoadd_revoke_client_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_revoke_client_request(deserializer));
+  }
+
+  @protected
   RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_root_seed(deserializer));
@@ -5453,14 +5448,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
-  }
-
-  @protected
-  UpdateClientRequest sse_decode_box_autoadd_update_client_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_update_client_request(deserializer));
   }
 
   @protected
@@ -5574,8 +5561,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_label = sse_decode_opt_String(deserializer);
-    var var_scope = sse_decode_lexe_scope(deserializer);
-    return CreateClientRequest(label: var_label, scope: var_scope);
+    return CreateClientRequest(label: var_label);
   }
 
   @protected
@@ -5583,10 +5569,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_client = sse_decode_revocable_client(deserializer);
+    var var_pubkey = sse_decode_String(deserializer);
     var var_credentials = sse_decode_String(deserializer);
     return CreateClientResponse(
-      client: var_client,
+      pubkey: var_pubkey,
       credentials: var_credentials,
     );
   }
@@ -5787,13 +5773,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       amountSats: var_amountSats,
       payeePubkey: var_payeePubkey,
     );
-  }
-
-  @protected
-  LexeScope sse_decode_lexe_scope(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return LexeScope.values[inner];
   }
 
   @protected
@@ -6695,13 +6674,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_pubkey = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
-    var var_scope = sse_decode_lexe_scope(deserializer);
     return RevocableClient(
       pubkey: var_pubkey,
       createdAt: var_createdAt,
       label: var_label,
-      scope: var_scope,
     );
+  }
+
+  @protected
+  RevokeClientRequest sse_decode_revoke_client_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pubkey = sse_decode_String(deserializer);
+    return RevokeClientRequest(pubkey: var_pubkey);
   }
 
   @protected
@@ -6810,16 +6796,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   void sse_decode_unit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  UpdateClientRequest sse_decode_update_client_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_pubkey = sse_decode_String(deserializer);
-    var var_isRevoked = sse_decode_opt_box_autoadd_bool(deserializer);
-    return UpdateClientRequest(pubkey: var_pubkey, isRevoked: var_isRevoked);
   }
 
   @protected
@@ -7390,6 +7366,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_revoke_client_request(
+    RevokeClientRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_revoke_client_request(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_root_seed(
     RootSeed self,
     SseSerializer serializer,
@@ -7444,15 +7429,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_update_client_request(
-    UpdateClientRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_update_client_request(self, serializer);
   }
 
   @protected
@@ -7563,7 +7539,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_String(self.label, serializer);
-    sse_encode_lexe_scope(self.scope, serializer);
   }
 
   @protected
@@ -7572,7 +7547,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_revocable_client(self.client, serializer);
+    sse_encode_String(self.pubkey, serializer);
     sse_encode_String(self.credentials, serializer);
   }
 
@@ -7733,12 +7708,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_String(self.payeePubkey, serializer);
-  }
-
-  @protected
-  void sse_encode_lexe_scope(LexeScope self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -8501,7 +8470,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.pubkey, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
     sse_encode_opt_String(self.label, serializer);
-    sse_encode_lexe_scope(self.scope, serializer);
+  }
+
+  @protected
+  void sse_encode_revoke_client_request(
+    RevokeClientRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.pubkey, serializer);
   }
 
   @protected
@@ -8588,16 +8565,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_update_client_request(
-    UpdateClientRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.pubkey, serializer);
-    sse_encode_opt_box_autoadd_bool(self.isRevoked, serializer);
   }
 
   @protected

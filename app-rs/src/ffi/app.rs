@@ -5,6 +5,8 @@ use lexe::{
         auth::UserPk,
         command::{
             CashAppBuyRequest as CashAppBuyRequestRs,
+            CreateClientRequest as CreateClientRequestRs,
+            RevokeClientRequest as RevokeClientRequestRs,
             WithdrawLnurlRequest as WithdrawLnurlRequestRs,
         },
     },
@@ -20,10 +22,6 @@ use lexe_api::{
         PayOfferRequest as PayOfferRequestRs,
         PayOnchainRequest as PayOnchainRequestRs,
         UpdatePersonalNote as UpdatePersonalNoteRs,
-    },
-    revocable_clients::models::{
-        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-        ListRevocableClients, UpdateClientRequest as UpdateClientRequestRs,
     },
     types::{
         Empty,
@@ -50,7 +48,7 @@ use crate::ffi::{
         PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
         PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
         PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-        PayOnchainRequest, PayOnchainResponse, UpdateClientRequest,
+        PayOnchainRequest, PayOnchainResponse, RevokeClientRequest,
         UpdatePersonalNote, WithdrawLnurlRequest,
     },
     app_data::AppDataDb,
@@ -531,28 +529,17 @@ impl AppHandle {
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
-        let req = CreateRevocableClientRequestRs::from(req);
-        let (client, client_credentials) = self
-            .inner
-            .node_client()?
-            .create_client_credentials(req)
-            .await?;
-
-        Ok(CreateClientResponse {
-            client: RevocableClient::from(client),
-            credentials: client_credentials.to_base64_blob(),
-        })
+        let req = CreateClientRequestRs::from(req);
+        self.inner
+            .wallet()?
+            .create_client(req)
+            .await
+            .map(CreateClientResponse::from)
     }
 
     #[instrument(skip_all, name = "(list-clients)")]
     pub async fn list_clients(&self) -> anyhow::Result<Vec<RevocableClient>> {
-        // Only care about unrevoked and unexpired clients
-        let req = ListRevocableClients { valid_only: true };
-        let resp = self
-            .inner
-            .node_client()?
-            .list_revocable_clients(req)
-            .await?;
+        let resp = self.inner.wallet()?.list_clients().await?;
         let clients = resp
             .clients
             .into_values()
@@ -561,17 +548,13 @@ impl AppHandle {
         Ok(clients)
     }
 
-    #[instrument(skip_all, name = "(update-client)")]
-    pub async fn update_client(
+    #[instrument(skip_all, name = "(revoke-client)")]
+    pub async fn revoke_client(
         &self,
-        req: UpdateClientRequest,
+        req: RevokeClientRequest,
     ) -> anyhow::Result<()> {
-        let req = UpdateClientRequestRs::try_from(req)?;
-        let _resp = self
-            .inner
-            .node_client()?
-            .update_revocable_client(req)
-            .await?;
+        let req = RevokeClientRequestRs::try_from(req)?;
+        let _resp = self.inner.wallet()?.revoke_client(req).await?;
         Ok(())
     }
 

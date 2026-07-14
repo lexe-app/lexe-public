@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// The user's active human Bitcoin address, plus the per-user `updatable`
 /// policy flag (whether the user can claim a different custom username now).
@@ -64,20 +64,21 @@ sealed class CloseChannelRequest with _$CloseChannelRequest {
       _CloseChannelRequest;
 }
 
-/// See `lexe_common::api::revocable_clients::models::CreateRevocableClientRequest`.
+/// See `lexe::types::command::CreateClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class CreateClientRequest with _$CreateClientRequest {
-  const factory CreateClientRequest({String? label, required LexeScope scope}) =
-      _CreateClientRequest;
+  const factory CreateClientRequest({String? label}) = _CreateClientRequest;
 }
 
+/// See `lexe::types::command::CreateClientResponse`.
+///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class CreateClientResponse with _$CreateClientResponse {
   const factory CreateClientResponse({
-    required RevocableClient client,
+    required String pubkey,
     required String credentials,
   }) = _CreateClientResponse;
 }
@@ -344,13 +345,13 @@ sealed class PayOnchainResponse with _$PayOnchainResponse {
   }) = _PayOnchainResponse;
 }
 
-/// See `lexe_common::api::revocable_clients::models::UpdateClientRequest`.
+/// See `lexe::types::command::RevokeClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
-sealed class UpdateClientRequest with _$UpdateClientRequest {
-  const factory UpdateClientRequest({required String pubkey, bool? isRevoked}) =
-      _UpdateClientRequest;
+sealed class RevokeClientRequest with _$RevokeClientRequest {
+  const factory RevokeClientRequest({required String pubkey}) =
+      _RevokeClientRequest;
 }
 
 /// See `lexe_common::api::user::UpdatePersonalNote`.

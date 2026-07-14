@@ -263,22 +263,22 @@ String toString() {
 /// @nodoc
 mixin _$CreateClientRequest {
 
- String? get label; LexeScope get scope;
+ String? get label;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientRequest&&(identical(other.label, label) || other.label == label)&&(identical(other.scope, scope) || other.scope == scope));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientRequest&&(identical(other.label, label) || other.label == label));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,label,scope);
+int get hashCode => Object.hash(runtimeType,label);
 
 @override
 String toString() {
-  return 'CreateClientRequest(label: $label, scope: $scope)';
+  return 'CreateClientRequest(label: $label)';
 }
 
 
@@ -292,27 +292,26 @@ String toString() {
 
 
 class _CreateClientRequest implements CreateClientRequest {
-  const _CreateClientRequest({this.label, required this.scope});
+  const _CreateClientRequest({this.label});
   
 
 @override final  String? label;
-@override final  LexeScope scope;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientRequest&&(identical(other.label, label) || other.label == label)&&(identical(other.scope, scope) || other.scope == scope));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientRequest&&(identical(other.label, label) || other.label == label));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,label,scope);
+int get hashCode => Object.hash(runtimeType,label);
 
 @override
 String toString() {
-  return 'CreateClientRequest(label: $label, scope: $scope)';
+  return 'CreateClientRequest(label: $label)';
 }
 
 
@@ -324,22 +323,22 @@ String toString() {
 /// @nodoc
 mixin _$CreateClientResponse {
 
- RevocableClient get client; String get credentials;
+ String get pubkey; String get credentials;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientResponse&&(identical(other.client, client) || other.client == client)&&(identical(other.credentials, credentials) || other.credentials == credentials));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientResponse&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey)&&(identical(other.credentials, credentials) || other.credentials == credentials));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,client,credentials);
+int get hashCode => Object.hash(runtimeType,pubkey,credentials);
 
 @override
 String toString() {
-  return 'CreateClientResponse(client: $client, credentials: $credentials)';
+  return 'CreateClientResponse(pubkey: $pubkey, credentials: $credentials)';
 }
 
 
@@ -353,10 +352,10 @@ String toString() {
 
 
 class _CreateClientResponse implements CreateClientResponse {
-  const _CreateClientResponse({required this.client, required this.credentials});
+  const _CreateClientResponse({required this.pubkey, required this.credentials});
   
 
-@override final  RevocableClient client;
+@override final  String pubkey;
 @override final  String credentials;
 
 
@@ -364,16 +363,16 @@ class _CreateClientResponse implements CreateClientResponse {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientResponse&&(identical(other.client, client) || other.client == client)&&(identical(other.credentials, credentials) || other.credentials == credentials));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientResponse&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey)&&(identical(other.credentials, credentials) || other.credentials == credentials));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,client,credentials);
+int get hashCode => Object.hash(runtimeType,pubkey,credentials);
 
 @override
 String toString() {
-  return 'CreateClientResponse(client: $client, credentials: $credentials)';
+  return 'CreateClientResponse(pubkey: $pubkey, credentials: $credentials)';
 }
 
 
@@ -1933,24 +1932,24 @@ String toString() {
 
 
 /// @nodoc
-mixin _$UpdateClientRequest {
+mixin _$RevokeClientRequest {
 
- String get pubkey; bool? get isRevoked;
+ String get pubkey;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdateClientRequest&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey)&&(identical(other.isRevoked, isRevoked) || other.isRevoked == isRevoked));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RevokeClientRequest&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,pubkey,isRevoked);
+int get hashCode => Object.hash(runtimeType,pubkey);
 
 @override
 String toString() {
-  return 'UpdateClientRequest(pubkey: $pubkey, isRevoked: $isRevoked)';
+  return 'RevokeClientRequest(pubkey: $pubkey)';
 }
 
 
@@ -1963,28 +1962,27 @@ String toString() {
 /// @nodoc
 
 
-class _UpdateClientRequest implements UpdateClientRequest {
-  const _UpdateClientRequest({required this.pubkey, this.isRevoked});
+class _RevokeClientRequest implements RevokeClientRequest {
+  const _RevokeClientRequest({required this.pubkey});
   
 
 @override final  String pubkey;
-@override final  bool? isRevoked;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateClientRequest&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey)&&(identical(other.isRevoked, isRevoked) || other.isRevoked == isRevoked));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RevokeClientRequest&&(identical(other.pubkey, pubkey) || other.pubkey == pubkey));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,pubkey,isRevoked);
+int get hashCode => Object.hash(runtimeType,pubkey);
 
 @override
 String toString() {
-  return 'UpdateClientRequest(pubkey: $pubkey, isRevoked: $isRevoked)';
+  return 'RevokeClientRequest(pubkey: $pubkey)';
 }
 
 

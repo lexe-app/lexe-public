@@ -38,7 +38,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PayOnchainPreflightResponse,
         PayOnchainRequest,
         PayOnchainResponse,
-        UpdateClientRequest,
+        RevokeClientRequest,
         UpdatePersonalNote,
         WithdrawLnurlRequest;
 import 'package:app_rs_dart/ffi/app.dart'
@@ -57,7 +57,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         GDriveSignupCredentials,
         GDriveStatus,
         Invoice,
-        LexeScope,
         LnurlPay,
         LnurlPayRequest,
         LnurlPayRequestMetadata,
@@ -480,13 +479,8 @@ class MockAppHandle extends AppHandle {
   }) => Future.delayed(
     const Duration(milliseconds: 1000),
     () => const CreateClientResponse(
-      client: RevocableClient(
-        pubkey:
-            "7088af1fc12ab04ad6dd165bc3a3c5eb3062b411a2f55a166b0e400b390fe4db",
-        createdAt: 1778155200000,
-        label: "bitcoinrouter.ai",
-        scope: LexeScope.gatewayProxy,
-      ),
+      pubkey:
+          "7088af1fc12ab04ad6dd165bc3a3c5eb3062b411a2f55a166b0e400b390fe4db",
       credentials:
           "eyJsZXhlX2F1dGhfdG9rZW4iOiI5ZFRDVXZDOHk3cWNOeVVicXluejNud0lRUUhiUXFQVktlTWhYVWoxQWZyLXZnajlFMjE3XzJ0Q1MxSVFNN0xGcWZCVUM4RWM5ZmNiLWRRaUNSeTZvdDJGTi1rUjYwZWRSRkpVenRBYTJSeGFvMVEwQlMxczZ2RThncmdmaE1ZSUFKRExNV2dBQUFBQVNFNHphQUFBQUFCcGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYVdscGFXbHBhUUUiLCJjbGllbnRfcGsiOiI3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiIiwiY2xpZW50X2tleV9kZXIiOiIzMDUzMDIwMTAxMzAwNTA2MDMyYjY1NzAwNDIyMDQyMDBmNTgwZDM0NjFjNGVhMGIzNmI4MzZkNDUxYzFjMTk5ZWUzZTA2NDZhZDBkNjQyMzUzNzk3MzlkNjg2OTkyODlhMTIzMDMyMTAwNzA4OGFmMWZjMTJhYjA0YWQ2ZGQxNjViYzNhM2M1ZWIzMDYyYjQxMWEyZjU1YTE2NmIwZTQwMGIzOTBmZTRkYiIsImNsaWVudF9jZXJ0X2RlciI6IjMwODIwMTgzMzA4MjAxMzVhMDAzMDIwMTAyMDIxNDQwYmVkYzU2ZDAzZDZiNTJmMjg0MmQ2NGRmOTBkMDJkNmRhMzZhNWIzMDA1MDYwMzJiNjU3MDMwNTYzMTBiMzAwOTA2MDM1NTA0MDYwYzAyNTU1MzMxMGIzMDA5MDYwMzU1MDQwODBjMDI0MzQxMzExMTMwMGYwNjAzNTUwNDBhMGMwODZjNjU3ODY1MmQ2MTcwNzAzMTI3MzAyNTA2MDM1NTA0MDMwYzFlNGM2NTc4NjUyMDcyNjU3NjZmNjM2MTYyNmM2NTIwNjk3MzczNzU2OTZlNjcyMDQzNDEyMDYzNjU3Mjc0MzAyMDE3MGQzNzM1MzAzMTMwMzEzMDMwMzAzMDMwMzA1YTE4MGYzNDMwMzkzNjMwMzEzMDMxMzAzMDMwMzAzMDMwNWEzMDUyMzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyMzMwMjEwNjAzNTUwNDAzMGMxYTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDYzNmM2OTY1NmU3NDIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDA3MDg4YWYxZmMxMmFiMDRhZDZkZDE2NWJjM2EzYzVlYjMwNjJiNDExYTJmNTVhMTY2YjBlNDAwYjM5MGZlNGRiYTMxNzMwMTUzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDA1MDYwMzJiNjU3MDAzNDEwMDdiMTdiYzk1MzgyNjdiMzU0ZjA3MjZkODljYjFlYzMxMGIxMDJlNDIyYWI5Njk2Yjg3ZDlhZTcwMGNlZjJlODNjMTM2NmQwYWQxOTAzNWQ5ZTNlZDA0Y2Y1ZjdmMDVkZWY2OGE3MWRlMjEyYjg5ODM0NDc3OTQyYWU3NjNhMjBmIiwiY2FfY2VydF9kZXIiOiIzMDgyMDFiYTMwODIwMTZjYTAwMzAyMDEwMjAyMTQwY2RjYzJkMGVhM2MzMjI4MDc1OWNkNGFiN2E1MzBmNDNiODAwMjA5MzAwNTA2MDMyYjY1NzAzMDU2MzEwYjMwMDkwNjAzNTUwNDA2MGMwMjU1NTMzMTBiMzAwOTA2MDM1NTA0MDgwYzAyNDM0MTMxMTEzMDBmMDYwMzU1MDQwYTBjMDg2YzY1Nzg2NTJkNjE3MDcwMzEyNzMwMjUwNjAzNTUwNDAzMGMxZTRjNjU3ODY1MjA3MjY1NzY2ZjYzNjE2MjZjNjUyMDY5NzM3Mzc1Njk2ZTY3MjA0MzQxMjA2MzY1NzI3NDMwMjAxNzBkMzczNTMwMzEzMDMxMzAzMDMwMzAzMDMwNWExODBmMzQzMDM5MzYzMDMxMzAzMTMwMzAzMDMwMzAzMDVhMzA1NjMxMGIzMDA5MDYwMzU1MDQwNjBjMDI1NTUzMzEwYjMwMDkwNjAzNTUwNDA4MGMwMjQzNDEzMTExMzAwZjA2MDM1NTA0MGEwYzA4NmM2NTc4NjUyZDYxNzA3MDMxMjczMDI1MDYwMzU1MDQwMzBjMWU0YzY1Nzg2NTIwNzI2NTc2NmY2MzYxNjI2YzY1MjA2OTczNzM3NTY5NmU2NzIwNDM0MTIwNjM2NTcyNzQzMDJhMzAwNTA2MDMyYjY1NzAwMzIxMDBjOTM2ZDhlNzhiMDc4ZDkyODQ5YWRjMzYyZGVjYzNlYTMxNzA1ZTQ0ODZiZDAwZDgxYmU2NGFmZDYzZTg4NzU5YTM0YTMwNDgzMDEzMDYwMzU1MWQxMTA0MGMzMDBhODIwODZjNjU3ODY1MmU2MTcwNzAzMDFkMDYwMzU1MWQwZTA0MTYwNDE0MGNkY2MyZDBlYTNjMzIyODA3NTljZDRhYjdhNTMwZjQzYjgwMDIwOTMwMTIwNjAzNTUxZDEzMDEwMWZmMDQwODMwMDYwMTAxZmYwMjAxMDAzMDA1MDYwMzJiNjU3MDAzNDEwMGVhNzJlOTY3MGY5OTFjODdlZDVlMmMxZGY3YzgyZWNlN2VjMjAxMGM1NzY1NGJmYWU4Y2Q1ZmE5NzMzNmYyNTViMzRkN2FjNzQzOTk5NThkYWQwY2U0NDU2ZDcwYjAzOWMyYzIzMmU0YjVhZDljZTNjYzRhMWZhMTljNzA1MTA0In0=",
     ),
@@ -501,20 +495,18 @@ class MockAppHandle extends AppHandle {
         label: "bitcoinrouter.ai",
         pubkey:
             "d6f34a82bf64b68a28b2f0934d715271580afebc29a4b37bfd355999705f43ff",
-        scope: LexeScope.gatewayProxy,
       ),
       const RevocableClient(
         createdAt: 1775952000000,
         label: null,
         pubkey:
             "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",
-        scope: LexeScope.gatewayProxy,
       ),
     ],
   );
 
   @override
-  Future<void> updateClient({required UpdateClientRequest req}) =>
+  Future<void> revokeClient({required RevokeClientRequest req}) =>
       Future.delayed(const Duration(milliseconds: 1000), () => {});
 
   @override
@@ -726,11 +718,11 @@ class MockAppHandleErr extends MockAppHandle {
   );
 
   @override
-  Future<void> updateClient({required UpdateClientRequest req}) =>
+  Future<void> revokeClient({required RevokeClientRequest req}) =>
       Future.delayed(
         const Duration(milliseconds: 1000),
         () => throw const FfiError(
-          "[106=Command] Failed to update client",
+          "[106=Command] Failed to revoke client",
         ).toFfi(),
       );
 

@@ -5,7 +5,12 @@ use std::str::FromStr;
 use anyhow::{Context, anyhow};
 use lexe::types::{
     bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
-    command::WithdrawLnurlRequest as WithdrawLnurlRequestRs,
+    command::{
+        CreateClientRequest as CreateClientRequestRs,
+        CreateClientResponse as CreateClientResponseRs,
+        RevokeClientRequest as RevokeClientRequestRs,
+        WithdrawLnurlRequest as WithdrawLnurlRequestRs,
+    },
 };
 use lexe_api::{
     models::command::{
@@ -37,10 +42,6 @@ use lexe_api::{
         PayOnchainResponse as PayOnchainResponseRs,
         UpdatePersonalNote as UpdatePersonalNoteRs,
     },
-    revocable_clients::models::{
-        CreateRevocableClientRequest as CreateRevocableClientRequestRs,
-        UpdateClientRequest as UpdateClientRequestRs,
-    },
     types::{
         bounded_string::BoundedString,
         invoice::Invoice as InvoiceRs,
@@ -54,7 +55,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::{auth::LexeScope as ScopeRs, fiat_rates::FiatRates as FiatRatesRs},
+    api::fiat_rates::FiatRates as FiatRatesRs,
     ln::{
         amount::Amount,
         channel::{ChannelId, UserChannelId as UserChannelIdRs},
@@ -64,9 +65,9 @@ use lexe_common::{
 use lexe_crypto::ed25519;
 
 use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, LexeScope,
-    LnurlWithdrawRequest, LxChannelDetails, Offer, PaymentCreatedIndex,
-    PaymentKind, RevocableClient, UserChannelId, Username,
+    ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
+    LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind, UserChannelId,
+    Username,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -747,51 +748,53 @@ impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRs {
     }
 }
 
-/// See `lexe_common::api::revocable_clients::models::CreateRevocableClientRequest`.
+/// See `lexe::types::command::CreateClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 #[derive(Clone)]
 pub struct CreateClientRequest {
     pub label: Option<String>,
-    pub scope: LexeScope,
 }
 
-impl From<CreateClientRequest> for CreateRevocableClientRequestRs {
+impl From<CreateClientRequest> for CreateClientRequestRs {
     fn from(value: CreateClientRequest) -> Self {
         Self {
-            label: value.label,
-            scope: ScopeRs::from(value.scope),
             expires_at: None,
+            label: value.label,
         }
     }
 }
 
+/// See `lexe::types::command::CreateClientResponse`.
+///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct CreateClientResponse {
-    pub client: RevocableClient,
+    pub pubkey: String,
     pub credentials: String,
 }
 
-/// See `lexe_common::api::revocable_clients::models::UpdateClientRequest`.
-///
-/// flutter_rust_bridge:dart_metadata=("freezed")
-pub struct UpdateClientRequest {
-    pub pubkey: String,
-    pub is_revoked: Option<bool>,
+impl From<CreateClientResponseRs> for CreateClientResponse {
+    fn from(value: CreateClientResponseRs) -> Self {
+        Self {
+            pubkey: value.client_pk.to_string(),
+            credentials: value.client_credentials.export_string(),
+        }
+    }
 }
 
-impl TryFrom<UpdateClientRequest> for UpdateClientRequestRs {
+/// See `lexe::types::command::RevokeClientRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct RevokeClientRequest {
+    pub pubkey: String,
+}
+
+impl TryFrom<RevokeClientRequest> for RevokeClientRequestRs {
     type Error = anyhow::Error;
-    fn try_from(value: UpdateClientRequest) -> Result<Self, Self::Error> {
-        let pubkey = ed25519::PublicKey::from_str(&value.pubkey)
+    fn try_from(value: RevokeClientRequest) -> Result<Self, Self::Error> {
+        let client_pk = ed25519::PublicKey::from_str(&value.pubkey)
             .context("Invalid pubkey")?;
-        Ok(Self {
-            pubkey,
-            is_revoked: value.is_revoked,
-            expires_at: None,
-            label: None,
-            scope: None,
-        })
+        Ok(Self { client_pk })
     }
 }
 

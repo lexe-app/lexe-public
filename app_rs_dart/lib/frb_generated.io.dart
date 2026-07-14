@@ -267,6 +267,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentMethod dco_decode_box_autoadd_payment_method(dynamic raw);
 
   @protected
+  RevokeClientRequest dco_decode_box_autoadd_revoke_client_request(dynamic raw);
+
+  @protected
   RootSeed dco_decode_box_autoadd_root_seed(dynamic raw);
 
   @protected
@@ -286,9 +289,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
-
-  @protected
-  UpdateClientRequest dco_decode_box_autoadd_update_client_request(dynamic raw);
 
   @protected
   UpdatePersonalNote dco_decode_box_autoadd_update_personal_note(dynamic raw);
@@ -383,9 +383,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice dco_decode_invoice(dynamic raw);
-
-  @protected
-  LexeScope dco_decode_lexe_scope(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -600,6 +597,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   RevocableClient dco_decode_revocable_client(dynamic raw);
 
   @protected
+  RevokeClientRequest dco_decode_revoke_client_request(dynamic raw);
+
+  @protected
   RootSeed dco_decode_root_seed(dynamic raw);
 
   @protected
@@ -634,9 +634,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
-
-  @protected
-  UpdateClientRequest dco_decode_update_client_request(dynamic raw);
 
   @protected
   UpdatePersonalNote dco_decode_update_personal_note(dynamic raw);
@@ -896,6 +893,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  RevokeClientRequest sse_decode_box_autoadd_revoke_client_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer);
 
   @protected
@@ -917,11 +919,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
-
-  @protected
-  UpdateClientRequest sse_decode_box_autoadd_update_client_request(
-    SseDeserializer deserializer,
-  );
 
   @protected
   UpdatePersonalNote sse_decode_box_autoadd_update_personal_note(
@@ -1044,9 +1041,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice sse_decode_invoice(SseDeserializer deserializer);
-
-  @protected
-  LexeScope sse_decode_lexe_scope(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -1303,6 +1297,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   RevocableClient sse_decode_revocable_client(SseDeserializer deserializer);
 
   @protected
+  RevokeClientRequest sse_decode_revoke_client_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RootSeed sse_decode_root_seed(SseDeserializer deserializer);
 
   @protected
@@ -1337,11 +1336,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
-
-  @protected
-  UpdateClientRequest sse_decode_update_client_request(
-    SseDeserializer deserializer,
-  );
 
   @protected
   UpdatePersonalNote sse_decode_update_personal_note(
@@ -1659,6 +1653,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_revoke_client_request(
+    RevokeClientRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_root_seed(
     RootSeed self,
     SseSerializer serializer,
@@ -1690,12 +1690,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_update_client_request(
-    UpdateClientRequest self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_box_autoadd_update_personal_note(
@@ -1837,9 +1831,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_invoice(Invoice self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_lexe_scope(LexeScope self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -2161,6 +2152,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_revoke_client_request(
+    RevokeClientRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_root_seed(RootSeed self, SseSerializer serializer);
 
   @protected
@@ -2195,12 +2192,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_update_client_request(
-    UpdateClientRequest self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_update_personal_note(

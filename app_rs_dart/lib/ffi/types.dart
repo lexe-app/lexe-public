@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 /// Some assorted user/node info. This is kinda hacked together currently just
@@ -169,8 +169,6 @@ sealed class Invoice with _$Invoice {
     required String payeePubkey,
   }) = _Invoice;
 }
-
-enum LexeScope { all, gatewayProxy }
 
 /// A resolved LNURL-pay payment method.
 class LnurlPay {
@@ -513,22 +511,20 @@ sealed class PaymentRail with _$PaymentRail {
 
 enum PaymentStatus { pending, completed, failed }
 
+/// See `lexe::types::command::ClientInfo`.
 class RevocableClient {
   final String pubkey;
   final int createdAt;
   final String? label;
-  final LexeScope scope;
 
   const RevocableClient({
     required this.pubkey,
     required this.createdAt,
     this.label,
-    required this.scope,
   });
 
   @override
-  int get hashCode =>
-      pubkey.hashCode ^ createdAt.hashCode ^ label.hashCode ^ scope.hashCode;
+  int get hashCode => pubkey.hashCode ^ createdAt.hashCode ^ label.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -537,8 +533,7 @@ class RevocableClient {
           runtimeType == other.runtimeType &&
           pubkey == other.pubkey &&
           createdAt == other.createdAt &&
-          label == other.label &&
-          scope == other.scope;
+          label == other.label;
 }
 
 /// The user's root seed from which we derive all child secrets.
