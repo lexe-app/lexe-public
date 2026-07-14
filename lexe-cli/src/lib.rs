@@ -163,6 +163,7 @@ pub enum LexeCommand {
     PayLnurl(PayLnurlArgs),
     WithdrawLnurl(WithdrawLnurlArgs),
     BuyWithCashApp(BuyWithCashAppArgs),
+    GetHumanBitcoinAddress(GetHumanBitcoinAddressArgs),
     SyncPayments(SyncPaymentsArgs),
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
@@ -302,6 +303,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
         LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
         LexeCommand::BuyWithCashApp(a) => a.run(&wallet).await,
+        LexeCommand::GetHumanBitcoinAddress(a) => a.run(&wallet).await,
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
@@ -1441,6 +1443,63 @@ impl BuyWithCashAppArgs {
             // QR code is easier than copying the URL across devices.
             println!("\nScan this QR code to complete the buy:");
             helpers::encode_and_print_qr(&resp.redirect_url)?;
+        }
+
+        Ok(())
+    }
+}
+
+// --- `get-human-bitcoin-address` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get your Human Bitcoin Address",
+    long_about = "Get your Human Bitcoin Address.\n\
+        \n\
+        The Human Bitcoin Address (BIP 353), e.g. ₿satoshi@lexe.app, is a\n\
+        human-readable address which others can pay to send Bitcoin to this\n\
+        wallet. It also works as a Lightning Address (satoshi@lexe.app) for\n\
+        senders which support LNURL but not BIP 353.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetHumanBitcoinAddressArgs {
+    /// Don't render the QR code
+    #[arg(long)]
+    no_qr: bool,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl GetHumanBitcoinAddressArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .get_human_bitcoin_address()
+            .await
+            .context("Failed to get Human Bitcoin Address")?;
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        let human_bitcoin_address = &resp.human_bitcoin_address;
+        let lightning_address = &resp.lightning_address;
+        let updatable = resp.updatable;
+        println!("\nHuman Bitcoin Address: {human_bitcoin_address}");
+        println!("Lightning Address: {lightning_address}");
+        println!("Updatable: {updatable}");
+
+        let offer = &resp.offer;
+        println!("\nOffer:\n");
+        // Don't wrap this to keep it copy/paste-able
+        println!("{offer}");
+
+        if !self.no_qr {
+            println!("\nScan this QR code to pay this offer:");
+            // Encode the QR as a `bitcoin:?lno=<offer>` URI, matching how the
+            // Lexe app encodes BOLT12 offers (see `PaymentOffer.uri` in app).
+            helpers::encode_and_print_qr(&format!("bitcoin:?lno={offer}"))?;
         }
 
         Ok(())
