@@ -13,7 +13,7 @@ use lexe::{
 use lexe_api::{
     def::{UserGatewayApi, UserNodeRunApi},
     models::command::{
-        GetAddressResponse,
+        GetNextUnusedAddressResponse,
         OpenChannelPreflightRequest as OpenChannelPreflightRequestRs,
         OpenChannelRequest as OpenChannelRequestRs,
         PayInvoiceRequest as PayInvoiceRequestRs,
@@ -302,13 +302,13 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    #[instrument(skip_all, name = "(get-address)")]
-    pub async fn get_address(&self) -> anyhow::Result<String> {
+    #[instrument(skip_all, name = "(get-next-unused-address)")]
+    pub async fn get_next_unused_address(&self) -> anyhow::Result<String> {
         self.inner
             .node_client()?
-            .get_address()
+            .get_next_unused_address()
             .await
-            .map(|GetAddressResponse { addr }| addr)
+            .map(|GetNextUnusedAddressResponse { addr }| addr)
             .map(|addr| addr.assume_checked_ref().to_string())
             .map_err(anyhow::Error::new)
     }

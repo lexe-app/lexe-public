@@ -801,23 +801,23 @@ impl OnchainWallet {
     /// Return the next unused address from the external descriptor. If there
     /// are no unused addresses, this will reveal and return the next one.
     ///
-    /// We do this because it prevents a DoS attack where a `get_address` that
-    /// returns `reveal_next_address` is called repeatedly. This would reveal
-    /// an unbounded number of external spks and make our transaction sync
-    /// extremely expensive, as sync requires ~one API call per external spk
-    /// ever revealed.
+    /// We do this because it prevents a DoS attack where a
+    /// `get_next_unused_address` that returns `reveal_next_address` is
+    /// called repeatedly. This would reveal an unbounded number of external
+    /// spks and make our transaction sync extremely expensive, as sync
+    /// requires ~one API call per external spk ever revealed.
     ///
     /// NOTE: an address is "used" from BDK's perspective if we've broadcasted a
     /// relevant transaction or we've seen a relevant transaction on-chain or
     /// in the mempool.
     ///
     /// NOTE: If a user tries to send two on-chain txs to their wallet in quick
-    /// succession, the second call to `get_address` will return the same
-    /// address as the first if the wallet has not yet detected the first
-    /// transaction. If the user wishes to avoid address reuse, they should wait
-    /// for their wallet to sync before sending the second transaction (or
-    /// simply avoid this scenario in the first place).
-    pub fn get_address(&self) -> bitcoin::Address {
+    /// succession, the second call to `get_next_unused_address` will return the
+    /// same address as the first if the wallet has not yet detected the
+    /// first transaction. If the user wishes to avoid address reuse, they
+    /// should wait for their wallet to sync before sending the second
+    /// transaction (or simply avoid this scenario in the first place).
+    pub fn get_next_unused_address(&self) -> bitcoin::Address {
         let address = self
             .write()
             .next_unused_address(KeychainKind::External)
@@ -830,12 +830,13 @@ impl OnchainWallet {
     /// If there are no unused addresses, this will reveal and return the next
     /// one.
     ///
-    /// This method should be preferred over `get_address` when the address will
-    /// never be exposed to the user in any way, e.g. protocol transactions,
-    /// change outputs, etc.... It allows our [`sync`] implementation to avoid
-    /// checking the address for updates after it has been finalized, i.e.,
-    /// outputs in and inputs out are both balanced and all input spends have at
-    /// least `CONFS_TO_FINALIZE` confs.
+    /// This method should be preferred over `get_next_unused_address` when the
+    /// address will never be exposed to the user in any way, e.g. protocol
+    /// transactions, change outputs, etc.... It allows our [`sync`]
+    /// implementation to avoid checking the address for updates after it
+    /// has been finalized, i.e., outputs in and inputs out are both
+    /// balanced and all input spends have at least `CONFS_TO_FINALIZE`
+    /// confs.
     ///
     /// NOTE: an address is "used" from BDK's perspective if we've broadcasted a
     /// relevant transaction or we've seen a relevant transaction on-chain or

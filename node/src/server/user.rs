@@ -11,18 +11,18 @@ use lexe_api::{
             BackupInfo, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateOfferRequest, CreateOfferResponse, DebugInfo, GDriveStatus,
-            GetAddressResponse, GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetUpdatedPayments, HumanBitcoinAddressV1, ListChannelsResponse,
-            NodeInfo, OpenChannelPreflightRequest,
-            OpenChannelPreflightResponse, OpenChannelRequest,
-            OpenChannelResponse, PayInvoicePreflightRequest,
-            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferPreflightRequest, PayOfferPreflightResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
-            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentCreatedIndexes, PaymentIdStruct, SetupGDrive,
-            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
-            UpsertHumanBitcoinAddressResponse,
+            GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetNextUnusedAddressResponse, GetUpdatedPayments,
+            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
+            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+            OpenChannelRequest, OpenChannelResponse,
+            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
+            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
+            PaymentIdStruct, SetupGDrive, UpdatePersonalNote,
+            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
@@ -407,11 +407,11 @@ pub(super) async fn pay_onchain_preflight(
         .map_err(NodeApiError::command)
 }
 
-pub(super) async fn get_address(
+pub(super) async fn get_next_unused_address(
     State(state): State<Arc<RouterState>>,
-) -> LxJson<GetAddressResponse> {
-    let addr = state.wallet.get_address().into_unchecked();
-    LxJson(GetAddressResponse { addr })
+) -> LxJson<GetNextUnusedAddressResponse> {
+    let addr = state.wallet.get_next_unused_address().into_unchecked();
+    LxJson(GetNextUnusedAddressResponse { addr })
 }
 
 pub(super) async fn get_payments_by_indexes(

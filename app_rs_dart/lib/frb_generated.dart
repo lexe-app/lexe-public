@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1354940382;
+  int get rustContentHash => 1366558413;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -139,8 +139,6 @@ abstract class AppRsApi extends BaseApi {
 
   Future<FiatRates> crateFfiAppAppHandleFiatRates({required AppHandle that});
 
-  Future<String> crateFfiAppAppHandleGetAddress({required AppHandle that});
-
   ShortPayment?
   crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIndex({
     required AppHandle that,
@@ -154,6 +152,10 @@ abstract class AppRsApi extends BaseApi {
 
   Future<ActiveHumanBitcoinAddress?>
   crateFfiAppAppHandleGetHumanBitcoinAddress({required AppHandle that});
+
+  Future<String> crateFfiAppAppHandleGetNextUnusedAddress({
+    required AppHandle that,
+  });
 
   int crateFfiAppAppHandleGetNumFinalizedNotJunkPayments({
     required AppHandle that,
@@ -902,37 +904,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<String> crateFfiAppAppHandleGetAddress({required AppHandle that}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 14,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateFfiAppAppHandleGetAddressConstMeta,
-        argValues: [that],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateFfiAppAppHandleGetAddressConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_get_address",
-        argNames: ["that"],
-      );
-
-  @override
   ShortPayment?
   crateFfiAppAppHandleGetFinalizedNotJunkShortPaymentByScrollIndex({
     required AppHandle that,
@@ -944,7 +915,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_short_payment,
@@ -977,7 +948,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_app_handle(that, serializer);
           sse_encode_CastedPrimitive_usize(scrollIdx, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_short_payment,
@@ -1009,7 +980,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 16,
             port: port_,
           );
         },
@@ -1028,6 +999,39 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   TaskConstMeta get kCrateFfiAppAppHandleGetHumanBitcoinAddressConstMeta =>
       const TaskConstMeta(
         debugName: "app_handle_get_human_bitcoin_address",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<String> crateFfiAppAppHandleGetNextUnusedAddress({
+    required AppHandle that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleGetNextUnusedAddressConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleGetNextUnusedAddressConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_get_next_unused_address",
         argNames: ["that"],
       );
 

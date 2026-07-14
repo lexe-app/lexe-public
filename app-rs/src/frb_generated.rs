@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1354940382;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1366558413;
 
 // Section: executor
 
@@ -249,21 +249,6 @@ fn wire__crate__ffi__app__app_handle_fiat_rates_impl(
                     })().await)
                 } })
 }
-fn wire__crate__ffi__app__app_handle_get_address_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_address", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
-                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
-                         let output_ok = crate::ffi::app::AppHandle::get_address(&api_that).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
 fn wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_index_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -304,6 +289,21 @@ fn wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(
             let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::app::AppHandle::get_human_bitcoin_address(&api_that).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__ffi__app__app_handle_get_next_unused_address_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_get_next_unused_address", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::get_next_unused_address(&api_that).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -3373,8 +3373,8 @@ fn pde_ffi_dispatcher_primary_impl(
 11 => wire__crate__ffi__app__app_handle_create_invoice_impl(port, ptr, rust_vec_len, data_len),
 12 => wire__crate__ffi__app__app_handle_create_offer_impl(port, ptr, rust_vec_len, data_len),
 13 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
-14 => wire__crate__ffi__app__app_handle_get_address_impl(port, ptr, rust_vec_len, data_len),
-17 => wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
+16 => wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
+17 => wire__crate__ffi__app__app_handle_get_next_unused_address_impl(port, ptr, rust_vec_len, data_len),
 27 => wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(port, ptr, rust_vec_len, data_len),
 28 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
 29 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
@@ -3423,8 +3423,8 @@ fn pde_ffi_dispatcher_sync_impl(
 2 => wire__crate__ffi__app_data__app_data_db_reset_impl(ptr, rust_vec_len, data_len),
 3 => wire__crate__ffi__app_data__app_data_db_update_impl(ptr, rust_vec_len, data_len),
 4 => wire__crate__ffi__app__app_handle_app_data_db_impl(ptr, rust_vec_len, data_len),
-15 => wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-16 => wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+14 => wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+15 => wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
 18 => wire__crate__ffi__app__app_handle_get_num_finalized_not_junk_payments_impl(ptr, rust_vec_len, data_len),
 19 => wire__crate__ffi__app__app_handle_get_num_finalized_payments_impl(ptr, rust_vec_len, data_len),
 20 => wire__crate__ffi__app__app_handle_get_num_payments_impl(ptr, rust_vec_len, data_len),

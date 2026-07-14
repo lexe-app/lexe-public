@@ -28,17 +28,18 @@ use lexe_api::{
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
-            GetAddressResponse, GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetUpdatedPayments, HumanBitcoinAddressV1, ListChannelsResponse,
-            NodeInfo, OpenChannelPreflightRequest,
-            OpenChannelPreflightResponse, OpenChannelRequest,
-            OpenChannelResponse, PayInvoicePreflightRequest,
-            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferPreflightRequest, PayOfferPreflightResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
-            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentCreatedIndexes, PaymentIdStruct, SetupGDrive,
-            UpdatePersonalNote, UpsertHumanBitcoinAddressResponse,
+            GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetNextUnusedAddressResponse, GetUpdatedPayments,
+            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
+            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+            OpenChannelRequest, OpenChannelResponse,
+            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
+            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
+            PaymentIdStruct, SetupGDrive, UpdatePersonalNote,
+            UpsertHumanBitcoinAddressResponse,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -689,10 +690,12 @@ impl UserNodeRunApi for NodeClient {
         run_rest.send(req).await
     }
 
-    async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError> {
+    async fn get_next_unused_address(
+        &self,
+    ) -> Result<GetNextUnusedAddressResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/user/get_address");
+        let url = format!("{run_url}/user/get_next_unused_address");
         let req = run_rest.post(url, &Empty {});
         run_rest.send(req).await
     }

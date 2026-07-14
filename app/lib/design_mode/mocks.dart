@@ -241,7 +241,7 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
-  Future<String> getAddress() => Future.delayed(
+  Future<String> getNextUnusedAddress() => Future.delayed(
     const Duration(milliseconds: 1200),
     () => "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl",
   );
@@ -862,7 +862,7 @@ class MockAppHandleScreenshots extends MockAppHandle {
   );
 
   @override
-  Future<String> getAddress() =>
+  Future<String> getNextUnusedAddress() =>
       Future.value("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl");
 }
 

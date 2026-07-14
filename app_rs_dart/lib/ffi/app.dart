@@ -75,9 +75,6 @@ class AppHandle {
   Future<FiatRates> fiatRates() =>
       AppRs.instance.api.crateFfiAppAppHandleFiatRates(that: this);
 
-  Future<String> getAddress() =>
-      AppRs.instance.api.crateFfiAppAppHandleGetAddress(that: this);
-
   /// flutter_rust_bridge:sync
   ShortPayment? getFinalizedNotJunkShortPaymentByScrollIndex({
     required int scrollIdx,
@@ -100,6 +97,9 @@ class AppHandle {
   /// claimed.
   Future<ActiveHumanBitcoinAddress?> getHumanBitcoinAddress() =>
       AppRs.instance.api.crateFfiAppAppHandleGetHumanBitcoinAddress(that: this);
+
+  Future<String> getNextUnusedAddress() =>
+      AppRs.instance.api.crateFfiAppAppHandleGetNextUnusedAddress(that: this);
 
   /// flutter_rust_bridge:sync
   int getNumFinalizedNotJunkPayments() => AppRs.instance.api

@@ -76,20 +76,21 @@ use crate::{
             CloseChannelPreflightRequest, CloseChannelPreflightResponse,
             CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, DebugInfo,
-            EnclavesToProvisionRequest, GetAddressResponse,
-            GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
-            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
-            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
-            OpenChannelRequest, OpenChannelResponse,
-            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
-            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct, ResyncRequest, SetupGDrive,
-            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
-            UpsertHumanBitcoinAddressResponse, VecPaymentId,
+            EnclavesToProvisionRequest, GetGeneratedUsernameResponse,
+            GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetNextUnusedAddressResponse, GetUpdatedPaymentMetadata,
+            GetUpdatedPayments, HumanBitcoinAddressV1, ListChannelsResponse,
+            NodeInfo, OpenChannelPreflightRequest,
+            OpenChannelPreflightResponse, OpenChannelRequest,
+            OpenChannelResponse, PayInvoicePreflightRequest,
+            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferPreflightRequest, PayOfferPreflightResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
+            ResyncRequest, SetupGDrive, UpdatePersonalNote,
+            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
+            VecPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -333,11 +334,14 @@ pub trait UserNodeRunApi {
 
     // TODO(phlip9): BOLT12: /user/request_refund
 
-    /// POST /user/get_address [`Empty`] -> [`GetAddressResponse`]
+    /// POST /user/get_next_unused_address [`Empty`]
+    ///                                 -> [`GetNextUnusedAddressResponse`]
     ///
     /// Returns an address which can be used to receive funds. It is unused
     /// unless there is an incoming tx and BDK hasn't detected it yet.
-    async fn get_address(&self) -> Result<GetAddressResponse, NodeApiError>;
+    async fn get_next_unused_address(
+        &self,
+    ) -> Result<GetNextUnusedAddressResponse, NodeApiError>;
 
     /// POST /user/pay_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
     ///

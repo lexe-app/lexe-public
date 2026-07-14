@@ -430,18 +430,22 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
     info("ReceivePaymentPage: fetchBtc: inputs: $inputs");
 
-    final result = await Result.tryFfiAsync(this.widget.app.getAddress);
+    final result = await Result.tryFfiAsync(
+      this.widget.app.getNextUnusedAddress,
+    );
 
     final String address;
     switch (result) {
       case Err(:final err):
         // TODO(phlip9): error display
-        error("ReceivePaymentPage: fetchBtc: failed to getAddress: $err");
+        error(
+          "ReceivePaymentPage: fetchBtc: failed to getNextUnusedAddress: $err",
+        );
         return null;
 
       case Ok(:final ok):
         address = ok;
-        info("ReceivePaymentPage: fetchBtc: getAddress => done");
+        info("ReceivePaymentPage: fetchBtc: getNextUnusedAddress => done");
     }
 
     return PaymentOffer(

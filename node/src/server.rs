@@ -142,7 +142,7 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         .route("/pay_offer_preflight", post(user::pay_offer_preflight))
         .route("/pay_onchain", post(user::pay_onchain))
         .route("/pay_onchain_preflight", post(user::pay_onchain_preflight))
-        .route("/get_address", post(user::get_address))
+        .route("/get_next_unused_address", post(user::get_next_unused_address))
         .route("/v1/payments/id", get(user::get_payment_by_id))
         .route("/payments/updated", get(user::get_updated_payments))
         .route("/payments/note", put(user::update_personal_note))

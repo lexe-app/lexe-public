@@ -650,7 +650,7 @@ pub struct PayOfferResponse {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct GetAddressResponse {
+pub struct GetNextUnusedAddressResponse {
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_mainnet_addr_unchecked()")
@@ -928,7 +928,8 @@ mod test {
 
     #[test]
     fn get_address_response_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<GetAddressResponse>();
+        roundtrip::json_value_roundtrip_proptest::<GetNextUnusedAddressResponse>(
+        );
     }
 
     #[test]
