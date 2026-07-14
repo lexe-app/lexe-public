@@ -652,7 +652,7 @@ impl AppHandle {
         req: WithdrawLnurlRequest,
     ) -> anyhow::Result<Payment> {
         let req = WithdrawLnurlRequestRs::from(req);
-        let resp = self.inner.wallet().withdraw_lnurl(req).await?;
+        let resp = self.inner.wallet()?.withdraw_lnurl(req).await?;
         Ok(Payment::from(resp))
     }
 
@@ -665,7 +665,7 @@ impl AppHandle {
     ) -> anyhow::Result<String> {
         let amount = Amount::try_from_sats_u64(amount_sats)?;
         let req = CashAppBuyRequestRs { amount };
-        let resp = self.inner.wallet().buy_with_cash_app(req).await?;
+        let resp = self.inner.wallet()?.buy_with_cash_app(req).await?;
         Ok(resp.redirect_url)
     }
 

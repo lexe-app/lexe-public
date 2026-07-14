@@ -314,16 +314,17 @@ impl App {
         Ok(())
     }
 
-    pub fn wallet(&self) -> &LexeWallet {
-        &self.wallet
+    /// Returns the [`LexeWallet`] if the app is provisioned.
+    pub fn wallet(&self) -> anyhow::Result<&LexeWallet> {
+        if !self.is_provisioned.load(Ordering::Relaxed) {
+            bail!("App is not provisioned");
+        }
+        Ok(&self.wallet)
     }
 
     /// Returns the [`NodeClient`] if the app is provisioned.
     pub fn node_client(&self) -> anyhow::Result<&NodeClient> {
-        if !self.is_provisioned.load(Ordering::Relaxed) {
-            bail!("App is not provisioned");
-        }
-        Ok(self.wallet.node_client())
+        Ok(self.wallet()?.node_client())
     }
 
     pub fn gateway_client(&self) -> &GatewayClient {
@@ -375,7 +376,7 @@ impl App {
         let res = self
             .db()
             .sync_payments(
-                self.wallet.node_client(),
+                self.node_client()?,
                 constants::DEFAULT_PAYMENTS_BATCH_SIZE,
             )
             .await;
