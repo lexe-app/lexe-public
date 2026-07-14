@@ -83,7 +83,8 @@ import 'package:lexeapp/route/claim/state.dart'
         ClaimReady_LnurlWithdraw,
         ClaimState_NeedAmount,
         ClaimState_NeedConfirm;
-import 'package:lexeapp/route/clients.dart' show ClientsPage;
+import 'package:lexeapp/route/clients.dart'
+    show ClientsPage, CreateClientPage, CreateClientScopesPage;
 import 'package:lexeapp/route/close_channel.dart'
     show CloseChannelConfirmPage, CloseChannelPage;
 import 'package:lexeapp/route/initial_deposit/page.dart'
@@ -1174,6 +1175,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         "SdkClientsPage",
         subtitle: "error",
         (_) => ClientsPage(app: mockAppErr),
+      ),
+      Component("SdkCreateClientPage", (_) => CreateClientPage(app: mockApp)),
+      Component(
+        "SdkCreateClientScopesPage",
+        (_) => CreateClientScopesPage(app: mockApp, label: "my-server"),
       ),
 
       // --- App Store Screenshots ---
