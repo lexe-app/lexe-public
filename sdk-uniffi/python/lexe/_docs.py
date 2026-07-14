@@ -589,7 +589,7 @@ Returns:
 
 Example::
 
-    print(f"User PK: {wallet.user_pk()}")
+    print(f"User PK: {wallet.user_pk}")
 """)
 
 _set_method_doc(LexeWallet, "signup", """\
@@ -1251,7 +1251,7 @@ For synchronous usage, use :class:`LexeWallet`.
 
 Example::
 
-    from lexe import AsyncLexeWallet, Credentials, WalletConfig
+    from lexe import AsyncLexeWallet, Credentials, RootSeed, WalletConfig
 
     config = WalletConfig.mainnet()
     seed = RootSeed.read(config)
@@ -1333,7 +1333,7 @@ Returns:
 
 Example::
 
-    print(f"User PK: {wallet.user_pk()}")
+    print(f"User PK: {wallet.user_pk}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "signup", """\
