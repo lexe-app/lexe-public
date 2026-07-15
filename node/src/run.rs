@@ -1330,44 +1330,36 @@ mod helpers {
                 // - Existing node with v1 offer: Migrate to v2 format. - //
 
                 // Get existing HBA
-                let hba = persister
+                let active = persister
                     .backend_api()
                     .get_human_bitcoin_address(token.clone())
                     .await
-                    .context("get_human_bitcoin_address failed")?;
+                    .context("get_human_bitcoin_address failed")?
+                    .hba;
 
                 // Regenerate the offer in v2 format
-                if let Some(active) = hba.hba {
-                    let username = active.hba.username;
-                    info!("Migrating HBA offer to v2 format");
+                let username = active.hba.username;
+                info!("Migrating HBA offer to v2 format");
 
-                    let offer_req =
-                        lexe_ln::command::hba_offer_request(&username)
-                            .context(
-                                "Failed to build HBA offer request (regen)",
-                            )?;
-                    let offer = lexe_ln::command::create_offer(
-                        offer_req,
-                        &channel_manager,
-                    )
-                    .await
-                    .context("Failed to create HBA offer")?;
-                    let offer_id = offer.offer.id();
-
-                    let req = UpsertCustomHumanBitcoinAddress {
-                        username,
-                        offer: offer.offer,
-                    };
-                    persister
-                        .backend_api()
-                        .upsert_custom_human_bitcoin_address(req, token)
+                let offer_req = lexe_ln::command::hba_offer_request(&username)
+                    .context("Failed to build HBA offer request (regen)")?;
+                let offer =
+                    lexe_ln::command::create_offer(offer_req, &channel_manager)
                         .await
-                        .context(
-                            "upsert_custom_human_bitcoin_address failed",
-                        )?;
+                        .context("Failed to create HBA offer")?;
+                let offer_id = offer.offer.id();
 
-                    hba_offer_ids.write().unwrap().insert(offer_id);
-                }
+                let req = UpsertCustomHumanBitcoinAddress {
+                    username,
+                    offer: offer.offer,
+                };
+                persister
+                    .backend_api()
+                    .upsert_custom_human_bitcoin_address(req, token)
+                    .await
+                    .context("upsert_custom_human_bitcoin_address failed")?;
+
+                hba_offer_ids.write().unwrap().insert(offer_id);
 
                 // Migration complete
                 Migrations::mark_applied(
@@ -1378,16 +1370,14 @@ mod helpers {
                 .context("Failed to mark HBA offer v2 migration")?;
             } else {
                 // - Already on v2: just cache the active HBA offer. - //
-                let hba = persister
+                let active = persister
                     .backend_api()
                     .get_human_bitcoin_address(token)
                     .await
-                    .context("get_human_bitcoin_address failed")?;
-                if let Some(offer_id) =
-                    hba.hba.as_ref().map(|active| active.hba.offer.id())
-                {
-                    hba_offer_ids.write().unwrap().insert(offer_id);
-                }
+                    .context("get_human_bitcoin_address failed")?
+                    .hba;
+                let offer_id = active.hba.offer.id();
+                hba_offer_ids.write().unwrap().insert(offer_id);
             }
 
             anyhow::Ok(())

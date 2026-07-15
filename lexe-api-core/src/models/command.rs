@@ -769,14 +769,11 @@ pub struct GetGeneratedUsernameResponse {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetHumanBitcoinAddressResponse {
-    /// The user's active HBA, or `None` if they haven't claimed any yet.
-    pub hba: Option<ActiveHumanBitcoinAddress>,
+    /// The user's active HBA.
+    pub hba: ActiveHumanBitcoinAddress,
 }
 
 /// Response for `upsert_custom_human_bitcoin_address`.
-///
-/// Unlike [`GetHumanBitcoinAddressResponse`], the HBA is never absent here: a
-/// successful upsert always yields the primary custom HBA it just set.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct UpsertHumanBitcoinAddressResponse {
@@ -838,17 +835,7 @@ pub struct HumanBitcoinAddressV1 {
 
 impl From<GetHumanBitcoinAddressResponse> for HumanBitcoinAddressV1 {
     fn from(resp: GetHumanBitcoinAddressResponse) -> Self {
-        match resp.hba {
-            Some(active) => Self::from(active),
-            None => Self {
-                username: None,
-                offer: None,
-                updated_at: None,
-                // No active HBA ⇒ the user has never claimed a custom one,
-                // so they are always free to claim one now.
-                updatable: true,
-            },
-        }
+        Self::from(resp.hba)
     }
 }
 

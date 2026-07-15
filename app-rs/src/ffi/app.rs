@@ -652,8 +652,8 @@ impl AppHandle {
         Ok(resp.redirect_url)
     }
 
-    /// Get the [`ActiveHumanBitcoinAddress`] for the user, or `None` if not
-    /// claimed.
+    /// Get the [`ActiveHumanBitcoinAddress`] for the user.
+    // TODO(max): The `Option` is vestigial; remove it from the FFI signature.
     pub async fn get_human_bitcoin_address(
         &self,
     ) -> anyhow::Result<Option<ActiveHumanBitcoinAddress>> {
@@ -662,7 +662,7 @@ impl AppHandle {
             .node_client()?
             .get_human_bitcoin_address()
             .await?;
-        Ok(resp.hba.map(ActiveHumanBitcoinAddress::from))
+        Ok(Some(ActiveHumanBitcoinAddress::from(resp.hba)))
     }
 
     pub async fn upsert_custom_human_bitcoin_address(
