@@ -199,7 +199,7 @@ pub trait UserNodeProvisionApi {
     /// Provision a node with the given [`Measurement`]. The provisioning node's
     /// remote attestation will be checked against the given [`Measurement`].
     ///
-    /// POST /user/provision [`NodeProvisionRequest`] -> [`Empty`]
+    /// POST /user/v1/provision [`NodeProvisionRequest`] -> [`Empty`]
     async fn provision(
         &self,
         measurement: Measurement,
@@ -212,14 +212,14 @@ pub trait UserNodeRunApi {
     /// GET /user/v2/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
-    /// GET /user/debug_info [`Empty`] -> [`DebugInfo`]
+    /// GET /user/v1/debug_info [`Empty`] -> [`DebugInfo`]
     async fn debug_info(&self) -> Result<DebugInfo, NodeApiError>;
 
-    /// GET /user/list_channels [`Empty`] -> [`ListChannelsResponse`]
+    /// GET /user/v1/list_channels [`Empty`] -> [`ListChannelsResponse`]
     async fn list_channels(&self)
     -> Result<ListChannelsResponse, NodeApiError>;
 
-    /// POST /user/sign_message [`SignMsgRequest`] -> [`SignMsgResponse`]
+    /// POST /user/v1/sign_message [`SignMsgRequest`] -> [`SignMsgResponse`]
     ///
     /// Introduced in `node-v0.6.5`.
     async fn sign_message(
@@ -227,7 +227,8 @@ pub trait UserNodeRunApi {
         req: SignMsgRequest,
     ) -> Result<SignMsgResponse, NodeApiError>;
 
-    /// POST /user/verify_message [`VerifyMsgRequest`] -> [`VerifyMsgResponse`]
+    /// POST /user/v1/verify_message [`VerifyMsgRequest`] ->
+    /// [`VerifyMsgResponse`]
     ///
     /// Introduced in `node-v0.6.5`.
     async fn verify_message(
@@ -235,8 +236,8 @@ pub trait UserNodeRunApi {
         req: VerifyMsgRequest,
     ) -> Result<VerifyMsgResponse, NodeApiError>;
 
-    /// POST /user/open_channel [`OpenChannelRequest`]
-    ///                      -> [`OpenChannelResponse`]
+    /// POST /user/v1/open_channel [`OpenChannelRequest`]
+    ///                         -> [`OpenChannelResponse`]
     ///
     /// Opens a channel to the LSP.
     async fn open_channel(
@@ -244,8 +245,8 @@ pub trait UserNodeRunApi {
         req: OpenChannelRequest,
     ) -> Result<OpenChannelResponse, NodeApiError>;
 
-    /// POST /user/open_channel_preflight [`OpenChannelPreflightRequest`]
-    ///                                -> [`OpenChannelPreflightResponse`]
+    /// POST /user/v1/open_channel_preflight [`OpenChannelPreflightRequest`]
+    ///                                   -> [`OpenChannelPreflightResponse`]
     ///
     /// Estimate on-chain fees required for an [`open_channel`] to the LSP.
     ///
@@ -255,7 +256,7 @@ pub trait UserNodeRunApi {
         req: OpenChannelPreflightRequest,
     ) -> Result<OpenChannelPreflightResponse, NodeApiError>;
 
-    /// POST /user/close_channel [`CloseChannelRequest`] -> [`Empty`]
+    /// POST /user/v1/close_channel [`CloseChannelRequest`] -> [`Empty`]
     ///
     /// Closes a channel to the LSP.
     async fn close_channel(
@@ -263,8 +264,8 @@ pub trait UserNodeRunApi {
         req: CloseChannelRequest,
     ) -> Result<Empty, NodeApiError>;
 
-    /// POST /user/close_channel_preflight [`CloseChannelPreflightRequest`]
-    ///                                 -> [`CloseChannelPreflightResponse`]
+    /// POST /user/v1/close_channel_preflight [`CloseChannelPreflightRequest`]
+    ///                                    -> [`CloseChannelPreflightResponse`]
     ///
     /// Estimate the on-chain fees required for a [`close_channel`].
     ///
@@ -274,21 +275,22 @@ pub trait UserNodeRunApi {
         req: CloseChannelPreflightRequest,
     ) -> Result<CloseChannelPreflightResponse, NodeApiError>;
 
-    /// POST /user/create_invoice [`CreateInvoiceRequest`]
-    ///                        -> [`CreateInvoiceResponse`]
+    /// POST /user/v1/create_invoice [`CreateInvoiceRequest`]
+    ///                           -> [`CreateInvoiceResponse`]
     async fn create_invoice(
         &self,
         req: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError>;
 
-    /// POST /user/pay_invoice [`PayInvoiceRequest`] -> [`PayInvoiceResponse`]
+    /// POST /user/v1/pay_invoice [`PayInvoiceRequest`] ->
+    /// [`PayInvoiceResponse`]
     async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
     ) -> Result<PayInvoiceResponse, NodeApiError>;
 
-    /// POST /user/pay_invoice_preflight [`PayInvoicePreflightRequest`]
-    ///                               -> [`PayInvoicePreflightResponse`]
+    /// POST /user/v1/pay_invoice_preflight [`PayInvoicePreflightRequest`]
+    ///                                  -> [`PayInvoicePreflightResponse`]
     ///
     /// This endpoint lets the app ask its node to "pre-flight" a BOLT11 invoice
     /// payment without going through with the actual payment. We verify as much
@@ -298,8 +300,8 @@ pub trait UserNodeRunApi {
         req: PayInvoicePreflightRequest,
     ) -> Result<PayInvoicePreflightResponse, NodeApiError>;
 
-    /// POST /user/create_offer [`CreateOfferRequest`]
-    ///                      -> [`CreateOfferResponse`]
+    /// POST /user/v1/create_offer [`CreateOfferRequest`]
+    ///                         -> [`CreateOfferResponse`]
     ///
     /// Create a new Lightning offer (BOLT12).
     //
@@ -309,7 +311,7 @@ pub trait UserNodeRunApi {
         req: CreateOfferRequest,
     ) -> Result<CreateOfferResponse, NodeApiError>;
 
-    /// POST /user/pay_offer [`PayOfferRequest`] -> [`PayOfferResponse`]
+    /// POST /user/v1/pay_offer [`PayOfferRequest`] -> [`PayOfferResponse`]
     ///
     /// Pay a Lightning offer (BOLT12).
     //
@@ -319,8 +321,8 @@ pub trait UserNodeRunApi {
         req: PayOfferRequest,
     ) -> Result<PayOfferResponse, NodeApiError>;
 
-    /// POST /user/pay_offer_preflight [`PayOfferPreflightRequest`]
-    ///                             -> [`PayOfferPreflightResponse`]
+    /// POST /user/v1/pay_offer_preflight [`PayOfferPreflightRequest`]
+    ///                                -> [`PayOfferPreflightResponse`]
     ///
     /// This endpoint lets the app ask its node to "pre-flight" a Lightning
     /// offer (BOLT12) payment without going through with the actual payment. We
@@ -334,8 +336,8 @@ pub trait UserNodeRunApi {
 
     // TODO(phlip9): BOLT12: /user/request_refund
 
-    /// POST /user/get_next_unused_address [`Empty`]
-    ///                                 -> [`GetNextUnusedAddressResponse`]
+    /// POST /user/v1/get_next_unused_address [`Empty`]
+    ///                                    -> [`GetNextUnusedAddressResponse`]
     ///
     /// Returns an address which can be used to receive funds. It is unused
     /// unless there is an incoming tx and BDK hasn't detected it yet.
@@ -343,7 +345,8 @@ pub trait UserNodeRunApi {
         &self,
     ) -> Result<GetNextUnusedAddressResponse, NodeApiError>;
 
-    /// POST /user/pay_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
+    /// POST /user/v1/pay_onchain [`PayOnchainRequest`] ->
+    /// [`PayOnchainResponse`]
     ///
     /// Pay bitcoin onchain. If the address is valid and we have sufficient
     /// onchain funds, this will broadcast a new transaction to the bitcoin
@@ -353,8 +356,8 @@ pub trait UserNodeRunApi {
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError>;
 
-    /// POST /user/pay_onchain_preflight [`PayOnchainPreflightRequest`]
-    ///                               -> [`PayOnchainPreflightResponse`]
+    /// POST /user/v1/pay_onchain_preflight [`PayOnchainPreflightRequest`]
+    ///                                  -> [`PayOnchainPreflightResponse`]
     ///
     /// Returns estimated network fees for a potential onchain payment.
     async fn pay_onchain_preflight(
@@ -395,14 +398,14 @@ pub trait UserNodeRunApi {
         req: GetNewPayments,
     ) -> Result<VecBasicPaymentV1, NodeApiError>;
 
-    /// GET /user/payments/updated [`GetUpdatedPayments`]
-    ///                         -> [`VecBasicPaymentV2`]
+    /// GET /user/v1/payments/updated [`GetUpdatedPayments`]
+    ///                            -> [`VecBasicPaymentV2`]
     async fn get_updated_payments(
         &self,
         req: GetUpdatedPayments,
     ) -> Result<VecBasicPaymentV2, NodeApiError>;
 
-    /// PUT /user/payments/note [`UpdatePersonalNote`] -> [`Empty`]
+    /// PUT /user/v1/payments/note [`UpdatePersonalNote`] -> [`Empty`]
     async fn update_personal_note(
         &self,
         req: UpdatePersonalNote,
@@ -410,7 +413,7 @@ pub trait UserNodeRunApi {
 
     /// Lists all revocable clients.
     ///
-    /// GET /user/clients [`ListRevocableClients`] -> [`RevocableClients`]
+    /// GET /user/v1/clients [`ListRevocableClients`] -> [`RevocableClients`]
     // Added in `node-0.7.9`
     async fn list_revocable_clients(
         &self,
@@ -419,8 +422,8 @@ pub trait UserNodeRunApi {
 
     /// Creates a new revocable client. Returns the newly issued client cert.
     ///
-    /// POST /user/clients [`CreateRevocableClientRequest`]
-    ///                 -> [`CreateRevocableClientResponse`]
+    /// POST /user/v1/clients [`CreateRevocableClientRequest`]
+    ///                    -> [`CreateRevocableClientResponse`]
     // Added in `node-0.7.9`
     async fn create_revocable_client(
         &self,
@@ -429,7 +432,7 @@ pub trait UserNodeRunApi {
 
     /// Updates this revocable client. Returns the updated client.
     ///
-    /// PUT /user/clients [`UpdateClientRequest`] -> [`UpdateClientResponse`]
+    /// PUT /user/v1/clients [`UpdateClientRequest`] -> [`UpdateClientResponse`]
     // Added in `node-0.7.9`
     async fn update_revocable_client(
         &self,
@@ -438,19 +441,20 @@ pub trait UserNodeRunApi {
 
     /// List all broadcasted transactions.
     ///
-    /// GET /user/list_broadcasted_txs [`Empty`] -> [`Vec<BroadcastedTxInfo>`]
+    /// GET /user/v1/list_broadcasted_txs [`Empty`] ->
+    /// [`Vec<BroadcastedTxInfo>`]
     async fn list_broadcasted_txs(
         &self,
     ) -> Result<serde_json::Value, NodeApiError>;
 
     /// Get the current status of Node backup.
     ///
-    /// GET /user/backup [`Empty`] -> [`BackupInfo`]
+    /// GET /user/v1/backup [`Empty`] -> [`BackupInfo`]
     async fn backup_info(&self) -> Result<BackupInfo, NodeApiError>;
 
     /// Setup GDrive backup.
     ///
-    /// POST /user/backup/gdrive [`SetupGDrive`] -> [`Empty`]
+    /// POST /user/v1/backup/gdrive [`SetupGDrive`] -> [`Empty`]
     async fn setup_gdrive(
         &self,
         req: SetupGDrive,
@@ -492,7 +496,7 @@ pub trait UserNodeRunApi {
     /// List NWC clients for the current user.
     /// Returns client info without sensitive data (no connection strings).
     ///
-    /// GET /user/nwc_clients [`Empty`] -> [`ListNwcClientResponse`]
+    /// GET /user/v1/nwc_clients [`Empty`] -> [`ListNwcClientResponse`]
     async fn list_nwc_clients(
         &self,
     ) -> Result<ListNwcClientResponse, NodeApiError>;
@@ -500,8 +504,8 @@ pub trait UserNodeRunApi {
     /// Create a new NWC client.
     /// Generates new keys and returns the connection string.
     ///
-    /// POST /user/nwc_clients [`CreateNwcClientRequest`]
-    ///                     -> [`CreateNwcClientResponse`]
+    /// POST /user/v1/nwc_clients [`CreateNwcClientRequest`]
+    ///                        -> [`CreateNwcClientResponse`]
     async fn create_nwc_client(
         &self,
         req: CreateNwcClientRequest,
@@ -509,8 +513,8 @@ pub trait UserNodeRunApi {
 
     /// Update an existing NWC client's label.
     ///
-    /// PUT /user/nwc_clients [`UpdateNwcClientRequest`]
-    ///                    -> [`UpdateNwcClientResponse`]
+    /// PUT /user/v1/nwc_clients [`UpdateNwcClientRequest`]
+    ///                       -> [`UpdateNwcClientResponse`]
     async fn update_nwc_client(
         &self,
         req: UpdateNwcClientRequest,
@@ -518,7 +522,7 @@ pub trait UserNodeRunApi {
 
     /// Delete an NWC client given its nostr client public key.
     ///
-    /// DELETE /user/nwc_clients [`NostrPkStruct`] -> [`Empty`]
+    /// DELETE /user/v1/nwc_clients [`NostrPkStruct`] -> [`Empty`]
     async fn delete_nwc_client(
         &self,
         req: NostrPkStruct,

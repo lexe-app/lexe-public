@@ -210,11 +210,11 @@ struct UserRouterState {
 ///
 /// [`UserNodeProvisionApi`]: lexe_api::def::UserNodeProvisionApi
 fn user_router(state: UserRouterState) -> Router<()> {
-    let routes = Router::new().route("/provision", post(handlers::provision));
     Router::new()
-        .nest("/user", routes.clone())
-        // compat: Remove once all clients are node-v0.9.12 or later.
-        .nest("/app", routes)
+        .route("/user/v1/provision", post(handlers::provision))
+        // compat: legacy `/app/provision` for clients predating the `/user`
+        // migration. Remove once all clients are node-v0.9.12 or later.
+        .route("/app/provision", post(handlers::provision))
         .with_state(state)
 }
 

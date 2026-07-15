@@ -122,77 +122,109 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
     let user_pk = state.user_pk;
     let runner_tx = state.runner_tx.clone();
 
-    // Current endpoints, served under both `/user/*` and legacy `/app/*`.
     #[rustfmt::skip]
     let user_routes = Router::new()
-        .route("/v2/node_info", get(user::node_info))
-        .route("/debug_info", get(user::debug_info))
-        .route("/list_channels", get(user::list_channels))
-        .route("/sign_message", post(user::sign_message))
-        .route("/verify_message", post(user::verify_message))
-        .route("/open_channel", post(user::open_channel))
-        .route("/open_channel_preflight", post(user::open_channel_preflight))
-        .route("/close_channel", post(user::close_channel))
-        .route("/close_channel_preflight", post(user::close_channel_preflight))
-        .route("/create_invoice", post(shared::create_invoice))
-        .route("/pay_invoice", post(user::pay_invoice))
-        .route("/pay_invoice_preflight", post(user::pay_invoice_preflight))
-        .route("/create_offer", post(user::create_offer))
-        .route("/pay_offer", post(user::pay_offer))
-        .route("/pay_offer_preflight", post(user::pay_offer_preflight))
-        .route("/pay_onchain", post(user::pay_onchain))
-        .route("/pay_onchain_preflight", post(user::pay_onchain_preflight))
-        .route("/get_next_unused_address", post(user::get_next_unused_address))
-        .route("/v1/payments/id", get(user::get_payment_by_id))
-        .route("/payments/updated", get(user::get_updated_payments))
-        .route("/payments/note", put(user::update_personal_note))
-        .route("/clients",
+        .route("/user/v2/node_info", get(user::node_info))
+        .route("/user/v1/debug_info", get(user::debug_info))
+        .route("/user/v1/list_channels", get(user::list_channels))
+        .route("/user/v1/sign_message", post(user::sign_message))
+        .route("/user/v1/verify_message", post(user::verify_message))
+        .route("/user/v1/open_channel", post(user::open_channel))
+        .route("/user/v1/open_channel_preflight", post(user::open_channel_preflight))
+        .route("/user/v1/close_channel", post(user::close_channel))
+        .route("/user/v1/close_channel_preflight", post(user::close_channel_preflight))
+        .route("/user/v1/create_invoice", post(shared::create_invoice))
+        .route("/user/v1/pay_invoice", post(user::pay_invoice))
+        .route("/user/v1/pay_invoice_preflight", post(user::pay_invoice_preflight))
+        .route("/user/v1/create_offer", post(user::create_offer))
+        .route("/user/v1/pay_offer", post(user::pay_offer))
+        .route("/user/v1/pay_offer_preflight", post(user::pay_offer_preflight))
+        .route("/user/v1/get_next_unused_address", post(user::get_next_unused_address))
+        .route("/user/v1/pay_onchain", post(user::pay_onchain))
+        .route("/user/v1/pay_onchain_preflight", post(user::pay_onchain_preflight))
+        .route("/user/v1/payments/id", get(user::get_payment_by_id))
+        .route("/user/v1/payments/updated", get(user::get_updated_payments))
+        .route("/user/v1/payments/note", put(user::update_personal_note))
+        .route("/user/v1/clients",
             get(user::list_revocable_clients)
                 .post(user::create_revocable_client)
                 .put(user::update_revocable_client)
         )
-        .route("/list_broadcasted_txs", get(user::list_broadcasted_txs))
-        .route("/backup", get(user::backup_info))
-        .route("/backup/gdrive", post(user::setup_gdrive))
-        .route("/v2/human_bitcoin_address",
+        .route("/user/v1/list_broadcasted_txs", get(user::list_broadcasted_txs))
+        .route("/user/v1/backup", get(user::backup_info))
+        .route("/user/v1/backup/gdrive", post(user::setup_gdrive))
+        .route("/user/v2/human_bitcoin_address",
             get(user::get_human_bitcoin_address)
             .put(user::upsert_custom_human_bitcoin_address)
         )
-        .route("/nwc_clients",
+        .route("/user/v1/nwc_clients",
             get(user::list_nwc_clients)
                 .post(user::create_nwc_client)
                 .put(user::update_nwc_client)
                 .delete(user::delete_nwc_client)
         );
 
-    // Deprecated endpoints, served under `/app/*` only.
-    // Clients never expected these under `/user/*`.
+    // Legacy `/app/*` routes for clients predating the migration to `/user`.
+    //
+    // TODO(max): Remove all `/app` endpoints (this entire router) once all
+    // clients are node-v0.9.12 or later
     #[rustfmt::skip]
     let legacy_app_routes = Router::new()
+        .route("/app/v2/node_info", get(user::node_info))
+        .route("/app/debug_info", get(user::debug_info))
+        .route("/app/list_channels", get(user::list_channels))
+        .route("/app/sign_message", post(user::sign_message))
+        .route("/app/verify_message", post(user::verify_message))
+        .route("/app/open_channel", post(user::open_channel))
+        .route("/app/preflight_open_channel", post(user::open_channel_preflight))
+        .route("/app/close_channel", post(user::close_channel))
+        .route("/app/preflight_close_channel", post(user::close_channel_preflight))
+        .route("/app/create_invoice", post(shared::create_invoice))
+        .route("/app/pay_invoice", post(user::pay_invoice))
+        .route("/app/preflight_pay_invoice", post(user::pay_invoice_preflight))
+        .route("/app/create_offer", post(user::create_offer))
+        .route("/app/pay_offer", post(user::pay_offer))
+        .route("/app/preflight_pay_offer", post(user::pay_offer_preflight))
+        .route("/app/get_address", post(user::get_next_unused_address))
+        .route("/app/pay_onchain", post(user::pay_onchain))
+        .route("/app/preflight_pay_onchain", post(user::pay_onchain_preflight))
+        .route("/app/v1/payments/id", get(user::get_payment_by_id))
         // TODO(a-mpch): Deprecated since app-v0.8.9+29 and sdk-sidecar-v0.3.1.
         // Remove once unused.
-        .route("/payments/indexes", post(user::get_payments_by_indexes))
-        .route("/payments/new", get(user::get_new_payments))
+        .route("/app/payments/indexes", post(user::get_payments_by_indexes))
+        .route("/app/payments/new", get(user::get_new_payments))
+        .route("/app/payments/updated", get(user::get_updated_payments))
+        .route("/app/payments/note", put(user::update_personal_note))
+        .route("/app/clients",
+            get(user::list_revocable_clients)
+                .post(user::create_revocable_client)
+                .put(user::update_revocable_client)
+        )
+        .route("/app/list_broadcasted_txs", get(user::list_broadcasted_txs))
+        .route("/app/backup", get(user::backup_info))
+        .route("/app/backup/gdrive", post(user::setup_gdrive))
+        .route("/app/v2/human_bitcoin_address",
+            get(user::get_human_bitcoin_address)
+            .put(user::upsert_custom_human_bitcoin_address)
+        )
         // TODO(a-mpch): Deprecated since app-v0.9.3 and sdk-sidecar-v0.4.2.
         // Remove once unused.
-        .route("/payment_address", get(user::get_human_bitcoin_address_v1))
+        .route("/app/payment_address", get(user::get_human_bitcoin_address_v1))
         // TODO(max): Deprecated since app-v0.9.11+49 and sdk-sidecar-v0.4.13.
         // Remove once unused.
-        .route("/human_bitcoin_address",
+        .route("/app/human_bitcoin_address",
             get(user::get_human_bitcoin_address_v1)
         )
-        // Pre-rename `preflight_*` paths, used by clients predating the
-        // `/user/*` routes. Remove with the `/app` mount.
-        .route("/preflight_open_channel", post(user::open_channel_preflight))
-        .route("/preflight_close_channel", post(user::close_channel_preflight))
-        .route("/preflight_pay_invoice", post(user::pay_invoice_preflight))
-        .route("/preflight_pay_offer", post(user::pay_offer_preflight))
-        .route("/preflight_pay_onchain", post(user::pay_onchain_preflight));
+        .route("/app/nwc_clients",
+            get(user::list_nwc_clients)
+                .post(user::create_nwc_client)
+                .put(user::update_nwc_client)
+                .delete(user::delete_nwc_client)
+        );
 
     Router::new()
-        .nest("/user", user_routes.clone())
-        // compat: Remove once all clients are node-v0.9.12 or later.
-        .nest("/app", user_routes.merge(legacy_app_routes))
+        .merge(user_routes)
+        .merge(legacy_app_routes)
         .with_state(state)
         // Send an activity notification anytime a user endpoint is hit.
         .layer(MapRequestLayer::new(move |request| {
