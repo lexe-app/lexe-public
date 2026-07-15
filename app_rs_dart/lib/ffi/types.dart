@@ -624,6 +624,13 @@ enum Scope {
   /// flutter_rust_bridge:sync
   List<Scope> recommended() =>
       AppRs.instance.api.crateFfiTypesScopeRecommended(that: this);
+
+  /// The canonical scope id, e.g. "read_info". Inverse of
+  /// [`Self::from_string_id`].
+  ///
+  /// flutter_rust_bridge:sync
+  String toStringId() =>
+      AppRs.instance.api.crateFfiTypesScopeToStringId(that: this);
 }
 
 /// Just the info we need to display an entry in the payments list UI.

@@ -62,20 +62,20 @@ class _ClientsPageState extends State<ClientsPage> {
   }
 
   Future<void> onCreatePressed() async {
-    final CreateClientResponse? response = await Navigator.of(this.context)
+    final CreateClientResponse? flowResult = await Navigator.of(this.context)
         .push(
           MaterialPageRoute(
             builder: (context) => CreateClientPage(app: this.widget.app),
           ),
         );
-    if (!this.mounted || response == null) return;
+    if (!this.mounted || flowResult == null) return;
 
     // Refresh list in the background
     this.triggerRefresh();
 
     await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) => ShowCredentialsPage(response: response),
+        builder: (context) => ShowCredentialsPage(response: flowResult),
       ),
     );
   }
@@ -162,8 +162,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 ),
               ),
               // List of clients
-              Ok(:final ok) => SliverFixedExtentList.builder(
-                itemExtent: Space.s850,
+              Ok(:final ok) => SliverList.builder(
                 itemCount: ok.length,
                 itemBuilder: (context, index) {
                   final clients = ok;
@@ -220,7 +219,14 @@ class ClientListEntry extends StatelessWidget {
     );
     final createdAt = date_format.formatDateFull(createdAtUtc);
 
-    final subtitle = "created: $createdAt\npublic key: ${client.pubkey}";
+    final subtitleLines = [
+      if (client.scopes.isNotEmpty)
+        "scopes: ${client.scopes.map((scope) => scope.toStringId()).join(" ")}",
+      if (client.permissions.isNotEmpty)
+        "permissions: ${client.permissions.join(" ")}",
+      "created: $createdAt",
+      "public key: ${client.pubkey.substring(0, 12)}…",
+    ];
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(
@@ -228,7 +234,14 @@ class ClientListEntry extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+      // One `Text` per line so each line ellipsizes independently.
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final line in subtitleLines)
+            Text(line, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
+      ),
       trailing: IconButton(
         icon: const Icon(LxIcons.delete, weight: LxIcons.weightMedium),
         onPressed: this._onRevokedPressed,
@@ -673,7 +686,7 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
                 HeadingText(text: "Save your client credentials"),
                 SubheadingText(
                   text:
-                      "Please save your client credentials in a safe place. You will not be able to see them again.\n\nKeep them secure, as anyone with these credentials has access to your node and your funds.",
+                      "Please save your client credentials in a safe place. You will not be able to see them again.\n\nKeep them secure, as anyone with these credentials gets the access you granted.",
                 ),
                 SizedBox(height: Space.s400),
               ],

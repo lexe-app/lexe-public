@@ -15,6 +15,7 @@ use lexe_api::{
     models::command::{
         BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
     },
+    revocable_clients::scopes::Scope as ScopeInternalRs,
     types::{
         invoice::Invoice as InvoiceRs,
         lnurl::{
@@ -1081,6 +1082,16 @@ impl Scope {
             .into_iter()
             .map(Scope::from)
             .collect()
+    }
+
+    /// The canonical scope id, e.g. "read_info". Inverse of
+    /// [`Self::from_string_id`].
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn to_string_id(&self) -> String {
+        ScopeInternalRs::from(ScopeRs::from(self.clone()))
+            .as_str()
+            .to_owned()
     }
 
     /// Parse a canonical scope id for display in the app. Returns [`None`]

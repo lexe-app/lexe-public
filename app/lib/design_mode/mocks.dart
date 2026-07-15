@@ -505,7 +505,7 @@ class MockAppHandle extends AppHandle {
         label: null,
         pubkey:
             "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",
-        scopes: [Scope.read],
+        scopes: [Scope.readInfo, Scope.readPayments],
         permissions: [],
         effectivePermissions: [],
       ),
