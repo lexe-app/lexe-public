@@ -60,7 +60,10 @@ use lexe_common::{
     ln::amount::Amount,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_ln::{command::CounterpartyReserve, p2p};
+use lexe_ln::{
+    command::{CounterpartyReserve, PayInvoiceRequestInner},
+    p2p,
+};
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
@@ -296,8 +299,15 @@ pub(super) async fn pay_invoice(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoiceRequest>,
 ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
+    let route = req
+        .ldk_route
+        .as_deref()
+        .map(lexe_ln::command::decode_ldk_route)
+        .transpose()
+        .map_err(NodeApiError::command)?;
     lexe_ln::command::pay_invoice(
-        req,
+        PayInvoiceRequestInner::from(req),
+        route,
         &state.router,
         &state.channel_manager,
         &state.payments_manager,
@@ -314,7 +324,7 @@ pub(super) async fn pay_invoice_preflight(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoicePreflightRequest>,
 ) -> Result<LxJson<PayInvoicePreflightResponse>, NodeApiError> {
-    lexe_ln::command::pay_invoice_preflight(
+    let preflight = lexe_ln::command::pay_invoice_preflight(
         req,
         &state.router,
         &state.channel_manager,
@@ -324,8 +334,13 @@ pub(super) async fn pay_invoice_preflight(
         state.lsp_info.lsp_fees(),
     )
     .await
-    .map(LxJson)
-    .map_err(NodeApiError::command)
+    .map_err(NodeApiError::command)?;
+    Ok(LxJson(PayInvoicePreflightResponse {
+        amount: preflight.amount,
+        fees: preflight.fees,
+        route: preflight.route,
+        ldk_route: lexe_ln::command::encode_ldk_route(&preflight.ldk_route),
+    }))
 }
 
 pub(super) async fn create_offer(

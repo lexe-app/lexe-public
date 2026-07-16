@@ -18,12 +18,11 @@ use lexe_api::{
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
         NodeInfo, OpenChannelPreflightRequest, OpenChannelPreflightResponse,
-        OpenChannelResponse, PayInvoicePreflightRequest,
-        PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferPreflightRequest, PayOfferPreflightResponse, PayOfferRequest,
-        PayOfferResponse, PayOnchainPreflightRequest,
-        PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
-        ResyncRequest,
+        OpenChannelResponse, PayInvoicePreflightRequest, PayInvoiceRequest,
+        PayInvoiceResponse, PayOfferPreflightRequest,
+        PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+        PayOnchainRequest, PayOnchainResponse, ResyncRequest,
     },
     revocable_clients::{
         RevocableClient, RevocableClients,
@@ -837,9 +836,52 @@ where
     })
 }
 
+/// A mirror of [`PayInvoiceRequest`] without `ldk_route`, which is
+/// deserialized and passed separately at the handler boundary.
+pub struct PayInvoiceRequestInner {
+    pub invoice: Invoice,
+    pub fallback_amount: Option<Amount>,
+    pub message: Option<BoundedString>,
+    pub personal_note: Option<BoundedString>,
+    pub kind: PaymentKind,
+}
+
+impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
+    fn from(req: PayInvoiceRequest) -> Self {
+        let PayInvoiceRequest {
+            invoice,
+            fallback_amount,
+            message,
+            personal_note,
+            kind,
+            ldk_route: _,
+        } = req;
+        Self {
+            invoice,
+            fallback_amount,
+            message,
+            personal_note,
+            kind,
+        }
+    }
+}
+
+/// Serialize an LDK [`Route`] to bytes.
+pub fn encode_ldk_route(route: &Route) -> Vec<u8> {
+    route.encode()
+}
+
+/// Deserialize an LDK [`Route`] from bytes.
+pub fn decode_ldk_route(bytes: &[u8]) -> anyhow::Result<Route> {
+    Route::read(&mut &bytes[..])
+        .map_err(|e| anyhow!("Invalid `ldk_route`: {e:?}"))
+}
+
 #[instrument(skip_all, name = "(pay-invoice)")]
 pub async fn pay_invoice<CM, PS>(
-    req: PayInvoiceRequest,
+    req: PayInvoiceRequestInner,
+    // TODO(nicole): Either<Route, RouterType>?
+    route: Option<Route>,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -853,10 +895,8 @@ where
 {
     // Preflight the invoice payment (verify and route).
     // Compute an `ldk_route` if the caller didn't supply one.
-    let preflight = match req.ldk_route {
-        Some(ldk_route_bin) => {
-            let ldk_route = Route::read(&mut &ldk_route_bin[..])
-                .map_err(|e| anyhow!("Invalid `ldk_route`: {e:?}"))?;
+    let preflight = match route {
+        Some(ldk_route) => {
             let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
             req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
             let oipwm = OutboundInvoicePaymentV2::new(
@@ -987,6 +1027,17 @@ where
     }
 }
 
+/// A mirror of [`PayInvoicePreflightResponse`] carrying a raw [`Route`],
+/// which is serialized at the handler boundary.
+///
+/// [`PayInvoicePreflightResponse`]: lexe_api::models::command::PayInvoicePreflightResponse
+pub struct PayInvoicePreflightResponseInner {
+    pub amount: Amount,
+    pub fees: Amount,
+    pub route: LxRoute,
+    pub ldk_route: Route,
+}
+
 #[instrument(skip_all, name = "(pay-invoice-preflight)")]
 pub async fn pay_invoice_preflight<CM, PS>(
     req: PayInvoicePreflightRequest,
@@ -996,20 +1047,18 @@ pub async fn pay_invoice_preflight<CM, PS>(
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
-) -> anyhow::Result<PayInvoicePreflightResponse>
+) -> anyhow::Result<PayInvoicePreflightResponseInner>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    let req = PayInvoiceRequest {
+    let req = PayInvoiceRequestInner {
         invoice: req.invoice,
         fallback_amount: req.fallback_amount,
         message: None,
         // User note not relevant for pre-flight.
         personal_note: None,
         kind: req.kind,
-        // Not used for pre-flight
-        ldk_route: None,
     };
     let preflight = pay_invoice_preflight_inner(
         req,
@@ -1021,11 +1070,11 @@ where
         lsp_fees,
     )
     .await?;
-    Ok(PayInvoicePreflightResponse {
+    Ok(PayInvoicePreflightResponseInner {
         amount: preflight.oipwm.payment.amount,
         fees: preflight.oipwm.payment.routing_fee,
         route: preflight.lx_route,
-        ldk_route: preflight.ldk_route.encode(),
+        ldk_route: preflight.ldk_route,
     })
 }
 
@@ -1331,7 +1380,7 @@ struct PreflightedPayInvoice {
 // Preflight (validate and route) a new potential BOLT11 invoice that we might
 // pay.
 async fn pay_invoice_preflight_inner<CM, PS>(
-    req: PayInvoiceRequest,
+    req: PayInvoiceRequestInner,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
