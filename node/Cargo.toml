@@ -1,6 +1,6 @@
 [package]
 name = "node"
-version = "0.9.11"
+version = "0.9.12"
 license = "PolyForm-Noncommercial-1.0.0"
 authors = { workspace = true }
 edition = { workspace = true }
