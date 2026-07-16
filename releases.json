@@ -179,6 +179,15 @@
       "heap-size": 1610612736,
       "stack-size": 8388608,
       "threads": 2
+    },
+    "0.9.12": {
+      "measurement": "25c683d3b4674aaa88e69785fdb9c5b97515f0bb3a1b7a63fe43024c9b75a22f",
+      "revision": "e95c8e42f5e34b45328c4d15c6a6bb55ee23d128",
+      "release-date": "2026-07-16",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.12",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
     }
   }
 }
