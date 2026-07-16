@@ -132,6 +132,9 @@ mod multi;
 const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 
+/// If there are more than 10 pending channel monitor updates, we'll log a warn.
+const CHANNEL_MONITOR_PERSISTER_BACKLOG_WARN_THRESHOLD: usize = 10;
+
 pub struct NodePersister {
     backend_api: Arc<NodeBackendClient>,
     authenticator: Arc<BearerAuthenticator>,
@@ -1272,6 +1275,7 @@ impl Persist<SignerType> for NodePersister {
             if let Err(e) = channel_monitor::try_send_update(
                 &self.channel_monitor_persister_tx,
                 update,
+                CHANNEL_MONITOR_PERSISTER_BACKLOG_WARN_THRESHOLD,
             ) {
                 // NOTE: Although failing to send the channel monutor update to
                 // the channel monitor persistence task is a serious error, we
@@ -1313,6 +1317,7 @@ impl Persist<SignerType> for NodePersister {
             if let Err(e) = channel_monitor::try_send_update(
                 &self.channel_monitor_persister_tx,
                 update,
+                CHANNEL_MONITOR_PERSISTER_BACKLOG_WARN_THRESHOLD,
             ) {
                 // NOTE: Although failing to send the channel monutor update to
                 // the channel monitor persistence task is a serious error, we

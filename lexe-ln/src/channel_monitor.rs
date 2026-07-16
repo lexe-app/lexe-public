@@ -134,11 +134,12 @@ pub struct LxChannelMonitorUpdate {
 pub fn try_send_update(
     tx: &mpsc::Sender<LxChannelMonitorUpdate>,
     update: LxChannelMonitorUpdate,
+    backlog_warn_threshold: usize,
 ) -> Result<(), mpsc::error::TrySendError<()>> {
     tx.try_reserve()?.send(update);
 
     let remaining_updates = tx.max_capacity() - tx.capacity();
-    if remaining_updates > 500 {
+    if remaining_updates > backlog_warn_threshold {
         warn!(
             "Channel monitor persist queue backlog: \
              {remaining_updates} updates remaining"
