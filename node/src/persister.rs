@@ -84,7 +84,7 @@ use lexe_ln::{
         LexeChainMonitorType, MessageRouterType, RouterType, SignerType,
     },
     channel_monitor::{
-        ChannelMonitorUpdateKind, LxChannelMonitorUpdate, LxMonitorName,
+        self, ChannelMonitorUpdateKind, LxChannelMonitorUpdate, LxMonitorName,
     },
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
@@ -1269,7 +1269,10 @@ impl Persist<SignerType> for NodePersister {
 
             // Queue up the channel monitor update for persisting. Shut down if
             // we can't send the update for some reason.
-            if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+            if let Err(e) = channel_monitor::try_send_update(
+                &self.channel_monitor_persister_tx,
+                update,
+            ) {
                 // NOTE: Although failing to send the channel monutor update to
                 // the channel monitor persistence task is a serious error, we
                 // do not return a PermanentFailure here because that force
@@ -1307,7 +1310,10 @@ impl Persist<SignerType> for NodePersister {
 
             // Queue up the channel monitor update for persisting. Shut down if
             // we can't send the update for some reason.
-            if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+            if let Err(e) = channel_monitor::try_send_update(
+                &self.channel_monitor_persister_tx,
+                update,
+            ) {
                 // NOTE: Although failing to send the channel monutor update to
                 // the channel monitor persistence task is a serious error, we
                 // do not return a PermanentFailure here because that force

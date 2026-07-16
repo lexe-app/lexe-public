@@ -10,7 +10,7 @@ use lightning::util::persist::MonitorName;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, info_span};
+use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
@@ -128,6 +128,24 @@ pub struct LxChannelMonitorUpdate {
     /// [`ChannelMonitor::get_latest_update_id`]: lightning::chain::channelmonitor::ChannelMonitor::get_latest_update_id
     update_id: u64,
     span: tracing::Span,
+}
+
+/// Queue a channel monitor update and warn if the queue is backed up.
+pub fn try_send_update(
+    tx: &mpsc::Sender<LxChannelMonitorUpdate>,
+    update: LxChannelMonitorUpdate,
+) -> Result<(), mpsc::error::TrySendError<()>> {
+    tx.try_reserve()?.send(update);
+
+    let remaining_updates = tx.max_capacity() - tx.capacity();
+    if remaining_updates > 500 {
+        warn!(
+            "Channel monitor persist queue backlog: \
+             {remaining_updates} updates remaining"
+        );
+    }
+
+    Ok(())
 }
 
 /// Whether the [`LxChannelMonitorUpdate`] represents a new or updated channel.
