@@ -264,6 +264,14 @@ build-prod-ios *args:
     DEPLOY_ENVIRONMENT=prod NETWORK=mainnet SGX=true \
         just app build ipa --flavor=prod --release {{ args }}
 
+# Regenerate ios/Podfile.lock in the app-ios-macos devshell.
+#
+# The app_rs_dart pod's SPEC CHECKSUM depends on the devshell's CocoaPods
+# toolchain, not just the podspec, so a toolchain bump can shift it and leave
+# the committed lock stale. Run this to resync it.
+update-podfile:
+    nix develop ../..#app-ios-macos --command bash -c 'cd ios && pod install'
+
 # read the combined version from the built .ipa bundle (ex: "1.2.3+45")
 # [no-cd] so the caller's cwd is preserved; the release script
 # (/just/release-app-ios.sh) passes a repo-root-relative path.
