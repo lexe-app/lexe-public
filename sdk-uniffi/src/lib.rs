@@ -28,11 +28,12 @@ use lexe::{
         },
         bitcoin::{
             Amount as SdkAmount, ChannelId as SdkChannelId,
+            ClaimMethod as SdkClaimMethod,
             ConfirmationPriority as SdkConfirmationPriority,
             Invoice as SdkInvoice, LnurlPayRequest as SdkLnurlPayRequest,
             LnurlPayRequestMetadata as SdkLnurlPayRequestMetadata,
-            Offer as SdkOffer, OutPoint as SdkOutPoint,
-            PaymentMethod as SdkPaymentMethod,
+            LnurlWithdrawRequest as SdkLnurlWithdrawRequest, Offer as SdkOffer,
+            OutPoint as SdkOutPoint, PaymentMethod as SdkPaymentMethod,
             UserChannelId as SdkUserChannelId,
         },
         command::{
@@ -40,7 +41,9 @@ use lexe::{
             AnalyzeResponse as SdkAnalyzeResponse,
             CashAppBuyRequest as SdkCashAppBuyRequest,
             CashAppBuyResponse as SdkCashAppBuyResponse,
-            ChannelDetails as SdkChannelDetails, ClientInfo as SdkClientInfo,
+            ChannelDetails as SdkChannelDetails,
+            ClaimableDetails as SdkClaimableDetails,
+            ClientInfo as SdkClientInfo,
             CloseChannelRequest as SdkCloseChannelRequest,
             CreateClientRequest as SdkCreateClientRequest,
             CreateClientResponse as SdkCreateClientResponse,
@@ -862,10 +865,13 @@ impl AsyncLexeWallet {
 
     /// Analyze a Bitcoin or Lightning payment string.
     ///
-    /// Returns a list of payment methods found (as `AnalyzeResponse`), sorted
-    /// from most to least recommended. Each `PayableDetails` entry includes the
-    /// payable string, method type ("invoice", "offer", "onchain", or "lnurl"),
-    /// amount constraints, description, and expiration.
+    /// Returns the routes found (as `AnalyzeResponse`). `payables` holds
+    /// outbound payment routes, sorted from most to least recommended; each
+    /// `PayableDetails` includes the payable string, method type ("invoice",
+    /// "offer", "onchain", or "lnurl-pay"), amount constraints, description,
+    /// and expiration. `claimables` holds inbound claim routes (e.g.
+    /// LNURL-withdraw); each `ClaimableDetails` includes the claimable string,
+    /// claim method, description, and amount constraints.
     ///
     /// Supported encodings:
     /// - BIP 321 URI: `bitcoin:bc1...`
@@ -1695,10 +1701,13 @@ impl BlockingLexeWallet {
 
     /// Analyze a Bitcoin or Lightning payment string.
     ///
-    /// Returns a list of payment methods found (as `AnalyzeResponse`), sorted
-    /// from most to least recommended. Each `PayableDetails` entry includes the
-    /// payable string, method type ("invoice", "offer", "onchain", or "lnurl"),
-    /// amount constraints, description, and expiration.
+    /// Returns the routes found (as `AnalyzeResponse`). `payables` holds
+    /// outbound payment routes, sorted from most to least recommended; each
+    /// `PayableDetails` includes the payable string, method type ("invoice",
+    /// "offer", "onchain", or "lnurl-pay"), amount constraints, description,
+    /// and expiration. `claimables` holds inbound claim routes (e.g.
+    /// LNURL-withdraw); each `ClaimableDetails` includes the claimable string,
+    /// claim method, description, and amount constraints.
     ///
     /// Supported encodings:
     /// - BIP 321 URI: `bitcoin:bc1...`
@@ -2874,6 +2883,34 @@ impl From<SdkPaymentMethod> for PaymentMethod {
     }
 }
 
+/// A single "claim method" -- each variant corresponds with a single
+/// linear (inbound) payment flow.
+#[derive(Clone, uniffi::Enum)]
+pub enum ClaimMethod {
+    /// An LNURL-withdraw claim (LUD-03).
+    LnurlWithdraw {
+        /// An LNURL-withdraw URI.
+        lnurl: String,
+        /// LNURL-withdraw request, which includes information about the amount
+        /// constraints, callback, etc. associated with the LNURL.
+        withdraw_request: LnurlWithdrawRequest,
+    },
+}
+
+impl From<SdkClaimMethod> for ClaimMethod {
+    fn from(method: SdkClaimMethod) -> Self {
+        match method {
+            SdkClaimMethod::LnurlWithdraw {
+                lnurl,
+                withdraw_request,
+            } => Self::LnurlWithdraw {
+                lnurl,
+                withdraw_request: LnurlWithdrawRequest::from(withdraw_request),
+            },
+        }
+    }
+}
+
 // TODO(nicole): move structs to an // --- Lnurl --- // section when added
 /// The validated and parsed LNURL-pay request (tagged "payRequest").
 #[derive(Clone, uniffi::Record)]
@@ -2966,6 +3003,50 @@ impl From<SdkLnurlPayRequestMetadata> for LnurlPayRequestMetadata {
     }
 }
 
+/// The validated and parsed LNURL-withdraw request (tagged "withdrawRequest").
+#[derive(Clone, uniffi::Record)]
+pub struct LnurlWithdrawRequest {
+    /// The URL which will accept the withdraw request parameters.
+    pub callback: String,
+    /// A secret string which authorizes a withdrawal.
+    ///
+    /// WARNING: If leaked, anyone with this string can make a withdrawal.
+    pub k1: String,
+    /// A default description to be included in the invoice's description
+    /// field.
+    pub default_description: String,
+    /// The minimum amount that can be withdrawn, in satoshis.
+    pub min_withdrawable_sats: u64,
+    /// The maximum amount that can be withdrawn, in satoshis.
+    pub max_withdrawable_sats: u64,
+    /// (LUD-19) An optional payment LNURL string.
+    /// Should be a valid LNURL-pay endpoint. Caller is responsible for
+    /// parsing and validating compatibility with LNURL-pay.
+    pub pay_link: Option<String>,
+}
+
+impl From<SdkLnurlWithdrawRequest> for LnurlWithdrawRequest {
+    fn from(req: SdkLnurlWithdrawRequest) -> Self {
+        let SdkLnurlWithdrawRequest {
+            callback,
+            k1,
+            default_description,
+            min_withdrawable,
+            max_withdrawable,
+            pay_link,
+        } = req;
+
+        Self {
+            callback,
+            k1,
+            default_description,
+            min_withdrawable_sats: min_withdrawable.sats_u64(),
+            max_withdrawable_sats: max_withdrawable.sats_u64(),
+            pay_link,
+        }
+    }
+}
+
 /// Describes basic information for a payable string.
 #[derive(Clone, uniffi::Record)]
 pub struct PayableDetails {
@@ -3010,12 +3091,48 @@ impl From<SdkPayableDetails> for PayableDetails {
     }
 }
 
-/// Response from analyzing a payable string.
+/// Describes basic information for a claimable string.
+#[derive(Clone, uniffi::Record)]
+pub struct ClaimableDetails {
+    /// String encoding of the claimable.
+    pub claimable: String,
+    /// The deserialized claim method.
+    pub method: ClaimMethod,
+
+    /// Description encoded in the claimable, if any.
+    pub description: Option<String>,
+
+    /// The minimum amount that can be claimed, in satoshis.
+    pub min_amount_sats: Option<u64>,
+    /// The maximum amount that can be claimed, in satoshis.
+    pub max_amount_sats: Option<u64>,
+}
+
+impl From<SdkClaimableDetails> for ClaimableDetails {
+    fn from(details: SdkClaimableDetails) -> Self {
+        Self {
+            claimable: details.claimable,
+            method: ClaimMethod::from(details.method),
+            description: details.description,
+            min_amount_sats: details.min_amount.map(|a| a.sats_u64()),
+            max_amount_sats: details.max_amount.map(|a| a.sats_u64()),
+        }
+    }
+}
+
+/// Response from analyzing a payment string.
 #[derive(Clone, uniffi::Record)]
 pub struct AnalyzeResponse {
     /// Valid payment routes encoded in the analyzed string, sorted from most
     /// to least recommended.
+    ///
+    /// "Payable" indicates an outbound payment flow.
     pub payables: Vec<PayableDetails>,
+
+    /// Valid claim routes encoded in the analyzed string.
+    ///
+    /// "Claimable" indicates an inbound payment flow.
+    pub claimables: Vec<ClaimableDetails>,
 }
 
 impl From<SdkAnalyzeResponse> for AnalyzeResponse {
@@ -3025,7 +3142,15 @@ impl From<SdkAnalyzeResponse> for AnalyzeResponse {
             .into_iter()
             .map(PayableDetails::from)
             .collect();
-        Self { payables }
+        let claimables = resp
+            .claimables
+            .into_iter()
+            .map(ClaimableDetails::from)
+            .collect();
+        Self {
+            payables,
+            claimables,
+        }
     }
 }
 

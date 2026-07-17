@@ -654,10 +654,12 @@ Example::
 _set_method_doc(LexeWallet, "analyze", """\
 Analyze a Bitcoin or Lightning payment string.
 
-Returns a list of payment methods found (as ``AnalyzeResponse``), sorted
-from most to least recommended. Each ``PayableDetails`` entry includes the
-payable string, parsed :class:`PaymentMethod`, amount constraints,
-description, and expiration.
+Returns the routes found (as ``AnalyzeResponse``). ``payables`` holds outbound
+payment routes, sorted from most to least recommended; each ``PayableDetails``
+includes the payable string, parsed :class:`PaymentMethod`, amount constraints,
+description, and expiration. ``claimables`` holds inbound claim routes (e.g.
+LNURL-withdraw); each :class:`ClaimableDetails` includes the claimable string,
+parsed :class:`ClaimMethod`, description, and amount constraints.
 
 Supported encodings:
 
@@ -676,15 +678,19 @@ Within the encodings, the following payment methods are supported:
 - BOLT 12 offer
 - Bitcoin address
 - Lightning Address
-- LNURL
+- LNURL-pay
+
+And the following claim methods are supported:
+
+- LNURL-withdraw
 
 Args:
     payable: The string-encoded payment method.
 
 Returns:
-    A :class:`AnalyzeResponse` containing a list of :class:`PayableDetails`
-    describing each parsed payment method. This list is sorted from most
-    recommended to least recommended payment method.
+    An :class:`AnalyzeResponse` with ``payables`` (outbound payment routes,
+    sorted from most to least recommended) and ``claimables`` (inbound claim
+    routes, e.g. LNURL-withdraw).
 
 Raises:
     FfiError: If no valid payment methods were found.
@@ -1398,10 +1404,12 @@ Example::
 _set_method_doc(AsyncLexeWallet, "analyze", """\
 Analyze a Bitcoin or Lightning payment string.
 
-Returns a list of payment methods found (as ``AnalyzeResponse``), sorted
-from most to least recommended. Each ``PayableDetails`` entry includes the
-payable string, parsed :class:`PaymentMethod`, amount constraints,
-description, and expiration.
+Returns the routes found (as ``AnalyzeResponse``). ``payables`` holds outbound
+payment routes, sorted from most to least recommended; each ``PayableDetails``
+includes the payable string, parsed :class:`PaymentMethod`, amount constraints,
+description, and expiration. ``claimables`` holds inbound claim routes (e.g.
+LNURL-withdraw); each :class:`ClaimableDetails` includes the claimable string,
+parsed :class:`ClaimMethod`, description, and amount constraints.
 
 Supported encodings:
 
@@ -1420,15 +1428,19 @@ Within the encodings, the following payment methods are supported:
 - BOLT 12 offer
 - Bitcoin address
 - Lightning Address
-- LNURL
+- LNURL-pay
+
+And the following claim methods are supported:
+
+- LNURL-withdraw
 
 Args:
     payable: The string-encoded payment method.
 
 Returns:
-    A :class:`AnalyzeResponse` containing a list of :class:`PayableDetails`
-    describing each parsed payment method. This list is sorted from most
-    recommended to least recommended payment method.
+    An :class:`AnalyzeResponse` with ``payables`` (outbound payment routes,
+    sorted from most to least recommended) and ``claimables`` (inbound claim
+    routes, e.g. LNURL-withdraw).
 
 Raises:
     FfiError: If no valid payment methods were found.
@@ -2116,6 +2128,20 @@ Attributes:
     raw: The original unparsed metadata string.
 """
 
+lexe.LnurlWithdrawRequest.__doc__ = """\
+The validated and parsed LNURL-withdraw request ("withdrawRequest").
+
+Attributes:
+    callback: The URL which will accept the withdraw request parameters.
+    k1: A secret string which authorizes a withdrawal. WARNING: if leaked,
+        anyone with this string can make a withdrawal.
+    default_description: A default description to include in the invoice's
+        description field.
+    min_withdrawable_sats: Minimum withdrawable amount, in satoshis.
+    max_withdrawable_sats: Maximum withdrawable amount, in satoshis.
+    pay_link: (LUD-19) An optional LNURL-pay endpoint string, if any.
+"""
+
 lexe.Payment.__doc__ = """\
 Information about a payment.
 
@@ -2245,6 +2271,17 @@ Attributes:
     expires_at_ms: Payable expiration time (ms since UNIX epoch), if any.
 """
 
+lexe.ClaimableDetails.__doc__ = """\
+A parsed claim method returned from analyzing a claimable string.
+
+Attributes:
+    claimable: The string encoding of this claim method.
+    method: The parsed :class:`ClaimMethod` (currently only LnurlWithdraw).
+    description: Description encoded in the claimable, if any.
+    min_amount_sats: Minimum claimable amount in satoshis, if any.
+    max_amount_sats: Maximum claimable amount in satoshis, if any.
+"""
+
 lexe.PaymentMethod.__doc__ = """\
 A single payment method -- each variant corresponds with a single linear
 (outbound) payment flow.
@@ -2293,12 +2330,35 @@ Example::
             print(f"LNURL-pay {lnurl}")
 """
 
+lexe.ClaimMethod.__doc__ = """\
+A single claim method -- each variant corresponds with a single linear
+(inbound) payment flow.
+
+Returned as part of :class:`ClaimableDetails` from :meth:`LexeWallet.analyze`.
+
+Variants:
+
+- **LNURL_WITHDRAW** -- An LNURL-withdraw claim (LUD-03). Attributes:
+
+  - ``lnurl``: An LNURL-withdraw URI.
+  - ``withdraw_request``: The :class:`LnurlWithdrawRequest` intermediate.
+
+Example::
+
+    resp = wallet.analyze("lnurl1...")
+    match resp.claimables[0].method:
+        case ClaimMethod.LNURL_WITHDRAW(lnurl=lnurl):
+            print(f"LNURL-withdraw {lnurl}")
+"""
+
 lexe.AnalyzeResponse.__doc__ = """\
-Response from analyzing a payable string.
+Response from analyzing a payment string.
 
 Attributes:
-    payables: Valid payment routes encoded in the analyzed string, ordered
-        from most recommended to least recommended.
+    payables: Valid payment routes (outbound) encoded in the analyzed string,
+        ordered from most recommended to least recommended.
+    claimables: Valid claim routes (inbound) encoded in the analyzed string,
+        e.g. LNURL-withdraw.
 """
 
 # ================ #

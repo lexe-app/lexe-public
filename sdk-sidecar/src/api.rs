@@ -34,6 +34,7 @@ pub struct SignupRequest {
 #[derive(Serialize, Deserialize)]
 pub struct AnalyzeResponse {
     pub payables: Vec<PayableDetails>,
+    pub claimables: Vec<ClaimableDetails>,
 }
 
 /// Mirrors [`lexe::types::command::PayableDetails`],
@@ -61,6 +62,25 @@ pub struct PayableDetails {
     pub min_amount: Option<Amount>,
     pub max_amount: Option<Amount>,
     pub expires_at: Option<TimestampMs>,
+}
+
+/// Mirrors [`lexe::types::command::ClaimableDetails`],
+/// but instead includes a sidecar-specific callback,
+/// a `kind` field to indicate the method, and specific
+/// fields for each claimable type
+#[derive(Serialize, Deserialize)]
+pub struct ClaimableDetails {
+    pub callback: String,
+
+    /// Used in lieu of `method: ClaimMethod`
+    pub kind: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lnurl: Option<String>,
+
+    pub description: Option<String>,
+    pub min_amount: Option<Amount>,
+    pub max_amount: Option<Amount>,
 }
 
 /// Mirrors [`lexe::types::command::PayRequest`],

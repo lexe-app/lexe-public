@@ -14,14 +14,14 @@ use lexe::{
     config::WalletEnvConfig,
     types::{
         auth::Credentials,
-        bitcoin::PaymentMethod,
+        bitcoin::{ClaimMethod, PaymentMethod},
         command::{
             AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
-            ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
-            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse,
-            GetHumanBitcoinAddressResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            ClaimableDetails as SdkClaimableDetails, ClientInfoResponse,
+            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, GetHumanBitcoinAddressResponse,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -46,9 +46,9 @@ use tracing::{debug, instrument, warn};
 
 use crate::{
     api::{
-        AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
-        PayLnurlRequest, PayRequest, PayableDetails, SignupRequest,
-        UpdateClientRequest, WithdrawLnurlRequest,
+        AnalyzeResponse, ClaimableDetails, HealthCheckResponse,
+        ListPaymentsRequest, PayLnurlRequest, PayRequest, PayableDetails,
+        SignupRequest, UpdateClientRequest, WithdrawLnurlRequest,
     },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
@@ -297,7 +297,51 @@ mod node {
             })
             .collect();
 
-        Ok(LxJson(AnalyzeResponse { payables }))
+        let claimables = resp
+            .claimables
+            .into_iter()
+            .map(|details| {
+                let SdkClaimableDetails {
+                    claimable,
+                    method,
+                    description,
+                    min_amount,
+                    max_amount,
+                } = details;
+
+                // Construct callback
+                let sidecar_url = &state.sidecar_url;
+                let encoded = percent_encoding::utf8_percent_encode(
+                    &claimable,
+                    &HTTP_PERCENT_ENCODE_SET,
+                );
+                let callback = format!(
+                    "{sidecar_url}/v2/node/withdraw_lnurl?lnurl={encoded}"
+                );
+
+                // Translate method
+                let kind = method.kind().to_string();
+
+                // Get method-specific string
+                let lnurl = match method {
+                    ClaimMethod::LnurlWithdraw { lnurl: uri, .. } => Some(uri),
+                };
+
+                ClaimableDetails {
+                    callback,
+                    kind,
+                    lnurl,
+                    description,
+                    min_amount,
+                    max_amount,
+                }
+            })
+            .collect();
+
+        Ok(LxJson(AnalyzeResponse {
+            payables,
+            claimables,
+        }))
     }
 
     #[instrument(skip_all, name = "(pay)")]
