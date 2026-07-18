@@ -196,13 +196,13 @@ pub trait UserGatewayApi {
 
 /// Defines the api that the node exposes to the user during provisioning.
 pub trait UserNodeProvisionApi {
-    /// Provision a node with the given [`Measurement`]. The provisioning node's
-    /// remote attestation will be checked against the given [`Measurement`].
+    /// Provision a given [`NodeEnclave`]. The server's remote attestation will
+    /// be checked against our expected enclave [`Measurement`].
     ///
     /// POST /user/v1/provision [`NodeProvisionRequest`] -> [`Empty`]
     async fn provision(
         &self,
-        measurement: Measurement,
+        enclave: &NodeEnclave,
         data: NodeProvisionRequest,
     ) -> Result<Empty, NodeApiError>;
 }

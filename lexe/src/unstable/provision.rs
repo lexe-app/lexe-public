@@ -189,7 +189,7 @@ async fn provision_one(
         encrypted_seed,
     };
     node_client
-        .provision(enclave.measurement, provision_req)
+        .provision(&enclave, provision_req)
         .await
         .context("Failed to provision node")?;
 

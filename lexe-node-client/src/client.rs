@@ -478,10 +478,21 @@ impl NodeClient {
 impl UserNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
-        measurement: Measurement,
+        enclave: &NodeEnclave,
         data: NodeProvisionRequest,
     ) -> Result<Empty, NodeApiError> {
+        /// The first node version to serve `/user/v1/provision`. Nodes older
+        /// than this may still be provisioned during "secondary provisioning"
+        /// (see `provision_all` in `public/lexe/src/unstable/provision.rs`);
+        /// thus, we still need to talk to those nodes using the old endpoint.
+        //
+        // TODO(max): Remove the version-based branching once all releases in
+        // `LATEST_TRUSTED_MEASUREMENTS` are `node-v0.9.12` or later.
+        const FIRST_USER_API_VERSION: semver::Version =
+            semver::Version::new(0, 9, 12);
+
         let now = SystemTime::now();
+        let measurement = enclave.measurement;
         let mr_short = measurement.short();
         let provision_dns = node_provision_dns(&mr_short);
         let provision_url = format!("https://{provision_dns}");
@@ -496,8 +507,12 @@ impl UserNodeProvisionApi for NodeClient {
             .context("Failed to build provision rest client")
             .map_err(NodeApiError::provision)?;
 
-        let req = provision_rest
-            .post(format!("{provision_url}/user/v1/provision"), &data);
+        let path = if enclave.version < FIRST_USER_API_VERSION {
+            "/app/provision"
+        } else {
+            "/user/v1/provision"
+        };
+        let req = provision_rest.post(format!("{provision_url}{path}"), &data);
         provision_rest.send(req).await
     }
 }
