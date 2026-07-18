@@ -1744,6 +1744,70 @@ impl LexeWallet {
         Ok(())
     }
 
+    // --- Channel management --- //
+
+    /// List this node's Lightning channels.
+    ///
+    /// All of this node's Lightning channels are connected to the Lexe LSP.
+    #[instrument(skip_all, name = "(list-channels)")]
+    pub async fn list_channels(&self) -> anyhow::Result<ListChannelsResponse> {
+        let resp = self
+            .node_client
+            .list_channels()
+            .await
+            .context("Failed to list channels")?;
+        let channels = resp
+            .channels
+            .into_iter()
+            .map(ChannelDetails::from)
+            .collect();
+
+        Ok(ListChannelsResponse { channels })
+    }
+
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    ///
+    /// Returns the channel id of the newly opened channel.
+    #[instrument(skip_all, name = "(open-channel)")]
+    pub async fn open_channel(
+        &self,
+        req: OpenChannelRequest,
+    ) -> anyhow::Result<OpenChannelResponse> {
+        // Use the caller's idempotency key if provided; otherwise generate a
+        // fresh one, which still guards against duplicate opens on retries of
+        // the resulting request.
+        let user_channel_id = req
+            .user_channel_id
+            .unwrap_or_else(|| UserChannelId::from_rng(&mut SysRng::new()));
+        let cmd_req = command::OpenChannelRequest {
+            user_channel_id,
+            value: req.value,
+        };
+        let resp = self
+            .node_client
+            .open_channel(cmd_req)
+            .await
+            .context("Failed to open channel")?;
+
+        Ok(OpenChannelResponse {
+            channel_id: resp.channel_id,
+            user_channel_id,
+        })
+    }
+
+    /// Close a Lightning channel between this node and Lexe's LSP.
+    #[instrument(skip_all, name = "(close-channel)")]
+    pub async fn close_channel(
+        &self,
+        req: CloseChannelRequest,
+    ) -> anyhow::Result<()> {
+        self.node_client
+            .close_channel(command::CloseChannelRequest::from(req))
+            .await
+            .context("Failed to close channel")?;
+        Ok(())
+    }
+
     // --- Client credentials management --- //
 
     /// List the active clients for this node.
@@ -1819,69 +1883,5 @@ impl LexeWallet {
         Ok(ClientInfoResponse {
             client: ClientInfo::from(client),
         })
-    }
-
-    // --- Channel management --- //
-
-    /// List this node's Lightning channels.
-    ///
-    /// All of this node's Lightning channels are connected to the Lexe LSP.
-    #[instrument(skip_all, name = "(list-channels)")]
-    pub async fn list_channels(&self) -> anyhow::Result<ListChannelsResponse> {
-        let resp = self
-            .node_client
-            .list_channels()
-            .await
-            .context("Failed to list channels")?;
-        let channels = resp
-            .channels
-            .into_iter()
-            .map(ChannelDetails::from)
-            .collect();
-
-        Ok(ListChannelsResponse { channels })
-    }
-
-    /// Open a Lightning channel from this node to Lexe's LSP.
-    ///
-    /// Returns the channel id of the newly opened channel.
-    #[instrument(skip_all, name = "(open-channel)")]
-    pub async fn open_channel(
-        &self,
-        req: OpenChannelRequest,
-    ) -> anyhow::Result<OpenChannelResponse> {
-        // Use the caller's idempotency key if provided; otherwise generate a
-        // fresh one, which still guards against duplicate opens on retries of
-        // the resulting request.
-        let user_channel_id = req
-            .user_channel_id
-            .unwrap_or_else(|| UserChannelId::from_rng(&mut SysRng::new()));
-        let cmd_req = command::OpenChannelRequest {
-            user_channel_id,
-            value: req.value,
-        };
-        let resp = self
-            .node_client
-            .open_channel(cmd_req)
-            .await
-            .context("Failed to open channel")?;
-
-        Ok(OpenChannelResponse {
-            channel_id: resp.channel_id,
-            user_channel_id,
-        })
-    }
-
-    /// Close a Lightning channel between this node and Lexe's LSP.
-    #[instrument(skip_all, name = "(close-channel)")]
-    pub async fn close_channel(
-        &self,
-        req: CloseChannelRequest,
-    ) -> anyhow::Result<()> {
-        self.node_client
-            .close_channel(command::CloseChannelRequest::from(req))
-            .await
-            .context("Failed to close channel")?;
-        Ok(())
     }
 }

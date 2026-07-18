@@ -110,13 +110,13 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             "/v2/node/update_personal_note",
             post(node::update_personal_note),
         )
+        .route("/v2/node/list_channels", get(node::list_channels))
+        .route("/v2/node/open_channel", post(node::open_channel))
+        .route("/v2/node/close_channel", post(node::close_channel))
         .route("/v2/node/list_clients", get(node::list_clients))
         .route("/v2/node/create_client", post(node::create_client))
         .route("/v2/node/update_client", put(node::update_client))
         .route("/v2/node/revoke_client", post(node::revoke_client))
-        .route("/v2/node/list_channels", get(node::list_channels))
-        .route("/v2/node/open_channel", post(node::open_channel))
-        .route("/v2/node/close_channel", post(node::close_channel))
         // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
         .route("/v1/node/node_info", get(node::node_info))
@@ -666,6 +666,42 @@ mod node {
         Ok(LxJson(Empty {}))
     }
 
+    #[instrument(skip_all, name = "(list-channels)")]
+    pub(crate) async fn list_channels(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<ListChannelsResponse>, SdkApiError> {
+        let resp =
+            wallet.list_channels().await.map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(open-channel)")]
+    pub(crate) async fn open_channel(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<OpenChannelRequest>,
+    ) -> Result<LxJson<OpenChannelResponse>, SdkApiError> {
+        let resp = wallet
+            .open_channel(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(close-channel)")]
+    pub(crate) async fn close_channel(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<CloseChannelRequest>,
+    ) -> Result<LxJson<Empty>, SdkApiError> {
+        wallet
+            .close_channel(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(Empty {}))
+    }
+
     #[instrument(skip_all, name = "(list-clients)")]
     pub(crate) async fn list_clients(
         State(_): State<Arc<RouterState>>,
@@ -720,42 +756,6 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(resp))
-    }
-
-    #[instrument(skip_all, name = "(list-channels)")]
-    pub(crate) async fn list_channels(
-        State(_): State<Arc<RouterState>>,
-        WalletExtractor(wallet): WalletExtractor,
-    ) -> Result<LxJson<ListChannelsResponse>, SdkApiError> {
-        let resp =
-            wallet.list_channels().await.map_err(SdkApiError::command)?;
-        Ok(LxJson(resp))
-    }
-
-    #[instrument(skip_all, name = "(open-channel)")]
-    pub(crate) async fn open_channel(
-        State(_): State<Arc<RouterState>>,
-        WalletExtractor(wallet): WalletExtractor,
-        LxJson(req): LxJson<OpenChannelRequest>,
-    ) -> Result<LxJson<OpenChannelResponse>, SdkApiError> {
-        let resp = wallet
-            .open_channel(req)
-            .await
-            .map_err(SdkApiError::command)?;
-        Ok(LxJson(resp))
-    }
-
-    #[instrument(skip_all, name = "(close-channel)")]
-    pub(crate) async fn close_channel(
-        State(_): State<Arc<RouterState>>,
-        WalletExtractor(wallet): WalletExtractor,
-        LxJson(req): LxJson<CloseChannelRequest>,
-    ) -> Result<LxJson<Empty>, SdkApiError> {
-        wallet
-            .close_channel(req)
-            .await
-            .map_err(SdkApiError::command)?;
-        Ok(LxJson(Empty {}))
     }
 }
 

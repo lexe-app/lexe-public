@@ -1380,6 +1380,62 @@ impl AsyncLexeWallet {
         Ok(())
     }
 
+    // --- Channel management --- //
+
+    /// List this node's Lightning channels.
+    ///
+    /// All of this node's Lightning channels are connected to the Lexe LSP.
+    pub async fn list_channels(&self) -> Result<Vec<ChannelDetails>, FfiError> {
+        let resp = self.inner.list_channels().await?;
+        let channels = resp
+            .channels
+            .into_iter()
+            .map(ChannelDetails::from)
+            .collect();
+        Ok(channels)
+    }
+
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    ///
+    /// `value_sats` is the channel capacity in satoshis. `user_channel_id` is
+    /// an optional idempotency key, serialized as a 32-character hex string (16
+    /// bytes); retrying with the same id won't open a duplicate channel. A
+    /// random id is generated if `None`.
+    #[uniffi::method(default(user_channel_id = None))]
+    pub async fn open_channel(
+        &self,
+        value_sats: u64,
+        user_channel_id: Option<String>,
+    ) -> Result<OpenChannelResponse, FfiError> {
+        let value = SdkAmount::try_from_sats_u64(value_sats)
+            .context("Invalid value")?;
+        let user_channel_id = user_channel_id
+            .map(|s| SdkUserChannelId::from_str(&s))
+            .transpose()
+            .context("Invalid user_channel_id")?;
+        let req = SdkOpenChannelRequest {
+            value,
+            user_channel_id,
+        };
+        let resp = self.inner.open_channel(req).await?;
+        Ok(OpenChannelResponse::from(resp))
+    }
+
+    /// Close a Lightning channel.
+    ///
+    /// `channel_id` is the id of the channel to close, serialized as a
+    /// 64-character hex string (32 bytes).
+    pub async fn close_channel(
+        &self,
+        channel_id: String,
+    ) -> Result<(), FfiError> {
+        let channel_id = SdkChannelId::from_str(&channel_id)
+            .context("Invalid channel_id")?;
+        let req = SdkCloseChannelRequest { channel_id };
+        self.inner.close_channel(req).await?;
+        Ok(())
+    }
+
     // --- Client credentials management --- //
 
     /// List the clients authorized to control this node, keyed by each
@@ -1471,62 +1527,6 @@ impl AsyncLexeWallet {
         let req = SdkRevokeClientRequest { client_pk };
         let resp = self.inner.revoke_client(req).await?;
         Ok(ClientInfo::from(resp.client))
-    }
-
-    // --- Channel management --- //
-
-    /// List this node's Lightning channels.
-    ///
-    /// All of this node's Lightning channels are connected to the Lexe LSP.
-    pub async fn list_channels(&self) -> Result<Vec<ChannelDetails>, FfiError> {
-        let resp = self.inner.list_channels().await?;
-        let channels = resp
-            .channels
-            .into_iter()
-            .map(ChannelDetails::from)
-            .collect();
-        Ok(channels)
-    }
-
-    /// Open a Lightning channel from this node to Lexe's LSP.
-    ///
-    /// `value_sats` is the channel capacity in satoshis. `user_channel_id` is
-    /// an optional idempotency key, serialized as a 32-character hex string (16
-    /// bytes); retrying with the same id won't open a duplicate channel. A
-    /// random id is generated if `None`.
-    #[uniffi::method(default(user_channel_id = None))]
-    pub async fn open_channel(
-        &self,
-        value_sats: u64,
-        user_channel_id: Option<String>,
-    ) -> Result<OpenChannelResponse, FfiError> {
-        let value = SdkAmount::try_from_sats_u64(value_sats)
-            .context("Invalid value")?;
-        let user_channel_id = user_channel_id
-            .map(|s| SdkUserChannelId::from_str(&s))
-            .transpose()
-            .context("Invalid user_channel_id")?;
-        let req = SdkOpenChannelRequest {
-            value,
-            user_channel_id,
-        };
-        let resp = self.inner.open_channel(req).await?;
-        Ok(OpenChannelResponse::from(resp))
-    }
-
-    /// Close a Lightning channel.
-    ///
-    /// `channel_id` is the id of the channel to close, serialized as a
-    /// 64-character hex string (32 bytes).
-    pub async fn close_channel(
-        &self,
-        channel_id: String,
-    ) -> Result<(), FfiError> {
-        let channel_id = SdkChannelId::from_str(&channel_id)
-            .context("Invalid channel_id")?;
-        let req = SdkCloseChannelRequest { channel_id };
-        self.inner.close_channel(req).await?;
-        Ok(())
     }
 }
 
@@ -2216,6 +2216,59 @@ impl BlockingLexeWallet {
         Ok(())
     }
 
+    // --- Channel management --- //
+
+    /// List this node's Lightning channels.
+    ///
+    /// All of this node's Lightning channels are connected to the Lexe LSP.
+    pub fn list_channels(&self) -> Result<Vec<ChannelDetails>, FfiError> {
+        let resp = self.inner.list_channels()?;
+        let channels = resp
+            .channels
+            .into_iter()
+            .map(ChannelDetails::from)
+            .collect();
+        Ok(channels)
+    }
+
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    ///
+    /// `value_sats` is the channel capacity in satoshis. `user_channel_id` is
+    /// an optional idempotency key, serialized as a 32-character hex string (16
+    /// bytes); retrying with the same id won't open a duplicate channel. A
+    /// random id is generated if `None`.
+    #[uniffi::method(default(user_channel_id = None))]
+    pub fn open_channel(
+        &self,
+        value_sats: u64,
+        user_channel_id: Option<String>,
+    ) -> Result<OpenChannelResponse, FfiError> {
+        let value = SdkAmount::try_from_sats_u64(value_sats)
+            .context("Invalid value")?;
+        let user_channel_id = user_channel_id
+            .map(|s| SdkUserChannelId::from_str(&s))
+            .transpose()
+            .context("Invalid user_channel_id")?;
+        let req = SdkOpenChannelRequest {
+            value,
+            user_channel_id,
+        };
+        let resp = self.inner.open_channel(req)?;
+        Ok(OpenChannelResponse::from(resp))
+    }
+
+    /// Close a Lightning channel.
+    ///
+    /// `channel_id` is the id of the channel to close, serialized as a
+    /// 64-character hex string (32 bytes).
+    pub fn close_channel(&self, channel_id: String) -> Result<(), FfiError> {
+        let channel_id = SdkChannelId::from_str(&channel_id)
+            .context("Invalid channel_id")?;
+        let req = SdkCloseChannelRequest { channel_id };
+        self.inner.close_channel(req)?;
+        Ok(())
+    }
+
     // --- Client credentials management --- //
 
     /// List the clients authorized to control this node, keyed by each
@@ -2307,59 +2360,6 @@ impl BlockingLexeWallet {
         let req = SdkRevokeClientRequest { client_pk };
         let resp = self.inner.revoke_client(req)?;
         Ok(ClientInfo::from(resp.client))
-    }
-
-    // --- Channel management --- //
-
-    /// List this node's Lightning channels.
-    ///
-    /// All of this node's Lightning channels are connected to the Lexe LSP.
-    pub fn list_channels(&self) -> Result<Vec<ChannelDetails>, FfiError> {
-        let resp = self.inner.list_channels()?;
-        let channels = resp
-            .channels
-            .into_iter()
-            .map(ChannelDetails::from)
-            .collect();
-        Ok(channels)
-    }
-
-    /// Open a Lightning channel from this node to Lexe's LSP.
-    ///
-    /// `value_sats` is the channel capacity in satoshis. `user_channel_id` is
-    /// an optional idempotency key, serialized as a 32-character hex string (16
-    /// bytes); retrying with the same id won't open a duplicate channel. A
-    /// random id is generated if `None`.
-    #[uniffi::method(default(user_channel_id = None))]
-    pub fn open_channel(
-        &self,
-        value_sats: u64,
-        user_channel_id: Option<String>,
-    ) -> Result<OpenChannelResponse, FfiError> {
-        let value = SdkAmount::try_from_sats_u64(value_sats)
-            .context("Invalid value")?;
-        let user_channel_id = user_channel_id
-            .map(|s| SdkUserChannelId::from_str(&s))
-            .transpose()
-            .context("Invalid user_channel_id")?;
-        let req = SdkOpenChannelRequest {
-            value,
-            user_channel_id,
-        };
-        let resp = self.inner.open_channel(req)?;
-        Ok(OpenChannelResponse::from(resp))
-    }
-
-    /// Close a Lightning channel.
-    ///
-    /// `channel_id` is the id of the channel to close, serialized as a
-    /// 64-character hex string (32 bytes).
-    pub fn close_channel(&self, channel_id: String) -> Result<(), FfiError> {
-        let channel_id = SdkChannelId::from_str(&channel_id)
-            .context("Invalid channel_id")?;
-        let req = SdkCloseChannelRequest { channel_id };
-        self.inner.close_channel(req)?;
-        Ok(())
     }
 }
 
@@ -3321,58 +3321,6 @@ impl From<SdkGetHumanBitcoinAddressResponse>
     }
 }
 
-// ========================== //
-// --- Client credentials --- //
-// ========================== //
-
-/// Information about a client authorized to control a Lexe node.
-#[derive(Clone, uniffi::Record)]
-pub struct ClientInfo {
-    /// Hex-encoded public key of the client.
-    pub client_pk: String,
-    /// Client creation time (milliseconds since the UNIX epoch).
-    pub created_at_ms: u64,
-    /// Client expiration time (milliseconds since the UNIX epoch).
-    /// `None` means the client never expires.
-    pub expires_at_ms: Option<u64>,
-    /// Optional label for the client.
-    pub label: Option<String>,
-}
-
-impl From<SdkClientInfo> for ClientInfo {
-    fn from(info: SdkClientInfo) -> Self {
-        Self {
-            client_pk: info.client_pk.to_string(),
-            created_at_ms: info.created_at.to_millis(),
-            expires_at_ms: info.expires_at.map(|t| t.to_millis()),
-            label: info.label,
-        }
-    }
-}
-
-/// Response from creating a new client.
-#[derive(uniffi::Record)]
-pub struct CreateClientResponse {
-    /// Hex-encoded public key of the created client.
-    pub client_pk: String,
-    /// Client creation time (milliseconds since the UNIX epoch).
-    pub created_at_ms: u64,
-    /// The client credentials which authorize control of the node.
-    pub client_credentials: Arc<ClientCredentials>,
-}
-
-impl From<SdkCreateClientResponse> for CreateClientResponse {
-    fn from(resp: SdkCreateClientResponse) -> Self {
-        Self {
-            client_pk: resp.client_pk.to_string(),
-            created_at_ms: resp.created_at.to_millis(),
-            client_credentials: Arc::new(ClientCredentials {
-                sdk: resp.client_credentials,
-            }),
-        }
-    }
-}
-
 // ================ //
 // --- Channels --- //
 // ================ //
@@ -3463,6 +3411,58 @@ impl From<SdkOpenChannelResponse> for OpenChannelResponse {
         Self {
             channel_id: resp.channel_id.to_string(),
             user_channel_id: resp.user_channel_id.to_string(),
+        }
+    }
+}
+
+// ========================== //
+// --- Client credentials --- //
+// ========================== //
+
+/// Information about a client authorized to control a Lexe node.
+#[derive(Clone, uniffi::Record)]
+pub struct ClientInfo {
+    /// Hex-encoded public key of the client.
+    pub client_pk: String,
+    /// Client creation time (milliseconds since the UNIX epoch).
+    pub created_at_ms: u64,
+    /// Client expiration time (milliseconds since the UNIX epoch).
+    /// `None` means the client never expires.
+    pub expires_at_ms: Option<u64>,
+    /// Optional label for the client.
+    pub label: Option<String>,
+}
+
+impl From<SdkClientInfo> for ClientInfo {
+    fn from(info: SdkClientInfo) -> Self {
+        Self {
+            client_pk: info.client_pk.to_string(),
+            created_at_ms: info.created_at.to_millis(),
+            expires_at_ms: info.expires_at.map(|t| t.to_millis()),
+            label: info.label,
+        }
+    }
+}
+
+/// Response from creating a new client.
+#[derive(uniffi::Record)]
+pub struct CreateClientResponse {
+    /// Hex-encoded public key of the created client.
+    pub client_pk: String,
+    /// Client creation time (milliseconds since the UNIX epoch).
+    pub created_at_ms: u64,
+    /// The client credentials which authorize control of the node.
+    pub client_credentials: Arc<ClientCredentials>,
+}
+
+impl From<SdkCreateClientResponse> for CreateClientResponse {
+    fn from(resp: SdkCreateClientResponse) -> Self {
+        Self {
+            client_pk: resp.client_pk.to_string(),
+            created_at_ms: resp.created_at.to_millis(),
+            client_credentials: Arc::new(ClientCredentials {
+                sdk: resp.client_credentials,
+            }),
         }
     }
 }

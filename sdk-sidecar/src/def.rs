@@ -239,6 +239,28 @@ pub trait UserSidecarApi {
         req: &UpdatePersonalNoteRequest,
     ) -> Result<Empty, SdkApiError>;
 
+    /// GET /v2/node/list_channels [`Empty`] -> [`ListChannelsResponse`]
+    ///
+    /// List this node's Lightning channels.
+    async fn list_channels(&self) -> Result<ListChannelsResponse, SdkApiError>;
+
+    /// POST /v2/node/open_channel [`OpenChannelRequest`]
+    ///                         -> [`OpenChannelResponse`]
+    ///
+    /// Open a Lightning channel from this node to Lexe's LSP.
+    async fn open_channel(
+        &self,
+        req: &OpenChannelRequest,
+    ) -> Result<OpenChannelResponse, SdkApiError>;
+
+    /// POST /v2/node/close_channel [`CloseChannelRequest`] -> [`Empty`]
+    ///
+    /// Close a Lightning channel between this node and Lexe's LSP.
+    async fn close_channel(
+        &self,
+        req: &CloseChannelRequest,
+    ) -> Result<Empty, SdkApiError>;
+
     /// GET /v2/node/list_clients [`Empty`] -> [`ListClientsResponse`]
     ///
     /// List the active clients for this node.
@@ -276,26 +298,4 @@ pub trait UserSidecarApi {
         &self,
         req: &RevokeClientRequest,
     ) -> Result<ClientInfoResponse, SdkApiError>;
-
-    /// GET /v2/node/list_channels [`Empty`] -> [`ListChannelsResponse`]
-    ///
-    /// List this node's Lightning channels.
-    async fn list_channels(&self) -> Result<ListChannelsResponse, SdkApiError>;
-
-    /// POST /v2/node/open_channel [`OpenChannelRequest`]
-    ///                         -> [`OpenChannelResponse`]
-    ///
-    /// Open a Lightning channel from this node to Lexe's LSP.
-    async fn open_channel(
-        &self,
-        req: &OpenChannelRequest,
-    ) -> Result<OpenChannelResponse, SdkApiError>;
-
-    /// POST /v2/node/close_channel [`CloseChannelRequest`] -> [`Empty`]
-    ///
-    /// Close a Lightning channel between this node and Lexe's LSP.
-    async fn close_channel(
-        &self,
-        req: &CloseChannelRequest,
-    ) -> Result<Empty, SdkApiError>;
 }
