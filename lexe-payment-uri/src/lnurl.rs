@@ -116,7 +116,7 @@ use lexe_api_core::types::{
     invoice::Invoice,
     lnurl::{
         LnurlCallbackResponse, LnurlErrorWire, LnurlPayRequest,
-        LnurlPayRequestMetadata, LnurlPayRequestWire,
+        LnurlPayRequestMetadata, LnurlPayRequestWire, LnurlVerifyResponse,
     },
 };
 use lexe_common::{constants, env::DeployEnv, ln::amount::Amount};
@@ -368,7 +368,8 @@ impl LnurlClient {
     }
 
     /// Resolves a given [`LnurlPayRequest`] and amount into a
-    /// [`LnurlCallbackResponse`] containing a validated BOLT11 invoice.
+    /// [`LnurlCallbackResponse`] containing a validated BOLT11 invoice and the
+    /// LUD-21 verify URL, if any.
     ///
     /// The amount must be within the min/max range from the pay request.
     /// If `comment` is provided (LUD-12), it is validated against
@@ -481,6 +482,37 @@ impl LnurlClient {
         debug!("Resolved LNURL-pay invoice: {invoice}");
 
         Ok(resp)
+    }
+
+    /// Queries an LNURL-verify URL (LUD-21) to check whether the invoice
+    /// it corresponds to has been settled.
+    pub async fn verify_pay_request(
+        &self,
+        verify_url: &str,
+    ) -> anyhow::Result<LnurlVerifyResponse> {
+        /// The raw LNURL-verify response.
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum RawResponse {
+            Verify(LnurlVerifyResponse),
+            Error(LnurlErrorWire),
+        }
+
+        let resp = self
+            .0
+            .get(verify_url)
+            .send()
+            .await
+            .context("Failed to fetch LNURL-verify endpoint")?
+            .json::<RawResponse>()
+            .await
+            .context("Failed to parse LNURL-verify response")?;
+
+        match resp {
+            RawResponse::Verify(x) => Ok(x),
+            RawResponse::Error(LnurlErrorWire { reason, .. }) =>
+                Err(anyhow!("LNURL-verify endpoint: {reason}")),
+        }
     }
 
     /// Resolve a given LNURL-withdraw HTTP URL into a [`LnurlWithdrawRequest`].
