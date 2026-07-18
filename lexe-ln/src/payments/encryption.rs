@@ -181,6 +181,7 @@ fn encrypt_payment_v1(
         partner: None,
         status: Cow::Borrowed(payment.status().as_str()),
         data,
+        preimage: None,
         version: 1,
         created_at: created_at.to_i64(),
         updated_at: updated_at.to_i64(),
@@ -214,6 +215,8 @@ fn encrypt_payment_v2(
         partner: payment.partner(),
         status: Cow::Borrowed(payment.status().as_str()),
         data,
+        // The .preimage() method only returns Some if it is safe to do so.
+        preimage: payment.preimage(),
         version: 2,
         created_at: created_at.to_i64(),
         updated_at: updated_at.to_i64(),
@@ -235,6 +238,7 @@ fn decrypt_payment_v1(
         partner: _,
         status: db_status,
         data,
+        preimage: _,
         version,
         created_at: _,
         updated_at: _,
@@ -303,6 +307,7 @@ fn decrypt_payment_v2(
         partner,
         status: db_status,
         data,
+        preimage: db_preimage,
         version,
         created_at: _,
         updated_at: _,
@@ -370,6 +375,15 @@ fn decrypt_payment_v2(
         "partner_fee mismatch: db={partner:?}, payment={:?}",
         payment.partner(),
     );
+    // Rows persisted before the preimage column existed may lack a preimage
+    // even for completed payments, so only validate when the field is set.
+    if let Some(db_preimage) = db_preimage {
+        ensure!(
+            payment.preimage() == Some(db_preimage),
+            "preimage mismatch: db={db_preimage:?}, payment={:?}",
+            payment.preimage(),
+        );
+    }
 
     Ok(payment)
 }

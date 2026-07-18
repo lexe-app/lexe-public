@@ -377,6 +377,10 @@ pub struct DbPaymentV2 {
     pub status: Cow<'static, str>,
     #[serde(with = "base64_or_bytes")]
     pub data: Vec<u8>,
+    /// (LN payments only) The plaintext payment preimage, which serves as a
+    /// proof-of-payment. Serves LNURL-verify (LUD-21).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preimage: Option<PaymentPreimage>,
     #[serde(default = "default_version")]
     pub version: i16,
     pub created_at: i64,
@@ -959,6 +963,7 @@ impl DbPaymentV2 {
             fee: None,
             status: Cow::Owned(v1.status),
             data: v1.data,
+            preimage: None,
             partner: None,
             version: 1,
             created_at: v1.created_at,
@@ -979,6 +984,7 @@ impl PartialEq<DbPaymentV2> for DbPaymentV1 {
             && other.amount.is_none()
             && other.fee.is_none()
             && other.partner.is_none()
+            && other.preimage.is_none()
     }
 }
 #[cfg(any(test, feature = "test-utils"))]
@@ -993,6 +999,7 @@ impl PartialEq<DbPaymentV1> for DbPaymentV2 {
             && self.amount.is_none()
             && self.fee.is_none()
             && self.partner.is_none()
+            && self.preimage.is_none()
     }
 }
 
@@ -2135,6 +2142,24 @@ fs_00996e6b999900e8e7273934a7f272eb367fd2ac394f10b3ea1c7164d212c5c5
             let value1: BasicPaymentV2 = serde_json::from_str(input).unwrap();
             let output = serde_json::to_string(&value1).unwrap();
             let value2: BasicPaymentV2 = serde_json::from_str(&output).unwrap();
+            assert_eq!(value1, value2);
+        }
+    }
+
+    #[test]
+    fn db_payment_v2_deser_compat() {
+        let inputs = r#"
+--- Current state
+{"id":"ln_003690453dac3e6c29db4e930c80f797fe0a05bc43ed2d9cff2a62fb7407d3e0","kind":"invoice","direction":"inbound","amount":"10000.123","fee":"12.345","partner":{"user_pk":"52b999003dd3add63f4c1e0a2b23ecbbe2cf10cb1a9e5ea3fcf19dd63e7b6b7e","prop_fee":5000,"base_fee":"1.0","revshare":"0.8"},"status":"completed","data":"3q2+7w==","preimage":"e8d19c2f0ba8f5a3b7b0aa1c69dbe1e01cf6bd3d0e4e2fcd7c8c9b4a3f2e1d09","version":2,"created_at":1721000000000,"updated_at":1721000000001}
+--- Before the partner fee + preimage fields were added
+{"id":"ln_003690453dac3e6c29db4e930c80f797fe0a05bc43ed2d9cff2a62fb7407d3e0","kind":"invoice","direction":"inbound","amount":"10000.123","fee":"12.345","status":"completed","data":"3q2+7w==","version":2,"created_at":1721000000000,"updated_at":1721000000001}
+--- A v1-format payment; also predates the `version` field
+{"id":"os_0a19f5f961bc67b109ce060743141b59dad6cd1edc28a7dd72241fe97da407b3","status":"pending","data":"3q2+7w==","created_at":1721000000000,"updated_at":1721000000001}
+"#;
+        for input in snapshot::parse_sample_data(inputs) {
+            let value1: DbPaymentV2 = serde_json::from_str(input).unwrap();
+            let output = serde_json::to_string(&value1).unwrap();
+            let value2: DbPaymentV2 = serde_json::from_str(&output).unwrap();
             assert_eq!(value1, value2);
         }
     }
