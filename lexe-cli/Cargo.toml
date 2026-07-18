@@ -3,7 +3,7 @@ name = "lexe-cli"
 authors = { workspace = true }
 edition = { workspace = true }
 license = "MIT"
-version = "0.1.17"
+version = "0.1.18"
 
 [[bin]]
 name = "lexe"
