@@ -445,14 +445,38 @@ mod node {
     #[instrument(skip_all, name = "(withdraw-lnurl)")]
     pub(crate) async fn withdraw_lnurl(
         State(state): State<Arc<RouterState>>,
+        LxQuery(params): LxQuery<WithdrawLnurlRequest>,
         WalletAndCredentialsExtractor {
             wallet,
             credentials,
         }: WalletAndCredentialsExtractor,
-        LxJson(req): LxJson<WithdrawLnurlRequest>,
+        maybe_req: Option<LxJson<WithdrawLnurlRequest>>,
     ) -> Result<LxJson<Payment>, SdkApiError> {
+        let req = maybe_req.map(|LxJson(r)| r);
+
+        // Ensure that query params and request body don't conflict
+        let merged = if let Some(withdraw_req) = req {
+            withdraw_req
+                .merge_no_dups(params)
+                .with_context(|| {
+                    "Withdraw request argument can be passed via the body or \
+                     through query parameters, but not both"
+                })
+                .map_err(SdkApiError::command)?
+        } else {
+            params
+        };
+
+        // Ensure we have an lnurl to withdraw from
+        if merged.lnurl.is_none() {
+            return Err(SdkApiError::command(
+                "An lnurl string must be specified via the request body or \
+                 query parameters",
+            ));
+        }
+
         let resp = wallet
-            .withdraw_lnurl(SdkWithdrawLnurlRequest::from(req))
+            .withdraw_lnurl(SdkWithdrawLnurlRequest::from(merged))
             .await
             .map_err(SdkApiError::command)?;
 

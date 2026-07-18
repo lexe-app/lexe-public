@@ -140,6 +140,10 @@ pub trait UserSidecarApi {
     /// POST /v2/node/withdraw_lnurl [`WithdrawLnurlRequest`] -> [`Payment`]
     ///
     /// Withdraw from an LNURL-withdraw endpoint.
+    ///
+    /// Arguments can be given as either query parameters or as fields
+    /// within the JSON body, but requests with duplicate fields will be
+    /// rejected.
     async fn withdraw_lnurl(
         &self,
         req: &WithdrawLnurlRequest,

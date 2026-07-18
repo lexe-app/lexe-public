@@ -136,20 +136,61 @@ impl From<PayLnurlRequest> for SdkPayLnurlRequest {
     }
 }
 
-/// Mirrors [`lexe::types::command::WithdrawLnurlRequest`],
-/// but omits the `withdraw_request` field
+/// Mirrors [`lexe::types::command::WithdrawLnurlRequest`], but omits the
+/// `withdraw_request` field and makes `lnurl` optional so that the requester
+/// can pass arguments as query parameters
 #[derive(Serialize, Deserialize)]
 pub struct WithdrawLnurlRequest {
-    pub lnurl: String,
+    pub lnurl: Option<String>,
     pub amount: Option<Amount>,
     pub description: Option<String>,
     pub personal_note: Option<String>,
 }
 
+impl WithdrawLnurlRequest {
+    /// Merge two [`WithdrawLnurlRequest`]s. Disallows duplicates, even if the
+    /// values are equal.
+    pub fn merge_no_dups(self, other: Self) -> anyhow::Result<Self> {
+        let Self {
+            lnurl,
+            amount,
+            description,
+            personal_note,
+        } = self;
+
+        let err_msg_with = |field| format!("Found duplicate '{field}' field.");
+        ensure!(
+            !(lnurl.is_some() && other.lnurl.is_some()),
+            err_msg_with("lnurl")
+        );
+        ensure!(
+            !(amount.is_some() && other.amount.is_some()),
+            err_msg_with("amount")
+        );
+        ensure!(
+            !(description.is_some() && other.description.is_some()),
+            err_msg_with("description")
+        );
+        ensure!(
+            !(personal_note.is_some() && other.personal_note.is_some()),
+            err_msg_with("personal_note")
+        );
+
+        let merged = Self {
+            lnurl: lnurl.or(other.lnurl),
+            amount: amount.or(other.amount),
+            description: description.or(other.description),
+            personal_note: personal_note.or(other.personal_note),
+        };
+
+        Ok(merged)
+    }
+}
+
 impl From<WithdrawLnurlRequest> for SdkWithdrawLnurlRequest {
     fn from(req: WithdrawLnurlRequest) -> Self {
         Self {
-            lnurl: Some(req.lnurl),
+            lnurl: req.lnurl,
             withdraw_request: None,
             amount: req.amount,
             description: req.description,
