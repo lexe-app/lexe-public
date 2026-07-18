@@ -5,11 +5,15 @@ use std::fmt;
 use anyhow::Context;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64};
 use http::StatusCode;
-use lexe_common::{ByteArray, ln::amount::Amount};
+use lexe_common::{ByteArray, api::user::UserPk, ln::amount::Amount};
 use lexe_sha256::sha256;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{invoice::Invoice, username::Username};
+use crate::types::{
+    invoice::Invoice,
+    payments::{PaymentId, PaymentPreimage},
+    username::Username,
+};
 
 /// The validated and parsed LNURL-pay request ("payRequest").
 ///
@@ -127,6 +131,36 @@ pub struct LnurlCallbackResponse {
     // redundant since BOLT11 invoices already contain route hints.
     #[serde(default)]
     pub routes: Vec<()>,
+    /// LUD-21: URL which can be used to check whether this invoice has been
+    /// settled ("LNURL-verify").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verify: Option<String>,
+}
+
+/// The parameters Lexe encodes in the path of the LNURL-verify URL (LUD-21) it
+/// hands out. Encrypted, like [`LnurlCallbackRequestParams`].
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct LnurlVerifyRequestParams {
+    pub user_pk: UserPk,
+    pub id: PaymentId,
+}
+
+/// The response to an LNURL-verify request (LUD-21).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct LnurlVerifyResponse {
+    /// Always "OK"; errors are returned as [`LnurlErrorWire`].
+    pub status: OkStatus,
+    /// Whether the invoice has been settled.
+    pub settled: bool,
+    /// The payment preimage, if the invoice has been settled.
+    pub preimage: Option<PaymentPreimage>,
+    /// The BOLT11 invoice which this verify URL corresponds to.
+    ///
+    /// The spec requires this field, but Lexe always returns `null` because
+    /// storing the invoices in plaintext in the DB would leak invoice
+    /// descriptions to Lexe.
+    #[serde(rename = "pr")]
+    pub invoice: Option<Invoice>,
 }
 
 /// Error response for lnurl payment requests and callbacks.
@@ -146,6 +180,15 @@ impl LnurlError {
         Self {
             reason: format!("{reason:#}"),
             status_code: StatusCode::BAD_REQUEST,
+        }
+    }
+
+    /// Constructs a "Not found" [`LnurlError`] with a
+    /// [`StatusCode::NOT_FOUND`].
+    pub fn not_found() -> Self {
+        Self {
+            reason: "Not found".to_owned(),
+            status_code: StatusCode::NOT_FOUND,
         }
     }
 
@@ -186,6 +229,13 @@ pub enum ErrorStatus {
     Error,
 }
 
+/// An LNURL `status` field indicating success.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum OkStatus {
+    #[serde(rename = "OK")]
+    Ok,
+}
+
 impl From<LnurlError> for LnurlErrorWire {
     fn from(e: LnurlError) -> Self {
         Self {
@@ -215,7 +265,7 @@ pub struct LnurlPayRequestWire {
     /// Metadata json as raw string (required for signature verification).
     pub metadata: String,
     /// LUD-12: Max comment length in characters, if comments are supported.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment_allowed: Option<u16>,
     /// Type of LNURL (always "payRequest").
     pub tag: LnurlPayRequestTag,
@@ -493,10 +543,27 @@ pub mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<Invoice>()
-                .prop_map(|invoice| LnurlCallbackResponse {
+            (any::<Invoice>(), option::of(any_string()))
+                .prop_map(|(invoice, verify)| LnurlCallbackResponse {
                     invoice,
                     routes: vec![],
+                    verify,
+                })
+                .boxed()
+        }
+    }
+
+    impl proptest::arbitrary::Arbitrary for LnurlVerifyResponse {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<Option<PaymentPreimage>>(), any::<Option<Invoice>>())
+                .prop_map(|(preimage, invoice)| LnurlVerifyResponse {
+                    status: OkStatus::Ok,
+                    settled: preimage.is_some(),
+                    preimage,
+                    invoice,
                 })
                 .boxed()
         }
@@ -517,5 +584,10 @@ mod test {
     #[test]
     fn lnurl_pay_request_callback_roundtrip() {
         roundtrip::json_string_roundtrip_proptest::<LnurlCallbackResponse>();
+    }
+
+    #[test]
+    fn lnurl_verify_response_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<LnurlVerifyResponse>();
     }
 }
