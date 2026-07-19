@@ -1065,7 +1065,8 @@ impl LexeWallet {
                         amount,
                         truncated_comment.as_deref(),
                     )
-                    .await?;
+                    .await?
+                    .invoice;
                 let id = invoice.payment_id();
                 let pay_req = command::PayInvoiceRequest {
                     invoice,
@@ -1357,7 +1358,8 @@ impl LexeWallet {
                 truncated_comment.as_deref(),
             )
             .await
-            .context("Failed to resolve LNURL pay request")?;
+            .context("Failed to resolve LNURL pay request")?
+            .invoice;
 
         // Pay invoice
         let id = invoice.payment_id();

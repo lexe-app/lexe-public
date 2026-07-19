@@ -119,7 +119,8 @@ impl LnurlCallbackRequestParams {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LnurlCallbackResponse {
     /// The BOLT11 invoice to pay.
-    pub pr: Invoice,
+    #[serde(rename = "pr")]
+    pub invoice: Invoice,
     // The LUD-06 spec mandates a `routes` field (always empty array).
     // Modern implementations (Breez SDK, Phoenix) ignore it entirely.
     // It was likely intended for source routing hints but became
@@ -493,7 +494,10 @@ pub mod arbitrary_impl {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             any::<Invoice>()
-                .prop_map(|pr| LnurlCallbackResponse { pr, routes: vec![] })
+                .prop_map(|invoice| LnurlCallbackResponse {
+                    invoice,
+                    routes: vec![],
+                })
                 .boxed()
         }
     }

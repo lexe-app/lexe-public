@@ -620,7 +620,8 @@ impl AppHandle {
                 Amount::from_msat(amount_msats),
                 comment.as_deref(),
             )
-            .await?;
+            .await?
+            .invoice;
         Ok(Invoice::from(lx_invoice))
     }
 

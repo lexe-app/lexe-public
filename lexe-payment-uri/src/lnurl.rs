@@ -367,7 +367,8 @@ impl LnurlClient {
         })
     }
 
-    /// Resolves a given [`LnurlPayRequest`] and amount into a BOLT11 invoice.
+    /// Resolves a given [`LnurlPayRequest`] and amount into a
+    /// [`LnurlCallbackResponse`] containing a validated BOLT11 invoice.
     ///
     /// The amount must be within the min/max range from the pay request.
     /// If `comment` is provided (LUD-12), it is validated against
@@ -377,7 +378,7 @@ impl LnurlClient {
         pay_req: &LnurlPayRequest,
         amount: Amount,
         comment: Option<&str>,
-    ) -> anyhow::Result<Invoice> {
+    ) -> anyhow::Result<LnurlCallbackResponse> {
         let callback = &pay_req.callback;
         debug!(%amount, %callback, "Resolving LNURL-pay request");
 
@@ -445,15 +446,12 @@ impl LnurlClient {
             .await
             .context("Failed to parse LNURL-pay callback response")?;
 
-        let raw_invoice_resp = match raw_response {
+        let resp = match raw_response {
             RawResponse::Invoice(x) => x,
             RawResponse::Error(LnurlErrorWire { reason, .. }) =>
                 return Err(anyhow!("LNURL-pay callback failed: {reason}")),
         };
-        let LnurlCallbackResponse {
-            pr: invoice,
-            routes: _,
-        } = raw_invoice_resp;
+        let invoice = &resp.invoice;
 
         // Validate amount
         let invoice_amount = invoice
@@ -482,7 +480,7 @@ impl LnurlClient {
 
         debug!("Resolved LNURL-pay invoice: {invoice}");
 
-        Ok(invoice)
+        Ok(resp)
     }
 
     /// Resolve a given LNURL-withdraw HTTP URL into a [`LnurlWithdrawRequest`].
@@ -734,7 +732,8 @@ mod test {
         )
         .await
         .unwrap()
-        .unwrap();
+        .unwrap()
+        .invoice;
 
         info!("Successfully received invoice: {invoice}");
         info!("Invoice network: {:?}", invoice.network());
@@ -819,7 +818,8 @@ mod test {
         )
         .await
         .unwrap()
-        .unwrap();
+        .unwrap()
+        .invoice;
 
         let amount = invoice.amount();
         let description_str = invoice.description_str();
