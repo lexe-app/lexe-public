@@ -50,6 +50,10 @@ use lexe_crypto::rng::SysRng;
 
 use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
 
+/// See [`lexe_common::constants::HBA_CLAIM_MIN_BALANCE_SATS`]
+pub const HBA_CLAIM_MIN_BALANCE_SATS: u32 =
+    lexe_common::constants::HBA_CLAIM_MIN_BALANCE_SATS;
+
 /// See [`lexe_common::env::DeployEnv`]
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")

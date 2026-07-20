@@ -99,6 +99,9 @@ impl Args {
             // double-format.
             rust_format: Some(false),
 
+            // Generate dart functions for public rust constants.
+            parse_const: Some(true),
+
             // Other options
             dart3: Some(true),
             dart_format_line_length: Some(80),

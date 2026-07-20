@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:app_rs_dart/ffi/types.dart' show Username;
+import 'package:app_rs_dart/ffi/types.dart'
+    show Username, hbaClaimMinBalanceSats;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
@@ -16,21 +17,36 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
+import 'package:lexeapp/currency_format.dart' show formatSatsAmount;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/human_bitcoin_address.dart'
     show GetHumanBitcoinAddressResponseExt, HumanBitcoinAddressService;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/types.dart' show BalanceState;
+
+/// A user-facing message telling the user to top up before claiming a custom
+/// Human Bitcoin Address.
+String minHbaClaimBalanceMessage() =>
+    "Increase your Lexe wallet balance to at least "
+    "${formatSatsAmount(hbaClaimMinBalanceSats)} to claim a custom "
+    "Human Bitcoin Address.";
 
 /// The entry point for the profile flow.
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.humanBitcoinAddressService});
+  const ProfilePage({
+    super.key,
+    required this.humanBitcoinAddressService,
+    required this.balanceState,
+  });
 
   final HumanBitcoinAddressService humanBitcoinAddressService;
+  final ValueListenable<BalanceState> balanceState;
 
   @override
   Widget build(BuildContext context) => MultistepFlow<String?>(
     builder: (_) => EditHumanBitcoinAddressPage(
       humanBitcoinAddressService: this.humanBitcoinAddressService,
+      balanceState: this.balanceState,
     ),
   );
 }
@@ -40,9 +56,11 @@ class EditHumanBitcoinAddressPage extends StatefulWidget {
   const EditHumanBitcoinAddressPage({
     super.key,
     required this.humanBitcoinAddressService,
+    required this.balanceState,
   });
 
   final HumanBitcoinAddressService humanBitcoinAddressService;
+  final ValueListenable<BalanceState> balanceState;
 
   @override
   State<EditHumanBitcoinAddressPage> createState() =>
@@ -114,6 +132,17 @@ class _EditHumanBitcoinAddressPageState
       this.errorMessage.value = const ErrorMessage(
         title: "Error",
         message: "Human Bitcoin Address is not updatable. Please try later.",
+      );
+      return;
+    }
+
+    // The node rejects claims below the minimum balance; check here for a
+    // faster, clearer error.
+    final int? totalSats = this.widget.balanceState.value.totalSats();
+    if (totalSats != null && totalSats < hbaClaimMinBalanceSats) {
+      this.errorMessage.value = ErrorMessage(
+        title: "Insufficient balance",
+        message: minHbaClaimBalanceMessage(),
       );
       return;
     }

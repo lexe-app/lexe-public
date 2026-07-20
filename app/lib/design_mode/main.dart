@@ -602,6 +602,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             app: mockApp,
             appData: LxAppData(mockApp.appDataDb()),
           ),
+          balanceState: ValueNotifier(BalanceState.placeholder),
         ),
       ),
       Component(

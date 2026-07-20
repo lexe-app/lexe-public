@@ -34,7 +34,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentRail_Unknown,
         PaymentRail_WaivedFee,
         PaymentStatus,
-        ShortPayment;
+        ShortPayment,
+        hbaClaimMinBalanceSats;
 import 'package:app_rs_dart/ffi/types.ext.dart'
     show PaymentRailExt, ShortPaymentExt;
 import 'package:flutter/foundation.dart';
@@ -77,7 +78,8 @@ import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart' show OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart'
     show PaymentDetailPage, PaymentSource;
-import 'package:lexeapp/route/profile.dart' show ProfilePage;
+import 'package:lexeapp/route/profile.dart'
+    show ProfilePage, minHbaClaimBalanceMessage;
 import 'package:lexeapp/route/receive/page.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/security.dart';
@@ -774,11 +776,32 @@ class WalletPageState extends State<WalletPage> {
 
   /// Called when "Profile" (edit username) is pressed in the menu drawer.
   Future<void> onProfileMenuPressed() async {
+    // The node rejects custom HBA claims below the minimum balance; tell the
+    // user to top up instead of sending them to the edit page.
+    final int? totalSats = this.balanceState.value.totalSats();
+    if (totalSats != null && totalSats < hbaClaimMinBalanceSats) {
+      await showDialog<void>(
+        context: this.context,
+        builder: (context) => AlertDialog(
+          title: const Text("Insufficient balance"),
+          content: Text(minHbaClaimBalanceMessage()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close"),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     // Navigate to profile page
     await Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) => ProfilePage(
           humanBitcoinAddressService: this.humanBitcoinAddressService,
+          balanceState: this.balanceState,
         ),
       ),
     );
