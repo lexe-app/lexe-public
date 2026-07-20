@@ -164,6 +164,7 @@ pub enum LexeCommand {
     WithdrawLnurl(WithdrawLnurlArgs),
     BuyWithCashApp(BuyWithCashAppArgs),
     GetHumanBitcoinAddress(GetHumanBitcoinAddressArgs),
+    UpdateHumanBitcoinAddress(UpdateHumanBitcoinAddressArgs),
     SyncPayments(SyncPaymentsArgs),
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
@@ -304,6 +305,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
         LexeCommand::BuyWithCashApp(a) => a.run(&wallet).await,
         LexeCommand::GetHumanBitcoinAddress(a) => a.run(&wallet).await,
+        LexeCommand::UpdateHumanBitcoinAddress(a) => a.run(&wallet).await,
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
@@ -1456,9 +1458,9 @@ impl BuyWithCashAppArgs {
     about = "Get your Human Bitcoin Address",
     long_about = "Get your Human Bitcoin Address.\n\
         \n\
-        The Human Bitcoin Address (BIP 353), e.g. ₿satoshi@lexe.app, is a\n\
+        The Human Bitcoin Address (BIP 353), e.g. ₿username@lexe.app, is a\n\
         human-readable address which others can pay to send Bitcoin to this\n\
-        wallet. It also works as a Lightning Address (satoshi@lexe.app) for\n\
+        wallet. It also works as a Lightning Address (username@lexe.app) for\n\
         senders which support LNURL but not BIP 353.",
     help_template = HELP_TEMPLATE,
 )]
@@ -1478,6 +1480,70 @@ impl GetHumanBitcoinAddressArgs {
             .get_human_bitcoin_address()
             .await
             .context("Failed to get Human Bitcoin Address")?;
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        let human_bitcoin_address = &resp.human_bitcoin_address;
+        let lightning_address = &resp.lightning_address;
+        let updatable = resp.updatable;
+        println!("\nHuman Bitcoin Address: {human_bitcoin_address}");
+        println!("Lightning Address: {lightning_address}");
+        println!("Updatable: {updatable}");
+
+        let offer = &resp.offer;
+        println!("\nOffer:\n");
+        // Don't wrap this to keep it copy/paste-able
+        println!("{offer}");
+
+        if !self.no_qr {
+            println!("\nScan this QR code to pay this offer:");
+            // Encode the QR as a `bitcoin:?lno=<offer>` URI, matching how the
+            // Lexe app encodes BOLT12 offers (see `PaymentOffer.uri` in app).
+            helpers::encode_and_print_qr(&format!("bitcoin:?lno={offer}"))?;
+        }
+
+        Ok(())
+    }
+}
+
+// --- `update-human-bitcoin-address` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Claim or update your custom Human Bitcoin Address",
+    long_about = "Claim or update your custom Human Bitcoin Address.\n\
+        \n\
+        Sets this wallet's Human Bitcoin Address to ₿<username>@lexe.app and\n\
+        its Lightning Address to <username>@lexe.app. Usernames must be 6 to\n\
+        24 characters of lowercase alphanumerics and hyphens, and must not\n\
+        start with, end with, or contain consecutive hyphens.\n\
+        \n\
+        Claiming requires a total wallet balance of at least 10000 sats. Once\n\
+        claimed, the username can be changed for 24 hours, then is frozen\n\
+        for 90 days.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct UpdateHumanBitcoinAddressArgs {
+    /// The username to claim, e.g. "username" for ₿username@lexe.app
+    username: String,
+
+    /// Don't render the QR code
+    #[arg(long)]
+    no_qr: bool,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl UpdateHumanBitcoinAddressArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .update_human_bitcoin_address(&self.username)
+            .await
+            .context("Failed to update Human Bitcoin Address")?;
 
         if self.json {
             return helpers::print_json_pretty(&resp);

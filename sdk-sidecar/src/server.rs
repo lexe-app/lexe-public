@@ -48,7 +48,8 @@ use crate::{
     api::{
         AnalyzeResponse, ClaimableDetails, HealthCheckResponse,
         ListPaymentsRequest, PayLnurlRequest, PayRequest, PayableDetails,
-        SignupRequest, UpdateClientRequest, WithdrawLnurlRequest,
+        SignupRequest, UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
+        WithdrawLnurlRequest,
     },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
@@ -99,7 +100,8 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/buy_with_cash_app", post(node::buy_with_cash_app))
         .route(
             "/v2/node/human_bitcoin_address",
-            get(node::get_human_bitcoin_address),
+            get(node::get_human_bitcoin_address)
+                .put(node::update_human_bitcoin_address),
         )
         .route("/v2/node/sync_payments", put(node::sync_payments))
         .route("/v2/node/list_payments", get(node::list_payments))
@@ -555,6 +557,19 @@ mod node {
     ) -> Result<LxJson<GetHumanBitcoinAddressResponse>, SdkApiError> {
         let resp = wallet
             .get_human_bitcoin_address()
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(update-human-bitcoin-address)")]
+    pub(crate) async fn update_human_bitcoin_address(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<UpdateHumanBitcoinAddressRequest>,
+    ) -> Result<LxJson<GetHumanBitcoinAddressResponse>, SdkApiError> {
+        let resp = wallet
+            .update_human_bitcoin_address(&req.username)
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(resp))

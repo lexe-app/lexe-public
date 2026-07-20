@@ -220,6 +220,11 @@ impl From<WithdrawLnurlRequest> for SdkWithdrawLnurlRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct UpdateHumanBitcoinAddressRequest {
+    pub username: String,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct ListPaymentsRequest {
     pub filter: PaymentFilter,
     pub order: Option<Order>,

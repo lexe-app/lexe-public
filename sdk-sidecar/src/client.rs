@@ -23,7 +23,7 @@ use crate::{
     api::{
         AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
         PayLnurlRequest, PayRequest, SignupRequest, UpdateClientRequest,
-        WithdrawLnurlRequest,
+        UpdateHumanBitcoinAddressRequest, WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };
@@ -172,6 +172,16 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/human_bitcoin_address");
         let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn update_human_bitcoin_address(
+        &self,
+        req: &UpdateHumanBitcoinAddressRequest,
+    ) -> Result<GetHumanBitcoinAddressResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/human_bitcoin_address");
+        let http_req = self.rest.put(url, req);
         self.rest.send(http_req).await
     }
 

@@ -26,7 +26,8 @@ use lexe_api::{error::SdkApiError, types::Empty};
 
 use crate::api::{
     AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest,
-    PayRequest, SignupRequest, UpdateClientRequest, WithdrawLnurlRequest,
+    PayRequest, SignupRequest, UpdateClientRequest,
+    UpdateHumanBitcoinAddressRequest, WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -170,12 +171,30 @@ pub trait UserSidecarApi {
     ///
     /// Get the user's Human Bitcoin Address.
     ///
-    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`, is a
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿username@lexe.app`, is a
     /// human-readable address which others can pay to send Bitcoin to this
-    /// wallet. It also works as a Lightning Address (`satoshi@lexe.app`) for
+    /// wallet. It also works as a Lightning Address (`username@lexe.app`) for
     /// senders which support LNURL but not BIP 353.
     async fn get_human_bitcoin_address(
         &self,
+    ) -> Result<GetHumanBitcoinAddressResponse, SdkApiError>;
+
+    /// PUT /v2/node/human_bitcoin_address [`UpdateHumanBitcoinAddressRequest`]
+    ///                                 -> [`GetHumanBitcoinAddressResponse`]
+    ///
+    /// Claim or update the user's custom Human Bitcoin Address.
+    ///
+    /// Sets this wallet's Human Bitcoin Address to `₿{username}@lexe.app`
+    /// and its Lightning Address to `{username}@lexe.app`. Usernames must
+    /// be 6 to 24 characters of lowercase alphanumerics and hyphens, and
+    /// must not start with, end with, or contain consecutive hyphens.
+    ///
+    /// Claiming requires a total wallet balance of at least 10000 sats. Once
+    /// claimed, the username can be changed for 24 hours, then is frozen
+    /// for 90 days.
+    async fn update_human_bitcoin_address(
+        &self,
+        req: &UpdateHumanBitcoinAddressRequest,
     ) -> Result<GetHumanBitcoinAddressResponse, SdkApiError>;
 
     /// PUT /v2/node/sync_payments [`Empty`] -> [`PaymentSyncSummary`]

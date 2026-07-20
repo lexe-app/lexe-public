@@ -668,8 +668,8 @@ Supported encodings:
 - BOLT 11 invoice: ``lnbc1...``
 - BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Human Bitcoin Address: ``₿satoshi@lexe.app``
-- Lightning Address: ``satoshi@lexe.app``
+- Human Bitcoin Address: ``₿username@lexe.app``
+- Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
 
 Within the encodings, the following payment methods are supported:
@@ -697,7 +697,7 @@ Raises:
 
 Example::
 
-    resp = wallet.analyze("satoshi@lexe.app")
+    resp = wallet.analyze("username@lexe.app")
     details = resp.payables[0]
     print(details.payable)         # "https://lexe.app/.well-known/lnurlp/satoshi"
     print(details.method)          # PaymentMethod.LNURL_PAY(...)
@@ -719,8 +719,8 @@ Supported encodings:
 - BOLT 11 invoice: ``lnbc1...``
 - BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Human Bitcoin Address: ``₿satoshi@lexe.app``
-- Lightning Address: ``satoshi@lexe.app``
+- Human Bitcoin Address: ``₿username@lexe.app``
+- Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
 
 Args:
@@ -743,7 +743,7 @@ Raises:
 
 Example::
 
-    payment = wallet.pay("satoshi@lexe.app", amount_sats=1000)
+    payment = wallet.pay("username@lexe.app", amount_sats=1000)
     print(f"Payment {payment.status}")
 """)
 
@@ -938,9 +938,9 @@ Example::
 _set_method_doc(LexeWallet, "get_human_bitcoin_address", """\
 Get the user's Human Bitcoin Address.
 
-The Human Bitcoin Address (BIP 353), e.g. ``₿satoshi@lexe.app``, is a
+The Human Bitcoin Address (BIP 353), e.g. ``₿username@lexe.app``, is a
 human-readable address which others can pay to send Bitcoin to this wallet.
-It also works as a Lightning Address (``satoshi@lexe.app``) for senders which
+It also works as a Lightning Address (``username@lexe.app``) for senders which
 support LNURL but not BIP 353.
 
 Returns:
@@ -954,6 +954,36 @@ Raises:
 Example::
 
     resp = wallet.get_human_bitcoin_address()
+    print(resp.human_bitcoin_address)
+""")
+
+_set_method_doc(LexeWallet, "update_human_bitcoin_address", """\
+Claim or update the user's custom Human Bitcoin Address.
+
+Sets this wallet's Human Bitcoin Address to ``₿{username}@lexe.app`` and its
+Lightning Address to ``{username}@lexe.app``. Usernames must be 6 to 24
+characters of lowercase alphanumerics and hyphens, and must not start with,
+end with, or contain consecutive hyphens.
+
+Claiming requires a total wallet balance of at least 10000 sats. Once claimed,
+the username can be changed for 24 hours, then is frozen for 90 days.
+
+Args:
+    username: The username to claim, e.g. ``"username"`` for
+        ``₿username@lexe.app``.
+
+Returns:
+    A :class:`GetHumanBitcoinAddressResponse` with the new Human Bitcoin
+    Address, the Lightning Address, the BOLT 12 offer that the address
+    resolves to, and whether the username can currently be changed.
+
+Raises:
+    FfiError: If the username is invalid or taken, the wallet balance is
+        below the minimum, or the username is frozen.
+
+Example::
+
+    resp = wallet.update_human_bitcoin_address("username")
     print(resp.human_bitcoin_address)
 """)
 
@@ -1418,8 +1448,8 @@ Supported encodings:
 - BOLT 11 invoice: ``lnbc1...``
 - BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Human Bitcoin Address: ``₿satoshi@lexe.app``
-- Lightning Address: ``satoshi@lexe.app``
+- Human Bitcoin Address: ``₿username@lexe.app``
+- Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
 
 Within the encodings, the following payment methods are supported:
@@ -1447,7 +1477,7 @@ Raises:
 
 Example::
 
-    resp = await wallet.analyze("satoshi@lexe.app")
+    resp = await wallet.analyze("username@lexe.app")
     details = resp.payables[0]
     print(details.payable)         # "https://lexe.app/.well-known/lnurlp/satoshi"
     print(details.method)          # PaymentMethod.LNURL_PAY(...)
@@ -1469,8 +1499,8 @@ Supported encodings:
 - BOLT 11 invoice: ``lnbc1...``
 - BOLT 12 offer: ``lno1...``
 - Onchain bitcoin address: ``bc1...``
-- Human Bitcoin Address: ``₿satoshi@lexe.app``
-- Lightning Address: ``satoshi@lexe.app``
+- Human Bitcoin Address: ``₿username@lexe.app``
+- Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
 
 Args:
@@ -1493,7 +1523,7 @@ Raises:
 
 Example::
 
-    payment = await wallet.pay("satoshi@lexe.app", amount_sats=1000)
+    payment = await wallet.pay("username@lexe.app", amount_sats=1000)
     print(f"Payment {payment.status}")
 """)
 
@@ -1688,9 +1718,9 @@ Example::
 _set_method_doc(AsyncLexeWallet, "get_human_bitcoin_address", """\
 Get the user's Human Bitcoin Address.
 
-The Human Bitcoin Address (BIP 353), e.g. ``₿satoshi@lexe.app``, is a
+The Human Bitcoin Address (BIP 353), e.g. ``₿username@lexe.app``, is a
 human-readable address which others can pay to send Bitcoin to this wallet.
-It also works as a Lightning Address (``satoshi@lexe.app``) for senders which
+It also works as a Lightning Address (``username@lexe.app``) for senders which
 support LNURL but not BIP 353.
 
 Returns:
@@ -1704,6 +1734,36 @@ Raises:
 Example::
 
     resp = await wallet.get_human_bitcoin_address()
+    print(resp.human_bitcoin_address)
+""")
+
+_set_method_doc(AsyncLexeWallet, "update_human_bitcoin_address", """\
+Claim or update the user's custom Human Bitcoin Address.
+
+Sets this wallet's Human Bitcoin Address to ``₿{username}@lexe.app`` and its
+Lightning Address to ``{username}@lexe.app``. Usernames must be 6 to 24
+characters of lowercase alphanumerics and hyphens, and must not start with,
+end with, or contain consecutive hyphens.
+
+Claiming requires a total wallet balance of at least 10000 sats. Once claimed,
+the username can be changed for 24 hours, then is frozen for 90 days.
+
+Args:
+    username: The username to claim, e.g. ``"username"`` for
+        ``₿username@lexe.app``.
+
+Returns:
+    A :class:`GetHumanBitcoinAddressResponse` with the new Human Bitcoin
+    Address, the Lightning Address, the BOLT 12 offer that the address
+    resolves to, and whether the username can currently be changed.
+
+Raises:
+    FfiError: If the username is invalid or taken, the wallet balance is
+        below the minimum, or the username is frozen.
+
+Example::
+
+    resp = await wallet.update_human_bitcoin_address("username")
     print(resp.human_bitcoin_address)
 """)
 
@@ -2406,8 +2466,8 @@ The user's Human Bitcoin Address.
 
 Attributes:
     human_bitcoin_address: The Human Bitcoin Address (BIP 353), e.g.
-        ``₿satoshi@lexe.app``.
-    lightning_address: The Lightning Address, e.g. ``satoshi@lexe.app``.
+        ``₿username@lexe.app``.
+    lightning_address: The Lightning Address, e.g. ``username@lexe.app``.
     offer: The BOLT 12 offer that the Human Bitcoin Address resolves to.
     updatable: Whether the username can currently be changed. Usernames are
         updatable for 24 hours after being claimed, then frozen for 90 days.
