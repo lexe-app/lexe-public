@@ -679,6 +679,7 @@ pub(super) async fn upsert_custom_human_bitcoin_address(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UsernameStruct>,
 ) -> Result<LxJson<UpsertHumanBitcoinAddressResponse>, NodeApiError> {
+    check_hba_claim_min_balance(&state)?;
     let (token, req) = build_upsert_custom_hba_request(&state, req).await?;
     let resp = state
         .persister
@@ -687,6 +688,33 @@ pub(super) async fn upsert_custom_human_bitcoin_address(
         .await
         .map_err(NodeApiError::command)?;
     Ok(LxJson(resp))
+}
+
+/// Require a minimum total wallet balance to claim or update a custom HBA.
+/// Deters mass-claiming of usernames.
+fn check_hba_claim_min_balance(
+    state: &RouterState,
+) -> Result<(), NodeApiError> {
+    let channels = state.channel_manager.list_channels();
+    let (lightning_balance, _num_usable_channels) =
+        lexe_ln::balance::all_channel_balances(
+            &state.chain_monitor,
+            &channels,
+            state.lsp_info.lsp_fees(),
+        );
+    let onchain_balance = Amount::try_from(state.wallet.get_balance().total())
+        .map_err(NodeApiError::command)?;
+    let balance = lightning_balance.total() + onchain_balance;
+
+    let min_balance =
+        Amount::from_sats_u32(constants::HBA_CLAIM_MIN_BALANCE_SATS);
+    if balance < min_balance {
+        return Err(NodeApiError::command(format!(
+            "Claiming a custom Human Bitcoin Address requires a total \
+             wallet balance of at least {min_balance} sats"
+        )));
+    }
+    Ok(())
 }
 
 async fn build_upsert_custom_hba_request(

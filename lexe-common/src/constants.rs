@@ -118,6 +118,13 @@ pub const LSP_USERNODE_CHANNEL_MIN_FUNDING_SATS: u32 = 5_000;
 /// [`ConfirmationTarget::NonAnchorChannelFee`]: lightning::chain::chaininterface::ConfirmationTarget::NonAnchorChannelFee
 pub const FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS: u64 = 50;
 
+// --- Human Bitcoin Addresses --- //
+
+/// The minimum total wallet balance (in sats) required to claim or update a
+/// custom Human Bitcoin Address. Deters mass-claiming of usernames.
+// 10k sats = $5 at $50k/BTC or $10 at $100k/BTC
+pub const HBA_CLAIM_MIN_BALANCE_SATS: u32 = 10_000;
+
 // --- Persistence --- //
 
 /// The default number of persist retries for important objects.
