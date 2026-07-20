@@ -207,8 +207,8 @@ pub struct ClaimableDetails {
 ///   - BOLT 11 invoice: `lnbc1...`
 ///   - BOLT 12 offer: `lno1...`
 ///   - Onchain bitcoin address: `bc1...`
-///   - Human Bitcoin Address: `₿satoshi@lexe.app`
-///   - Lightning Address: `satoshi@lexe.app`
+///   - Human Bitcoin Address: `₿username@lexe.app`
+///   - Lightning Address: `username@lexe.app`
 ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
 ///
 /// See [`PaymentMethod`] for more details on supported payment methods.
@@ -592,9 +592,9 @@ pub struct CashAppBuyResponse {
 /// The user's Human Bitcoin Address.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetHumanBitcoinAddressResponse {
-    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`.
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿username@lexe.app`.
     pub human_bitcoin_address: String,
-    /// The Lightning Address, e.g. `satoshi@lexe.app`.
+    /// The Lightning Address, e.g. `username@lexe.app`.
     pub lightning_address: String,
     /// The BOLT 12 offer that the Human Bitcoin Address resolves to.
     pub offer: Offer,

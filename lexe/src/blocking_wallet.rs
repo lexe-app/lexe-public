@@ -284,8 +284,8 @@ impl BlockingLexeWallet {
     ///   - BOLT 11 invoice: `lnbc1...`
     ///   - BOLT 12 offer: `lno1...`
     ///   - Onchain bitcoin address: `bc1...`
-    ///   - Human Bitcoin Address: `₿satoshi@lexe.app`
-    ///   - Lightning Address: `satoshi@lexe.app`
+    ///   - Human Bitcoin Address: `₿username@lexe.app`
+    ///   - Lightning Address: `username@lexe.app`
     ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
     ///
     /// Within the encodings, the following payment methods are supported:
@@ -327,8 +327,8 @@ impl BlockingLexeWallet {
     ///   - BOLT 11 invoice: `lnbc1...`
     ///   - BOLT 12 offer: `lno1...`
     ///   - Onchain bitcoin address: `bc1...`
-    ///   - Human Bitcoin Address: `₿satoshi@lexe.app`
-    ///   - Lightning Address: `satoshi@lexe.app`
+    ///   - Human Bitcoin Address: `₿username@lexe.app`
+    ///   - Lightning Address: `username@lexe.app`
     ///   - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
     ///
     /// See [`PaymentMethod`] for more details on supported payment methods.
@@ -413,14 +413,31 @@ impl BlockingLexeWallet {
 
     /// Get the user's Human Bitcoin Address.
     ///
-    /// The Human Bitcoin Address (BIP 353), e.g. `₿satoshi@lexe.app`, is a
+    /// The Human Bitcoin Address (BIP 353), e.g. `₿username@lexe.app`, is a
     /// human-readable address which others can pay to send Bitcoin to this
-    /// wallet. It also works as a Lightning Address (`satoshi@lexe.app`) for
+    /// wallet. It also works as a Lightning Address (`username@lexe.app`) for
     /// senders which support LNURL but not BIP 353.
     pub fn get_human_bitcoin_address(
         &self,
     ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
         block_on(self.inner.get_human_bitcoin_address())
+    }
+
+    /// Claim or update the user's custom Human Bitcoin Address.
+    ///
+    /// Sets this wallet's Human Bitcoin Address to `₿{username}@lexe.app`
+    /// and its Lightning Address to `{username}@lexe.app`. Usernames must
+    /// be 6 to 24 characters of lowercase alphanumerics and hyphens, and
+    /// must not start with, end with, or contain consecutive hyphens.
+    ///
+    /// Claiming requires a total wallet balance of at least 10000 sats. Once
+    /// claimed, the username can be changed for 24 hours, then is frozen
+    /// for 90 days.
+    pub fn update_human_bitcoin_address(
+        &self,
+        username: &str,
+    ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
+        block_on(self.inner.update_human_bitcoin_address(username))
     }
 
     // --- Payment information and management --- //
