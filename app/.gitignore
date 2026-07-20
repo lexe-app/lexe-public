@@ -14,3 +14,8 @@ app.*.symbols
 
 # Obfuscation related
 app.*.map.json
+
+# Store release-notes copies, generated from release-notes/ at release time
+/ios/fastlane/metadata/en-US/release_notes.txt
+/android/fastlane/metadata/android/en-US/changelogs/*
+!/android/fastlane/metadata/android/en-US/changelogs/default.txt
