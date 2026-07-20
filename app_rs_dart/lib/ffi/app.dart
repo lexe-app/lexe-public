@@ -274,17 +274,18 @@ class AppHandle {
   Future<bool> syncPayments() =>
       AppRs.instance.api.crateFfiAppAppHandleSyncPayments(that: this);
 
+  /// Claim or update the user's custom Human Bitcoin Address.
+  Future<GetHumanBitcoinAddressResponse> updateHumanBitcoinAddress({
+    required Username username,
+  }) => AppRs.instance.api.crateFfiAppAppHandleUpdateHumanBitcoinAddress(
+    that: this,
+    username: username,
+  );
+
   Future<void> updatePersonalNote({required UpdatePersonalNote req}) => AppRs
       .instance
       .api
       .crateFfiAppAppHandleUpdatePersonalNote(that: this, req: req);
-
-  Future<GetHumanBitcoinAddressResponse> upsertCustomHumanBitcoinAddress({
-    required Username username,
-  }) => AppRs.instance.api.crateFfiAppAppHandleUpsertCustomHumanBitcoinAddress(
-    that: this,
-    username: username,
-  );
 
   /// flutter_rust_bridge:sync
   AppUserInfo walletUser() =>

@@ -611,7 +611,7 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<GetHumanBitcoinAddressResponse> upsertCustomHumanBitcoinAddress({
+  Future<GetHumanBitcoinAddressResponse> updateHumanBitcoinAddress({
     required Username username,
   }) => Future.delayed(
     const Duration(milliseconds: 1500),
@@ -758,7 +758,7 @@ class MockAppHandleErr extends MockAppHandle {
       );
 
   @override
-  Future<GetHumanBitcoinAddressResponse> upsertCustomHumanBitcoinAddress({
+  Future<GetHumanBitcoinAddressResponse> updateHumanBitcoinAddress({
     required Username username,
   }) => Future.delayed(
     const Duration(milliseconds: 1500),

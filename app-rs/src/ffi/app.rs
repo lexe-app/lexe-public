@@ -6,7 +6,6 @@ use lexe::{
         command::{
             CashAppBuyRequest as CashAppBuyRequestRs,
             CreateClientRequest as CreateClientRequestRs,
-            GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs,
             RevokeClientRequest as RevokeClientRequestRs,
             WithdrawLnurlRequest as WithdrawLnurlRequestRs,
         },
@@ -28,9 +27,6 @@ use lexe_api::{
         Empty,
         lnurl::LnurlPayRequest as LnurlPayRequestRs,
         payments::{PaymentCreatedIndex as PaymentCreatedIndexRs, PaymentId},
-        username::{
-            Username as UsernameRs, UsernameStruct as UsernameStructRs,
-        },
     },
 };
 use lexe_common::{env::DeployEnv, ln::amount::Amount};
@@ -662,19 +658,18 @@ impl AppHandle {
         Ok(GetHumanBitcoinAddressResponse::from(resp))
     }
 
-    pub async fn upsert_custom_human_bitcoin_address(
+    /// Claim or update the user's custom Human Bitcoin Address.
+    #[instrument(skip_all, name = "(update-human-bitcoin-address)")]
+    pub async fn update_human_bitcoin_address(
         &self,
         username: Username,
     ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
-        let req = UsernameStructRs {
-            username: UsernameRs::try_from(username)?,
-        };
+        let username = username.into_inner();
         let resp = self
             .inner
-            .node_client()?
-            .upsert_custom_human_bitcoin_address(req)
+            .wallet()?
+            .update_human_bitcoin_address(&username)
             .await?;
-        let resp = GetHumanBitcoinAddressResponseRs::from(resp.hba);
         Ok(GetHumanBitcoinAddressResponse::from(resp))
     }
 }

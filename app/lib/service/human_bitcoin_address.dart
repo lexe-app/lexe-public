@@ -93,7 +93,7 @@ class HumanBitcoinAddressService {
 
     this._isUpdating.value = true;
     final res = await Result.tryFfiAsync(
-      () => this._app.upsertCustomHumanBitcoinAddress(username: username),
+      () => this._app.updateHumanBitcoinAddress(username: username),
     );
     if (this.isDisposed) return Err("Already disposed");
 

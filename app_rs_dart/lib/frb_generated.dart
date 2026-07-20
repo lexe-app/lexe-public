@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 2058057357;
+  int get rustContentHash => 1147189394;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -287,15 +287,15 @@ abstract class AppRsApi extends BaseApi {
 
   Future<bool> crateFfiAppAppHandleSyncPayments({required AppHandle that});
 
+  Future<GetHumanBitcoinAddressResponse>
+  crateFfiAppAppHandleUpdateHumanBitcoinAddress({
+    required AppHandle that,
+    required Username username,
+  });
+
   Future<void> crateFfiAppAppHandleUpdatePersonalNote({
     required AppHandle that,
     required UpdatePersonalNote req,
-  });
-
-  Future<GetHumanBitcoinAddressResponse>
-  crateFfiAppAppHandleUpsertCustomHumanBitcoinAddress({
-    required AppHandle that,
-    required Username username,
   });
 
   AppUserInfo crateFfiAppAppHandleWalletUser({required AppHandle that});
@@ -2044,6 +2044,42 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
+  Future<GetHumanBitcoinAddressResponse>
+  crateFfiAppAppHandleUpdateHumanBitcoinAddress({
+    required AppHandle that,
+    required Username username,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_handle(that, serializer);
+          sse_encode_box_autoadd_username(username, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 49,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_get_human_bitcoin_address_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateFfiAppAppHandleUpdateHumanBitcoinAddressConstMeta,
+        argValues: [that, username],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiAppAppHandleUpdateHumanBitcoinAddressConstMeta =>
+      const TaskConstMeta(
+        debugName: "app_handle_update_human_bitcoin_address",
+        argNames: ["that", "username"],
+      );
+
+  @override
   Future<void> crateFfiAppAppHandleUpdatePersonalNote({
     required AppHandle that,
     required UpdatePersonalNote req,
@@ -2057,7 +2093,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 50,
             port: port_,
           );
         },
@@ -2076,44 +2112,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(
         debugName: "app_handle_update_personal_note",
         argNames: ["that", "req"],
-      );
-
-  @override
-  Future<GetHumanBitcoinAddressResponse>
-  crateFfiAppAppHandleUpsertCustomHumanBitcoinAddress({
-    required AppHandle that,
-    required Username username,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_app_handle(that, serializer);
-          sse_encode_box_autoadd_username(username, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 50,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_get_human_bitcoin_address_response,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta:
-            kCrateFfiAppAppHandleUpsertCustomHumanBitcoinAddressConstMeta,
-        argValues: [that, username],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateFfiAppAppHandleUpsertCustomHumanBitcoinAddressConstMeta =>
-      const TaskConstMeta(
-        debugName: "app_handle_upsert_custom_human_bitcoin_address",
-        argNames: ["that", "username"],
       );
 
   @override
