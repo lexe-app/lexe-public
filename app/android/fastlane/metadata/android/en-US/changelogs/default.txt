@@ -1,0 +1,3 @@
+Bug fixes and improvements.
+
+Full changelog: https://lexe.app/releases
