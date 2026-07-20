@@ -104,6 +104,15 @@ class _EditHumanBitcoinAddressPageState
     }
   }
 
+  /// While a validation error is showing, revalidate on each edit so the
+  /// error clears as soon as the input becomes valid. Also clear any stale
+  /// submit error. Doesn't validate before the first submit (good UX).
+  void onChanged(String _str) {
+    final usernameField = this.usernameKey.currentState!;
+    if (usernameField.hasError) usernameField.validate();
+    this.errorMessage.value = null;
+  }
+
   Future<void> onSubmit() async {
     if (this.widget.humanBitcoinAddressService.isDisposed) return;
     if (this.isLoading.value) return;
@@ -182,6 +191,7 @@ class _EditHumanBitcoinAddressPageState
             initialValue: this.initialUsername,
             textInputAction: TextInputAction.done,
             validator: (str) => this.validateUsername(str).err,
+            onChanged: this.onChanged,
             onEditingComplete: this.onSubmit,
             decoration: baseInputDecoration.copyWith(
               hintText: "username",
