@@ -38,6 +38,7 @@ use crate::{
 pub const SINGLETON_DIRECTORY: &str = ".";
 
 pub const BROADCASTED_TXS_DIR: &str = "broadcasted_txs";
+pub const BUDGETS_DIR: &str = "budgets";
 pub const CHANNEL_MONITORS_ARCHIVE_DIR: &str = "channel_monitors_archive";
 pub const CHANNEL_MONITORS_DIR: &str = "channel_monitors";
 pub const EVENTS_DIR: &str = "events";

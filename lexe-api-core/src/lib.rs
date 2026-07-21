@@ -17,6 +17,8 @@
 //! This issue is due to a limitation in serde. See:
 //! <https://github.com/serde-rs/serde/issues/1183>
 
+/// Budgeting for revocable and NWC clients.
+pub mod budget;
 /// Enclave CLI args and types.
 pub mod cli;
 /// Traits defining Lexe's various APIs.

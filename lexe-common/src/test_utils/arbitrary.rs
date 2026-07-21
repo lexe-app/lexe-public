@@ -241,12 +241,46 @@ pub fn any_semver_version() -> impl Strategy<Value = semver::Version> {
     )
 }
 
+/// A datetime between the years 1 and ~2738, in a whole-minute UTC offset
+/// (as RFC 3339 requires) strictly within ±24h. Does not include leap seconds.
+pub fn any_fixed_offset_datetime()
+-> impl Strategy<Value = chrono::DateTime<chrono::FixedOffset>> {
+    let days_range = 1..=1_000_000_i32;
+    let secs_range = 0..86_400_u32;
+    let nanos_range = 0..1_000_000_000_u32;
+    let offset_mins_range = -1439..=1439_i32;
+    (days_range, secs_range, nanos_range, offset_mins_range).prop_map(
+        |(days, secs, nanos, offset_mins)| {
+            let date =
+                chrono::NaiveDate::from_num_days_from_ce_opt(days).unwrap();
+            let time = chrono::NaiveTime::from_num_seconds_from_midnight_opt(
+                secs, nanos,
+            )
+            .unwrap();
+            let offset =
+                chrono::FixedOffset::east_opt(offset_mins * 60).unwrap();
+            date.and_time(time).and_local_timezone(offset).unwrap()
+        },
+    )
+}
+
 pub fn any_decimal() -> impl Strategy<Value = Decimal> {
+    any_decimal_with_sign(any::<bool>())
+}
+
+/// A [`Decimal`] that is zero or positive.
+pub fn any_nonneg_decimal() -> impl Strategy<Value = Decimal> {
+    any_decimal_with_sign(Just(false))
+}
+
+fn any_decimal_with_sign(
+    negative: impl Strategy<Value = bool>,
+) -> impl Strategy<Value = Decimal> {
     (
         any::<u32>(),
         any::<u32>(),
         any::<u32>(),
-        any::<bool>(),
+        negative,
         // Scale must be between 0 and 28 (inclusive).
         0u32..=28,
     )

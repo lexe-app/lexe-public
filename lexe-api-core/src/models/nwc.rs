@@ -6,6 +6,7 @@
 //!
 //! [NIP-47]: https://github.com/nostr-protocol/nips/blob/master/47.md
 
+use lexe_byte_array::ByteArray;
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{RefCast, time::TimestampMs};
@@ -25,6 +26,7 @@ pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 lexe_byte_array::impl_byte_array!(NostrPk, 32);
 lexe_byte_array::impl_debug_display_as_hex!(NostrPk);
+lexe_byte_array::impl_fromstr_fromhex!(NostrPk, 32);
 
 impl NostrPk {
     pub const fn from_ref(bytes: &[u8; 32]) -> &Self {
