@@ -939,6 +939,8 @@ api_error_kind! {
         LeaseExpired = 109,
         /// Tried to renew a lease belonging to a different user
         WrongLease = 110,
+        /// The requested meganode is not known to the runner
+        UnknownMeganode = 111,
     }
 }
 
@@ -967,6 +969,7 @@ impl ToHttpStatus for RunnerErrorKind {
             UnknownUser => CLIENT_404_NOT_FOUND,
             LeaseExpired => CLIENT_400_BAD_REQUEST,
             WrongLease => CLIENT_400_BAD_REQUEST,
+            UnknownMeganode => CLIENT_404_NOT_FOUND,
         }
     }
 }
@@ -1531,6 +1534,14 @@ impl RunnerApiError {
         Self {
             kind: RunnerErrorKind::UnknownUser,
             msg: format!("{user_pk}: {msg}"),
+            ..Default::default()
+        }
+    }
+
+    pub fn unknown_meganode(mega_id: MegaId) -> Self {
+        Self {
+            kind: RunnerErrorKind::UnknownMeganode,
+            msg: format!("mega_id={mega_id}"),
             ..Default::default()
         }
     }
