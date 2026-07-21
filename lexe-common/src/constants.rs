@@ -58,7 +58,7 @@ pub const MAX_FLOW_TIMEOUT: Duration = Duration::from_secs(60);
 ///    that a node release is broken in some way, and
 /// 2) having so many versions approved that Lexe could downgrade users to an
 ///    old version that may contain vulnerabilities.
-pub const RELEASE_WINDOW_SIZE: usize = 3;
+pub const RELEASE_WINDOW_SIZE: usize = 2;
 
 // --- Channels and liquidity --- //
 

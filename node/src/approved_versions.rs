@@ -13,7 +13,7 @@ use lexe_common::{
 };
 use lexe_enclave::enclave::Measurement;
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::SEMVER_VERSION;
 
@@ -78,12 +78,6 @@ impl ApprovedVersions {
         let mut updated = false;
         let cur_version =
             semver::Version::parse(SEMVER_VERSION).expect("Checked in tests");
-
-        if self.approved.len() > constants::RELEASE_WINDOW_SIZE {
-            let approved_len = self.approved.len();
-            // This will be corrected later
-            warn!("Approval list somehow had {approved_len} entries.");
-        }
 
         // Try adding the current version to the approved list
         match self.approved.entry(cur_version.clone()) {

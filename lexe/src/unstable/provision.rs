@@ -23,7 +23,7 @@ use crate::{config::WalletEnv, types::auth::RootSeed};
 /// The contents of `public/releases.json`.
 pub static RELEASES_JSON: &str = include_str!("../../data/releases.json");
 
-/// The measurements of the three latest trusted node releases.
+/// The measurements of the `RELEASE_WINDOW_SIZE` latest trusted node releases.
 /// This is the set of measurements that we want to provision.
 /// There is no need to provision anything older than this.
 pub static LATEST_TRUSTED_MEASUREMENTS: LazyLock<

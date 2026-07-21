@@ -128,7 +128,7 @@ pub struct BackupInfo {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct EnclavesToProvisionRequest {
     /// The enclave measurements the client trusts.
-    /// Typically the 3 latest from releases.json.
+    /// Typically the `RELEASE_WINDOW_SIZE` latest from releases.json.
     pub trusted_measurements: BTreeSet<Measurement>,
 }
 
