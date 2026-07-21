@@ -560,6 +560,7 @@ pub(super) async fn pay_onchain(
 }
 
 pub(super) async fn pay_onchain_preflight(
+    auth: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOnchainPreflightRequest>,
 ) -> Result<LxJson<PayOnchainPreflightResponse>, NodeApiError> {
@@ -568,6 +569,7 @@ pub(super) async fn pay_onchain_preflight(
         &state.wallet,
         state.network,
         &state.payments_manager,
+        auth.cert_kind().client_pk(),
     )
     .await
     .map(LxJson)

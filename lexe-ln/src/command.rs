@@ -1237,13 +1237,24 @@ where
             lx_route,
             first_hop_fee,
             ..
-        } => Ok(PayInvoicePreflightResponseInner {
-            amount: oipwm.payment.amount,
-            fees: oipwm.payment.total_fees(),
-            route: lx_route,
-            ldk_route,
-            first_hop_fee,
-        }),
+        } => {
+            let amount = oipwm.payment.amount;
+            let fees = oipwm.payment.total_fees();
+
+            // Reject up front if the payment wouldn't fit the caller's budget.
+            if let Some(client_pk) = client_pk.map(ClientPk::Revocable) {
+                let total = amount.saturating_add(fees);
+                payments_manager.check_budget(client_pk, total).await?;
+            }
+
+            Ok(PayInvoicePreflightResponseInner {
+                amount,
+                fees,
+                route: lx_route,
+                ldk_route,
+                first_hop_fee,
+            })
+        }
     }
 }
 
@@ -1501,11 +1512,22 @@ where
             oopwm,
             route,
             routing_context: _,
-        } => Ok(PayOfferPreflightResponse {
-            amount: oopwm.payment.amount,
-            fees: oopwm.payment.routing_fee,
-            route,
-        }),
+        } => {
+            let amount = oopwm.payment.amount;
+            let fees = oopwm.payment.routing_fee;
+
+            // Reject up front if the payment wouldn't fit the caller's budget.
+            if let Some(client_pk) = client_pk.map(ClientPk::Revocable) {
+                let total = amount.saturating_add(fees);
+                payments_manager.check_budget(client_pk, total).await?;
+            }
+
+            Ok(PayOfferPreflightResponse {
+                amount,
+                fees,
+                route,
+            })
+        }
     }
 }
 
@@ -1599,6 +1621,7 @@ pub async fn pay_onchain_preflight<CM, PS, FRA>(
     wallet: &OnchainWallet,
     network: Network,
     payments_manager: &PaymentsManager<CM, PS, FRA>,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PayOnchainPreflightResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1618,7 +1641,17 @@ where
         );
     }
 
-    wallet.pay_onchain_preflight(req, network)
+    let amount = req.amount;
+    let resp = wallet.pay_onchain_preflight(req, network)?;
+
+    // Reject up front if the payment wouldn't fit the caller's budget even at
+    // the cheapest priority; the send checks the fee actually chosen.
+    if let Some(client_pk) = client_pk.map(ClientPk::Revocable) {
+        let total = amount.saturating_add(resp.background.amount);
+        payments_manager.check_budget(client_pk, total).await?;
+    }
+
+    Ok(resp)
 }
 
 /// An outbound invoice payment that we have preflighted.
