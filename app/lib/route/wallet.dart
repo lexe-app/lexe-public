@@ -79,7 +79,7 @@ import 'package:lexeapp/route/open_channel.dart' show OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart'
     show PaymentDetailPage, PaymentSource;
 import 'package:lexeapp/route/profile.dart'
-    show ProfilePage, minHbaClaimBalanceMessage;
+    show EditHumanBitcoinAddressPage, minHbaClaimBalanceMessage;
 import 'package:lexeapp/route/receive/page.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/security.dart';
@@ -796,12 +796,14 @@ class WalletPageState extends State<WalletPage> {
       return;
     }
 
-    // Navigate to profile page
+    // Navigate to the HBA edit flow
     await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) => ProfilePage(
-          humanBitcoinAddressService: this.humanBitcoinAddressService,
-          balanceState: this.balanceState,
+        builder: (context) => MultistepFlow<String?>(
+          builder: (_) => EditHumanBitcoinAddressPage(
+            humanBitcoinAddressService: this.humanBitcoinAddressService,
+            balanceState: this.balanceState,
+          ),
         ),
       ),
     );

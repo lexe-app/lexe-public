@@ -13,7 +13,6 @@ import 'package:lexeapp/components.dart'
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
-        MultistepFlow,
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
@@ -30,26 +29,6 @@ String minHbaClaimBalanceMessage() =>
     "Increase your Lexe wallet balance to at least "
     "${formatSatsAmount(hbaClaimMinBalanceSats)} to claim a custom "
     "Human Bitcoin Address.";
-
-/// The entry point for the profile flow.
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({
-    super.key,
-    required this.humanBitcoinAddressService,
-    required this.balanceState,
-  });
-
-  final HumanBitcoinAddressService humanBitcoinAddressService;
-  final ValueListenable<BalanceState> balanceState;
-
-  @override
-  Widget build(BuildContext context) => MultistepFlow<String?>(
-    builder: (_) => EditHumanBitcoinAddressPage(
-      humanBitcoinAddressService: this.humanBitcoinAddressService,
-      balanceState: this.balanceState,
-    ),
-  );
-}
 
 /// Page to edit/set the user's human Bitcoin address (username@lexe.app).
 class EditHumanBitcoinAddressPage extends StatefulWidget {

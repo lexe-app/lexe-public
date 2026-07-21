@@ -93,7 +93,7 @@ import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart'
     show OpenChannelConfirmPage, OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
-import 'package:lexeapp/route/profile.dart' show ProfilePage;
+import 'package:lexeapp/route/profile.dart' show EditHumanBitcoinAddressPage;
 import 'package:lexeapp/route/receive/page.dart'
     show
         ReceiveInvoicePaymentEditPage,
@@ -596,13 +596,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       }),
 
       Component(
-        "ProfilePage",
-        (context) => ProfilePage(
-          humanBitcoinAddressService: HumanBitcoinAddressService(
-            app: mockApp,
-            appData: LxAppData(mockApp.appDataDb()),
+        "EditHumanBitcoinAddressPage",
+        (context) => MultistepFlow<String?>(
+          builder: (_) => EditHumanBitcoinAddressPage(
+            humanBitcoinAddressService: HumanBitcoinAddressService(
+              app: mockApp,
+              appData: LxAppData(mockApp.appDataDb()),
+            ),
+            balanceState: ValueNotifier(BalanceState.placeholder),
           ),
-          balanceState: ValueNotifier(BalanceState.placeholder),
         ),
       ),
       Component(
