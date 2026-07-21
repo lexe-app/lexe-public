@@ -29,7 +29,7 @@ use lexe_api::{
         RevocableClient, RevocableClients,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            UpdateClientRequest, UpdateClientResponse,
+            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
         },
     },
     types::{
@@ -1829,6 +1829,22 @@ mod validate {
         pff.validate()?;
 
         Ok(pff)
+    }
+}
+
+pub fn list_revocable_clients(
+    req: ListRevocableClients,
+    revocable_clients: &RwLock<RevocableClients>,
+) -> RevocableClients {
+    let locked_revocable_clients = revocable_clients.read().unwrap();
+    if req.valid_only {
+        let clients = locked_revocable_clients
+            .iter_valid()
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
+        RevocableClients { clients }
+    } else {
+        locked_revocable_clients.clone()
     }
 }
 

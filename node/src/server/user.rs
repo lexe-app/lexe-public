@@ -477,18 +477,10 @@ pub(super) async fn list_revocable_clients(
     State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<ListRevocableClients>,
 ) -> Result<LxJson<RevocableClients>, NodeApiError> {
-    let locked_revocable_clients = state.revocable_clients.0.read().unwrap();
-
-    let revocable_clients = if req.valid_only {
-        let clients = locked_revocable_clients
-            .iter_valid()
-            .map(|(k, v)| (*k, v.clone()))
-            .collect();
-        RevocableClients { clients }
-    } else {
-        locked_revocable_clients.clone()
-    };
-
+    let revocable_clients = lexe_ln::command::list_revocable_clients(
+        req,
+        &state.revocable_clients.0,
+    );
     Ok(LxJson(revocable_clients))
 }
 
