@@ -191,10 +191,19 @@ mod test {
     use super::*;
     use crate::revocable_clients::scopes::Scope;
 
+    // --- Ser/de roundtrips --- //
+
+    #[test]
+    fn test_list_revocable_clients_serde() {
+        roundtrip::query_string_roundtrip_proptest::<ListRevocableClients>();
+    }
+
     #[test]
     fn test_update_request_serde() {
         roundtrip::json_string_roundtrip_proptest::<UpdateClientRequest>();
     }
+
+    // --- Compat --- //
 
     /// Create requests from old clients predate the `permissions` key and
     /// instead carry a legacy `scope` field. They must still deserialize
@@ -209,10 +218,5 @@ mod test {
             req.permissions,
             ClientPermissions::from_single_scope(Scope::Full)
         );
-    }
-
-    #[test]
-    fn test_list_revocable_clients_serde() {
-        roundtrip::query_string_roundtrip_proptest::<ListRevocableClients>();
     }
 }
