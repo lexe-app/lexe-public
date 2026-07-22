@@ -8,7 +8,7 @@ use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
     cli::OAuthConfig,
     def::NodeLspApi,
-    types::{LeaseId, partners::PartnersInfo},
+    types::{UserLeaseId, partners::PartnersInfo},
 };
 use lexe_common::{constants::timeout, env::DeployEnv, ln::network::Network};
 use lexe_crypto::rng::Crng;
@@ -34,7 +34,7 @@ use crate::{
 /// Usernode-specific context initialized by the meganode.
 pub(crate) struct UserContext {
     /// The lease ID for this user node.
-    pub lease_id: LeaseId,
+    pub lease_id: UserLeaseId,
     /// Notifies this specific usernode that it should shut down.
     pub user_shutdown: NotifyOnce,
 }

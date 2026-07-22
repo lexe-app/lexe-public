@@ -9,7 +9,7 @@ use lexe_api::{
     cli::node::MegaArgs,
     error::{MegaApiError, MegaErrorKind},
     models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
-    types::{LeaseId, ports::RunPorts},
+    types::{UserLeaseId, ports::RunPorts},
 };
 use lexe_common::{api::user::UserPk, constants::timeout, time::TimestampMs};
 use lexe_enclave::allocator;
@@ -112,7 +112,7 @@ pub(crate) struct UserRunner {
 struct UserHandle {
     /// The user node's lease ID. Subsequent run requests from the megarunner
     /// are expected to know this lease ID.
-    lease_id: LeaseId,
+    lease_id: UserLeaseId,
     user_ready_waiter_tx:
         mpsc::Sender<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
     user_shutdown: NotifyOnce,
@@ -798,7 +798,8 @@ mod helpers {
 
     use anyhow::Context;
     use lexe_api::{
-        def::MegaRunnerApi, models::runner::UserFinishedRequest, types::LeaseId,
+        def::MegaRunnerApi, models::runner::UserFinishedRequest,
+        types::UserLeaseId,
     };
     use lexe_common::api::MegaId;
     use lexe_crypto::rng::SysRng;
@@ -1022,7 +1023,7 @@ mod helpers {
     pub(super) fn spawn_user_finished_task(
         runner_api: Arc<RunnerClient>,
         user_pk: UserPk,
-        lease_id: LeaseId,
+        lease_id: UserLeaseId,
         mega_id: MegaId,
     ) -> LxTask<()> {
         const SPAN_NAME: &str = "(notify-user-finished)";

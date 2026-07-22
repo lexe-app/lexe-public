@@ -4,7 +4,7 @@ use lexe_common::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::types::{LeaseId, ports::RunPorts};
+use crate::types::{UserLeaseId, ports::RunPorts};
 
 /// A request sent to a meganode API server to run a usernode within a meganode.
 #[derive(Serialize, Deserialize)]
@@ -13,7 +13,7 @@ pub struct MegaNodeApiUserRunRequest {
     pub user_pk: UserPk,
 
     /// The lease ID for this user node.
-    pub lease_id: LeaseId,
+    pub lease_id: UserLeaseId,
 
     /// Included to sanity check that we've requested the right meganode.
     pub mega_id: MegaId,
@@ -31,7 +31,7 @@ pub struct MegaNodeApiUserRunResponse {
 #[derive(Serialize, Deserialize)]
 pub struct UserLeaseRenewalRequest {
     /// The ID of the lease to renew.
-    pub lease_id: LeaseId,
+    pub lease_id: UserLeaseId,
     /// Sanity check: The requesting user.
     pub user_pk: UserPk,
     /// Sanity check: The current time within the enclave.
@@ -45,7 +45,7 @@ pub struct UserFinishedRequest {
     /// The user that shut down.
     pub user_pk: UserPk,
     /// The ID of the lease to terminate.
-    pub lease_id: LeaseId,
+    pub lease_id: UserLeaseId,
     /// Sanity check: The meganode issuing the request.
     pub mega_id: MegaId,
 }

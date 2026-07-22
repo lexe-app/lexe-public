@@ -33,7 +33,7 @@ pub mod username;
 
 /// A unique identifier for a user node lease.
 // TODO(max): Find a better home for this.
-pub type LeaseId = u32;
+pub type UserLeaseId = u32;
 
 /// A struct denoting an empty API request or response.
 ///
