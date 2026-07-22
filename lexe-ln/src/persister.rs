@@ -45,15 +45,25 @@ pub fn encrypt_ldk_writeable(
     file_id: VfsFileId,
     writeable: &impl Writeable,
 ) -> VfsFile {
-    encrypt_file(rng, vfs_master_key, file_id, &|mut_vec_u8| {
-        // - Writeable can write to any LDK lightning::util::ser::Writer
-        // - Writer is impl'd for all types that impl std::io::Write
-        // - Write is impl'd for Vec<u8>
-        // Therefore a Writeable can be written to a Vec<u8>.
-        writeable
-            .write(mut_vec_u8)
-            .expect("Serialization into an in-memory buffer should never fail");
-    })
+    // Calculate the exact serialized length so we can reserve the exact
+    // additional capacity to avoid unnecessary allocations and
+    // overallocations due to `Vec` growth.
+    let data_size_hint = Some(writeable.serialized_length());
+    encrypt_file(
+        rng,
+        vfs_master_key,
+        file_id,
+        data_size_hint,
+        &|mut_vec_u8| {
+            // - Writeable can write to any LDK lightning::util::ser::Writer
+            // - Writer is impl'd for all types that impl std::io::Write
+            // - Write is impl'd for Vec<u8>
+            // Therefore a Writeable can be written to a Vec<u8>.
+            writeable.write(mut_vec_u8).expect(
+                "Serialization into an in-memory buffer should never fail",
+            );
+        },
+    )
 }
 
 /// Serializes an object to JSON bytes, encrypts the serialized bytes, and
@@ -64,10 +74,17 @@ pub fn encrypt_json(
     file_id: VfsFileId,
     value: &impl Serialize,
 ) -> VfsFile {
-    encrypt_file(rng, vfs_master_key, file_id, &|mut_vec_u8| {
-        serde_json::to_writer(mut_vec_u8, value)
-            .expect("JSON serialization was not implemented correctly");
-    })
+    let data_size_hint = None;
+    encrypt_file(
+        rng,
+        vfs_master_key,
+        file_id,
+        data_size_hint,
+        &|mut_vec_u8| {
+            serde_json::to_writer(mut_vec_u8, value)
+                .expect("JSON serialization was not implemented correctly");
+        },
+    )
 }
 
 /// Encrypt some arbitrary plaintext bytes to a [`VfsFile`].
@@ -80,15 +97,21 @@ pub fn encrypt_bytes(
     file_id: VfsFileId,
     plaintext_bytes: &[u8],
 ) -> VfsFile {
-    encrypt_file(rng, vfs_master_key, file_id, &|mut_vec_u8| {
-        mut_vec_u8.extend(plaintext_bytes)
-    })
+    let data_size_hint = Some(plaintext_bytes.len());
+    encrypt_file(
+        rng,
+        vfs_master_key,
+        file_id,
+        data_size_hint,
+        &|mut_vec_u8| mut_vec_u8.extend(plaintext_bytes),
+    )
 }
 
 fn encrypt_file(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
     file_id: VfsFileId,
+    data_size_hint: Option<usize>,
     write_data_cb: &dyn Fn(&mut Vec<u8>),
 ) -> VfsFile {
     // bind the dirname and filename so files can't be moved around. the
@@ -100,7 +123,6 @@ fn encrypt_file(
     let dirname = &file_id.dir.dirname;
     let filename = &file_id.filename;
     let aad = &[dirname.as_bytes(), filename.as_bytes()];
-    let data_size_hint = None;
     let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
 
     // Print a warning if the ciphertext is greater than 1 MB.
