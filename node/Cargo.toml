@@ -27,12 +27,10 @@ test-utils = [
 debug = true
 # Heap size in bytes. Default: 0x200_0000.
 #
-# Very large; should include enough for `NODE_MAX_GRAPH_MEMORY` + plenty of
-# space for other data structures.
+# Sized to fit `NODE_MAX_GRAPH_MEMORY`, other shared state, and usernodes.
 #
-# Current: 1.5 GiB
-# TODO(max): Switch to allocator which does heap compaction.
-heap-size = 0x6000_0000
+# Current: 512 MiB
+heap-size = 0x2000_0000
 # SSA frame size (in pages) for each thread. Default: 1.
 # You normally don't need to change the SSA frame size.
 ssaframesize = 1
