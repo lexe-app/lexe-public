@@ -173,8 +173,8 @@ rec {
       "sha256-2O5LeLKT/Ns99hn7/Q3N+z19OmaGSEVeyXjio6I28i0=";
     "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.12.3-2026_04_09#8d0417a29c2840c25e92d00aa9fbda9b1ca6a189" =
       "sha256-0r4UjBmCRdUIeYJ2kw3wgvWtgtUbkZJzX1cPEG39GZE=";
-    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.2.3-2026_06_18#4a2d8c37d911825cfffe618d40a00bd4e0ed17f4" =
-      "sha256-Z0MOJqDKOOyqwFwaXHq4gfsYqPgH/bSePAC3AT4lW3A=";
+    "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.2.3-2026_07_21#a3ba0972a4f89ff4c77ba82416ddf998f191f2de" =
+      "sha256-xRzpCb3NamiYgjtmGtr526NwktNB4Quu/cMemoRSX+M=";
     "git+https://github.com/lexe-app/rust-sgx?branch=lexe-b23e3383-2025_12_18#b23e3383d1a9a7955af8ba5695f95a7a80e6e62a" =
       "sha256-HHjrzufA4t0pow5vnRnBIMnuDn92PALEvvZd4dhliqM=";
     "git+https://github.com/lexe-app/tokio?branch=lexe-v1.36.0-2024_10_11#f6d1d554668fe7530007e1a624e9d46d8755dfd6" =
