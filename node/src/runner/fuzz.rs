@@ -259,10 +259,10 @@ mod helpers {
             lease_renewal_interval_secs: 30,
             lsp: LspInfo::dummy(),
             lsp_url: String::new(),
-            mega_inactivity_secs: 7200, // 2 hours (from dummy config)
+            mega_inactivity_secs: 630, // 10 minutes 30 seconds (from dummy)
             mega_max_lifetime_secs: Some(12 * 60 * 60), // 12 hours (from dummy)
-            // 200 MiB DEFAULT_MEGANODE_MEMORY_OVERHEAD
-            memory_overhead: 200 * (1 << 20),
+            // DEFAULT_MEGANODE_MEMORY_OVERHEAD
+            memory_overhead: 125 * (1 << 20),
             oauth: None,
             partners: PartnersInfo::current(),
             runner_url: String::new(),
@@ -270,11 +270,11 @@ mod helpers {
             rust_log: None,
             sgx_heap_size: 0x8000_0000, // 2 GB
             // DEFAULT_USERNODE_SYNC_TIMEOUT
-            usernode_sync_timeout_secs: Some(15),
+            usernode_sync_timeout_secs: Some(30),
             untrusted_deploy_env: DeployEnv::Dev,
             untrusted_esplora_urls: vec![],
             untrusted_network: Network::Regtest,
-            user_inactivity_secs: 3600, // 1 hour (from dummy config)
+            user_inactivity_secs: 600, // 10 minutes (from dummy config)
             // DEFAULT_USERNODE_BUFFER_SLOTS
             usernode_buffer_slots: 2,
             // 48 MiB DEFAULT_USERNODE_MEMORY_ESTIMATE
