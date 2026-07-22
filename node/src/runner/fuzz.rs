@@ -277,8 +277,8 @@ mod helpers {
             user_inactivity_secs: 3600, // 1 hour (from dummy config)
             // DEFAULT_USERNODE_BUFFER_SLOTS
             usernode_buffer_slots: 2,
-            // 64 MiB DEFAULT_USERNODE_MEMORY_ESTIMATE
-            usernode_memory: 64 * (1 << 20),
+            // 48 MiB DEFAULT_USERNODE_MEMORY_ESTIMATE
+            usernode_memory: 48 * (1 << 20),
         };
 
         let mega_ctxt = MegaContext::dummy();
