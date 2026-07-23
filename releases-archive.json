@@ -449,6 +449,177 @@
       "heap-size": 1610612736,
       "stack-size": 8388608,
       "threads": 2
+    },
+    "0.8.4": {
+      "measurement": "ed6543184253ceb313d30447b7e7a304157da707343435a54c262b46e2e90bc8",
+      "revision": "231ec3e8284b03125703d187c7428488464a5f07",
+      "release-date": "2025-08-18",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.4",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.8.5": {
+      "measurement": "50c79f31100a1ad96fdaef6b8b3dfc74408a1492ad962c9d56739f68b381a09e",
+      "revision": "a472bcf29fa687c4c403cb80d16d826bb8276cbe",
+      "release-date": "2025-09-02",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.5",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.8.6": {
+      "measurement": "9d864d9075d71fa1cdf2ca060abacd665e074ef1204b30a53929070fb14d2a90",
+      "revision": "4feff712b0d6fe4f72120b7e607c41a6b7d6e8dc",
+      "release-date": "2025-09-17",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.6",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.8.7": {
+      "measurement": "6571ae8b7f12721c676aa51719b6554eaeaa1bb981939720affc2124d7aa6b02",
+      "revision": "15b9b24a4cc7a0f13e1b47482f1a48bd8a57bd05",
+      "release-date": "2025-10-15",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.7",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.8.8": {
+      "measurement": "7a5585dced0a1b80fe77b85c2c5dcdc7869646a066ca020a1a4e38ad3756a077",
+      "revision": "f061ecb8fe24335d6f71fceaa7edefc7af80b7c7",
+      "release-date": "2025-11-07",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.8",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.8.9": {
+      "measurement": "df48aad3610c3d662cf2185e12bcfc017873ecb6ed800b40e839790f405f21a6",
+      "revision": "cacd2c92a7cb8a050ac01f69e780bcaafcba2596",
+      "release-date": "2025-11-10",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.9",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.8.10": {
+      "measurement": "ef74c17f27d9592552527855f036bf82a56051dc7f53f5ec1835840b70fd69ba",
+      "revision": "63a27769e65e70327b1608486437a7c95692445d",
+      "release-date": "2025-12-20",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.10",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.8.11": {
+      "measurement": "0a2e326e89daf708aff1e66401ee923af1133ed619c945947296066e623e7cb9",
+      "revision": "0e655ae741ab2f10c426385d806a0894b54e9a8f",
+      "release-date": "2025-12-24",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.8.11",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.0": {
+      "measurement": "cab2fe0be0962a6cb8429278b0f8415c8f71cc39bc5e924cda6ae257fa390a42",
+      "revision": "906ac03c6111a39afb1e2e88fa0b1c2aa649d578",
+      "release-date": "2026-01-30",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.0",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.1": {
+      "measurement": "00a21048bc4dc7edb653ab1e5e0ad75db82e1b8decc7d6e224abaa1400a02dec",
+      "revision": "17ea6184345a09add9c9945f003041066fef2874",
+      "release-date": "2026-02-03",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.1",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.2": {
+      "measurement": "e9cc14a630c8c6973be2f7cfdfe1baac5d997e907485f4f21fd1ba179b0a0cb9",
+      "revision": "3c5ccea99289d1772d62cb58e231fffff528255a",
+      "release-date": "2026-02-10",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.2",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.3": {
+      "measurement": "c2f59f7d247d1bab0e8b27a480c19213560824d5dd021577eb852a125995b60b",
+      "revision": "4a443ca927104b39f987034b5fc6bc6abed0a70d",
+      "release-date": "2026-03-24",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.3",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.4": {
+      "measurement": "cee9f72d0d9c1190dfe340bf73bc7bb670507598d2ba12a88a4c88e74f8413dc",
+      "revision": "960e53a31f8486d58181fae9b876426488a6c537",
+      "release-date": "2026-04-16",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.4",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.5": {
+      "measurement": "1e653f7dd5b9dca9ac6edba223e660217a76844c9456b8fea64498eb0b546b0a",
+      "revision": "bf8ba4fdcfe95bc9939ba80797aa21766dd7d439",
+      "release-date": "2026-04-25",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.5",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.6": {
+      "measurement": "d950f6c664f3bc1a05b1eed85cb236fbdbf74ae66f50ae41bb789497c117b219",
+      "revision": "733ae64be5b02ff1325a0daa996c984001a62f22",
+      "release-date": "2026-05-02",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.6",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.7": {
+      "measurement": "ab7301958e1d4eb4fd0097c982e093740c430a14214866215f15240eb3662556",
+      "revision": "e6e6501487f7c6ab2672282ed97f816ced95d18b",
+      "release-date": "2026-05-19",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.7",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.8": {
+      "measurement": "3343dbb501aa3d7ab71b23f8ef112eb06fa24d87b6a40c80127928f5303d3944",
+      "revision": "35cad5c2ec467e7b31727272d6e57d5ea34a2ded",
+      "release-date": "2026-05-27",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.8",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.9": {
+      "measurement": "105c0120309db06d55dbc99c3ca96714eda65f78da608cf61a3ad01d27e8db8d",
+      "revision": "2650ae640a5d69683ef38eb68c39841ee0b77678",
+      "release-date": "2026-06-02",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.9",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
+    },
+    "0.9.13": {
+      "measurement": "041d51b93d74321d9613cc297cafd6345d68da3f6748553056fb4e475340ba59",
+      "revision": "a400b9c047741a289ebe8fd2ba51921dacd59f16",
+      "release-date": "2026-07-23",
+      "release-url": "https://github.com/lexe-app/lexe-public/releases/tag/node-v0.9.13",
+      "heap-size": 1610612736,
+      "stack-size": 8388608,
+      "threads": 2
     }
   }
 }
