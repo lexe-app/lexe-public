@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use lexe_api::vfs::{VfsFile, VfsFileId};
-use lexe_common::constants;
 use lexe_std::Apply;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use tokio::sync::mpsc;
@@ -15,6 +14,9 @@ use crate::persister::NodePersister;
 /// Payments (with retries) can sometimes take up to a minute, so we'll wait at
 /// least a minute before persisting, unless a shutdown signal was received.
 const PERSIST_DELAY: Duration = Duration::from_secs(60);
+
+/// The number of Google Drive persist retry attempts for important objects.
+pub(crate) const GDRIVE_PERSIST_RETRIES: usize = 5;
 
 /// Spawns a task which asynchronously persists critical files to GDrive
 /// (generally just the channel manager and channel monitors).
@@ -95,7 +97,7 @@ async fn drain_persist_queue(
 
     // Alternative non-concurrent implementation
     /*
-    let retries = constants::IMPORTANT_PERSIST_RETRIES;
+    let retries = GDRIVE_PERSIST_RETRIES;
     for (file_id, file) in persist_queue.drain() {
         match persister
             .upsert_gdrive_if_available(&file_id, file.data.into(), retries)
@@ -113,7 +115,7 @@ async fn drain_persist_queue(
     persist_queue
         .drain()
         .map(|(file_id, file)| async move {
-            let retries = constants::IMPORTANT_PERSIST_RETRIES;
+            let retries = GDRIVE_PERSIST_RETRIES;
             match persister
                 .upsert_gdrive_if_available(&file_id, file.data.into(), retries)
                 .await

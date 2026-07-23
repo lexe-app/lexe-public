@@ -14,13 +14,15 @@ use lexe_api::{
     types::retries::Retries,
     vfs::{VfsFile, VfsFileId},
 };
-use lexe_common::{api::auth::LexeScope, constants::IMPORTANT_PERSIST_RETRIES};
+use lexe_common::api::auth::LexeScope;
 use lexe_crypto::aes::AesMasterKey;
 use lexe_ln::persister;
 use lexe_std::backoff;
 use secrecy::Secret;
 
-use crate::client::NodeBackendClient;
+use crate::{
+    client::NodeBackendClient, gdrive_persister::GDRIVE_PERSIST_RETRIES,
+};
 
 /// Helper to read a VFS from both Google Drive and Lexe's DB.
 /// The read from GDrive is skipped if `maybe_google_vfs` is [`None`].
@@ -91,9 +93,9 @@ pub(super) async fn read(
 
 /// Helper to upsert an important VFS file to both Google Drive and Lexe's DB.
 ///
-/// - The upsert to GDrive is skipped if `maybe_google_vfs` is [`None`].
-/// - Up to [`IMPORTANT_PERSIST_RETRIES`] additional attempts will be made if
-///   the first attempt fails.
+/// - The upsert to GDrive is skipped if `maybe_google_vfs` is [`None`], and
+///   makes up to [`GDRIVE_PERSIST_RETRIES`] additional attempts.
+/// - The upsert to Lexe's DB retries per [`Retries::IMPORTANT_PERSISTS`].
 pub(super) async fn upsert(
     backend_api: &NodeBackendClient,
     authenticator: &BearerAuthenticator,
@@ -112,7 +114,7 @@ pub(super) async fn upsert(
                     .context("(First attempt)");
 
                 let mut backoff_iter = backoff::get_backoff_iter();
-                for i in 0..IMPORTANT_PERSIST_RETRIES {
+                for i in 0..GDRIVE_PERSIST_RETRIES {
                     if try_upsert.is_ok() {
                         break;
                     }
@@ -140,7 +142,7 @@ pub(super) async fn upsert(
                 &file_id,
                 data.clone(),
                 token,
-                Retries::from_count(IMPORTANT_PERSIST_RETRIES),
+                Retries::IMPORTANT_PERSISTS,
             )
             .await
             .map(|_| ())

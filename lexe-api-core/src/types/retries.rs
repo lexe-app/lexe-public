@@ -2,6 +2,7 @@
 
 use std::time::Duration;
 
+use lexe_common::constants::timeout;
 use lexe_std::backoff::Backoff;
 
 use crate::error::ErrorCode;
@@ -42,6 +43,13 @@ impl Default for Retries {
 }
 
 impl Retries {
+    /// The retry strategy recommended for important persists: they should be
+    /// able to ride out a transient service outage.
+    ///
+    /// See [`timeout::TRANSIENT_ERROR_TOLERANCE`] for details.
+    pub const IMPORTANT_PERSISTS: Self =
+        Self::from_timeout(timeout::TRANSIENT_ERROR_TOLERANCE);
+
     /// Make up to `count` retries after the initial attempt.
     pub const fn from_count(count: usize) -> Self {
         Self {

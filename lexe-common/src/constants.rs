@@ -113,11 +113,6 @@ pub const FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS: u64 = 50;
 // 10k sats = $5 at $50k/BTC or $10 at $100k/BTC
 pub const HBA_CLAIM_MIN_BALANCE_SATS: u32 = 10_000;
 
-// --- Persistence --- //
-
-/// The default number of persist retry attempts for important objects.
-pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
-
 // --- Networking --- //
 
 /// Fake DNS names used by the reverse proxy to route requests to user nodes.

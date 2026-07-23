@@ -70,7 +70,6 @@ use lexe_common::{
         auth::{BearerAuthToken, LexeScope},
         user::{Scid, Scids},
     },
-    constants,
     ln::channel::ChannelId,
     time::TimestampMs,
 };
@@ -885,7 +884,7 @@ impl LexePersisterMethods for NodePersister {
 
         let file_id =
             VfsFileId::new(SINGLETON_DIRECTORY, vfs::CHANNEL_MANAGER_FILENAME);
-        let retries = Retries::from_count(constants::IMPORTANT_PERSIST_RETRIES);
+        let retries = Retries::IMPORTANT_PERSISTS;
 
         let file = self.encrypt_ldk_writeable(file_id, channel_manager);
 
@@ -926,7 +925,7 @@ impl LexePersisterMethods for NodePersister {
 
         // Persist to Lexe VFS
         // XXX(max): Channel monitor should be persisted to multiple VSS stores.
-        let retries = Retries::from_count(constants::IMPORTANT_PERSIST_RETRIES);
+        let retries = Retries::IMPORTANT_PERSISTS;
         self.persist_file(file, retries)
             .await
             .context("Failed to persist channel monitor")

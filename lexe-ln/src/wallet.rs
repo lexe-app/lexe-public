@@ -74,7 +74,6 @@ use lexe_api::{
 #[cfg(test)]
 use lexe_common::ln::channel::OutPoint;
 use lexe_common::{
-    constants::IMPORTANT_PERSIST_RETRIES,
     ln::{
         amount::Amount, balance::OnchainBalance, hashes::Txid,
         network::Network, priority::ConfirmationPriority,
@@ -1462,7 +1461,7 @@ async fn do_wallet_persist<PS: LexePersister>(
     // Finish the current persist attempt before responding to
     // any shutdown signal received in the meantime.
     let persist_result = persister
-        .persist_file(file, Retries::from_count(IMPORTANT_PERSIST_RETRIES))
+        .persist_file(file, Retries::IMPORTANT_PERSISTS)
         .await;
 
     match persist_result {

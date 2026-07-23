@@ -17,6 +17,13 @@ use std::time::Duration;
 
 use lexe_std::const_assert;
 
+/// The minimum tolerance every service should have for transient errors caused
+/// by restarts of this service's dependencies.
+///
+/// Notably, channel manager and channel monitor persists will try for up to
+/// this long before initiating a node shutdown.
+pub const TRANSIENT_ERROR_TOLERANCE: Duration = Duration::from_secs(30);
+
 /// Defaults for Lexe API servers.
 pub mod server {
     use super::*;
@@ -59,7 +66,7 @@ pub mod usernode {
 
     /// The amount of time user node tasks have to finish after a graceful
     /// shutdown signal is received before the task is forced to exit.
-    pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(25);
+    pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(35);
 
     // The meganode's `run_user` handler (bounded by the default
     // `server::DEFAULT_HANDLER_TIMEOUT`) blocks on the usernode's boot sync
@@ -71,6 +78,10 @@ pub mod usernode {
     const_assert!(
         SHUTDOWN_TIMEOUT.as_secs() > server::SHUTDOWN_TIMEOUT.as_secs()
     );
+    // A shutting-down node must still afford a full critical-persist attempt.
+    const_assert!(
+        TRANSIENT_ERROR_TOLERANCE.as_secs() < SHUTDOWN_TIMEOUT.as_secs()
+    );
 }
 
 /// Timeouts for in-enclave `UserRunner`.
@@ -79,7 +90,7 @@ pub mod userrunner {
 
     /// The amount of time the user runner has to finish after a graceful
     /// shutdown signal is received before the program is forced to exit.
-    pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(27);
+    pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(37);
 
     const_assert!(
         SHUTDOWN_TIMEOUT.as_secs() > usernode::SHUTDOWN_TIMEOUT.as_secs()
