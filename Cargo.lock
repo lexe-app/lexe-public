@@ -2811,7 +2811,6 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "reqwest",
- "semver",
  "serde",
  "serde_json",
 ]

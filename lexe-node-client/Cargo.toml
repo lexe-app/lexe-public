@@ -35,7 +35,6 @@ arc-swap = { workspace = true }
 async-trait = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true }
-semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

@@ -17,6 +17,17 @@ lexe_std::const_assert!(
     YANKED_NODE_VERSIONS.len() == YANKED_NODE_MEASUREMENTS.len()
 );
 
+/// The first node version to serve the `/user/v1/provision` endpoint,
+/// older node versions serve only `/app/provision`.
+///
+/// The backend now never returns pre-`node-v0.9.12` enclaves to provision.
+/// We had to filter the response, as we deployed bad clients which fail to
+/// start up because they erroneously provision via the `/user` endpoint.
+//
+// TODO(max): Remove this once pre-`node-v0.9.12` enclaves are revoked.
+pub const FIRST_USER_API_NODE_VERSION: semver::Version =
+    semver::Version::new(0, 9, 12);
+
 /// Reject backend requests for payments that are too large.
 pub const MAX_PAYMENTS_BATCH_SIZE: u16 = 100;
 pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;
