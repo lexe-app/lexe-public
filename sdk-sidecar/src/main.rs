@@ -25,7 +25,11 @@ fn main() -> anyhow::Result<()> {
 
     rt.block_on(async move {
         let sidecar = Sidecar::init(args)?;
-        let spawn_ctrlc_handler = true;
-        sidecar.run(spawn_ctrlc_handler).await
+
+        // Install a Ctrl+C handler which triggers a graceful shutdown.
+        lexe_tokio::task::spawn_ctrlc_shutdown(&sidecar.shutdown_channel())
+            .detach();
+
+        sidecar.run().await
     })
 }

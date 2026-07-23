@@ -136,6 +136,26 @@ pub async fn join_tasks_and_shutdown(
     }
 }
 
+/// Spawns a task which listens for Ctrl+C: the first Ctrl+C triggers a graceful
+/// shutdown via `shutdown`, and a second Ctrl+C force-exits the process.
+/// Typically called early in `main` so Ctrl+C also works during startup.
+#[cfg(feature = "ctrlc")]
+pub fn spawn_ctrlc_shutdown(shutdown: &NotifyOnce) -> LxTask<()> {
+    let shutdown = shutdown.clone();
+    LxTask::spawn("ctrlc handler", async move {
+        use tokio::signal::ctrl_c;
+        ctrl_c().await.expect("Error receiving first ctrlc");
+        info!(
+            "Ctrl+C received, starting graceful shutdown. \
+             Hit Ctrl+C again to quit immediately."
+        );
+        shutdown.send();
+        ctrl_c().await.expect("Error receiving second ctrlc");
+        info!("Second Ctrl+C received, quitting immediately");
+        std::process::exit(1);
+    })
+}
+
 /// Adds `#[must_use]` to ensure [`Option<LxTask<()>>`]s are used (or detached).
 #[must_use]
 pub struct MaybeLxTask<T>(pub Option<LxTask<T>>);

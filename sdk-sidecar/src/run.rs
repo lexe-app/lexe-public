@@ -200,35 +200,10 @@ impl Sidecar {
 
     /// Runs the [`Sidecar`] until a shutdown signal is received.
     ///
-    /// - Set `spawn_ctrlc_handler` to `true` if you'd like the sidecar to
-    ///   listen for a Ctrl+C signal to initiate a shutdown.
-    ///
     /// Generally, you want to `.await` on this function until it's complete,
     /// but it's also OK to spawn this function call into a task.
     #[instrument(skip_all, name = "(sidecar)")]
-    pub async fn run(self, spawn_ctrlc_handler: bool) -> anyhow::Result<()> {
-        // Shutdown on CTRL+C
-        if spawn_ctrlc_handler {
-            LxTask::spawn("ctrlc-handler", {
-                let shutdown = self.shutdown.clone();
-                async move {
-                    use tokio::signal::ctrl_c;
-
-                    info!("Ctrl+C handler ready, press Ctrl+C to shut down.");
-                    ctrl_c().await.expect("Error receiving first CTRL+C");
-
-                    info!(
-                        "CTRL+C received, starting graceful shutdown. \
-                         Hit CTRL+C again to quit immediately."
-                    );
-                    shutdown.send();
-                    ctrl_c().await.expect("Error receiving second CTRL+C");
-                    std::process::exit(1);
-                }
-            })
-            .detach();
-        }
-
+    pub async fn run(self) -> anyhow::Result<()> {
         // Wait for graceful shutdown (with time limit)
         const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(10);
         let (_eph_tasks_tx, eph_tasks_rx) = tokio::sync::mpsc::channel(1);

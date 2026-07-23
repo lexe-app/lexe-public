@@ -22,7 +22,7 @@ lexe-crypto = { workspace = true }
 lexe-node-client = { workspace = true }
 lexe-std = { workspace = true }
 lexe-tls-core = { workspace = true, features = ["webpki-roots"] }
-lexe-tokio = { workspace = true }
+lexe-tokio = { workspace = true, features = ["ctrlc"] }
 
 # --- WORKSPACE --- #
 
@@ -43,6 +43,5 @@ serde_with = { workspace = true }
 standardwebhooks = { workspace = true }
 tokio = { workspace = true, features = [
     "rt",
-    "signal",
 ] }
 tracing = { workspace = true }

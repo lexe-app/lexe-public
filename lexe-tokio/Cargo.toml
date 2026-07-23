@@ -17,6 +17,10 @@ publish = true
 stack-size = 0x20_0000
 threads = 4
 
+[features]
+# Enables `task::spawn_ctrlc_shutdown`, which needs tokio's `signal` feature.
+ctrlc = ["tokio/signal"]
+
 [dependencies]
 
 # --- LEXE --- #
