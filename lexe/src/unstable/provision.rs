@@ -71,7 +71,7 @@ pub fn releases_json() -> ReleasesJson {
 /// - `maybe_encrypted_seed`: See [`NodeProvisionRequest::encrypted_seed`].
 pub(crate) async fn provision_all(
     node_client: NodeClient,
-    mut enclaves_to_provision: BTreeSet<NodeEnclave>,
+    enclaves_to_provision: BTreeSet<NodeEnclave>,
     root_seed: RootSeed,
     wallet_env: WalletEnv,
     google_auth_code: Option<String>,
@@ -80,31 +80,48 @@ pub(crate) async fn provision_all(
 ) -> anyhow::Result<()> {
     debug!("Starting provisioning: {enclaves_to_provision:?}");
 
-    // Make sure the latest trusted version is provisioned before we return,
-    // so that when we request a node run, Lexe runs the latest version.
-    let latest = match enclaves_to_provision.pop_last() {
-        Some(enclave) => enclave,
-        None => {
-            debug!("No enclaves to provision");
-            return Ok(());
-        }
+    // Make sure all enclaves corresponding to the latest release in
+    // `trusted_node_releases()` are provisioned before we return, so that when
+    // we make our first request which runs the node, we are generally running
+    // the latest trusted release.
+    //
+    // All other enclaves returned by the backend are provisioned in a detached
+    // background task which doesn't block app / client startup.
+    let latest_measurement = if wallet_env.deploy_env.is_staging_or_prod() {
+        trusted_node_releases()
+            .into_values()
+            .next_back()
+            .map(|release| release.measurement)
+    } else {
+        // No releases.json for dev, so just consider the latest enclave
+        // returned by the backend as the "latest trusted" release.
+        enclaves_to_provision.last().map(|e| e.measurement)
     };
+    let (latest_enclaves, secondary_enclaves): (BTreeSet<_>, BTreeSet<_>) =
+        enclaves_to_provision
+            .into_iter()
+            .partition(|e| Some(e.measurement) == latest_measurement);
 
-    // Provision the latest trusted enclave inline
-    let root_seed_clone = clone_root_seed(&root_seed);
-    provision_one(
-        &node_client,
-        latest,
-        root_seed_clone,
-        wallet_env,
-        google_auth_code.clone(),
-        allow_gvfs_access,
-        encrypted_seed.clone(),
-    )
-    .await?;
+    // Provision the latest trusted enclaves inline.
+    // NOTE: We provision enclaves serially (here and in the secondary task)
+    // because each provision updates the approved versions list, and we don't
+    // currently have a locking mechanism.
+    for enclave in latest_enclaves {
+        let root_seed_clone = clone_root_seed(&root_seed);
+        provision_one(
+            &node_client,
+            enclave,
+            root_seed_clone,
+            wallet_env,
+            google_auth_code.clone(),
+            allow_gvfs_access,
+            encrypted_seed.clone(),
+        )
+        .await?;
+    }
 
     // Early return if no work left to do
-    if enclaves_to_provision.is_empty() {
+    if secondary_enclaves.is_empty() {
         return Ok(());
     }
 
@@ -132,14 +149,11 @@ pub(crate) async fn provision_all(
     const SPAN_NAME: &str = "(secondary-provision)";
     let task =
         LxTask::spawn_with_span(SPAN_NAME, info_span!(SPAN_NAME), async move {
-            // NOTE: We provision enclaves serially because each provision
-            // updates the approved versions list, and we don't currently
-            // have a locking mechanism.
-            for node_enclave in enclaves_to_provision {
+            for enclave in secondary_enclaves {
                 let root_seed_clone = clone_root_seed(&root_seed);
                 let provision_result = provision_one(
                     &node_client,
-                    node_enclave.clone(),
+                    enclave.clone(),
                     root_seed_clone,
                     wallet_env,
                     google_auth_code.clone(),
@@ -150,9 +164,9 @@ pub(crate) async fn provision_all(
 
                 if let Err(e) = provision_result {
                     warn!(
-                        version = %node_enclave.version,
-                        measurement = %node_enclave.measurement,
-                        machine_id = %node_enclave.machine_id,
+                        version = %enclave.version,
+                        measurement = %enclave.measurement,
+                        machine_id = %enclave.machine_id,
                         "Secondary provision failed: {e:#}"
                     );
                 }
