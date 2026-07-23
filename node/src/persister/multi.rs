@@ -11,6 +11,7 @@ use lexe_api::{
     auth::BearerAuthenticator,
     def::NodeBackendApi,
     error::BackendErrorKind,
+    types::retries::Retries,
     vfs::{VfsFile, VfsFileId},
 };
 use lexe_common::{api::auth::LexeScope, constants::IMPORTANT_PERSIST_RETRIES};
@@ -139,7 +140,7 @@ pub(super) async fn upsert(
                 &file_id,
                 data.clone(),
                 token,
-                IMPORTANT_PERSIST_RETRIES,
+                Retries::from_count(IMPORTANT_PERSIST_RETRIES),
             )
             .await
             .map(|_| ())

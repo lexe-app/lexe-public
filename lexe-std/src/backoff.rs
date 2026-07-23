@@ -1,9 +1,5 @@
 use std::{cmp::min, time::Duration};
 
-const INITIAL_WAIT_MS: u64 = 250;
-const MAX_WAIT_MS: u64 = 32_000;
-const EXP_BASE: u64 = 2;
-
 /// Get a iterator of [`Duration`]s which can be passed into e.g.
 /// `tokio::time::sleep` to observe time-based exponential backoff.
 ///
@@ -26,7 +22,7 @@ pub fn get_backoff_iter() -> Backoff {
 pub fn iter_with_initial_wait_ms(initial_wait_ms: u64) -> Backoff {
     // The initial wait being greater than the maximum wait won't cause any
     // problems, but the programmer probably didn't intend this.
-    debug_assert!(initial_wait_ms <= MAX_WAIT_MS);
+    debug_assert!(initial_wait_ms <= Backoff::DEFAULT_MAX_WAIT_MS);
 
     Backoff {
         initial_wait_ms,
@@ -46,6 +42,16 @@ pub struct Backoff {
 }
 
 impl Backoff {
+    /// The default backoff schedule: 250ms, 500ms, ..., capped at 32s.
+    pub const DEFAULT: Self = Self {
+        initial_wait_ms: Self::DEFAULT_INITIAL_WAIT_MS,
+        max_wait_ms: Self::DEFAULT_MAX_WAIT_MS,
+        attempt: 0,
+    };
+    pub const DEFAULT_INITIAL_WAIT_MS: u64 = 250;
+    pub const DEFAULT_MAX_WAIT_MS: u64 = 32_000;
+    const EXP_BASE: u64 = 2;
+
     /// Create a new backoff with the given initial and max wait durations.
     pub fn new(initial_wait_ms: u64, max_wait_ms: u64) -> Self {
         debug_assert!(initial_wait_ms <= max_wait_ms);
@@ -63,7 +69,7 @@ impl Backoff {
 
     /// Get the next delay duration according to the exponential backoff.
     pub fn next_delay(&mut self) -> Duration {
-        let factor = EXP_BASE.saturating_pow(self.attempt);
+        let factor = Self::EXP_BASE.saturating_pow(self.attempt);
         let wait_ms = self.initial_wait_ms.saturating_mul(factor);
         let bounded_wait_ms = min(wait_ms, self.max_wait_ms);
         self.attempt = self.attempt.saturating_add(1);
@@ -73,11 +79,7 @@ impl Backoff {
 
 impl Default for Backoff {
     fn default() -> Self {
-        Self {
-            initial_wait_ms: INITIAL_WAIT_MS,
-            max_wait_ms: MAX_WAIT_MS,
-            attempt: 0,
-        }
+        Self::DEFAULT
     }
 }
 

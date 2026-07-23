@@ -30,7 +30,7 @@ pub mod macros;
 pub mod models;
 /// Revocable client API types and `RevocableClients`.
 pub mod revocable_clients;
-/// API types shared across multiple endpoints.
+/// API types which don't fit anywhere else.
 pub mod types;
 /// Lexe's VFS ("virtual file system") trait and associated types.
 pub mod vfs;

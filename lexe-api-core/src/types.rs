@@ -1,3 +1,5 @@
+//! API types which don't fit anywhere else.
+
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -16,6 +18,8 @@ pub mod partners;
 pub mod payments;
 /// `Port`, `Ports`, `RunPorts`, etc, used in the Runner.
 pub mod ports;
+/// `Retries`, the retry strategy for API requests.
+pub mod retries;
 /// `SealedSeed` and related types and logic.
 pub mod sealed_seed;
 /// `Username` newtype.

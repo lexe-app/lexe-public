@@ -23,7 +23,10 @@ use lexe_api::{
     },
     revocable_clients::{RevocableClients, RevocableClientsHandle},
     server::LayerConfig,
-    types::{payments::OfferId, ports::RunPorts, sealed_seed::SealedSeedId},
+    types::{
+        payments::OfferId, ports::RunPorts, retries::Retries,
+        sealed_seed::SealedSeedId,
+    },
     vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
 };
 use lexe_byte_array::ByteArray;
@@ -510,7 +513,7 @@ impl UserNode {
 
                         let file =
                             persister.encrypt_json(file_id, &broadcasted_tx);
-                        let retries = 1;
+                        let retries = Retries::from_count(1);
                         persister
                             .persist_file(file, retries)
                             .await

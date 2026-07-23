@@ -42,6 +42,7 @@ use lexe_api::{
             PartnerFeeFields, PaymentDirection, PaymentId, PaymentKind,
             PaymentRail,
         },
+        retries::Retries,
         username::Username,
     },
     vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
@@ -1900,7 +1901,7 @@ pub async fn create_revocable_client(
         )
     };
 
-    let retries = 0;
+    let retries = Retries::from_count(0);
     persister
         .persist_file(updated_file, retries)
         .await
@@ -1999,7 +2000,7 @@ pub async fn update_revocable_client(
     // sufficient to enforce the server's client policies, this is probably OK.
     // Using `Arc<tokio::sync::RwLock<Arc<RwLock<RevocableClients>>>>` or
     // similar doesn't seem worth the minimal consistency benefit.
-    let retries = 0;
+    let retries = Retries::from_count(0);
     persister
         .persist_file(updated_file, retries)
         .await

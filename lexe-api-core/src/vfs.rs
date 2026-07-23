@@ -27,7 +27,10 @@ use lightning::util::ser::{MaybeReadable, ReadableArgs, Writeable};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tracing::{debug, warn};
 
-use crate::{error::BackendApiError, types::Empty};
+use crate::{
+    error::BackendApiError,
+    types::{Empty, retries::Retries},
+};
 
 // --- Constants --- //
 
@@ -71,14 +74,14 @@ pub trait Vfs {
         file_id: &VfsFileId,
     ) -> Result<Option<VfsFile>, BackendApiError>;
 
-    /// Upsert the given file to the backend with the given # of retries.
+    /// Upsert the given file to the backend with the given retry strategy.
     ///
     /// Prefer [`Vfs::persist_file`] which adds logging and error context.
     async fn upsert_file(
         &self,
         file_id: &VfsFileId,
         data: bytes::Bytes,
-        retries: usize,
+        retries: Retries,
     ) -> Result<Empty, BackendApiError>;
 
     /// Deletes the [`VfsFile`] with the given [`VfsFileId`] from the backend.
@@ -328,7 +331,7 @@ pub trait Vfs {
         &self,
         file_id: VfsFileId,
         value: &T,
-        retries: usize,
+        retries: Retries,
     ) -> anyhow::Result<()> {
         let file = self.encrypt_json::<T>(file_id, value);
         self.persist_file(file, retries).await
@@ -339,7 +342,7 @@ pub trait Vfs {
         &self,
         file_id: VfsFileId,
         writeable: &W,
-        retries: usize,
+        retries: Retries,
     ) -> anyhow::Result<()> {
         let file = self.encrypt_ldk_writeable(file_id, writeable);
         self.persist_file(file, retries).await
@@ -353,7 +356,7 @@ pub trait Vfs {
         &self,
         file_id: VfsFileId,
         plaintext_bytes: &[u8],
-        retries: usize,
+        retries: Retries,
     ) -> anyhow::Result<()> {
         let file = self.encrypt_bytes(file_id, plaintext_bytes);
         self.persist_file(file, retries).await
@@ -363,7 +366,7 @@ pub trait Vfs {
     async fn persist_file(
         &self,
         file: VfsFile,
-        retries: usize,
+        retries: Retries,
     ) -> anyhow::Result<()> {
         let file_id = &file.id;
         let bytes = file.data.len();

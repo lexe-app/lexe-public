@@ -34,6 +34,7 @@ use lexe_api::{
             VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
+        retries::Retries,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
     },
     vfs::{
@@ -223,7 +224,7 @@ impl NodeBackendClient {
         file_id: &VfsFileId,
         data: bytes::Bytes,
         auth: BearerAuthToken,
-        retries: usize,
+        retries: Retries,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -232,7 +233,7 @@ impl NodeBackendClient {
             .query(file_id)
             .body(data)
             .bearer_auth(&auth);
-        self.rest.send_with_retries(req, retries, &[]).await
+        self.rest.send_with_retries(req, &retries).await
     }
 }
 
@@ -249,7 +250,9 @@ impl BearerAuthBackendApi for NodeBackendClient {
             .builder(POST, url)
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
-        self.rest.send_with_retries(req, 3, &[]).await
+        self.rest
+            .send_with_retries(req, &Retries::from_count(3))
+            .await
     }
 }
 

@@ -12,7 +12,7 @@ use futures::{
     future::{self, BoxFuture},
 };
 use lexe_api::{
-    types::Empty,
+    types::{Empty, retries::Retries},
     vfs::{self, Vfs, VfsDirectory, VfsFileId},
 };
 use tracing::debug;
@@ -74,7 +74,7 @@ impl Migrations {
     ) -> anyhow::Result<()> {
         let file_id = VfsFileId::new(vfs::MIGRATIONS_DIR, name);
         let data = Bytes::new();
-        let retries = 1;
+        let retries = Retries::from_count(1);
         vfs.upsert_file(&file_id, data, retries)
             .await
             .map(|Empty {}| ())

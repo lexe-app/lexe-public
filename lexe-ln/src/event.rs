@@ -2,7 +2,10 @@ use std::{fmt, future::Future, str::FromStr, sync::Mutex, time::Duration};
 
 use anyhow::{Context, anyhow};
 use bitcoin::{absolute, consensus::Encodable, secp256k1};
-use lexe_api::vfs::{self, Vfs, VfsFile, VfsFileId};
+use lexe_api::{
+    types::retries::Retries,
+    vfs::{self, Vfs, VfsFile, VfsFileId},
+};
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
@@ -799,7 +802,7 @@ where
         }
 
         // Persist event to VFS.
-        let retries = 1;
+        let retries = Retries::from_count(1);
         persister
             .persist_file(file, retries)
             .await
@@ -843,7 +846,7 @@ where
         }
 
         // Persist unbroadcastable tx to VFS.
-        let retries = 1;
+        let retries = Retries::from_count(1);
         persister
             .persist_file(file, retries)
             .await

@@ -431,14 +431,13 @@ impl NodeClient {
 
         let user_agent = self.inner.gateway_client.rest.user_agent().clone();
         let (from, to) = (user_agent, "node-provision");
-        let reqwest_client = RestClient::client_builder(&from)
+        let builder = RestClient::client_builder(&from)
             .proxy(proxy)
-            .use_preconfigured_tls(tls_config)
-            .timeout(timeout::user_node_provision_api::CLIENT_TIMEOUT)
-            .build()
-            .context("Failed to build client")?;
-
-        let provision_rest = RestClient::from_inner(reqwest_client, from, to);
+            .use_preconfigured_tls(tls_config);
+        let timeout = timeout::user_node_provision_api::CLIENT_TIMEOUT;
+        let provision_rest =
+            RestClient::from_builder(builder, from, to, timeout)
+                .context("Failed to build client")?;
 
         Ok(provision_rest)
     }
@@ -909,12 +908,16 @@ impl RunRestClient {
         let (from, to) = (gateway_client.rest.user_agent().clone(), "node-run");
         let proxy =
             static_proxy_config(&gateway_client.gateway_url, run_url, token)?;
-        let client = RestClient::client_builder(&from)
+        let builder = RestClient::client_builder(&from)
             .proxy(proxy)
-            .use_preconfigured_tls(tls_config.clone())
-            .build()
-            .context("Failed to build client")?;
-        let client = RestClient::from_inner(client, from, to);
+            .use_preconfigured_tls(tls_config.clone());
+        let client = RestClient::from_builder(
+            builder,
+            from,
+            to,
+            timeout::client::DEFAULT_TIMEOUT,
+        )
+        .context("Failed to build client")?;
 
         Ok(Self {
             client,

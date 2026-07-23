@@ -8,8 +8,11 @@ use anyhow::{Context, ensure};
 use async_trait::async_trait;
 use lexe_api::{
     models::command::{GetUpdatedPaymentMetadata, GetUpdatedPayments},
-    types::payments::{
-        DbPaymentMetadata, DbPaymentV2, PaymentId, PaymentUpdatedIndex,
+    types::{
+        payments::{
+            DbPaymentMetadata, DbPaymentV2, PaymentId, PaymentUpdatedIndex,
+        },
+        retries::Retries,
     },
     vfs::{self, Vfs, VfsDirectory, VfsFile, VfsFileId},
 };
@@ -746,7 +749,7 @@ pub trait LexePersisterMethods: Vfs {
         // With LDK's fallible event handling, persistence failures return
         // `ReplayEvent` to LDK, which handles replays for us. A single retry
         // handles transient errors while avoiding excessive retry loops.
-        let retries = 1;
+        let retries = Retries::from_count(1);
         self.persist_ldk_writeable(file_id, &event, retries).await
     }
 

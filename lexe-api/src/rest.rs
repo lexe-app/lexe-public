@@ -1,19 +1,20 @@
-use std::{borrow::Cow, time::Instant};
+use std::{borrow::Cow, time::Duration};
 
 use bytes::Bytes;
 use http::{
     Method,
     header::{CONTENT_TYPE, HeaderValue},
 };
-use lexe_api_core::error::{
-    ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
+use lexe_api_core::{
+    error::{ApiError, CommonApiError, CommonErrorKind, ErrorResponse},
+    types::retries::Retries,
 };
 use lexe_common::{constants::timeout, time::DisplayMs};
 use lexe_crypto::ed25519;
-use lexe_std::backoff;
 use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;
 use serde::{Serialize, de::DeserializeOwned};
+use tokio::time::Instant;
 use tracing::{Instrument, debug, warn};
 
 use crate::{trace, trace::TraceId};
@@ -32,6 +33,8 @@ pub const DELETE: Method = Method::DELETE;
 #[derive(Clone)]
 pub struct RestClient {
     client: reqwest::Client,
+    /// The client-level default request timeout.
+    client_timeout: Duration,
     /// The process that this [`RestClient`] is being called from, e.g. "app"
     from: Cow<'static, str>,
     /// The process that this [`RestClient`] is calling, e.g. "node-run"
@@ -58,12 +61,16 @@ impl RestClient {
             to: &'static str,
             tls_config: rustls::ClientConfig,
         ) -> RestClient {
-            let client = RestClient::client_builder(&from)
+            let builder = RestClient::client_builder(&from)
                 .use_preconfigured_tls(tls_config)
-                .https_only(true)
-                .build()
-                .expect("Failed to build reqwest Client");
-            RestClient { client, from, to }
+                .https_only(true);
+            RestClient::from_builder(
+                builder,
+                from,
+                to,
+                timeout::client::DEFAULT_TIMEOUT,
+            )
+            .expect("Failed to build reqwest Client")
         }
         inner(from.into(), to, tls_config)
     }
@@ -75,16 +82,20 @@ impl RestClient {
         to: &'static str,
     ) -> Self {
         fn inner(from: Cow<'static, str>, to: &'static str) -> RestClient {
-            let client = RestClient::client_builder(&from)
-                .https_only(false)
-                .build()
-                .expect("Failed to build reqwest Client");
-            RestClient { client, from, to }
+            let builder = RestClient::client_builder(&from).https_only(false);
+            RestClient::from_builder(
+                builder,
+                from,
+                to,
+                timeout::client::DEFAULT_TIMEOUT,
+            )
+            .expect("Failed to build reqwest Client")
         }
         inner(from.into(), to)
     }
 
     /// Get a [`reqwest::ClientBuilder`] with some defaults set.
+    ///
     /// NOTE that for safety, `https_only` is set to `true`, but you can
     /// override it if needed.
     pub fn client_builder(from: impl AsRef<str>) -> reqwest::ClientBuilder {
@@ -97,17 +108,24 @@ impl RestClient {
         inner(from.as_ref())
     }
 
-    /// Construct a [`RestClient`] from a [`reqwest::Client`].
-    pub fn from_inner(
-        client: reqwest::Client,
+    /// Construct a [`RestClient`] from a [`reqwest::ClientBuilder`].
+    //
+    // We must ensure `Self::client_timeout` matches the actual client timeout
+    // configured in `reqwest::ClientBuilder`, but there is no way to read the
+    // value from the builder, so we require the timeout param and set it here.
+    pub fn from_builder(
+        builder: reqwest::ClientBuilder,
         from: impl Into<Cow<'static, str>>,
         to: &'static str,
-    ) -> Self {
-        Self {
+        client_timeout: Duration,
+    ) -> Result<Self, reqwest::Error> {
+        let client = builder.timeout(client_timeout).build()?;
+        Ok(Self {
             client,
+            client_timeout,
             from: from.into(),
             to,
-        }
+        })
     }
 
     #[inline]
@@ -233,103 +251,125 @@ impl RestClient {
             .map(|resp| resp.into_stream_body())
     }
 
-    /// Sends the built HTTP request, retrying up to `retries` times. Tries to
-    /// JSON deserialize the response body to `T`.
-    ///
-    /// If one of the request attempts yields an error code in `stop_codes`, we
-    /// will immediately stop retrying and return that error.
+    /// Sends the built HTTP request, retrying according to `retries`. Tries
+    /// to JSON deserialize the response body to `T`.
     ///
     /// See also: [`RestClient::send`]
     pub async fn send_with_retries<T: DeserializeOwned, E: ApiError>(
         &self,
         request_builder: reqwest::RequestBuilder,
-        retries: usize,
-        stop_codes: &[ErrorCode],
+        retries: &Retries,
     ) -> Result<T, E> {
         let request = request_builder.build().map_err(CommonApiError::from)?;
         let (request_span, trace_id) =
             trace::client::request_span(&request, &self.from, self.to);
         let response = self
-            .send_with_retries_inner(request, retries, stop_codes, &trace_id)
+            .send_with_retries_inner(request, retries, &trace_id)
             .instrument(request_span)
             .await;
         let bytes = Self::map_response_errors::<Bytes, E>(response)?;
         Self::json_deserialize(bytes)
     }
 
-    // the `send_inner` and `send_with_retries_inner` intentionally use zero
+    // `send_inner` and `send_with_retries_inner` intentionally use zero
     // generics in their function signatures to minimize code bloat.
 
     async fn send_with_retries_inner(
         &self,
         request: reqwest::Request,
-        retries: usize,
-        stop_codes: &[ErrorCode],
+        retries: &Retries,
         trace_id: &TraceId,
     ) -> Result<Result<Bytes, ErrorResponse>, CommonApiError> {
-        let mut backoff_durations = backoff::get_backoff_iter();
-        let mut attempts_left = retries + 1;
+        let (count, timeout, stop_codes, mut backoff_durations) =
+            retries.parts();
+
+        // (Optional) The # of attempts remaining, including this one.
+        let mut attempts_left = count.map(|count| count + 1);
+        // (Optional) The deadline by which all attempts must finish.
+        let deadline =
+            // `Instant::saturating_add` doesn't exist, so we default to `None`
+            // which is treated as unbounded.
+            timeout.and_then(|timeout| Instant::now().checked_add(timeout));
 
         let mut request = Some(request);
 
-        // Do the 'retries' first.
-        for _ in 0..retries {
-            tracing::Span::current().record("attempts_left", attempts_left);
-
-            // clone the request. the request body is cheaply cloneable. the
-            // headers and url are not :'(
-            let maybe_request_clone = request
-                .as_ref()
-                .expect(
-                    "This should never happen; we only take() the original \
-                     request on the last attempt",
-                )
-                .try_clone();
-
-            let request_clone = match maybe_request_clone {
-                Some(request_clone) => request_clone,
-                // We only get None if the request body is streamed and not set
-                // up front. In this case, we can't send more than once.
-                None => break,
-            };
-
-            // send the request and look for any error codes in the response
-            // that we should bail on and stop retrying.
-            match self.send_inner(request_clone, trace_id).await {
-                Ok(Ok(resp)) => match resp.read_bytes().await {
-                    Ok(bytes) => {
-                        return Ok(Ok(bytes));
-                    }
-                    Err(common_error) => {
-                        if stop_codes.contains(&common_error.to_code()) {
-                            return Err(common_error);
-                        }
-                    }
-                },
-                Ok(Err(api_error)) =>
-                    if stop_codes.contains(&api_error.code) {
-                        return Ok(Err(api_error));
-                    },
-                Err(common_error) => {
-                    if stop_codes.contains(&common_error.to_code()) {
-                        return Err(common_error);
-                    }
-                }
+        loop {
+            if let Some(attempts_left) = attempts_left {
+                tracing::Span::current().record("attempts_left", attempts_left);
             }
 
-            // sleep for a bit before next retry
-            tokio::time::sleep(backoff_durations.next().unwrap()).await;
-            attempts_left -= 1;
-        }
+            // Clone the request for this attempt.
+            // - The body is cheap to clone; the headers and url are not :'(
+            //
+            // Send the original using `request.take()` instead when:
+            // - This is the known-last attempt (only applicable to `count`)
+            // - `try_clone` returns `None`, which only happens if the request
+            //   body is streamed, in which case we can't send more than once.
+            let mut attempt_request = if attempts_left == Some(1) {
+                request.take().expect("Taken only on the last attempt")
+            } else {
+                let original =
+                    request.as_ref().expect("Taken only on the last attempt");
+                match original.try_clone() {
+                    Some(clone) => clone,
+                    None => request.take().unwrap(),
+                }
+            };
 
-        // We ran out of retries; return the result of the 'main' attempt.
-        assert_eq!(attempts_left, 1);
-        tracing::Span::current().record("attempts_left", attempts_left);
+            // Bound the in-flight request by the time left to the deadline.
+            if let Some(deadline) = deadline {
+                let remaining =
+                    deadline.saturating_duration_since(Instant::now());
 
-        let resp = self.send_inner(request.take().unwrap(), trace_id).await?;
-        match resp {
-            Ok(resp_succ) => resp_succ.read_bytes().await.map(Ok),
-            Err(api_error) => Ok(Err(api_error)),
+                // - If a per-request timeout is set, overriding the client
+                //   timeout, use `min(request_timeout, remaining)`.
+                // - If there is no per-request timeout, we fall back to the
+                //   client timeout, and use `min(client_timeout, remaining)`.
+                let timeout = attempt_request
+                    .timeout()
+                    .copied()
+                    .unwrap_or(self.client_timeout)
+                    .min(remaining);
+
+                *attempt_request.timeout_mut() = Some(timeout);
+            }
+
+            // Send the request; success returns immediately.
+            let error = match self.send_inner(attempt_request, trace_id).await {
+                Ok(Ok(resp)) => match resp.read_bytes().await {
+                    Ok(bytes) => return Ok(Ok(bytes)),
+                    Err(common_error) => Err(common_error),
+                },
+                Ok(Err(api_error)) => Ok(api_error),
+                Err(common_error) => Err(common_error),
+            };
+
+            // Give up if any limit is hit:
+            // - `request` is `None`: We just made our last attempt, or the
+            //   request was unclonable.
+            // - The backoff sleep would finish at or after the deadline.
+            // - The error code matches one of our stop codes.
+            let next_sleep_duration = backoff_durations.next().unwrap();
+            let next_sleep_target = Instant::now() + next_sleep_duration;
+            let next_sleep_reaches_deadline =
+                deadline.is_some_and(|deadline| next_sleep_target >= deadline);
+            let error_code = match &error {
+                Ok(api_error) => api_error.code,
+                Err(common_error) => common_error.to_code(),
+            };
+            if request.is_none()
+                || next_sleep_reaches_deadline
+                || stop_codes.contains(&error_code)
+            {
+                return match error {
+                    Ok(api_error) => Ok(Err(api_error)),
+                    Err(common_error) => Err(common_error),
+                };
+            }
+
+            // Sleep until it is time to make our next attempt.
+            tokio::time::sleep_until(next_sleep_target).await;
+            attempts_left = attempts_left.map(|n| n - 1);
         }
     }
 
@@ -338,7 +378,7 @@ impl RestClient {
         mut request: reqwest::Request,
         trace_id: &TraceId,
     ) -> Result<Result<SuccessResponse, ErrorResponse>, CommonApiError> {
-        let start = tokio::time::Instant::now().into_std();
+        let start = Instant::now();
         // This message should mirror `LxOnRequest`.
         debug!(target: trace::TARGET, "New client request");
 

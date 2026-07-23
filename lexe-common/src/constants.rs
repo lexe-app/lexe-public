@@ -115,7 +115,7 @@ pub const HBA_CLAIM_MIN_BALANCE_SATS: u32 = 10_000;
 
 // --- Persistence --- //
 
-/// The default number of persist retries for important objects.
+/// The default number of persist retry attempts for important objects.
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
 
 // --- Networking --- //

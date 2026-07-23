@@ -68,7 +68,7 @@ use lexe_api::{
         FeeEstimate, OnchainDescriptors, PayOnchainPreflightRequest,
         PayOnchainPreflightResponse, PayOnchainRequest,
     },
-    types::payments::PaymentKind,
+    types::{payments::PaymentKind, retries::Retries},
     vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_V2_FILENAME},
 };
 #[cfg(test)]
@@ -1462,7 +1462,7 @@ async fn do_wallet_persist<PS: LexePersister>(
     // Finish the current persist attempt before responding to
     // any shutdown signal received in the meantime.
     let persist_result = persister
-        .persist_file(file, IMPORTANT_PERSIST_RETRIES)
+        .persist_file(file, Retries::from_count(IMPORTANT_PERSIST_RETRIES))
         .await;
 
     match persist_result {
