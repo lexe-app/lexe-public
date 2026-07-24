@@ -1,0 +1,2 @@
+- Claim your own username@lexe.app custom Human Bitcoin Address. Requires a minimum wallet balance of 10,000 sats.
+- Reliability improvements to payment syncing and behind-the-scenes performance.
