@@ -18,12 +18,11 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         MultistepFlow,
         PaymentAmountInput,
+        PaymentAmountInputState,
         PaymentQrCard,
         ScrollableSinglePageBody,
         SubheadingText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
-import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
-import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/initial_deposit/state.dart' show DepositMethod;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
@@ -248,8 +247,7 @@ class InitialDepositAmountPage extends StatefulWidget {
 }
 
 class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
-  final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
-  final IntInputFormatter intInputFormatter = IntInputFormatter();
+  final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
   /// Whether the current amount is valid (>= 1 sat).
@@ -271,14 +269,8 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
   }
 
   /// Called when the amount input changes.
-  void onAmountChanged(String value) {
-    // Check if we have a valid amount (>= 1)
-    switch (this.intInputFormatter.tryParse(value)) {
-      case Ok(:final ok):
-        this.hasValidAmount.value = ok >= 1;
-      case Err():
-        this.hasValidAmount.value = false;
-    }
+  void onAmountChanged(int? sats) {
+    this.hasValidAmount.value = (sats ?? 0) >= 1;
 
     // Reset warning state when amount changes
     if (this.showLowAmountWarning.value) {
@@ -291,11 +283,8 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
   int? parseAmount() {
     this.errorMessage.value = null;
 
-    final amountField = this.amountFieldKey.currentState;
-    if (amountField == null) return null;
-
-    final value = amountField.value;
-    if (value == null || value.isEmpty) {
+    final sats = this.amountKey.currentState?.sats.value;
+    if (sats == null) {
       this.errorMessage.value = const ErrorMessage(
         title: "Invalid amount",
         message: "Please enter an amount",
@@ -303,23 +292,15 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
       return null;
     }
 
-    switch (this.intInputFormatter.tryParse(value)) {
-      case Ok(:final ok):
-        if (ok < 1) {
-          this.errorMessage.value = const ErrorMessage(
-            title: "Invalid amount",
-            message: "Amount must be at least 1 sat",
-          );
-          return null;
-        }
-        return ok;
-      case Err():
-        this.errorMessage.value = const ErrorMessage(
-          title: "Invalid amount",
-          message: "Please enter a valid number",
-        );
-        return null;
+    if (sats < 1) {
+      this.errorMessage.value = const ErrorMessage(
+        title: "Invalid amount",
+        message: "Amount must be at least 1 sat",
+      );
+      return null;
     }
+
+    return sats;
   }
 
   void onNext() {
@@ -376,8 +357,7 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
           const SizedBox(height: Space.s700),
 
           PaymentAmountInput(
-            fieldKey: this.amountFieldKey,
-            intInputFormatter: this.intInputFormatter,
+            key: this.amountKey,
             onChanged: this.onAmountChanged,
             onEditingComplete: this.onNext,
             allowEmpty: false,

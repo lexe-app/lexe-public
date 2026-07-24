@@ -25,12 +25,12 @@ import 'package:lexeapp/components.dart'
         LxCloseButtonKind,
         MultistepFlow,
         PaymentAmountInput,
+        PaymentAmountInputState,
         ReceiptSeparator,
         ScrollableSinglePageBody,
         SubBalanceRow,
         SubheadingText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
-import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState, FiatAmount;
@@ -96,9 +96,7 @@ class OpenChannelNeedValuePage extends StatefulWidget {
 }
 
 class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
-  final GlobalKey<FormFieldState<String>> valueFieldKey = GlobalKey();
-
-  final IntInputFormatter intInputFormatter = IntInputFormatter();
+  final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
 
   final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
@@ -138,19 +136,11 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     this.estimateFeeError.value = null;
 
     // Validate the value field
-    final fieldState = this.valueFieldKey.currentState!;
-    if (!fieldState.validate()) return;
+    final amountInput = this.amountKey.currentState!;
+    if (!amountInput.validate()) return;
 
-    final value = fieldState.value;
-    if (value == null || value.isEmpty) return;
-
-    final int valueSats;
-    switch (this.intInputFormatter.tryParse(value)) {
-      case Err():
-        return;
-      case Ok(:final ok):
-        valueSats = ok;
-    }
+    final valueSats = amountInput.sats.value;
+    if (valueSats == null) return;
 
     // Only start the loading animation once the value validation is done.
     this.estimatingFee.value = true;
@@ -230,8 +220,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
 
           // <amount> sats
           PaymentAmountInput(
-            fieldKey: this.valueFieldKey,
-            intInputFormatter: this.intInputFormatter,
+            key: this.amountKey,
             onEditingComplete: this.onNext,
             validate: this.validateValue,
             allowEmpty: false,

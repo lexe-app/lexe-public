@@ -12,9 +12,9 @@ import 'package:lexeapp/components.dart'
         LxBackButton,
         LxFilledButton,
         PaymentAmountInput,
+        PaymentAmountInputState,
         ScrollableSinglePageBody,
         showModalAsyncFlow;
-import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/style.dart' show LxIcons, Space;
 import 'package:lexeapp/url.dart' as url;
@@ -33,8 +33,7 @@ class _BuyPageState extends State<BuyPage> {
   /// mirror it here for inline validation.
   static const int minimumBuySats = 5000;
 
-  final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
-  final IntInputFormatter intInputFormatter = IntInputFormatter();
+  final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
 
   Result<(), String> validateAmount(int amountSats) =>
       amountSats >= minimumBuySats
@@ -42,11 +41,11 @@ class _BuyPageState extends State<BuyPage> {
       : const Err("Enter at least ₿5000");
 
   Future<void> onConfirm() async {
-    final amountState = this.amountFieldKey.currentState!;
-    if (!amountState.validate()) return;
+    final amountInput = this.amountKey.currentState!;
+    if (!amountInput.validate()) return;
 
     // `allowEmpty/Zero: false` + [validateAmount] guarantee `amountSats >= minSats`.
-    final amountSats = this.intInputFormatter.tryParse(amountState.value!).ok!;
+    final amountSats = amountInput.sats.value!;
 
     info("BuyPage: Buying $amountSats sats with Cash App");
 
@@ -101,8 +100,7 @@ Make sure to set up Cash App on this device before you proceed.
           const SizedBox(height: Space.s700),
 
           PaymentAmountInput(
-            fieldKey: this.amountFieldKey,
-            intInputFormatter: this.intInputFormatter,
+            key: this.amountKey,
             allowEmpty: false,
             allowZero: false,
             validate: this.validateAmount,

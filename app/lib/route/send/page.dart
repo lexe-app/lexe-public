@@ -39,13 +39,13 @@ import 'package:lexeapp/components.dart'
         MAX_OFFER_PAYMENT_NOTE_CHARS,
         MultistepFlow,
         PaymentAmountInput,
+        PaymentAmountInputState,
         PaymentNoteInput,
         ReceiptSeparator,
         ScrollableSinglePageBody,
         SubheadingText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/send/state.dart'
     show
@@ -98,9 +98,7 @@ class SendPaymentAmountPage extends StatefulWidget {
 }
 
 class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
-  final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
-
-  final IntInputFormatter intInputFormatter = IntInputFormatter();
+  final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
 
   final ValueNotifier<ErrorMessage?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
@@ -121,19 +119,11 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     this.estimateFeeError.value = null;
 
     // Validate the amount field.
-    final fieldState = this.amountFieldKey.currentState!;
-    if (!fieldState.validate()) return;
+    final amountInput = this.amountKey.currentState!;
+    if (!amountInput.validate()) return;
 
-    final value = fieldState.value;
-    if (value == null || value.isEmpty) return;
-
-    final int amountSats;
-    switch (this.intInputFormatter.tryParse(value)) {
-      case Err():
-        return;
-      case Ok(:final ok):
-        amountSats = ok;
-    }
+    final amountSats = amountInput.sats.value;
+    if (amountSats == null) return;
 
     // Only start the loading animation once the initial amount validation is
     // done.
@@ -318,8 +308,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           // "₿<amount>" (en_US)
           // "<amount> ₿" (fr_FR)
           PaymentAmountInput(
-            fieldKey: this.amountFieldKey,
-            intInputFormatter: this.intInputFormatter,
+            key: this.amountKey,
             onEditingComplete: this.onNext,
             validate: this.validateAmount,
             allowEmpty: false,

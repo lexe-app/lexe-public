@@ -14,6 +14,7 @@ import 'package:lexeapp/components.dart'
         LxCloseButtonKind,
         MultistepFlow,
         PaymentAmountInput,
+        PaymentAmountInputState,
         PaymentNoteInput,
         ReceiptSeparator,
         ScrollableSinglePageBody,
@@ -21,7 +22,6 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/currency_format.dart'
     as currency_format
     show formatFiat, formatSatsAmount, satsToBtc;
-import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/claim/state.dart'
     show
@@ -76,7 +76,8 @@ class ClaimPaymentAmountPage extends StatefulWidget {
 }
 
 class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
-  static final intInputFormatter = IntInputFormatter();
+  final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
+  // final messageKey = GlobalKey<FormFieldState<String>>();
 
   /// `true`  -> button loading animation plays;
   /// `false` -> button is normal
@@ -129,27 +130,13 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
         ];
     }
 
-    // The keys for the input fields
-    final amountInputKey = GlobalKey<FormFieldState<String>>();
-    // final messageKey = GlobalKey<FormFieldState<String>>();
-
     Future<void> onNext() async {
       // Validate the amount input field
-      final amountFieldState = amountInputKey.currentState!;
-      if (!amountFieldState.validate()) return;
+      final amountInput = this.amountKey.currentState!;
+      if (!amountInput.validate()) return;
 
-      final amountStr = amountFieldState.value;
-      if (amountStr == null || amountStr.isEmpty) return;
-
-      final int amountSats;
-      switch (_ClaimPaymentAmountPageState.intInputFormatter.tryParse(
-        amountStr,
-      )) {
-        case Err():
-          return;
-        case Ok(:final ok):
-          amountSats = ok;
-      }
+      final amountSats = amountInput.sats.value;
+      if (amountSats == null) return;
 
       // // Get the message from the input field
       // final message = messageKey.currentState?.value?.nonEmpty();
@@ -210,10 +197,9 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
           // Amount input box, formatted: "₿<amount>" (en_US)
           //                              "<amount> ₿" (fr_FR)
           PaymentAmountInput(
-            fieldKey: amountInputKey,
+            key: this.amountKey,
             // TODO(nicole): for LNURL-withdraw and pay, if we can't pay msat amounts,
             // we could run into an impossible request with bounds eg [1.4, 1.6] sat
-            intInputFormatter: _ClaimPaymentAmountPageState.intInputFormatter,
             onEditingComplete: onNext,
             validate: validateAmount,
             allowEmpty: false,

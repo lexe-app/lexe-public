@@ -945,11 +945,14 @@ class SplitAmountText extends StatelessWidget {
   }
 }
 
+/// A large, auto-formatting BTC amount input, in whole sats.
+///
+/// Read the entered amount via a [GlobalKey]: pass a
+/// `GlobalKey<PaymentAmountInputState>` as [key], then read the live
+/// [PaymentAmountInputState.sats] or call [PaymentAmountInputState.validate].
 class PaymentAmountInput extends StatefulWidget {
   const PaymentAmountInput({
     super.key,
-    required this.fieldKey,
-    required this.intInputFormatter,
     required this.allowEmpty,
     required this.allowZero,
     this.validate,
@@ -957,10 +960,6 @@ class PaymentAmountInput extends StatefulWidget {
     this.onEditingComplete,
     this.initialValue,
   });
-
-  final GlobalKey<FormFieldState<String>> fieldKey;
-
-  final IntInputFormatter intInputFormatter;
 
   /// If true, `.validate()` will allow an empty field value (`null`).
   final bool allowEmpty;
@@ -971,18 +970,53 @@ class PaymentAmountInput extends StatefulWidget {
   /// Additional validation to perform on the value. We already validate that
   /// the value is a non-zero unsigned integer. Return `Err(null)` to prevent
   /// submission without displaying an error bar.
-  final Result<(), String> Function(int amount)? validate;
+  final Result<(), String> Function(int sats)? validate;
 
-  /// Called when the text field value changes.
-  final ValueChanged<String>? onChanged;
+  /// Called with the parsed amount converted to sats whenever the input
+  /// changes; `null` when the field is empty or invalid.
+  final ValueChanged<int?>? onChanged;
 
   final VoidCallback? onEditingComplete;
 
   final int? initialValue;
 
-  Result<(), String> validateAmountStr(String? maybeAmountStr) {
+  @override
+  State<PaymentAmountInput> createState() => PaymentAmountInputState();
+}
+
+class PaymentAmountInputState extends State<PaymentAmountInput> {
+  final GlobalKey<FormFieldState<String>> _fieldKey = GlobalKey();
+  final IntInputFormatter _formatter = IntInputFormatter();
+
+  /// The entered amount in sats, or `null` when the field is empty or invalid.
+  late final ValueNotifier<int?> _sats = ValueNotifier(
+    this.widget.initialValue ?? 0,
+  );
+  ValueListenable<int?> get sats => this._sats;
+
+  final ValueNotifier<String?> _errorText = ValueNotifier(null);
+
+  /// Run validation, surfacing an error message on failure; returns whether the
+  /// entered amount is valid.
+  bool validate() => this._fieldKey.currentState?.validate() ?? false;
+
+  // Parse the input field [text] into sats, store it in [_sats], and notify
+  // [PaymentAmountInput.onChanged]. Hooked into the text field's `onChanged`.
+  void _inputValueToSats(String text) {
+    final sats = this._formatter.tryParse(text).ok;
+    this._sats.value = sats;
+    this.widget.onChanged?.call(sats);
+  }
+
+  // Capture the validation output and store the error message as state.
+  String? _validator(String? input) {
+    this._errorText.value = this._validateAmountStr(input).err;
+    return this._errorText.value;
+  }
+
+  Result<(), String> _validateAmountStr(String? maybeAmountStr) {
     if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
-      if (this.allowEmpty) {
+      if (this.widget.allowEmpty) {
         return const Ok(());
       } else {
         return const Err("");
@@ -990,14 +1024,14 @@ class PaymentAmountInput extends StatefulWidget {
     }
 
     final int amount;
-    switch (this.intInputFormatter.tryParse(maybeAmountStr)) {
+    switch (this._formatter.tryParse(maybeAmountStr)) {
       case Ok(:final ok):
         amount = ok;
       case Err():
         return const Err("Amount must be a number.");
     }
 
-    if (!this.allowZero && amount == 0) {
+    if (!this.widget.allowZero && amount == 0) {
       return const Err("");
     }
 
@@ -1005,26 +1039,14 @@ class PaymentAmountInput extends StatefulWidget {
       return const Err("");
     }
 
-    final validate = this.validate;
+    final validate = this.widget.validate;
     return (validate != null) ? validate(amount) : const Ok(());
   }
 
   @override
-  State<PaymentAmountInput> createState() => _PaymentAmountInputState();
-}
-
-class _PaymentAmountInputState extends State<PaymentAmountInput> {
-  final ValueNotifier<String?> errorText = ValueNotifier<String?>(null);
-
-  // Capture the validation output and store the error message as state.
-  String? validator(String? input) {
-    this.errorText.value = this.widget.validateAmountStr(input).err;
-    return this.errorText.value;
-  }
-
-  @override
   void dispose() {
-    this.errorText.dispose();
+    this._errorText.dispose();
+    this._sats.dispose();
     super.dispose();
   }
 
@@ -1083,14 +1105,14 @@ class _PaymentAmountInputState extends State<PaymentAmountInput> {
               // The text field with intrinsic width
               child: IntrinsicWidth(
                 child: TextFormField(
-                  key: this.widget.fieldKey,
+                  key: this._fieldKey,
                   autofocus: true,
                   keyboardType: const TextInputType.numberWithOptions(
                     signed: false,
                     decimal: false,
                   ),
                   initialValue: (initialValue != null)
-                      ? this.widget.intInputFormatter.formatInt(initialValue)
+                      ? this._formatter.formatInt(initialValue)
                       // Prefill with 0 for style; doesn't affect input UX
                       : "0",
                   textDirection: TextDirection.ltr,
@@ -1105,9 +1127,9 @@ class _PaymentAmountInputState extends State<PaymentAmountInput> {
                         required isFocused,
                         maxLength,
                       }) => null,
-                  onChanged: this.widget.onChanged,
+                  onChanged: this._inputValueToSats,
                   onEditingComplete: this.widget.onEditingComplete,
-                  validator: this.validator,
+                  validator: this._validator,
                   // Error messages that are too long will be cut off because of IntrinsicWidth.
                   // We hide the TextFormField error message and display it below in Column instead.
                   errorBuilder: (_, _) => SizedBox.shrink(),
@@ -1118,7 +1140,7 @@ class _PaymentAmountInputState extends State<PaymentAmountInput> {
                     // Ensure there's no collapse of the field when empty
                     constraints: BoxConstraints(minWidth: minWidth),
                   ),
-                  inputFormatters: [this.widget.intInputFormatter],
+                  inputFormatters: [this._formatter],
                   style: amountTextStyle,
                 ),
               ),
@@ -1136,7 +1158,7 @@ class _PaymentAmountInputState extends State<PaymentAmountInput> {
         Padding(
           padding: const EdgeInsets.only(top: 6.0),
           child: ValueListenableBuilder<String?>(
-            valueListenable: this.errorText,
+            valueListenable: this._errorText,
             builder: (_, value, _) => Text(
               value ?? "",
               style: Fonts.fontUI.copyWith(

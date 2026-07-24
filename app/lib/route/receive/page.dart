@@ -24,13 +24,13 @@ import 'package:lexeapp/components.dart'
         LxBackButton,
         LxFilledButton,
         PaymentAmountInput,
+        PaymentAmountInputState,
         PaymentNoteInput,
         PaymentQrCard,
         ScrollableSinglePageBody,
         SubheadingText,
         VoidContextCallback;
 import 'package:lexeapp/feature_flags.dart' show FeatureFlags;
-import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/receive/state.dart'
     show
@@ -1501,27 +1501,16 @@ class ReceivePaymentEditPage extends StatefulWidget {
 }
 
 class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
-  final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
+  final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
   final GlobalKey<FormFieldState<String>> descriptionFieldKey = GlobalKey();
 
-  final IntInputFormatter intInputFormatter = IntInputFormatter();
-
   void onConfirm() {
-    final amountState = this.amountFieldKey.currentState!;
-    if (!amountState.validate()) return;
+    final amountInput = this.amountKey.currentState!;
+    if (!amountInput.validate()) return;
 
-    final String? amountStr = amountState.value?.nonEmpty();
-    final int? amountSats;
-    if (amountStr != null) {
-      final a = this.intInputFormatter.tryParse(amountStr).ok;
-      if (a != 0) {
-        amountSats = a;
-      } else {
-        amountSats = null;
-      }
-    } else {
-      amountSats = null;
-    }
+    // Treat an empty or zero amount as "no amount".
+    final sats = amountInput.sats.value;
+    final int? amountSats = (sats != null && sats != 0) ? sats : null;
 
     final descriptionState = this.descriptionFieldKey.currentState!;
     if (!descriptionState.validate()) return;
@@ -1549,8 +1538,7 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
 
           // <amount> sats
           PaymentAmountInput(
-            fieldKey: this.amountFieldKey,
-            intInputFormatter: this.intInputFormatter,
+            key: this.amountKey,
             allowEmpty: true,
             allowZero: true,
             initialValue: this.widget.prev.amountSats,
