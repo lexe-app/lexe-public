@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 /// `BoundedString`, length-bounded string type for untrusted input.
 pub mod bounded_string;
+/// Tamper-evident blobs that Lexe issues and a client echoes back.
+pub mod continuation;
 /// `Invoice`, a wrapper around LDK's BOLT11 invoice type.
 pub mod invoice;
 /// Lnurl types

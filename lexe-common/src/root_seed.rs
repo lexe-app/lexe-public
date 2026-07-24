@@ -8,7 +8,7 @@ use bitcoin::{
 use lexe_byte_array::ByteArray;
 use lexe_crypto::{
     aes::{self, AesMasterKey},
-    ed25519, password,
+    ed25519, hmac, password,
     rng::{Crng, RngExt},
 };
 use lexe_hex::hex;
@@ -316,6 +316,14 @@ impl RootSeed {
     pub fn derive_vfs_master_key(&self) -> AesMasterKey {
         let secret = self.derive(&[b"vfs master key"]);
         AesMasterKey::new(secret.expose_secret())
+    }
+
+    /// Derive the key used to authenticate "continuations": server-issued
+    /// opaque blobs that a client echoes back to us (e.g. a signed
+    /// LDK route).
+    pub fn derive_continuation_mac_key(&self) -> hmac::Key {
+        let secret = self.derive(&[b"continuation mac key"]);
+        hmac::Key::from_seed(secret.expose_secret())
     }
 
     #[cfg(any(test, feature = "test-utils"))]
