@@ -6,11 +6,7 @@
 //! [`NodeClient`]: crate::client::NodeClient
 //! [`GatewayClient`]: crate::client::GatewayClient
 
-use std::{
-    borrow::Cow,
-    sync::Arc,
-    time::{Duration, SystemTime},
-};
+use std::{borrow::Cow, sync::Arc, time::SystemTime};
 
 use anyhow::{Context, ensure};
 use arc_swap::ArcSwapOption;
@@ -79,7 +75,7 @@ use lexe_common::{
         version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
     },
     byte_str::ByteStr,
-    constants::{self, node_provision_dns},
+    constants::{self, node_provision_dns, timeout},
     env::DeployEnv,
 };
 use lexe_crypto::{ed25519, rng::Crng};
@@ -428,8 +424,7 @@ impl NodeClient {
         let reqwest_client = RestClient::client_builder(&from)
             .proxy(proxy)
             .use_preconfigured_tls(tls_config)
-            // Provision can take longer than 5 sec. <3 gdrive : )
-            .timeout(Duration::from_secs(30))
+            .timeout(timeout::user_node_provision_api::CLIENT_TIMEOUT)
             .build()
             .context("Failed to build client")?;
 
@@ -621,10 +616,9 @@ impl UserNodeRunApi for NodeClient {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/pay_invoice");
-        // `pay_invoice` may call `max_flow` which takes a long time.
         let req = run_rest
             .post(url, &req)
-            .timeout(constants::MAX_FLOW_TIMEOUT + Duration::from_secs(2));
+            .timeout(timeout::user_node_run_api::max_flow::CLIENT_TIMEOUT);
         run_rest.send(req).await
     }
 
@@ -635,10 +629,9 @@ impl UserNodeRunApi for NodeClient {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/pay_invoice_preflight");
-        // `pay_invoice_preflight` may call `max_flow` which takes a long time.
         let req = run_rest
             .post(url, &req)
-            .timeout(constants::MAX_FLOW_TIMEOUT + Duration::from_secs(2));
+            .timeout(timeout::user_node_run_api::max_flow::CLIENT_TIMEOUT);
         run_rest.send(req).await
     }
 

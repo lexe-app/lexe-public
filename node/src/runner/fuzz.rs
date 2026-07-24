@@ -262,7 +262,7 @@ mod helpers {
             rust_backtrace: None,
             rust_log: None,
             sgx_heap_size: 0x8000_0000, // 2 GB
-            // DEFAULT_USERNODE_SYNC_TIMEOUT
+            // timeout::usernode::DEFAULT_SYNC_TIMEOUT
             usernode_sync_timeout_secs: Some(30),
             untrusted_deploy_env: DeployEnv::Dev,
             untrusted_esplora_urls: vec![],

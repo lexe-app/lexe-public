@@ -32,7 +32,7 @@ use lexe_common::{
         models::BroadcastedTx,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
-    constants::{self},
+    constants::timeout,
     env::DeployEnv,
     ln::{balance::OnchainBalance, hashes::Txid, network::Network},
     net,
@@ -794,9 +794,9 @@ impl UserNode {
             .local_addr()
             .context("Couldn't get user addr")?
             .port();
-        // `[preflight_]pay_invoice` may call `max_flow`.
         let user_layer_config = LayerConfig {
-            handling_timeout: constants::MAX_FLOW_TIMEOUT,
+            handling_timeout:
+                timeout::user_node_run_api::SERVER_HANDLER_TIMEOUT,
             ..Default::default()
         };
         let (user_tls_config, user_dns) =
@@ -1164,16 +1164,11 @@ impl UserNode {
 
         // --- Run --- //
 
-        const_assert!(
-            constants::USER_NODE_SHUTDOWN_TIMEOUT.as_secs()
-                > lexe_api::server::SERVER_SHUTDOWN_TIMEOUT.as_secs()
-        );
-
         task::try_join_tasks_and_shutdown(
             self.static_tasks,
             ctxt.eph_tasks_rx,
             self.shutdown.clone(),
-            constants::USER_NODE_SHUTDOWN_TIMEOUT,
+            timeout::usernode::SHUTDOWN_TIMEOUT,
         )
         .await
         .context("Error awaiting tasks")?;

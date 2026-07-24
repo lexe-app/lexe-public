@@ -80,7 +80,8 @@ pub struct MegaArgs {
 
     /// BDK/LDK sync timeout for user nodes (in seconds).
     ///
-    /// Defaults to [`lexe_common::constants::DEFAULT_USERNODE_SYNC_TIMEOUT`].
+    /// Defaults to
+    /// [`lexe_common::constants::timeout::usernode::DEFAULT_SYNC_TIMEOUT`].
     // Added in node-v0.9.4
     #[serde(default)]
     pub usernode_sync_timeout_secs: Option<u64>,

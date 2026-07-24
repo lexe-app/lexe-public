@@ -30,7 +30,7 @@ use lexe_api::{
 use lexe_byte_array::ByteArray;
 use lexe_common::{
     api::{auth::LexeScope, provision::NodeProvisionRequest},
-    constants,
+    constants::timeout,
     env::DeployEnv,
     ln::network::Network,
     net,
@@ -172,7 +172,7 @@ impl ProvisionInstance {
             self.static_tasks,
             eph_tasks_rx,
             self.shutdown,
-            constants::USER_NODE_SHUTDOWN_TIMEOUT,
+            timeout::usernode::SHUTDOWN_TIMEOUT,
         )
         .await
         .context("Error awaiting tasks")

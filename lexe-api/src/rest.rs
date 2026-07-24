@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    time::{Duration, Instant},
-};
+use std::{borrow::Cow, time::Instant};
 
 use bytes::Bytes;
 use http::{
@@ -11,7 +8,7 @@ use http::{
 use lexe_api_core::error::{
     ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
 };
-use lexe_common::time::DisplayMs;
+use lexe_common::{constants::timeout, time::DisplayMs};
 use lexe_crypto::ed25519;
 use lexe_std::backoff;
 use lightning::util::ser::Writeable;
@@ -24,9 +21,6 @@ use crate::{trace, trace::TraceId};
 /// The CONTENT-TYPE header for signed BCS-serialized structs.
 pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
     HeaderValue::from_static("application/ed25519-bcs");
-
-// Apparently it takes >15s to open a channel with an external peer.
-pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 pub const GET: Method = Method::GET;
@@ -98,7 +92,7 @@ impl RestClient {
             reqwest::Client::builder()
                 .user_agent(from)
                 .https_only(true)
-                .timeout(API_REQUEST_TIMEOUT)
+                .timeout(timeout::client::DEFAULT_TIMEOUT)
         }
         inner(from.as_ref())
     }

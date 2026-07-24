@@ -1,9 +1,12 @@
-use std::{include_bytes, time::Duration};
+use std::include_bytes;
 
 use lexe_enclave::enclave::{Measurement, MrShort};
-use lexe_std::{const_assert, const_concat_str};
+use lexe_std::const_concat_str;
 
 use crate::{ppm, ppm::Ppm};
+
+/// Timeout constants and hierarchies.
+pub mod timeout;
 
 // --- General --- //
 
@@ -34,28 +37,6 @@ pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;
 
 /// Reject payment notes that are too large.
 pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
-
-/// The amount of time user node tasks have to finish after a graceful shutdown
-/// signal is received before the task is forced to exit.
-pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(25);
-
-/// The amount of time user the user runner has to finish after a graceful
-/// shutdown signal is received before the program is forced to exit.
-pub const USER_RUNNER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(27);
-
-const_assert!(
-    USER_NODE_SHUTDOWN_TIMEOUT.as_secs()
-        < USER_RUNNER_SHUTDOWN_TIMEOUT.as_secs()
-);
-
-/// Default sync timeout for user nodes (BDK/LDK sync).
-pub const DEFAULT_USERNODE_SYNC_TIMEOUT: Duration = Duration::from_secs(30);
-
-/// Computing `max_flow` takes ~30s at 10 iterations and ~50s at 17 iterations.
-/// Set `LayerConfig::handling_timeout` and `reqwest::RequestBuilder::timeout`
-/// to this value to ensure that callers can get a response.
-/// See `compute_max_flow_to_recipient` for more details.
-pub const MAX_FLOW_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// This is both:
 ///

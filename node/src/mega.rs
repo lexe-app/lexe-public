@@ -2,7 +2,7 @@ use anyhow::Context;
 use lexe_api::{
     cli::node::MegaArgs, def::MegaRunnerApi, types::ports::MegaPorts,
 };
-use lexe_common::{constants, time::TimestampMs};
+use lexe_common::{constants::timeout, time::TimestampMs};
 use lexe_crypto::rng::Crng;
 use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{notify_once::NotifyOnce, task};
@@ -111,7 +111,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         static_tasks,
         eph_tasks_rx,
         mega_shutdown,
-        constants::USER_NODE_SHUTDOWN_TIMEOUT,
+        timeout::usernode::SHUTDOWN_TIMEOUT,
     )
     .await
     .context("Error awaiting tasks")?;

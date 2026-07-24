@@ -11,7 +11,7 @@ use lexe_api::{
     models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
     types::{LeaseId, ports::RunPorts},
 };
-use lexe_common::{api::user::UserPk, constants, time::TimestampMs};
+use lexe_common::{api::user::UserPk, constants::timeout, time::TimestampMs};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lru::LruCache;
 use tokio::{
@@ -199,7 +199,7 @@ impl UserRunner {
         // --- Graceful shutdown --- //
 
         let shutdown_timeout =
-            tokio::time::sleep(constants::USER_RUNNER_SHUTDOWN_TIMEOUT);
+            tokio::time::sleep(timeout::userrunner::SHUTDOWN_TIMEOUT);
         tokio::pin!(shutdown_timeout);
 
         // User shutdown waiters received during shutdown which will be notified

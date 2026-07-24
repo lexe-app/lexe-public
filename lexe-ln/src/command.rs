@@ -26,7 +26,6 @@ use lexe_api::{
         PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
         ResyncRequest,
     },
-    rest::API_REQUEST_TIMEOUT,
     revocable_clients::{
         RevocableClient, RevocableClients,
         models::{
@@ -53,6 +52,7 @@ use lexe_common::{
         auth::BearerAuthToken,
         user::{NodePk, Scid, UserPk},
     },
+    constants::timeout,
     debug_panic_release_log,
     ln::{
         amount::Amount,
@@ -561,9 +561,10 @@ pub async fn resync(
     ldk_resync_tx: &mpsc::Sender<oneshot::Sender<()>>,
 ) -> anyhow::Result<Empty> {
     /// How long we'll wait to hear a callback before giving up.
-    // NOTE: Our default reqwest::Client timeout is 30 seconds.
     const SYNC_TIMEOUT: Duration = Duration::from_secs(27);
-    const_assert!(SYNC_TIMEOUT.as_millis() < API_REQUEST_TIMEOUT.as_millis());
+    const_assert!(
+        SYNC_TIMEOUT.as_millis() < timeout::client::DEFAULT_TIMEOUT.as_millis()
+    );
 
     let (bdk_tx, bdk_rx) = oneshot::channel();
     let bdk_sync_req = BdkSyncRequest {

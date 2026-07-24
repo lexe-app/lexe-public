@@ -68,7 +68,10 @@ use lexe_api_core::{
     axum_helpers,
     error::{CommonApiError, CommonErrorKind},
 };
-use lexe_common::api::auth::{self, LexeScope};
+use lexe_common::{
+    api::auth::{self, LexeScope},
+    constants::timeout,
+};
 use lexe_crypto::ed25519;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{Serialize, de::DeserializeOwned};
@@ -78,23 +81,7 @@ use tower::{
 };
 use tracing::{Instrument, debug, error, info, warn};
 
-use crate::{rest, tls_acceptor::CertInjectorAcceptor, trace};
-
-/// The grace period passed to [`axum_server::Handle::graceful_shutdown`] during
-/// which new connections are refused and we wait for existing connections to
-/// terminate before initiating a hard shutdown.
-const SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(3);
-/// The maximum time we'll wait for a server to complete shutdown.
-pub const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
-lexe_std::const_assert!(
-    SHUTDOWN_GRACE_PERIOD.as_secs() < SERVER_SHUTDOWN_TIMEOUT.as_secs()
-);
-
-/// The default maximum time a server can spend handling a request.
-pub const SERVER_HANDLER_TIMEOUT: Duration = Duration::from_secs(25);
-lexe_std::const_assert!(
-    rest::API_REQUEST_TIMEOUT.as_secs() > SERVER_HANDLER_TIMEOUT.as_secs()
-);
+use crate::{tls_acceptor::CertInjectorAcceptor, trace};
 
 /// A configuration object for Axum / Tower middleware.
 ///
@@ -152,7 +139,7 @@ impl Default for LayerConfig {
             // load tests to profile performance and see what breaks.
             buffer_size: 4096,
             concurrency: 4096,
-            handling_timeout: SERVER_HANDLER_TIMEOUT,
+            handling_timeout: timeout::server::DEFAULT_HANDLER_TIMEOUT,
             default_fallback: true,
         }
     }
@@ -393,7 +380,7 @@ pub fn build_server_fut_with_listener(
         // Some(_) with a relatively short grace period because (1) our handlers
         // shouldn't take long to return and (2) we sometimes see connections
         // failing to terminate for servers which have a /shutdown endpoint.
-        handle.graceful_shutdown(Some(SHUTDOWN_GRACE_PERIOD));
+        handle.graceful_shutdown(Some(timeout::server::SHUTDOWN_GRACE_PERIOD));
     };
 
     let combined_fut = async {
@@ -403,7 +390,10 @@ pub fn build_server_fut_with_listener(
             () = graceful_shutdown_fut => (),
             _ = &mut server_fut => return error!("Server exited early"),
         }
-        match tokio::time::timeout(SERVER_SHUTDOWN_TIMEOUT, server_fut).await {
+        let result =
+            tokio::time::timeout(timeout::server::SHUTDOWN_TIMEOUT, server_fut)
+                .await;
+        match result {
             Ok(()) => info!("API server finished"),
             Err(_) => warn!("API server timed out during shutdown"),
         }

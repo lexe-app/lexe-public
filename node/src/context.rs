@@ -11,7 +11,7 @@ use lexe_api::{
     error::MegaApiError,
     types::{LeaseId, partners::PartnersInfo, ports::RunPorts},
 };
-use lexe_common::{constants, env::DeployEnv, ln::network::Network};
+use lexe_common::{constants::timeout, env::DeployEnv, ln::network::Network};
 use lexe_crypto::rng::Crng;
 use lexe_enclave::enclave;
 use lexe_ln::{
@@ -215,7 +215,7 @@ impl MegaContext {
         let gdrive_oauth_config = Arc::new(gdrive_oauth_config);
         let usernode_sync_timeout = usernode_sync_timeout_secs
             .map(Duration::from_secs)
-            .unwrap_or(constants::DEFAULT_USERNODE_SYNC_TIMEOUT);
+            .unwrap_or(timeout::usernode::DEFAULT_SYNC_TIMEOUT);
         let user_cache = Arc::new(UserCache::new(backend_api.clone()));
 
         let partners = Arc::new(partners);
@@ -342,7 +342,7 @@ impl MegaContext {
             runner_tx,
             scorer,
             user_cache,
-            usernode_sync_timeout: constants::DEFAULT_USERNODE_SYNC_TIMEOUT,
+            usernode_sync_timeout: timeout::usernode::DEFAULT_SYNC_TIMEOUT,
             untrusted_deploy_env: deploy_env,
             untrusted_network: network,
             version,
