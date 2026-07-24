@@ -40,6 +40,7 @@ use lexe_api::{
     server::{LxJson, extract::LxQuery},
     types::{
         Empty,
+        continuation::LdkRouteContinuation,
         payments::{
             BasicPaymentV1, MaybeBasicPaymentV2, VecBasicPaymentV1,
             VecBasicPaymentV2,
@@ -299,10 +300,16 @@ pub(super) async fn pay_invoice(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoiceRequest>,
 ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
+    let payment_hash = req.invoice.payment_hash();
     let route = req
         .ldk_route
-        .as_deref()
-        .map(lexe_ln::command::decode_ldk_route)
+        .as_ref()
+        .map(|continuation| {
+            continuation.as_route_and_validate(
+                &state.continuation_mac_key,
+                &payment_hash,
+            )
+        })
         .transpose()
         .map_err(NodeApiError::command)?;
     lexe_ln::command::pay_invoice(
@@ -324,6 +331,7 @@ pub(super) async fn pay_invoice_preflight(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoicePreflightRequest>,
 ) -> Result<LxJson<PayInvoicePreflightResponse>, NodeApiError> {
+    let payment_hash = req.invoice.payment_hash();
     let preflight = lexe_ln::command::pay_invoice_preflight(
         req,
         &state.router,
@@ -339,7 +347,11 @@ pub(super) async fn pay_invoice_preflight(
         amount: preflight.amount,
         fees: preflight.fees,
         route: preflight.route,
-        ldk_route: lexe_ln::command::encode_ldk_route(&preflight.ldk_route),
+        ldk_route: LdkRouteContinuation::from_route_and_sign(
+            &preflight.ldk_route,
+            &state.continuation_mac_key,
+            &payment_hash,
+        ),
     }))
 }
 

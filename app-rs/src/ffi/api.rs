@@ -43,6 +43,7 @@ use lexe_api::{
     },
     types::{
         bounded_string::BoundedString,
+        continuation::LdkRouteContinuation,
         invoice::Invoice as InvoiceRs,
         offer::{MaxQuantity, Offer as OfferRs},
         payments::{
@@ -471,7 +472,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
                 .map(validate_note)
                 .transpose()?,
             kind: PaymentKindRs::from(value.kind),
-            ldk_route: value.ldk_route,
+            ldk_route: value.ldk_route.map(LdkRouteContinuation),
         })
     }
 }
@@ -550,7 +551,7 @@ impl From<PayInvoicePreflightResponseRs> for PayInvoicePreflightResponse {
         Self {
             amount_sats: value.amount.sats_u64(),
             fees_sats: value.fees.sats_u64(),
-            ldk_route: value.ldk_route,
+            ldk_route: value.ldk_route.0,
         }
     }
 }

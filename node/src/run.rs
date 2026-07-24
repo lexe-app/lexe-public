@@ -783,6 +783,7 @@ impl UserNode {
             eph_ca_cert_der: eph_ca_cert_der.clone(),
             rev_ca_cert: rev_ca_cert.clone(),
             revocable_clients: revocable_clients.clone(),
+            continuation_mac_key: root_seed.derive_continuation_mac_key(),
             intercept_scids,
             gdrive_status: Arc::new(tokio::sync::Mutex::new(gdrive_status)),
             gdrive_oauth_config,

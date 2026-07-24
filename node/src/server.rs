@@ -32,6 +32,7 @@ use lexe_common::{
     env::DeployEnv,
     ln::network::Network,
 };
+use lexe_crypto::hmac;
 use lexe_enclave::enclave::Measurement;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
@@ -82,6 +83,7 @@ pub(crate) struct RouterState {
     pub eph_ca_cert_der: Arc<LxCertificateDer>,
     pub rev_ca_cert: Arc<RevocableIssuingCaCert>,
     pub revocable_clients: Arc<RevocableClientsHandle>,
+    pub continuation_mac_key: hmac::Key,
     pub intercept_scids: Vec<Scid>,
     pub gdrive_status: Arc<tokio::sync::Mutex<GDriveStatus>>,
     pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,

@@ -79,10 +79,7 @@ use lightning::{
     },
     routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
-    util::{
-        config::UserConfig,
-        ser::{Readable, Writeable},
-    },
+    util::config::UserConfig,
 };
 use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
@@ -837,7 +834,7 @@ where
 }
 
 /// A mirror of [`PayInvoiceRequest`] without `ldk_route`, which is
-/// deserialized and passed separately at the handler boundary.
+/// deserialized, validated, and passed separately at the handler boundary.
 pub struct PayInvoiceRequestInner {
     pub invoice: Invoice,
     pub fallback_amount: Option<Amount>,
@@ -864,17 +861,6 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
             kind,
         }
     }
-}
-
-/// Serialize an LDK [`Route`] to bytes.
-pub fn encode_ldk_route(route: &Route) -> Vec<u8> {
-    route.encode()
-}
-
-/// Deserialize an LDK [`Route`] from bytes.
-pub fn decode_ldk_route(bytes: &[u8]) -> anyhow::Result<Route> {
-    Route::read(&mut &bytes[..])
-        .map_err(|e| anyhow!("Invalid `ldk_route`: {e:?}"))
 }
 
 #[instrument(skip_all, name = "(pay-invoice)")]
@@ -1028,7 +1014,7 @@ where
 }
 
 /// A mirror of [`PayInvoicePreflightResponse`] carrying a raw [`Route`],
-/// which is serialized at the handler boundary.
+/// which is serialized and signed at the handler boundary.
 ///
 /// [`PayInvoicePreflightResponse`]: lexe_api::models::command::PayInvoicePreflightResponse
 pub struct PayInvoicePreflightResponseInner {

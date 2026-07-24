@@ -19,13 +19,14 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_enclave::enclave::Measurement;
-use lexe_serde::{base64_or_bytes, base64_or_bytes_opt, hexstr_or_bytes};
+use lexe_serde::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
     bounded_string::BoundedString,
+    continuation::LdkRouteContinuation,
     invoice::Invoice,
     offer::{MaxQuantity, Offer},
     payments::{
@@ -452,11 +453,7 @@ pub struct PayInvoiceRequest {
     ///    compute.
     //
     // Added in `node-v0.9.12`
-    //
-    // NOTE: `default` is needed to support old clients despite `Option`:
-    // `#[serde(with)]` disables serde's implicit missing-field handling.
-    #[serde(default, with = "base64_or_bytes_opt")]
-    pub ldk_route: Option<Vec<u8>>,
+    pub ldk_route: Option<LdkRouteContinuation>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -501,8 +498,7 @@ pub struct PayInvoicePreflightResponse {
     /// 2) `pay_invoice` doesn't need to recompute the route, saving time and
     ///    compute.
     // Added in `node-v0.9.12`
-    #[serde(with = "base64_or_bytes")]
-    pub ldk_route: Vec<u8>,
+    pub ldk_route: LdkRouteContinuation,
 }
 
 // --- BOLT12 Offer payments --- //
