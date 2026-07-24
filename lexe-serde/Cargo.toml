@@ -1,6 +1,6 @@
 [package]
 name = "lexe-serde"
-version = "0.1.17"
+version = "0.1.18"
 license = "MIT"
 description = "Lexe SDK serde derive helpers"
 documentation = "https://docs.rs/lexe-serde"
