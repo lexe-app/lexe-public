@@ -11,7 +11,8 @@ use lexe_api::{
     types::partners::PartnersInfo,
 };
 use lexe_common::{
-    api::user::UserPk, env::DeployEnv, ln::network::Network, time::TimestampMs,
+    api::user::UserPk, constants::timeout, env::DeployEnv,
+    ln::network::Network, time::TimestampMs,
 };
 use lexe_crypto::rng::{FastRng, RngCore, RngExt, SysRng};
 use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce};
@@ -261,9 +262,10 @@ mod helpers {
             runner_url: String::new(),
             rust_backtrace: None,
             rust_log: None,
-            sgx_heap_size: 0x8000_0000, // 2 GB
-            // timeout::usernode::DEFAULT_SYNC_TIMEOUT
-            usernode_sync_timeout_secs: Some(30),
+            sgx_heap_size: 0x2000_0000, // 512 MiB
+            usernode_sync_timeout_secs: Some(
+                timeout::usernode::DEFAULT_SYNC_TIMEOUT.as_secs(),
+            ),
             untrusted_deploy_env: DeployEnv::Dev,
             untrusted_esplora_urls: vec![],
             untrusted_network: Network::Regtest,

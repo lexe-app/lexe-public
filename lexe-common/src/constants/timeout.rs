@@ -52,12 +52,22 @@ pub mod usernode {
     use super::*;
 
     /// Default sync timeout for user nodes (BDK/LDK sync).
-    pub const DEFAULT_SYNC_TIMEOUT: Duration = Duration::from_secs(30);
+    //
+    // (2026-07-24): 30s -> 15s. The const was created at 30s despite 15s being
+    // the documented default; prod doesn't override it.
+    pub const DEFAULT_SYNC_TIMEOUT: Duration = Duration::from_secs(15);
 
     /// The amount of time user node tasks have to finish after a graceful
     /// shutdown signal is received before the task is forced to exit.
     pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(25);
 
+    // The meganode's `run_user` handler (bounded by the default
+    // `server::DEFAULT_HANDLER_TIMEOUT`) blocks on the usernode's boot sync
+    // before responding.
+    const_assert!(
+        DEFAULT_SYNC_TIMEOUT.as_secs()
+            < server::DEFAULT_HANDLER_TIMEOUT.as_secs()
+    );
     const_assert!(
         SHUTDOWN_TIMEOUT.as_secs() > server::SHUTDOWN_TIMEOUT.as_secs()
     );
