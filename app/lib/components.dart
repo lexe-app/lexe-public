@@ -945,20 +945,24 @@ class SplitAmountText extends StatelessWidget {
   }
 }
 
-/// A large, auto-formatting BTC amount input, in whole sats.
+/// A sat is 1000 msat, so an msat amount is sats with 3 decimal places.
+const int _msatDecimalPlaces = 3;
+
+/// A large, auto-formatting BTC amount input.
 ///
-/// Read the entered amount via a [GlobalKey]: pass a
+/// Read the entered amount (in msat) via a [GlobalKey]: pass a
 /// `GlobalKey<PaymentAmountInputState>` as [key], then read the live
-/// [PaymentAmountInputState.sats] or call [PaymentAmountInputState.validate].
+/// [PaymentAmountInputState.msat] or call [PaymentAmountInputState.validate].
 class PaymentAmountInput extends StatefulWidget {
   const PaymentAmountInput({
     super.key,
     required this.allowEmpty,
     required this.allowZero,
     this.validate,
-    this.onChanged,
+    this.onMsatAmountChanged,
     this.onEditingComplete,
-    this.initialValue,
+    this.initialMsatValue,
+    this.decimal = false,
   });
 
   /// If true, `.validate()` will allow an empty field value (`null`).
@@ -970,15 +974,21 @@ class PaymentAmountInput extends StatefulWidget {
   /// Additional validation to perform on the value. We already validate that
   /// the value is a non-zero unsigned integer. Return `Err(null)` to prevent
   /// submission without displaying an error bar.
-  final Result<(), String> Function(int sats)? validate;
+  final Result<(), String> Function({required int msat})? validate;
 
-  /// Called with the parsed amount converted to sats whenever the input
-  /// changes; `null` when the field is empty or invalid.
-  final ValueChanged<int?>? onChanged;
+  /// Called with the parsed amount in msat whenever the input changes; `null`
+  /// when the field is empty or invalid.
+  final ValueChanged<int?>? onMsatAmountChanged;
 
   final VoidCallback? onEditingComplete;
 
-  final int? initialValue;
+  /// Initial amount to prefill the field with, in msat.
+  final int? initialMsatValue;
+
+  /// When true, accept sub-sat (msat) precision via a decimal keyboard (up to
+  /// 3 decimal places). When false, only whole sats can be entered, and the
+  /// exposed [PaymentAmountInputState.msat] is always a multiple of 1000.
+  final bool decimal;
 
   @override
   State<PaymentAmountInput> createState() => PaymentAmountInputState();
@@ -986,13 +996,28 @@ class PaymentAmountInput extends StatefulWidget {
 
 class PaymentAmountInputState extends State<PaymentAmountInput> {
   final GlobalKey<FormFieldState<String>> _fieldKey = GlobalKey();
-  final DecimalInputFormatter _formatter = DecimalInputFormatter();
 
-  /// The entered amount in sats, or `null` when the field is empty or invalid.
-  late final ValueNotifier<int?> _sats = ValueNotifier(
-    this.widget.initialValue ?? 0,
+  // Use whole sats, unless [PaymentAmountInput.decimal] is true.
+  late final DecimalInputFormatter _formatter = DecimalInputFormatter(
+    maxDecimalPlaces: this.widget.decimal ? _msatDecimalPlaces : 0,
   );
-  ValueListenable<int?> get sats => this._sats;
+
+  /// The [PaymentAmountInput.initialMsatValue] rendered by the field.
+  // Truncates in non-decimal mode.
+  late final String _initialText = this._formatter.formatInt(
+    // Prefill with 0 for style; doesn't affect input UX.
+    this.widget.initialMsatValue ?? 0,
+    numDecimalPlaces: _msatDecimalPlaces,
+  );
+
+  /// The entered amount in msat, or `null` when the field is empty or invalid.
+  late final ValueNotifier<int?> _msat = ValueNotifier(
+    // Seed by reading [_initialText] back, to ensure agreement
+    this._formatter
+        .tryParse(this._initialText, numDecimalPlaces: _msatDecimalPlaces)
+        .ok,
+  );
+  ValueListenable<int?> get msat => this._msat;
 
   final ValueNotifier<String?> _errorText = ValueNotifier(null);
 
@@ -1000,12 +1025,15 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
   /// entered amount is valid.
   bool validate() => this._fieldKey.currentState?.validate() ?? false;
 
-  // Parse the input field [text] into sats, store it in [_sats], and notify
-  // [PaymentAmountInput.onChanged]. Hooked into the text field's `onChanged`.
-  void _inputValueToSats(String text) {
-    final sats = this._formatter.tryParse(text).ok;
-    this._sats.value = sats;
-    this.widget.onChanged?.call(sats);
+  // Parse the input field [text] into msat, store it in [_msat], and notify
+  // [PaymentAmountInput.onMsatAmountChanged] (this is the text field's
+  // `onChanged` hook).
+  void _inputValueToMsat(String text) {
+    final msat = this._formatter
+        .tryParse(text, numDecimalPlaces: _msatDecimalPlaces)
+        .ok;
+    this._msat.value = msat;
+    this.widget.onMsatAmountChanged?.call(msat);
   }
 
   // Capture the validation output and store the error message as state.
@@ -1023,37 +1051,38 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
       }
     }
 
-    final int amount;
-    switch (this._formatter.tryParse(maybeAmountStr)) {
+    final int msat;
+    switch (this._formatter.tryParse(
+      maybeAmountStr,
+      numDecimalPlaces: _msatDecimalPlaces,
+    )) {
       case Ok(:final ok):
-        amount = ok;
+        msat = ok;
       case Err():
         return const Err("Amount must be a number.");
     }
 
-    if (!this.widget.allowZero && amount == 0) {
+    if (!this.widget.allowZero && msat == 0) {
       return const Err("");
     }
 
-    if (amount < 0) {
+    if (msat < 0) {
       return const Err("");
     }
 
     final validate = this.widget.validate;
-    return (validate != null) ? validate(amount) : const Ok(());
+    return (validate != null) ? validate(msat: msat) : const Ok(());
   }
 
   @override
   void dispose() {
     this._errorText.dispose();
-    this._sats.dispose();
+    this._msat.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final int? initialValue = this.widget.initialValue;
-
     // Check locale-specific positioning by formatting a dummy amount
     // Call formatSatsAmount on a dummy value using currently active locale
     final formattedTest = currency_format.formatSatsAmount(
@@ -1107,14 +1136,11 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
                 child: TextFormField(
                   key: this._fieldKey,
                   autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(
+                  keyboardType: TextInputType.numberWithOptions(
                     signed: false,
-                    decimal: false,
+                    decimal: this.widget.decimal,
                   ),
-                  initialValue: (initialValue != null)
-                      ? this._formatter.formatInt(initialValue)
-                      // Prefill with 0 for style; doesn't affect input UX
-                      : "0",
+                  initialValue: this._initialText,
                   textDirection: TextDirection.ltr,
                   textInputAction: TextInputAction.next,
                   textAlign: TextAlign.left,
@@ -1127,7 +1153,7 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
                         required isFocused,
                         maxLength,
                       }) => null,
-                  onChanged: this._inputValueToSats,
+                  onChanged: this._inputValueToMsat,
                   onEditingComplete: this.widget.onEditingComplete,
                   validator: this._validator,
                   // Error messages that are too long will be cut off because of IntrinsicWidth.

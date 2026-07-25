@@ -35,8 +35,8 @@ class _BuyPageState extends State<BuyPage> {
 
   final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
 
-  Result<(), String> validateAmount(int amountSats) =>
-      amountSats >= minimumBuySats
+  Result<(), String> validateMsatAmount({required int msat}) =>
+      (msat ~/ 1000) >= minimumBuySats
       ? const Ok(())
       : const Err("Enter at least ₿5000");
 
@@ -44,8 +44,8 @@ class _BuyPageState extends State<BuyPage> {
     final amountInput = this.amountKey.currentState!;
     if (!amountInput.validate()) return;
 
-    // `allowEmpty/Zero: false` + [validateAmount] guarantee `amountSats >= minSats`.
-    final amountSats = amountInput.sats.value!;
+    // `allowEmpty/Zero: false` + [validateMsatAmount] guarantee `amountSats >= minSats`.
+    final amountSats = amountInput.msat.value! ~/ 1000;
 
     info("BuyPage: Buying $amountSats sats with Cash App");
 
@@ -103,7 +103,7 @@ Make sure to set up Cash App on this device before you proceed.
             key: this.amountKey,
             allowEmpty: false,
             allowZero: false,
-            validate: this.validateAmount,
+            validate: this.validateMsatAmount,
             onEditingComplete: this.onConfirm,
           ),
         ],

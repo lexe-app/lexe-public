@@ -269,8 +269,8 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
   }
 
   /// Called when the amount input changes.
-  void onAmountChanged(int? sats) {
-    this.hasValidAmount.value = (sats ?? 0) >= 1;
+  void onMsatAmountChanged(int? msat) {
+    this.hasValidAmount.value = (msat ?? 0) >= 1000;
 
     // Reset warning state when amount changes
     if (this.showLowAmountWarning.value) {
@@ -283,8 +283,8 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
   int? parseAmount() {
     this.errorMessage.value = null;
 
-    final sats = this.amountKey.currentState?.sats.value;
-    if (sats == null) {
+    final msat = this.amountKey.currentState?.msat.value;
+    if (msat == null) {
       this.errorMessage.value = const ErrorMessage(
         title: "Invalid amount",
         message: "Please enter an amount",
@@ -292,6 +292,7 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
       return null;
     }
 
+    final sats = msat ~/ 1000;
     if (sats < 1) {
       this.errorMessage.value = const ErrorMessage(
         title: "Invalid amount",
@@ -358,7 +359,7 @@ class _InitialDepositAmountPageState extends State<InitialDepositAmountPage> {
 
           PaymentAmountInput(
             key: this.amountKey,
-            onChanged: this.onAmountChanged,
+            onMsatAmountChanged: this.onMsatAmountChanged,
             onEditingComplete: this.onNext,
             allowEmpty: false,
             allowZero: false,

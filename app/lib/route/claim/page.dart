@@ -135,8 +135,9 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
       final amountInput = this.amountKey.currentState!;
       if (!amountInput.validate()) return;
 
-      final amountSats = amountInput.sats.value;
-      if (amountSats == null) return;
+      final amountMsat = amountInput.msat.value;
+      if (amountMsat == null) return;
+      final amountSats = amountMsat ~/ 1000;
 
       // // Get the message from the input field
       // final message = messageKey.currentState?.value?.nonEmpty();
@@ -164,15 +165,16 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
     }
 
     // The validate function for the amount input field
-    Result<(), String> validateAmount(int amount) {
+    Result<(), String> validateMsatAmount({required int msat}) {
+      final sats = msat ~/ 1000;
       // Ensure min amount <= withdraw amount
-      if (amount < minWithdrawableSats) {
+      if (sats < minWithdrawableSats) {
         return Err("Must withdraw at least $minWithdrawableSatsStr");
       }
 
       // Ensure max amount >= withdraw amount
       final maxAmount = maxWithdrawableSats;
-      if (amount > maxAmount) {
+      if (sats > maxAmount) {
         return Err("Can't withdraw more than $maxWithdrawableSatsStr");
       }
 
@@ -201,10 +203,10 @@ class _ClaimPaymentAmountPageState extends State<ClaimPaymentAmountPage> {
             // TODO(nicole): for LNURL-withdraw and pay, if we can't pay msat amounts,
             // we could run into an impossible request with bounds eg [1.4, 1.6] sat
             onEditingComplete: onNext,
-            validate: validateAmount,
+            validate: validateMsatAmount,
             allowEmpty: false,
             allowZero: false,
-            initialValue: maxWithdrawableSats,
+            initialMsatValue: maxWithdrawableSats * 1000,
           ),
 
           // Details, eg: Description           Coffee

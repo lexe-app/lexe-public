@@ -108,7 +108,8 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     super.dispose();
   }
 
-  Result<(), String> validateValue(int value) {
+  Result<(), String> validateMsatAmount({required int msat}) {
+    final sats = msat ~/ 1000;
     final onchainSats = this.widget.balanceState.value.onchainSats();
 
     // Not connected yet? Just prevent submission.
@@ -117,7 +118,7 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     }
 
     // Basic check against balance. More complete checks happen in preflight.
-    if (value > onchainSats) {
+    if (sats > onchainSats) {
       final onchainSatsStr = currency_format.formatSatsAmount(
         onchainSats,
         bitcoinSymbol: true,
@@ -139,8 +140,9 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
     final amountInput = this.amountKey.currentState!;
     if (!amountInput.validate()) return;
 
-    final valueSats = amountInput.sats.value;
-    if (valueSats == null) return;
+    final valueMsat = amountInput.msat.value;
+    if (valueMsat == null) return;
+    final valueSats = valueMsat ~/ 1000;
 
     // Only start the loading animation once the value validation is done.
     this.estimatingFee.value = true;
@@ -222,10 +224,13 @@ class _OpenChannelNeedValuePageState extends State<OpenChannelNeedValuePage> {
           PaymentAmountInput(
             key: this.amountKey,
             onEditingComplete: this.onNext,
-            validate: this.validateValue,
+            validate: this.validateMsatAmount,
             allowEmpty: false,
             allowZero: false,
-            initialValue: this.widget.designInitialAmount,
+            initialMsatValue: switch (this.widget.designInitialAmount) {
+              null => null,
+              final sats => sats * 1000,
+            },
           ),
 
           const SizedBox(height: Space.s700),

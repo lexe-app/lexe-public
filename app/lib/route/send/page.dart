@@ -122,8 +122,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     final amountInput = this.amountKey.currentState!;
     if (!amountInput.validate()) return;
 
-    final amountSats = amountInput.sats.value;
-    if (amountSats == null) return;
+    final amountMsat = amountInput.msat.value;
+    if (amountMsat == null) return;
+    final amountSats = amountMsat ~/ 1000;
 
     // Only start the loading animation once the initial amount validation is
     // done.
@@ -183,11 +184,12 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     await Navigator.of(this.context).maybePop(flowResult);
   }
 
-  Result<(), String> validateAmount(int amount) {
+  Result<(), String> validateMsatAmount({required int msat}) {
+    final sats = msat ~/ 1000;
     final rail = this.widget.sendCtx.paymentMethod.rail();
     final balance = this.widget.sendCtx.balance;
     final balanceMaxSendableSats = balance.maxSendableByRail(rail);
-    if (amount > balanceMaxSendableSats) {
+    if (sats > balanceMaxSendableSats) {
       final balanceMaxSendableStr = currency_format.formatSatsAmount(
         balanceMaxSendableSats,
         bitcoinSymbol: true,
@@ -203,7 +205,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         break;
       case PaymentMethod_Offer(:final field0):
         final minAmount = field0.minAmountSats ?? 0;
-        if (amount < minAmount) {
+        if (sats < minAmount) {
           final minAmountStr = currency_format.formatSatsAmount(
             minAmount,
             bitcoinSymbol: true,
@@ -212,8 +214,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         }
       case PaymentMethod_LnurlPay(:final field0):
         final payRequest = field0.payRequest;
-        final amountMsats = amount * 1000;
-        if (amountMsats < payRequest.minSendableMsat) {
+        if (msat < payRequest.minSendableMsat) {
           // Round the msat minimum up to the next whole sat we can send.
           final minStr = currency_format.formatSatsAmount(
             (payRequest.minSendableMsat + 999) ~/ 1000,
@@ -221,7 +222,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           );
           return Err("Must send at least $minStr");
         }
-        if (amountMsats > payRequest.maxSendableMsat) {
+        if (msat > payRequest.maxSendableMsat) {
           final maxStr = currency_format.formatSatsAmount(
             payRequest.maxSendableMsat ~/ 1000,
             bitcoinSymbol: true,
@@ -268,13 +269,17 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     _ => "Optional message (visible to recipient)",
   };
 
-  /// Initial value to prefill the PaymentAmountInput with
-  int? initialValue() => switch (this.widget.sendCtx.paymentMethod) {
-    PaymentMethod_Invoice() => null,
-    PaymentMethod_Onchain() => null,
-    PaymentMethod_Offer(:final field0) => field0.minAmountSats,
-    PaymentMethod_LnurlPay() => null,
-  };
+  /// Initial value (msat) to prefill the PaymentAmountInput with.
+  int? initialMsatValue() {
+    final sats = switch (this.widget.sendCtx.paymentMethod) {
+      PaymentMethod_Invoice() => null,
+      PaymentMethod_Onchain() => null,
+      PaymentMethod_Offer(:final field0) => field0.minAmountSats,
+      PaymentMethod_LnurlPay() => null,
+    };
+    final int? msat = sats == null ? null : sats * 1000;
+    return msat;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -310,10 +315,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           PaymentAmountInput(
             key: this.amountKey,
             onEditingComplete: this.onNext,
-            validate: this.validateAmount,
+            validate: this.validateMsatAmount,
             allowEmpty: false,
             allowZero: false,
-            initialValue: this.initialValue(),
+            initialMsatValue: this.initialMsatValue(),
           ),
 
           // Description (if available)

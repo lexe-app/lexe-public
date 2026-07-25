@@ -1508,9 +1508,12 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
     final amountInput = this.amountKey.currentState!;
     if (!amountInput.validate()) return;
 
-    // Treat an empty or zero amount as "no amount".
-    final sats = amountInput.sats.value;
-    final int? amountSats = (sats != null && sats != 0) ? sats : null;
+    // Treat an empty or sub-sat amount as "no amount", since this flow's output
+    // is denominated in whole sats.
+    final amountMsat = amountInput.msat.value;
+    final int? amountSats = (amountMsat != null && amountMsat >= 1000)
+        ? amountMsat ~/ 1000
+        : null;
 
     final descriptionState = this.descriptionFieldKey.currentState!;
     if (!descriptionState.validate()) return;
@@ -1541,7 +1544,10 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
             key: this.amountKey,
             allowEmpty: true,
             allowZero: true,
-            initialValue: this.widget.prev.amountSats,
+            initialMsatValue: switch (this.widget.prev.amountSats) {
+              null => null,
+              final sats => sats * 1000,
+            },
           ),
 
           const SizedBox(height: Space.s600),
