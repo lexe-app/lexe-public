@@ -111,7 +111,13 @@ impl TraceId {
             let maybe_trace_id = span
                 // Here, we actually call the fn to try to get the trace id.
                 .with_subscriber(|(id, dispatch)| get_trace_id_fn(id, dispatch))
-                .context("Span is not enabled")?
+                .context(
+                    "No enabled span is currently entered: either the \
+                     enclosing span was disabled by RUST_LOG, or this API \
+                     call is not instrumented with any span; fix by \
+                     `#[instrument]`ing the client methods or entering a \
+                     crate-wide root span in main.rs",
+                )?
                 .context("get_trace_id_fn (get_trace_id_from_span) failed")?;
 
             Ok::<_, anyhow::Error>(maybe_trace_id)
