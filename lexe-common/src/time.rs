@@ -180,6 +180,66 @@ impl TimestampMs {
         Self::now().saturating_duration_since(self)
     }
 
+    /// Formats this timestamp into a human-readable string relative to `now`,
+    /// e.g. "just now", "5 minutes ago", "in 3 hours",
+    /// "in 2 years and 5 weeks".
+    ///
+    /// Picks the largest whole unit that fits; weeks and years also carry the
+    /// remainder in the next unit down. Sub-second differences in either
+    /// direction read as "just now".
+    pub fn to_relative_string(self, now: Self) -> String {
+        const MINUTE: u64 = 60;
+        const HOUR: u64 = 60 * MINUTE;
+        const DAY: u64 = 24 * HOUR;
+        const WEEK: u64 = 7 * DAY;
+        const YEAR: u64 = 365 * DAY;
+
+        /// e.g. "1 week", "3 weeks"
+        fn fmt_1_unit(count: u64, unit: &str) -> String {
+            let plural = if count == 1 { "" } else { "s" };
+            format!("{count} {unit}{plural}")
+        }
+
+        /// A count plus its remainder in the next unit down, e.g.
+        /// "3 weeks and 2 days". The remainder is omitted when zero.
+        fn fmt_2_units(
+            count: u64,
+            unit: &str,
+            rem: u64,
+            rem_unit: &str,
+        ) -> String {
+            let major = fmt_1_unit(count, unit);
+            match rem {
+                0 => major,
+                _ => format!("{major} and {}", fmt_1_unit(rem, rem_unit)),
+            }
+        }
+
+        let elapsed = now.checked_duration_since(self);
+        let secs = match elapsed {
+            Some(elapsed) => elapsed.as_secs(),
+            None => self.saturating_duration_since(now).as_secs(),
+        };
+
+        // Largest whole unit that fits. Weeks and years carry a remainder,
+        // since "51 weeks" and "3 years" alone lose too much precision.
+        let magnitude = match secs {
+            0 => return "just now".to_owned(),
+            s if s < MINUTE => fmt_1_unit(s, "second"),
+            s if s < HOUR => fmt_1_unit(s / MINUTE, "minute"),
+            s if s < DAY => fmt_1_unit(s / HOUR, "hour"),
+            s if s < WEEK => fmt_1_unit(s / DAY, "day"),
+            s if s < YEAR =>
+                fmt_2_units(s / WEEK, "week", (s % WEEK) / DAY, "day"),
+            s => fmt_2_units(s / YEAR, "year", (s % YEAR) / WEEK, "week"),
+        };
+
+        match elapsed {
+            Some(_) => format!("{magnitude} ago"),
+            None => format!("in {magnitude}"),
+        }
+    }
+
     /// Floors the timestamp to the most recent second.
     #[cfg(test)]
     fn floor_secs(self) -> Self {
@@ -407,5 +467,67 @@ mod test {
 
         assert_eq!(TimestampMs::MAX.checked_elapsed(), None);
         assert_eq!(TimestampMs::MAX.saturating_elapsed(), Duration::ZERO);
+    }
+
+    /// Sanity check the relative formatting at every granularity.
+    #[test]
+    fn relative_string_sanity() {
+        const MINUTE: u64 = 60;
+        const HOUR: u64 = 60 * MINUTE;
+        const DAY: u64 = 24 * HOUR;
+        const WEEK: u64 = 7 * DAY;
+        const YEAR: u64 = 365 * DAY;
+
+        // (secs away from `now`, past rendering, future rendering)
+        let cases = [
+            (0, "just now", "just now"),
+            (1, "1 second ago", "in 1 second"),
+            (59, "59 seconds ago", "in 59 seconds"),
+            (MINUTE, "1 minute ago", "in 1 minute"),
+            (5 * MINUTE + 30, "5 minutes ago", "in 5 minutes"),
+            (HOUR, "1 hour ago", "in 1 hour"),
+            (3 * HOUR + 59 * MINUTE, "3 hours ago", "in 3 hours"),
+            (DAY + 12 * HOUR, "1 day ago", "in 1 day"),
+            (6 * DAY, "6 days ago", "in 6 days"),
+            (WEEK, "1 week ago", "in 1 week"),
+            (WEEK + DAY, "1 week and 1 day ago", "in 1 week and 1 day"),
+            (
+                3 * WEEK + 2 * DAY,
+                "3 weeks and 2 days ago",
+                "in 3 weeks and 2 days",
+            ),
+            (
+                51 * WEEK + 6 * DAY,
+                "51 weeks and 6 days ago",
+                "in 51 weeks and 6 days",
+            ),
+            (YEAR, "1 year ago", "in 1 year"),
+            (
+                YEAR + 5 * WEEK,
+                "1 year and 5 weeks ago",
+                "in 1 year and 5 weeks",
+            ),
+            // Remainders below the next unit down are dropped, not rounded.
+            (
+                2 * YEAR + WEEK + 3 * DAY,
+                "2 years and 1 week ago",
+                "in 2 years and 1 week",
+            ),
+            (
+                143 * WEEK,
+                "2 years and 38 weeks ago",
+                "in 2 years and 38 weeks",
+            ),
+        ];
+
+        let now = TimestampMs::from_secs(100 * YEAR).unwrap();
+        for (secs, past, future) in cases {
+            let secs = Duration::from_secs(secs);
+            let past_ts = now.saturating_sub(secs);
+            let future_ts = now.saturating_add(secs);
+
+            assert_eq!(past_ts.to_relative_string(now), past);
+            assert_eq!(future_ts.to_relative_string(now), future);
+        }
     }
 }

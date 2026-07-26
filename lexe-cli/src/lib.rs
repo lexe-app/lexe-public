@@ -1667,7 +1667,7 @@ impl ListPaymentsArgs {
             wallet.payments_db().and_then(|db| db.last_synced_at());
         match last_synced_at {
             Some(synced_at) => {
-                let relative = helpers::timestamp_ms_relative(synced_at);
+                let relative = synced_at.to_relative_string(TimestampMs::now());
                 info!(
                     "Hint: Payments were last synced {relative}. \
                      Run $ lexe sync-payments to see updates newer than this."
@@ -2478,34 +2478,6 @@ mod helpers {
         }
 
         Ok(())
-    }
-
-    /// Format a past [`TimestampMs`] relative to now, e.g. "just now",
-    /// "5 minutes ago", "3 hours ago", "143 weeks ago".
-    ///
-    /// Picks the largest whole unit that fits. Granularity tops out at weeks
-    /// (no months/years), so old timestamps still read as "N weeks ago".
-    pub fn timestamp_ms_relative(timestamp: TimestampMs) -> String {
-        const MINUTE: u64 = 60;
-        const HOUR: u64 = 60 * MINUTE;
-        const DAY: u64 = 24 * HOUR;
-        const WEEK: u64 = 7 * DAY;
-
-        // Saturating so a slightly-future timestamp (due to clock drift) reads
-        // as "just now" rather than underflowing.
-        let secs = timestamp.saturating_elapsed().as_secs();
-
-        let (count, unit) = match secs {
-            0 => return "just now".to_owned(),
-            s if s < MINUTE => (s, "second"),
-            s if s < HOUR => (s / MINUTE, "minute"),
-            s if s < DAY => (s / HOUR, "hour"),
-            s if s < WEEK => (s / DAY, "day"),
-            s => (s / WEEK, "week"),
-        };
-
-        let plural = if count == 1 { "" } else { "s" };
-        format!("{count} {unit}{plural} ago")
     }
 
     /// Compute an absolute expiration [`TimestampMs`] from `--expiration-days`
