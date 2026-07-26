@@ -33,8 +33,12 @@ pub struct MegaArgs {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub lsp_url: String,
 
-    /// How long the meganode can remain inactive before it shuts itself down.
-    pub mega_inactivity_secs: u64,
+    /// When set, how long the meganode can remain inactive before it shuts
+    /// itself down.
+    // Optional since node-v0.9.15; the runner now enforces meganode
+    // inactivity itself.
+    #[serde(default)]
+    pub mega_inactivity_secs: Option<u64>,
 
     /// When set, how long the meganode can live before it shuts itself down.
     //

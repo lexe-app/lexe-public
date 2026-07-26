@@ -253,7 +253,7 @@ mod helpers {
             lease_renewal_interval_secs: 30,
             lsp: LspInfo::dummy(),
             lsp_url: String::new(),
-            mega_inactivity_secs: 630, // 10 minutes 30 seconds (from dummy)
+            mega_inactivity_secs: Some(630), // 10m 30s (from dummy)
             mega_max_lifetime_secs: Some(12 * 60 * 60), // 12 hours (from dummy)
             // DEFAULT_MEGANODE_MEMORY_OVERHEAD
             memory_overhead: 125 * (1 << 20),
@@ -345,7 +345,7 @@ mod helpers {
         println!("  max_users (at soft limit): {soft_max_users}");
 
         println!("  user_inactivity_secs: {user_inactive}");
-        println!("  mega_inactivity_secs: {mega_inactive}");
+        println!("  mega_inactivity_secs: {mega_inactive:?}");
     }
 }
 

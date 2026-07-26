@@ -470,7 +470,12 @@ impl UserRunner {
 
     /// Checks if the meganode has been inactive and initiates shutdown if so.
     fn shutdown_meganode_if_inactive(&mut self, now: TimestampMs) {
-        let max_inactive_secs = self.mega_args.mega_inactivity_secs;
+        let max_inactive_secs = match self.mega_args.mega_inactivity_secs {
+            Some(s) => s,
+            // No `mega_inactivity_secs` configured; let the parent MegaRunner
+            // shut us down if we are inactive.
+            None => return,
+        };
         let inactive_secs =
             now.saturating_duration_since(self.mega_last_used).as_secs();
 
