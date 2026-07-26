@@ -5,17 +5,23 @@
 use std::{env, str::FromStr, task::Poll, time::Duration};
 
 use futures::StreamExt;
-use lexe_api::models::runner::{
-    MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
+use lexe_api::{
+    cli::{LspInfo, node::MegaArgs},
+    models::runner::{MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest},
+    types::partners::PartnersInfo,
 };
-use lexe_common::time::TimestampMs;
-use lexe_crypto::rng::{FastRng, RngExt, SysRng};
-use tokio::sync::oneshot;
+use lexe_common::{
+    api::user::UserPk, env::DeployEnv, ln::network::Network, time::TimestampMs,
+};
+use lexe_crypto::rng::{FastRng, RngCore, RngExt, SysRng};
+use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce};
+use tokio::sync::{mpsc, oneshot};
 
 use super::{
     UserRunner, UserRunnerCommand, UserRunnerUserEvictRequest,
     UserRunnerUserRunRequest,
 };
+use crate::context::MegaContext;
 
 struct UserRunnerFuzzer {
     runner: UserRunner,
@@ -228,20 +234,7 @@ impl UserRunnerFuzzer {
 }
 
 mod helpers {
-    use lexe_api::{
-        cli::{LspInfo, node::MegaArgs},
-        types::partners::PartnersInfo,
-    };
-    use lexe_common::{
-        api::user::UserPk, env::DeployEnv, ln::network::Network,
-        time::TimestampMs,
-    };
-    use lexe_crypto::rng::{FastRng, RngCore, RngExt};
-    use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce};
-    use tokio::sync::mpsc;
-
-    use super::UserRunner;
-    use crate::context::MegaContext;
+    use super::*;
 
     /// Create a new UserRunner suitable for fuzzing with the given seed.
     pub(super) fn new_userrunner_with_seed(seed: u64) -> UserRunner {
