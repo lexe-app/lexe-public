@@ -667,11 +667,11 @@ impl AnalyzeArgs {
                 amount.map(|a| format!("amount: {a} sats")),
                 min_amount.map(|a| format!("minimum amount: {a} sats")),
                 max_amount.map(|a| format!("maximum amount: {a} sats")),
-                expires_at.and_then(|t| {
-                    Some(format!(
-                        "expiration date: {}",
-                        helpers::timestamp_to_datetime(t).to_rfc2822()
-                    ))
+                expires_at.map(|t| {
+                    let datetime =
+                        helpers::timestamp_to_datetime(t).to_rfc2822();
+                    let relative = t.to_relative_string(TimestampMs::now());
+                    format!("expiration date: {relative} ({datetime})")
                 }),
             ];
             let amount_hint = if amount.is_none() {
@@ -2460,15 +2460,19 @@ mod helpers {
         println!("    - client_pk:");
         println!("        {}", client.client_pk);
 
+        let now = TimestampMs::now();
+
         let created_at =
             helpers::timestamp_to_datetime(client.created_at).to_rfc2822();
-        println!("    - created_at: {created_at}");
+        let created_rel = client.created_at.to_relative_string(now);
+        println!("    - created_at: {created_rel} ({created_at})");
 
         match client.expires_at {
             Some(expires_at) => {
+                let expires_rel = expires_at.to_relative_string(now);
                 let expires_at =
                     helpers::timestamp_to_datetime(expires_at).to_rfc2822();
-                println!("    - expires_at: {expires_at}");
+                println!("    - expires_at: {expires_rel} ({expires_at})");
             }
             None => println!("    - expires_at: Never expires!"),
         }
