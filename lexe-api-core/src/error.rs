@@ -64,13 +64,13 @@ pub struct ErrorResponse {
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_json_value()")
     )]
-    #[serde(default)] // For backwards compat
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
     pub data: serde_json::Value,
 
     /// Whether `data` contains sensitive information that Lexe shouldn't see
     /// (e.g. a route). Such data may still be logged by the app or in SDKs but
     /// shouldn't be logged inside of Lexe infra.
-    #[serde(default)] // For backwards compat
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub sensitive: bool,
 }
 
