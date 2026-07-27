@@ -74,8 +74,8 @@ use lexe_tokio::events_bus::{EventsBus, EventsRx};
 use lightning::{
     ln::{
         channel_state::ChannelDetails,
-        channelmanager::{OptionalOfferPaymentParams, RetryableSendFailure},
-        msgs::RoutingMessageHandler,
+        channelmanager::OptionalOfferPaymentParams,
+        msgs::RoutingMessageHandler, outbound_payment::RetryableSendFailure,
     },
     routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
@@ -630,25 +630,32 @@ where
         ));
     }
 
+    // We persist our own payment metadata, so we have no use for this.
+    let payment_metadata = None;
+
     // We use ChannelManager::create_inbound_payment because this method allows
     // the channel manager to store the hash and preimage for us, instead of
     // having to manage a separate inbound payments storage outside of LDK.
     // NOTE that `handle_payment_claimable` will panic if the payment preimage
     // is not known by (and therefore cannot be provided by) LDK.
-    let (hash, secret) = channel_manager
+    let (hash, secret, empty_metadata) = channel_manager
         .create_inbound_payment(
             req.amount.map(|amt| amt.msat()),
             req.expiry_secs,
             Some(cltv_expiry),
+            payment_metadata,
         )
         .map_err(|()| anyhow!("Supplied amount > total bitcoin supply!"))?;
+    if empty_metadata.is_some() {
+        debug_panic_release_log!("We don't attach any payment metadata");
+    }
+
+    let payment_metadata = None;
     let preimage = channel_manager
-        .get_payment_preimage(hash, secret)
+        .get_payment_preimage_decrypt_metadata(hash, secret, payment_metadata)
         .map_err(|e| anyhow!("Could not get preimage: {e:?}"))?;
 
     let currency = Currency::from(network);
-    let sha256_hash = sha256::Hash::from_slice(&hash.0)
-        .expect("Should never fail with [u8;32]");
 
     let our_node_pk = channel_manager.get_our_node_id();
 
@@ -667,7 +674,7 @@ where
 
     #[rustfmt::skip] // Nicer for the generic annotations to be aligned
     let mut builder = builder
-        .payment_hash(sha256_hash)                               // H: False -> True
+        .payment_hash(hash)                                      // H: False -> True
         .current_timestamp()                                     // T: False -> True
         .min_final_cltv_expiry_delta(u64::from(cltv_expiry))     // C: False -> True
         .payment_secret(secret)                                  // S: False -> True
@@ -887,7 +894,7 @@ where
     let ldk_payment_id = lightning::ln::channelmanager::PaymentId::from(hash);
 
     // Send the payment using send_payment_with_route (Lexe manages retries).
-    let recipient_fields = outbound::recipient_onion_fields(&invoice);
+    let recipient_fields = outbound::recipient_onion_fields(&invoice, amount);
     match channel_manager.send_payment_with_route(
         preflight.ldk_route,
         lightning::types::payment::PaymentHash::from(hash),

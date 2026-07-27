@@ -20,7 +20,7 @@ use lightning::{
 };
 use lightning::{
     events::PaymentFailureReason,
-    ln::channelmanager::{RecipientOnionFields, Retry},
+    ln::outbound_payment::{RecipientOnionFields, Retry},
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -49,12 +49,15 @@ pub enum ExpireError {
     IgnoreAndAbandon,
 }
 
-/// Build [`RecipientOnionFields`] from an invoice.
+/// Build [`RecipientOnionFields`] from an invoice and the total amount being
+/// sent, which tells the recipient how much to expect across all MPP parts.
 pub(crate) fn recipient_onion_fields(
     invoice: &Invoice,
+    amount: Amount,
 ) -> RecipientOnionFields {
     let payment_secret = invoice.payment_secret().into();
-    let mut fields = RecipientOnionFields::secret_only(payment_secret);
+    let mut fields =
+        RecipientOnionFields::secret_only(payment_secret, amount.msat());
     fields.payment_metadata = invoice.0.payment_metadata().map(|m| m.to_vec());
     fields
 }

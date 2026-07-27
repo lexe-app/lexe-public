@@ -47,8 +47,8 @@ pub struct InboundInvoicePaymentV1 {
     /// [`create_invoice`].
     pub secret: PaymentSecret,
     /// Returned by:
-    /// - the call to [`ChannelManager::get_payment_preimage`] inside
-    ///   [`create_invoice`].
+    /// - the call to [`ChannelManager::get_payment_preimage_decrypt_metadata`]
+    ///   inside [`create_invoice`].
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimable`] event.
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimed`] event.
     pub preimage: PaymentPreimage,

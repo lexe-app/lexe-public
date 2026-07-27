@@ -29,7 +29,7 @@ use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::events::Event::PaymentFailed;
 use lightning::{
     events::PaymentPurpose,
-    ln::channelmanager::{FailureCode, RetryableSendFailure},
+    ln::{channelmanager::FailureCode, outbound_payment::RetryableSendFailure},
 };
 use tokio::{sync::MutexGuard, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
@@ -386,7 +386,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         // Build recipient onion fields (includes payment_metadata if present).
-        let recipient_fields = outbound::recipient_onion_fields(&retry.invoice);
+        let recipient_fields =
+            outbound::recipient_onion_fields(&retry.invoice, retry.amount);
 
         let (payment_id, payment_hash) = match retry.id {
             PaymentId::Lightning(hash) => (
