@@ -247,6 +247,7 @@ impl LxChannelDetails {
             outbound_capacity_msat,
             next_outbound_htlc_limit_msat,
             next_outbound_htlc_minimum_msat: _,
+            next_splice_out_maximum_sat: _,
             inbound_capacity_msat,
             confirmations_required: _,
             confirmations: _,
@@ -262,6 +263,8 @@ impl LxChannelDetails {
             pending_inbound_htlcs: _,
             pending_outbound_htlcs: _,
             funding_redeem_script: _,
+            current_dust_exposure_msat: _,
+            splice_details: _,
         } = details;
 
         let channel_id = ChannelId::from(channel_id);
@@ -329,14 +332,8 @@ impl LxChannelDetails {
         let cpty_supports_onion_messages =
             counterparty.features.supports_onion_messages();
         let cpty_supports_wumbo = counterparty.features.supports_wumbo();
-        // TODO(phlip9): the upstream LDK v0.2.2 release, w/o the fix in our
-        // fork actually cannot call this fn and will get a compile error. Just
-        // fake the result for now so that Rust SDK consumers can still
-        // compile.... If this gets backported to v0.2.3 or we upgrade to
-        // v0.3+ we can remove this hack.
-        // let cpty_supports_zero_conf =
-        //     counterparty.features.supports_zero_conf();
-        let cpty_supports_zero_conf = true;
+        let cpty_supports_zero_conf =
+            counterparty.features.supports_zero_conf();
 
         Ok(Self {
             channel_id,
