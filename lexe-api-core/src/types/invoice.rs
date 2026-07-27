@@ -29,7 +29,7 @@ impl Invoice {
     /// hash upon successful payment, as proof-of-payment.
     #[inline]
     pub fn payment_hash(&self) -> PaymentHash {
-        PaymentHash::from(*self.0.payment_hash())
+        PaymentHash::from(self.0.payment_hash())
     }
 
     /// The invoice payment secret, used to authenticate the payer to the payee
@@ -350,7 +350,7 @@ pub mod arbitrary_impl {
 
         let mut invoice = invoice
             .duration_since_epoch(timestamp)
-            .payment_hash(sha256::Hash::from_byte_array(payment_hash))
+            .payment_hash(lightning::types::payment::PaymentHash(payment_hash))
             .payment_secret(lightning::types::payment::PaymentSecret(
                 payment_secret,
             ))

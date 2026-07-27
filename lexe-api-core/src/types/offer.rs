@@ -368,7 +368,7 @@ impl std::error::Error for ParseError {}
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arb {
-    use std::{num::NonZeroU64, time::Duration};
+    use std::{collections::BTreeMap, num::NonZeroU64, time::Duration};
 
     use lexe_common::{
         rng::FastRngDerefHack,
@@ -379,40 +379,81 @@ mod arb {
     use lexe_crypto::rng::{FastRng, RngExt};
     use lightning::{
         blinded_path::message::{
-            BlindedMessagePath, MessageContext, MessageForwardNode,
-            OffersContext,
+            AsyncPaymentsContext, BlindedMessagePath, DNSResolverContext,
+            MessageContext, MessageForwardNode, OffersContext,
         },
-        ln::{channelmanager::PaymentId, inbound_payment::ExpandedKey},
-        offers::{nonce::Nonce, offer::OfferBuilder},
+        ln::{
+            channelmanager::{InterceptId, PaymentId},
+            inbound_payment::ExpandedKey,
+        },
+        offers::{
+            nonce::Nonce,
+            offer::{OfferBuilder, OfferId},
+        },
         sign::ReceiveAuthKey,
         types::payment::PaymentHash,
     };
     use proptest::{
         arbitrary::{Arbitrary, any},
-        option, prop_oneof,
+        collection, option, prop_oneof,
         strategy::{BoxedStrategy, Just, Strategy},
     };
 
     use super::*;
 
-    fn any_offers_context() -> impl Strategy<Value = OffersContext> {
-        fn any_nonce() -> impl Strategy<Value = Nonce> {
-            any::<FastRng>().prop_map(|mut rng| {
-                Nonce::from_entropy_source(FastRngDerefHack::from_rng(&mut rng))
-            })
-        }
-        fn any_payment_id() -> impl Strategy<Value = PaymentId> {
-            any::<[u8; 32]>().prop_map(PaymentId)
-        }
-        fn any_payment_hash() -> impl Strategy<Value = PaymentHash> {
-            any::<[u8; 32]>().prop_map(PaymentHash)
-        }
+    fn any_nonce() -> impl Strategy<Value = Nonce> {
+        any::<FastRng>().prop_map(|mut rng| {
+            Nonce::from_entropy_source(FastRngDerefHack::from_rng(&mut rng))
+        })
+    }
 
+    fn any_payment_id() -> impl Strategy<Value = PaymentId> {
+        any::<[u8; 32]>().prop_map(PaymentId)
+    }
+
+    fn any_payment_hash() -> impl Strategy<Value = PaymentHash> {
+        any::<[u8; 32]>().prop_map(PaymentHash)
+    }
+
+    /// An opaque id assigned by a static invoice server to an async recipient.
+    fn any_recipient_id() -> impl Strategy<Value = Vec<u8>> {
+        collection::vec(any::<u8>(), 0..=32)
+    }
+
+    /// Kept small: payment metadata rides in the payment onion, where more
+    /// than a few hundred bytes makes the payment unroutable.
+    fn any_payment_metadata()
+    -> impl Strategy<Value = Option<BTreeMap<u64, Vec<u8>>>> {
+        option::of(collection::btree_map(
+            any::<u64>(),
+            collection::vec(any::<u8>(), 0..=32),
+            0..=3,
+        ))
+    }
+
+    fn any_offers_context() -> impl Strategy<Value = OffersContext> {
         prop_oneof![
-            any_nonce()
-                .prop_map(|nonce| OffersContext::InvoiceRequest { nonce }),
-            (any_payment_id(), any_nonce()).prop_map(|(payment_id, nonce)| {
-                OffersContext::OutboundPayment { payment_id, nonce }
+            (any_nonce(), any_payment_metadata()).prop_map(
+                |(nonce, payment_metadata)| OffersContext::InvoiceRequest {
+                    nonce,
+                    payment_metadata,
+                }
+            ),
+            (any_recipient_id(), any::<u16>(), arbitrary::any_duration())
+                .prop_map(
+                    |(recipient_id, invoice_slot, path_absolute_expiry)| {
+                        OffersContext::StaticInvoiceRequested {
+                            recipient_id,
+                            invoice_slot,
+                            path_absolute_expiry,
+                        }
+                    }
+                ),
+            any_payment_id().prop_map(|payment_id| {
+                OffersContext::OutboundPaymentForOffer { payment_id }
+            }),
+            any_payment_id().prop_map(|payment_id| {
+                OffersContext::OutboundPaymentForRefund { payment_id }
             }),
             any_payment_hash().prop_map(|payment_hash| {
                 OffersContext::InboundPayment { payment_hash }
@@ -420,9 +461,71 @@ mod arb {
         ]
     }
 
+    fn any_async_payments_context()
+    -> impl Strategy<Value = AsyncPaymentsContext> {
+        prop_oneof![
+            (any_recipient_id(), arbitrary::any_option_duration()).prop_map(
+                |(recipient_id, path_absolute_expiry)| {
+                    AsyncPaymentsContext::OfferPathsRequest {
+                        recipient_id,
+                        path_absolute_expiry,
+                    }
+                }
+            ),
+            (any::<u16>(), arbitrary::any_duration()).prop_map(
+                |(invoice_slot, path_absolute_expiry)| {
+                    AsyncPaymentsContext::OfferPaths {
+                        invoice_slot,
+                        path_absolute_expiry,
+                    }
+                }
+            ),
+            (any_recipient_id(), any::<u16>(), arbitrary::any_duration())
+                .prop_map(
+                    |(recipient_id, invoice_slot, path_absolute_expiry)| {
+                        AsyncPaymentsContext::ServeStaticInvoice {
+                            recipient_id,
+                            invoice_slot,
+                            path_absolute_expiry,
+                        }
+                    }
+                ),
+            (any::<[u8; 32]>(), arbitrary::any_duration()).prop_map(
+                |(offer_id, invoice_created_at)| {
+                    AsyncPaymentsContext::StaticInvoicePersisted {
+                        offer_id: OfferId(offer_id),
+                        invoice_created_at,
+                    }
+                }
+            ),
+            any_payment_id().prop_map(|payment_id| {
+                AsyncPaymentsContext::OutboundPayment { payment_id }
+            }),
+            arbitrary::any_duration().prop_map(|path_absolute_expiry| {
+                AsyncPaymentsContext::InboundPayment {
+                    path_absolute_expiry,
+                }
+            }),
+            (any::<[u8; 32]>(), any::<u64>(), any::<u64>()).prop_map(
+                |(intercept_id, prev_outbound_scid_alias, htlc_id)| {
+                    AsyncPaymentsContext::ReleaseHeldHtlc {
+                        intercept_id: InterceptId(intercept_id),
+                        prev_outbound_scid_alias,
+                        htlc_id,
+                    }
+                }
+            ),
+        ]
+    }
+
     fn any_message_context() -> impl Strategy<Value = MessageContext> {
         prop_oneof![
             any_offers_context().prop_map(MessageContext::Offers),
+            any_async_payments_context()
+                .prop_map(MessageContext::AsyncPayments),
+            any::<[u8; 16]>().prop_map(|nonce| MessageContext::DNSResolver(
+                DNSResolverContext { nonce }
+            )),
             any::<Vec<u8>>().prop_map(MessageContext::Custom),
         ]
     }
@@ -526,11 +629,13 @@ mod arb {
             .into_iter()
             .map(|(intermediate_nodes, message_context)| {
                 let recipient_node_id = node_pk.inner();
+                let compact_padding = false;
                 BlindedMessagePath::new(
                     intermediate_nodes.as_slice(),
                     recipient_node_id,
                     receive_auth_key,
                     message_context,
+                    compact_padding,
                     FastRngDerefHack::from_rng(&mut rng),
                     &SECP256K1,
                 )
@@ -760,6 +865,7 @@ mod test {
                 nonce: Nonce::from_entropy_source(FastRngDerefHack::from_rng(
                     &mut rng,
                 )),
+                payment_metadata: None,
             });
         let intermediate_nodes = vec![
             MessageForwardNode {
