@@ -78,10 +78,7 @@ pub trait LexePeerManager<CM, PS, RMH>:
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
-    // TODO(max): Tried to create a `LexeRoutingMessageHandler` alias for these
-    // bounds so the don't propagate everywhere, but couldn't get it to work.
-    RMH: Deref,
-    RMH::Target: RoutingMessageHandler,
+    RMH: RoutingMessageHandler,
 {
     /// Returns `true` if we're connected to a peer with `node_pk`.
     fn is_connected(&self, node_pk: &NodePk) -> bool {
@@ -99,8 +96,7 @@ where
         + Deref<Target = LexePeerManagerType<CM, RMH, PS>>,
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
-    RMH: Deref,
-    RMH::Target: RoutingMessageHandler,
+    RMH: RoutingMessageHandler,
 {
 }
 

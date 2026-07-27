@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     convert::Infallible,
     num::NonZeroU64,
-    ops::Deref,
     pin::Pin,
     sync::{Arc, RwLock},
     time::Duration,
@@ -169,8 +168,7 @@ where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS, RMH>,
     PS: LexePersister,
-    RMH: Deref,
-    RMH::Target: RoutingMessageHandler,
+    RMH: RoutingMessageHandler,
 {
     let node_pk = NodePk(channel_manager.get_our_node_id());
     let num_peers = peer_manager.list_peers().len();

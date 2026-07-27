@@ -1,9 +1,4 @@
-use std::{
-    ops::{Deref, Range},
-    pin::Pin,
-    sync::Arc,
-    time::Duration,
-};
+use std::{ops::Range, pin::Pin, sync::Arc, time::Duration};
 
 use lexe_common::time::DisplayMs;
 use lexe_crypto::rng::{RngExt, ThreadFastRng};
@@ -74,8 +69,7 @@ where
     PM: LexePeerManager<CM, PS, RMH>,
     PS: LexePersister,
     EH: LexeEventHandler,
-    RMH: Deref,
-    RMH::Target: RoutingMessageHandler,
+    RMH: RoutingMessageHandler,
 {
     LxTask::spawn_with_span(
         "background processor",
