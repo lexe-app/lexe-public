@@ -1,7 +1,6 @@
 use std::{collections::HashMap, ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
-use bitcoin::BlockHash;
 use lexe_common::{constants, ln::network::Network};
 use lexe_ln::{
     alias::{BroadcasterType, FeeEstimatorType, MessageRouterType, RouterType},
@@ -9,7 +8,7 @@ use lexe_ln::{
     logger::LexeTracingLogger,
 };
 use lightning::{
-    chain::BestBlock,
+    chain::BlockLocator,
     ln::channelmanager::{
         ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
     },
@@ -60,49 +59,19 @@ const fn user_config() -> UserConfig {
         // Do not accept any HTLC forwarding risks
         accept_forwards_to_priv_channels: false,
         // We accept inbound channels, but only those initiated by the LSP.
+        //
+        // LDK requires every inbound channel to be accepted manually, which we
+        // need anyway for zeroconf and to check that the channel was initiated
+        // by Lexe's LSP. See Event::OpenChannelRequest in the event handler.
         accept_inbound_channels: true,
-        // Manually accepting inbound channels is required for zeroconf, and for
-        // checking that the inbound channel was initiated by Lexe's LSP.
-        // See Event::OpenChannelRequest in the event handler.
-        //
-        // NOTE(zeroconf): Zeroconf channels allow you to receive Lightning
-        // payments immediately (without having to wait for
-        // confirmations) in the case that you do not yet have a channel
-        // open with Lexe's LSP. The channel is immediately usable,
-        // meaning you can use those zeroconf funds to then make
-        // an outbound payment of your own. However, zeroconf exposes you to the
-        // following risks and caveats:
-        //
-        // - If you are a merchant, theoretically Lexe could pretend to be your
-        //   customer and purchase a good or service from you using a zeroconf
-        //   channel. If you render the good or service before the zeroconf
-        //   channel has gotten least a few confirmations (3-6), Lexe could
-        //   double-spend the funding transaction, defrauding you of your
-        //   payment. If you do not trust Lexe not to double-spend the funding
-        //   tx, do not render any goods or services until the payment has been
-        //   'finalized' in the Lexe app, or disable zeroconf entirely in your
-        //   app settings.
-        // - If you are using Lexe to accept Lightning tips, theoretically Lexe
-        //   could siphon off these tips by (1) extending the Lightning payment
-        //   to your node over a zeroconf channel, (2) collecting its payment
-        //   from its previous hop, then (3) defrauding your node by
-        //   double-spending the funding tx. If you do not trust Lexe not to do
-        //   this, do not enable zeroconf channels.
-        //
-        // TODO(max): Expose payments and channel balances to the user as
-        // pending / finalized depending on channel confirmation status.
-        // TODO(max): Expose an option for enabling / disabling zeroconf.
-        // TODO(max): Convert these notes into a blog post or help article of
-        // some kind which is accessible from the users' mobile app.
-        // TODO(max): Add more notes corresponding to the results of current
-        // research on zeroconf channels in Nuclino
-        manually_accept_inbound_channels: true,
         // TODO(phlip9): splicing needs testing.
         reject_inbound_splices: true,
         // The node has no need to intercept HTLCs
-        accept_intercept_htlcs: false,
+        htlc_interception_flags: 0,
         // For now, no need to manually pay BOLT 12 invoices when received.
         manually_handle_bolt12_invoices: false,
+        // TODO(phlip9): support splicing/dual-funded channels
+        enable_dual_funded_channels: false,
         // This feature enables the node to hold onto HTLCs until its peer is
         // online again. User nodes are not routing nodes, so this is not
         // relevant.
@@ -130,21 +99,16 @@ const fn channel_handshake_config() -> ChannelHandshakeConfig {
         our_max_accepted_htlcs: 50,
         // Allow up to 100% of our funds to be encumbered in inbound HTLCS.
         // Setting this to 100 minimizes the difference between the LSP's
-        // `outbound_capacity` and `next_outbound_htlc_limit`.
-        max_inbound_htlc_value_in_flight_percent_of_channel: 100,
+        // `outbound_capacity` and `next_outbound_htlc_limit`. Our channels are
+        // unannounced, but set both so the limit doesn't depend on that.
+        announced_channel_max_inbound_htlc_value_in_flight_percentage: 100,
+        unannounced_channel_max_inbound_htlc_value_in_flight_percentage: 100,
         // Attempt to use better privacy.
         negotiate_scid_privacy: true,
-        // TODO(max): Support anchor outputs. NOTE that as part of this we'll
-        // need to ensure that `manually_accept_inbound_channels == true` so
-        // that we can check that we have a sufficient wallet balance to cover
-        // the fees for all existing and future channels.
+        // TODO(max): Support anchor outputs.
         negotiate_anchors_zero_fee_htlc_tx: false,
         // If true, we'll attempt to negotiate zero-fee commitments for all
         // future channels.
-        //
-        // Like `negotiate_anchors_zero_fee_htlc_tx` this requires
-        // `manually_accept_inbound_channels` so you can check if you have
-        // enough on-chain reserve available.
         //
         // For a force-close transaction to reach miners and get confirmed,
         // zero-fee commitment channels require a path from your Bitcoin node to
@@ -179,11 +143,6 @@ const fn channel_handshake_limits() -> ChannelHandshakeLimits {
         // The maximum # of blocks we're willing to wait to reclaim our funds in
         // the case of a unilateral close initiated by us. See doc comment.
         their_to_self_delay: MAXIMUM_TIME_TO_RECLAIM_FUNDS,
-        // The maximum total channel value (our balance + their balance) that
-        // we'll accept for a new inbound channel.
-        // The current LDK default was too low (0.16_777_216 BTC, the pre-wumbo
-        // channel maximum).
-        max_funding_satoshis: constants::CHANNEL_MAX_FUNDING_SATS as u64,
         // Use LDK defaults for everything else. We can't use Default::default()
         // in a const, but it's better to explicitly specify the values anyway.
         min_funding_satoshis: 0,
@@ -234,7 +193,7 @@ impl NodeChannelManager {
     pub(crate) fn init(
         network: Network,
         config: UserConfig,
-        maybe_manager: Option<(BlockHash, ChannelManagerType)>,
+        maybe_manager: Option<(BlockLocator, ChannelManagerType)>,
         keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
@@ -245,17 +204,16 @@ impl NodeChannelManager {
     ) -> anyhow::Result<Self> {
         debug!("Initializing channel manager");
 
-        let (blockhash, inner, label) = match maybe_manager {
-            Some((blockhash, mgr)) => (blockhash, mgr, "persisted"),
+        let (best_block, inner, label) = match maybe_manager {
+            Some((best_block, mgr)) => (best_block, mgr, "persisted"),
             None => {
                 // We're starting a fresh node.
                 // Use the genesis block as the current best block.
-                let genesis_hash = network.genesis_block_hash();
-                let genesis_height = 0;
-                let best_block = BestBlock::new(genesis_hash, genesis_height);
+                let network = network.to_bitcoin();
+                let genesis_block = BlockLocator::from_network(network);
                 let chain_params = ChainParameters {
-                    network: network.to_bitcoin(),
-                    best_block,
+                    network,
+                    best_block: genesis_block,
                 };
                 let current_timestamp = SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
@@ -277,10 +235,14 @@ impl NodeChannelManager {
                     chain_params,
                     current_timestamp_secs,
                 );
-                (genesis_hash, inner, "fresh")
+                (genesis_block, inner, "fresh")
             }
         };
-        info!(%blockhash, "Loaded {label} channel manager");
+        info!(
+            blockhash = %best_block.block_hash,
+            height = best_block.height,
+            "Loaded {label} channel manager"
+        );
 
         Ok(Self(Arc::new(inner)))
     }

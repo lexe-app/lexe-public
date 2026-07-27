@@ -528,15 +528,21 @@ impl UserNode {
                 .context("Failed to construct keys manager")?;
 
         // Initialize the chain monitor
-        let chain_monitor = Arc::new(ChainMonitor::new(
-            Some(ldk_sync_client.clone()),
-            tx_broadcaster.clone(),
-            logger.clone(),
-            fee_estimates.clone(),
-            persister.clone(),
-            keys_manager.clone(),
-            keys_manager.get_peer_storage_key(),
-        ));
+        let chain_monitor = {
+            // Apply monitor updates inline rather than deferring them.
+            let deferred = false;
+
+            Arc::new(ChainMonitor::new(
+                Some(ldk_sync_client.clone()),
+                tx_broadcaster.clone(),
+                logger.clone(),
+                fee_estimates.clone(),
+                persister.clone(),
+                keys_manager.clone(),
+                keys_manager.get_peer_storage_key(),
+                deferred,
+            ))
+        };
 
         // Deserialize channel monitors from previously fetched bytes
         let channel_monitor_bytes = try_channel_monitor_bytes
@@ -615,7 +621,7 @@ impl UserNode {
         // Load the existing channel monitors into the chain monitor so that it
         // can watch the chain for closing transactions, fraudulent
         // transactions, etc.
-        for (_blockhash, monitor) in channel_monitors {
+        for (_best_block, monitor) in channel_monitors {
             // This should only error if we (1) somehow load a channel monitor
             // twice for a channel id or we (2) fail to "watch" a pre ldk-v0.1
             // channel monitor. We don't have any more channel monitors from

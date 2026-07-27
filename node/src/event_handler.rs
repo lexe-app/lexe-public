@@ -68,8 +68,9 @@ use lexe_ln::{
     wallet::OnchainWallet,
 };
 use lexe_tokio::{events_bus::EventsBus, notify_once::NotifyOnce};
-use lightning::events::{
-    Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent,
+use lightning::{
+    events::{Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent},
+    ln::channelmanager::TrustedChannelFeatures,
 };
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
@@ -162,14 +163,12 @@ async fn do_handle_event(
     event::handle_scorer_update(&ctx.scorer, &event);
 
     match event {
-        // NOTE: This event is received because manually_accept_inbound_channels
-        // is set to true. Manually accepting inbound channels is required
-        // (1) we may accept zeroconf channels (2) we need to verify that it is
-        // Lexe's LSP that is initiating the channel with us. The event MUST be
-        // resolved by (a) rejecting the channel open request by calling
-        // force_close_broadcasting_latest_txn() or (b) accepting the request
-        // using accept_inbound_channel() or (c) accepting as trusted zeroconf
-        // using accept_inbound_channel_from_trusted_peer_0conf().
+        // LDK generates this event for every inbound channel request.
+        //
+        // The event MUST be resolved by (a) rejecting the channel open request
+        // by calling force_close_broadcasting_latest_txn() or (b) accepting the
+        // request using accept_inbound_channel() or (c) accepting as trusted
+        // zeroconf using accept_inbound_channel_from_trusted_peer().
         Event::OpenChannelRequest {
             temporary_channel_id,
             counterparty_node_id,
@@ -221,10 +220,11 @@ async fn do_handle_event(
                 let user_channel_id = ThreadFastRng::new().gen_u128();
                 let channel_config_override = None;
                 ctx.channel_manager
-                    .accept_inbound_channel_from_trusted_peer_0conf(
+                    .accept_inbound_channel_from_trusted_peer(
                         &temporary_channel_id,
                         &counterparty_node_id,
                         user_channel_id,
+                        TrustedChannelFeatures::ZeroConf,
                         channel_config_override,
                     )
                     .inspect(|_| {
@@ -594,33 +594,18 @@ async fn do_handle_event(
             debug_panic_release_log!("Somehow received ProbeFailed"),
 
         Event::PaymentForwarded {
-            prev_channel_id,
-            next_channel_id,
-            prev_user_channel_id,
-            next_user_channel_id,
-            prev_node_id,
-            next_node_id,
+            prev_htlcs,
+            next_htlcs,
             total_fee_earned_msat,
             skimmed_fee_msat,
             claim_from_onchain_tx,
             outbound_amount_forwarded_msat,
         } => {
-            let prev_channel_id =
-                prev_channel_id.expect("Launched after v0.0.107");
-            let next_channel_id =
-                next_channel_id.expect("Launched after v0.0.107");
-            let prev_user_channel_id =
-                prev_user_channel_id.expect("Launched after v0.0.122");
-
             // The user node doesn't forward payments
             debug_panic_release_log!(
                 "Somehow received a PaymentForwarded event: \
-                prev_channel_id={prev_channel_id}, \
-                next_channel_id={next_channel_id}, \
-                prev_user_channel_id={prev_user_channel_id}, \
-                next_user_channel_id={next_user_channel_id:?}, \
-                prev_node_id={prev_node_id:?}, \
-                next_node_id={next_node_id:?}, \
+                prev_htlcs={prev_htlcs:?}, \
+                next_htlcs={next_htlcs:?}, \
                 total_fee_earned_msat={total_fee_earned_msat:?}, \
                 skimmed_fee_msat={skimmed_fee_msat:?}, \
                 claim_from_onchain_tx={claim_from_onchain_tx}, \
@@ -629,7 +614,7 @@ async fn do_handle_event(
         }
 
         Event::HTLCIntercepted { .. } => {
-            unreachable!("accept_intercept_htlcs in UserConfig is false")
+            unreachable!("htlc_interception_flags in UserConfig is 0")
         }
 
         Event::HTLCHandlingFailed { .. } => {}
@@ -637,6 +622,7 @@ async fn do_handle_event(
         Event::SpendableOutputs {
             outputs,
             channel_id,
+            counterparty_node_id,
         } => {
             let channel_id =
                 ChannelId::from(channel_id.expect("Launched after v0.0.107"));
@@ -652,6 +638,7 @@ async fn do_handle_event(
                 event_id,
                 outputs,
                 channel_id,
+                counterparty_node_id,
             )
             .await?;
         }
@@ -672,18 +659,18 @@ async fn do_handle_event(
                 "Unexpected `FundingTransactionReadyForSigning` event: \
                  channel_id={channel_id}"
             ),
-        Event::SplicePending {
+        Event::SpliceNegotiated {
             counterparty_node_id,
             ..
         } => debug_panic_release_log!(
-            "Unexpected `SplicePending` event: \
+            "Unexpected `SpliceNegotiated` event: \
              counterparty_node_id={counterparty_node_id}"
         ),
-        Event::SpliceFailed {
+        Event::SpliceNegotiationFailed {
             counterparty_node_id,
             ..
         } => debug_panic_release_log!(
-            "Unexpected `SpliceFailed` event: \
+            "Unexpected `SpliceNegotiationFailed` event: \
              counterparty_node_id={counterparty_node_id}"
         ),
 
@@ -695,10 +682,10 @@ async fn do_handle_event(
         ),
 
         // We don't use this
-        Event::OnionMessageIntercepted { peer_node_id, .. } =>
+        Event::OnionMessageIntercepted { next_hop, .. } =>
             debug_panic_release_log!(
                 "Unexpected `OnionMessageIntercepted` event: \
-                 peer_node_id={peer_node_id}"
+                 next_hop={next_hop:?}"
             ),
         Event::OnionMessagePeerConnected { peer_node_id } =>
             debug_panic_release_log!(

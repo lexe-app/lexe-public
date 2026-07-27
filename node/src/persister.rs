@@ -40,7 +40,6 @@ use std::{
 
 use anyhow::{Context, anyhow, ensure};
 use async_trait::async_trait;
-use bitcoin::hash_types::BlockHash;
 use gdrive::{GoogleVfs, GvfsRoot, oauth2::GDriveCredentials};
 use lexe_api::{
     auth::BearerAuthenticator,
@@ -101,7 +100,7 @@ use lexe_std::backoff;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
-        ChannelMonitorUpdateStatus, chainmonitor::Persist,
+        BlockLocator, ChannelMonitorUpdateStatus, chainmonitor::Persist,
         channelmonitor::ChannelMonitorUpdate,
     },
     ln::channelmanager::ChannelManagerReadArgs,
@@ -683,7 +682,7 @@ impl NodePersister {
     pub(crate) async fn read_channel_manager(
         &self,
         config: UserConfig,
-        channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
+        channel_monitors: &mut [(BlockLocator, ChannelMonitorType)],
         keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
@@ -691,7 +690,7 @@ impl NodePersister {
         router: Arc<RouterType>,
         message_router: Arc<MessageRouterType>,
         logger: LexeTracingLogger,
-    ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
+    ) -> anyhow::Result<Option<(BlockLocator, ChannelManagerType)>> {
         debug!("Reading channel manager");
         let file_id =
             VfsFileId::new(SINGLETON_DIRECTORY, vfs::CHANNEL_MANAGER_FILENAME);
@@ -735,7 +734,7 @@ impl NodePersister {
     pub(crate) fn deserialize_channel_monitors(
         ids_and_bytes: Vec<(VfsFileId, Vec<u8>)>,
         keys_manager: &LexeKeysManager,
-    ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
+    ) -> anyhow::Result<Vec<(BlockLocator, ChannelMonitorType)>> {
         debug!("Deserializing channel monitors");
 
         // XXX(max): Read channel manager from multiple independent VSS stores
@@ -745,19 +744,21 @@ impl NodePersister {
         // Deserialize each channel monitor.
         for (file_id, bytes) in &ids_and_bytes {
             let mut reader = Cursor::new(bytes);
-            let value =
-                <(BlockHash, ChannelMonitorType)>::read(&mut reader, read_args)
-                    .map_err(|err| {
-                        anyhow!(
-                            "ChannelMonitor deserialization failed for file: \
-                             {file_id}: {err:?}"
-                        )
-                    })?;
+            let value = <(BlockLocator, ChannelMonitorType)>::read(
+                &mut reader,
+                read_args,
+            )
+            .map_err(|err| {
+                anyhow!(
+                    "ChannelMonitor deserialization failed for file: \
+                     {file_id}: {err:?}"
+                )
+            })?;
             values.push(value);
         }
 
         // Check that each monitor's funding txo matches the file_id.
-        for ((file_id, _bytes), (_blockhash, channel_monitor)) in
+        for ((file_id, _bytes), (_best_block, channel_monitor)) in
             ids_and_bytes.iter().zip(values.iter())
         {
             let expected_name = LxMonitorName::from_str(&file_id.filename)
