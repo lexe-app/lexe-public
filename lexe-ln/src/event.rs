@@ -118,8 +118,8 @@ impl EventExt for Event {
             Event::FundingTransactionReadyForSigning { .. } =>
                 "FundingTransactionReadyForSigning",
             Event::PersistStaticInvoice { .. } => "PersistStaticInvoice",
-            Event::SpliceFailed { .. } => "SpliceFailed",
-            Event::SplicePending { .. } => "SplicePending",
+            Event::SpliceNegotiated { .. } => "SpliceNegotiated",
+            Event::SpliceNegotiationFailed { .. } => "SpliceNegotiationFailed",
             Event::StaticInvoiceRequested { .. } => "StaticInvoiceRequested",
         }
     }
@@ -687,6 +687,7 @@ pub async fn handle_spendable_outputs<CM, PS>(
     event_id: &EventId,
     outputs: Vec<SpendableOutputDescriptor>,
     channel_id: ChannelId,
+    counterparty_node_id: Option<secp256k1::PublicKey>,
 ) -> Result<(), EventHandleError>
 where
     CM: LexeChannelManager<PS>,
@@ -782,6 +783,7 @@ where
         let event = Event::SpendableOutputs {
             outputs,
             channel_id: Some(channel_id.into()),
+            counterparty_node_id,
         };
 
         let file_id =
