@@ -201,6 +201,7 @@ impl TxBroadcaster {
             .client()
             .broadcast(tx)
             .await
+            .map(|_txid| ())
             .map_err(Error::Broadcast)
     }
 }

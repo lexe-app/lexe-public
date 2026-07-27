@@ -18,7 +18,6 @@ use lexe_common::{
     },
 };
 use lexe_crypto::rng::{RngCore, RngSliceExt};
-use lexe_tls_core::rustls;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FEERATE_FLOOR_SATS_PER_KW, FeeEstimator,
@@ -39,8 +38,9 @@ const REFRESH_FEE_ESTIMATES_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
     Duration::from_secs(60 * 60 * 24 * 14);
 
-/// The feerate we fall back to if fee rate lookup fails.
-const FALLBACK_FEE_RATE: f64 = 1.0;
+/// The feerate we fall back to if fee rate lookup fails: 1 sat/vB.
+const FALLBACK_FEE_RATE: bitcoin::FeeRate =
+    bitcoin::FeeRate::from_sat_per_vb_unchecked(1);
 
 /// The timeout we'll use for requests to our Esplora backends.
 pub const ESPLORA_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -103,19 +103,21 @@ pub enum TxConfStatus {
 /// - Implements [`FeeEstimator`] and provides other useful getters.
 pub struct FeeEstimates {
     /// Cached map of conf targets (in number of blocks) to estimated feerates
-    /// (in sats per vbyte) returned by [`AsyncClient::get_fee_estimates`].
-    cached: ArcSwap<BTreeMap<u16, f64>>,
+    /// returned by [`AsyncClient::get_fee_estimates`].
+    cached: ArcSwap<BTreeMap<u16, bitcoin::FeeRate>>,
 }
 
 impl FeeEstimates {
     /// Initialize from the result of [`AsyncClient::get_fee_estimates`].
-    fn from_esplora_result(estimates: HashMap<u16, f64>) -> Arc<Self> {
+    fn from_esplora_result(
+        estimates: HashMap<u16, bitcoin::FeeRate>,
+    ) -> Arc<Self> {
         let cached = ArcSwap::from_pointee(Self::convert_estimates(estimates));
         Arc::new(Self { cached })
     }
 
     /// Updates the cached feerate estimates to the given value.
-    fn update(&self, estimates: HashMap<u16, f64>) {
+    fn update(&self, estimates: HashMap<u16, bitcoin::FeeRate>) {
         let new_estimates = Self::convert_estimates(estimates);
         self.cached.store(Arc::new(new_estimates));
     }
@@ -125,13 +127,7 @@ impl FeeEstimates {
     /// this is the core feerate function that others delegate to.
     pub fn num_blocks_to_feerate(&self, num_blocks: u16) -> bitcoin::FeeRate {
         let guarded_estimates = self.cached.load();
-        let feerate_sats_vbyte =
-            Self::lookup_fee_rate(num_blocks, &guarded_estimates);
-
-        // (X sat/1 vb) * (1 vb/4 wu) * (1000 wu/1 kwu)
-        // = (X sat/vb) * (250.0 vb/kwu)
-        let feerate_sats_kwu = (feerate_sats_vbyte * 250.0) as u64;
-        bitcoin::FeeRate::from_sat_per_kwu(feerate_sats_kwu)
+        Self::lookup_fee_rate(num_blocks, &guarded_estimates)
     }
 
     /// Convert a [`ConfirmationPriority`] into a [`bitcoin::FeeRate`].
@@ -156,21 +152,21 @@ impl FeeEstimates {
     }
 
     /// A version of [`esplora_client::convert_fee_rate`] which avoids an N *
-    /// log(N) Vec sort (and `HashMap<u16, f64>` clone) at every feerate lookup
-    /// by leveraging a parsed [`BTreeMap<u16, f64>`].
+    /// log(N) Vec sort (and `HashMap` clone) at every feerate lookup by
+    /// leveraging a parsed [`BTreeMap`].
     ///
     /// Functionality: Given a desired target number of blocks by which a tx is
     /// confirmed, and the parsed return value of
     /// [`AsyncClient::get_fee_estimates`] which maps [`u16`] conf targets (in
-    /// number of blocks) to the [`f64`] estimated fee rates (in sats per
-    /// vbyte), extracts the estimated feerate whose corresponding target is the
-    /// largest of all targets less than or equal to our desired target, or
-    /// defaults to 1 sat per vbyte if our desired target was lower than the
-    /// smallest target with a fee estimate.
+    /// number of blocks) to their estimated feerates, extracts the estimated
+    /// feerate whose corresponding target is the largest of all targets less
+    /// than or equal to our desired target, or defaults to
+    /// [`FALLBACK_FEE_RATE`] if our desired target was lower than the smallest
+    /// target with a fee estimate.
     fn lookup_fee_rate(
         num_blocks_target: u16,
-        estimates: &BTreeMap<u16, f64>,
-    ) -> f64 {
+        estimates: &BTreeMap<u16, bitcoin::FeeRate>,
+    ) -> bitcoin::FeeRate {
         estimates
             .iter()
             .rev()
@@ -179,23 +175,26 @@ impl FeeEstimates {
             .unwrap_or(FALLBACK_FEE_RATE)
     }
 
-    /// Converts [`HashMap<u16, f64>`] from [`AsyncClient::get_fee_estimates`]
-    /// into the [`BTreeMap<usize, f64>`] stored by this struct.
-    fn convert_estimates(estimates: HashMap<u16, f64>) -> BTreeMap<u16, f64> {
+    /// Converts the [`HashMap`] from [`AsyncClient::get_fee_estimates`] into
+    /// the [`BTreeMap`] stored by this struct.
+    fn convert_estimates(
+        estimates: HashMap<u16, bitcoin::FeeRate>,
+    ) -> BTreeMap<u16, bitcoin::FeeRate> {
         estimates.into_iter().collect()
     }
 
     #[cfg(any(test, feature = "test-utils"))]
     pub fn dummy() -> Arc<Self> {
-        let estimates = BTreeMap::from_iter([
-            (1, 2.5),
-            (3, 2.0),
-            (5, 1.5),
-            (10, 1.3),
-            (20, 1.2),
-            (1008, 1.1),
-        ]);
-        let cached = ArcSwap::from_pointee(estimates);
+        let estimates =
+            esplora_client::sat_per_vbyte_to_feerate(HashMap::from([
+                (1, 2.5),
+                (3, 2.0),
+                (5, 1.5),
+                (10, 1.3),
+                (20, 1.2),
+                (1008, 0.2),
+            ]));
+        let cached = ArcSwap::from_pointee(Self::convert_estimates(estimates));
         Arc::new(Self { cached })
     }
 }
@@ -285,35 +284,16 @@ impl LexeEsplora {
         esplora_url: String,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
-        // - Use WebPKI certs to avoid production outages when external Esplora
-        //   providers change their CA certs.
-        // - We must also use the default ring `CryptoProvider` because our
-        //   providers may not support our specific ciphersuite, but we can at
-        //   least enforce use of TLSv1.3.
-        #[allow(clippy::disallowed_methods)]
-        let tls_config = rustls::ClientConfig::builder_with_protocol_versions(
-            lexe_tls_core::LEXE_TLS_PROTOCOL_VERSIONS,
-        )
-        .with_root_certificates(lexe_tls_core::WEBPKI_ROOT_CERTS.clone())
-        .with_no_client_auth();
-
-        // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
-        let reqwest_client = {
-            let builder = reqwest::Client::builder()
-                .user_agent(user_agent)
-                .https_only(true)
-                .timeout(ESPLORA_REQUEST_TIMEOUT)
-                .use_preconfigured_tls(tls_config);
-
-            // Only allow http in tests
-            #[cfg(any(test, feature = "test-utils"))]
-            let builder = builder.https_only(false);
-
-            builder
-                .build()
-                .expect("Failed to build esplora reqwest client")
-        };
-        let client = AsyncClient::from_client(esplora_url, reqwest_client);
+        // `bitreq` owns the rustls config, so we can't pin to TLSv1.3.
+        // Aside from that, its defaults are already what we want:
+        // - WebPKI roots: no outages when Esplora providers rotate CA certs.
+        // - Default ring provider: our Esplora provider may not support our
+        //   preferred ciphersuite.
+        let client = esplora_client::Builder::new(&esplora_url)
+            .header("User-Agent", user_agent)
+            .timeout(ESPLORA_REQUEST_TIMEOUT)
+            .build_async()
+            .context("Could not build esplora client")?;
 
         // Initial cached fee estimates
         let fee_estimates = client
@@ -503,11 +483,10 @@ impl LexeEsplora {
     /// Create a dummy LexeEsplora for testing.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn dummy() -> Arc<Self> {
-        let reqwest_client = reqwest::Client::builder()
+        let client = esplora_client::Builder::new("")
             .timeout(Duration::from_secs(5))
-            .build()
-            .expect("Failed to build dummy reqwest client");
-        let client = AsyncClient::from_client(String::new(), reqwest_client);
+            .build_async()
+            .expect("Failed to build dummy esplora client");
         let fee_estimates = FeeEstimates::dummy();
 
         Arc::new(Self {
@@ -563,22 +542,48 @@ mod test {
     #[test]
     fn convert_fee_rate_equiv() {
         proptest!(|(
-            estimates in any::<BTreeMap<u16, f64>>(),
+            sat_per_vbyte in any::<HashMap<u16, f64>>(),
             target in any::<u16>(),
         )| {
-            let hashmap_estimates = estimates
-                .iter()
-                .map(|(k, v)| (*k, *v))
-                .collect::<HashMap<u16, f64>>();
+            let hashmap_estimates =
+                esplora_client::sat_per_vbyte_to_feerate(sat_per_vbyte);
+            let btreemap_estimates =
+                FeeEstimates::convert_estimates(hashmap_estimates.clone());
             let target_usize = usize::from(target);
 
             let our_feerate_res =
-                FeeEstimates::lookup_fee_rate(target, &estimates) as f32;
+                FeeEstimates::lookup_fee_rate(target, &btreemap_estimates);
             let their_feerate_res =
                 esplora_client::convert_fee_rate(target_usize, hashmap_estimates)
-                    .unwrap_or(FALLBACK_FEE_RATE as f32);
+                    .unwrap_or(FALLBACK_FEE_RATE);
 
             prop_assert_eq!(our_feerate_res, their_feerate_res);
         })
+    }
+
+    /// Smoke tests [`LexeEsplora::init`] against a real Esplora backend.
+    /// Set `$ESPLORA_TEST_URL` to hit a different one.
+    ///
+    /// ```bash
+    /// $ cargo test -p lexe-ln --lib -- --ignored esplora_init --nocapture
+    /// ```
+    #[ignore]
+    #[tokio::test]
+    async fn esplora_init() {
+        let url = std::env::var("ESPLORA_TEST_URL").unwrap_or_else(|_| {
+            constants::MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA.into()
+        });
+
+        let shutdown = NotifyOnce::new();
+        let (_esplora, fee_estimates, task) =
+            LexeEsplora::init("lexe-ln-test", url, shutdown.clone())
+                .await
+                .expect("Failed to init esplora");
+
+        let feerate = fee_estimates.num_blocks_to_feerate(1);
+        println!("1 block => {} sat/vB", feerate.to_sat_per_vb_ceil());
+
+        shutdown.send();
+        task.await.expect("Refresh fees task panicked");
     }
 }
