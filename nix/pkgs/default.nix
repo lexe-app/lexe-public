@@ -161,8 +161,8 @@ rec {
       "sha256-+ksLhW4rXHDmi6xkPHrWAUdMvkm1cM/PBuJUnTt0vQk=";
     "git+https://github.com/lexe-app/axum-server?branch=lexe-v0.7.3-2025_12_04#afb0632485455e213e914c42776e12a4d3b6a232" =
       "sha256-BDbo0999cMrdylq3D374D8GN1aNcdfPxkrmSXJAoLpU=";
-    "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.19-2025_12_04#ac96c4a51331a761d6b6011e877f314507b48ff9" =
-      "sha256-TEl8qdOjYgHgMBbY/+11w7/UuiyY5gohJIwcS5XakTI=";
+    "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.19-2026_07_23#f16a50dccaa3dfe353a85bcc301bc7d4ca94b96f" =
+      "sha256-OCnNr7IsDeFEz+5ZkTnV0YRo1lBmpA/wjKoWuI8Wh5w=";
     "git+https://github.com/lexe-app/minreq?branch=lexe-v2.12.0-2026_03_21#99ab2ae4a8b3e00521cf9a621d621298650e1563" =
       "sha256-txvmqws3wsd5cHCLpGvwPdEoj8iAYDxNMbU2OA1mlhA=";
     "git+https://github.com/lexe-app/mio?branch=lexe-v0.8.11-2025_12_02#d809a53d80f7557d12b44881034b50d79f740698" =

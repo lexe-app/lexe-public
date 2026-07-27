@@ -2208,7 +2208,7 @@ dependencies = [
 [[package]]
 name = "hyper-util"
 version = "0.1.19"
-source = "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.19-2025_12_04#ac96c4a51331a761d6b6011e877f314507b48ff9"
+source = "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.19-2026_07_23#f16a50dccaa3dfe353a85bcc301bc7d4ca94b96f"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2222,7 +2222,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",

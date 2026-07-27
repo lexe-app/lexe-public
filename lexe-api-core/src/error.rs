@@ -1102,10 +1102,20 @@ impl From<serde_json::Error> for CommonApiError {
 #[cfg(feature = "reqwest")]
 impl From<reqwest::Error> for CommonApiError {
     fn from(err: reqwest::Error) -> Self {
-        // NOTE: The `reqwest::Error` `Display` impl is totally useless!!
-        // We've had tons of problems with it swallowing TLS errors.
-        // You have to use the `Debug` impl to get any info about the source.
-        let msg = format!("{err:?}");
+        // Need to include all the inner `err.source()`, otherwise we don't have
+        // enough info to effectively debug e.g. TLS or proxy issues.
+        let msg = {
+            use std::fmt::Write;
+            let mut buf = err.to_string();
+
+            let mut maybe_source = err.source();
+            while let Some(source) = maybe_source {
+                let _ = write!(&mut buf, ": {source}");
+                maybe_source = source.source();
+            }
+            buf
+        };
+
         // Be more granular than just returning a general reqwest::Error
         let kind = if err.is_builder() {
             CommonErrorKind::Building
