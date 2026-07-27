@@ -32,6 +32,7 @@ use lightning::{
         },
         scoring::ProbabilisticScoringFeeParameters,
     },
+    sign::ReceiveAuthKey,
     types::features::BlindedHopFeatures,
     util::hash_tables::new_hash_map,
 };
@@ -357,6 +358,7 @@ impl Router for LexeRouter {
     >(
         &self,
         recipient: secp256k1::PublicKey,
+        receive_key: ReceiveAuthKey,
         first_hops: Vec<ChannelDetails>,
         tlvs: ReceiveTlvs,
         _amount_msats: Option<u64>,
@@ -386,6 +388,7 @@ impl Router for LexeRouter {
                 BlindedPaymentPath::new(
                     &offer_route_hints,
                     recipient,
+                    receive_key,
                     tlvs,
                     last_hop_hint.htlc_maximum_msat,
                     crate::constants::USER_MIN_FINAL_CLTV_EXPIRY_DELTA,
@@ -396,6 +399,7 @@ impl Router for LexeRouter {
             // LSP => just a one-hop "blinded" path to us.
             Self::Lsp { .. } => BlindedPaymentPath::one_hop(
                 recipient,
+                receive_key,
                 tlvs,
                 crate::constants::LSP_MIN_FINAL_CLTV_EXPIRY_DELTA,
                 SysRngDerefHack::new(),
@@ -511,7 +515,6 @@ impl<'a> LastHopHint<'a> {
     /// Return a BOLT 12 offer style last hop route hint.
     fn offer_route_hints(&self, tlvs: &ReceiveTlvs) -> Vec<PaymentForwardNode> {
         let max_cltv_expiry = tlvs
-            .tlvs()
             .payment_constraints
             .max_cltv_expiry
             .saturating_add(u32::from(self.cltv_expiry_delta));

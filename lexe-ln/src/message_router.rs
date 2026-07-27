@@ -197,6 +197,12 @@ impl MessageRouter for LexeMessageRouter {
         // - The LSP is a public node, so doesn't need any privacy.
         // - User nodes are always connected to the LSP, so we can just
         //   unconditionally return a blinded path from LSP -> User node.
+
+        // Compact padding pads hops only to the longest intermediate hop
+        // instead of rounding every hop up to 100 bytes. These paths are
+        // embedded in usernode `Offer`s, which should be as small as possible.
+        let compact_padding = true;
+
         let path = match &self.kind {
             // Node => Always return a single blinded path: LSP -> User node
             Kind::Node { lsp_info } => BlindedMessagePath::new(
@@ -208,6 +214,7 @@ impl MessageRouter for LexeMessageRouter {
                 recipient,
                 receive_key,
                 context,
+                compact_padding,
                 SysRngDerefHack::new(),
                 secp_ctx,
             ),
@@ -217,6 +224,7 @@ impl MessageRouter for LexeMessageRouter {
                 recipient,
                 receive_key,
                 context,
+                compact_padding,
                 SysRngDerefHack::new(),
                 secp_ctx,
             ),
@@ -390,8 +398,10 @@ mod tests {
         );
         let nonce =
             Nonce::from_entropy_source(FastRngDerefHack::from_u64(12354654));
-        let msg_ctx =
-            MessageContext::Offers(OffersContext::InvoiceRequest { nonce });
+        let msg_ctx = MessageContext::Offers(OffersContext::InvoiceRequest {
+            nonce,
+            payment_metadata: None,
+        });
         let peers = vec![MessageForwardNode {
             node_id: lsp_pk,
             short_channel_id: None,
