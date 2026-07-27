@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use lexe_common::api::test_event::TestEvent;
 use lexe_std::const_assert;
 use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce, task::LxTask};
-use lightning::chain::chaininterface::BroadcasterInterface;
+use lightning::chain::chaininterface::{BroadcasterInterface, TransactionType};
 use thiserror::Error;
 use tokio::sync::{
     mpsc::{self, error::TrySendError},
@@ -215,9 +215,12 @@ impl Deref for TxBroadcaster {
 }
 
 impl BroadcasterInterface for TxBroadcasterInner {
-    fn broadcast_transactions(&self, txs: &[&bitcoin::Transaction]) {
+    fn broadcast_transactions(
+        &self,
+        txs: &[(&bitcoin::Transaction, TransactionType)],
+    ) {
         let span = tracing::Span::current();
-        for &tx in txs {
+        for &(tx, _) in txs {
             let (responder, _) = oneshot::channel();
             let req = BroadcastRequest {
                 tx: tx.clone(),
