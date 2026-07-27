@@ -2075,8 +2075,8 @@ mod ldk_test {
         fn handle_channel_announcement(&self, _pk: Option<secp256k1::PublicKey>, _msg: &ChannelAnnouncement) -> Result<bool, LightningError> {
             Ok(false)
         }
-        fn handle_channel_update(&self, _pk: Option<secp256k1::PublicKey>, _msg: &ChannelUpdate) -> Result<bool, LightningError> {
-            Ok(false)
+        fn handle_channel_update(&self, _pk: Option<secp256k1::PublicKey>, _msg: &ChannelUpdate) -> Result<Option<(NodeId, NodeId)>, LightningError> {
+            Ok(None)
         }
         fn get_next_channel_announcement(&self, _starting_point: u64) -> Option<(ChannelAnnouncement, Option<ChannelUpdate>, Option<ChannelUpdate>)> {
             None
