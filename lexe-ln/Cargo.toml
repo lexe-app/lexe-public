@@ -58,7 +58,6 @@ lightning = { workspace = true }
 lightning-invoice = { workspace = true }
 lightning-transaction-sync = { workspace = true }
 quick_cache = { workspace = true }
-reqwest = { workspace = true }
 rust_decimal = { workspace = true }
 secrecy = { workspace = true }
 semver = { workspace = true }
