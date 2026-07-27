@@ -402,6 +402,7 @@ mod test {
                 file: "logger.rs",
                 line: 123,
                 payment_hash: None,
+                payment_id: None,
             });
         });
     }
