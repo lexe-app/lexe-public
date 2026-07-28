@@ -74,10 +74,7 @@ use lexe_tokio::events_bus::{EventsBus, EventsRx};
 use lightning::{
     ln::{
         channel_state::ChannelDetails,
-        channelmanager::{
-            OptionalOfferPaymentParams, RecipientOnionFields,
-            RetryableSendFailure,
-        },
+        channelmanager::{OptionalOfferPaymentParams, RetryableSendFailure},
         msgs::RoutingMessageHandler,
     },
     routing::{gossip::NodeId, router::Route},
@@ -823,8 +820,6 @@ where
             let ldk_route = Route::read(&mut &ldk_route_bin[..])
                 .map_err(|e| anyhow!("Invalid `ldk_route`: {e:?}"))?;
             let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
-            let recipient_fields =
-                outbound::recipient_onion_fields(&req.invoice);
             req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
             let oipwm = OutboundInvoicePaymentV2::new(
                 req.invoice,
@@ -839,7 +834,6 @@ where
                 oipwm,
                 ldk_route,
                 lx_route,
-                recipient_fields,
             }
         }
         None =>
@@ -893,10 +887,11 @@ where
     let ldk_payment_id = lightning::ln::channelmanager::PaymentId::from(hash);
 
     // Send the payment using send_payment_with_route (Lexe manages retries).
+    let recipient_fields = outbound::recipient_onion_fields(&invoice);
     match channel_manager.send_payment_with_route(
         preflight.ldk_route,
         lightning::types::payment::PaymentHash::from(hash),
-        preflight.recipient_fields,
+        recipient_fields,
         ldk_payment_id,
     ) {
         Ok(()) => {
@@ -1293,7 +1288,6 @@ struct PreflightedPayInvoice {
     ldk_route: Route,
     /// The Lexe route wrapper with node alias annotations.
     lx_route: LxRoute,
-    recipient_fields: RecipientOnionFields,
 }
 
 // Preflight (validate and route) a new potential BOLT11 invoice that we might
@@ -1387,8 +1381,6 @@ where
     )
     .await?;
 
-    let recipient_fields = outbound::recipient_onion_fields(&invoice);
-
     req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
     let amount = lx_route.amount();
     let fees = lx_route.fees();
@@ -1406,7 +1398,6 @@ where
         oipwm,
         ldk_route,
         lx_route,
-        recipient_fields,
     })
 }
 
