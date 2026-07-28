@@ -1,5 +1,6 @@
 use std::{collections::HashSet, fmt, str::FromStr};
 
+use anyhow::{Context, anyhow};
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 use lexe_byte_array::ByteArray;
 use lexe_crypto::ed25519::{self, Signable};
@@ -9,6 +10,7 @@ use lexe_hex::hex;
 use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::array;
+use lightning::util::scid_utils;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
     arbitrary::{Arbitrary, any},
@@ -401,15 +403,31 @@ impl Scid {
 }
 
 impl FromStr for Scid {
-    type Err = std::num::ParseIntError;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        u64::from_str(s).map(Self)
+        let (block, rest) = s
+            .split_once('x')
+            .with_context(|| format!("Bad scid '{s}'; want BLOCKxTXxVOUT"))?;
+        let (tx, vout) = rest
+            .split_once('x')
+            .with_context(|| format!("Bad scid '{s}'"))?;
+        scid_utils::scid_from_parts(
+            block.parse().context("Bad scid block")?,
+            tx.parse().context("Bad scid tx index")?,
+            vout.parse().context("Bad scid vout")?,
+        )
+        .map(Self)
+        .map_err(|e| anyhow!("Bad scid '{s}': {e:?}"))
     }
 }
 
+/// The `BLOCKxTXxVOUT` form in which most LN implementations display scids.
 impl fmt::Display for Scid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        let block = scid_utils::block_from_scid(self.0);
+        let tx = scid_utils::tx_index_from_scid(self.0);
+        let vout = scid_utils::vout_from_scid(self.0);
+        write!(f, "{block}x{tx}x{vout}")
     }
 }
 
@@ -550,6 +568,12 @@ mod test {
     fn scid_basic() {
         let scid = Scid(69);
         assert_eq!(serde_json::to_string(&scid).unwrap(), "69");
+    }
+
+    #[test]
+    fn scid_human_roundtrip() {
+        let scid = Scid::from_str("802416x1618x1").unwrap();
+        assert_eq!(scid.to_string(), "802416x1618x1");
     }
 
     #[test]
