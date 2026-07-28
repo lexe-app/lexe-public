@@ -29,9 +29,7 @@ use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::events::Event::PaymentFailed;
 use lightning::{
     events::PaymentPurpose,
-    ln::channelmanager::{
-        FailureCode, RecipientOnionFields, RetryableSendFailure,
-    },
+    ln::channelmanager::{FailureCode, RetryableSendFailure},
 };
 use tokio::{sync::MutexGuard, time::Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
@@ -45,7 +43,7 @@ use crate::{
             InboundSpontaneousPaymentV2, LnClaimCtx,
         },
         onchain::{OnchainReceiveV2, OnchainSendStatus},
-        outbound::{ExpireError, LxOutboundPaymentFailure},
+        outbound::{self, ExpireError, LxOutboundPaymentFailure},
     },
     persister::LexePersisterMethods,
     route::{self, LexeRouter, RoutingContext},
@@ -388,7 +386,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         // Build recipient onion fields (includes payment_metadata if present).
-        let recipient_fields = recipient_onion_fields(&retry.invoice);
+        let recipient_fields = outbound::recipient_onion_fields(&retry.invoice);
 
         let (payment_id, payment_hash) = match retry.id {
             PaymentId::Lightning(hash) => (
@@ -1847,16 +1845,6 @@ impl PaymentsData {
             .collect::<anyhow::Result<Vec<CheckedPayment>>>()
             .context("Error while checking onchain confs in PaymentsData")
     }
-}
-
-/// Build [`RecipientOnionFields`] from an invoice.
-pub(crate) fn recipient_onion_fields(
-    invoice: &Invoice,
-) -> RecipientOnionFields {
-    let payment_secret = invoice.payment_secret().into();
-    let mut fields = RecipientOnionFields::secret_only(payment_secret);
-    fields.payment_metadata = invoice.0.payment_metadata().map(|m| m.to_vec());
-    fields
 }
 
 #[cfg(test)]

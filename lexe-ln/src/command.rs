@@ -101,9 +101,9 @@ use crate::{
     payments::{
         PaymentWithMetadata,
         inbound::InboundInvoicePaymentV2,
-        manager::{PaymentsManager, recipient_onion_fields},
+        manager::PaymentsManager,
         outbound::{
-            DEFAULT_MAX_RETRY_ATTEMPTS, LxOutboundPaymentFailure,
+            self, DEFAULT_MAX_RETRY_ATTEMPTS, LxOutboundPaymentFailure,
             OUTBOUND_PAYMENT_RETRY_STRATEGY, OutboundInvoicePaymentV2,
             OutboundOfferPaymentV2,
         },
@@ -823,7 +823,8 @@ where
             let ldk_route = Route::read(&mut &ldk_route_bin[..])
                 .map_err(|e| anyhow!("Invalid `ldk_route`: {e:?}"))?;
             let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
-            let recipient_fields = recipient_onion_fields(&req.invoice);
+            let recipient_fields =
+                outbound::recipient_onion_fields(&req.invoice);
             req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
             let oipwm = OutboundInvoicePaymentV2::new(
                 req.invoice,
@@ -1386,7 +1387,7 @@ where
     )
     .await?;
 
-    let recipient_fields = recipient_onion_fields(&invoice);
+    let recipient_fields = outbound::recipient_onion_fields(&invoice);
 
     req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
     let amount = lx_route.amount();

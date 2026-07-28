@@ -18,7 +18,10 @@ use lightning::{
     ln::channelmanager::ChannelManager,
     routing::router::Route,
 };
-use lightning::{events::PaymentFailureReason, ln::channelmanager::Retry};
+use lightning::{
+    events::PaymentFailureReason,
+    ln::channelmanager::{RecipientOnionFields, Retry},
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -37,8 +40,6 @@ pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(5);
 /// Default max retry attempts for Lexe-managed payment retries.
 pub(crate) const DEFAULT_MAX_RETRY_ATTEMPTS: u8 = 5;
 
-// --- ExpireError --- //
-
 /// Errors that can occur when expiring an outbound invoice payment.
 pub enum ExpireError {
     /// The payment is already finalized or expired. Do nothing.
@@ -46,6 +47,16 @@ pub enum ExpireError {
     /// The payment was marked to expire. We don't need to persist but we
     /// should re-abandon in case we're coming up after a crash.
     IgnoreAndAbandon,
+}
+
+/// Build [`RecipientOnionFields`] from an invoice.
+pub(crate) fn recipient_onion_fields(
+    invoice: &Invoice,
+) -> RecipientOnionFields {
+    let payment_secret = invoice.payment_secret().into();
+    let mut fields = RecipientOnionFields::secret_only(payment_secret);
+    fields.payment_metadata = invoice.0.payment_metadata().map(|m| m.to_vec());
+    fields
 }
 
 // --- Outbound invoice payments --- //
