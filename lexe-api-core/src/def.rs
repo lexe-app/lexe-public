@@ -79,18 +79,18 @@ use crate::{
             EnclavesToProvisionRequest, GetGeneratedUsernameResponse,
             GetHumanBitcoinAddressResponse, GetNewPayments,
             GetNextUnusedAddressResponse, GetUpdatedPaymentMetadata,
-            GetUpdatedPayments, HumanBitcoinAddressV1, ListChannelsResponse,
-            NodeInfo, OpenChannelPreflightRequest,
-            OpenChannelPreflightResponse, OpenChannelRequest,
-            OpenChannelResponse, PayInvoicePreflightRequest,
-            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferPreflightRequest, PayOfferPreflightResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
-            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
-            ResyncRequest, SetupGDrive, UpdatePersonalNote,
-            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
-            VecPaymentId,
+            GetUpdatedPayments, HumanBitcoinAddressV1,
+            LatestPaymentUpdateResponse, ListChannelsResponse, NodeInfo,
+            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+            OpenChannelRequest, OpenChannelResponse,
+            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
+            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, PaymentIdStruct, ResyncRequest, SetupGDrive,
+            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
+            UpsertHumanBitcoinAddressResponse, VecPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -159,6 +159,15 @@ pub trait UserBackendApi {
 pub trait UserGatewayApi {
     /// GET /user/v1/fiat_rates [`Empty`] -> [`FiatRates`]
     async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;
+
+    /// Get the index of the user's latest payment update.
+    ///
+    /// GET /user/v1/latest_payment_update [`Empty`]
+    ///                                 -> [`LatestPaymentUpdateResponse`]
+    async fn latest_payment_update(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<LatestPaymentUpdateResponse, GatewayApiError>;
 
     /// Query which node enclaves the user needs to provision to.
     ///

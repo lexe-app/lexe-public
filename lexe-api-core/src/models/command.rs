@@ -244,6 +244,14 @@ pub struct PaymentCreatedIndexStruct {
     pub index: PaymentCreatedIndex,
 }
 
+/// The index of the user's latest payment update, if they have any payments.
+#[derive(Serialize, Deserialize)]
+pub struct LatestPaymentUpdateResponse {
+    /// The index of the latest payment update, or `None` if the user has no
+    /// payments at all.
+    pub latest_update: Option<PaymentUpdatedIndex>,
+}
+
 /// Sync a batch of new payments to local storage.
 /// Results are returned in ascending `(created_at, payment_id)` order.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

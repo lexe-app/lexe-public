@@ -27,16 +27,16 @@ use lexe_api::{
             CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
             GetHumanBitcoinAddressResponse, GetNewPayments,
             GetNextUnusedAddressResponse, GetUpdatedPayments,
-            HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
-            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
-            OpenChannelRequest, OpenChannelResponse,
-            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
-            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
-            PaymentIdStruct, SetupGDrive, UpdatePersonalNote,
-            UpsertHumanBitcoinAddressResponse,
+            HumanBitcoinAddressV1, LatestPaymentUpdateResponse,
+            ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
+            OpenChannelPreflightResponse, OpenChannelRequest,
+            OpenChannelResponse, PayInvoicePreflightRequest,
+            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferPreflightRequest, PayOfferPreflightResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentCreatedIndexes, PaymentIdStruct, SetupGDrive,
+            UpdatePersonalNote, UpsertHumanBitcoinAddressResponse,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -211,6 +211,16 @@ impl UserGatewayApi for GatewayClient {
         let req = self
             .rest
             .get(format!("{gateway_url}/user/v1/fiat_rates"), &Empty {});
+        self.rest.send(req).await
+    }
+
+    async fn latest_payment_update(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<LatestPaymentUpdateResponse, GatewayApiError> {
+        let gateway_url = &self.gateway_url;
+        let url = format!("{gateway_url}/user/v1/latest_payment_update");
+        let req = self.rest.get(url, &Empty {}).bearer_auth(&auth);
         self.rest.send(req).await
     }
 
