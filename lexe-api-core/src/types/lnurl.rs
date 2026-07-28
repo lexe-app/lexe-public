@@ -3,7 +3,6 @@
 use std::fmt;
 
 use anyhow::Context;
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64};
 use http::StatusCode;
 use lexe_common::{ByteArray, api::user::UserPk, ln::amount::Amount};
 use lexe_sha256::sha256;
@@ -44,10 +43,13 @@ pub struct LnurlCallbackRequest {
     pub comment: Option<String>,
 }
 
-/// The Path parameter used internally in the lnurl-pay callbacks.
-#[derive(Serialize, Deserialize)]
+/// The parameters Lexe encodes in the path of the LNURL-pay callback URL it
+/// hands out. Encrypted, so that we can include internal identifiers without
+/// disclosing them to the payer.
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LnurlCallbackRequestParams {
     pub username: Username,
+    pub user_pk: UserPk,
 }
 
 #[cfg(feature = "axum")]
@@ -73,49 +75,6 @@ impl<S: Send + Sync> axum::extract::FromRequestParts<S>
                 reason: format!("{e}"),
                 status_code: StatusCode::BAD_REQUEST,
             })
-    }
-}
-
-#[cfg(feature = "axum")]
-impl<S: Send + Sync> axum::extract::FromRequestParts<S>
-    for LnurlCallbackRequestParams
-{
-    type Rejection = LnurlError;
-
-    // LUD-06 defines an error message differently than Lexe-style
-    // rejection errors.
-    //
-    // We disable the clippy lint as we map the rejection to `[LnurlError]`
-    #[allow(clippy::disallowed_types)]
-    async fn from_request_parts(
-        parts: &mut http::request::Parts,
-        state: &S,
-    ) -> Result<Self, Self::Rejection> {
-        let axum::extract::Path(encoded_params) =
-            axum::extract::Path::<String>::from_request_parts(parts, state)
-                .await
-                .map_err(|e| LnurlError {
-                    reason: format!("{e}"),
-                    status_code: StatusCode::BAD_REQUEST,
-                })?;
-
-        Self::path_decoded(encoded_params.as_str()).map_err(|e| LnurlError {
-            reason: format!("{e}"),
-            status_code: StatusCode::BAD_REQUEST,
-        })
-    }
-}
-
-impl LnurlCallbackRequestParams {
-    pub fn path_encoded(&self) -> anyhow::Result<String> {
-        let as_string = serde_json::to_string(&self)?;
-        Ok(b64.encode(&as_string))
-    }
-
-    pub fn path_decoded(encoded_params: &str) -> anyhow::Result<Self> {
-        let decoded = b64.decode(encoded_params)?;
-        let decoded_str = String::from_utf8(decoded)?;
-        Ok(serde_json::from_str::<Self>(&decoded_str)?)
     }
 }
 
