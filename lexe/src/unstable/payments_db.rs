@@ -55,18 +55,18 @@ use std::{
 
 use anyhow::Context;
 #[cfg(doc)]
-use lexe_api::types::payments::VecDbPaymentV2;
+use lexe_api::types::{Empty, payments::VecDbPaymentV2};
 use lexe_api::{
-    def::UserNodeRunApi,
-    error::NodeApiError,
-    models::command,
+    def::{UserGatewayApi, UserNodeRunApi},
+    error::{GatewayApiError, NodeApiError},
+    models::command::{self, LatestPaymentUpdateResponse},
     types::payments::{
         BasicPaymentV2, PaymentCreatedIndex, PaymentStatus,
         PaymentUpdatedIndex, VecBasicPaymentV2,
     },
 };
-use lexe_common::time::TimestampMs;
-use lexe_node_client::client::NodeClient;
+use lexe_common::{api::auth::BearerAuthToken, time::TimestampMs};
+use lexe_node_client::client::{GatewayClient, NodeClient};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -143,7 +143,9 @@ const METADATA_FILENAME: &str = "metadata.json";
 #[allow(private_bounds)]
 pub(crate) async fn sync_payments<F: Ffs>(
     db: &PaymentsDb<F>,
+    gateway_client: &impl UserGatewaySyncApi,
     node_client: &impl UserNodeRunSyncApi,
+    auth: BearerAuthToken,
     batch_size: u16,
 ) -> anyhow::Result<PaymentSyncSummary> {
     assert!(batch_size > 0);
@@ -154,6 +156,22 @@ pub(crate) async fn sync_payments<F: Ffs>(
         num_new: 0,
         num_updated: 0,
     };
+
+    // Ask the gateway if there are new updates, and short circuit if none.
+    // This avoids needlessly waking up the node.
+    // (If the gateway query is failing we expect the node query to fail too.)
+    let latest_update = gateway_client
+        .latest_payment_update(auth)
+        .await
+        .context("Failed to fetch the latest payment update")?
+        .latest_update;
+    if latest_update <= start_index {
+        // Record the local-clock sync time, even if nothing changed, so we can
+        // later tell users how fresh their local cache is.
+        db.record_synced_at(TimestampMs::now())
+            .context("Failed to persist sync timestamp")?;
+        return Ok(summary);
+    }
 
     loop {
         // In every loop iteration, we fetch one batch of updated payments.
@@ -197,7 +215,29 @@ pub(crate) async fn sync_payments<F: Ffs>(
     Ok(summary)
 }
 
-/// The specific `UserNodeRunApi` method that we need to sync payments.
+/// The gateway API method that we need to sync payments.
+///
+/// This lets us mock out the method in the tests below,
+/// without also mocking out the entire `UserGatewayApi` trait.
+trait UserGatewaySyncApi {
+    /// GET /user/v1/latest_payment_update [`Empty`]
+    ///                                 -> [`LatestPaymentUpdateResponse`]
+    async fn latest_payment_update(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<LatestPaymentUpdateResponse, GatewayApiError>;
+}
+
+impl UserGatewaySyncApi for GatewayClient {
+    async fn latest_payment_update(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<LatestPaymentUpdateResponse, GatewayApiError> {
+        UserGatewayApi::latest_payment_update(self, auth).await
+    }
+}
+
+/// The node API method that we need to sync payments.
 ///
 /// This lets us mock out the method in the tests below,
 /// without also mocking out the entire `UserNodeRunApi` trait.
@@ -868,6 +908,9 @@ fn io_error_invalid_data(
 
 #[cfg(test)]
 mod test_utils {
+    use std::{cell::RefCell, rc::Rc};
+
+    use lexe_common::byte_str::ByteStr;
     use proptest::{
         prelude::{Strategy, any},
         sample::SizeRange,
@@ -875,26 +918,30 @@ mod test_utils {
 
     use super::*;
 
+    /// Payment state shared by the [`MockNode`] and [`MockGateway`], so a test
+    /// can mutate it and have both mocks see the change.
+    pub(super) type MockPayments =
+        Rc<RefCell<BTreeMap<PaymentUpdatedIndex, BasicPaymentV2>>>;
+
+    /// Build [`MockPayments`] from a map of created_at index -> payment.
+    pub(super) fn mock_payments_from_created_at(
+        payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
+    ) -> MockPayments {
+        let payments = payments
+            .into_values()
+            .map(|p| (p.updated_index(), p))
+            .collect();
+        Rc::new(RefCell::new(payments))
+    }
+
+    // --- Node --- //
+
     pub(super) struct MockNode {
-        pub payments: BTreeMap<PaymentUpdatedIndex, BasicPaymentV2>,
+        pub payments: MockPayments,
     }
 
     impl MockNode {
-        /// Construct from a map of updated_at index -> payment.
-        pub(super) fn new(
-            payments: BTreeMap<PaymentUpdatedIndex, BasicPaymentV2>,
-        ) -> Self {
-            Self { payments }
-        }
-
-        /// Construct from a map of created_at index -> payment.
-        pub(super) fn from_payments(
-            payments: BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
-        ) -> Self {
-            let payments = payments
-                .into_values()
-                .map(|p| (p.updated_index(), p))
-                .collect();
+        pub(super) fn new(payments: MockPayments) -> Self {
             Self { payments }
         }
     }
@@ -911,6 +958,7 @@ mod test_utils {
             let payments = match req.start_index {
                 Some(start_index) => self
                     .payments
+                    .borrow()
                     .iter()
                     .filter(|(idx, _)| &start_index < *idx)
                     .take(limit as usize)
@@ -918,6 +966,7 @@ mod test_utils {
                     .collect(),
                 None => self
                     .payments
+                    .borrow()
                     .iter()
                     .take(limit as usize)
                     .map(|(_idx, payment)| payment.clone())
@@ -927,6 +976,43 @@ mod test_utils {
             Ok(VecBasicPaymentV2 { payments })
         }
     }
+
+    /// A dummy token.
+    pub(super) fn mock_auth() -> BearerAuthToken {
+        BearerAuthToken(ByteStr::from_static("mock-token"))
+    }
+
+    // --- Gateway --- //
+
+    /// A mock gateway that reports the latest update among the payments in an
+    /// external payments `BTreeMap`. Intended for use with [`MockNode`].
+    pub(super) struct MockGateway {
+        pub payments: MockPayments,
+    }
+
+    impl MockGateway {
+        pub(super) fn new(payments: MockPayments) -> Self {
+            Self { payments }
+        }
+    }
+
+    impl UserGatewaySyncApi for MockGateway {
+        async fn latest_payment_update(
+            &self,
+            _auth: BearerAuthToken,
+        ) -> Result<LatestPaymentUpdateResponse, GatewayApiError> {
+            let resp = LatestPaymentUpdateResponse {
+                latest_update: self
+                    .payments
+                    .borrow()
+                    .last_key_value()
+                    .map(|kv| *kv.0),
+            };
+            Ok(resp)
+        }
+    }
+
+    // --- Payments --- //
 
     pub(super) fn any_payments(
         approx_size: impl Into<SizeRange>,
@@ -944,7 +1030,7 @@ mod test_utils {
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashSet, time::Duration};
+    use std::{collections::HashSet, rc::Rc, time::Duration};
 
     use lexe_api::types::payments::PaymentStatus;
     use lexe_crypto::rng::{FastRng, RngExt};
@@ -954,7 +1040,7 @@ mod test {
     };
     use tempfile::tempdir;
 
-    use super::{test_utils::MockNode, *};
+    use super::{test_utils::*, *};
     use crate::unstable::ffs::{DiskFs, test_utils::InMemoryFfs};
 
     #[test]
@@ -1056,11 +1142,19 @@ mod test {
 
     #[tokio::test]
     async fn test_sync_empty() {
-        let mock_node_client = MockNode::new(BTreeMap::new());
+        let mock_node_client = MockNode::new(MockPayments::default());
         let mock_ffs = InMemoryFfs::new();
         let db = PaymentsDb::empty(mock_ffs);
 
-        sync_payments(&db, &mock_node_client, 5).await.unwrap();
+        sync_payments(
+            &db,
+            &MockGateway::new(Rc::clone(&mock_node_client.payments)),
+            &mock_node_client,
+            mock_auth(),
+            5,
+        )
+        .await
+        .unwrap();
 
         assert!(db.state.read().unwrap().is_empty());
         db.debug_assert_invariants();
@@ -1070,7 +1164,8 @@ mod test {
     /// survives a reload from disk, and is reset by `clear`.
     #[tokio::test]
     async fn test_last_synced_at() {
-        let mock_node = MockNode::new(BTreeMap::new());
+        let mock_node = MockNode::new(MockPayments::default());
+        let mock_gateway = MockGateway::new(Rc::clone(&mock_node.payments));
         let db = PaymentsDb::empty(InMemoryFfs::new());
 
         // Never synced yet.
@@ -1078,7 +1173,9 @@ mod test {
 
         // A sync records the local-clock sync time, even with no payments.
         let before = TimestampMs::now();
-        sync_payments(&db, &mock_node, 5).await.unwrap();
+        sync_payments(&db, &mock_gateway, &mock_node, mock_auth(), 5)
+            .await
+            .unwrap();
         let after = TimestampMs::now();
         let synced_at = db.last_synced_at().expect("sync should set time");
         assert!((before..=after).contains(&synced_at));
@@ -1093,7 +1190,9 @@ mod test {
         assert_eq!(db.last_synced_at(), None);
 
         // Re-sync, then deleting `metadata.json` also resets it on reload.
-        sync_payments(&db, &mock_node, 5).await.unwrap();
+        sync_payments(&db, &mock_gateway, &mock_node, mock_auth(), 5)
+            .await
+            .unwrap();
         assert!(db.last_synced_at().is_some());
         db.ffs.delete(METADATA_FILENAME).unwrap();
         let db = PaymentsDb::read(db.ffs).unwrap();
@@ -1152,29 +1251,44 @@ mod test {
                 finalize_indexes in
                     proptest::collection::vec(any::<Index>(), 1..5),
             )| {
-                let mut mock_node = MockNode::from_payments(payments);
+                let mock_node =
+                    MockNode::new(mock_payments_from_created_at(payments));
+                let mock_gateway =
+                    MockGateway::new(Rc::clone(&mock_node.payments));
 
                 let mut rng2 = FastRng::from_u64(rng.gen_u64());
                 let mock_ffs = InMemoryFfs::from_rng(rng);
 
                 // Sync empty DB from node
                 let db = PaymentsDb::empty(mock_ffs);
-                rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
-                    .unwrap();
+                rt.block_on(sync_payments(
+                    &db,
+                    &mock_gateway,
+                    &mock_node,
+                    mock_auth(),
+                    req_batch_size,
+                ))
+                .unwrap();
                 assert_db_payments_eq(
                     &db.state.read().unwrap().payments,
-                    &mock_node.payments,
+                    &mock_node.payments.borrow(),
                 );
                 db.debug_assert_invariants();
 
                 // Reread db from ffs and resync - should still match node
                 let mock_ffs = db.ffs;
                 let db = PaymentsDb::read(mock_ffs).unwrap();
-                rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
-                    .unwrap();
+                rt.block_on(sync_payments(
+                    &db,
+                    &mock_gateway,
+                    &mock_node,
+                    mock_auth(),
+                    req_batch_size,
+                ))
+                .unwrap();
                 assert_db_payments_eq(
                     &db.state.read().unwrap().payments,
-                    &mock_node.payments,
+                    &mock_node.payments.borrow(),
                 );
                 db.debug_assert_invariants();
 
@@ -1182,6 +1296,7 @@ mod test {
                 let finalize_some_payments = || {
                     let pending_payments = mock_node
                         .payments
+                        .borrow()
                         .values()
                         .filter(|p| p.is_pending())
                         .cloned()
@@ -1219,6 +1334,7 @@ mod test {
                         // Remove the payment to finalize from map
                         let mut payment = mock_node
                             .payments
+                            .borrow_mut()
                             .remove(&final_updated_idx)
                             .unwrap();
 
@@ -1242,6 +1358,7 @@ mod test {
                         let new_updated_index = payment.updated_index();
                         mock_node
                             .payments
+                            .borrow_mut()
                             .insert(new_updated_index, payment);
                         }
                 };
@@ -1249,12 +1366,18 @@ mod test {
                 finalize_some_payments();
 
                 // resync -- should pick up the finalized payments
-                rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
-                    .unwrap();
+                rt.block_on(sync_payments(
+                    &db,
+                    &mock_gateway,
+                    &mock_node,
+                    mock_auth(),
+                    req_batch_size,
+                ))
+                .unwrap();
 
                 assert_db_payments_eq(
                     &db.state.read().unwrap().payments,
-                    &mock_node.payments,
+                    &mock_node.payments.borrow(),
                 );
                 db.debug_assert_invariants();
             }

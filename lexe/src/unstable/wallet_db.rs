@@ -1,7 +1,8 @@
 //! Lexe wallet database.
 
 use anyhow::Context;
-use lexe_node_client::client::NodeClient;
+use lexe_common::api::auth::BearerAuthToken;
+use lexe_node_client::client::{GatewayClient, NodeClient};
 use tracing::{debug, warn};
 
 use super::{
@@ -140,11 +141,19 @@ impl WalletDb<DiskFs> {
     /// before starting a new one.
     pub async fn sync_payments(
         &self,
+        gateway_client: &GatewayClient,
         node_client: &NodeClient,
+        auth: BearerAuthToken,
         batch_size: u16,
     ) -> anyhow::Result<PaymentSyncSummary> {
         let _lock = self.payment_sync_lock.lock().await;
-        payments_db::sync_payments(&self.payments_db, node_client, batch_size)
-            .await
+        payments_db::sync_payments(
+            &self.payments_db,
+            gateway_client,
+            node_client,
+            auth,
+            batch_size,
+        )
+        .await
     }
 }

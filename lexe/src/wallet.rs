@@ -1587,12 +1587,22 @@ impl LexeWallet {
     /// Returns an error if local persistence is disabled for this wallet.
     #[instrument(skip_all, name = "(sync-payments)")]
     pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
-        self.require_db()?
-            .sync_payments(
-                &self.node_client,
-                lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
-            )
+        let db = self.require_db()?;
+
+        // Get a bearer token for the update check with the gateway
+        let auth = self
+            .node_client
+            .get_gateway_token()
             .await
+            .context("Could not get bearer token")?;
+
+        db.sync_payments(
+            &self.gateway_client,
+            &self.node_client,
+            auth,
+            lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+        )
+        .await
     }
 
     /// List payments from local storage with cursor-based pagination.
