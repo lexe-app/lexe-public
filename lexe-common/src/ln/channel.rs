@@ -203,6 +203,13 @@ pub struct LxChannelDetails {
     /// counterparty is a Lexe user or Lexe's LSP, this appears to be bounded
     /// above by [`Self::channel_value`] (NOT [`Self::outbound_capacity`]).
     pub outbound_htlc_maximum: Option<Amount>,
+    /// The channel's current total dust exposure: the max over both commitment
+    /// txs of all sub-dust HTLCs plus the portion of commitment tx fees which
+    /// counts towards dust. New HTLCs are only accepted or offered if they
+    /// keep this under
+    /// [`ChannelConfig::max_dust_htlc_exposure`](lightning::util::config::ChannelConfig).
+    // Introduced in node-v0.9.15, lsp-v0.9.20
+    pub current_dust_exposure: Option<Amount>,
 
     // --- Features of interest that our counterparty supports --- //
     // NOTE: In order to use these features, we must enable them as well.
@@ -263,7 +270,7 @@ impl LxChannelDetails {
             pending_inbound_htlcs: _,
             pending_outbound_htlcs: _,
             funding_redeem_script: _,
-            current_dust_exposure_msat: _,
+            current_dust_exposure_msat,
             splice_details: _,
         } = details;
 
@@ -326,6 +333,8 @@ impl LxChannelDetails {
         let outbound_htlc_maximum = counterparty
             .outbound_htlc_maximum_msat
             .map(Amount::from_msat);
+        let current_dust_exposure =
+            current_dust_exposure_msat.map(Amount::from_msat);
 
         let cpty_supports_basic_mpp =
             counterparty.features.supports_basic_mpp();
@@ -369,6 +378,7 @@ impl LxChannelDetails {
             inbound_htlc_maximum,
             outbound_htlc_minimum,
             outbound_htlc_maximum,
+            current_dust_exposure,
 
             cpty_supports_basic_mpp,
             cpty_supports_onion_messages,
