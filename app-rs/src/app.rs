@@ -25,7 +25,7 @@ use lexe::{
     wallet::LexeWallet,
     wallet_db::WalletDb,
 };
-use lexe_common::{api::user::NodePkProof, constants};
+use lexe_common::api::user::NodePkProof;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{bip353, lnurl};
 use tracing::{info, instrument, warn};
@@ -373,13 +373,7 @@ impl App {
         let start = Instant::now();
         info!("start");
 
-        let res = self
-            .db()
-            .sync_payments(
-                self.node_client()?,
-                constants::DEFAULT_PAYMENTS_BATCH_SIZE,
-            )
-            .await;
+        let res = self.wallet()?.sync_payments().await;
 
         let elapsed = start.elapsed();
         match &res {
