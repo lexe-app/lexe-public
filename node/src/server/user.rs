@@ -153,7 +153,7 @@ pub(super) async fn open_channel(
         value,
     } = req;
 
-    ensure_channel_value_in_range(&value)?;
+    ensure_channel_value_above_min(&value)?;
 
     let lsp_node_pk = &lsp_info.node_pk;
     let lsp_addrs = slice::from_ref(&lsp_info.private_p2p_addr);
@@ -203,7 +203,7 @@ pub(super) async fn open_channel_preflight(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<OpenChannelPreflightRequest>,
 ) -> Result<LxJson<OpenChannelPreflightResponse>, NodeApiError> {
-    ensure_channel_value_in_range(&req.value)?;
+    ensure_channel_value_above_min(&req.value)?;
 
     lexe_ln::command::open_channel_preflight(&state.wallet, req)
         .await
@@ -211,22 +211,13 @@ pub(super) async fn open_channel_preflight(
         .map_err(NodeApiError::command)
 }
 
-/// Check the `open_channel` value against the min/max bounds early so it fails
-/// in preflight with a good error message.
-fn ensure_channel_value_in_range(value: &Amount) -> Result<(), NodeApiError> {
-    let value = value.sats_u64();
-
+/// Check the `open_channel` value against the minimum early so it fails in
+/// preflight with a good error message.
+fn ensure_channel_value_above_min(value: &Amount) -> Result<(), NodeApiError> {
     let min_value = constants::LSP_USERNODE_CHANNEL_MIN_FUNDING_SATS as u64;
-    if value < min_value {
+    if value.sats_u64() < min_value {
         return Err(NodeApiError::command(format!(
             "Channel value is below limit ({min_value} sats)"
-        )));
-    }
-
-    let max_value = constants::CHANNEL_MAX_FUNDING_SATS as u64;
-    if value > max_value {
-        return Err(NodeApiError::command(format!(
-            "Channel value is above limit ({max_value} sats)"
         )));
     }
 

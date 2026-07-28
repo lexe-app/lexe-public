@@ -74,10 +74,6 @@ pub const FREE_LIQUIDITY_SAT: u32 = 50_000;
 // TODO(phlip9): increase once new liquidity model is in
 pub const MAX_LIQUIDITY_SAT: u32 = 1_000_000; // 0.01 BTC
 
-/// User nodes and the LSP will reject new inbound channels with total channel
-/// value larger than this value in satoshis.
-pub const CHANNEL_MAX_FUNDING_SATS: u32 = 5 * 1_0000_0000; // 5 BTC
-
 /// User nodes require the LSP to reserve this proportion of the channel value
 /// (in millionths) as potential punishment. LDK clamps the actual reserve
 /// amount to at least 1000 sats. Since the LSP can't send this amount to the
