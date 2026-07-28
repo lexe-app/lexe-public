@@ -21,6 +21,8 @@ use crate::{
 mod interval {
     use std::time::Duration;
 
+    /// ChainMonitor::archive_fully_resolved_channel_monitors ticks.
+    pub const ARCHIVE: Duration = Duration::from_secs(10 * 60);
     /// Channel manager ticks.
     pub const CHANNEL_MANAGER: Duration = Duration::from_secs(60);
     /// ChainMonitor::rebroadcast_pending_claims ticks.
@@ -38,6 +40,7 @@ mod interval {
 mod delay {
     use std::time::Duration;
 
+    pub const ARCHIVE: Duration = Duration::from_secs(15);
     pub const CHANNEL_MANAGER: Duration = Duration::from_secs(60);
     pub const REBROADCAST: Duration = Duration::from_secs(30);
     pub const PEER_MANAGER: Duration = Duration::from_millis(400);
@@ -98,6 +101,8 @@ where
                 mk_interval(delay::CHANNEL_MANAGER, interval::CHANNEL_MANAGER);
             let mut rebroadcast_timer =
                 mk_interval(delay::REBROADCAST, interval::REBROADCAST);
+            let mut archive_timer =
+                mk_interval(delay::ARCHIVE, interval::ARCHIVE);
 
             // This is the event handler future generator type required by LDK
             let mk_event_handler_fut =
@@ -246,6 +251,9 @@ where
 
                     _ = rebroadcast_timer.tick() =>
                         chain_monitor.rebroadcast_pending_claims(),
+
+                    _ = archive_timer.tick() =>
+                        chain_monitor.archive_fully_resolved_channel_monitors(),
 
                     () = shutdown.recv() =>
                         break debug!("Background processor shutting down"),
