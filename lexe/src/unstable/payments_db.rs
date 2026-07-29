@@ -908,7 +908,10 @@ fn io_error_invalid_data(
 
 #[cfg(test)]
 mod test_utils {
-    use std::{cell::RefCell, rc::Rc};
+    use std::{
+        cell::{Cell, RefCell},
+        rc::Rc,
+    };
 
     use lexe_common::byte_str::ByteStr;
     use proptest::{
@@ -938,11 +941,16 @@ mod test_utils {
 
     pub(super) struct MockNode {
         pub payments: MockPayments,
+        /// The number of times this MockNode's endpoint was invoked.
+        pub call_counter: Cell<usize>,
     }
 
     impl MockNode {
         pub(super) fn new(payments: MockPayments) -> Self {
-            Self { payments }
+            Self {
+                payments,
+                call_counter: Cell::new(0),
+            }
         }
     }
 
@@ -953,6 +961,8 @@ mod test_utils {
             &self,
             req: command::GetUpdatedPayments,
         ) -> Result<VecBasicPaymentV2, NodeApiError> {
+            self.call_counter.update(|n| n + 1);
+
             let limit = req.limit.unwrap_or(u16::MAX);
 
             let payments = match req.start_index {
@@ -1157,6 +1167,26 @@ mod test {
         .unwrap();
 
         assert!(db.state.read().unwrap().is_empty());
+        db.debug_assert_invariants();
+    }
+
+    /// When the gateway reports no updates, we skip the node entirely, but
+    /// still record the sync time so the cache reads as fresh.
+    #[tokio::test]
+    async fn test_sync_skips_node() {
+        let mock_node = MockNode::new(MockPayments::default());
+        let mock_gateway = MockGateway::new(Rc::clone(&mock_node.payments));
+        let db = PaymentsDb::empty(InMemoryFfs::new());
+
+        let summary =
+            sync_payments(&db, &mock_gateway, &mock_node, mock_auth(), 5)
+                .await
+                .unwrap();
+
+        assert_eq!(mock_node.call_counter.get(), 0);
+        assert_eq!(summary.num_new, 0);
+        assert_eq!(summary.num_updated, 0);
+        assert!(db.last_synced_at().is_some());
         db.debug_assert_invariants();
     }
 
