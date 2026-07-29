@@ -447,7 +447,7 @@ pub trait PeerManagerTrait: Clone + Send + 'static {
     /// struct, which is not ideal...
     fn is_connected(&self, node_pk: &NodePk) -> bool;
 
-    /// Notify seperate process events task that it should call
+    /// Notify separate process events task that it should call
     /// [`PeerManager::process_events`].
     fn notify_process_events_task(&self);
 
