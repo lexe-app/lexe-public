@@ -1750,9 +1750,7 @@ impl WaitForPaymentArgs {
 #[derive(Parser)]
 #[command(
     about = "Get a payment by its created index",
-    long_about = "Get a payment by its created index.\n\
-        \n\
-        Fetches the payment directly from the user node (not from local storage).",
+    long_about = "Get a payment by its created index.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct GetPaymentArgs {

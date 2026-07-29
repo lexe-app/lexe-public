@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Duration};
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
     def::{UserBackendApi, UserGatewayApi, UserNodeRunApi},
-    models::command::{self, GetUpdatedPayments},
+    models::command::{self, GetUpdatedPayments, PaymentIdStruct},
     revocable_clients,
     types::{
         bounded_string::BoundedString,
@@ -1709,16 +1709,22 @@ impl LexeWallet {
         &self,
         req: GetPaymentRequest,
     ) -> anyhow::Result<GetPaymentResponse> {
-        let id = req.index.id;
-        let payment = self
-            .node_client
-            .get_payment_by_id(command::PaymentIdStruct { id })
-            .await
-            .context("Failed to get payment")?
-            .maybe_payment
-            .map(Into::into);
-
-        Ok(GetPaymentResponse { payment })
+        if let Ok(db) = self.require_payments_db() {
+            self.sync_payments().await?;
+            let payment = db
+                .get_payment_by_created_index(&req.index)
+                .map(Payment::from);
+            Ok(GetPaymentResponse { payment })
+        } else {
+            let req = PaymentIdStruct { id: req.index.id };
+            let payment = self
+                .node_client
+                .get_payment_by_id(req)
+                .await?
+                .maybe_payment
+                .map(Payment::from);
+            Ok(GetPaymentResponse { payment })
+        }
     }
 
     /// Get a batch of payments in ascending `updated_at` order, starting from
