@@ -581,6 +581,25 @@ Raises:
     FfiError: If wallet creation fails.
 """)
 
+_set_method_doc(LexeWallet, "without_db", """\
+Create a wallet without local persistence.
+
+Node operations (invoices, payments, node info) work normally.
+Local payment cache operations (:meth:`sync_payments`,
+:meth:`list_payments`, :meth:`clear_payments`) are not available and
+raise if called.
+
+Args:
+    env_config: Wallet environment configuration.
+    credentials: Authentication credentials (see :class:`Credentials`).
+
+Returns:
+    A LexeWallet instance without local persistence.
+
+Raises:
+    FfiError: If wallet creation fails.
+""")
+
 _set_method_doc(LexeWallet, "user_pk", """\
 Get the user's hex-encoded public key.
 
@@ -1356,6 +1375,25 @@ Args:
 
 Returns:
     An AsyncLexeWallet instance (loaded or newly created).
+
+Raises:
+    FfiError: If wallet creation fails.
+""")
+
+_set_method_doc(AsyncLexeWallet, "without_db", """\
+Create a wallet without local persistence.
+
+Node operations (invoices, payments, node info) work normally.
+Local payment cache operations (:meth:`sync_payments`,
+:meth:`list_payments`, :meth:`clear_payments`) are not available and
+raise if called.
+
+Args:
+    env_config: Wallet environment configuration.
+    credentials: Authentication credentials (see :class:`Credentials`).
+
+Returns:
+    An AsyncLexeWallet instance without local persistence.
 
 Raises:
     FfiError: If wallet creation fails.
