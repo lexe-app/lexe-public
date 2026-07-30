@@ -9,9 +9,7 @@ use lexe_sha256::sha256;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    invoice::Invoice,
-    payments::{PaymentId, PaymentPreimage},
-    username::Username,
+    invoice::Invoice, payments::PaymentPreimage, username::Username,
 };
 
 /// The validated and parsed LNURL-pay request ("payRequest").
@@ -101,7 +99,7 @@ pub struct LnurlCallbackResponse {
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LnurlVerifyRequestParams {
     pub user_pk: UserPk,
-    pub id: PaymentId,
+    pub invoice: Invoice,
 }
 
 /// The response to an LNURL-verify request (LUD-21).
@@ -114,12 +112,8 @@ pub struct LnurlVerifyResponse {
     /// The payment preimage, if the invoice has been settled.
     pub preimage: Option<PaymentPreimage>,
     /// The BOLT11 invoice which this verify URL corresponds to.
-    ///
-    /// The spec requires this field, but Lexe always returns `null` because
-    /// storing the invoices in plaintext in the DB would leak invoice
-    /// descriptions to Lexe.
     #[serde(rename = "pr")]
-    pub invoice: Option<Invoice>,
+    pub invoice: Invoice,
 }
 
 /// Error response for lnurl payment requests and callbacks.
@@ -517,7 +511,7 @@ pub mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<Option<PaymentPreimage>>(), any::<Option<Invoice>>())
+            (any::<Option<PaymentPreimage>>(), any::<Invoice>())
                 .prop_map(|(preimage, invoice)| LnurlVerifyResponse {
                     status: OkStatus::Ok,
                     settled: preimage.is_some(),
