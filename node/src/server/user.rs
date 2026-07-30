@@ -60,7 +60,7 @@ use lexe_common::{
     ln::amount::Amount,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_ln::p2p;
+use lexe_ln::{command::CounterpartyReserve, p2p};
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
 
@@ -175,7 +175,10 @@ pub(super) async fn open_channel(
             warn!("(open_channel) Couldn't send task");
         }
 
-        Ok(())
+        // Return LSP peer details
+        peer_manager
+            .peer_by_node_id(lsp_node_pk.as_inner())
+            .context("counterparty suddenly disconnected?")
     };
 
     // Open the channel and wait for `ChannelPending`.
@@ -189,6 +192,7 @@ pub(super) async fn open_channel(
         user_channel_id,
         value,
         lsp_node_pk,
+        CounterpartyReserve::Normal,
         (*state.config).clone(),
         is_jit_channel,
         push_amount,

@@ -75,6 +75,7 @@ use lightning::{
         channel_state::ChannelDetails,
         channelmanager::OptionalOfferPaymentParams,
         msgs::RoutingMessageHandler, outbound_payment::RetryableSendFailure,
+        peer_handler::PeerDetails,
     },
     routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
@@ -229,6 +230,15 @@ pub fn list_channels<PS: LexePersister>(
     Ok(ListChannelsResponse { channels })
 }
 
+/// Channel reserve policy for an outbound channel's counterparty.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CounterpartyReserve {
+    /// Use LDK's normal reserve policy.
+    Normal,
+    /// Grant zero reserve if the peer supports zero-fee commitments.
+    ZeroIfSupported,
+}
+
 /// Open and fund a new channel with `channel_value` and `counterparty_node_pk`.
 ///
 /// After checking that we have enough balance for the new channel, we'll await
@@ -248,6 +258,7 @@ pub async fn open_channel<CM, PS, F>(
     user_channel_id: UserChannelId,
     channel_value: Amount,
     counterparty_node_pk: &NodePk,
+    counterparty_reserve: CounterpartyReserve,
     user_config: UserConfig,
     is_jit_channel: bool,
     push_amount: Option<Amount>,
@@ -255,11 +266,11 @@ pub async fn open_channel<CM, PS, F>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
-    F: Future<Output = anyhow::Result<()>>,
+    F: Future<Output = anyhow::Result<PeerDetails>>,
 {
     info!(
         %counterparty_node_pk, %user_channel_id,
-        %channel_value, ?push_amount, %is_jit_channel,
+        %channel_value, ?push_amount, %is_jit_channel, ?counterparty_reserve,
         "Opening channel"
     );
 
@@ -320,7 +331,7 @@ where
     let _fees = wallet.preflight_channel_funding_tx(channel_value)?;
 
     // Ensure channel counterparty is connected.
-    ensure_counterparty_connected()
+    let peer_details = ensure_counterparty_connected()
         .await
         .context("Failed to connect to channel counterparty")?;
 
@@ -333,8 +344,18 @@ where
     let temp_channel_id = lightning::ln::types::ChannelId::from(
         user_channel_id.derive_temporary_channel_id(),
     );
-    channel_manager
-        .create_channel(
+    // Whether to grant the remote peer zero channel reserve. This allows the
+    // counterparty to spend their full balance, all the way to 0, and attempt
+    // to force-close the channel with a revoked commitment *for free*, since
+    // they have nothing at stake.
+    let grant_zero_reserve = match counterparty_reserve {
+        CounterpartyReserve::Normal => false,
+        CounterpartyReserve::ZeroIfSupported => peer_details
+            .init_features
+            .supports_anchor_zero_fee_commitments(),
+    };
+    let create_channel_result = if grant_zero_reserve {
+        channel_manager.create_channel_to_trusted_peer_0reserve(
             counterparty_node_pk.0,
             channel_value.sats_u64(),
             push_msat,
@@ -342,6 +363,17 @@ where
             Some(temp_channel_id),
             Some(user_config),
         )
+    } else {
+        channel_manager.create_channel(
+            counterparty_node_pk.0,
+            channel_value.sats_u64(),
+            push_msat,
+            user_channel_id.to_u128(),
+            Some(temp_channel_id),
+            Some(user_config),
+        )
+    };
+    create_channel_result
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
     // Wait for the next relevant channel event with this `user_channel_id`.
