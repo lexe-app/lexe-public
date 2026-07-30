@@ -44,8 +44,9 @@ use lexe_enclave::enclave::{MachineId, Measurement};
 use lexe_ln::{
     BoxedAnyhowFuture,
     alias::{
-        BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
-        LexeOnionMessengerType, NetworkGraphType, ProbabilisticScorerType,
+        BroadcasterType, BumpTransactionEventHandlerType,
+        EsploraSyncClientType, FeeEstimatorType, LexeOnionMessengerType,
+        NetworkGraphType, ProbabilisticScorerType,
     },
     background_processor,
     channel_monitor::ChannelMonitorPersister,
@@ -78,6 +79,7 @@ use lightning::{
     chain::chainmonitor::ChainMonitor,
     ln::peer_handler::IgnoringMessageHandler,
     sign::{NodeSigner, Recipient},
+    util::wallet_utils,
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
@@ -526,6 +528,12 @@ impl UserNode {
             LexeKeysManager::new(rng, &root_seed, wallet.clone())
                 .map(Arc::new)
                 .context("Failed to construct keys manager")?;
+        let bump_transaction_handler = BumpTransactionEventHandlerType::new(
+            tx_broadcaster.clone(),
+            wallet_utils::Wallet::new(Arc::new(wallet.clone()), logger.clone()),
+            keys_manager.clone(),
+            logger.clone(),
+        );
 
         // Initialize the chain monitor
         let chain_monitor = {
@@ -695,6 +703,7 @@ impl UserNode {
                 fee_estimates: fee_estimates.clone(),
                 tx_broadcaster: tx_broadcaster.clone(),
                 wallet: wallet.clone(),
+                bump_transaction_handler,
                 channel_manager: channel_manager.clone(),
                 keys_manager: keys_manager.clone(),
                 network_graph: network_graph.clone(),

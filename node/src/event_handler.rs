@@ -56,7 +56,10 @@ use lexe_common::{
 };
 use lexe_crypto::rng::{RngExt, ThreadFastRng};
 use lexe_ln::{
-    alias::{NetworkGraphType, ProbabilisticScorerType},
+    alias::{
+        BumpTransactionEventHandlerType, NetworkGraphType,
+        ProbabilisticScorerType,
+    },
     channel::ChannelEvent,
     esplora::FeeEstimates,
     event::{self, EventHandleError, EventId, LexeEventHandlerMethods},
@@ -96,6 +99,7 @@ pub(crate) struct EventCtx {
     pub fee_estimates: Arc<FeeEstimates>,
     pub tx_broadcaster: TxBroadcaster,
     pub wallet: OnchainWallet,
+    pub bump_transaction_handler: BumpTransactionEventHandlerType,
     pub channel_manager: NodeChannelManager,
     pub keys_manager: Arc<LexeKeysManager>,
     pub network_graph: Arc<NetworkGraphType>,
@@ -643,14 +647,13 @@ async fn do_handle_event(
             .await?;
         }
 
+        Event::BumpTransaction(event) =>
+            ctx.bump_transaction_handler.handle_event(&event).await,
+
         Event::DiscardFunding { .. } => {
             // A "real" node should probably "lock" the UTXOs spent in funding
             // transactions until the funding transaction either confirms, or
             // this event is generated.
-        }
-
-        Event::BumpTransaction(_) => {
-            // TODO(max): Implement this once we support anchor outputs
         }
 
         // TODO(phlip9): support channel splicing

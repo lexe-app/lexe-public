@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use lightning::{
     chain::{chainmonitor::ChainMonitor, channelmonitor::ChannelMonitor},
+    events::bump_transaction::BumpTransactionEventHandler,
     ln::{
         channelmanager::ChannelManager,
         peer_handler::{IgnoringMessageHandler, PeerManager},
@@ -13,6 +14,7 @@ use lightning::{
         gossip::NetworkGraph, scoring::ProbabilisticScorer, utxo::UtxoLookup,
     },
     sign::InMemorySigner,
+    util::wallet_utils,
 };
 use lightning_transaction_sync::EsploraSyncClient;
 
@@ -20,6 +22,7 @@ use crate::{
     esplora::FeeEstimates, keys_manager::LexeKeysManager,
     logger::LexeTracingLogger, message_router::LexeMessageRouter,
     p2p::ConnectionTx, route::LexeRouter, tx_broadcaster::TxBroadcaster,
+    wallet::OnchainWallet,
 };
 
 // --- Partial aliases --- //
@@ -86,6 +89,13 @@ pub type LexePeerManagerType<CHANNEL_MANAGER, RMH, PERSISTER> = PeerManager<
 // - Lexicographically sorted.
 
 pub type BroadcasterType = TxBroadcaster;
+
+pub type BumpTransactionEventHandlerType = BumpTransactionEventHandler<
+    TxBroadcaster,
+    wallet_utils::Wallet<Arc<OnchainWallet>, LexeTracingLogger>,
+    Arc<LexeKeysManager>,
+    LexeTracingLogger,
+>;
 
 pub type ChannelMonitorType = ChannelMonitor<SignerType>;
 

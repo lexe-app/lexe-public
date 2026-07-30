@@ -61,6 +61,7 @@ use bdk_wallet::{
 use bitcoin::{
     Psbt, Transaction,
     bip32::{ChildNumber, Xpub},
+    hashes::Hash as _,
 };
 use lexe_api::{
     models::command::{
@@ -83,7 +84,8 @@ use lexe_common::{
 };
 use lexe_crypto::rng::RngCore;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
-use tracing::{debug, info, instrument, warn};
+use lightning::util::wallet_utils;
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     esplora::{FeeEstimates, LexeEsplora},
@@ -1247,6 +1249,156 @@ impl OnchainWallet {
         ensure!(finalized, "Failed to sign all PSBT inputs");
         Ok(())
     }
+
+    /// See: LDK [WalletSource::list_confirmed_utxos][lightning::util::wallet_utils::WalletSource::list_confirmed_utxos]
+    fn list_confirmed_utxos_inner(
+        &self,
+    ) -> Result<Vec<wallet_utils::Utxo>, ()> {
+        self.read()
+            .list_unspent()
+            .filter_map(|output| {
+                if !output.chain_position.is_confirmed() {
+                    return None;
+                }
+                bdk_utxo_to_ldk_utxo(&output).transpose()
+            })
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map_err(|err| {
+                error!("list_confirmed_utxos: {err:#}");
+            })
+    }
+
+    /// See: LDK [WalletSource::get_prevtx][lightning::util::wallet_utils::WalletSource::get_prevtx]
+    fn get_prevtx_inner(
+        &self,
+        outpoint: bitcoin::OutPoint,
+    ) -> Result<bitcoin::Transaction, ()> {
+        self.read()
+            .get_tx(outpoint.txid)
+            .map(|tx| tx.tx_node.tx.as_ref().clone())
+            .ok_or(())
+    }
+
+    /// See: LDK [WalletSource::get_change_script][lightning::util::wallet_utils::WalletSource::get_change_script]
+    fn get_change_script_inner(&self) -> Result<bitcoin::ScriptBuf, ()> {
+        Ok(self.get_internal_address().script_pubkey())
+    }
+
+    /// See: LDK [WalletSource::sign_psbt][lightning::util::wallet_utils::WalletSource::sign_psbt]
+    fn sign_psbt_inner(
+        &self,
+        mut psbt: bitcoin::Psbt,
+    ) -> Result<bitcoin::Transaction, ()> {
+        let sign_options = bdk_wallet::SignOptions {
+            // While BDK populates both `witness_utxo` and `non_witness_utxo`
+            // fields, LDK does not. As BDK by default doesn't trust the witness
+            // UTXO to account for the Segwit bug, we must disable it here as
+            // otherwise we fail to sign.
+            trust_witness_utxo: true,
+            ..bdk_wallet::SignOptions::default()
+        };
+
+        self.read()
+            .sign(&mut psbt, sign_options)
+            .context("Failed to sign psbt")
+            .and_then(|_| {
+                psbt.extract_tx().context("Failed to extract tx from psbt")
+            })
+            .map_err(|err| {
+                error!("sign_psbt: {err:#}");
+            })
+    }
+}
+
+// LDK uses this interface into our on-chain wallet to select confirmed UTXOs
+// for fee bumping and RBF. We need this to support anchor channels.
+#[allow(clippy::manual_async_fn)] // Lint suggestion breaks compilation
+impl wallet_utils::WalletSource for OnchainWallet {
+    fn list_confirmed_utxos(
+        &self,
+    ) -> impl Future<Output = Result<Vec<wallet_utils::Utxo>, ()>> + Send + '_
+    {
+        async move { self.list_confirmed_utxos_inner() }
+    }
+
+    fn get_prevtx(
+        &self,
+        outpoint: bitcoin::OutPoint,
+    ) -> impl Future<Output = Result<Transaction, ()>> + Send + '_ {
+        async move { self.get_prevtx_inner(outpoint) }
+    }
+
+    fn get_change_script(
+        &self,
+    ) -> impl Future<Output = Result<bitcoin::ScriptBuf, ()>> + Send + '_ {
+        async move { self.get_change_script_inner() }
+    }
+
+    fn sign_psbt(
+        &self,
+        psbt: Psbt,
+    ) -> impl Future<Output = Result<Transaction, ()>> + Send + '_ {
+        async move { self.sign_psbt_inner(psbt) }
+    }
+}
+
+/// Convert a BDK UTXO into an LDK UTXO. Returns `None` for non-witness outputs.
+fn bdk_utxo_to_ldk_utxo(
+    output: &bdk_wallet::LocalOutput,
+) -> anyhow::Result<Option<wallet_utils::Utxo>> {
+    let spk = &output.txout.script_pubkey;
+    match spk.witness_version() {
+        Some(version @ bitcoin::WitnessVersion::V0) => {
+            // See: bitcoin::Script::p2wpkh_script_code
+            let witness_bytes = &spk.as_bytes()[2..];
+            let witness_program =
+                bitcoin::WitnessProgram::new(version, witness_bytes)?;
+            let wpkh = bitcoin::WPubkeyHash::from_slice(
+                witness_program.program().as_bytes(),
+            )?;
+            let utxo = wallet_utils::Utxo::new_v0_p2wpkh(
+                output.outpoint,
+                output.txout.value,
+                &wpkh,
+            );
+            Ok(Some(utxo))
+        }
+        Some(version @ bitcoin::WitnessVersion::V1) => {
+            // See: bitcoin::Script::p2wpkh_script_code
+            let witness_bytes = &spk.as_bytes()[2..];
+            let witness_program =
+                bitcoin::WitnessProgram::new(version, witness_bytes)?;
+
+            // Should be XOnlyPublicKey
+            let _ = bitcoin::XOnlyPublicKey::from_slice(
+                witness_program.program().as_bytes(),
+            )?;
+
+            // See: ldk-node/src/wallet/mod.rs
+            let utxo = wallet_utils::Utxo {
+                outpoint: output.outpoint,
+                output: bitcoin::TxOut {
+                    value: output.txout.value,
+                    script_pubkey: bitcoin::ScriptBuf::new_witness_program(
+                        &witness_program,
+                    ),
+                },
+                #[rustfmt::skip]
+                #[allow(clippy::identity_op)] // Improve readability
+                satisfaction_weight:
+                    1 /* empty script_sig */ * bitcoin::blockdata::weight::WITNESS_SCALE_FACTOR as u64
+                    + 1 /* witness items */
+                    + 1 /* schnorr sig len */ + 64, /* schnorr sig */
+                sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+            };
+            Ok(Some(utxo))
+        }
+        // Unrecognized witness version
+        Some(_version) => Ok(None),
+        // Skip non-P2WPKH outputs. Our on-chain wallet doesn't
+        // currently have Taproot or legacy keychains.
+        None => Ok(None),
+    }
 }
 
 /// Spawns a task that (re-)persists the total wallet [`ChangeSet`] whenever
@@ -1700,6 +1852,7 @@ mod test {
         test_utils::{arbitrary, roundtrip},
     };
     use lexe_crypto::rng::FastRng;
+    use lightning::util::wallet_utils::WalletSource as _;
     use proptest::{prop_assert_eq, proptest, test_runner::Config};
     use tracing::trace;
 
@@ -2049,6 +2202,45 @@ mod test {
                 map
             }
         };
+    }
+
+    #[tokio::test]
+    async fn wallet_source_selects_and_signs_confirmed_utxo() {
+        let h = Harness::new(891372190);
+        let (confirmed_tx, _, _) = h.ww().fund(External, sat!(10_000));
+        h.ww().fund_unconfirmed(Internal, sat!(20_000));
+
+        let mut utxos = h.wallet.list_confirmed_utxos().await.unwrap();
+        assert_eq!(utxos.len(), 1);
+        let utxo = utxos.pop().unwrap();
+        assert_eq!(
+            utxo.outpoint,
+            bitcoin::OutPoint::new(confirmed_tx.compute_txid(), 0)
+        );
+        assert_eq!(utxo.output, confirmed_tx.output[0]);
+        assert_eq!(
+            h.wallet.get_prevtx(utxo.outpoint).await.unwrap(),
+            confirmed_tx
+        );
+
+        let change_script = h.wallet.get_change_script().await.unwrap();
+        assert!(change_script.is_p2wpkh());
+        let unsigned_tx = Transaction {
+            input: vec![bitcoin::TxIn {
+                previous_output: utxo.outpoint,
+                ..Default::default()
+            }],
+            output: vec![TxOut {
+                value: sat!(9_000).into(),
+                script_pubkey: change_script,
+            }],
+            ..new_tx()
+        };
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        psbt.inputs[0].witness_utxo = Some(utxo.output);
+
+        let signed_tx = h.wallet.sign_psbt(psbt).await.unwrap();
+        assert!(!signed_tx.input[0].witness.is_empty());
     }
 
     #[test]
