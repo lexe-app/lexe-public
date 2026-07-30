@@ -88,10 +88,12 @@ impl<'a> fmt::Display for TxDisplay<'a> {
 
         write!(
             f,
-            "txid={txid}, \
+            "{{\
+             txid={txid}, \
              num_inputs={num_inputs}, num_outputs={num_outputs}, \
              inputs={inputs}, \
-             output_spks={output_spks}, output_values={output_values}"
+             output_spks={output_spks}, output_values={output_values}\
+             }}"
         )
     }
 }
