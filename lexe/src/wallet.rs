@@ -1772,6 +1772,29 @@ impl LexeWallet {
         &self,
         req: GetUpdatedPaymentsRequest,
     ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
+        // Ask the gateway if there are new updates, and short circuit if none.
+        // This avoids needlessly waking up the node. (If the gateway query is
+        // failing we expect the node query to fail too.)
+        let auth = self
+            .node_client
+            .get_gateway_token()
+            .await
+            .context("Could not get bearer token")?;
+        let latest_update = self
+            .gateway_client
+            .latest_payment_update(auth)
+            .await
+            .context("Failed to fetch the latest payment update")?
+            .latest_update;
+
+        // Some > None
+        if latest_update <= req.start_index {
+            return Ok(GetUpdatedPaymentsResponse {
+                payments: Vec::new(),
+                updated_index: None,
+            });
+        }
+
         let req = GetUpdatedPayments {
             start_index: req.start_index,
             limit: req.limit,
