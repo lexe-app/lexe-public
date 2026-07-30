@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     path::PathBuf,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use anyhow::Context;
@@ -49,7 +50,7 @@ use crate::{
         AnalyzeResponse, ClaimableDetails, HealthCheckResponse,
         ListPaymentsRequest, PayLnurlRequest, PayRequest, PayableDetails,
         SignupRequest, UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
-        WithdrawLnurlRequest,
+        WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
@@ -106,6 +107,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/sync_payments", put(node::sync_payments))
         .route("/v2/node/list_payments", get(node::list_payments))
         .route("/v2/node/clear_payments", post(node::clear_payments))
+        .route("/v2/node/wait_for_payment", get(node::wait_for_payment))
         .route("/v2/node/payment", get(node::get_payment))
         .route("/v2/node/updated_payments", get(node::get_updated_payments))
         .route(
@@ -609,6 +611,20 @@ mod node {
     ) -> Result<LxJson<Empty>, SdkApiError> {
         wallet.clear_payments().map_err(SdkApiError::command)?;
         Ok(LxJson(Empty {}))
+    }
+
+    #[instrument(skip_all, name = "(wait-for-payment)")]
+    pub(crate) async fn wait_for_payment(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxQuery(req): LxQuery<WaitForPaymentRequest>,
+    ) -> Result<LxJson<Payment>, SdkApiError> {
+        let timeout = req.timeout_secs.map(Duration::from_secs);
+        let payment = wallet
+            .wait_for_payment(req.index, timeout)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(payment))
     }
 
     /// Legacy: Returns `{ "payment": null }` if not found.

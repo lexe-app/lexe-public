@@ -27,7 +27,8 @@ use lexe_api::{error::SdkApiError, types::Empty};
 use crate::api::{
     AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest,
     PayRequest, SignupRequest, UpdateClientRequest,
-    UpdateHumanBitcoinAddressRequest, WithdrawLnurlRequest,
+    UpdateHumanBitcoinAddressRequest, WaitForPaymentRequest,
+    WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -224,6 +225,17 @@ pub trait UserSidecarApi {
     ///
     /// [`sync_payments`]: Self::sync_payments
     async fn clear_payments(&self) -> Result<Empty, SdkApiError>;
+
+    /// GET /v2/node/wait_for_payment [`WaitForPaymentRequest`] -> [`Payment`]
+    ///
+    /// Wait for a payment to reach a terminal state (completed or failed).
+    ///
+    /// Blocks until the payment finalizes or the timeout is reached.
+    /// Waits indefinitely if no `timeout_secs` is given.
+    async fn wait_for_payment(
+        &self,
+        req: &WaitForPaymentRequest,
+    ) -> Result<Payment, SdkApiError>;
 
     /// GET /v2/node/payment [`GetPaymentRequest`] -> [`GetPaymentResponse`]
     ///

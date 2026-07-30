@@ -232,6 +232,12 @@ pub struct ListPaymentsRequest {
     pub after: Option<PaymentCreatedIndex>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct WaitForPaymentRequest {
+    pub index: PaymentCreatedIndex,
+    pub timeout_secs: Option<u64>,
+}
+
 /// Mirrors [`lexe::types::command::UpdateClientRequest`], but uses explicit
 /// set/clear flags in place of its `Option<Option<_>>` fields, which JSON
 /// cannot easily express.

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use lexe::types::{
     command::{
         AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
@@ -23,7 +25,8 @@ use crate::{
     api::{
         AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
         PayLnurlRequest, PayRequest, SignupRequest, UpdateClientRequest,
-        UpdateHumanBitcoinAddressRequest, WithdrawLnurlRequest,
+        UpdateHumanBitcoinAddressRequest, WaitForPaymentRequest,
+        WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };
@@ -206,6 +209,16 @@ impl UserSidecarApi for SidecarClient {
         let url =
             format!("{base}/v2/node/clear_payments", base = self.sidecar_url);
         let http_req = self.rest.post(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn wait_for_payment(
+        &self,
+        req: &WaitForPaymentRequest,
+    ) -> Result<Payment, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/wait_for_payment");
+        let http_req = self.rest.get(url, req).timeout(Duration::MAX);
         self.rest.send(http_req).await
     }
 
