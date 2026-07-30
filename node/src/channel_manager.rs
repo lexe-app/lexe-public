@@ -107,17 +107,15 @@ const fn channel_handshake_config() -> ChannelHandshakeConfig {
         negotiate_scid_privacy: true,
         // TODO(max): Support anchor outputs.
         negotiate_anchors_zero_fee_htlc_tx: false,
-        // If true, we'll attempt to negotiate zero-fee commitments for all
-        // future channels.
+        // Zero-fee commitments are required for zero-reserve user channels.
         //
-        // For a force-close transaction to reach miners and get confirmed,
-        // zero-fee commitment channels require a path from your Bitcoin node to
-        // miners that relays TRUC transactions (BIP 431), P2A outputs,
-        // and Ephemeral Dust. Currently, only nodes running Bitcoin
-        // Core v29 and above relay transactions with these features.
-        //
-        // TODO(phlip9): needs testing.
-        negotiate_anchor_zero_fee_commitments: false,
+        // Force-closes rely on external fee-bump funds and TRUC/P2A relay.
+        // For a force-close tx to reach miners and get confirmed, zero-fee
+        // commitment channels require a path from your Bitcoin node to miners
+        // that relays TRUC transactions (BIP 431), P2A outputs, and Ephemeral
+        // Dust. Currently, only nodes running Bitcoin Core v29 and above relay
+        // transactions with these features.
+        negotiate_anchor_zero_fee_commitments: true,
         // User<->LSP channels are private. People route to us via a route hop
         // hint in the invoice.
         announce_for_forwarding: false,
