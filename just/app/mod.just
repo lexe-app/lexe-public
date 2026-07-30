@@ -270,7 +270,7 @@ build-prod-ios *args:
 # toolchain, not just the podspec, so a toolchain bump can shift it and leave
 # the committed lock stale. Run this to resync it.
 update-podfile:
-    nix develop ../..#app-ios-macos --command bash -c 'cd ios && pod install'
+    nix develop ../..#app-ios-macos --command bash -c 'flutter pub get && cd ios && pod install'
 
 # read the combined version from the built .ipa bundle (ex: "1.2.3+45")
 # [no-cd] so the caller's cwd is preserved; the release script
