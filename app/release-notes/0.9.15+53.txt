@@ -1,0 +1,4 @@
+- Lexe now supports LNURL-Verify (LUD-21): anyone who requests an invoice from your username@lexe.app address can check whether it was paid.
+- Faster wallet startup: if you stay on the latest app version, your node is kept warm and ready most of the time.
+- Enhanced security for LNURL-Pay callback URLs.
+- Reliability and performance improvements.
