@@ -60,7 +60,7 @@ use crate::{
             PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WithdrawLnurlRequest,
         },
-        payment::{Order, Payment, PaymentFilter},
+        payment::{Order, Payment, PaymentFilter, PaymentUpdatedIndex},
     },
     unstable::{
         ffs::DiskFs, payments_db::PaymentsDb, provision, wallet_db::WalletDb,
@@ -1663,43 +1663,78 @@ impl LexeWallet {
         let start = tokio::time::Instant::now();
         let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
 
-        loop {
-            // Fetch the latest payment state.
-            let payment = if self.db.is_some() {
-                // DB-backed path: sync payments and query local DB.
+        if self.persistence_enabled() {
+            let db = self.require_payments_db()?;
+
+            loop {
                 self.sync_payments().await?;
-                self.require_payments_db()?
-                    .get_payment_by_created_index(&index)
-                    .map(Payment::from)
-            } else {
-                // No-DB path: poll the node directly.
-                self.node_client
-                    .get_payment_by_id(command::PaymentIdStruct {
-                        id: index.id,
-                    })
-                    .await
-                    .context("Failed to get payment")?
-                    .maybe_payment
-                    .map(Payment::from)
-            };
+                let payment =
+                    db.get_payment_by_created_index(&index).map(Payment::from);
 
-            if let Some(payment) = payment {
-                match payment.status {
-                    PaymentStatus::Completed | PaymentStatus::Failed =>
-                        return Ok(payment),
-                    PaymentStatus::Pending => (), // Continue polling
+                if let Some(payment) = payment {
+                    match payment.status {
+                        PaymentStatus::Completed | PaymentStatus::Failed =>
+                            return Ok(payment),
+                        PaymentStatus::Pending => (), // Continue polling
+                    }
                 }
-            }
 
-            if let Some(to) = timeout {
-                let to_secs = to.as_secs();
-                ensure!(
-                    start.elapsed() < to,
-                    "Payment did not complete within {to_secs}s timeout",
-                );
-            }
+                if let Some(to) = timeout {
+                    let to_secs = to.as_secs();
+                    ensure!(
+                        start.elapsed() < to,
+                        "Payment did not complete within {to_secs}s timeout",
+                    );
+                }
 
-            tokio::time::sleep(backoff.next().unwrap()).await;
+                tokio::time::sleep(backoff.next().unwrap()).await;
+            }
+        } else {
+            let mut cached_update: Option<PaymentUpdatedIndex> = None;
+
+            loop {
+                let auth = self
+                    .node_client
+                    .get_gateway_token()
+                    .await
+                    .context("Could not get bearer token")?;
+                let latest_update = self
+                    .gateway_client
+                    .latest_payment_update(auth)
+                    .await
+                    .context("Failed to fetch the latest payment update")?
+                    .latest_update;
+
+                // Some > None
+                if latest_update > cached_update {
+                    cached_update = latest_update;
+
+                    let req = PaymentIdStruct { id: index.id };
+                    let payment = self
+                        .node_client
+                        .get_payment_by_id(req)
+                        .await?
+                        .maybe_payment
+                        .map(Payment::from);
+
+                    if let Some(payment) = payment {
+                        match payment.status {
+                            PaymentStatus::Completed
+                            | PaymentStatus::Failed => return Ok(payment),
+                            PaymentStatus::Pending => (), // Continue polling
+                        }
+                    }
+                }
+
+                if let Some(to) = timeout {
+                    let to_secs = to.as_secs();
+                    ensure!(
+                        start.elapsed() < to,
+                        "Payment did not complete within {to_secs}s timeout",
+                    );
+                }
+                tokio::time::sleep(backoff.next().unwrap()).await;
+            }
         }
     }
 
