@@ -30,12 +30,13 @@ use crate::{
     alias::LexeChainMonitorType,
     channel_monitor::LxMonitorName,
     event::EventId,
+    logger::LexeTracingLogger,
     migrations::{self, Migrations, MigrationsReadOnce},
     payments::{
         PaymentMetadata, PaymentV2, PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
     },
-    traits::LexePersister,
+    traits::{LexeChannelManager, LexePersister},
 };
 
 // --- VFS encryption / decryption helpers --- //
@@ -187,6 +188,46 @@ pub fn decrypt_json_file<D: DeserializeOwned>(
         .context("JSON deserialization failed")?;
 
     Ok(value)
+}
+
+// --- Channel manager persistence --- //
+
+/// Persists the channel manager, then applies and persists the deferred
+/// channel monitor ops covered by the persisted manager snapshot. Since the
+/// manager records these ops as in-flight, and monitor ops are flushed only
+/// after the manager persist succeeds, persisted monitors are never newer
+/// than the persisted manager, so a crash between the two persists cannot
+/// leave a stale manager that force closes channels on the next boot.
+///
+/// # Performance
+///
+/// Only off-chain monitor updates ([`chain::Watch`] ops) are deferred, so
+/// each waits here for a manager persist before unblocking its channel,
+/// adding roughly one manager persist per commitment update to the payment
+/// critical path. Chain-sync monitor persists bypass the deferred queue and
+/// are unaffected.
+///
+/// All channel manager persists must go through this fn.
+///
+/// [`chain::Watch`]: lightning::chain::Watch
+pub(crate) async fn persist_manager_and_flush<CM, PS>(
+    channel_manager: &CM,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    logger: &LexeTracingLogger,
+    persister: &PS,
+) -> anyhow::Result<()>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    // Count the deferred monitor ops covered by this channel manager
+    // snapshot; ops queued later are flushed after the next manager persist.
+    let deferred_ops = chain_monitor.pending_operation_count();
+
+    persister.persist_manager(&**channel_manager).await?;
+
+    chain_monitor.flush(deferred_ops, logger);
+    Ok(())
 }
 
 // --- LexePersisterMethods --- //

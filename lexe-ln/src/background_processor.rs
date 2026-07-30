@@ -20,7 +20,8 @@ use tracing::{Instrument, debug, error, info, info_span, trace, warn};
 use crate::{
     alias::LexeChainMonitorType,
     channel_monitor::{self, ChannelMonitorPersisterCommand},
-    persister::LexePersisterMethods,
+    logger::LexeTracingLogger,
+    persister::persist_manager_and_flush,
     traits::{
         LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
     },
@@ -98,6 +99,7 @@ where
         info_span!("(bgp)"),
         async move {
             let bgp_start = Instant::now();
+            let logger = LexeTracingLogger::new();
 
             let mk_interval = |delay: Duration, interval: Duration| {
                 // Remove the staggering in debug mode in an attempt to catch
@@ -166,6 +168,7 @@ where
                             &event_handler,
                             &forward_delay_range_ms,
                             &mut forward_delay_timer,
+                            &logger,
                             &peer_manager,
                             &persister,
                             &mut rng,
@@ -187,6 +190,7 @@ where
                             &forward_delay_range_ms,
                             &mut forward_delay_timer,
                             &htlcs_forwarded_bus,
+                            &logger,
                             &peer_manager,
                             &persister,
                             &mut rng,
@@ -246,7 +250,14 @@ where
             // This does not risk the loss of funds, but upon next boot the
             // ChannelManager may accidentally trigger a force close.
             channel_manager.get_and_clear_needs_persistence();
-            if let Err(e) = persister.persist_manager(&*channel_manager).await {
+            let try_persist = persist_manager_and_flush(
+                &channel_manager,
+                &chain_monitor,
+                &logger,
+                &persister,
+            )
+            .await;
+            if let Err(e) = try_persist {
                 error!("Final channel manager persistence failure: {e:#}");
             }
 
@@ -265,6 +276,7 @@ async fn process_events<CM, PM, PS, EH, RMH>(
     event_handler: &EH,
     forward_delay_range_ms: &Range<u32>,
     forward_delay_timer: &mut Option<Pin<Box<tokio::time::Sleep>>>,
+    logger: &LexeTracingLogger,
     peer_manager: &PM,
     persister: &PS,
     rng: &mut ThreadFastRng,
@@ -328,7 +340,13 @@ where
     }
 
     if channel_manager.get_and_clear_needs_persistence() {
-        let try_persist = persister.persist_manager(&**channel_manager).await;
+        let try_persist = persist_manager_and_flush(
+            channel_manager,
+            chain_monitor,
+            logger,
+            persister,
+        )
+        .await;
         if let Err(e) = try_persist {
             // Failing to persist the channel manager won't lose funds so long
             // as the chain monitors have been persisted correctly, but it's
@@ -413,6 +431,7 @@ async fn process_until_quiescent<CM, PM, PS, EH, RMH>(
     forward_delay_range_ms: &Range<u32>,
     forward_delay_timer: &mut Option<Pin<Box<tokio::time::Sleep>>>,
     htlcs_forwarded_bus: &EventsBus<HtlcsForwarded>,
+    logger: &LexeTracingLogger,
     peer_manager: &PM,
     persister: &PS,
     rng: &mut ThreadFastRng,
@@ -433,6 +452,7 @@ where
             event_handler,
             forward_delay_range_ms,
             forward_delay_timer,
+            logger,
             peer_manager,
             persister,
             rng,

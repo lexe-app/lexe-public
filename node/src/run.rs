@@ -546,8 +546,12 @@ impl UserNode {
 
         // Initialize the chain monitor
         let chain_monitor = {
-            // Apply monitor updates inline rather than deferring them.
-            let deferred = false;
+            // Defer monitor updates until after the channel manager has been
+            // persisted, so a crash can't leave the persisted channel manager
+            // stale relative to the monitors (which force closes channels on
+            // the next boot). The BGP flushes the queued updates after each
+            // channel manager persist.
+            let deferred = true;
 
             Arc::new(ChainMonitor::new(
                 Some(ldk_sync_client.clone()),

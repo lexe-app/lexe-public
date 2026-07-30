@@ -18,7 +18,8 @@ use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
-    persister::LexePersisterMethods,
+    logger::LexeTracingLogger,
+    persister::{LexePersisterMethods, persist_manager_and_flush},
     traits::{LexeChannelManager, LexePersister},
 };
 
@@ -470,6 +471,7 @@ where
     async fn shutdown_quiescence(&mut self) {
         const QUIESCENT_TIMEOUT: Duration = Duration::from_millis(10);
 
+        let logger = LexeTracingLogger::new();
         loop {
             let available_slots = self.available_slots();
             tokio::select! {
@@ -479,9 +481,13 @@ where
                          .get_event_or_persistence_needed_future() =>
                 {
                     if self.channel_manager.get_and_clear_needs_persistence() {
-                        let try_persist = self.persister
-                            .persist_manager(&*self.channel_manager)
-                            .await;
+                        let try_persist = persist_manager_and_flush(
+                            &self.channel_manager,
+                            &self.chain_monitor,
+                            &logger,
+                            &self.persister,
+                        )
+                        .await;
                         if let Err(e) = try_persist {
                             error!("(Quiescence) manager persist error: {e:#}");
                             // Nothing to do if persist fails, so just shutdown.
