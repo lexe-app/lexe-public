@@ -177,13 +177,11 @@ impl TxBroadcaster {
         match &result {
             Ok(()) => {
                 info!("Successfully broadcasted tx(s): {tx_infos}");
-                // TODO(phlip9): apply whole package at once, only 1 test event
-                for tx in txs {
-                    // Apply each transaction to BDK so we don't double spend
-                    // its inputs.
-                    wallet.transaction_broadcasted(tx);
-                    test_event_sender.send(TestEvent::TxBroadcasted);
-                }
+                // Apply the whole package as one BDK batch so interdependent
+                // transactions are indexed together and its inputs aren't
+                // double spent.
+                wallet.transactions_broadcasted(txs);
+                test_event_sender.send(TestEvent::TxBroadcasted);
             }
             Err(err) => warn!("Error broadcasting tx(s): {err:#}, {tx_infos}"),
         }

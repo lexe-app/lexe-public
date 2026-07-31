@@ -884,37 +884,42 @@ impl OnchainWallet {
         spk
     }
 
-    /// Notifies the BDK wallet that a transaction created by us was
-    /// successfully broadcasted and exists in the mempool. This avoids the need
-    /// to resync the wallet post-broadcast just to observe the same transaction
-    /// that we already know is in the mempool in the mempool.
+    /// Notifies the BDK wallet that transactions created by us were
+    /// successfully broadcasted and exist in the mempool. This avoids the need
+    /// to resync the wallet post-broadcast just to observe transactions that we
+    /// already know are in the mempool.
     ///
     /// NOTE: This function should be called after every successful broadcast,
-    /// otherwise BDK may double-spend the outputs spent by this tx, which
-    /// usually results in the second tx failing to be broadcasted due to not
-    /// meeting RBF requirements.
+    /// otherwise BDK may double-spend the outputs spent by these transactions,
+    /// which usually results in the second transaction failing to be broadcast
+    /// due to not meeting RBF requirements.
     ///
-    /// TODO(max): If the transaction never gets confirmed, the outputs 'spent'
-    /// by this transaction might be locked forever. BDK is working on a fix.
+    /// TODO(max): If the transactions never confirm, their spent outputs might
+    /// be locked forever. BDK is working on a fix.
     ///
     /// - Main issue: <https://github.com/bitcoindevkit/bdk/issues/1748>
     /// - Explanation of 'inserted' vs 'unbroadcasted' vs other states: <https://github.com/bitcoindevkit/bdk/issues/1642#issuecomment-2399575535>
     /// - tnull opened an issue which applies to our current approach: <https://github.com/bitcoindevkit/bdk/issues/1666#issue-2621291151>
-    pub(crate) fn transaction_broadcasted(&self, tx: Transaction) {
+    pub(crate) fn transactions_broadcasted(
+        &self,
+        transactions: Vec<Transaction>,
+    ) {
         let now = TimestampMs::now();
-        self.transaction_broadcasted_at(now, tx);
+        self.transactions_broadcasted_at(now, transactions);
     }
 
-    fn transaction_broadcasted_at(
+    fn transactions_broadcasted_at(
         &self,
         broadcasted_at: TimestampMs,
-        tx: Transaction,
+        transactions: Vec<Transaction>,
     ) {
         let broadcasted_at_secs = broadcasted_at.to_duration().as_secs();
+        let transactions =
+            transactions.into_iter().map(|tx| (tx, broadcasted_at_secs));
         self.inner
             .write()
             .unwrap()
-            .apply_unconfirmed_txs([(tx, broadcasted_at_secs)]);
+            .apply_unconfirmed_txs(transactions);
         self.trigger_persist();
     }
 
@@ -1962,9 +1967,9 @@ mod test {
                 .wallet
                 .create_onchain_send(send_req, self.network)
                 .expect("Failed to create onchain send");
-            self.wallet.transaction_broadcasted_at(
+            self.wallet.transactions_broadcasted_at(
                 self.now(),
-                oswm.payment.tx.as_ref().clone(),
+                vec![oswm.payment.tx.as_ref().clone()],
             );
             oswm
         }
@@ -2244,6 +2249,41 @@ mod test {
     }
 
     #[test]
+    fn transactions_broadcasted_applies_package_as_batch() {
+        let h = Harness::new(7421031);
+        let wallet_spk = h.ww().next_unused_address(External).script_pubkey();
+        let parent = Transaction {
+            output: vec![TxOut {
+                value: sat!(10_000).into(),
+                script_pubkey: wallet_spk,
+            }],
+            ..new_tx()
+        };
+        let parent_txid = Txid(parent.compute_txid());
+        let child = Transaction {
+            input: vec![bitcoin::TxIn {
+                previous_output: bitcoin::OutPoint::new(parent_txid.0, 0),
+                ..Default::default()
+            }],
+            output: vec![TxOut {
+                value: sat!(9_000).into(),
+                script_pubkey: bitcoin::ScriptBuf::new(),
+            }],
+            ..new_tx()
+        };
+        let child_txid = Txid(child.compute_txid());
+
+        // Child-first order only works if BDK indexes the whole package before
+        // deciding which transactions are wallet-relevant.
+        h.wallet
+            .transactions_broadcasted_at(h.now(), vec![child, parent]);
+
+        assert!(h.wallet.get_tx_details(parent_txid).is_some());
+        assert!(h.wallet.get_tx_details(child_txid).is_some());
+        assert!(h.wallet.get_utxos().is_empty());
+    }
+
+    #[test]
     fn external_spk_0() {
         let mut h = Harness::new(789981416358);
 
@@ -2476,9 +2516,9 @@ mod test {
             spki1 => set! { },
         });
 
-        h.wallet.transaction_broadcasted_at(
+        h.wallet.transactions_broadcasted_at(
             h.now(),
-            oswm.payment.tx.as_ref().clone(),
+            vec![oswm.payment.tx.as_ref().clone()],
         );
     }
 
@@ -2542,7 +2582,7 @@ mod test {
             ..new_tx()
         };
         let txidi0_3 = tx.compute_txid();
-        h.wallet.transaction_broadcasted_at(h.now(), tx);
+        h.wallet.transactions_broadcasted_at(h.now(), vec![tx]);
         h.assert_sync(map! { spki0 => set! { txidi0_1, txidi0_2, txidi0_3 } });
 
         trace!("=== immediately spend to external ===");
@@ -2617,7 +2657,8 @@ mod test {
             ..new_tx()
         };
         let txidi1_2 = txi1_self.compute_txid();
-        h.wallet.transaction_broadcasted_at(h.now(), txi1_self);
+        h.wallet
+            .transactions_broadcasted_at(h.now(), vec![txi1_self]);
         h.assert_sync(map! {
             spke0 => set! { txide0_1, txide0_2 },
             spki1 => set! { txidi1_1, txidi1_2 },
@@ -2654,7 +2695,7 @@ mod test {
             ..new_tx()
         };
         let txidi2_1 = tx2.compute_txid();
-        h.wallet.transaction_broadcasted_at(h.now(), tx2);
+        h.wallet.transactions_broadcasted_at(h.now(), vec![tx2]);
         h.assert_sync(map! {
             spke0 => set! { txide0_1, txide0_2 },
             spki1 => set! { txidi1_1, txidi1_2, txidi2_1 },
@@ -2727,7 +2768,7 @@ mod test {
         assert_eq!(amount_sats + fee.sats_u64(), 5_425);
 
         // registering the tx should trigger a persist
-        h.wallet.transaction_broadcasted_at(h.now(), tx);
+        h.wallet.transactions_broadcasted_at(h.now(), vec![tx]);
         assert!(h.persist());
 
         // sweeping again should not succeed, since the funds are marked

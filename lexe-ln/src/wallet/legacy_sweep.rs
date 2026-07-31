@@ -196,7 +196,7 @@ async fn sync_and_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
         .context("Failed to broadcast")?;
 
     // Register the broadcasted tx in legacy wallet so it can track it
-    legacy_wallet.transaction_broadcasted(tx.as_ref().clone());
+    legacy_wallet.transactions_broadcasted(vec![tx.as_ref().clone()]);
 
     // NOTE(phlip9): this is a little out-of-order from normal, but I'd rather
     // we only register if the broadcast was successful.
