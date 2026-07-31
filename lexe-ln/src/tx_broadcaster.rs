@@ -49,9 +49,9 @@ const_assert!(
         > esplora::ESPLORA_REQUEST_TIMEOUT.as_secs()
 );
 
-/// The type of the hook to be called just before broadcasting a tx.
+/// The type of the hook called just before broadcasting a tx package.
 type PreBroadcastHook =
-    Arc<dyn Fn(&bitcoin::Transaction) -> BoxedAnyhowFuture + Send + Sync>;
+    Arc<dyn Fn(&[bitcoin::Transaction]) -> BoxedAnyhowFuture + Send + Sync>;
 
 struct BroadcastRequest {
     txs: Vec<bitcoin::Transaction>,
@@ -198,11 +198,8 @@ impl TxBroadcaster {
         txs: &[bitcoin::Transaction],
     ) -> Result<(), Error> {
         // Run the pre-broadcast hook if one exists.
-        // TODO(phlip9): refactor broadcast hook so it gets tx broadcast package
         if let Some(hook) = broadcast_hook {
-            for tx in txs {
-                hook(tx).await.context("Pre-broadcast hook failed")?;
-            }
+            hook(txs).await.context("Pre-broadcast hook failed")?;
         }
 
         match txs {

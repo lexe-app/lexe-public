@@ -482,32 +482,40 @@ impl UserNode {
         // txs.
         let broadcast_hook = {
             let persister = persister.clone();
-            Arc::new(move |tx: &bitcoin::Transaction| {
+            Arc::new(move |txs: &[bitcoin::Transaction]| {
                 let persister = persister.clone();
-                let txid = tx.compute_txid();
-
-                let mut tx_buf = Vec::new();
-                let encoded_result = tx
-                    .consensus_encode(&mut tx_buf)
-                    .context("Failed to consensus encode bitcoin tx");
+                let created_at = TimestampMs::now();
+                let broadcasted_txs = txs
+                    .iter()
+                    .map(|tx| {
+                        let mut tx_buf = Vec::new();
+                        tx.consensus_encode(&mut tx_buf)
+                            .context("Failed to consensus encode bitcoin tx")?;
+                        Ok(BroadcastedTx {
+                            txid: Txid(tx.compute_txid()),
+                            tx: tx_buf,
+                            created_at,
+                        })
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>();
 
                 Box::pin(async move {
-                    encoded_result?;
+                    // TODO(phlip9): batch persist files
+                    for broadcasted_tx in broadcasted_txs? {
+                        debug!("Persisting broadcasted tx");
+                        let file_id = VfsFileId::new(
+                            vfs::BROADCASTED_TXS_DIR,
+                            broadcasted_tx.txid.to_string(),
+                        );
 
-                    let broadcasted_tx = BroadcastedTx::new(Txid(txid), tx_buf);
-
-                    let file_id = VfsFileId::new(
-                        vfs::BROADCASTED_TXS_DIR,
-                        txid.to_string(),
-                    );
-
-                    debug!("Persisting broadcasted tx");
-                    let file = persister.encrypt_json(file_id, &broadcasted_tx);
-                    let retries = 1;
-                    persister
-                        .persist_file(file, retries)
-                        .await
-                        .context("Failed to persist broadcasted tx")?;
+                        let file =
+                            persister.encrypt_json(file_id, &broadcasted_tx);
+                        let retries = 1;
+                        persister
+                            .persist_file(file, retries)
+                            .await
+                            .context("Failed to persist broadcasted tx")?;
+                    }
 
                     Ok::<_, anyhow::Error>(())
                 }) as BoxedAnyhowFuture

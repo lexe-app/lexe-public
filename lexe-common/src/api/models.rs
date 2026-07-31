@@ -63,16 +63,6 @@ pub struct BroadcastedTx {
     pub created_at: TimestampMs,
 }
 
-impl BroadcastedTx {
-    pub fn new(txid: Txid, tx: Vec<u8>) -> Self {
-        Self {
-            txid,
-            tx,
-            created_at: TimestampMs::now(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BroadcastedTxInfo {
     /// (PK)
