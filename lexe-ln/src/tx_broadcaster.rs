@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::Deref, sync::Arc, time::Duration};
+use std::{ops::Deref, sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use lexe_common::api::test_event::TestEvent;
@@ -164,7 +164,8 @@ impl TxBroadcaster {
     ) {
         // Package relay requires transactions to be topologically sorted, with
         // parents before children.
-        let txs = helpers::toposort_tx_package(req.txs);
+        let mut txs = req.txs;
+        helpers::toposort_tx_package(&mut txs);
 
         let tx_infos = DisplayIter(txs.iter().map(TxDisplay));
         info!("Broadcasting tx(s): {tx_infos}");
@@ -297,22 +298,30 @@ impl BroadcasterInterface for TxBroadcasterInner {
 }
 
 mod helpers {
-    use super::*;
-
-    /// Topological-sort a list of transactions so that parent txs come before
-    /// child txs. This is required for package relay.
+    /// Topological-sort transactions in place so that parents come before
+    /// children. This is required for package relay.
     ///
     /// See: <https://bitcoincore.org/en/doc/31.0.0/rpc/rawtransactions/submitpackage/>
-    pub fn toposort_tx_package(
-        mut transactions: Vec<bitcoin::Transaction>,
-    ) -> Vec<bitcoin::Transaction> {
-        let mut sorted = Vec::with_capacity(transactions.len());
-        while !transactions.is_empty() {
-            let remaining_txids = transactions
-                .iter()
-                .map(bitcoin::Transaction::compute_txid)
-                .collect::<HashSet<_>>();
-            let parent_idx = transactions
+    pub fn toposort_tx_package(txs: &mut [bitcoin::Transaction]) {
+        // This is Kahn's algorithm in selection-sort form: grow a sorted
+        // prefix `txs[..sorted_idx]` by repeatedly picking the first
+        // "ready" transaction from the unsorted suffix (one whose in-package
+        // parents are all in the prefix already).
+
+        // Already sorted
+        if txs.len() <= 1 {
+            return;
+        }
+
+        // Invariant: the txids of the not-yet-sorted transactions.
+        let mut remaining_txids = txs
+            .iter()
+            .map(bitcoin::Transaction::compute_txid)
+            .collect::<Vec<_>>();
+
+        for sorted_idx in 0..txs.len() {
+            // Find the first ready tx, i.e. one which spends no unsorted tx.
+            let ready_offset = txs[sorted_idx..]
                 .iter()
                 .position(|tx| {
                     tx.input.iter().all(|input| {
@@ -320,33 +329,41 @@ mod helpers {
                     })
                 })
                 .expect("Transaction package cannot contain a cycle");
-            sorted.push(transactions.remove(parent_idx));
+
+            // Move the ready tx to `sorted_idx`, shifting the skipped txs
+            // right by one and preserving their relative order.
+            let ready_idx = sorted_idx + ready_offset;
+            txs[sorted_idx..=ready_idx].rotate_right(1);
+            remaining_txids.remove(ready_offset);
         }
-        sorted
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use bitcoin::{
         Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut,
         absolute::LockTime, transaction::Version,
+    };
+    use proptest::{
+        arbitrary::any, collection::vec, prop_assert, prop_assert_eq, proptest,
+        strategy::Strategy,
     };
 
     use super::*;
 
     #[test]
-    fn test_sort_tx_package() {
+    fn test_toposort_tx_package() {
         let grandparent = transaction_with_marker(1);
         let parent = transaction_spending(&grandparent, 2);
         let child = transaction_spending(&parent, 3);
 
-        let sorted = helpers::toposort_tx_package(vec![
-            child.clone(),
-            grandparent.clone(),
-            parent.clone(),
-        ]);
-        let sorted_txids = sorted
+        let mut transactions =
+            vec![child.clone(), grandparent.clone(), parent.clone()];
+        helpers::toposort_tx_package(&mut transactions);
+        let sorted_txids = transactions
             .iter()
             .map(Transaction::compute_txid)
             .collect::<Vec<_>>();
@@ -355,6 +372,103 @@ mod tests {
             sorted_txids,
             [grandparent, parent, child].map(|tx| tx.compute_txid())
         );
+    }
+
+    #[test]
+    fn test_toposort_tx_package_proptest() {
+        proptest!(|(mut package in any_tx_package())| {
+            let transaction_count = package.len();
+            let mut expected_txids = package
+                .iter()
+                .map(Transaction::compute_txid)
+                .collect::<Vec<_>>();
+            expected_txids.sort_unstable();
+
+            helpers::toposort_tx_package(&mut package);
+            let mut actual_txids = package
+                .iter()
+                .map(Transaction::compute_txid)
+                .collect::<Vec<_>>();
+            actual_txids.sort_unstable();
+
+            // The result contains every input transaction exactly once.
+            prop_assert_eq!(package.len(), transaction_count);
+            prop_assert_eq!(actual_txids, expected_txids);
+
+            // Every in-package parent precedes its child.
+            let positions = package
+                .iter()
+                .enumerate()
+                .map(|(idx, tx)| (tx.compute_txid(), idx))
+                .collect::<HashMap<_, _>>();
+            for (child_idx, child) in package.iter().enumerate() {
+                for input in &child.input {
+                    if let Some(&parent_idx) =
+                        positions.get(&input.previous_output.txid)
+                    {
+                        prop_assert!(parent_idx < child_idx);
+                    }
+                }
+            }
+
+            // An already sorted package remains unchanged.
+            let mut resorted = package.clone();
+            helpers::toposort_tx_package(&mut resorted);
+            prop_assert_eq!(resorted, package);
+        });
+    }
+
+    /// Generates arbitrary DAGs up to 25 transactions, then randomizes the
+    /// package order.
+    fn any_tx_package() -> impl Strategy<Value = Vec<Transaction>> {
+        (0_usize..=25)
+            .prop_flat_map(|transaction_count| {
+                (
+                    vec(any::<u32>(), transaction_count),
+                    vec(any::<u64>(), transaction_count),
+                )
+            })
+            .prop_map(|(parent_masks, sort_keys)| {
+                let transaction_count = parent_masks.len();
+                let mut transactions =
+                    Vec::<Transaction>::with_capacity(transaction_count);
+                for (child_idx, parent_mask) in
+                    parent_masks.into_iter().enumerate()
+                {
+                    let input = transactions
+                        .iter()
+                        .enumerate()
+                        .filter(|(parent_idx, _)| {
+                            parent_mask & (1 << parent_idx) != 0
+                        })
+                        .map(|(_, parent)| TxIn {
+                            previous_output: OutPoint::new(
+                                parent.compute_txid(),
+                                child_idx as u32,
+                            ),
+                            ..Default::default()
+                        })
+                        .collect();
+                    let output = vec![
+                        TxOut {
+                            value: Amount::from_sat(child_idx as u64 + 1),
+                            script_pubkey: ScriptBuf::new(),
+                        };
+                        transaction_count
+                    ];
+                    transactions.push(Transaction {
+                        version: Version::TWO,
+                        lock_time: LockTime::ZERO,
+                        input,
+                        output,
+                    });
+                }
+
+                let mut keyed_transactions =
+                    transactions.into_iter().zip(sort_keys).collect::<Vec<_>>();
+                keyed_transactions.sort_by_key(|(_, sort_key)| *sort_key);
+                keyed_transactions.into_iter().map(|(tx, _)| tx).collect()
+            })
     }
 
     fn transaction_with_marker(marker: u64) -> Transaction {
