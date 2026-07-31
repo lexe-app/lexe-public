@@ -3,7 +3,6 @@ use std::cmp;
 use anyhow::Context;
 use lexe_api::cli::LspFees;
 use lexe_common::{
-    dec,
     ln::{amount::Amount, balance::LightningBalance},
     ppm,
     ppm::Ppm,
@@ -13,7 +12,6 @@ use lightning::{
     chain::channelmonitor::{Balance, HolderCommitmentTransactionBalance},
     ln::channel_state::ChannelDetails,
 };
-use rust_decimal::Decimal;
 use tracing::warn;
 
 use crate::{alias::LexeChainMonitorType, traits::LexePersister};
@@ -36,7 +34,6 @@ pub fn all_channel_balances<PS: LexePersister>(
     channels: &[ChannelDetails],
     lsp_fees: LspFees,
 ) -> (LightningBalance, usize) {
-    let est_total_prop_feerate = EST_OUTBOUND_TOTAL_PROP_FEE.to_decimal();
     let est_shard_base_fee =
         Amount::from_sats_u32(EST_OUTBOUND_SHARD_BASE_FEE_SAT);
 
@@ -65,19 +62,10 @@ pub fn all_channel_balances<PS: LexePersister>(
             let next_outbound_htlc_limit =
                 Amount::from_msat(channel.next_outbound_htlc_limit_msat);
 
-            // Both of these have a one sat tweak to account for a floor in
-            // LDK's calculation of `compute_max_final_value_contribution` for
-            // paths. Otherwise `smoketest::payments::max_sendable_multihop`
-            // fails with "Tried to pay `x` sats. The max you can route to this
-            // recipient is `y` sats."
-            //   `x` = 986500.499, `y` = 986499 (`y` from `max_flow` is floored)
-            // https://github.com/lightningdevkit/rust-lightning/pull/3755
-            let sendable = next_outbound_htlc_limit
-                .saturating_sub(est_shard_base_fee)
-                .saturating_sub(Amount::from_sats_u32(1));
-            let max_sendable = next_outbound_htlc_limit
-                .saturating_sub(min_lsp_base_fee)
-                .saturating_sub(Amount::from_sats_u32(1));
+            let sendable =
+                next_outbound_htlc_limit.saturating_sub(est_shard_base_fee);
+            let max_sendable =
+                next_outbound_htlc_limit.saturating_sub(min_lsp_base_fee);
 
             total_balance.usable += balance;
             total_balance.sendable += sendable;
@@ -88,35 +76,57 @@ pub fn all_channel_balances<PS: LexePersister>(
         }
     }
 
-    let num_usable_channels_dec = Decimal::from(num_usable_channels);
+    // TODO(max): LDK appears to reapply the prop fee for each MPP shard. The
+    // fee multiplier should be 1.
+    // https://github.com/lightningdevkit/rust-lightning/issues/3675
+    let prop_fee_multiplier = num_usable_channels;
 
-    // Tweak sendable to account for the estimated total proportional fee.
-    // sendable + sendable * prop_fee = sum(next_outbound_htlc_limit - base_fee)
-    // sendable * (1 + prop_fee) = sum(next_outbound_htlc_limit - base_fee)
-    // sendable = sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
-    total_balance.sendable = total_balance
-        .sendable
-        .checked_div(dec!(1) + num_usable_channels_dec * est_total_prop_feerate)
-        // TODO(max): LDK appears to reapply the prop fee for each MPP shard
-        // when it should be `.checked_div(dec!(1) + est_total_prop_feerate)`
-        // https://github.com/lightningdevkit/rust-lightning/issues/3675
-        .expect("Can't overflow because divisor is > 1");
+    // Account for the estimated total proportional fee.
+    total_balance.sendable = ldk_max_final_value(
+        total_balance.sendable,
+        EST_OUTBOUND_TOTAL_PROP_FEE,
+        prop_fee_multiplier,
+    );
 
-    total_balance.max_sendable = total_balance
-        .max_sendable
-        // Tweak max_sendable to account for the minimum LSP prop fee that would
-        // be paid in the case of a two hop payment: Sender -> LSP -> Receiver.
-        //
-        // max_sendable =
-        //     sum(next_outbound_htlc_limit - base_fee) / (1 + prop_fee)
-        //
-        // TODO(max): LDK appears to reapply the prop fee for each MPP shard
-        // when it should be `.checked_div(dec!(1) + min_lsp_prop_fee)`.
-        // https://github.com/lightningdevkit/rust-lightning/issues/3675
-        .checked_div(dec!(1) + num_usable_channels_dec * min_lsp_prop_fee)
-        .expect("Can't overflow because divisor is > 1");
+    // Account for the minimum LSP proportional fee in a two-hop payment:
+    // Sender -> LSP -> Receiver.
+    total_balance.max_sendable = ldk_max_final_value(
+        total_balance.max_sendable,
+        min_lsp_prop_fee,
+        prop_fee_multiplier,
+    );
 
     (total_balance, num_usable_channels)
+}
+
+/// Mirrors LDK's integer calculation of a path's maximum final value after
+/// proportional fees. Base fees must already be subtracted from `amount`.
+///
+/// For effective proportional fee `p` ppm, LDK computes:
+///
+/// `floor((amount_msat * 1_000_000 + p) / (1_000_000 + p))`.
+///
+/// Here, `p = prop_fee * prop_fee_multiplier`. This is not equivalent to
+/// simply dividing by `1 + p / 1_000_000` and rounding toward zero because LDK
+/// adds `p` to the numerator before dividing.
+///
+/// <https://github.com/lightningdevkit/rust-lightning/pull/3755>
+/// <https://github.com/lexe-app/rust-lightning/blob/2db1963bcc7bb29a8de3a49f60ec41b7b805cd03/lightning/src/routing/router.rs#L2427-L2460>
+fn ldk_max_final_value(
+    amount: Amount,
+    prop_fee: Ppm,
+    prop_fee_multiplier: usize,
+) -> Amount {
+    const MILLION: u128 = 1_000_000;
+
+    let prop_fee_multiplier = prop_fee_multiplier as u128;
+    let effective_prop_fee =
+        u128::from(prop_fee.to_u32()) * prop_fee_multiplier;
+    let numerator = u128::from(amount.msat()) * MILLION + effective_prop_fee;
+    let max_msat = numerator / (MILLION + effective_prop_fee);
+    let max_msat = u64::try_from(max_msat)
+        .expect("Fee-adjusted amount cannot exceed its input");
+    Amount::from_msat(max_msat)
 }
 
 /// Compute the contribution of a single channel to our "top-level" balance.
@@ -237,5 +247,44 @@ fn balance_sats_from_channel_claimable_balance(balance: Balance) -> u64 {
         //     ..
         //  } => if *outbound_payment { 0 } else { *amount_satoshis },
         // Balance::MaybePreimageClaimableHTLC { .. } => 0,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn ldk_max_final_value_matches_router() {
+        // Worked example:
+        //
+        // ```
+        // $ python
+        // >>> (limit, ppm, num_usable_channels) = (100_000, 0.3 * 10_000, 1)
+        // >>> p = ppm * num_usable_channels
+        // >>> value_dec = (limit * 1_000_000 + p) / (1_000_000 + p)
+        // >>> value_dec
+        // 99700.9002991027
+        // >>> int(value_dec)
+        // 99700
+        // ```
+        let limit = Amount::from_msat(100_000);
+        let prop_fee = ppm!(0.3%);
+        assert_eq!(
+            ldk_max_final_value(limit, prop_fee, 1),
+            Amount::from_msat(99_700),
+        );
+
+        // Example from a failing smoketest that exercises the exact rounding
+        let limit = Amount::from_msat(999_936_000);
+        assert_eq!(
+            ldk_max_final_value(limit, prop_fee, 1),
+            Amount::from_msat(996_945_164)
+        );
+        assert_eq!(
+            ldk_max_final_value(limit, prop_fee, 2),
+            Amount::from_msat(993_972_167)
+        );
+        assert_eq!(ldk_max_final_value(limit, Ppm::ZERO, 1), limit);
     }
 }

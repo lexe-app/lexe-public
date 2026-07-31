@@ -10,7 +10,6 @@ use lexe_common::{
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 /// User node CLI args.
@@ -100,12 +99,12 @@ pub struct LspInfo {
 pub struct LspFees {
     /// The Lsp -> User base fee as an [`Amount`].
     pub lsp_usernode_base_fee: Amount,
-    /// The Lsp -> User prop fee as a [`Decimal`], i.e. ppm / 1_000_000.
-    pub lsp_usernode_prop_fee: Decimal,
+    /// The Lsp -> User proportional fee.
+    pub lsp_usernode_prop_fee: Ppm,
     /// The Lsp -> External base fee as an [`Amount`].
     pub lsp_external_base_fee: Amount,
-    /// The Lsp -> External prop fee as a [`Decimal`], i.e. ppm / 1_000_000.
-    pub lsp_external_prop_fee: Decimal,
+    /// The Lsp -> External proportional fee.
+    pub lsp_external_prop_fee: Ppm,
 }
 
 /// Configuration info relating to Google OAuth2. When combined with an auth
@@ -128,17 +127,14 @@ impl LspInfo {
     pub fn lsp_fees(&self) -> LspFees {
         let lsp_usernode_base_fee =
             Amount::from_msat(u64::from(self.lsp_usernode_base_fee_msat));
-        let lsp_usernode_prop_fee = self.lsp_usernode_prop_fee.to_decimal();
-
         let lsp_external_base_fee =
             Amount::from_msat(u64::from(self.lsp_external_base_fee_msat));
-        let lsp_external_prop_fee = self.lsp_external_prop_fee.to_decimal();
 
         LspFees {
             lsp_usernode_base_fee,
-            lsp_usernode_prop_fee,
+            lsp_usernode_prop_fee: self.lsp_usernode_prop_fee,
             lsp_external_base_fee,
-            lsp_external_prop_fee,
+            lsp_external_prop_fee: self.lsp_external_prop_fee,
         }
     }
 
