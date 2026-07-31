@@ -152,9 +152,9 @@ rec {
   #
   # Get all updated output hashes:
   # ```
-  # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.x86_64-linux.cargoVendorDir
+  # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.x86_64-linux._gitDepOutputsDebugging
   # # ... or ...
-  # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.aarch64-darwin.cargoVendorDir
+  # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.aarch64-darwin._gitDepOutputsDebugging
   # ```
   gitDepOutputHashes = {
     "git+https://github.com/lexe-app/axum-server?branch=lexe-v0.7.3-2025_12_04#afb0632485455e213e914c42776e12a4d3b6a232" =
@@ -211,14 +211,9 @@ rec {
   # the fetched git dep directory.
   gitDepOutputs = builtins.mapAttrs fetchGitDep gitDepOutputHashes;
 
-  # for debugging fetcher reproducibility issues...
-  # $ nix build --repair --keep-failed --show-trace .#_dbg.systemLexePubPkgs.x86_64-linux._gitDepOutputsDebugging.ring-6aad0035-source
-  _gitDepOutputsDebugging = builtins.listToAttrs (
-    builtins.map (drv: {
-      name = drv.name;
-      value = drv;
-    }) (builtins.attrValues gitDepOutputs)
-  );
+  # A single derivation that fetches all the git deps. Convenient for updating
+  # git-dep output hashes.
+  _gitDepOutputsDebugging = pkgs.linkFarm "lexe-git-dep-sources" gitDepOutputs;
 
   # A function to vendor all cargo dependencies from a Cargo.lock file.
   vendorCargoDeps =
