@@ -1715,14 +1715,14 @@ impl ClearPaymentsArgs {
         and return the payment information.\n\
         \n\
         Blocks until the payment finalizes or the timeout is reached.\n\
-        Defaults to 600 seconds (10 minutes).",
+        Waits indefinitely if no timeout is given.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct WaitForPaymentArgs {
     /// The payment index to wait on
     index: PaymentCreatedIndex,
 
-    /// Timeout in seconds. [default: 600, max: 86400]
+    /// Timeout in seconds. Waits indefinitely if omitted.
     #[arg(long)]
     timeout_secs: Option<u64>,
 }

@@ -1060,13 +1060,12 @@ Wait for a payment to reach a terminal state (completed or failed)
 and return the payment information.
 
 Blocks until the payment finalizes or the timeout is reached.
-Defaults to 600 seconds (10 minutes).
-Maximum timeout is 86,400 seconds (24 hours).
+A ``None`` timeout waits indefinitely.
 
 Args:
     index: Payment index string.
-    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
-        Max: ``86400`` (24 hours).
+    timeout_secs: Maximum wait time in seconds. Waits indefinitely if
+        omitted.
 
 Returns:
     The finalized :class:`Payment`.
@@ -1841,13 +1840,12 @@ Wait for a payment to reach a terminal state (completed or failed)
 and return the payment information.
 
 Blocks until the payment finalizes or the timeout is reached.
-Defaults to 600 seconds (10 minutes).
-Maximum timeout is 86,400 seconds (24 hours).
+A ``None`` timeout waits indefinitely.
 
 Args:
     index: Payment index string.
-    timeout_secs: Maximum wait time in seconds. Defaults to ``600``.
-        Max: ``86400`` (24 hours).
+    timeout_secs: Maximum wait time in seconds. Waits indefinitely if
+        omitted.
 
 Returns:
     The finalized :class:`Payment`.

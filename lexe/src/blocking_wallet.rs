@@ -486,8 +486,7 @@ impl BlockingLexeWallet {
     /// and return the payment information.
     ///
     /// Blocks until the payment finalizes or the timeout is reached.
-    /// Defaults to 600 seconds (10 minutes).
-    /// Maximum timeout is 86,400 seconds (24 hours).
+    /// A `None` timeout waits indefinitely.
     pub fn wait_for_payment(
         &self,
         index: PaymentCreatedIndex,

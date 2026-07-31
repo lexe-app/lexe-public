@@ -70,10 +70,6 @@ use crate::{
 /// Default number of payments per page.
 const DEFAULT_LIST_LIMIT: usize = 100;
 
-const WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
-const WAIT_FOR_PAYMENT_MAX_TIMEOUT: Duration =
-    Duration::from_secs(24 * 60 * 60);
-
 /// Error message returned when a DB-required method is called on a wallet
 /// with local persistence disabled.
 const NO_DB_ERR: &str = "Local persistence is disabled for this wallet";
@@ -1655,22 +1651,13 @@ impl LexeWallet {
     /// and return the payment information.
     ///
     /// Blocks until the payment finalizes or the timeout is reached.
-    /// Defaults to 600 seconds (10 minutes).
-    /// Maximum timeout is 86,400 seconds (24 hours).
+    /// A `None` timeout waits indefinitely.
     #[instrument(skip_all, name = "(wait-for-payment)")]
     pub async fn wait_for_payment(
         &self,
         index: PaymentCreatedIndex,
         timeout: Option<Duration>,
     ) -> anyhow::Result<Payment> {
-        let timeout = timeout.unwrap_or(WAIT_FOR_PAYMENT_DEFAULT_TIMEOUT);
-        let max_secs = WAIT_FOR_PAYMENT_MAX_TIMEOUT.as_secs();
-        let timeout_secs = timeout.as_secs();
-        ensure!(
-            timeout <= WAIT_FOR_PAYMENT_MAX_TIMEOUT,
-            "Timeout exceeds max of {max_secs}s (24 hours): {timeout_secs}s",
-        );
-
         let initial_wait_ms = 250;
         let max_wait_ms = 4_000;
         let start = tokio::time::Instant::now();
@@ -1704,10 +1691,13 @@ impl LexeWallet {
                 }
             }
 
-            ensure!(
-                start.elapsed() < timeout,
-                "Payment did not complete within {timeout_secs}s timeout",
-            );
+            if let Some(to) = timeout {
+                let to_secs = to.as_secs();
+                ensure!(
+                    start.elapsed() < to,
+                    "Payment did not complete within {to_secs}s timeout",
+                );
+            }
 
             tokio::time::sleep(backoff.next().unwrap()).await;
         }
