@@ -1056,10 +1056,11 @@ Raises:
 """)
 
 _set_method_doc(LexeWallet, "wait_for_payment", """\
-Wait for a payment to reach a terminal state (completed or failed).
+Wait for a payment to reach a terminal state (completed or failed)
+and return the payment information.
 
-Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 600 seconds (10 minutes).
+Blocks until the payment finalizes or the timeout is reached.
+Defaults to 600 seconds (10 minutes).
 Maximum timeout is 86,400 seconds (24 hours).
 
 Args:
@@ -1836,10 +1837,11 @@ Raises:
 """)
 
 _set_method_doc(AsyncLexeWallet, "wait_for_payment", """\
-Wait for a payment to reach a terminal state (completed or failed).
+Wait for a payment to reach a terminal state (completed or failed)
+and return the payment information.
 
-Polls the node with exponential backoff until the payment finalizes
-or the timeout is reached. Defaults to 600 seconds (10 minutes).
+Blocks until the payment finalizes or the timeout is reached.
+Defaults to 600 seconds (10 minutes).
 Maximum timeout is 86,400 seconds (24 hours).
 
 Args:

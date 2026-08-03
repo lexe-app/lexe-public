@@ -482,10 +482,11 @@ impl BlockingLexeWallet {
         self.inner.clear_payments()
     }
 
-    /// Wait for a payment to reach a terminal state (completed or failed).
+    /// Wait for a payment to reach a terminal state (completed or failed)
+    /// and return the payment information.
     ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
+    /// Blocks until the payment finalizes or the timeout is reached.
+    /// Defaults to 600 seconds (10 minutes).
     /// Maximum timeout is 86,400 seconds (24 hours).
     pub fn wait_for_payment(
         &self,

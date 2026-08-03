@@ -1711,13 +1711,11 @@ impl ClearPaymentsArgs {
 #[derive(Parser)]
 #[command(
     about = "Wait for a payment to reach a terminal state",
-    long_about = "Wait for a payment to reach a terminal state (completed or failed).\n\
+    long_about = "Wait for a payment to reach a terminal state (completed or failed)\n\
+        and return the payment information.\n\
         \n\
-        Polls the node with exponential backoff until the payment finalizes\n\
-        or the timeout is reached. Defaults to 600 seconds (10 minutes).\n\
-        \n\
-        If already finalized, we still fetch the payment\n\
-        to ensure we have the latest metadata.",
+        Blocks until the payment finalizes or the timeout is reached.\n\
+        Defaults to 600 seconds (10 minutes).",
     help_template = HELP_TEMPLATE,
 )]
 pub struct WaitForPaymentArgs {

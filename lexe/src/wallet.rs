@@ -1651,10 +1651,11 @@ impl LexeWallet {
             .context("Failed to clear local payments")
     }
 
-    /// Wait for a payment to reach a terminal state (completed or failed).
+    /// Wait for a payment to reach a terminal state (completed or failed)
+    /// and return the payment information.
     ///
-    /// Polls the node with exponential backoff until the payment finalizes or
-    /// the timeout is reached. Defaults to 600 seconds (10 minutes).
+    /// Blocks until the payment finalizes or the timeout is reached.
+    /// Defaults to 600 seconds (10 minutes).
     /// Maximum timeout is 86,400 seconds (24 hours).
     #[instrument(skip_all, name = "(wait-for-payment)")]
     pub async fn wait_for_payment(
