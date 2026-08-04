@@ -881,13 +881,25 @@ impl BasicPaymentV2 {
                 || self.kind == PaymentKind::BuyCashApp)
     }
 
-    /// Returns the user's note or invoice description, prefering note over
-    /// description.
+    /// Returns the best one-line label for this payment. Prefers the user's
+    /// personal note, then the counterparty-authored field: the payer's
+    /// message for inbound payments, the recipient's invoice/offer
+    /// description for outbound payments.
+    //
+    // Keep in sync with the Dart `_noteOrDescription` in
+    // `public/app_rs_dart/lib/ffi/types.ext.dart`.
     pub fn note_or_description(&self) -> Option<&str> {
-        let maybe_personal_note =
+        let personal_note =
             self.personal_note.as_deref().filter(|s| !s.is_empty());
+        let description = self.description();
+        let message = self.message.as_deref().filter(|s| !s.is_empty());
 
-        maybe_personal_note.or_else(|| self.description())
+        let (primary, fallback) = match self.direction {
+            PaymentDirection::Inbound => (message, description),
+            PaymentDirection::Outbound | PaymentDirection::Info =>
+                (description, message),
+        };
+        personal_note.or(primary).or(fallback)
     }
 
     /// Returns the invoice or offer description if present.

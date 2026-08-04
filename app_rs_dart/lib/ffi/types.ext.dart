@@ -132,15 +132,36 @@ extension PaymentExt on Payment {
       this.direction == PaymentDirection.inbound &&
       (this.amountSats == null || this.noteOrDescription == null);
 
-  /// Returns the user's personal note, invoice/offer description, or message.
-  /// Precedence: personalNote > description > message.
-  String? get noteOrDescription {
-    final n = this.personalNote;
-    if (n != null && n.isNotEmpty) return n;
-    final d = this.description;
-    if (d != null && d.isNotEmpty) return d;
-    return this.message;
+  /// Returns the best one-line label for this payment.
+  String? get noteOrDescription => _noteOrDescription(
+    direction: this.direction,
+    personalNote: this.personalNote,
+    description: this.description,
+    message: this.message,
+  );
+}
+
+/// The best one-line label for a payment. Prefers the user's personal note,
+/// then the counterparty-authored field: the payer's message for inbound
+/// payments, the recipient's invoice/offer description for outbound payments.
+///
+/// Keep in sync with `BasicPaymentV2::note_or_description` in
+/// `public/lexe-api-core/src/types/payments.rs`.
+String? _noteOrDescription({
+  required PaymentDirection direction,
+  required String? personalNote,
+  required String? description,
+  required String? message,
+}) {
+  final (primary, fallback) = switch (direction) {
+    PaymentDirection.inbound => (message, description),
+    PaymentDirection.outbound ||
+    PaymentDirection.info => (description, message),
+  };
+  for (final s in [personalNote, primary, fallback]) {
+    if (s != null && s.isNotEmpty) return s;
   }
+  return null;
 }
 
 //
@@ -188,13 +209,11 @@ extension ShortPaymentExt on ShortPayment {
   int? get totalSats =>
       this.amountSats != null ? this.amountSats! + this.feesSats : null;
 
-  /// Returns the user's personal note, invoice/offer description, or message.
-  /// Precedence: personalNote > description > message.
-  String? get noteOrDescription {
-    final n = this.personalNote;
-    if (n != null && n.isNotEmpty) return n;
-    final d = this.description;
-    if (d != null && d.isNotEmpty) return d;
-    return this.message;
-  }
+  /// Returns the best one-line label for this payment.
+  String? get noteOrDescription => _noteOrDescription(
+    direction: this.direction,
+    personalNote: this.personalNote,
+    description: this.description,
+    message: this.message,
+  );
 }
