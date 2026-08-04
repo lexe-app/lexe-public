@@ -157,11 +157,15 @@ impl Sidecar {
             wallet_env_config,
             webhook_tx,
         });
+        let layer_config = LayerConfig {
+            handling_timeout: None,
+            ..Default::default()
+        };
         const SERVER_SPAN_NAME: &str = "(server)";
         let (server_task, sidecar_url) = lexe_api::server::spawn_server_task(
             listen_addr,
             server::router(router_state),
-            LayerConfig::default(),
+            layer_config,
             maybe_tls_and_dns,
             SERVER_SPAN_NAME.into(),
             info_span!(SERVER_SPAN_NAME),
