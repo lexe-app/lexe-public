@@ -104,10 +104,6 @@ where
             let mut archive_timer =
                 mk_interval(delay::ARCHIVE, interval::ARCHIVE);
 
-            // This is the event handler future generator type required by LDK
-            let mk_event_handler_fut =
-                |event| event_handler.get_ldk_handler_future(event);
-
             // Optional future for the HTLC forwarding delay. Set to Some when
             // we first detect pending HTLCs and None after processing them.
             let mut forward_delay_timer = None::<Pin<Box<tokio::time::Sleep>>>;
@@ -145,83 +141,19 @@ where
 
                 tokio::select! {
                     () = process_events_fut => {
-                        trace!("Processing pending events");
-                        let process_start = Instant::now();
-
-                        // NOTE: Event processing + channel manager persist
-                        // matches LDK's BGP implementation ordering.
-                        // LDK notes that "`PeerManager::process_events` may
-                        // block on ChannelManager's locks, hence it comes
-                        // [after async event handling]. When the ChannelManager
-                        // finishes whatever it's doing, we want to ensure we
-                        // start persisting the channel manager as quickly as we
-                        // can, especially without [async event processing]."
-
-                        channel_manager
-                            .process_pending_events_async(mk_event_handler_fut)
-                            .instrument(info_span!("(events)(chan-man)"))
-                            .await;
-                        chain_monitor
-                            .process_pending_events_async(mk_event_handler_fut)
-                            .instrument(info_span!("(events)(chain-mon)"))
-                            .await;
-                        // NOTE: Onion messenger events are handled by the
-                        // OnionMessengerEventHandler.
-
-                        // Wrapped in a future for instrumentation only.
-                        async {
-                            // NOTE(phlip9): worried the `Connection` ->
-                            // `process_events` flow might starve the BGP if it
-                            // grabs the `process_events` lock and is forced to
-                            // do a neverending amount of work under load.
-                            //
-                            // TODO(phlip9): Consider sending a notification to
-                            // the new `process_events` task and waiting for
-                            // that to complete?
-                            peer_manager.process_events();
-                        }.instrument(info_span!("(events)(peer-man)")).await;
-
-                        // If any HTLCs need forwarding, the channel manager's
-                        // `.get_event_or_persistence_needed_future()` will be
-                        // notified, bringing us here. Here, we start a timer
-                        // with a random delay to forward the HTLCs, if not
-                        // already started. This randomized forwarding delay:
-                        // (1) batches HTLCs that arrive close together and
-                        // (2) makes timing analysis harder, improving privacy.
-                        // https://delvingbitcoin.org/t/latency-and-privacy-in-lightning/1723#p-5107-understanding-forwarding-delays-privacy-1
-                        if forward_delay_timer.is_none()
-                            && channel_manager.needs_pending_htlc_processing()
-                        {
-                            let delay_ms =
-                                rng.gen_range_u32(forward_delay_range_ms.clone());
-                            let delay = Duration::from_millis(u64::from(delay_ms));
-                            let sleep_fut = tokio::time::sleep(delay);
-                            forward_delay_timer = Some(Box::pin(sleep_fut));
-                            trace!("Started HTLC forward timer: {delay_ms}ms");
-                        }
-
-                        if channel_manager.get_and_clear_needs_persistence() {
-                            let try_persist = persister
-                                .persist_manager(&*channel_manager)
-                                .await;
-                            if let Err(e) = try_persist {
-                                // Failing to persist the channel manager won't
-                                // lose funds so long as the chain monitors have
-                                // been persisted correctly, but it's still
-                                // serious - initiate a shutdown
-                                error!("Channel manager persist error: {e:#}");
-                                break shutdown.send();
-                            }
-                        }
-
-                        let elapsed = process_start.elapsed();
-                        let elapsed_ms = DisplayMs(elapsed);
-                        if elapsed > Duration::from_secs(10) {
-                            warn!("Event processing took {elapsed_ms}");
-                        } else if elapsed > Duration::from_secs(1) {
-                            info!("Event processing took {elapsed_ms}");
-                        } else {
-                            debug!("Event processing took {elapsed_ms}");
+                        let should_continue = process_events(
+                            &channel_manager,
+                            &chain_monitor,
+                            &event_handler,
+                            &forward_delay_range_ms,
+                            &mut forward_delay_timer,
+                            &peer_manager,
+                            &persister,
+                            &mut rng,
+                            &shutdown,
+                        ).await;
+                        if !should_continue {
+                            break;
                         }
                     }
 
@@ -277,4 +209,98 @@ where
             monitor_persister_shutdown.send();
         },
     )
+}
+
+async fn process_events<CM, PM, PS, EH, RMH>(
+    channel_manager: &CM,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    event_handler: &EH,
+    forward_delay_range_ms: &Range<u32>,
+    forward_delay_timer: &mut Option<Pin<Box<tokio::time::Sleep>>>,
+    peer_manager: &PM,
+    persister: &PS,
+    rng: &mut ThreadFastRng,
+    shutdown: &NotifyOnce,
+) -> bool
+where
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS, RMH>,
+    PS: LexePersister,
+    EH: LexeEventHandler,
+    RMH: RoutingMessageHandler,
+{
+    trace!("Processing pending events");
+    let process_start = Instant::now();
+
+    // This is the event handler future generator type required by LDK.
+    let mk_event_handler_fut =
+        |event| event_handler.get_ldk_handler_future(event);
+
+    // NOTE: Event processing + channel manager persist matches LDK's BGP
+    // implementation ordering. LDK notes that `PeerManager::process_events`
+    // may block on ChannelManager's locks, hence it comes after async event
+    // handling. When the ChannelManager finishes whatever it's doing, we want
+    // to start persisting it as quickly as possible.
+    channel_manager
+        .process_pending_events_async(mk_event_handler_fut)
+        .instrument(info_span!("(events)(chan-man)"))
+        .await;
+    chain_monitor
+        .process_pending_events_async(mk_event_handler_fut)
+        .instrument(info_span!("(events)(chain-mon)"))
+        .await;
+    // NOTE: Onion messenger events are handled by the
+    // OnionMessengerEventHandler.
+
+    // Wrapped in a future for instrumentation only.
+    async {
+        // NOTE(phlip9): worried the `Connection` -> `process_events` flow might
+        // starve the BGP if it grabs the `process_events` lock and is forced to
+        // do a neverending amount of work under load.
+        //
+        // TODO(phlip9): Consider sending a notification to the new
+        // `process_events` task and waiting for that to complete?
+        peer_manager.process_events();
+    }
+    .instrument(info_span!("(events)(peer-man)"))
+    .await;
+
+    // If any HTLCs need forwarding, the channel manager's
+    // `.get_event_or_persistence_needed_future()` will be notified, bringing
+    // us here. Start a randomized forwarding delay to batch nearby HTLCs and
+    // make timing analysis harder.
+    // https://delvingbitcoin.org/t/latency-and-privacy-in-lightning/1723#p-5107-understanding-forwarding-delays-privacy-1
+    if forward_delay_timer.is_none()
+        && channel_manager.needs_pending_htlc_processing()
+    {
+        let delay_ms = rng.gen_range_u32(forward_delay_range_ms.clone());
+        let delay = Duration::from_millis(u64::from(delay_ms));
+        let sleep_fut = tokio::time::sleep(delay);
+        *forward_delay_timer = Some(Box::pin(sleep_fut));
+        trace!("Started HTLC forward timer: {delay_ms}ms");
+    }
+
+    if channel_manager.get_and_clear_needs_persistence() {
+        let try_persist = persister.persist_manager(&**channel_manager).await;
+        if let Err(e) = try_persist {
+            // Failing to persist the channel manager won't lose funds so long
+            // as the chain monitors have been persisted correctly, but it's
+            // still serious - initiate a shutdown.
+            error!("Channel manager persist error: {e:#}");
+            shutdown.send();
+            return false;
+        }
+    }
+
+    let elapsed = process_start.elapsed();
+    let elapsed_ms = DisplayMs(elapsed);
+    if elapsed > Duration::from_secs(10) {
+        warn!("Event processing took {elapsed_ms}");
+    } else if elapsed > Duration::from_secs(1) {
+        info!("Event processing took {elapsed_ms}");
+    } else {
+        debug!("Event processing took {elapsed_ms}");
+    }
+
+    true
 }
