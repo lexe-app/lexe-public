@@ -106,6 +106,9 @@ use crate::{tls_acceptor::CertInjectorAcceptor, trace};
 pub struct LayerConfig {
     /// The maximum size of the request body in bytes ([`None`] to disable).
     /// Helps prevent DoS, but may need to be increased for some services.
+    ///
+    /// NOTE: This limits *request* bodies only; nothing in our server stack
+    /// (axum, hyper) or client (RestClient, reqwest) limits responses.
     pub body_limit: Option<usize>,
     /// Whether to shed load when the service has reached capacity.
     /// Helps prevent OOM when combined with the buffer or concurrency layer.
@@ -115,7 +118,8 @@ pub struct LayerConfig {
     /// request completes, and prevents a large backlog from building up.
     pub buffer_size: Option<usize>,
     /// The maximum # of requests we'll process at once ([`None`] to disable).
-    /// Helps prevent the CPU from maxing out, resulting in thrashing.
+    /// Bounds memory held by in-flight requests, and provides the
+    /// backpressure which triggers load shedding under overload.
     pub concurrency: Option<usize>,
     /// The maximum time a server can spend handling a request.
     /// ([`None`] to disable). Helps prevent degenerate cases which take
@@ -334,7 +338,8 @@ pub fn build_server_fut_with_listener(
         .option_layer(layer_config.buffer_size.map(BufferLayer::new))
         .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
         // Returns `Poll::Pending` when the concurrency limit has been reached.
-        // Helps prevent the CPU from maxing out, resulting in thrashing.
+        // Bounds memory held by in-flight requests, and provides the
+        // backpressure which triggers load shedding under overload.
         .option_layer(layer_config.concurrency.map(ConcurrencyLimitLayer::new))
         .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
         .map_err(infallible_to_box_error)
