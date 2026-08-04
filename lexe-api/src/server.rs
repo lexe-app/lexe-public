@@ -93,30 +93,34 @@ use crate::{tls_acceptor::CertInjectorAcceptor, trace};
 /// assert_eq!(
 ///     LayerConfig::default(),
 ///     LayerConfig {
-///         body_limit: 16384,
-///         buffer_size: 4096,
-///         concurrency: 4096,
-///         handling_timeout: Duration::from_secs(25),
+///         body_limit: Some(16384),
+///         load_shed: true,
+///         buffer_size: Some(4096),
+///         concurrency: Some(4096),
+///         handling_timeout: Some(Duration::from_secs(25)),
 ///         default_fallback: true,
 ///     }
 /// );
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LayerConfig {
-    /// The maximum size of the request body in bytes.
+    /// The maximum size of the request body in bytes ([`None`] to disable).
     /// Helps prevent DoS, but may need to be increased for some services.
-    pub body_limit: usize,
-    /// The size of the work buffer for our service.
+    pub body_limit: Option<usize>,
+    /// Whether to shed load when the service has reached capacity.
+    /// Helps prevent OOM when combined with the buffer or concurrency layer.
+    pub load_shed: bool,
+    /// The size of the work buffer for our service ([`None`] to disable).
     /// Allows the server to immediately work on more queued requests when a
     /// request completes, and prevents a large backlog from building up.
-    pub buffer_size: usize,
-    /// The maximum # of requests we'll process at once.
+    pub buffer_size: Option<usize>,
+    /// The maximum # of requests we'll process at once ([`None`] to disable).
     /// Helps prevent the CPU from maxing out, resulting in thrashing.
-    pub concurrency: usize,
-    /// The maximum time a server can spend handling a request. Helps prevent
-    /// degenerate cases which take abnormally long to process from crowding
-    /// out normal workloads.
-    pub handling_timeout: Duration,
+    pub concurrency: Option<usize>,
+    /// The maximum time a server can spend handling a request.
+    /// ([`None`] to disable). Helps prevent degenerate cases which take
+    /// abnormally long to process from crowding out normal workloads.
+    pub handling_timeout: Option<Duration>,
     /// Whether to add Lexe's default [`Router::fallback`] to the [`Router`].
     /// The [`Router::fallback`] is called if no routes were matched;
     /// Lexe's [`default_fallback`] returns a "bad endpoint" rejection along
@@ -133,13 +137,14 @@ impl Default for LayerConfig {
     fn default() -> Self {
         Self {
             // 16KiB is sufficient for most Lexe services.
-            body_limit: 16384,
+            body_limit: Some(16384),
+            load_shed: true,
             // TODO(max): We are using very high values right now because it
             // doesn't make sense to constrain anything until we have run some
             // load tests to profile performance and see what breaks.
-            buffer_size: 4096,
-            concurrency: 4096,
-            handling_timeout: timeout::server::DEFAULT_HANDLER_TIMEOUT,
+            buffer_size: Some(4096),
+            concurrency: Some(4096),
+            handling_timeout: Some(timeout::server::DEFAULT_HANDLER_TIMEOUT),
             default_fallback: true,
         }
     }
@@ -243,6 +248,8 @@ pub fn build_server_fut_with_listener(
     // at each point in the ServiceBuilder chains.
     type HyperService = RouterIntoService<hyper::body::Incoming, ()>;
     type AxumService = RouterIntoService<axum::body::Body, ()>;
+    type BoxErrAxumService =
+        tower::util::MapErr<AxumService, fn(Infallible) -> tower::BoxError>;
     type HyperReq = http::Request<hyper::body::Incoming>;
     type AxumReq = http::Request<axum::body::Body>;
     type AxumResp = http::Response<axum::body::Body>;
@@ -255,6 +262,12 @@ pub fn build_server_fut_with_listener(
             trace::server::LxOnFailure,
         >,
     >;
+
+    /// Coerces an [`Infallible`] service error to [`tower::BoxError`].
+    /// Used to match the error types of `option_layer` (`Either`) branches.
+    fn infallible_to_box_error(never: Infallible) -> tower::BoxError {
+        match never {}
+    }
 
     // The outer middleware stack which wraps the entire Router.
     //
@@ -291,44 +304,55 @@ pub fn build_server_fut_with_listener(
         // `axum::RequestExt::[with|into]_limited_body` will pick it up.
         // NOTE that many of our extractors transitively rely on the Bytes
         // extractor which will default to a 2MB limit if this is not set.
-        .layer(DefaultBodyLimit::max(layer_config.body_limit))
+        .layer(
+            layer_config
+                .body_limit
+                .map(DefaultBodyLimit::max)
+                .unwrap_or_else(DefaultBodyLimit::disable),
+        )
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Here, we explicitly apply the body limit from the request extensions,
         // transforming the request body type into `http_body_util::Limited`.
         .layer(MapRequestLayer::new(axum::RequestExt::with_limited_body))
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Handles errors from the load_shed, buffer, and concurrency layers.
-        .layer(HandleErrorLayer::new(|_: tower::BoxError| async move {
+        .layer(HandleErrorLayer::new(|error: tower::BoxError| async move {
             CommonApiError {
                 kind: CommonErrorKind::AtCapacity,
-                msg: "Service is at capacity; retry later".to_owned(),
+                msg: format!("Service is at capacity; retry later: {error:#}"),
             }
         }))
+        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
         // Returns an `Err` if the inner service returns `Poll::Pending`.
         // Helps prevent OOM when combined with the buffer or concurrency layer.
-        .layer(LoadShedLayer::new())
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
+        .option_layer(layer_config.load_shed.then(LoadShedLayer::new))
+        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
         // Returns Poll::Pending when the buffer is full (backpressure).
         // Allows the server to immediately work on more queued requests when a
         // request completes, and prevents a large backlog from building up.
         // Note that while the layer is often cloned, the buffer itself is not.
-        .layer(BufferLayer::new(layer_config.buffer_size))
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
+        .option_layer(layer_config.buffer_size.map(BufferLayer::new))
+        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
         // Returns `Poll::Pending` when the concurrency limit has been reached.
         // Helps prevent the CPU from maxing out, resulting in thrashing.
-        .layer(ConcurrencyLimitLayer::new(layer_config.concurrency))
+        .option_layer(layer_config.concurrency.map(ConcurrencyLimitLayer::new))
+        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
+        .map_err(infallible_to_box_error)
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Handles errors generated by the timeout layer.
-        .layer(HandleErrorLayer::new(|_: tower::BoxError| async move {
+        .layer(HandleErrorLayer::new(|error: tower::BoxError| async move {
             CommonApiError {
                 kind: CommonErrorKind::Server,
-                msg: "Server timed out handling request".to_owned(),
+                msg: format!("Server timed out handling request: {error:#}"),
             }
         }))
+        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
         // Returns an error if the inner service takes longer than the timeout
         // to handle the request. Prevents degenerate cases which take
         // abnormally long to process from crowding out normal workloads.
-        .layer(TimeoutLayer::new(layer_config.handling_timeout))
+        .option_layer(layer_config.handling_timeout.map(TimeoutLayer::new))
+        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
+        .map_err(infallible_to_box_error)
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>();
 
     // Apply inner middleware
@@ -862,7 +886,7 @@ pub mod middleware {
     /// in combination with [`axum::RequestExt::with_limited_body`] to do so.
     pub async fn check_content_length_header<B>(
         // `LayerConfig::body_limit`
-        State(config_body_limit): State<usize>,
+        State(config_body_limit): State<Option<usize>>,
         request: http::Request<B>,
     ) -> Result<http::Request<B>, LxRejection> {
         let maybe_content_length = request
@@ -872,8 +896,9 @@ pub mod middleware {
             .and_then(|value_str| usize::from_str(value_str).ok());
 
         // If a limit is configured and the header value exceeds it, reject.
-        if let Some(content_length) = maybe_content_length
-            && content_length > config_body_limit
+        if let (Some(content_length), Some(limit)) =
+            (maybe_content_length, config_body_limit)
+            && content_length > limit
         {
             return Err(LxRejection {
                 kind: LxRejectionKind::BodyLengthOverLimit,

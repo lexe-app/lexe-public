@@ -818,8 +818,9 @@ impl UserNode {
             .context("Couldn't get user addr")?
             .port();
         let user_layer_config = LayerConfig {
-            handling_timeout:
+            handling_timeout: Some(
                 timeout::user_node_run_api::SERVER_HANDLER_TIMEOUT,
+            ),
             ..Default::default()
         };
         let (user_tls_config, user_dns) =
