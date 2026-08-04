@@ -97,6 +97,23 @@ pub mod userrunner {
     );
 }
 
+/// Lifetimes and renewal policy for leases.
+///
+/// A lease holder must be fully shut down before its lease expires. Renewal
+/// failure is detected at latest `interval + RENEW_ROUND_BUDGET` after the
+/// last successful renewal, so each holder `const_assert!`s that this
+/// detection latency plus its drain time fits within its lease lifetime.
+pub mod lease {
+    use super::*;
+
+    /// The total time budget for a lease renewal round.
+    pub const RENEW_ROUND_BUDGET: Duration = Duration::from_secs(10);
+
+    /// The timeout for a single lease request: an acquire, a release, or
+    /// one renewal attempt.
+    pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
+}
+
 /// Timeouts for `UserNodeProvisionApi` (User -> Node).
 pub mod user_node_provision_api {
     use super::*;

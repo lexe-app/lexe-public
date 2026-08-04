@@ -2,23 +2,23 @@ use std::{collections::BTreeSet, fmt};
 
 use lexe_enclave::enclave::{MachineId, Measurement};
 use lexe_std::fmt::DisplayIter;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 
 /// Upgradeable API struct for a measurement.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct MeasurementStruct {
     pub measurement: Measurement,
 }
 
 /// API-upgradeable struct for a [`BTreeSet<NodeEnclave>`].
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct CurrentEnclaves {
     /// All current node enclaves.
     /// TODO(maurice): remove rename after v0.8.7 is gone.
@@ -35,7 +35,7 @@ impl CurrentEnclaves {
 
 /// The subset of node enclaves that a specific user needs to provision to.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct EnclavesToProvision {
     pub enclaves: BTreeSet<NodeEnclave>,
 }
@@ -50,10 +50,13 @@ impl fmt::Display for EnclavesToProvision {
 ///
 /// [`Ord`]ered by [`semver::Version`] precedence.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct NodeEnclave {
     /// e.g. "0.1.0", "0.0.0-dev.1"
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_semver_version()"))]
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_semver_version()")
+    )]
     pub version: semver::Version,
     pub measurement: Measurement,
     pub machine_id: MachineId,

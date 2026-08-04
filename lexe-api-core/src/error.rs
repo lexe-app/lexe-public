@@ -637,6 +637,8 @@ api_error_kind! {
         NotUpdatable = 109,
         /// Client is too old to handle the response; upgrade required
         ClientUpgradeRequired = 110,
+        /// Lease was expired, already held, or held by another party
+        LeaseRejected = 111,
     }
 }
 
@@ -669,6 +671,7 @@ impl ToHttpStatus for BackendErrorKind {
             BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
             NotUpdatable => CLIENT_400_BAD_REQUEST,
             ClientUpgradeRequired => CLIENT_426_UPGRADE_REQUIRED,
+            LeaseRejected => CLIENT_409_CONFLICT,
         }
     }
 }
@@ -1366,6 +1369,16 @@ impl BackendApiError {
 
     pub fn invalid_parsed_req(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::InvalidParsedRequest;
+        let msg = format!("{error:#}");
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
+    pub fn lease_rejected(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::LeaseRejected;
         let msg = format!("{error:#}");
         Self {
             kind,
