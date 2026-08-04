@@ -1,5 +1,9 @@
 use std::{
-    collections::HashMap, fmt, mem, str::FromStr, sync::Arc, time::Duration,
+    collections::{HashMap, VecDeque},
+    fmt, mem,
+    str::FromStr,
+    sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{Context, anyhow};
@@ -9,7 +13,7 @@ use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::util::persist::MonitorName;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
@@ -22,9 +26,16 @@ use crate::{
 /// serially per-channel, and concurrently across channels.
 ///
 /// Updates to a single channel monitor are coalesced, meaning that if multiple
-/// updates are queued for the same channel funding_txo, we only persist the
-/// channel monitor once, though we still have to notify the chain monitor for
-/// each update_id in the batch.
+/// updates are queued for the same `channel_id`, we only persist the channel
+/// monitor once, though we still have to notify the chain monitor for each
+/// `update_id` in the batch.
+///
+/// A [`ChannelMonitorPersisterCommand::Flush`] command responds once every
+/// update received in the same command batch or an earlier batch has completed.
+/// In other words, a flush happens after its entire command batch, regardless
+/// of the commands' ordering within the channel. Including later updates from
+/// the same `recv_many` batch is intentional; it's simpler to handle and more
+/// efficient.
 ///
 /// The primary source for updates is the
 /// `Persist<SignerType>::update_persisted_channel` trait, which is impl'd by a
@@ -60,23 +71,28 @@ where
     persister: PS,
     channel_manager: CM,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
-    channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
+    channel_monitor_persister_rx:
+        mpsc::Receiver<ChannelMonitorPersisterCommand>,
     rx_is_closed: bool,
     shutdown: NotifyOnce,
     monitor_persister_shutdown: NotifyOnce,
     gdrive_persister_shutdown: Option<NotifyOnce>,
 
-    /// Used to receive a batch of `LxChannelMonitorUpdate` from
+    /// Used to receive a batch of commands from
     /// `channel_monitor_persister_rx`.
+    commands_buf: Vec<ChannelMonitorPersisterCommand>,
+
+    /// Updates extracted from `commands_buf`.
     updates_buf: Vec<LxChannelMonitorUpdate>,
+
+    /// Tracks pending updates and the single supported flush waiter.
+    flush_state: FlushState,
 
     /// Per-channel monitor persist state.
     chanmon_persist_states: HashMap<ChannelId, MonitorPersistState>,
 
     /// Active persist operations that are currently in-flight.
-    active_persists: FuturesUnordered<
-        LxTask<Result<(ChannelId, LxMonitorName), FatalError>>,
-    >,
+    active_persists: FuturesUnordered<LxTask<Result<UpdateBatch, FatalError>>>,
 
     /// The number of in-flight pending persists. This is
     /// `active_persists.len()` but doesn't require traversing the whole queue.
@@ -95,13 +111,8 @@ where
 struct MonitorPersistState {
     /// Whether a persist operation is currently in-flight for this monitor.
     is_persisting: bool,
-    /// If a persist is already in-flight but we get another update, we'll
-    /// queue it here. Since we persist the full channel monitor each time,
-    /// we can coalesce pending writes to the same channel monitor. We do still
-    /// need to notify the chain monitor for each individual update id.
-    queued_update_ids: Vec<u64>,
-    /// The span of the latest queued update.
-    span: tracing::Span,
+    /// Updates queued behind the in-flight persist, grouped by epoch.
+    queued_batches: VecDeque<UpdateBatch>,
 }
 
 /// A batch of channel monitor updates for a single channel. Since we persist
@@ -109,9 +120,45 @@ struct MonitorPersistState {
 /// for all updates in the batch.
 struct UpdateBatch {
     channel_id: ChannelId,
+    /// The flush epoch assigned when this command batch was received.
+    epoch: u64,
     monitor_name: LxMonitorName,
     update_ids: Vec<u64>,
     span: tracing::Span,
+}
+
+/// Tracks state to determine when to trigger the outstanding flush waiter, if
+/// any.
+struct FlushState {
+    /// Epoch assigned to newly received update batches. When a flush command
+    /// is received, this is incremented after enqueuing all updates in the
+    /// recv_many batch.
+    current_epoch: u64,
+    /// The number of updates received but not yet persisted, across all
+    /// epochs. Increased after receiving a command batch and decreased when a
+    /// persist batch completes.
+    num_pending_updates: usize,
+    waiter: Option<FlushWaiter>,
+}
+
+/// An outstanding flush waiter, waiting for earlier updates to complete.
+struct FlushWaiter {
+    /// This flush is waiting for all updates <= this epoch to persist.
+    epoch: u64,
+    /// The number of updates in <= this epoch that have not yet completed.
+    /// Increased in [`FlushState::num_pending_updates`] and decreased when a
+    /// persist in <= this epoch completes.
+    num_pending_updates: usize,
+    tx: oneshot::Sender<()>,
+}
+
+/// A command for the [`ChannelMonitorPersister`] actor.
+pub enum ChannelMonitorPersisterCommand {
+    /// Persist a channel monitor update.
+    Update(LxChannelMonitorUpdate),
+    /// Get notified once every update received in this command batch or earlier
+    /// is persisted. There may only be one outstanding flush command.
+    Flush(oneshot::Sender<()>),
 }
 
 /// Represents a channel monitor update requested by the `LexePersister`.
@@ -132,11 +179,12 @@ pub struct LxChannelMonitorUpdate {
 
 /// Queue a channel monitor update and warn if the queue is backed up.
 pub fn try_send_update(
-    tx: &mpsc::Sender<LxChannelMonitorUpdate>,
+    tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
     update: LxChannelMonitorUpdate,
     backlog_warn_threshold: usize,
 ) -> Result<(), mpsc::error::TrySendError<()>> {
-    tx.try_reserve()?.send(update);
+    tx.try_reserve()?
+        .send(ChannelMonitorPersisterCommand::Update(update));
 
     let remaining_updates = tx.max_capacity() - tx.capacity();
     if remaining_updates > backlog_warn_threshold {
@@ -147,6 +195,21 @@ pub fn try_send_update(
     }
 
     Ok(())
+}
+
+/// Wait until every monitor update queued before this call has persisted.
+///
+/// Only one flush may be outstanding at a time.
+pub async fn wait_flush(
+    tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
+) -> anyhow::Result<()> {
+    let (flush_tx, flush_rx) = oneshot::channel();
+    tx.send(ChannelMonitorPersisterCommand::Flush(flush_tx))
+        .await
+        .map_err(|_| anyhow!("Channel monitor persister queue closed"))?;
+    flush_rx
+        .await
+        .map_err(|_| anyhow!("Channel monitor persister canceled flush"))
 }
 
 /// Whether the [`LxChannelMonitorUpdate`] represents a new or updated channel.
@@ -182,7 +245,9 @@ where
         persister: PS,
         channel_manager: CM,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
-        channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
+        channel_monitor_persister_rx: mpsc::Receiver<
+            ChannelMonitorPersisterCommand,
+        >,
         shutdown: NotifyOnce,
         monitor_persister_shutdown: NotifyOnce,
         gdrive_persister_shutdown: Option<NotifyOnce>,
@@ -199,8 +264,10 @@ where
             shutdown,
             monitor_persister_shutdown,
             gdrive_persister_shutdown,
-            chanmon_persist_states: HashMap::new(),
+            commands_buf: Vec::with_capacity(max_active_persists as usize),
             updates_buf: Vec::with_capacity(max_active_persists as usize),
+            flush_state: FlushState::new(),
+            chanmon_persist_states: HashMap::new(),
             active_persists: FuturesUnordered::new(),
             num_active_persists: 0,
             max_active_persists,
@@ -219,11 +286,11 @@ where
         loop {
             let available_slots = self.available_slots();
             tokio::select! {
-                num_updates = self.channel_monitor_persister_rx.recv_many(
-                    &mut self.updates_buf,
+                num_commands = self.channel_monitor_persister_rx.recv_many(
+                    &mut self.commands_buf,
                     available_slots,
                 ), if self.rx_ready() => {
-                    self.handle_updates(num_updates).await;
+                    self.handle_commands(num_commands);
                 }
 
                 Some(res) = self.active_persists.next(),
@@ -253,7 +320,7 @@ where
         self.shutdown_quiescence().await;
     }
 
-    /// Returns the max number of updates we'll accept off
+    /// Returns the max number of commands we'll accept off
     /// `channel_monitor_persister_rx` in the next recv.
     #[inline]
     fn available_slots(&self) -> usize {
@@ -261,33 +328,56 @@ where
     }
 
     /// Returns `true` if we should poll `channel_monitor_persister_rx` for more
-    /// updates.
+    /// commands.
     #[inline]
     fn rx_ready(&self) -> bool {
         !self.rx_is_closed && self.available_slots() > 0
     }
 
-    /// Handle all channel monitor updates received on the channel. We batch
-    /// and coalesce updates to the same `funding_txo` so that we only persist
-    /// the channel monitor once per `funding_txo`, even if there are multiple
-    /// updates for the same channel.
-    async fn handle_updates(&mut self, num_updates: usize) {
+    /// Handle all channel monitor updates and flushes received on the channel.
+    /// We batch and coalesce updates to the same `channel_id` so that we only
+    /// persist the channel monitor once per `channel_id`, even if there are
+    /// multiple updates for the same channel.
+    fn handle_commands(&mut self, num_commands: usize) {
         // recv_many returns 0 if the channel is closed and there are no more
-        // updates queued => stop polling it
-        if num_updates == 0 {
+        // commands queued => stop polling it
+        if num_commands == 0 {
             self.rx_is_closed = true;
             return;
         }
 
+        let mut commands_buf = mem::take(&mut self.commands_buf);
+
         let mut updates_buf = mem::take(&mut self.updates_buf);
+        // `updates_buf` should be empty anyway, but we'll clear it here to be
+        // explicit.
+        updates_buf.clear();
+
+        let mut flush_tx = None;
+
+        for command in commands_buf.drain(..) {
+            match command {
+                ChannelMonitorPersisterCommand::Update(update) => {
+                    updates_buf.push(update);
+                }
+                ChannelMonitorPersisterCommand::Flush(tx) => {
+                    debug_assert!(flush_tx.is_none(), "Only one flush waiter");
+                    flush_tx = Some(tx);
+                }
+            }
+        }
+        let epoch = self.flush_state.push_updates(updates_buf.len());
+        if let Some(tx) = flush_tx {
+            self.flush_state.flush(tx);
+        }
 
         let num_updates = updates_buf.len();
         let mut num_persists = 0;
 
-        // Group and batch updates by funding_txo
-        for batch in helpers::iter_update_batches(&mut updates_buf) {
+        // Group and batch updates by `channel_id`.
+        for batch in helpers::iter_update_batches(epoch, &mut updates_buf) {
             num_persists += 1;
-            self.handle_update(batch);
+            self.handle_update_batch(batch);
         }
 
         debug!(
@@ -295,21 +385,22 @@ where
              {num_persists}/{num_updates} (persists/updates)"
         );
 
-        // Clear and reuse the allocation
+        // Clear and reuse the allocations.
+        commands_buf.clear();
         updates_buf.clear();
+        self.commands_buf = commands_buf;
         self.updates_buf = updates_buf;
     }
 
     /// Handle a single channel monitor update batch -> persist channel monitor
     /// request.
-    fn handle_update(&mut self, batch: UpdateBatch) {
+    fn handle_update_batch(&mut self, batch: UpdateBatch) {
         let state = self
             .chanmon_persist_states
             .entry(batch.channel_id)
             .or_insert_with(|| MonitorPersistState {
                 is_persisting: false,
-                queued_update_ids: Vec::new(),
-                span: batch.span.clone(),
+                queued_batches: VecDeque::new(),
             });
 
         if !state.is_persisting {
@@ -317,10 +408,16 @@ where
             state.is_persisting = true;
             self.spawn_persist(batch);
         } else {
-            // If there's already a persist in-flight, we need to queue these
-            // update ids.
-            state.queued_update_ids.extend(batch.update_ids);
-            state.span = batch.span;
+            // Coalesce with queued updates from the same epoch, but don't
+            // coalesce updates across a flush boundary.
+            match state.queued_batches.back_mut() {
+                Some(queued) if queued.epoch == batch.epoch => {
+                    queued.monitor_name = batch.monitor_name;
+                    queued.update_ids.extend(batch.update_ids);
+                    queued.span = batch.span;
+                }
+                _ => state.queued_batches.push_back(batch),
+            }
         }
     }
 
@@ -343,28 +440,19 @@ where
     /// Handle the completion of a channel monitor persist task.
     async fn handle_persist_completion(
         &mut self,
-        result: Result<
-            Result<(ChannelId, LxMonitorName), FatalError>,
-            tokio::task::JoinError,
-        >,
+        result: Result<Result<UpdateBatch, FatalError>, tokio::task::JoinError>,
     ) -> Result<(), FatalError> {
         self.num_active_persists -= 1;
 
-        let (channel_id, monitor_name) =
-            result.map_err(|_| FatalError).and_then(|r| r)?;
+        let batch = result.map_err(|_| FatalError).and_then(|r| r)?;
+        let channel_id = batch.channel_id;
+        self.flush_state
+            .complete_updates(batch.epoch, batch.update_ids.len());
 
         // If there's another queued update for this channel, spawn another
         // persist task for it. Otherwise, reset `is_persisting` back to false.
         if let Some(state) = self.chanmon_persist_states.get_mut(&channel_id) {
-            if !state.queued_update_ids.is_empty() {
-                let span = state.span.clone();
-                let updates = mem::take(&mut state.queued_update_ids);
-                let batch = UpdateBatch {
-                    channel_id,
-                    monitor_name,
-                    update_ids: updates,
-                    span,
-                };
+            if let Some(batch) = state.queued_batches.pop_front() {
                 // Keep is_persisting true since we're spawning another persist
                 self.spawn_persist(batch);
             } else {
@@ -402,11 +490,11 @@ where
                     }
                 }
 
-                num_updates = self.channel_monitor_persister_rx.recv_many(
-                    &mut self.updates_buf,
+                num_commands = self.channel_monitor_persister_rx.recv_many(
+                    &mut self.commands_buf,
                     available_slots,
                 ), if self.rx_ready() => {
-                    self.handle_updates(num_updates).await;
+                    self.handle_commands(num_commands);
                 }
 
                 Some(res) = self.active_persists.next(),
@@ -448,7 +536,7 @@ where
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
         batch: UpdateBatch,
-    ) -> Result<(ChannelId, LxMonitorName), FatalError> {
+    ) -> Result<UpdateBatch, FatalError> {
         debug!("Handling channel monitor update");
 
         let result = Self::persist_monitor_batch_inner(
@@ -461,7 +549,7 @@ where
         match result {
             Ok(()) => {
                 info!("Success: persisted monitor");
-                Ok((batch.channel_id, batch.monitor_name))
+                Ok(batch)
             }
             Err(e) => {
                 error!("Fatal: Monitor persist error: {e:#}");
@@ -504,6 +592,69 @@ where
         }
 
         Ok(())
+    }
+}
+
+// --- impl FlushState --- //
+
+impl FlushState {
+    fn new() -> Self {
+        Self {
+            current_epoch: 0,
+            num_pending_updates: 0,
+            waiter: None,
+        }
+    }
+
+    /// Record a newly received batch of updates and return its epoch.
+    fn push_updates(&mut self, num_updates: usize) -> u64 {
+        self.num_pending_updates += num_updates;
+        self.current_epoch
+    }
+
+    /// Install a waiter for all updates in the current epoch and earlier, then
+    /// advance the epoch for subsequently received updates.
+    fn flush(&mut self, tx: oneshot::Sender<()>) {
+        let epoch = self.current_epoch;
+        self.current_epoch += 1;
+
+        // Flush an empty queue, nothing to do.
+        if self.num_pending_updates == 0 {
+            let _ = tx.send(());
+            return;
+        }
+
+        assert!(self.waiter.is_none(), "Only one flush waiter at a time");
+        self.waiter = Some(FlushWaiter {
+            epoch,
+            num_pending_updates: self.num_pending_updates,
+            tx,
+        });
+    }
+
+    /// Record the completion of a persisted update batch.
+    fn complete_updates(&mut self, epoch: u64, num_updates: usize) {
+        self.num_pending_updates = self
+            .num_pending_updates
+            .checked_sub(num_updates)
+            .expect("completed more channel monitor updates than pending");
+
+        let Some(waiter) = &mut self.waiter else {
+            return;
+        };
+
+        if epoch > waiter.epoch {
+            return;
+        }
+
+        waiter.num_pending_updates = waiter
+            .num_pending_updates
+            .checked_sub(num_updates)
+            .expect("completed more pre-flush updates than pending");
+        if waiter.num_pending_updates == 0 {
+            let waiter = self.waiter.take().expect("waiter is present");
+            let _ = waiter.tx.send(());
+        }
     }
 }
 
@@ -601,16 +752,16 @@ impl FromStr for LxMonitorName {
 mod helpers {
     use super::*;
 
-    /// Return an iterator over batched updates grouped by funding_txo
+    /// Return an iterator over updates batched by channel id.
     pub(super) fn iter_update_batches(
+        epoch: u64,
         updates: &mut [LxChannelMonitorUpdate],
     ) -> impl Iterator<Item = UpdateBatch> + '_ {
-        // Group by funding_txo. Technically we don't need to sort the
-        // update_ids, but it probably helps keep us on the happy path.
+        // Technically we don't need to sort the update_ids, but it probably
+        // helps keep us on the happy path.
         updates.sort_unstable_by_key(|u| (u.channel_id, u.update_id));
-        updates
-            .chunk_by(|a, b| a.channel_id == b.channel_id)
-            .map(|chunk| {
+        updates.chunk_by(|a, b| a.channel_id == b.channel_id).map(
+            move |chunk| {
                 let last = chunk.last().expect("chunk is non-empty");
                 let span = last.span();
                 let update_ids: Vec<u64> =
@@ -618,19 +769,97 @@ mod helpers {
 
                 UpdateBatch {
                     channel_id: last.channel_id,
+                    epoch,
                     monitor_name: last.monitor_name,
                     update_ids,
                     span,
                 }
-            })
+            },
+        )
     }
 }
 
 #[cfg(test)]
 mod test {
     use lexe_common::test_utils::{roundtrip, snapshot};
+    use tokio::sync::oneshot::error::TryRecvError;
 
     use super::*;
+
+    #[test]
+    fn flush_ignores_updates_from_later_epochs() {
+        let mut state = FlushState::new();
+        let pre_flush_epoch = state.push_updates(2);
+
+        let (tx, mut rx) = oneshot::channel();
+        state.flush(tx);
+
+        let post_flush_epoch = state.push_updates(1);
+        assert!(post_flush_epoch > pre_flush_epoch);
+
+        state.complete_updates(post_flush_epoch, 1);
+        assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+
+        state.complete_updates(pre_flush_epoch, 1);
+        assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+
+        state.complete_updates(pre_flush_epoch, 1);
+        assert_eq!(rx.try_recv(), Ok(()));
+    }
+
+    #[test]
+    fn flush_happens_after_all_updates_in_command_batch() {
+        let mut state = FlushState::new();
+
+        // These model updates ordered before and after the flush command.
+        let epoch = state.push_updates(2);
+
+        let (tx, mut rx) = oneshot::channel();
+        state.flush(tx);
+
+        state.complete_updates(epoch, 1);
+        assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+        state.complete_updates(epoch, 1);
+        assert_eq!(rx.try_recv(), Ok(()));
+    }
+
+    #[test]
+    fn flush_without_pending_updates_responds_immediately() {
+        let mut state = FlushState::new();
+        let (tx, mut rx) = oneshot::channel();
+
+        state.flush(tx);
+
+        assert_eq!(rx.try_recv(), Ok(()));
+        assert_eq!(state.push_updates(1), 1);
+    }
+
+    #[test]
+    fn update_batches_group_by_channel() {
+        fn update(channel: u8, update_id: u64) -> LxChannelMonitorUpdate {
+            let channel_id = ChannelId([channel; 32]);
+            LxChannelMonitorUpdate::new(
+                ChannelMonitorUpdateKind::Updated,
+                channel_id,
+                LxMonitorName::V2Channel(channel_id),
+                update_id,
+            )
+        }
+
+        let mut updates =
+            [update(1, 3), update(1, 2), update(2, 4), update(1, 1)];
+
+        let batches =
+            helpers::iter_update_batches(7, &mut updates).collect::<Vec<_>>();
+
+        assert_eq!(batches.len(), 2);
+        assert_eq!(batches[0].epoch, 7);
+        assert_eq!(batches[0].channel_id, ChannelId([1; 32]));
+        assert_eq!(batches[0].update_ids, [1, 2, 3]);
+        assert_eq!(batches[1].epoch, 7);
+        assert_eq!(batches[1].channel_id, ChannelId([2; 32]));
+        assert_eq!(batches[1].update_ids, [4]);
+    }
 
     #[test]
     fn lx_monitor_name_fromstr_display_roundtrip() {
