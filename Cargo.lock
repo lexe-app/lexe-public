@@ -3267,7 +3267,7 @@ dependencies = [
 
 [[package]]
 name = "node"
-version = "0.9.15"
+version = "0.10.0"
 dependencies = [
  "anyhow",
  "async-trait",
