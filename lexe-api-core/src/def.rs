@@ -597,6 +597,11 @@ pub trait LexeNodeRunApi {
     /// BDK wallet. Returns only once sync has either completed or timed out.
     async fn resync(&self, req: ResyncRequest) -> Result<Empty, NodeApiError>;
 
+    /// POST /lexe/wait_bgp_quiescent [`Empty`] -> [`Empty`]
+    ///
+    /// Waits for the test node's background processor to become quiescent.
+    async fn wait_bgp_quiescent(&self) -> Result<Empty, NodeApiError>;
+
     /// POST /lexe/test_event [`TestEventOp`] -> [`Empty`]
     ///
     /// Calls the corresponding `TestEventReceiver` method.

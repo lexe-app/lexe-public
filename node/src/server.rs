@@ -36,6 +36,7 @@ use lexe_crypto::hmac;
 use lexe_enclave::enclave::Measurement;
 use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
+    background_processor,
     channel::ChannelEvent,
     command::CreateInvoiceCaller,
     esplora::FeeEstimates,
@@ -107,6 +108,7 @@ pub(crate) struct RouterState {
     pub wallet: OnchainWallet,
 
     // --- Channels --- //
+    pub bgp_control_tx: mpsc::Sender<background_processor::QuiescenceRequest>,
     pub tx_broadcaster: TxBroadcaster,
     pub channel_events_bus: EventsBus<ChannelEvent>,
     pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
@@ -243,6 +245,7 @@ pub(crate) fn lexe_router(state: Arc<RouterState>) -> Router<()> {
     Router::new()
         .route("/lexe/status", get(lexe::status))
         .route("/lexe/resync", post(lexe::resync))
+        .route("/lexe/wait_bgp_quiescent", post(lexe::wait_bgp_quiescent))
         .route("/lexe/test_event", post(lexe::test_event))
         .route("/lexe/shutdown", get(lexe::shutdown))
         .route("/lexe/create_invoice", post(shared::create_invoice))

@@ -249,6 +249,8 @@ impl UserNode {
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (bgp_control_tx, bgp_control_rx) =
+            background_processor::control_channel();
         let (bdk_resync_tx, bdk_resync_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (ldk_resync_tx, ldk_resync_rx) =
@@ -805,6 +807,7 @@ impl UserNode {
             router: router.clone(),
             wallet: wallet.clone(),
             // --- Channels --- //
+            bgp_control_tx,
             tx_broadcaster: tx_broadcaster.clone(),
             channel_events_bus,
             eph_tasks_tx: eph_tasks_tx.clone(),
@@ -976,19 +979,20 @@ impl UserNode {
         // outside, so there is no point in having any forwarding delay.
         let forward_delay_range_ms = 0..1;
         let htlcs_forwarded_bus = EventsBus::new();
-        let (_bg_processor, bg_processor_task) = background_processor::start(
+        let bgp_task = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
             chain_monitor.clone(),
             channel_monitor_persister_tx,
+            bgp_control_rx,
             event_handler,
             forward_delay_range_ms,
             htlcs_forwarded_bus,
             monitor_persister_shutdown,
             shutdown.clone(),
         );
-        static_tasks.push(bg_processor_task);
+        static_tasks.push(bgp_task);
 
         // Ensure channels are using the most up-to-date config.
         channel_manager.check_channel_configs(&config);

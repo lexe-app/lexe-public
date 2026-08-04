@@ -19,7 +19,7 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_ln::test_event;
+use lexe_ln::{background_processor, test_event};
 use tracing::warn;
 
 use crate::server::RouterState;
@@ -43,6 +43,16 @@ pub(super) async fn resync(
     lexe_ln::command::resync(req, &state.bdk_resync_tx, &state.ldk_resync_tx)
         .await
         .map(LxJson)
+        .map_err(NodeApiError::command)
+}
+
+pub(super) async fn wait_bgp_quiescent(
+    State(state): State<Arc<RouterState>>,
+    LxJson(_): LxJson<Empty>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    background_processor::wait_quiescent(&state.bgp_control_tx)
+        .await
+        .map(|()| LxJson(Empty {}))
         .map_err(NodeApiError::command)
 }
 
