@@ -334,7 +334,7 @@ impl UserNode {
             authenticator.clone(),
             vfs_master_key.clone(),
             maybe_google_vfs.clone(),
-            channel_monitor_persister_tx,
+            channel_monitor_persister_tx.clone(),
             gdrive_persister_tx.clone(),
             eph_tasks_tx.clone(),
             shutdown.clone(),
@@ -976,11 +976,12 @@ impl UserNode {
         // outside, so there is no point in having any forwarding delay.
         let forward_delay_range_ms = 0..1;
         let htlcs_forwarded_bus = EventsBus::new();
-        let bg_processor_task = background_processor::start(
+        let (_bg_processor, bg_processor_task) = background_processor::start(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
             chain_monitor.clone(),
+            channel_monitor_persister_tx,
             event_handler,
             forward_delay_range_ms,
             htlcs_forwarded_bus,

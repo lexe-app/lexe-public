@@ -1,16 +1,22 @@
 use std::{ops::Range, pin::Pin, sync::Arc, time::Duration};
 
+use anyhow::{Context as _, anyhow};
+use futures::FutureExt;
 use lexe_common::time::DisplayMs;
 use lexe_crypto::rng::{RngExt, ThreadFastRng};
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
 use lightning::ln::msgs::RoutingMessageHandler;
-use tokio::time::Instant;
+use tokio::{
+    sync::{mpsc, oneshot},
+    time::Instant,
+};
 use tracing::{Instrument, debug, error, info, info_span, trace, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
+    channel_monitor::{self, ChannelMonitorPersisterCommand},
     persister::LexePersisterMethods,
     traits::{
         LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
@@ -52,6 +58,34 @@ mod delay {
 #[derive(Copy, Clone, Debug)]
 pub struct HtlcsForwarded;
 
+/// A handle for test-only background processor controls.
+#[derive(Clone)]
+pub struct BackgroundProcessorHandle {
+    quiescence_tx: mpsc::Sender<QuiescenceRequest>,
+}
+
+/// A test-only request to wait for BGP quiescence.
+struct QuiescenceRequest {
+    response: oneshot::Sender<anyhow::Result<()>>,
+}
+
+/// A fatal error that occurs in the BGP.
+struct FatalError;
+
+impl BackgroundProcessorHandle {
+    /// Test-only: waits for LDK event and HTLC quiescence.
+    pub async fn wait_quiescent(&self) -> anyhow::Result<()> {
+        let (response, receiver) = oneshot::channel();
+        self.quiescence_tx
+            .send(QuiescenceRequest { response })
+            .await
+            .map_err(|_| anyhow!("Background processor stopped"))?;
+        receiver
+            .await
+            .context("Background processor canceled quiescence request")?
+    }
+}
+
 /// A Tokio-native background processor that runs on a single task and does not
 /// spawn any OS threads. Modeled after the lightning-background-processor crate
 /// provided by LDK - see that crate's implementation for more details.
@@ -60,13 +94,14 @@ pub fn start<CM, PM, PS, EH, RMH>(
     peer_manager: PM,
     persister: PS,
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
+    channel_monitor_persister_tx: mpsc::Sender<ChannelMonitorPersisterCommand>,
     event_handler: EH,
     // The range (in millis) from which to pick a random forwarding delay.
     forward_delay_range_ms: Range<u32>,
     htlcs_forwarded_bus: EventsBus<HtlcsForwarded>,
     monitor_persister_shutdown: NotifyOnce,
     mut shutdown: NotifyOnce,
-) -> LxTask<()>
+) -> (BackgroundProcessorHandle, LxTask<()>)
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS, RMH>,
@@ -74,7 +109,10 @@ where
     EH: LexeEventHandler,
     RMH: RoutingMessageHandler,
 {
-    LxTask::spawn_with_span(
+    let (quiescence_tx, mut quiescence_rx) = mpsc::channel(1);
+    let handle = BackgroundProcessorHandle { quiescence_tx };
+
+    let task = LxTask::spawn_with_span(
         "background processor",
         info_span!("(bgp)"),
         async move {
@@ -141,7 +179,7 @@ where
 
                 tokio::select! {
                     () = process_events_fut => {
-                        let should_continue = process_events(
+                        let result = process_events(
                             &channel_manager,
                             &chain_monitor,
                             &event_handler,
@@ -152,6 +190,33 @@ where
                             &mut rng,
                             &shutdown,
                         ).await;
+                        if let Err(FatalError) = result {
+                            break;
+                        }
+                    }
+
+                    Some(request) = quiescence_rx.recv() => {
+                        // Handle a test-only quiescence request.
+                        process_events_timer.reset();
+                        let result = process_until_quiescent(
+                            &channel_manager,
+                            &chain_monitor,
+                            &channel_monitor_persister_tx,
+                            &event_handler,
+                            &forward_delay_range_ms,
+                            &mut forward_delay_timer,
+                            &htlcs_forwarded_bus,
+                            &peer_manager,
+                            &persister,
+                            &mut rng,
+                            &mut shutdown,
+                        ).await;
+
+                        let should_continue = result.is_ok();
+                        let result = result.map_err(|FatalError| {
+                            anyhow!("BGP fatal error waiting for quiescence")
+                        });
+                        let _ = request.response.send(result);
                         if !should_continue {
                             break;
                         }
@@ -168,11 +233,11 @@ where
                             .unwrap()
                             .await
                     }, if forward_delay_timer.is_some() => {
-                        debug!("Processing pending HTLC forwards");
-                        channel_manager.process_pending_htlc_forwards();
-
-                        htlcs_forwarded_bus.send(HtlcsForwarded);
-                        forward_delay_timer = None;
+                        process_pending_htlc_forwards(
+                            &channel_manager,
+                            &mut forward_delay_timer,
+                            &htlcs_forwarded_bus,
+                        );
                     }
 
                     _ = pm_timer.tick() =>
@@ -208,9 +273,12 @@ where
             // peer disconnect at shutdown) triggers more monitor updates.
             monitor_persister_shutdown.send();
         },
-    )
+    );
+
+    (handle, task)
 }
 
+/// Processes one pass of pending LDK events and persists manager changes.
 async fn process_events<CM, PM, PS, EH, RMH>(
     channel_manager: &CM,
     chain_monitor: &LexeChainMonitorType<PS>,
@@ -221,7 +289,7 @@ async fn process_events<CM, PM, PS, EH, RMH>(
     persister: &PS,
     rng: &mut ThreadFastRng,
     shutdown: &NotifyOnce,
-) -> bool
+) -> Result<(), FatalError>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS, RMH>,
@@ -288,7 +356,7 @@ where
             // still serious - initiate a shutdown.
             error!("Channel manager persist error: {e:#}");
             shutdown.send();
-            return false;
+            return Err(FatalError);
         }
     }
 
@@ -302,5 +370,137 @@ where
         debug!("Event processing took {elapsed_ms}");
     }
 
-    true
+    Ok(())
+}
+
+/// Processes delayed HTLC forwards and clears their timer.
+fn process_pending_htlc_forwards<CM, PS>(
+    channel_manager: &CM,
+    forward_delay_timer: &mut Option<Pin<Box<tokio::time::Sleep>>>,
+    htlcs_forwarded_bus: &EventsBus<HtlcsForwarded>,
+) where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    debug!("Processing pending HTLC forwards");
+    channel_manager.process_pending_htlc_forwards();
+
+    htlcs_forwarded_bus.send(HtlcsForwarded);
+    *forward_delay_timer = None;
+}
+
+/// Test-only: processes LDK events until all event sources and HTLCs are
+/// quiescent.
+async fn process_until_quiescent<CM, PM, PS, EH, RMH>(
+    channel_manager: &CM,
+    chain_monitor: &LexeChainMonitorType<PS>,
+    channel_monitor_persister_tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
+    event_handler: &EH,
+    forward_delay_range_ms: &Range<u32>,
+    forward_delay_timer: &mut Option<Pin<Box<tokio::time::Sleep>>>,
+    htlcs_forwarded_bus: &EventsBus<HtlcsForwarded>,
+    peer_manager: &PM,
+    persister: &PS,
+    rng: &mut ThreadFastRng,
+    shutdown: &mut NotifyOnce,
+) -> Result<(), FatalError>
+where
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS, RMH>,
+    PS: LexePersister,
+    EH: LexeEventHandler,
+    RMH: RoutingMessageHandler,
+{
+    loop {
+        process_events(
+            channel_manager,
+            chain_monitor,
+            event_handler,
+            forward_delay_range_ms,
+            forward_delay_timer,
+            peer_manager,
+            persister,
+            rng,
+            shutdown,
+        )
+        .await?;
+
+        // Snapshot HTLC state before flushing so any monitor update which made
+        // that state visible is included in the flush boundary.
+        let has_pending_htlcs =
+            channel_manager_has_pending_htlcs(channel_manager);
+        let has_pending_forwards = forward_delay_timer.is_some();
+        channel_monitor::wait_flush(channel_monitor_persister_tx)
+            .await
+            .map_err(|err| {
+                error!("Failed to flush chanmon persist: {err:#}");
+                FatalError
+            })?;
+        if !ldk_event_sources_quiescent(channel_manager, chain_monitor) {
+            continue;
+        }
+
+        if !has_pending_htlcs && !has_pending_forwards {
+            return Ok(());
+        }
+
+        // A terminal payment event may precede the final commitment dance.
+        // Wait for peer activity or delayed forwarding to advance the HTLCs.
+        debug!("Waiting for pending HTLC work");
+        tokio::select! {
+            () = channel_manager
+                .get_event_or_persistence_needed_future() => (),
+            () = chain_monitor.get_update_future() => (),
+            _ = async {
+                Pin::new(&mut *forward_delay_timer)
+                    .as_pin_mut()
+                    .unwrap()
+                    .await
+            }, if forward_delay_timer.is_some() => {
+                process_pending_htlc_forwards(
+                    channel_manager,
+                    forward_delay_timer,
+                    htlcs_forwarded_bus,
+                );
+            }
+            () = shutdown.recv() => {
+                error!("BGP shutdown while waiting for quiescence");
+                return Err(FatalError);
+            }
+        }
+    }
+}
+
+/// Test-only: returns whether any channel has unresolved HTLCs.
+fn channel_manager_has_pending_htlcs<CM, PS>(channel_manager: &CM) -> bool
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    // TODO(phlip9): Add `ChannelManager::has_pending_htlcs` to our LDK fork
+    // to avoid building channel details for this check.
+    channel_manager.list_channels().iter().any(|channel| {
+        !channel.pending_inbound_htlcs.is_empty()
+            || !channel.pending_outbound_htlcs.is_empty()
+    })
+}
+
+/// Test-only: returns whether neither LDK event source has work ready.
+fn ldk_event_sources_quiescent<CM, PS>(
+    channel_manager: &CM,
+    chain_monitor: &LexeChainMonitorType<PS>,
+) -> bool
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    if channel_manager
+        .get_event_or_persistence_needed_future()
+        .now_or_never()
+        .is_some()
+    {
+        return false;
+    }
+
+    chain_monitor.get_update_future().now_or_never().is_none()
 }
