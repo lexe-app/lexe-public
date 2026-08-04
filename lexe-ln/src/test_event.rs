@@ -147,9 +147,9 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// test_event_rx
-    ///     .wait(TestEvent::TxBroadcasted)
+    ///     .wait(TestEvent::TxsBroadcasted)
     ///     .await
     ///     .expect("Timed out");
     /// # }
@@ -172,11 +172,11 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_n() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// test_event_rx
-    ///     .wait_n(TestEvent::TxBroadcasted, 3)
+    ///     .wait_n(TestEvent::TxsBroadcasted, 3)
     ///     .await
     ///     .expect("Timed out");
     /// # }
@@ -203,11 +203,11 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all(vec![
-    ///         TestEvent::TxBroadcasted,
+    ///         TestEvent::TxsBroadcasted,
     ///         TestEvent::FundingGenerationHandled,
     ///     ])
     ///     .await
@@ -236,13 +236,13 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_n() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n(vec![
-    ///         (TestEvent::TxBroadcasted, 3),
+    ///         (TestEvent::TxsBroadcasted, 3),
     ///         (TestEvent::FundingGenerationHandled, 1),
     ///     ])
     ///     .await
@@ -273,10 +273,10 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// test_event_rx
     ///     .wait_timeout(
-    ///         TestEvent::TxBroadcasted,
+    ///         TestEvent::TxsBroadcasted,
     ///         Duration::from_secs(15),
     ///     )
     ///     .await
@@ -306,11 +306,11 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// test_event_rx
-    ///     .wait_n_timeout(TestEvent::TxBroadcasted, 3)
+    ///     .wait_n_timeout(TestEvent::TxsBroadcasted, 3)
     ///     .await
     ///     .expect("Timed out");
     /// # }
@@ -339,12 +339,12 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_timeout(
     ///         vec![
-    ///             TestEvent::TxBroadcasted,
+    ///             TestEvent::TxsBroadcasted,
     ///             TestEvent::FundingGenerationHandled,
     ///         ],
     ///         Duration::from_secs(15),
@@ -381,14 +381,14 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event::channel();
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
-    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxsBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n_timeout(
     ///         vec![
-    ///             (TestEvent::TxBroadcasted, 3),
+    ///             (TestEvent::TxsBroadcasted, 3),
     ///             (TestEvent::FundingGenerationHandled, 1),
     ///         ],
     ///         Duration::from_secs(15),
@@ -483,7 +483,7 @@ mod test {
 
     #[tokio::test]
     async fn pending_before_ready_after() {
-        let event1 = TestEvent::TxBroadcasted;
+        let event1 = TestEvent::TxsBroadcasted;
         let event2 = TestEvent::FundingGenerationHandled;
         let label = "(node)";
 

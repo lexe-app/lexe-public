@@ -181,7 +181,7 @@ impl TxBroadcaster {
                 // transactions are indexed together and its inputs aren't
                 // double spent.
                 wallet.transactions_broadcasted(txs);
-                test_event_sender.send(TestEvent::TxBroadcasted);
+                test_event_sender.send(TestEvent::TxsBroadcasted);
             }
             Err(err) => warn!("Error broadcasting tx(s): {err:#}, {tx_infos}"),
         }

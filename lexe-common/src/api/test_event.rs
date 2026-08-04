@@ -28,7 +28,7 @@ pub enum TestEvent {
     FundingGenerationHandled,
     /// An on-chain transaction package was successfully broadcasted by
     /// `LexeEsplora`.
-    TxBroadcasted,
+    TxsBroadcasted,
     /// A [`ChannelPending`] event was handled.
     ///
     /// [`ChannelPending`]: lightning::events::Event::ChannelPending
