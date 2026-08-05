@@ -1,6 +1,6 @@
 //! Lexe SDK API request and response types.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{Context, ensure};
 use lexe_api::{
@@ -635,6 +635,41 @@ pub struct ListPaymentsResponse {
     /// Cursor for fetching the next page. `None` when there are no more
     /// results. Pass this as the `after` argument to get the next page.
     pub next_index: Option<PaymentCreatedIndex>,
+}
+
+/// A request to wait for the payment information of the next updated payment.
+#[derive(Serialize, Deserialize)]
+pub struct WaitForNextPaymentRequest {
+    /// The start index to begin waiting from. When tailing updates, this acts
+    /// as a cursor, and callers should set `start_index` using the previous
+    /// [`WaitForNextPaymentResponse::next_start_index`].
+    ///
+    /// If `Some`: The next payment will have `updated_at > start_index`, and
+    /// there will not exist any other payments with an `updated_at` in
+    /// between.
+    ///
+    /// If `None`, and:
+    /// - Persistence is enabled: The next payment with an update that *hasn't
+    ///   been recorded locally* will be returned.
+    /// - Persistence is disabled: The next payment update received by the node
+    ///   will be returned.
+    pub start_index: Option<PaymentUpdatedIndex>,
+    /// If given, this method will stop waiting after `timeout` duration has
+    /// passed and return an error. If `None`, this method will wait
+    /// indefinitely.
+    pub timeout: Option<Duration>,
+}
+
+/// A response to a [`WaitForNextPaymentRequest`].
+#[derive(Serialize, Deserialize)]
+pub struct WaitForNextPaymentResponse {
+    /// The newly updated or created payment.
+    pub payment: Payment,
+    /// The `updated_at` index of the returned payment.
+    ///
+    /// Pass this as `start_index` in the next request to get the next payment
+    /// update.
+    pub next_start_index: PaymentUpdatedIndex,
 }
 
 /// A request to get information about a payment by its index.

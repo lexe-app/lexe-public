@@ -60,7 +60,8 @@ use crate::{
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayLnurlRequest, PayOfferRequest, PayRequest, PayableDetails,
             PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
+            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
+            WaitForNextPaymentResponse, WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentFilter, PaymentUpdatedIndex},
     },
@@ -1739,6 +1740,68 @@ impl LexeWallet {
                 tokio::time::sleep(backoff.next().unwrap()).await;
             }
         }
+    }
+
+    /// Waits until we observe a payment updated later than `start_index`, then
+    /// returns the payment. Useful for tailing payment updates one-by-one.
+    ///
+    /// - Handling should be idempotent. The same payment may be returned
+    ///   multiple times due to receiving repeated updates.
+    /// - If your application fails to handle a payment update, resuming from
+    ///   the [`start_index`](WaitForNextPaymentRequest::start_index) that
+    ///   yielded the failed update will *eventually* yield the same payment.
+    ///
+    /// If persistence is enabled, this will sync the local database.
+    #[instrument(skip_all, name = "(wait-for-next-payment)")]
+    pub async fn wait_for_next_payment(
+        &self,
+        req: WaitForNextPaymentRequest,
+    ) -> anyhow::Result<WaitForNextPaymentResponse> {
+        let deadline = req.timeout.map(|timeout| Instant::now() + timeout);
+
+        // Default the start index to the last `updated_at` from db or node.
+        let start_index = match req.start_index {
+            Some(start_index) => Some(start_index),
+            None => match self.require_payments_db() {
+                Ok(payments_db) => payments_db.latest_updated_index(),
+                Err(_) => self.node_client.latest_payment_update().await?,
+            },
+        };
+
+        self.wait_for_next_update(start_index, deadline)
+            .await
+            .with_context(|| {
+                let timeout_secs = req.timeout.unwrap_or_default().as_secs();
+                format!("No payment update within {timeout_secs}s timeout")
+            })?;
+
+        let maybe_payment = match self.require_payments_db() {
+            Ok(payments_db) => payments_db
+                .get_updated_payments(start_index, 1)
+                .into_iter()
+                .next(),
+            Err(_) => {
+                let req = command::GetUpdatedPayments {
+                    start_index,
+                    limit: Some(1),
+                };
+                self.node_client
+                    .get_updated_payments(req)
+                    .await
+                    .context("Failed to get updated payments")?
+                    .payments
+                    .into_iter()
+                    .next()
+            }
+        };
+        let payment = maybe_payment.map(Payment::from).context(
+            "Internal error: Expected a payment update but found none.",
+        )?;
+
+        Ok(WaitForNextPaymentResponse {
+            next_start_index: payment.updated_index(),
+            payment,
+        })
     }
 
     /// Wait until a payment update lands past `start_index`, and return the
