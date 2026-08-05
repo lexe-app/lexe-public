@@ -25,7 +25,7 @@ mod reexports {
 pub use reexports::*;
 
 /// Information about a payment.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Payment {
     /// Unique payment identifier, ordered by `created_at`.
     ///

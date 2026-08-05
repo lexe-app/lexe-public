@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Duration};
+use std::{cmp::Ordering, collections::HashMap, path::PathBuf, time::Duration};
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
@@ -68,28 +68,35 @@ use crate::{
     unstable::{
         ffs::DiskFs, payments_db::PaymentsDb, provision, wallet_db::WalletDb,
     },
+    wallet::payment_cache::PaymentCache,
 };
 
 /// Default number of payments per page.
 const DEFAULT_LIST_LIMIT: usize = 100;
 
-/// Error message returned when a DB-required method is called on a wallet
-/// with local persistence disabled.
-const NO_DB_ERR: &str = "Local persistence is disabled for this wallet";
-
 /// Top-level handle to a Lexe wallet.
 pub struct LexeWallet {
     user_config: WalletUserConfig,
 
-    /// Database for persistent storage.
-    /// Present for wallets created via `fresh`, `load`, or `load_or_fresh`.
-    /// Absent for wallets created via `without_db`.
-    db: Option<WalletDb<DiskFs>>,
+    /// Locally stored information.
+    ///
+    /// A local DB if persistence is enabled, and a cache if not.
+    store: WalletStore,
 
     gateway_client: GatewayClient,
     node_client: NodeClient,
     bip353_client: Bip353Client,
     lnurl_client: LnurlClient,
+}
+
+/// Local stores for a wallet. If persistence is enabled, `Db` is used;
+/// otherwise `Cache` is used.
+enum WalletStore {
+    /// A persisted local DB. Used by wallets created via `fresh`, `load`, or
+    /// `load_or_fresh`.
+    Db(WalletDb<DiskFs>),
+    /// An in-memory cache. Used by wallets created via `without_db`.
+    Cache(tokio::sync::RwLock<PaymentCache>),
 }
 
 // TODO(max): Consider what happens if someone provides *both* a client
@@ -132,7 +139,7 @@ impl LexeWallet {
 
         Ok(Self {
             user_config,
-            db: Some(db),
+            store: WalletStore::Db(db),
             gateway_client,
             node_client,
             bip353_client,
@@ -186,7 +193,7 @@ impl LexeWallet {
 
         Ok(Some(Self {
             user_config,
-            db: Some(db),
+            store: WalletStore::Db(db),
             gateway_client,
             node_client,
             bip353_client,
@@ -229,7 +236,7 @@ impl LexeWallet {
 
         Ok(Self {
             user_config,
-            db: Some(db),
+            store: WalletStore::Db(db),
             gateway_client,
             node_client,
             bip353_client,
@@ -264,7 +271,9 @@ impl LexeWallet {
 
         Ok(Self {
             user_config,
-            db: None,
+            store: WalletStore::Cache(tokio::sync::RwLock::new(
+                PaymentCache::new(),
+            )),
             gateway_client,
             node_client,
             bip353_client,
@@ -330,23 +339,24 @@ impl LexeWallet {
     /// Returns a reference to the [`WalletDb`], or an error if local
     /// persistence is disabled for this wallet.
     fn require_db(&self) -> anyhow::Result<&WalletDb<DiskFs>> {
-        self.db.as_ref().ok_or_else(|| anyhow!(NO_DB_ERR))
+        match &self.store {
+            WalletStore::Db(db) => Ok(db),
+            WalletStore::Cache(_) =>
+                Err(anyhow!("Local persistence is disabled for this wallet")),
+        }
     }
 
     /// Returns a reference to the [`PaymentsDb`], or an error if local
     /// persistence is disabled for this wallet.
     fn require_payments_db(&self) -> anyhow::Result<&PaymentsDb<DiskFs>> {
-        self.db
-            .as_ref()
-            .map(WalletDb::payments_db)
-            .ok_or_else(|| anyhow!(NO_DB_ERR))
+        self.require_db().map(WalletDb::payments_db)
     }
 
     // --- DB accessors (unstable) --- //
 
     /// Returns `true` if local persistence is enabled for this wallet.
     pub fn persistence_enabled(&self) -> bool {
-        self.db.is_some()
+        matches!(self.store, WalletStore::Db(_))
     }
 
     /// Get a reference to the [`WalletDb`].
@@ -354,7 +364,7 @@ impl LexeWallet {
     /// Returns [`None`] if local persistence is disabled for this wallet.
     #[cfg(feature = "unstable")]
     pub fn db(&self) -> Option<&WalletDb<DiskFs>> {
-        self.db.as_ref()
+        self.require_db().ok()
     }
 
     cfg_if::cfg_if! {
@@ -366,7 +376,10 @@ impl LexeWallet {
             /// Returns [`None`] if local persistence is disabled for this
             /// wallet.
             pub fn payments_db(&self) -> Option<&PaymentsDb<DiskFs>> {
-                self.db.as_ref().map(WalletDb::payments_db)
+                match &self.store {
+                    WalletStore::Db(db) => Some(db.payments_db()),
+                    WalletStore::Cache(_) => None,
+                }
             }
         } else {
             /// Get a reference to the payments database.
@@ -376,7 +389,10 @@ impl LexeWallet {
             /// Returns [`None`] if local persistence is disabled for this
             /// wallet.
             pub(crate) fn payments_db(&self) -> Option<&PaymentsDb<DiskFs>> {
-                self.db.as_ref().map(WalletDb::payments_db)
+                match &self.store {
+                    WalletStore::Db(db) => Some(db.payments_db()),
+                    WalletStore::Cache(_) => None,
+                }
             }
         }
     }
@@ -1898,22 +1914,22 @@ impl LexeWallet {
         &self,
         req: GetPaymentRequest,
     ) -> anyhow::Result<GetPaymentResponse> {
-        if let Ok(db) = self.require_payments_db() {
-            self.sync_payments().await?;
-            let payment = db
-                .get_payment_by_created_index(&req.index)
-                .map(Payment::from);
-            Ok(GetPaymentResponse { payment })
-        } else {
-            let req = PaymentIdStruct { id: req.index.id };
-            let payment = self
-                .node_client
-                .get_payment_by_id(req)
+        let payment = match &self.store {
+            WalletStore::Db(db) => {
+                self.sync_payments().await?;
+                db.payments_db()
+                    .get_payment_by_created_index(&req.index)
+                    .map(Payment::from)
+            }
+            WalletStore::Cache(cache) => cache
+                .write()
+                .await
+                .get_with_fallback(req.index.id, &self.node_client)
                 .await?
-                .maybe_payment
-                .map(Payment::from);
-            Ok(GetPaymentResponse { payment })
-        }
+                .cloned(),
+        };
+
+        Ok(GetPaymentResponse { payment })
     }
 
     /// Get a batch of payments in ascending `updated_at` order, starting from
@@ -2006,7 +2022,7 @@ impl LexeWallet {
             .context("Failed to update personal note on user node")?;
 
         // Success. If persistence is enabled, update the local payments store.
-        if let Some(db) = &self.db {
+        if let WalletStore::Db(db) = &self.store {
             db.payments_db().update_personal_note(req)?;
         }
 
@@ -2152,5 +2168,81 @@ impl LexeWallet {
         Ok(ClientInfoResponse {
             client: ClientInfo::from(client),
         })
+    }
+}
+
+mod payment_cache {
+    use std::collections::hash_map::Entry;
+
+    use super::*;
+
+    /// A nonexhaustive in-memory cache of payments.
+    pub struct PaymentCache {
+        payments: HashMap<PaymentId, Option<Payment>>,
+
+        /// Entries in the payment cache are up to date as of the invalidation
+        /// key's index. If the node's updates are ahead of this index, then
+        /// assume the cached entries are stale.
+        invalidation_key: Option<PaymentUpdatedIndex>,
+    }
+
+    impl PaymentCache {
+        pub fn new() -> Self {
+            Self {
+                payments: HashMap::new(),
+                invalidation_key: None,
+            }
+        }
+
+        /// Update the cache if stale, and then get the payment with node
+        /// fallback and cache insertion if needed.
+        pub async fn get_with_fallback(
+            &mut self,
+            payment_id: PaymentId,
+            node_client: &NodeClient,
+        ) -> anyhow::Result<Option<&Payment>> {
+            let latest_update = node_client.latest_payment_update().await?;
+
+            // No payments at all, so there is nothing to look up or cache.
+            if latest_update.is_none() {
+                return Ok(None);
+            }
+
+            // Update the cache invalidation key if needed.
+            match latest_update.cmp(&self.invalidation_key) {
+                Ordering::Greater => {
+                    // Case: cache is stale
+                    // TODO(nicole): add `get_payment_batch` API that lets
+                    // us update all cached payments; add eviction policy
+                    self.payments.clear();
+                    self.invalidation_key = latest_update;
+                }
+                // Case: cache is up-to-date
+                Ordering::Equal => (),
+                Ordering::Less =>
+                    return Err(anyhow!(
+                        "Lexe err: Payments cache became malformed. \
+                         Node's latest_update is {latest_update:?} but \
+                         cache's invalidation key is {:?}. Please report.",
+                        self.invalidation_key
+                    )),
+            }
+
+            // Fall back to the node if the payment isn't cached yet.
+            let payment = match self.payments.entry(payment_id) {
+                Entry::Occupied(entry) => entry.into_mut(),
+                Entry::Vacant(entry) => {
+                    let req = PaymentIdStruct { id: payment_id };
+                    let payment = node_client
+                        .get_payment_by_id(req)
+                        .await?
+                        .maybe_payment
+                        .map(Payment::from);
+                    entry.insert(payment)
+                }
+            };
+
+            Ok(payment.as_ref())
+        }
     }
 }
