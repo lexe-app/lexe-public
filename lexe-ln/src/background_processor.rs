@@ -299,8 +299,9 @@ where
     // NOTE: Onion messenger events are handled by the
     // OnionMessengerEventHandler.
 
-    // Wrapped in a future for instrumentation only.
-    async {
+    {
+        let span = info_span!("(events)(peer-man)");
+        let _guard = span.enter();
         // NOTE(phlip9): worried the `Connection` -> `process_events` flow might
         // starve the BGP if it grabs the `process_events` lock and is forced to
         // do a neverending amount of work under load.
@@ -309,8 +310,6 @@ where
         // `process_events` task and waiting for that to complete?
         peer_manager.process_events();
     }
-    .instrument(info_span!("(events)(peer-man)"))
-    .await;
 
     // If any HTLCs need forwarding, the channel manager's
     // `.get_event_or_persistence_needed_future()` will be notified, bringing
