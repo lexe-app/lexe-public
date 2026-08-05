@@ -45,7 +45,6 @@
 mod docs {}
 
 use std::{
-    cmp,
     collections::{BTreeMap, BTreeSet},
     io,
     ops::Bound,
@@ -98,16 +97,16 @@ struct PaymentsDbState {
     // later want filters for "offers only" or similar, we can add more.
     pending: BTreeSet<PaymentCreatedIndex>,
 
-    /// The latest `updated_at` index of any payment in the db.
+    /// An index of every payment, sorted by `updated_at` index.
     ///
     /// Invariant:
     ///
     /// ```ignore
-    /// latest_updated_index == payments.iter()
-    ///     .map(|p| p.updated_index())
-    ///     .max()
+    /// updates_index == payments.values()
+    ///     .map(|p| (p.updated_index(), p.created_index()))
+    ///     .collect()
     /// ```
-    latest_updated_index: Option<PaymentUpdatedIndex>,
+    updates_index: BTreeMap<PaymentUpdatedIndex, PaymentCreatedIndex>,
 
     /// The time we last successfully synced, or `None` if we've never synced.
     ///
@@ -151,7 +150,7 @@ pub(crate) async fn sync_payments<F: Ffs>(
 ) -> anyhow::Result<PaymentSyncSummary> {
     assert!(batch_size > 0);
 
-    let mut start_index = db.state.read().unwrap().latest_updated_index;
+    let mut start_index = db.state.read().unwrap().latest_updated_index();
 
     let mut summary = PaymentSyncSummary {
         num_new: 0,
@@ -426,6 +425,20 @@ impl<F: Ffs> PaymentsDb<F> {
             .list_payments(filter, order, limit, after)
     }
 
+    /// Get a batch of locally synced payments in ascending `updated_at` order,
+    /// starting from `start_index`, exclusive. If `None`, starts from the
+    /// oldest-updated payment, inclusive.
+    pub fn get_updated_payments(
+        &self,
+        start_index: Option<PaymentUpdatedIndex>,
+        limit: usize,
+    ) -> Vec<BasicPaymentV2> {
+        self.state
+            .read()
+            .unwrap()
+            .get_updated_payments(start_index, limit)
+    }
+
     // --- Private helpers --- //
 
     /// Upsert a batch of payments synced from the user node.
@@ -447,7 +460,7 @@ impl<F: Ffs> PaymentsDb<F> {
             num_updated += updated;
         }
 
-        Ok((num_new, num_updated, state.latest_updated_index))
+        Ok((num_new, num_updated, state.latest_updated_index()))
     }
 
     /// Upserts a payment into the db.
@@ -479,17 +492,21 @@ impl<F: Ffs> PaymentsDb<F> {
 
         // --- 'Commit' by updating our in-memory state --- //
 
-        // Update indices first to avoid a clone
+        // Update pending index
         if payment.is_pending() {
             state.pending.insert(created_index);
         } else {
             state.pending.remove(&created_index);
         }
-        // It is always true that `None < Some(_)`
-        state.latest_updated_index =
-            cmp::max(state.latest_updated_index, Some(payment.updated_index()));
+        // Update updated_at index
+        if let Some(old_index) = maybe_existing.map(|p| p.updated_index()) {
+            state.updates_index.remove(&old_index);
+        }
+        state
+            .updates_index
+            .insert(payment.updated_index(), created_index);
 
-        // Update main payments map
+        // Update main payments map at the end to avoid a clone
         state.payments.insert(created_index, payment);
 
         if already_existed {
@@ -573,7 +590,7 @@ impl PaymentsDbState {
         Self {
             payments: BTreeMap::new(),
             pending: BTreeSet::new(),
-            latest_updated_index: None,
+            updates_index: BTreeMap::new(),
             last_synced_at: None,
         }
     }
@@ -649,12 +666,12 @@ impl PaymentsDbState {
             .collect();
 
         let pending = build_index::pending(&payments);
-        let latest_updated_index = build_index::latest_updated_index(&payments);
+        let updates_index = build_index::updates_index(&payments);
 
         Self {
             payments,
             pending,
-            latest_updated_index,
+            updates_index,
             last_synced_at,
         }
     }
@@ -691,7 +708,7 @@ impl PaymentsDbState {
     }
 
     fn latest_updated_index(&self) -> Option<PaymentUpdatedIndex> {
-        self.latest_updated_index
+        self.updates_index.last_key_value().map(|(idx, _)| *idx)
     }
 
     fn get_payment_by_created_index(
@@ -838,6 +855,27 @@ impl PaymentsDbState {
         (payments, next_index)
     }
 
+    /// Get a batch of payments in ascending `updated_at` order, starting from
+    /// `start_index`, exclusive. If `None`, starts from the oldest-updated
+    /// payment, inclusive.
+    fn get_updated_payments(
+        &self,
+        start_index: Option<PaymentUpdatedIndex>,
+        limit: usize,
+    ) -> Vec<BasicPaymentV2> {
+        let start = match start_index {
+            Some(start_index) => Bound::Excluded(start_index),
+            None => Bound::Unbounded,
+        };
+
+        self.updates_index
+            .range((start, Bound::Unbounded))
+            .filter_map(|(_, created_idx)| self.payments.get(created_idx))
+            .take(limit)
+            .cloned()
+            .collect()
+    }
+
     #[cfg(test)]
     fn is_empty(&self) -> bool {
         self.payments.is_empty()
@@ -870,11 +908,14 @@ impl PaymentsDbState {
             .filter(|p| p.is_pending())
             .all(|p| self.pending.contains(&p.created_index()));
 
-        // --- `latest_updated_index` invariant: --- //
+        // --- `updates_index` invariants: --- //
 
-        let recomputed_latest_updated_index =
-            build_index::latest_updated_index(&self.payments);
-        assert_eq!(recomputed_latest_updated_index, self.latest_updated_index);
+        // Rebuilding the index recreates the same index exactly
+        let rebuilt_updates_index = build_index::updates_index(&self.payments);
+        assert_eq!(rebuilt_updates_index, self.updates_index);
+
+        // Every payment is indexed
+        assert_eq!(self.updates_index.len(), self.payments.len());
     }
 }
 
@@ -892,11 +933,14 @@ mod build_index {
             .collect()
     }
 
-    /// Find the latest [`PaymentUpdatedIndex`] from the given payments.
-    pub(super) fn latest_updated_index(
+    /// Build the `updates_index` from the given payments.
+    pub(super) fn updates_index(
         payments: &BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
-    ) -> Option<PaymentUpdatedIndex> {
-        payments.values().map(BasicPaymentV2::updated_index).max()
+    ) -> BTreeMap<PaymentUpdatedIndex, PaymentCreatedIndex> {
+        payments
+            .iter()
+            .map(|(created_idx, p)| (p.updated_index(), *created_idx))
+            .collect()
     }
 }
 
@@ -1151,6 +1195,33 @@ mod test {
         );
     }
 
+    /// Tailing the db by `updated_at` index visits every payment exactly once,
+    /// in update order.
+    #[test]
+    fn test_get_updated_payments() {
+        proptest!(Config::with_cases(16), |(payments in test_utils::any_payments(0..20))| {
+            let db = PaymentsDb::empty(InMemoryFfs::new());
+            db.upsert_payments(payments.clone().into_values()).unwrap();
+
+            let mut expected = payments.into_values().collect::<Vec<_>>();
+            expected.sort_unstable_by_key(BasicPaymentV2::updated_index);
+
+            // No start index returns everything, in update order.
+            assert_eq!(db.get_updated_payments(None, usize::MAX), expected);
+
+            // Tailing one at a time yields the same sequence.
+            let mut start_index = None;
+            for expected_payment in &expected {
+                assert_eq!(
+                    &db.get_updated_payments(start_index, 1),
+                    std::slice::from_ref(expected_payment),
+                );
+                start_index = Some(expected_payment.updated_index());
+            }
+            assert!(db.get_updated_payments(start_index, 1).is_empty());
+        });
+    }
+
     #[tokio::test]
     async fn test_sync_empty() {
         let mock_node_client = MockNode::new(MockPayments::default());
@@ -1345,7 +1416,7 @@ mod test {
                         .state
                         .read()
                         .unwrap()
-                        .latest_updated_index
+                        .latest_updated_index()
                         .expect("DB should have payments")
                         .updated_at;
 
