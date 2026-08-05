@@ -5,6 +5,11 @@
 # <https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#rustdoc-map>
 crates-io = "https://docs.rs/"
 
+[env]
+# Don't persist proptest-regressions/ seed files, since a failing case is
+# reproducible from the seed printed in the test output.
+PROPTEST_DISABLE_FAILURE_PERSISTENCE = "1"
+
 [target.'cfg(target_env = "sgx")']
 # Use our custom SGX runner
 runner = "run-sgx-cargo"
