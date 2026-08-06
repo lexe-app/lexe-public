@@ -37,6 +37,7 @@ use lexe_payment_uri::{
     lnurl::LnurlClient,
 };
 use lexe_std::backoff::Backoff;
+use tokio::time::Instant;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
@@ -1736,6 +1737,56 @@ impl LexeWallet {
                     );
                 }
                 tokio::time::sleep(backoff.next().unwrap()).await;
+            }
+        }
+    }
+
+    /// Wait until a payment update lands past `start_index`, and return the
+    /// latest `updated_at` index once one has (can be used for tailing).
+    ///
+    /// A `None` `start_index` waits until *any* payment exists.
+    /// If `deadline` exists and is reached, errors.
+    ///
+    /// If persistence is enabled, this syncs the db with the latest update.
+    //
+    // TODO(nicole): Add a locking/waiters scheme to ensure only one concurrent
+    // poller; reduce interval -> 2s; ensure that new callers are able to
+    // trigger a fresh burst via `Backoff::reset`
+    async fn wait_for_next_update(
+        &self,
+        start_index: Option<PaymentUpdatedIndex>,
+        deadline: Option<Instant>,
+    ) -> anyhow::Result<Option<PaymentUpdatedIndex>> {
+        const INITIAL_WAIT_MS: u64 = 250;
+        const MAX_WAIT_MS: u64 = 4_000;
+        let mut backoff = Backoff::new(INITIAL_WAIT_MS, MAX_WAIT_MS);
+
+        loop {
+            let latest_index = match self.require_payments_db() {
+                Ok(payments_db) => {
+                    // Only wakes the node if there are updates to fetch.
+                    self.sync_payments()
+                        .await
+                        .context("Failed to sync payments")?;
+                    payments_db.latest_updated_index()
+                }
+                Err(_) => self.node_client.latest_payment_update().await?,
+            };
+
+            // Some > None
+            if latest_index > start_index {
+                return Ok(latest_index);
+            }
+
+            // Sleep until the next poll, or bail if the deadline passes.
+            let sleep_duration = backoff.next().unwrap();
+            match deadline {
+                Some(deadline) => tokio::select! {
+                    () = tokio::time::sleep(sleep_duration) => (),
+                    () = tokio::time::sleep_until(deadline) =>
+                        return Err(anyhow!("Deadline reached")),
+                },
+                None => tokio::time::sleep(sleep_duration).await,
             }
         }
     }
