@@ -1792,9 +1792,9 @@ pub struct GetUpdatedPaymentsArgs {
     #[arg(
         long,
         help = "Maximum number of updated payments to return.\n\
-        Maximum value: 100. Defaults to 50 if not set."
+        Unlimited if not set, or capped at 100 without persistence."
     )]
-    limit: Option<u16>,
+    limit: Option<usize>,
 }
 
 impl GetUpdatedPaymentsArgs {

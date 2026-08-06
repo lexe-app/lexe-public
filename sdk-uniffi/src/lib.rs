@@ -1363,18 +1363,23 @@ impl AsyncLexeWallet {
     /// from a given `updated_at` index.
     ///
     /// `start_index` is the cursor at which the results should start,
-    /// exclusive. If `None`, the least recently updated payments will be
-    /// returned first. `limit` caps the number of payments returned
-    /// (max 100, default 50).
+    /// exclusive. If `None`, starts from the oldest-updated payment,
+    /// inclusive. `limit` caps the number of payments returned; if `None`,
+    /// there is no limit, though wallets without persistence are capped at
+    /// 100.
     #[uniffi::method(default(start_index = None, limit = None))]
     pub async fn get_updated_payments(
         &self,
         start_index: Option<String>,
-        limit: Option<u16>,
+        limit: Option<u32>,
     ) -> Result<GetUpdatedPaymentsResponse, FfiError> {
         let start_index = start_index
             .map(|s| SdkPaymentUpdatedIndex::from_str(&s))
             .transpose()?;
+        let limit = limit
+            .map(usize::try_from)
+            .transpose()
+            .context("Limit does not fit in a usize on this platform")?;
         let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
         let resp = self.inner.get_updated_payments(req).await?;
         Ok(GetUpdatedPaymentsResponse::from(resp))
@@ -2217,18 +2222,23 @@ impl BlockingLexeWallet {
     /// from a given `updated_at` index.
     ///
     /// `start_index` is the cursor at which the results should start,
-    /// exclusive. If `None`, the least recently updated payments will be
-    /// returned first. `limit` caps the number of payments returned
-    /// (max 100, default 50).
+    /// exclusive. If `None`, starts from the oldest-updated payment,
+    /// inclusive. `limit` caps the number of payments returned; if `None`,
+    /// there is no limit, though wallets without persistence are capped at
+    /// 100.
     #[uniffi::method(default(start_index = None, limit = None))]
     pub fn get_updated_payments(
         &self,
         start_index: Option<String>,
-        limit: Option<u16>,
+        limit: Option<u32>,
     ) -> Result<GetUpdatedPaymentsResponse, FfiError> {
         let start_index = start_index
             .map(|s| SdkPaymentUpdatedIndex::from_str(&s))
             .transpose()?;
+        let limit = limit
+            .map(usize::try_from)
+            .transpose()
+            .context("Limit does not fit in a usize on this platform")?;
         let req = SdkGetUpdatedPaymentsRequest { start_index, limit };
         let resp = self.inner.get_updated_payments(req)?;
         Ok(GetUpdatedPaymentsResponse::from(resp))

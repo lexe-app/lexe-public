@@ -22,6 +22,7 @@ use lexe_common::{
         },
         user::NodePkProof,
     },
+    constants,
     ln::{
         amount::Amount, channel::UserChannelId, network::Network,
         priority::ConfirmationPriority,
@@ -1597,7 +1598,7 @@ impl LexeWallet {
             &self.gateway_client,
             &self.node_client,
             auth,
-            lexe_common::constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+            constants::DEFAULT_PAYMENTS_BATCH_SIZE,
         )
         .await
     }
@@ -1774,6 +1775,25 @@ impl LexeWallet {
         &self,
         req: GetUpdatedPaymentsRequest,
     ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
+        // Serve from the local db when we have one.
+        if let Ok(payments_db) = self.require_payments_db() {
+            self.sync_payments().await?;
+
+            let limit = req.limit.unwrap_or(usize::MAX);
+            let payments = payments_db
+                .get_updated_payments(req.start_index, limit)
+                .into_iter()
+                .map(Payment::from)
+                .collect::<Vec<_>>();
+            let updated_index = payments.last().map(Payment::updated_index);
+
+            return Ok(GetUpdatedPaymentsResponse {
+                payments,
+                updated_index,
+            });
+        }
+        // Otherwise, if there is no db...
+
         // Ask the gateway if there are new updates, and short circuit if none.
         // This avoids needlessly waking up the node. (If the gateway query is
         // failing we expect the node query to fail too.)
@@ -1797,9 +1817,22 @@ impl LexeWallet {
             });
         }
 
+        // Enforce node batch limit.
+        let max_limit = constants::MAX_PAYMENTS_BATCH_SIZE;
+        let limit = match req.limit {
+            Some(limit) => {
+                let limit = u16::try_from(limit).unwrap_or(u16::MAX);
+                ensure!(
+                    limit <= max_limit,
+                    "Max limit of {max_limit} exceeded"
+                );
+                limit
+            }
+            None => max_limit,
+        };
         let req = GetUpdatedPayments {
             start_index: req.start_index,
-            limit: req.limit,
+            limit: Some(limit),
         };
         let resp = self
             .node_client

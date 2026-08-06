@@ -667,13 +667,16 @@ pub struct GetUpdatedPaymentsRequest {
     pub start_index: Option<PaymentUpdatedIndex>,
     /// The maximum number of payments that can be returned.
     ///
-    /// Maximum value: 100. Defaults to 50 if not set.
-    pub limit: Option<u16>,
+    /// The maximum value:
+    /// - with persistence enabled: `usize::MAX`
+    /// - with persistence disabled: 100
+    ///
+    /// If `None`, defaults to the highest limit.
+    pub limit: Option<usize>,
 }
 
-// If either of these break, update the docs above.
+// If this breaks, update the docs above.
 const_assert_usize_eq!(constants::MAX_PAYMENTS_BATCH_SIZE as usize, 100);
-const_assert_usize_eq!(constants::DEFAULT_PAYMENTS_BATCH_SIZE as usize, 50);
 
 /// A response to a [`GetUpdatedPaymentsRequest`].
 #[derive(Serialize, Deserialize)]
