@@ -89,7 +89,6 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, info_span, trace, warn};
 
 use crate::{
-    SEMVER_VERSION,
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
     channel_manager::NodeChannelManager,
     client::{NodeBackendClient, RunnerClient},
@@ -397,8 +396,7 @@ impl UserNode {
                     "No approved versions list found; we'll assume that \
                      *nothing* has been approved; shutting down.",
                 )?;
-            let current_version = semver::Version::parse(SEMVER_VERSION)
-                .expect("Checked in approved_versions tests");
+            let current_version = crate::version();
             let approved_measurement =
                 approved_versions.approved.get(&current_version).context(
                     "Current version not found in approved versions list; \

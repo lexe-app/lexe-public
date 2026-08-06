@@ -16,6 +16,7 @@ default = []
 test-utils = [
     "lexe-common/test-utils",
     "lexe-crypto/test-utils",
+    "lexe-enclave/test-utils",
     "lexe-ln/test-utils",
 ]
 

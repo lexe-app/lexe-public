@@ -11,8 +11,14 @@ pub mod allocator;
 // `enclave::measurement()` vs just `measurement()`.
 pub mod enclave {
     pub use crate::{platform::*, types::*};
+
+    pub mod dev_id {
+        pub use crate::dev_id::*;
+    }
 }
 
+/// Dev enclave identity patching.
+pub(crate) mod dev_id;
 /// SGX platform functions, e.g., `measurement()`, `machine_id()`, ...
 pub(crate) mod platform;
 /// SGX enclave types, e.g., `Measurement`, `MachineId`, ...

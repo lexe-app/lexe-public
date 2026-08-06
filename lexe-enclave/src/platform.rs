@@ -7,8 +7,6 @@ use std::{borrow::Cow, sync::LazyLock};
 use cfg_if::cfg_if;
 #[cfg(not(target_env = "sgx"))]
 use lexe_byte_array::ByteArray;
-#[cfg(not(target_env = "sgx"))]
-use lexe_hex::hex;
 use lexe_std::array::{self, ArrayExt};
 use ring::{
     aead::{
@@ -85,14 +83,8 @@ pub fn measurement() -> Measurement {
         if #[cfg(target_env = "sgx")] {
             Measurement::new(enclave::report().mrenclave)
         } else {
-            // Prefers `$DEV_MEASUREMENT`, otherwise defaults to `MOCK_ENCLAVE`
-            match option_env!("DEV_MEASUREMENT") {
-                // Panics at compile time if DEV_MEASUREMENT isn't valid
-                // [u8; 32] hex
-                Some(hex) => Measurement::new(hex::decode_const(hex.as_bytes())),
-                // Option::map is not const
-                None => Measurement::MOCK_ENCLAVE,
-            }
+            crate::dev_id::measurement()
+                .unwrap_or(Measurement::MOCK_ENCLAVE)
         }
     }
 }

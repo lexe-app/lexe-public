@@ -15,8 +15,6 @@ use lexe_enclave::enclave::Measurement;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::SEMVER_VERSION;
-
 /// The set of versions which are currently approved to run.
 /// Contains up to [`RELEASE_WINDOW_SIZE`] approved versions.
 ///
@@ -76,8 +74,7 @@ impl ApprovedVersions {
         cur_measurement: Measurement,
     ) -> anyhow::Result<(bool, Vec<(semver::Version, Measurement)>)> {
         let mut updated = false;
-        let cur_version =
-            semver::Version::parse(SEMVER_VERSION).expect("Checked in tests");
+        let cur_version = crate::version();
 
         // Try adding the current version to the approved list
         match self.approved.entry(cur_version.clone()) {
@@ -179,8 +176,8 @@ mod test {
     }
 
     #[test]
-    fn const_versions_parse_as_semver() {
-        semver::Version::parse(SEMVER_VERSION).unwrap();
+    fn yanked_versions_parse_as_semver() {
+        let _ = crate::version();
         for yanked in YANKED_NODE_VERSIONS {
             semver::Version::parse(yanked).unwrap();
         }
@@ -190,6 +187,7 @@ mod test {
     /// Yanking the current version should be accompanied with a version bump.
     #[test]
     fn cannot_yank_current_version() {
-        assert!(!YANKED_NODE_VERSIONS.contains(&SEMVER_VERSION));
+        let version = crate::version().to_string();
+        assert!(!YANKED_NODE_VERSIONS.contains(&version.as_str()));
     }
 }

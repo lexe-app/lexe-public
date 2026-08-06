@@ -5,7 +5,7 @@ use lexe_api::cli::{EnclaveArgs, node::MegaArgs};
 use lexe_crypto::rng::SysRng;
 use lexe_enclave::enclave;
 
-use crate::{DEV_VERSION, SEMVER_VERSION, mega};
+use crate::mega;
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
@@ -24,11 +24,9 @@ impl NodeCommand {
         match (args.next().as_deref(), args.next()) {
             // If --version or --help was given, just print and exit.
             (Some("version"), _) | (Some("--version"), _) => {
-                let dev_version_str = DEV_VERSION.unwrap_or("None");
                 let measurement = enclave::measurement();
-                println!(
-                    "node-v{SEMVER_VERSION} (Dev version: v{dev_version_str})"
-                );
+                let version = crate::version();
+                println!("node-v{version}");
                 println!("Measurement: {measurement}");
                 Ok(None)
             }
