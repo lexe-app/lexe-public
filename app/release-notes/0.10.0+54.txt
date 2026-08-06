@@ -1,0 +1,6 @@
+- Zero channel reserve: your entire Lightning balance is now spendable!
+  (Only applies to new channels)
+- Fee quotes now match the route actually used to send.
+- Received payments show the sender's message in the payments list.
+- More reliable syncing across restarts and flaky networks.
+- Upgraded nodes to LDK-v0.3.0
