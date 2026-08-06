@@ -1592,6 +1592,7 @@ impl LexeWallet {
             .await
             .context("Could not get bearer token")?;
 
+        // This only wakes the node if there are actually updates to fetch.
         db.sync_payments(
             &self.gateway_client,
             &self.node_client,
@@ -1763,7 +1764,8 @@ impl LexeWallet {
     }
 
     /// Get a batch of payments in ascending `updated_at` order, starting from
-    /// a given `updated_at` index.
+    /// `start_index`, exclusive. If `None`, starts from the oldest-updated
+    /// payment, inclusive.
     ///
     /// Useful for tailing / syncing payment updates as they occur and merging
     /// them into a local payments store.

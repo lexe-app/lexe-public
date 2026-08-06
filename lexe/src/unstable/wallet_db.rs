@@ -137,6 +137,8 @@ impl WalletDb<DiskFs> {
 
     /// Sync payments from the node to the local payments database.
     ///
+    /// Only wakes the node if there are actually updates to fetch.
+    ///
     /// If another sync is already in progress, waits for it to complete
     /// before starting a new one.
     pub async fn sync_payments(

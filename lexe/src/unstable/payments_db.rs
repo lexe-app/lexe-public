@@ -135,6 +135,7 @@ struct PaymentsDbMetadata {
 const METADATA_FILENAME: &str = "metadata.json";
 
 /// Sync the app's local payment state from the user node.
+/// Only wakes the node if there are actually updates to fetch.
 ///
 /// We tail updated payments from the user node, merging results into our DB
 /// until there are no more updates left to sync.

@@ -663,7 +663,7 @@ pub struct GetUpdatedPaymentsRequest {
     /// Payments that were last updated earlier than or equal to this will not
     /// be returned.
     ///
-    /// If `None`, the least recently updated payments will be returned first.
+    /// If `None`, starts from the oldest-updated payment, inclusive.
     pub start_index: Option<PaymentUpdatedIndex>,
     /// The maximum number of payments that can be returned.
     ///
