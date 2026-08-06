@@ -172,6 +172,16 @@ pub enum PaymentFilter {
     Finalized,
 }
 
+impl Payment {
+    /// This payment's `updated_at` index.
+    pub fn updated_index(&self) -> PaymentUpdatedIndex {
+        PaymentUpdatedIndex {
+            updated_at: self.updated_at,
+            id: self.index.id,
+        }
+    }
+}
+
 impl From<BasicPaymentV2> for Payment {
     fn from(p: BasicPaymentV2) -> Self {
         let BasicPaymentV2 {
