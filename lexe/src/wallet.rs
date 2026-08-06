@@ -1711,82 +1711,35 @@ impl LexeWallet {
         index: PaymentCreatedIndex,
         timeout: Option<Duration>,
     ) -> anyhow::Result<Payment> {
-        let initial_wait_ms = 250;
-        let max_wait_ms = 4_000;
-        let start = tokio::time::Instant::now();
-        let mut backoff = Backoff::new(initial_wait_ms, max_wait_ms);
+        const INITIAL_WAIT_MS: u64 = 250;
+        const MAX_WAIT_MS: u64 = 4_000;
+        let mut backoff = Backoff::new(INITIAL_WAIT_MS, MAX_WAIT_MS);
+        let deadline = timeout.map(|timeout| Instant::now() + timeout);
 
-        if self.persistence_enabled() {
-            let db = self.require_payments_db()?;
+        loop {
+            let payment =
+                self.get_payment(GetPaymentRequest { index }).await?.payment;
 
-            loop {
-                self.sync_payments().await?;
-                let payment =
-                    db.get_payment_by_created_index(&index).map(Payment::from);
-
-                if let Some(payment) = payment {
-                    match payment.status {
-                        PaymentStatus::Completed | PaymentStatus::Failed =>
-                            return Ok(payment),
-                        PaymentStatus::Pending => (), // Continue polling
-                    }
+            if let Some(payment) = payment {
+                match payment.status {
+                    PaymentStatus::Completed | PaymentStatus::Failed =>
+                        return Ok(payment),
+                    PaymentStatus::Pending => (), // Continue polling
                 }
-
-                if let Some(to) = timeout {
-                    let to_secs = to.as_secs();
-                    ensure!(
-                        start.elapsed() < to,
-                        "Payment did not complete within {to_secs}s timeout",
-                    );
-                }
-
-                tokio::time::sleep(backoff.next().unwrap()).await;
             }
-        } else {
-            let mut cached_update: Option<PaymentUpdatedIndex> = None;
 
-            loop {
-                let auth = self
-                    .node_client
-                    .get_gateway_proxy_token()
-                    .await
-                    .context("Could not get bearer token")?;
-                let latest_update = self
-                    .gateway_client
-                    .latest_payment_update(auth)
-                    .await
-                    .context("Failed to fetch the latest payment update")?
-                    .latest_update;
-
-                // Some > None
-                if latest_update > cached_update {
-                    cached_update = latest_update;
-
-                    let req = PaymentIdStruct { id: index.id };
-                    let payment = self
-                        .node_client
-                        .get_payment_by_id(req)
-                        .await?
-                        .maybe_payment
-                        .map(Payment::from);
-
-                    if let Some(payment) = payment {
-                        match payment.status {
-                            PaymentStatus::Completed
-                            | PaymentStatus::Failed => return Ok(payment),
-                            PaymentStatus::Pending => (), // Continue polling
-                        }
-                    }
+            // Sleep until the next poll, or bail if the deadline would pass.
+            let sleep_duration = backoff.next().unwrap();
+            match deadline {
+                Some(deadline)
+                    if Instant::now() + sleep_duration >= deadline =>
+                {
+                    let t_secs = timeout.unwrap_or_default().as_secs();
+                    return Err(anyhow!(
+                        "Payment did not complete within {t_secs}s timeout"
+                    ));
                 }
-
-                if let Some(to) = timeout {
-                    let to_secs = to.as_secs();
-                    ensure!(
-                        start.elapsed() < to,
-                        "Payment did not complete within {to_secs}s timeout",
-                    );
-                }
-                tokio::time::sleep(backoff.next().unwrap()).await;
+                _ => tokio::time::sleep(sleep_duration).await,
             }
         }
     }
