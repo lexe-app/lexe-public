@@ -4,6 +4,9 @@
 //! use types like `Measurement` with also pulling in a huge number of other
 //! heavy dependencies.
 
+/// Basic heap allocator instrumentation for SGX enclaves.
+pub mod allocator;
+
 // Re-export in this `enclave` module for nicer namespacing, e.g.,
 // `enclave::measurement()` vs just `measurement()`.
 pub mod enclave {

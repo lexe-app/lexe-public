@@ -1,8 +1,15 @@
 use std::{env, io::Write, process::ExitCode, time::Instant};
 
+use lexe_enclave::allocator::InstrumentedSystemAllocator;
 use lexe_ln::logger;
 use node::cli::NodeCommand;
 use tracing::{error, info, info_span};
+
+/// Wraps the rust-sgx system `dlmalloc` allocator with basic instrumentation
+/// so we get insight into enclave heap usage.
+#[global_allocator]
+static ALLOCATOR: InstrumentedSystemAllocator =
+    InstrumentedSystemAllocator::new();
 
 pub fn main() -> ExitCode {
     // Disable _non-panic_ `std::backtrace::Backtrace::capture()`.
