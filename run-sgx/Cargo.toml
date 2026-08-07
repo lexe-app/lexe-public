@@ -19,7 +19,7 @@ sgx-toml = { path = "../sgx-toml" }
 
 anyhow = { workspace = true }
 argh = { workspace = true }
-object = { workspace = true }
+object = { workspace = true, features = ["compression"] }
 rustc-demangle = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["net"] }
