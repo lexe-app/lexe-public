@@ -11,6 +11,9 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 publish = true
 
+[lints]
+workspace = true
+
 [features]
 # Explicitly specify that no features should be enabled by default.
 default = []

@@ -31,7 +31,6 @@ pub struct NotifyOnce {
 
 impl NotifyOnce {
     /// Construct a new [`NotifyOnce`].
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let inner = Arc::new(Semaphore::new(0));
         Self {

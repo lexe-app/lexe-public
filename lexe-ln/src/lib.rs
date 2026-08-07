@@ -10,8 +10,6 @@
 // hopefully it gets fixed soon...
 // See: <https://github.com/proptest-rs/proptest/issues/447>
 #![allow(non_local_definitions)]
-// Ignore this useless lint
-#![allow(clippy::new_without_default)]
 
 use std::{fmt, future::Future, pin::Pin};
 

@@ -11,6 +11,9 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 publish = true
 
+[lints]
+workspace = true
+
 # Config for testing in SGX
 [package.metadata.fortanix-sgx]
 # Need larger stacks for tokio threads (Default: 0x2_0000)

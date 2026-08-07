@@ -13,6 +13,9 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 publish = true
 
+[lints]
+workspace = true
+
 [features]
 # Enables a synchronous `BlockingLexeWallet` wrapper.
 blocking = ["dep:async-compat", "dep:futures"]

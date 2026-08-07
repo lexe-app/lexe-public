@@ -11,6 +11,9 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 publish = true
 
+[lints]
+workspace = true
+
 # Config for testing in SGX
 # Need more threads and more stack for tokio. See: lexe-common/Cargo.toml.
 [package.metadata.fortanix-sgx]

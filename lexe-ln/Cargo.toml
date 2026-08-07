@@ -6,6 +6,9 @@ edition = { workspace = true }
 version = { workspace = true }
 publish = false
 
+[lints]
+workspace = true
+
 # Config for testing in SGX
 # Need more threads for tokio. See: lexe-common/Cargo.toml.
 # Need more stack and heap for LN router tests...

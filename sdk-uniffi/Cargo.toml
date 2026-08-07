@@ -11,12 +11,14 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 # Not actually published to crates.io, but set to true so cargo-deny lints it.
 publish = true
-
 include = [
     "pyproject.toml",
     "src",
     "uniffi.toml",
 ]
+
+[lints]
+workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

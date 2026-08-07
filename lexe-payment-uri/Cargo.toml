@@ -11,6 +11,9 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 publish = true
 
+[lints]
+workspace = true
+
 [dependencies]
 
 # --- LEXE --- #

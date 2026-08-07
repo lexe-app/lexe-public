@@ -76,7 +76,6 @@ fn heap_size() -> Option<usize> {
 // --- impl InstrumentedSystemAllocator --- //
 
 impl InstrumentedSystemAllocator {
-    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self { _private: () }
     }

@@ -5,6 +5,9 @@ edition = { workspace = true }
 license = "MIT"
 version = "0.1.21"
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "lexe"
 path = "src/main.rs"

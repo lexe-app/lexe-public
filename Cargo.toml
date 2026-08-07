@@ -55,6 +55,11 @@ rust-version = "1.90"
 # will specify their version in their Cargo.toml as usual.
 version = "0.0.0"
 
+# Enable/disable clippy lints for the whole workspace
+[workspace.lints.clippy]
+# Default should be impl'd intentionally
+new_without_default = "allow"
+
 # --- LICENSE --- #
 # All crates are licensed on a crate-by-crate basis:
 # - Crates that the SDKs depend on are `license = "MIT"`.

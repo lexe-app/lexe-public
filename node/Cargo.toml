@@ -6,6 +6,9 @@ authors = { workspace = true }
 edition = { workspace = true }
 publish = false
 
+[lints]
+workspace = true
+
 [features]
 # Explicitly specify that no features should be enabled by default.
 default = []

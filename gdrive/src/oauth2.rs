@@ -51,7 +51,6 @@ impl Deref for ReqwestClient {
 }
 
 impl ReqwestClient {
-    #[allow(clippy::new_without_default)] // TODO(max): How to disable this?
     pub fn new() -> Self {
         let gts_r1_ca =
             reqwest::Certificate::from_der(constants::GTS_ROOT_R1_CA_CERT_DER)

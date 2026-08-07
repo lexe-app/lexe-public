@@ -7,6 +7,9 @@ edition = { workspace = true }
 # Not actually published to crates.io, but set to true so cargo-deny lints it.
 publish = true
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "lexe-sidecar"
 path = "src/main.rs"

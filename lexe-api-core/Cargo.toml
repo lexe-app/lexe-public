@@ -14,6 +14,9 @@ exclude = [
 ]
 publish = true
 
+[lints]
+workspace = true
+
 # Config for testing in SGX
 [package.metadata.fortanix-sgx]
 stack-size = 0x20_0000

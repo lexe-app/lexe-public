@@ -18,7 +18,6 @@ use lightning::sign::EntropySource;
 pub struct SysRngDerefHack(InnerSysrng);
 
 impl SysRngDerefHack {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self(InnerSysrng)
     }

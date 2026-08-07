@@ -11,6 +11,9 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 publish = true
 
+[lints]
+workspace = true
+
 [features]
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.

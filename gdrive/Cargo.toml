@@ -6,6 +6,9 @@ edition = { workspace = true }
 version = { workspace = true }
 publish = false
 
+[lints]
+workspace = true
+
 # Default config for testing in SGX
 [package.metadata.fortanix-sgx]
 

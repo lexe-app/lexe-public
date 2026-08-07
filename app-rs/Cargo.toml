@@ -6,6 +6,9 @@ edition = { workspace = true }
 version = { workspace = true }
 publish = false
 
+[lints]
+workspace = true
+
 [features]
 default = ["flutter"]
 # This feature enables flutter-only dependencies.

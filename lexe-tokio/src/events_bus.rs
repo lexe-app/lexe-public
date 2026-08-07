@@ -24,7 +24,6 @@ pub struct EventsBus<T> {
 
 impl<T: Clone> EventsBus<T> {
     /// Create a new [`EventsBus`] with the default channel size.
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::new_with_size(DEFAULT_CHANNEL_SIZE)
     }
