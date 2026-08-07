@@ -13,6 +13,9 @@ use crate::types::Measurement;
 pub const PATCH_SLOT_PLACEHOLDER: [u8; PATCH_SLOT_LEN] =
     *b"\xffLEXE_DEV_ENCLAVE_IDENTITY_PATCH_SLOT_REPLACE_ME__0123456789ABCD";
 
+/// ELF section which lets `sgx-builder` locate [`PATCH_SLOT_PLACEHOLDER`].
+pub const PATCH_SLOT_SECTION: &str = ".lexe_dev_id";
+
 /// Returns the version patched into this enclave binary.
 pub fn version() -> Option<&'static str> {
     cfg_if::cfg_if! {
@@ -113,6 +116,7 @@ mod patch {
     #[inline(never)]
     fn patch_slot() -> [u8; PATCH_SLOT_LEN] {
         #[used]
+        #[unsafe(link_section = ".lexe_dev_id")]
         static mut PATCH_SLOT: [u8; PATCH_SLOT_LEN] = PATCH_SLOT_PLACEHOLDER;
 
         // SAFETY: The patch slot is never mutated while the process runs, and
