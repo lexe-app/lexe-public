@@ -1375,15 +1375,32 @@ mod helpers {
                         .context("Failed to create HBA offer")?;
                 let offer_id = offer.offer.id();
 
-                let req = UpsertCustomHumanBitcoinAddress {
-                    username,
-                    offer: offer.offer,
-                };
-                persister
-                    .backend_api()
-                    .upsert_custom_human_bitcoin_address(req, token)
-                    .await
-                    .context("upsert_custom_human_bitcoin_address failed")?;
+                // Refresh through the endpoint matching the active HBA's kind.
+                if active.hba.is_generated {
+                    let req = UpsertGeneratedHumanBitcoinAddress {
+                        offer: offer.offer,
+                        username,
+                    };
+                    persister
+                        .backend_api()
+                        .upsert_generated_human_bitcoin_address(req, token)
+                        .await
+                        .context(
+                            "upsert_generated_human_bitcoin_address failed",
+                        )?;
+                } else {
+                    let req = UpsertCustomHumanBitcoinAddress {
+                        username,
+                        offer: offer.offer,
+                    };
+                    persister
+                        .backend_api()
+                        .upsert_custom_human_bitcoin_address(req, token)
+                        .await
+                        .context(
+                            "upsert_custom_human_bitcoin_address failed",
+                        )?;
+                }
 
                 hba_offer_ids.write().unwrap().insert(offer_id);
 
