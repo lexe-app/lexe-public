@@ -54,7 +54,10 @@ use lexe_api::{
     },
     types::{
         Empty,
-        payments::{MaybeBasicPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2},
+        payments::{
+            MaybeBasicPaymentV2, PaymentUpdatedIndex, VecBasicPaymentV1,
+            VecBasicPaymentV2,
+        },
         username::UsernameStruct,
     },
 };
@@ -476,6 +479,28 @@ impl NodeClient {
             .get_token(&self.inner.gateway_client, now, LexeScope::GatewayProxy)
             .await
             .context("Failed to get gateway token")
+    }
+
+    /// Ask the gateway for the index of the user's latest payment update, or
+    /// [`None`] if they have no payments at all.
+    ///
+    /// Served by the gateway rather than the node, so callers can poll for
+    /// payment activity without waking the node up.
+    pub async fn latest_payment_update(
+        &self,
+    ) -> anyhow::Result<Option<PaymentUpdatedIndex>> {
+        let auth = self
+            .get_gateway_token()
+            .await
+            .context("Could not get bearer token")?;
+        let latest_update = self
+            .inner
+            .gateway_client
+            .latest_payment_update(auth)
+            .await
+            .context("Failed to fetch the latest payment update")?
+            .latest_update;
+        Ok(latest_update)
     }
 }
 

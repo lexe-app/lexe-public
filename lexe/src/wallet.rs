@@ -1797,17 +1797,7 @@ impl LexeWallet {
         // Ask the gateway if there are new updates, and short circuit if none.
         // This avoids needlessly waking up the node. (If the gateway query is
         // failing we expect the node query to fail too.)
-        let auth = self
-            .node_client
-            .get_gateway_token()
-            .await
-            .context("Could not get bearer token")?;
-        let latest_update = self
-            .gateway_client
-            .latest_payment_update(auth)
-            .await
-            .context("Failed to fetch the latest payment update")?
-            .latest_update;
+        let latest_update = self.node_client.latest_payment_update().await?;
 
         // Some > None
         if latest_update <= req.start_index {
