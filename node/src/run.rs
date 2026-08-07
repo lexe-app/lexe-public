@@ -195,8 +195,6 @@ struct SyncContext {
     onchain_recv_tx: notify::Sender,
     bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
-    user_ready_waiter_rx:
-        mpsc::Receiver<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `run`.
@@ -1064,7 +1062,6 @@ impl UserNode {
                 onchain_recv_tx,
                 bdk_resync_rx,
                 ldk_resync_rx,
-                user_ready_waiter_rx: user_ctxt.user_ready_waiter_rx,
             }),
             run: Some(RunContext { eph_tasks_rx }),
         })
@@ -1141,46 +1138,52 @@ impl UserNode {
         .context("connect_to_lsp_then_spawn_connector_task failed")?;
         self.static_tasks.push(connector_task);
 
-        // Spawn a task which simply responds with `RunPorts` when asked.
-        //
-        // NOTE: It is important that we tell the notify the `user_ready_waiter`
-        // only *after* we have reconnected to Lexe's LSP (just above).
-        //
-        // This is because the LSP's HTLCIntercepted event handler might be
-        // waiting on the MegaRunner which is waiting on the UserRunner, with
-        // the intention of opening a JIT channel with us as soon as soon as the
-        // usernode is ready. Thus, to ensure that the LSP is connected to us
-        // when it makes its open_channel request, we reconnect to the LSP
-        // *before* sending the /ready callback.
-        let ports_responder_task = {
-            let run_ports = self.run_ports;
-            let mut user_ready_waiter_rx = ctxt.user_ready_waiter_rx;
-            let mut shutdown = self.shutdown.clone();
-
-            const SPAN_NAME: &str = "(ports-responder)";
-            LxTask::spawn_with_span(
-                SPAN_NAME,
-                info_span!(SPAN_NAME),
-                async move {
-                    loop {
-                        tokio::select! {
-                            biased;
-                            Some(user_ready_waiter) =
-                                user_ready_waiter_rx.recv() => {
-                                let _ = user_ready_waiter.send(Ok(run_ports));
-                            }
-                            () = shutdown.recv() => return,
-                        }
-                    }
-                },
-            )
-        };
-        self.static_tasks.push(ports_responder_task);
-
         let total_elapsed = ctxt.init_start.elapsed().as_millis();
         info!("Sync complete. Total init + sync time: <{total_elapsed}ms>");
 
         Ok(())
+    }
+
+    /// Spawns a task which responds to readiness waiters with our `RunPorts`.
+    ///
+    /// Must be called only after [`sync`] has completed, i.e. after we have
+    /// reconnected to Lexe's LSP. This is because the LSP's HTLCIntercepted
+    /// event handler might be waiting on the MegaRunner which is waiting on
+    /// the UserRunner, with the intention of opening a JIT channel with us as
+    /// soon as the usernode is ready. Thus, to ensure that the LSP is
+    /// connected to us when it makes its open_channel request, we reconnect
+    /// to the LSP *before* responding to any readiness waiters.
+    ///
+    /// [`sync`]: Self::sync
+    pub fn spawn_ports_responder(
+        &mut self,
+        mut user_ready_waiter_rx: mpsc::Receiver<
+            oneshot::Sender<Result<RunPorts, MegaApiError>>,
+        >,
+    ) {
+        assert!(self.sync.is_none(), "Must sync before responding ready");
+
+        let run_ports = self.run_ports;
+        let mut shutdown = self.shutdown.clone();
+
+        const SPAN_NAME: &str = "(ports-responder)";
+        let ports_responder_task = LxTask::spawn_with_span(
+            SPAN_NAME,
+            info_span!(SPAN_NAME),
+            async move {
+                loop {
+                    tokio::select! {
+                        biased;
+                        Some(user_ready_waiter) =
+                            user_ready_waiter_rx.recv() => {
+                            let _ = user_ready_waiter.send(Ok(run_ports));
+                        }
+                        () = shutdown.recv() => return,
+                    }
+                }
+            },
+        );
+        self.static_tasks.push(ports_responder_task);
     }
 
     pub async fn run(mut self) -> anyhow::Result<()> {

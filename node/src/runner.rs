@@ -119,6 +119,31 @@ struct UserHandle {
         Vec<oneshot::Sender<Result<UserShutdown, MegaApiError>>>,
 }
 
+impl UserHandle {
+    /// Queues a readiness waiter to be answered by the usernode once ready.
+    /// A waiter that can't be enqueued is answered with an error rather than
+    /// dropped (which surfaces as an opaque "channel closed").
+    fn enqueue_ready_waiter(
+        &self,
+        waiter: oneshot::Sender<Result<RunPorts, MegaApiError>>,
+    ) {
+        if let Err(send_err) = self.user_ready_waiter_tx.try_send(waiter) {
+            use mpsc::error::TrySendError::{Closed, Full};
+            let error = MegaApiError {
+                kind: MegaErrorKind::RunnerUnreachable,
+                msg: "Usernode is not accepting readiness waiters; \
+                      its queue is full or it is exiting"
+                    .to_string(),
+                ..Default::default()
+            };
+            let waiter = match send_err {
+                Full(waiter) | Closed(waiter) => waiter,
+            };
+            let _ = waiter.send(Err(error));
+        }
+    }
+}
+
 impl Drop for UserHandle {
     fn drop(&mut self) {
         // Notify all shutdown waiters that the user node has shut down.
@@ -328,8 +353,7 @@ impl UserRunner {
             }
 
             // Pass the waiter to the node.
-            let _ =
-                user_handle.user_ready_waiter_tx.try_send(user_ready_waiter);
+            user_handle.enqueue_ready_waiter(user_ready_waiter);
 
             // Mark the usernode and meganode as active.
             self.meganode_used_now(now);
@@ -367,10 +391,7 @@ impl UserRunner {
 
         // Immediately queue the `user_ready_waiter`.
         // It will live in the channel until the user node is ready.
-        user_handle
-            .user_ready_waiter_tx
-            .try_send(user_ready_waiter)
-            .expect("Rx is currently on the stack");
+        user_handle.enqueue_ready_waiter(user_ready_waiter);
 
         // Add to user state
         self.user_nodes.insert(user_pk, user_handle);
@@ -779,7 +800,6 @@ mod helpers {
         let user_context = UserContext {
             lease_id: run_req.lease_id,
             user_shutdown: user_shutdown.clone(),
-            user_ready_waiter_rx,
         };
 
         let handle = UserHandle {
@@ -794,7 +814,13 @@ mod helpers {
             format!("Usernode {user_pk}"),
             usernode_span,
             async move {
-                let try_future = async move {
+                // We hold this here instead of in `try_future` so that if the
+                // usernode fails during init() or sync(), we can notify the
+                // queued readiness waiters of the actual startup error, instead
+                // of just dropping the rx which returns "channel closed".
+                let mut maybe_ready_rx = Some(user_ready_waiter_rx);
+
+                let try_future = async {
                     let mut rng = SysRng::new();
                     let mut node = UserNode::init(
                         &mut rng,
@@ -805,12 +831,38 @@ mod helpers {
                     .await
                     .context("Error during run init")?;
                     node.sync().await.context("Error while syncing")?;
+
+                    // We're ready; hand the readiness waiter channel to the
+                    // node's ports responder.
+                    let ready_rx = maybe_ready_rx
+                        .take()
+                        .expect("Present until we take it here");
+                    node.spawn_ports_responder(ready_rx);
+
                     node.run().await.context("Error while running")
                 };
+                let result = try_future.await;
 
-                match try_future.await {
+                match result {
                     Ok(()) => info!(%user_pk, "Usernode finished successfully"),
-                    Err(e) => error!(%user_pk, "Usernode errored: {e:#}"),
+                    Err(e) => {
+                        error!(%user_pk, "Usernode errored: {e:#}");
+
+                        // This is Some iff startup failed. In this case, notify
+                        // all queued readiness waiters with the actual error
+                        // from `init()` or `sync()`.
+                        if let Some(mut ready_rx) = maybe_ready_rx.take() {
+                            let error = MegaApiError {
+                                kind: MegaErrorKind::UserStartupFailure,
+                                msg: format!("{e:#}"),
+                                ..Default::default()
+                            };
+                            ready_rx.close();
+                            while let Ok(waiter) = ready_rx.try_recv() {
+                                let _ = waiter.send(Err(error.clone()));
+                            }
+                        }
+                    }
                 }
 
                 user_pk

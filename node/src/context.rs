@@ -8,8 +8,7 @@ use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
     cli::OAuthConfig,
     def::NodeLspApi,
-    error::MegaApiError,
-    types::{LeaseId, partners::PartnersInfo, ports::RunPorts},
+    types::{LeaseId, partners::PartnersInfo},
 };
 use lexe_common::{constants::timeout, env::DeployEnv, ln::network::Network};
 use lexe_crypto::rng::Crng;
@@ -22,7 +21,7 @@ use lexe_ln::{
 use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::util::{config::UserConfig, ser::ReadableArgs};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tracing::info;
 
 use crate::{
@@ -36,9 +35,6 @@ use crate::{
 pub(crate) struct UserContext {
     /// The lease ID for this user node.
     pub lease_id: LeaseId,
-    /// A channel for requests to get the [`RunPorts`] of this user node.
-    pub user_ready_waiter_rx:
-        mpsc::Receiver<oneshot::Sender<Result<RunPorts, MegaApiError>>>,
     /// Notifies this specific usernode that it should shut down.
     pub user_shutdown: NotifyOnce,
 }

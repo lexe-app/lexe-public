@@ -81,9 +81,12 @@ pub fn spawn_bdk_sync_task(
                     } else {
                         Either::Right(wallet.full_sync(&esplora))
                     };
+                    let timeout_secs = sync_timeout.as_secs();
                     let sync_result = tokio::select! {
                         res = sync_fut => res.context("BDK sync failed"),
-                        _ = timeout => Err(anyhow!("BDK sync timed out")),
+                        _ = timeout => Err(anyhow!(
+                            "BDK sync timed out after {timeout_secs}s"
+                        )),
                         () = shutdown.recv() => break,
                     };
                     let elapsed_ms = start.elapsed().as_millis();
@@ -169,10 +172,13 @@ where
 
                     // Give up if we time out or receive a shutdown signal
                     let timeout = time::sleep(sync_timeout);
+                    let timeout_secs = sync_timeout.as_secs();
                     let sync_res = tokio::select! {
                         res = ldk_sync_client.sync(confirmables) =>
                             res.context("LDK sync failed"),
-                        _ = timeout => Err(anyhow!("LDK sync timed out")),
+                        _ = timeout => Err(anyhow!(
+                            "LDK sync timed out after {timeout_secs}s"
+                        )),
                         () = shutdown.recv() => break,
                     };
                     let elapsed = start.elapsed().as_millis();

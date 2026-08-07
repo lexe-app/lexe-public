@@ -788,6 +788,8 @@ api_error_kind! {
         RunnerUnreachable = 101,
         /// The requested user is not known to this meganode
         UnknownUser = 102,
+        /// Usernode failed to start
+        UserStartupFailure = 103,
     }
 }
 
@@ -809,6 +811,7 @@ impl ToHttpStatus for MegaErrorKind {
             WrongMegaId => CLIENT_400_BAD_REQUEST,
             RunnerUnreachable => SERVER_503_SERVICE_UNAVAILABLE,
             UnknownUser => CLIENT_404_NOT_FOUND,
+            UserStartupFailure => SERVER_503_SERVICE_UNAVAILABLE,
         }
     }
 }

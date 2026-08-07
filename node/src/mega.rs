@@ -245,9 +245,10 @@ mod handlers {
             ..Default::default()
         })?;
 
-        let run_ports = user_ready_rx.await.map_err(|e| MegaApiError {
+        let run_ports = user_ready_rx.await.map_err(|_| MegaApiError {
             kind: MegaErrorKind::RunnerUnreachable,
-            msg: e.to_string(),
+            msg: "Usernode exited without reporting readiness or failure"
+                .to_string(),
             ..Default::default()
         })??;
 
