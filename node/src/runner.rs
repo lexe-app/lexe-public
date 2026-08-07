@@ -12,11 +12,13 @@ use lexe_api::{
     types::{LeaseId, ports::RunPorts},
 };
 use lexe_common::{api::user::UserPk, constants::timeout, time::TimestampMs};
+use lexe_enclave::allocator;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lru::LruCache;
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinError,
+    time::MissedTickBehavior,
 };
 use tracing::{debug, info, info_span, warn};
 
@@ -24,6 +26,9 @@ use crate::context::MegaContext;
 
 #[cfg(test)]
 mod fuzz;
+
+/// How frequently the UserRunner logs meganode stats.
+const STATS_INTERVAL: Duration = Duration::from_secs(60);
 
 /// How frequently the UserRunner checks for inactivity.
 /// - Inactive usernodes are evicted.
@@ -67,6 +72,9 @@ pub(crate) struct UserRunnerUserEvictRequest {
 
 /// Runs user nodes upon request.
 pub(crate) struct UserRunner {
+    /// Heap usage before constructing the UserRunner, used to estimate shared
+    /// resources (`NetworkGraph`, `ProbabilisticScorer`, provisioner, etc.).
+    fixed_heap_bytes: usize,
     mega_args: MegaArgs,
     mega_ctxt: MegaContext,
 
@@ -87,6 +95,10 @@ pub(crate) struct UserRunner {
     mega_started_at: TimestampMs,
     /// Recently active users that we haven't yet notified the megarunner of.
     megarunner_activity_queue: HashSet<UserPk>,
+    /// Maximum number of usernodes ever running concurrently.
+    max_users: usize,
+    /// Total number of usernodes ever run.
+    total_users: usize,
 
     user_nodes: HashMap<UserPk, UserHandle>,
     user_lru: LruCache<UserPk, TimestampMs>,
@@ -119,6 +131,7 @@ impl Drop for UserHandle {
 impl UserRunner {
     pub fn new(
         now: TimestampMs,
+        fixed_heap_bytes: usize,
         mega_args: MegaArgs,
         mega_ctxt: MegaContext,
         mega_shutdown: NotifyOnce,
@@ -127,6 +140,7 @@ impl UserRunner {
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     ) -> Self {
         Self {
+            fixed_heap_bytes,
             mega_args,
             mega_ctxt,
             mega_shutdown,
@@ -138,6 +152,8 @@ impl UserRunner {
             mega_last_used: now,
             mega_started_at: now,
             megarunner_activity_queue: HashSet::new(),
+            max_users: 0,
+            total_users: 0,
 
             user_nodes: HashMap::new(),
             user_lru: LruCache::unbounded(),
@@ -154,6 +170,9 @@ impl UserRunner {
     }
 
     async fn run(mut self) {
+        let mut stats_interval = tokio::time::interval(STATS_INTERVAL);
+        stats_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
         let mut inactivity_check_interval =
             tokio::time::interval(INACTIVITY_CHECK_INTERVAL);
         inactivity_check_interval.tick().await;
@@ -179,6 +198,9 @@ impl UserRunner {
 
                 Some(join_result) = self.user_stream.next() =>
                     self.handle_finished_usernode(join_result),
+
+                _ = stats_interval.tick() =>
+                    self.log_stats("periodic"),
 
                 _ = inactivity_check_interval.tick() => {
                     self.evict_any_inactive_usernodes(now);
@@ -280,6 +302,8 @@ impl UserRunner {
         // We're done shutting down usernodes, so we can stop responding to
         // liveness checks. Trigger a shutdown of the meganode API server.
         self.mega_server_shutdown.send();
+
+        self.log_stats("shutdown");
     }
 
     fn handle_user_run_request(
@@ -350,6 +374,8 @@ impl UserRunner {
 
         // Add to user state
         self.user_nodes.insert(user_pk, user_handle);
+        self.total_users += 1;
+        self.max_users = self.max_users.max(self.user_nodes.len());
 
         // Add to user stream
         self.user_stream.push(user_task);
@@ -576,6 +602,45 @@ impl UserRunner {
         (self.user_nodes.len() as u64) * self.mega_args.usernode_memory
     }
 
+    /// Log meganode stats like heap usage and per-user estimated heap usage.
+    fn log_stats(&self, reason: &'static str) {
+        let heap_stats = allocator::stats();
+        let heap_bytes = heap_stats.current_bytes;
+        let heap_size_bytes = heap_stats.heap_size.unwrap_or_default();
+        let users = self.user_nodes.len();
+
+        // Roughly attribute everything above the fixed snapshot to usernodes.
+        let users_bytes = heap_bytes.saturating_sub(self.fixed_heap_bytes);
+        let avg_user_bytes = users_bytes.checked_div(users).unwrap_or_default();
+
+        let heap_pct = if heap_size_bytes == 0 {
+            0.0
+        } else {
+            100.0 * heap_bytes as f64 / heap_size_bytes as f64
+        };
+
+        let to_mib = |bytes: usize| bytes as f64 / (1 << 20) as f64;
+        let heap_mib = to_mib(heap_bytes);
+        let heap_size_mib = to_mib(heap_size_bytes);
+        let max_heap_mib = to_mib(heap_stats.max_bytes);
+        let fixed_mib = to_mib(self.fixed_heap_bytes);
+        let avg_user_mib = to_mib(avg_user_bytes);
+
+        info!(
+            reason,
+            heap_mib = %format_args!("{heap_mib:.1}"),
+            heap_pct = %format_args!("{heap_pct:.1}"),
+            heap_size_mib = %format_args!("{heap_size_mib:.1}"),
+            max_heap_mib = %format_args!("{max_heap_mib:.1}"),
+            fixed_mib = %format_args!("{fixed_mib:.1}"),
+            avg_user_mib = %format_args!("{avg_user_mib:.1}"),
+            users,
+            max_users = self.max_users,
+            total_users = self.total_users,
+            "Meganode stats",
+        );
+    }
+
     /// Amount of memory usage by currently evicting user nodes.
     /// Is always <= [`Self::current_memory`].
     fn evicting_memory(&self) -> u64 {
@@ -674,6 +739,9 @@ impl UserRunner {
             "Usernode state length ({user_state_len}) does not match \
              user stream length ({user_stream_len})"
         );
+
+        assert!(self.max_users >= user_state_len);
+        assert!(self.total_users >= self.max_users);
     }
 }
 

@@ -4,6 +4,7 @@ use lexe_api::{
 };
 use lexe_common::{constants::timeout, time::TimestampMs};
 use lexe_crypto::rng::Crng;
+use lexe_enclave::allocator;
 use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{notify_once::NotifyOnce, task};
 use tokio::sync::mpsc;
@@ -54,34 +55,24 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
     let provision_ports = provision.ports();
     static_tasks.push(provision.spawn_into_task());
 
-    // Start the usernode runner.
-    let now = TimestampMs::now();
-    let measurement = mega_ctxt.measurement;
-    let mega_server_shutdown = NotifyOnce::new();
-    let user_runner = UserRunner::new(
-        now,
-        args.clone(),
-        mega_ctxt,
-        mega_shutdown.clone(),
-        mega_server_shutdown.clone(),
-        runner_rx,
-        eph_tasks_tx,
-    );
-    static_tasks.push(user_runner.spawn_into_task());
-
     // Spawn the mega server task.
     let mega_id = args.mega_id;
+    let mega_server_shutdown = NotifyOnce::new();
     let mega_state = mega_server::MegaRouterState {
         mega_id,
         runner_tx,
         mega_shutdown: mega_shutdown.clone(),
     };
     let (mega_task, lexe_mega_port, _mega_url) =
-        mega_server::spawn_server_task(mega_state, mega_server_shutdown)
-            .context("Failed to spawn mega server task")?;
+        mega_server::spawn_server_task(
+            mega_state,
+            mega_server_shutdown.clone(),
+        )
+        .context("Failed to spawn mega server task")?;
     static_tasks.push(mega_task);
 
     // Init runner client.
+    let measurement = mega_ctxt.measurement;
     let mr_short = measurement.short();
     let runner_client = RunnerClient::new(
         rng,
@@ -92,6 +83,22 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         args.runner_url.clone(),
     )
     .context("Couldn't init runner client")?;
+
+    // Start the usernode runner. Keep this block last so that
+    // `fixed_heap_bytes` accounts for everything initialized above.
+    let now = TimestampMs::now();
+    let fixed_heap_bytes = allocator::stats().current_bytes;
+    let user_runner = UserRunner::new(
+        now,
+        fixed_heap_bytes,
+        args,
+        mega_ctxt,
+        mega_shutdown.clone(),
+        mega_server_shutdown,
+        runner_rx,
+        eph_tasks_tx,
+    );
+    static_tasks.push(user_runner.spawn_into_task());
 
     // Let the runner know that the mega node is ready to load user nodes.
     let ports = MegaPorts {

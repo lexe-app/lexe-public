@@ -282,9 +282,11 @@ mod helpers {
         let mega_server_shutdown = NotifyOnce::new();
         let (_runner_tx, runner_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (eph_tasks_tx, _eph_tasks_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let fixed_heap_bytes = 0;
 
         UserRunner::new(
             now,
+            fixed_heap_bytes,
             mega_args,
             mega_ctxt,
             mega_shutdown,
