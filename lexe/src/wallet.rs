@@ -1810,7 +1810,8 @@ impl LexeWallet {
     /// A `None` `start_index` waits until *any* payment exists.
     /// If `deadline` exists and is reached, errors.
     ///
-    /// If persistence is enabled, this syncs the db with the latest update.
+    /// If persistence is enabled, this syncs the db with the latest update,
+    /// unless the db already contains an update past `start_index`.
     //
     // TODO(nicole): Add a locking/waiters scheme to ensure only one concurrent
     // poller; reduce interval -> 2s; ensure that new callers are able to
@@ -1827,11 +1828,17 @@ impl LexeWallet {
         loop {
             let latest_index = match self.require_payments_db() {
                 Ok(payments_db) => {
-                    // Only wakes the node if there are updates to fetch.
-                    self.sync_payments()
-                        .await
-                        .context("Failed to sync payments")?;
-                    payments_db.latest_updated_index()
+                    // Skip the sync if the db already has a newer update.
+                    let local_latest = payments_db.latest_updated_index();
+                    if local_latest > start_index {
+                        local_latest
+                    } else {
+                        // Only wakes the node if there are updates to fetch.
+                        self.sync_payments()
+                            .await
+                            .context("Failed to sync payments")?;
+                        payments_db.latest_updated_index()
+                    }
                 }
                 Err(_) => self.node_client.latest_payment_update().await?,
             };
