@@ -16,8 +16,8 @@ use lexe_api::{
     error::MegaApiError,
     models::{
         command::{
-            ClaimGeneratedHumanBitcoinAddress, GDriveStatus,
-            UpsertCustomHumanBitcoinAddress,
+            GDriveStatus, UpsertCustomHumanBitcoinAddress,
+            UpsertGeneratedHumanBitcoinAddress,
         },
         runner::UserLeaseRenewalRequest,
     },
@@ -1331,15 +1331,15 @@ mod helpers {
                 let offer_id = offer_resp.offer.id();
 
                 // Claim the HBA with generated username and associated offer
-                let req = ClaimGeneratedHumanBitcoinAddress {
+                let req = UpsertGeneratedHumanBitcoinAddress {
                     offer: offer_resp.offer,
                     username,
                 };
                 persister
                     .backend_api()
-                    .claim_generated_human_bitcoin_address(req, token)
+                    .upsert_generated_human_bitcoin_address(req, token)
                     .await
-                    .context("claim_generated_human_bitcoin_address failed")?;
+                    .context("upsert_generated_human_bitcoin_address failed")?;
 
                 // Mark migration applied since we just created a v2 offer.
                 Migrations::mark_applied(

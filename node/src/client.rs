@@ -11,13 +11,13 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            ClaimGeneratedHumanBitcoinAddress, GetGeneratedUsernameResponse,
-            GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
+            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
             HumanBitcoinAddressV1, PaymentCreatedIndexStruct,
             PaymentCreatedIndexes, PaymentIdStruct,
-            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
-            VecPaymentId,
+            UpsertCustomHumanBitcoinAddress,
+            UpsertGeneratedHumanBitcoinAddress,
+            UpsertHumanBitcoinAddressResponse, VecPaymentId,
         },
         nwc::{
             DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPkStruct,
@@ -752,22 +752,15 @@ impl NodeBackendApi for NodeBackendClient {
         unimplemented!("Deprecated")
     }
 
-    async fn claim_generated_human_bitcoin_address(
+    async fn upsert_generated_human_bitcoin_address(
         &self,
-        req: ClaimGeneratedHumanBitcoinAddress,
+        req: UpsertGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let data = req;
-        let req = self
-            .rest
-            .post(
-                format!(
-                    "{backend}/node/v1/claim_generated_human_bitcoin_address"
-                ),
-                &data,
-            )
-            .bearer_auth(&auth);
+        let url = format!("{backend}/node/v1/generated_human_bitcoin_address");
+        let req = self.rest.put(url, &data).bearer_auth(&auth);
         self.rest.send(req).await
     }
 

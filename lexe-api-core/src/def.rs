@@ -72,24 +72,25 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, ClaimGeneratedHumanBitcoinAddress,
-            CloseChannelPreflightRequest, CloseChannelPreflightResponse,
-            CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, DebugInfo,
-            EnclavesToProvisionRequest, GetGeneratedUsernameResponse,
-            GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetNextUnusedAddressResponse, GetUpdatedPaymentMetadata,
-            GetUpdatedPayments, HumanBitcoinAddressV1,
-            LatestPaymentUpdateResponse, ListChannelsResponse, NodeInfo,
-            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
-            OpenChannelRequest, OpenChannelResponse,
-            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
-            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct, ResyncRequest, SetupGDrive,
-            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
+            BackupInfo, CloseChannelPreflightRequest,
+            CloseChannelPreflightResponse, CloseChannelRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
+            GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
+            GetNewPayments, GetNextUnusedAddressResponse,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            HumanBitcoinAddressV1, LatestPaymentUpdateResponse,
+            ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
+            OpenChannelPreflightResponse, OpenChannelRequest,
+            OpenChannelResponse, PayInvoicePreflightRequest,
+            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferPreflightRequest, PayOfferPreflightResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
+            ResyncRequest, SetupGDrive, UpdatePersonalNote,
+            UpsertCustomHumanBitcoinAddress,
+            UpsertGeneratedHumanBitcoinAddress,
             UpsertHumanBitcoinAddressResponse, VecPaymentId,
         },
         nwc::{
@@ -1050,29 +1051,45 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<HumanBitcoinAddressV1, BackendApiError>;
 
-    /// POST /node/v1/claim_generated_human_bitcoin_address
-    ///   [`ClaimGeneratedHumanBitcoinAddress`] -> [`Empty`]
+    /// PUT /node/v1/generated_human_bitcoin_address
+    ///   [`UpsertGeneratedHumanBitcoinAddress`] -> [`Empty`]
     ///
-    /// Claims a generated human Bitcoin address for the given node.
-    async fn claim_generated_human_bitcoin_address(
+    /// Claims a generated human Bitcoin address for the given node, or
+    /// refreshes its offer if it is already claimed.
+    async fn upsert_generated_human_bitcoin_address(
         &self,
-        req: ClaimGeneratedHumanBitcoinAddress,
+        req: UpsertGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
+    /// POST /node/v1/claim_generated_human_bitcoin_address
+    ///   [`UpsertGeneratedHumanBitcoinAddress`] -> [`Empty`]
+    //
+    // compat: nodes v0.9.3..=v0.10.1 use this to claim generated HBAs.
+    // TODO(max): Remove once all nodes are >= v0.10.2
+    #[deprecated(note = "since node-v0.10.2: \
+                         Use upsert_generated_human_bitcoin_address instead")]
+    async fn claim_generated_human_bitcoin_address(
+        &self,
+        req: UpsertGeneratedHumanBitcoinAddress,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        self.upsert_generated_human_bitcoin_address(req, auth).await
+    }
+
     /// POST /node/v1/claim_generated_payment_address
-    ///   [`ClaimGeneratedHumanBitcoinAddress`] -> [`Empty`]
+    ///   [`UpsertGeneratedHumanBitcoinAddress`] -> [`Empty`]
     //
     // compat: nodes v0.9.0..=v0.9.2 use this to claim generated HBAs.
     // TODO(max): Remove once all nodes are >= v0.9.3
     #[deprecated(note = "since node-v0.9.3: \
-                         Use claim_generated_human_bitcoin_address instead")]
+                         Use upsert_generated_human_bitcoin_address instead")]
     async fn claim_generated_payment_address(
         &self,
-        req: ClaimGeneratedHumanBitcoinAddress,
+        req: UpsertGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        self.claim_generated_human_bitcoin_address(req, auth).await
+        self.upsert_generated_human_bitcoin_address(req, auth).await
     }
 
     /// GET /node/v1/generated_username [`Empty`]

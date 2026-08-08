@@ -739,7 +739,7 @@ pub struct UpsertCustomHumanBitcoinAddress {
 /// `is_generated: true`.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ClaimGeneratedHumanBitcoinAddress {
+pub struct UpsertGeneratedHumanBitcoinAddress {
     /// Offer to be used to fetch invoices on BIP-353.
     pub offer: Offer,
     /// The username to claim. This must be the username returned by
@@ -755,7 +755,7 @@ pub struct GetGeneratedUsernameResponse {
     pub username: Username,
     /// Whether this user already has a claimed generated HBA.
     /// If true, the caller should skip calling
-    /// `claim_generated_human_bitcoin_address`.
+    /// `upsert_generated_human_bitcoin_address`.
     pub already_claimed: bool,
 }
 
@@ -926,9 +926,9 @@ mod test {
     }
 
     #[test]
-    fn claim_generated_human_bitcoin_address_request_roundtrip() {
+    fn upsert_generated_human_bitcoin_address_request_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<
-            ClaimGeneratedHumanBitcoinAddress,
+            UpsertGeneratedHumanBitcoinAddress,
         >();
     }
 
