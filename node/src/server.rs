@@ -231,26 +231,45 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         .merge(legacy_app_routes)
         .with_state(state)
         // Send an activity notification anytime a user endpoint is hit.
-        .layer(MapRequestLayer::new(move |request| {
-            let runner_cmd = UserRunnerCommand::UserActivity(user_pk);
-            let _ = runner_tx.try_send(runner_cmd);
-            request
-        }))
+        .layer(activity_layer(user_pk, runner_tx))
 }
 
 /// Implements [`LexeNodeRunApi`] - only callable by the Lexe operators.
 ///
 /// [`LexeNodeRunApi`]: lexe_api::def::LexeNodeRunApi
 pub(crate) fn lexe_router(state: Arc<RouterState>) -> Router<()> {
-    Router::new()
+    // Endpoints which serve user traffic count as user activity;
+    // maintenance endpoints must not reset the inactivity timer.
+    let substantive_routes = Router::new()
+        .route("/lexe/create_invoice", post(shared::create_invoice))
+        .route("/lexe/nwc_request", post(lexe::nwc_request))
+        .layer(activity_layer(state.user_pk, state.runner_tx.clone()));
+    let maintenance_routes = Router::new()
         .route("/lexe/status", get(lexe::status))
         .route("/lexe/resync", post(lexe::resync))
         .route("/lexe/wait_bgp_quiescent", post(lexe::wait_bgp_quiescent))
         .route("/lexe/test_event", post(lexe::test_event))
-        .route("/lexe/shutdown", get(lexe::shutdown))
-        .route("/lexe/create_invoice", post(shared::create_invoice))
-        .route("/lexe/nwc_request", post(lexe::nwc_request))
+        .route("/lexe/shutdown", get(lexe::shutdown));
+
+    Router::new()
+        .merge(substantive_routes)
+        .merge(maintenance_routes)
         .with_state(state)
+}
+
+/// A layer which triggers a user activity notification and resets the
+/// usernode's inactivity timer every time a request passes through it.
+fn activity_layer(
+    user_pk: UserPk,
+    runner_tx: mpsc::Sender<UserRunnerCommand>,
+) -> MapRequestLayer<
+    impl Fn(axum::extract::Request) -> axum::extract::Request + Clone,
+> {
+    MapRequestLayer::new(move |request| {
+        let runner_cmd = UserRunnerCommand::UserActivity(user_pk);
+        let _ = runner_tx.try_send(runner_cmd);
+        request
+    })
 }
 
 mod shared {
