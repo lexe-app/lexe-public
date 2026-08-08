@@ -569,7 +569,7 @@ impl LexeWallet {
         // Get a bearer token for authentication.
         let token = self
             .node_client
-            .get_gateway_token()
+            .get_gateway_proxy_token()
             .await
             .context("Could not get bearer token")?;
 
@@ -1591,7 +1591,7 @@ impl LexeWallet {
         // Get a bearer token for the update check with the gateway
         let auth = self
             .node_client
-            .get_gateway_token()
+            .get_gateway_proxy_token()
             .await
             .context("Could not get bearer token")?;
 
@@ -1699,7 +1699,7 @@ impl LexeWallet {
             loop {
                 let auth = self
                     .node_client
-                    .get_gateway_token()
+                    .get_gateway_proxy_token()
                     .await
                     .context("Could not get bearer token")?;
                 let latest_update = self

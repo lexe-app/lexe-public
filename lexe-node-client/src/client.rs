@@ -472,7 +472,9 @@ impl NodeClient {
     //
     // This helper exists because `GatewayClient::enclaves_to_provision` needs a
     // token, but `GatewayClient` doesn't hold a `BearerAuthenticator`.
-    pub async fn get_gateway_token(&self) -> anyhow::Result<BearerAuthToken> {
+    pub async fn get_gateway_proxy_token(
+        &self,
+    ) -> anyhow::Result<BearerAuthToken> {
         let now = SystemTime::now();
         self.inner
             .authenticator
@@ -490,7 +492,7 @@ impl NodeClient {
         &self,
     ) -> anyhow::Result<Option<PaymentUpdatedIndex>> {
         let auth = self
-            .get_gateway_token()
+            .get_gateway_proxy_token()
             .await
             .context("Could not get bearer token")?;
         let latest_update = self
