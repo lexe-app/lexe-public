@@ -11,7 +11,7 @@ use lexe::types::{
         ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
         NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
         PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -25,8 +25,8 @@ use crate::{
     api::{
         AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
         PayLnurlRequest, PayRequest, SignupRequest, UpdateClientRequest,
-        UpdateHumanBitcoinAddressRequest, WaitForPaymentRequest,
-        WithdrawLnurlRequest,
+        UpdateHumanBitcoinAddressRequest, WaitForNextPaymentRequest,
+        WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };
@@ -218,6 +218,16 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<Payment, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/wait_for_payment");
+        let http_req = self.rest.get(url, req).timeout(Duration::MAX);
+        self.rest.send(http_req).await
+    }
+
+    async fn wait_for_next_payment(
+        &self,
+        req: &WaitForNextPaymentRequest,
+    ) -> Result<WaitForNextPaymentResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/wait_for_next_payment");
         let http_req = self.rest.get(url, req).timeout(Duration::MAX);
         self.rest.send(http_req).await
     }

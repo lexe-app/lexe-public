@@ -31,6 +31,8 @@ use lexe::{
             PaymentSyncSummary, RevokeClientRequest,
             UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
+            WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
+            WaitForNextPaymentResponse,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
         payment::Payment,
@@ -50,7 +52,7 @@ use crate::{
         AnalyzeResponse, ClaimableDetails, HealthCheckResponse,
         ListPaymentsRequest, PayLnurlRequest, PayRequest, PayableDetails,
         SignupRequest, UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
-        WaitForPaymentRequest, WithdrawLnurlRequest,
+        WaitForNextPaymentRequest, WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
@@ -108,6 +110,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/list_payments", get(node::list_payments))
         .route("/v2/node/clear_payments", post(node::clear_payments))
         .route("/v2/node/wait_for_payment", get(node::wait_for_payment))
+        .route(
+            "/v2/node/wait_for_next_payment",
+            get(node::wait_for_next_payment),
+        )
         .route("/v2/node/payment", get(node::get_payment))
         .route("/v2/node/updated_payments", get(node::get_updated_payments))
         .route(
@@ -625,6 +631,23 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(payment))
+    }
+
+    #[instrument(skip_all, name = "(wait-for-next-payment)")]
+    pub(crate) async fn wait_for_next_payment(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxQuery(req): LxQuery<WaitForNextPaymentRequest>,
+    ) -> Result<LxJson<WaitForNextPaymentResponse>, SdkApiError> {
+        let req = SdkWaitForNextPaymentRequest {
+            start_index: req.start_index,
+            timeout: req.timeout_secs.map(Duration::from_secs),
+        };
+        let resp = wallet
+            .wait_for_next_payment(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
     }
 
     /// Legacy: Returns `{ "payment": null }` if not found.

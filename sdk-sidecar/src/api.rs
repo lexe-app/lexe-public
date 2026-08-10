@@ -14,7 +14,9 @@ use lexe::{
             PayLnurlRequest as SdkPayLnurlRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
-        payment::{Order, PaymentCreatedIndex, PaymentFilter},
+        payment::{
+            Order, PaymentCreatedIndex, PaymentFilter, PaymentUpdatedIndex,
+        },
     },
     util::ed25519,
 };
@@ -235,6 +237,12 @@ pub struct ListPaymentsRequest {
 #[derive(Serialize, Deserialize)]
 pub struct WaitForPaymentRequest {
     pub index: PaymentCreatedIndex,
+    pub timeout_secs: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WaitForNextPaymentRequest {
+    pub start_index: Option<PaymentUpdatedIndex>,
     pub timeout_secs: Option<u64>,
 }
 

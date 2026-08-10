@@ -18,7 +18,7 @@ use lexe::types::{
         ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
         NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
         PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -27,8 +27,8 @@ use lexe_api::{error::SdkApiError, types::Empty};
 use crate::api::{
     AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest,
     PayRequest, SignupRequest, UpdateClientRequest,
-    UpdateHumanBitcoinAddressRequest, WaitForPaymentRequest,
-    WithdrawLnurlRequest,
+    UpdateHumanBitcoinAddressRequest, WaitForNextPaymentRequest,
+    WaitForPaymentRequest, WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -236,6 +236,23 @@ pub trait UserSidecarApi {
         &self,
         req: &WaitForPaymentRequest,
     ) -> Result<Payment, SdkApiError>;
+
+    /// GET /v2/node/wait_for_next_payment [`WaitForNextPaymentRequest`]
+    ///                                 -> [`WaitForNextPaymentResponse`]
+    ///
+    /// Wait until a payment is updated later than `start_index`, then return
+    /// it. Useful for tailing payment updates one-by-one.
+    ///
+    /// Pass the previous response's `next_start_index` as the next
+    /// `start_index` to keep tailing. If `start_index` is `None`, waits for
+    /// the next update unseen by either the wallet DB (if persistence
+    /// enabled) or the user node (if persistence disabled).
+    ///
+    /// Waits indefinitely if no `timeout_secs` is given.
+    async fn wait_for_next_payment(
+        &self,
+        req: &WaitForNextPaymentRequest,
+    ) -> Result<WaitForNextPaymentResponse, SdkApiError>;
 
     /// GET /v2/node/payment [`GetPaymentRequest`] -> [`GetPaymentResponse`]
     ///
