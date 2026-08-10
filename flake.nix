@@ -4,7 +4,9 @@
   inputs = {
     # NixOS/nixpkgs - nixos-stable branch for the current release
     # * sgx-psw: 2.27 -> 2.29; nixos/aesmd: update
-    nixpkgs.url = "github:lexe-app/nixpkgs/lexe-nixos-26.05-2026_07_09";
+    # * sgx-psw: 2.29 -> 2.30
+    # * sgx-azure-dcap-client: 1.13.0-pre0 -> 1.13.1
+    nixpkgs.url = "github:lexe-app/nixpkgs/lexe-nixos-26.05-2026_08_10";
 
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
