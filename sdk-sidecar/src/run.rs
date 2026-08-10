@@ -158,6 +158,7 @@ impl Sidecar {
             webhook_tx,
         });
         let layer_config = LayerConfig {
+            // `wait_*` endpoints *may* wait indefinitely, so remove timeout
             handling_timeout: None,
             ..Default::default()
         };

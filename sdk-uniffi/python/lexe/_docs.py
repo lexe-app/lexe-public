@@ -1123,9 +1123,9 @@ from the user node (does not read from or write to the local payments cache).
 
 Args:
     start_index: The cursor at which the results should start, exclusive.
-        If ``None``, the least recently updated payments will be returned
-        first.
-    limit: Maximum number of payments to return. Max 100, defaults to 50.
+        If ``None``, starts from the oldest-updated payment, inclusive.
+    limit: Maximum number of payments to return. If ``None``, there is no
+        limit, though wallets without persistence are capped at 100.
 
 Returns:
     A :class:`GetUpdatedPaymentsResponse` with the updated payments and
@@ -1922,9 +1922,9 @@ from the user node (does not read from or write to the local payments cache).
 
 Args:
     start_index: The cursor at which the results should start, exclusive.
-        If ``None``, the least recently updated payments will be returned
-        first.
-    limit: Maximum number of payments to return. Max 100, defaults to 50.
+        If ``None``, starts from the oldest-updated payment, inclusive.
+    limit: Maximum number of payments to return. If ``None``, there is no
+        limit, though wallets without persistence are capped at 100.
 
 Returns:
     A :class:`GetUpdatedPaymentsResponse` with the updated payments and

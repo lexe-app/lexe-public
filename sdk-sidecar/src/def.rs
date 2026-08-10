@@ -252,9 +252,10 @@ pub trait UserSidecarApi {
     /// from a given `updated_at` index.
     ///
     /// `start_index` is the cursor at which the results should start,
-    /// exclusive. If `None`, the least recently updated payments will be
-    /// returned first. `limit` caps the number of payments returned
-    /// (max 100, default 50).
+    /// exclusive. If `None`, starts from the oldest-updated payment,
+    /// inclusive. `limit` caps the number of payments returned; if `None`,
+    /// there is no limit, though wallets without persistence are capped at
+    /// 100.
     async fn get_updated_payments(
         &self,
         req: &GetUpdatedPaymentsRequest,

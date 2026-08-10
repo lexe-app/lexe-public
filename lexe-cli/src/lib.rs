@@ -1775,8 +1775,8 @@ impl GetPaymentArgs {
     about = "Get payments which were updated past a specified index",
     long_about = "Get payments which were updated past a specified index.\n\
         \n\
-        Fetches updated payments directly from the user node \
-        (not from local storage).",
+        Useful for tailing / syncing payment updates as they occur and\n\
+        merging them into a local payments store.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct GetUpdatedPaymentsArgs {
