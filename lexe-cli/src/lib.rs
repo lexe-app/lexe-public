@@ -22,7 +22,8 @@ use lexe::{
             GetUpdatedPaymentsRequest, OpenChannelRequest, PayInvoiceRequest,
             PayLnurlRequest, PayOfferRequest, PayRequest, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
+            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
+            WithdrawLnurlRequest,
         },
         payment::{
             Order, Payment, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
@@ -169,6 +170,7 @@ pub enum LexeCommand {
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
     WaitForPayment(WaitForPaymentArgs),
+    WaitForNextPayment(WaitForNextPaymentArgs),
     GetPayment(GetPaymentArgs),
     GetUpdatedPayments(GetUpdatedPaymentsArgs),
     UpdatePersonalNote(UpdatePersonalNoteArgs),
@@ -310,6 +312,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
         LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
+        LexeCommand::WaitForNextPayment(a) => a.run(&wallet).await,
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
         LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
         LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
@@ -1742,6 +1745,56 @@ impl WaitForPaymentArgs {
             PaymentStatus::Failed => warn!("Payment failed."),
         }
         helpers::print_json_pretty(&payment)
+    }
+}
+
+// --- `wait-for-next-payment` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Wait for the next payment update",
+    long_about = "Wait until a payment is updated later than `start_index`,\n\
+        then return it. Useful for tailing payment updates one-by-one.\n\
+        \n\
+        Handling should be idempotent. The same payment may be returned\n\
+        multiple times due to receiving repeated updates.\n\
+        \n\
+        If your application fails to handle a payment update, resuming\n\
+        from the start_index that yielded the failed update will\n\
+        eventually yield the same payment.\n\
+        \n\
+        If persistence is enabled, this will sync the local database.\n\
+        Waits indefinitely if no timeout is given.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct WaitForNextPaymentArgs {
+    #[arg(
+        long,
+        help = "Only return a payment updated later than this index.\n\
+        Pass the previous response's next_start_index to keep tailing.\n\
+        If omitted, waits for the next update unseen by either the\n\
+        wallet DB (if persistence enabled) or the user node (if\n\
+        persistence disabled)."
+    )]
+    start_index: Option<PaymentUpdatedIndex>,
+
+    /// Timeout in seconds. Waits indefinitely if omitted.
+    #[arg(long)]
+    timeout_secs: Option<u64>,
+}
+
+impl WaitForNextPaymentArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = WaitForNextPaymentRequest {
+            start_index: self.start_index,
+            timeout: self.timeout_secs.map(Duration::from_secs),
+        };
+        info!("Waiting for the next payment update...");
+        let resp = wallet
+            .wait_for_next_payment(req)
+            .await
+            .context("Failed waiting for the next payment")?;
+        helpers::print_json_pretty(&resp)
     }
 }
 
