@@ -27,7 +27,8 @@ use crate::{
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayLnurlRequest, PayOfferRequest, PayRequest, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WithdrawLnurlRequest,
+            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
+            WaitForNextPaymentResponse, WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentCreatedIndex, PaymentFilter},
     },
@@ -493,6 +494,23 @@ impl BlockingLexeWallet {
         timeout: Option<Duration>,
     ) -> anyhow::Result<Payment> {
         block_on(self.inner.wait_for_payment(index, timeout))
+    }
+
+    /// Waits until we observe a payment updated later than `start_index`, then
+    /// returns the payment. Useful for tailing payment updates one-by-one.
+    ///
+    /// - Handling should be idempotent. The same payment may be returned
+    ///   multiple times due to receiving repeated updates.
+    /// - If your application fails to handle a payment update, resuming from
+    ///   the [`start_index`](WaitForNextPaymentRequest::start_index) that
+    ///   yielded the failed update will *eventually* yield the same payment.
+    ///
+    /// If persistence is enabled, this will sync the local database.
+    pub fn wait_for_next_payment(
+        &self,
+        req: WaitForNextPaymentRequest,
+    ) -> anyhow::Result<WaitForNextPaymentResponse> {
+        block_on(self.inner.wait_for_next_payment(req))
     }
 
     /// Get information about a payment by its created index.
