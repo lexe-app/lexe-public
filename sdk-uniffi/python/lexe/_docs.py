@@ -1100,6 +1100,40 @@ Example::
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
 
+_set_method_doc(LexeWallet, "wait_for_next_payment", """\
+Wait until a payment is updated later than ``start_index``, then return it.
+
+Useful for tailing payment updates one-by-one.
+
+Handling should be idempotent: the same payment is returned again each time
+it is updated. If your handling of an update fails, resuming from the same
+``start_index`` will eventually yield that payment again.
+
+Args:
+    start_index: Only return a payment updated later than this index. Pass
+        the previous response's ``next_start_index`` to keep tailing. If
+        ``None``, waits for the next update unseen by either the wallet DB
+        (if persistence enabled) or the user node (if persistence disabled).
+    timeout_secs: Maximum wait time in seconds. Waits indefinitely if
+        omitted.
+
+Returns:
+    A :class:`WaitForNextPaymentResponse` holding the updated ``payment``
+    and the ``next_start_index`` to resume from.
+
+Raises:
+    FfiError: If the timeout is exceeded or the node is unreachable.
+
+Example::
+
+    # Tail payment updates as they arrive.
+    start_index = None
+    while True:
+        resp = wallet.wait_for_next_payment(start_index=start_index)
+        handle(resp.payment)
+        start_index = resp.next_start_index
+""")
+
 _set_method_doc(LexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
@@ -1899,6 +1933,40 @@ Example::
     assert payment.status in (PaymentStatus.COMPLETED, PaymentStatus.FAILED)
 """)
 
+_set_method_doc(AsyncLexeWallet, "wait_for_next_payment", """\
+Wait until a payment is updated later than ``start_index``, then return it.
+
+Useful for tailing payment updates one-by-one.
+
+Handling should be idempotent: the same payment is returned again each time
+it is updated. If your handling of an update fails, resuming from the same
+``start_index`` will eventually yield that payment again.
+
+Args:
+    start_index: Only return a payment updated later than this index. Pass
+        the previous response's ``next_start_index`` to keep tailing. If
+        ``None``, waits for the next update unseen by either the wallet DB
+        (if persistence enabled) or the user node (if persistence disabled).
+    timeout_secs: Maximum wait time in seconds. Waits indefinitely if
+        omitted.
+
+Returns:
+    A :class:`WaitForNextPaymentResponse` holding the updated ``payment``
+    and the ``next_start_index`` to resume from.
+
+Raises:
+    FfiError: If the timeout is exceeded or the node is unreachable.
+
+Example::
+
+    # Tail payment updates as they arrive.
+    start_index = None
+    while True:
+        resp = await wallet.wait_for_next_payment(start_index=start_index)
+        handle(resp.payment)
+        start_index = resp.next_start_index
+""")
+
 _set_method_doc(AsyncLexeWallet, "get_payment", """\
 Get a specific payment by its index.
 
@@ -2345,6 +2413,15 @@ Attributes:
     updated_index: The ``updated_at`` index of the last payment in the
         batch. Pass as ``start_index`` on the next call to continue
         paginating. ``None`` if the batch is empty.
+"""
+
+lexe.WaitForNextPaymentResponse.__doc__ = """\
+Response from :meth:`LexeWallet.wait_for_next_payment`.
+
+Attributes:
+    payment: The newly updated or created payment.
+    next_start_index: The ``updated_at`` index of the returned payment.
+        Pass as ``start_index`` on the next call to keep tailing.
 """
 
 # ===================== #

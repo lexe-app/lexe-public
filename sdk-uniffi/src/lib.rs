@@ -65,6 +65,8 @@ use lexe::{
             RevokeClientRequest as SdkRevokeClientRequest,
             UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
+            WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
+            WaitForNextPaymentResponse as SdkWaitForNextPaymentResponse,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
         payment::{
@@ -1348,6 +1350,43 @@ impl AsyncLexeWallet {
         Ok(Payment::from(payment))
     }
 
+    /// Waits until we observe a payment updated later than `start_index`, then
+    /// returns the payment. Useful for tailing payment updates one-by-one.
+    ///
+    /// - Handling should be idempotent. The same payment may be returned
+    ///   multiple times due to receiving repeated updates.
+    /// - If your application fails to handle a payment update, resuming from
+    ///   the `start_index` that yielded the failed update will *eventually*
+    ///   yield the same payment.
+    ///
+    /// Pass the previous response's `next_start_index` as the next
+    /// `start_index` to keep tailing. If `start_index` is `None`, waits for
+    /// the next update unseen by either the wallet DB (if persistence
+    /// enabled) or the user node (if persistence disabled). A `None` timeout
+    /// waits indefinitely.
+    ///
+    /// If persistence is enabled, this will sync the local database.
+    // Explicitly omit a `start_index` default: correct tailing means passing
+    // the previous response's `next_start_index`, so `None` should be rare.
+    #[uniffi::method(default(timeout_secs = None))]
+    pub async fn wait_for_next_payment(
+        &self,
+        start_index: Option<String>,
+        timeout_secs: Option<u32>,
+    ) -> Result<WaitForNextPaymentResponse, FfiError> {
+        let start_index = start_index
+            .map(|s| SdkPaymentUpdatedIndex::from_str(&s))
+            .transpose()?;
+        let timeout =
+            timeout_secs.map(|secs| Duration::from_secs(u64::from(secs)));
+        let req = SdkWaitForNextPaymentRequest {
+            start_index,
+            timeout,
+        };
+        let resp = self.inner.wait_for_next_payment(req).await?;
+        Ok(WaitForNextPaymentResponse::from(resp))
+    }
+
     /// Get a payment by its `index` string.
     pub async fn get_payment(
         &self,
@@ -2207,6 +2246,43 @@ impl BlockingLexeWallet {
         Ok(Payment::from(payment))
     }
 
+    /// Waits until we observe a payment updated later than `start_index`, then
+    /// returns the payment. Useful for tailing payment updates one-by-one.
+    ///
+    /// - Handling should be idempotent. The same payment may be returned
+    ///   multiple times due to receiving repeated updates.
+    /// - If your application fails to handle a payment update, resuming from
+    ///   the `start_index` that yielded the failed update will *eventually*
+    ///   yield the same payment.
+    ///
+    /// Pass the previous response's `next_start_index` as the next
+    /// `start_index` to keep tailing. If `start_index` is `None`, waits for
+    /// the next update unseen by either the wallet DB (if persistence
+    /// enabled) or the user node (if persistence disabled). A `None` timeout
+    /// waits indefinitely.
+    ///
+    /// If persistence is enabled, this will sync the local database.
+    // Explicitly omit a `start_index` default: correct tailing means passing
+    // the previous response's `next_start_index`, so `None` should be rare.
+    #[uniffi::method(default(timeout_secs = None))]
+    pub fn wait_for_next_payment(
+        &self,
+        start_index: Option<String>,
+        timeout_secs: Option<u32>,
+    ) -> Result<WaitForNextPaymentResponse, FfiError> {
+        let start_index = start_index
+            .map(|s| SdkPaymentUpdatedIndex::from_str(&s))
+            .transpose()?;
+        let timeout =
+            timeout_secs.map(|secs| Duration::from_secs(u64::from(secs)));
+        let req = SdkWaitForNextPaymentRequest {
+            start_index,
+            timeout,
+        };
+        let resp = self.inner.wait_for_next_payment(req)?;
+        Ok(WaitForNextPaymentResponse::from(resp))
+    }
+
     /// Get a payment by its `index` string.
     pub fn get_payment(
         &self,
@@ -2835,6 +2911,25 @@ impl From<SdkGetUpdatedPaymentsResponse> for GetUpdatedPaymentsResponse {
         Self {
             payments: resp.payments.into_iter().map(Payment::from).collect(),
             updated_index: resp.updated_index.map(|idx| idx.to_string()),
+        }
+    }
+}
+
+/// Response from waiting for the next payment update.
+#[derive(Clone, uniffi::Record)]
+pub struct WaitForNextPaymentResponse {
+    /// The newly updated or created payment.
+    pub payment: Payment,
+    /// The `updated_at` index of the returned payment. Pass this as
+    /// `start_index` in the next request to get the next payment update.
+    pub next_start_index: String,
+}
+
+impl From<SdkWaitForNextPaymentResponse> for WaitForNextPaymentResponse {
+    fn from(resp: SdkWaitForNextPaymentResponse) -> Self {
+        Self {
+            payment: Payment::from(resp.payment),
+            next_start_index: resp.next_start_index.to_string(),
         }
     }
 }
