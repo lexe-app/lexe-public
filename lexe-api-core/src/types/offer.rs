@@ -367,7 +367,7 @@ impl fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 #[cfg(any(test, feature = "test-utils"))]
-mod arb {
+pub(crate) mod arb {
     use std::{collections::BTreeMap, num::NonZeroU64, time::Duration};
 
     use lexe_common::{

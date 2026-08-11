@@ -206,8 +206,12 @@ pub struct PaymentMetadata {
 
     /// (Outbound offer only) The BOLT12 invoice we received and paid.
     #[serde(skip_serializing_if = "Option::is_none")]
-    // TODO(nicole): Actually impl Arbitrary
-    #[cfg_attr(test, proptest(strategy = "Just(None)"))]
+    #[cfg_attr(
+        test,
+        proptest(
+            strategy = "arbitrary_helpers::any_option_arc_bolt12_invoice()"
+        )
+    )]
     pub bolt12_invoice: Option<Arc<Bolt12Invoice>>,
 
     // --- Notes and sender/receiver identifiers --- //
@@ -1299,6 +1303,11 @@ mod arbitrary_helpers {
 
     pub fn any_option_arc_offer() -> impl Strategy<Value = Option<Arc<Offer>>> {
         option::of(any::<Offer>()).prop_map(|opt| opt.map(Arc::new))
+    }
+
+    pub fn any_option_arc_bolt12_invoice()
+    -> impl Strategy<Value = Option<Arc<Bolt12Invoice>>> {
+        option::of(any::<Bolt12Invoice>()).prop_map(|opt| opt.map(Arc::new))
     }
 }
 
