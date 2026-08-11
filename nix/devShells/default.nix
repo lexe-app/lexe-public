@@ -4,7 +4,7 @@
   pkgs,
   lexePubPkgs,
 }:
-{
+rec {
   #
   # app
   #
@@ -65,6 +65,13 @@
         "aarch64-darwin"
       ];
     };
+  };
+
+  # Android app development toolchain with emulator image (several GiB)
+  app-android-with-emulator = app-android.overrideAttrs {
+    ANDROID_EMULATOR_SDK_ROOT = lexePubPkgs.ANDROID_EMULATOR_SDK_ROOT;
+    LEXE_ANDROID_EMULATOR_SYSTEM_IMAGE =
+      lexePubPkgs.LEXE_ANDROID_EMULATOR_SYSTEM_IMAGE;
   };
 
   # iOS/macOS app development toolchains

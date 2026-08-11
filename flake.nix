@@ -125,6 +125,9 @@
 
           # Android app development toolchains
           app-android = lexePubDevShells.app-android;
+
+          # Android app development toolchain with emulator image (several GiB)
+          app-android-with-emulator = lexePubDevShells.app-android-with-emulator;
         }
         // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
           # iOS/macOS app development toolchains

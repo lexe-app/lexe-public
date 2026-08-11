@@ -61,9 +61,9 @@ rec {
 
   # mkPkgsUnfree :: NixpkgsFlakeInput -> String -> NixpkgsPackageSet
   #
-  # Builds a `pkgs` set that allows unfree packages, like the Android SDK.
-  # Only used for building the Android app. We keep this as a separate package
-  # set for eval efficiency.
+  # Builds a `pkgs` set that allows specific packages with unfree licenses,
+  # like the Android SDK. Only used for building the Android app. We keep this
+  # as a separate package set for eval efficiency.
   mkPkgsUnfree =
     nixpkgsFlake: system:
     import nixpkgsFlake {
@@ -73,16 +73,22 @@ rec {
           allowed = {
             android-sdk-build-tools = null;
             android-sdk-cmdline-tools = null;
+            android-sdk-emulator = null;
             android-sdk-ndk = null;
             android-sdk-platform-tools = null;
             android-sdk-platforms = null;
+            android-sdk-system-image-35-default-arm64-v8a = null;
+            android-sdk-system-image-35-default-x86_64 = null;
             android-sdk-tools = null;
             build-tools = null;
             cmake = null;
             cmdline-tools = null;
+            emulator = null;
             ndk = null;
             platform-tools = null;
             platforms = null;
+            system-image-35-default-arm64-v8a = null;
+            system-image-35-default-x86_64 = null;
             tools = null;
           };
         in

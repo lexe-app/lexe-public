@@ -550,14 +550,33 @@ rec {
     cmakeVersions = [ "3.22.1" ]; # flutter_zxing
   };
 
+  # Keep the emulator SDK composition separate so the build SDK's multiple
+  # platform versions don't each pull in a system image.
+  androidEmulatorApiVersion = "35";
+  androidEmulatorAbiVersion =
+    if pkgs.stdenv.hostPlatform.isAarch64 then "arm64-v8a" else "x86_64";
+  androidEmulatorSystemImageType = "default";
+  androidEmulatorSdkComposition = pkgsUnfree.androidenv.composeAndroidPackages {
+    abiVersions = [ androidEmulatorAbiVersion ];
+    buildToolsVersions = [ ];
+    cmakeVersions = [ ];
+    includeEmulator = true;
+    includeSystemImages = true;
+    platformVersions = [ androidEmulatorApiVersion ];
+    systemImageTypes = [ androidEmulatorSystemImageType ];
+  };
+
   # Links all the toolchains/libs/bins/etc in our chosen `androidSdkComposition`
   # into a single derivation.
   androidSdk = androidSdkComposition.androidsdk;
+  androidEmulatorSdk = androidEmulatorSdkComposition.androidsdk;
 
   # Android envs
   ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
   ANDROID_HOME = ANDROID_SDK_ROOT;
   ANDROID_NDK_ROOT = "${ANDROID_SDK_ROOT}/ndk/${androidSdkComposition.ndk-bundle.version}";
+  ANDROID_EMULATOR_SDK_ROOT = "${androidEmulatorSdk}/libexec/android-sdk";
+  LEXE_ANDROID_EMULATOR_SYSTEM_IMAGE = "system-images;android-${androidEmulatorApiVersion};${androidEmulatorSystemImageType};${androidEmulatorAbiVersion}";
   JAVA_HOME = "${pkgs.jdk17_headless.home}";
 
   # # The gradle version we're using.
