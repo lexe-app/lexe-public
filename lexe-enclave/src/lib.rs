@@ -12,14 +12,14 @@ pub mod allocator;
 pub mod enclave {
     pub use crate::{platform::*, types::*};
 
-    pub mod dev_id {
-        pub use crate::dev_id::*;
+    pub mod dev {
+        pub use crate::dev::*;
     }
 }
 
 /// Dev enclave identity patching.
-pub(crate) mod dev_id;
+mod dev;
 /// SGX platform functions, e.g., `measurement()`, `machine_id()`, ...
-pub(crate) mod platform;
+mod platform;
 /// SGX enclave types, e.g., `Measurement`, `MachineId`, ...
-pub(crate) mod types;
+mod types;

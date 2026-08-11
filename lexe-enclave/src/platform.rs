@@ -83,7 +83,7 @@ pub fn measurement() -> Measurement {
         if #[cfg(target_env = "sgx")] {
             Measurement::new(enclave::report().mrenclave)
         } else {
-            crate::dev_id::measurement()
+            crate::dev::measurement()
                 .unwrap_or(Measurement::MOCK_ENCLAVE)
         }
     }

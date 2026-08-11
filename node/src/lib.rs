@@ -53,9 +53,8 @@ mod user_cache;
 /// The version patching is done so we only need to build and link the enclaves
 /// once.
 ///
-/// See: [`enclave::dev_id`]
+/// See: [`enclave::dev`]
 pub(crate) fn version() -> semver::Version {
-    let version =
-        enclave::dev_id::version().unwrap_or(env!("CARGO_PKG_VERSION"));
+    let version = enclave::dev::version().unwrap_or(env!("CARGO_PKG_VERSION"));
     semver::Version::parse(version).expect("Invalid node version")
 }
