@@ -547,14 +547,39 @@ mod arb {
         )
     }
 
+    /// [`proptest`] parameters for generating an [`Offer`].
+    #[derive(Default)]
+    pub struct OfferParams {
+        /// The payee's root seed, which derives:
+        /// - The offer's blinded path keys
+        /// - The offer's issuer signing pubkey, if it isn't derived
+        ///
+        /// If not given, an arbitrary root seed is generated.
+        pub root_seed: Option<RootSeed>,
+        /// Overrides whether the offer's issuer signing pubkey is derived:
+        /// - `Some(Some(key_material))`: derived from `key_material`
+        /// - `Some(None)`: not derived; the payee's node pk signs
+        /// - `None`: don't override; arbitrarily generate
+        pub derived_keys: Option<Option<(Nonce, ExpandedKey)>>,
+    }
+
     impl Arbitrary for Offer {
-        type Parameters = ();
+        type Parameters = OfferParams;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let OfferParams {
+                root_seed,
+                derived_keys: derived_keys_override,
+            } = args;
             let any_rng = any::<FastRng>();
+            let any_derived_keys = match derived_keys_override {
+                Some(derived_keys) => Just(derived_keys.map(Some)).boxed(),
+                None => any::<bool>()
+                    .prop_map(|is_derived| is_derived.then_some(None))
+                    .boxed(),
+            };
             let any_network = any::<Option<Network>>();
-            let any_is_blinded = any::<bool>();
             let any_description = arbitrary::any_option_string();
             let any_amount = any::<Option<Amount>>();
             // BOLT12 offers only support second-level precision for expiry
@@ -565,8 +590,8 @@ mod arb {
 
             (
                 any_rng,
+                any_derived_keys,
                 any_network,
-                any_is_blinded,
                 any_description,
                 any_amount,
                 any_expiry,
@@ -575,10 +600,10 @@ mod arb {
                 any_paths,
             )
                 .prop_map(
-                    |(
+                    move |(
                         rng,
+                        derived_keys,
                         network,
-                        is_blinded,
                         description,
                         amount,
                         expiry,
@@ -588,8 +613,9 @@ mod arb {
                     )| {
                         gen_offer(
                             rng,
+                            root_seed.as_ref(),
+                            derived_keys,
                             network,
-                            is_blinded,
                             description,
                             amount,
                             expiry,
@@ -607,8 +633,12 @@ mod arb {
     /// get in the way when generating via proptest. Only used in testing.
     pub(super) fn gen_offer(
         mut rng: FastRng,
+        root_seed: Option<&RootSeed>,
+        // - `Some(opt_key_material)`: Derive the offer's issuer signing
+        //   pubkey. Use the key material if given; generate it if not.
+        // - `None`: Use `node_pk` to sign.
+        derived_keys: Option<Option<(Nonce, ExpandedKey)>>,
         network: Option<Network>,
-        is_blinded: bool,
         description: Option<String>,
         amount: Option<Amount>,
         expiry: Option<Duration>,
@@ -616,9 +646,9 @@ mod arb {
         max_quantity: MaxQuantity,
         paths: Vec<(Vec<MessageForwardNode>, MessageContext)>,
     ) -> Offer {
-        let root_seed = RootSeed::from_rng(&mut rng);
+        let generated_seed = RootSeed::from_rng(&mut rng);
+        let root_seed = root_seed.unwrap_or(&generated_seed);
         let node_pk = root_seed.derive_node_pk();
-        let expanded_key = ExpandedKey::new(rng.gen_bytes());
         let receive_auth_key =
             ReceiveAuthKey(root_seed.derive_receive_auth_key());
         // Just normalize the amount to None | Some(x > 0)
@@ -643,10 +673,15 @@ mod arb {
             .collect::<Vec<_>>();
 
         // each builder constructor returns a different type, hence the copying
-        let offer = if is_blinded {
-            let nonce = Nonce::from_entropy_source(FastRngDerefHack::from_rng(
-                &mut rng,
-            ));
+        let offer = if let Some(key_material) = derived_keys {
+            // Use the supplied key material if it exists.
+            let (nonce, expanded_key) = key_material.unwrap_or_else(|| {
+                let nonce = Nonce::from_entropy_source(
+                    FastRngDerefHack::from_rng(&mut rng),
+                );
+                let expanded_key = ExpandedKey::new(rng.gen_bytes());
+                (nonce, expanded_key)
+            });
             let mut offer = OfferBuilder::deriving_signing_pubkey(
                 node_pk.inner(),
                 &expanded_key,
@@ -850,9 +885,11 @@ mod test {
     fn offer_dump() {
         let mut rng = FastRng::from_u64(98111385158636);
 
-        // false => use node_pk to sign offer (less privacy)
-        // true => derive a signing keypair per offer (add ~50 B per offer).
-        let is_blinded = true;
+        // None => generate an arbitrary root seed
+        let root_seed = None;
+        // None => use node_pk to sign offer (less privacy)
+        // Some => derive a signing keypair per offer (add ~50 B per offer).
+        let derived_keys = Some(None);
         let network = Some(Network::Regtest); // None ==> BTC mainnet
         let description = Some("Donation Page".to_owned());
         let amount = None;
@@ -883,8 +920,9 @@ mod test {
 
         let offer = gen_offer(
             rng,
+            root_seed,
+            derived_keys,
             network,
-            is_blinded,
             description,
             amount,
             expiry,
