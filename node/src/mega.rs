@@ -86,6 +86,10 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
 
     // Start the usernode runner. Keep this block last so that
     // `fixed_heap_bytes` accounts for everything initialized above.
+    //
+    // NOTE: We snapshot the settled heap usage rather than the init peak
+    // (`max_bytes`), which is likely caused by the initial network graph fetch.
+    // If we ever refetch the graph post-init, snapshot the peak instead.
     let now = TimestampMs::now();
     let fixed_heap_bytes = allocator::stats().current_bytes;
     let user_runner = UserRunner::new(
