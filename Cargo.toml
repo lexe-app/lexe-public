@@ -194,7 +194,7 @@ ignore = "0.4"
 # Cross-platform access to host secret storage
 keyring = { version = "2.0", default-features = false }
 # Efficient LRU cache backed by a linked list.
-lru = { version = "0.16", default-features = false }
+lru = { version = "0.18", default-features = false }
 # For symbolizing backtrace frames from the enclave
 object = { version = "0.38", default-features = false, features = ["elf", "read_core"] }
 # Small conversion from fixed ECDSA signature to ASN.1 format
