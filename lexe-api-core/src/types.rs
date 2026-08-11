@@ -4,6 +4,8 @@
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
+/// `Bolt12Invoice`, a wrapper around LDK's BOLT12 invoice type.
+pub mod bolt12_invoice;
 /// `BoundedString`, length-bounded string type for untrusted input.
 pub mod bounded_string;
 /// Tamper-evident blobs that Lexe issues and a client echoes back.
