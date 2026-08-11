@@ -144,6 +144,7 @@ impl OnchainSendV2 {
             address: Some(Arc::new(address)),
             invoice: None,
             offer: None,
+            bolt12_invoice: None,
             payer_name: None,
             message: None,
             personal_note,

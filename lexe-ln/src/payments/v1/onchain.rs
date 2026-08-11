@@ -78,6 +78,7 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
             address: None, // v1 doesn't store address separately
             invoice: None,
             offer: None,
+            bolt12_invoice: None,
             payer_name: None,
             message: None,
             personal_note: v1.note,
@@ -114,6 +115,7 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
             address: _,
             invoice: _,
             offer: _,
+            bolt12_invoice: _,
             payer_name: _,
             message: _,
             personal_note: note,
@@ -188,6 +190,7 @@ impl From<OnchainReceiveV1> for PaymentWithMetadata<OnchainReceiveV2> {
             address: None,
             invoice: None,
             offer: None,
+            bolt12_invoice: None,
             payer_name: None,
             message: None,
             personal_note: v1.note,

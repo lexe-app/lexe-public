@@ -7,6 +7,7 @@ use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
 use bitcoin::address::NetworkUnchecked;
 use lexe_api::types::{
+    bolt12_invoice::Bolt12Invoice,
     invoice::Invoice,
     offer::Offer,
     payments::{
@@ -203,6 +204,12 @@ pub struct PaymentMetadata {
     )]
     pub offer: Option<Arc<Offer>>,
 
+    /// (Outbound offer only) The BOLT12 invoice we received and paid.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    // TODO(nicole): Actually impl Arbitrary
+    #[cfg_attr(test, proptest(strategy = "Just(None)"))]
+    pub bolt12_invoice: Option<Arc<Bolt12Invoice>>,
+
     // --- Notes and sender/receiver identifiers --- //
     // -
     /// (Inbound offer reusable only)
@@ -252,7 +259,7 @@ pub struct PaymentMetadata {
 }
 
 // Debug the size_of `PaymentMetadata`
-const_assert_mem_size!(PaymentMetadata, 224);
+const_assert_mem_size!(PaymentMetadata, 232);
 
 /// An update to a [`PaymentMetadata`].
 #[must_use]
@@ -273,6 +280,8 @@ pub(crate) struct PaymentMetadataUpdate {
     pub invoice: Option<Option<Arc<Invoice>>>,
 
     pub offer: Option<Option<Arc<Offer>>>,
+
+    pub bolt12_invoice: Option<Option<Arc<Bolt12Invoice>>>,
 
     // --- Notes and sender/receiver identifiers --- //
     pub payer_name: Option<Option<String>>,
@@ -427,6 +436,7 @@ impl PaymentMetadata {
             address: None,
             invoice: None,
             offer: None,
+            bolt12_invoice: None,
             payer_name: None,
             message: None,
             personal_note: None,
@@ -447,6 +457,7 @@ impl PaymentMetadata {
             address,
             invoice,
             offer,
+            bolt12_invoice,
             payer_name,
             message,
             personal_note,
@@ -459,6 +470,7 @@ impl PaymentMetadata {
             && address.is_none()
             && invoice.is_none()
             && offer.is_none()
+            && bolt12_invoice.is_none()
             && payer_name.is_none()
             && message.is_none()
             && personal_note.is_none()
@@ -479,6 +491,7 @@ impl PaymentMetadata {
             address,
             invoice,
             offer,
+            bolt12_invoice,
             payer_name,
             message,
             personal_note,
@@ -491,6 +504,7 @@ impl PaymentMetadata {
         self.address = address.unwrap_or(self.address);
         self.invoice = invoice.unwrap_or(self.invoice);
         self.offer = offer.unwrap_or(self.offer);
+        self.bolt12_invoice = bolt12_invoice.unwrap_or(self.bolt12_invoice);
         self.payer_name = payer_name.unwrap_or(self.payer_name);
         self.message = message.unwrap_or(self.message);
         self.personal_note = personal_note.unwrap_or(self.personal_note);
@@ -513,6 +527,7 @@ impl PaymentMetadataUpdate {
             address,
             invoice,
             offer,
+            bolt12_invoice,
             payer_name,
             message,
             personal_note,
@@ -525,6 +540,7 @@ impl PaymentMetadataUpdate {
             && address.is_none()
             && invoice.is_none()
             && offer.is_none()
+            && bolt12_invoice.is_none()
             && payer_name.is_none()
             && message.is_none()
             && personal_note.is_none()
