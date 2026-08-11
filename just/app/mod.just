@@ -135,6 +135,10 @@ test *args:
 integration *args:
     flutter test integration_test {{ dart-defines }} {{ args }}
 
+# run app integration tests in an isolated headless Android emulator
+integration-android *args:
+    ../just/app/integration-android.sh {{ dart-defines }} {{ args }}
+
 # lint the app's dart code
 lint *args:
     flutter analyze {{ args }}

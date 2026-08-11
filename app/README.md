@@ -513,7 +513,15 @@ $ flutter test
 Run integration tests on device or emulator:
 
 ```bash
-$ flutter test integration_test
+$ just app::integration -d macos
+$ just app::integration -d iphone
+```
+
+From the repo root, run integration tests on a headless, ephemeral Android
+emulator. On Linux, the host must provide writable `/dev/kvm` acceleration.
+
+```bash
+$ nix develop .#app-android-with-emulator --command just app::integration-android
 ```
 
 
