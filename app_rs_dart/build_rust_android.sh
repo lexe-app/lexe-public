@@ -12,7 +12,6 @@
 # See: `app/android/app/build.gradle` for how this script is used when hooked
 #      into gradle build.
 
-# TODO(phlip9): get gradle to tell us which architecture we're building for.
 # TODO(phlip9): add `armv7-linux-androideabi` target when publishing. otherwise
 #               we get 2x the compile time during development...
 
@@ -36,7 +35,12 @@ CARGO_NDK_VERSION="4.1.2"
 #
 
 APP_RS__COMPILE_SDK_VERSION="${APP_RS__COMPILE_SDK_VERSION:-34}"
-APP_RS__TARGETS="${APP_RS__TARGETS:-"aarch64-linux-android"}"
+APP_RS__TARGETS="${APP_RS__TARGETS-"aarch64-linux-android"}"
+
+if [[ -z $APP_RS__TARGETS ]]; then
+  echo >&2 "error: Gradle did not select any Android targets"
+  exit 1
+fi
 
 # If we run this script standalone, just dump the output in a tempdir.
 if [[ -z $APP_RS__OUT_DIR ]]; then

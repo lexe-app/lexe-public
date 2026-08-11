@@ -91,29 +91,19 @@ def getRustTargets() {
         "android-x64": "x86_64-linux-android"
     ]
 
-    // Search for `FlutterPlugin` and add `getTargetPlatforms()` as rustc target
-    // triples.
-    for (project in rootProject.childProjects) {
-        // Find the `FlutterPlugin`
-        def flutterPlugin = null
-        for (plugin in project.value.getPlugins()) {
-            if (plugin.class.name == "FlutterPlugin") {
-                flutterPlugin = plugin;
-                break;
-            }
-        }
-        if (!flutterPlugin) {
-            continue
-        }
+    // Flutter passes this property to Gradle. Match Flutter's defaults when
+    // Gradle is invoked directly.
+    def flutterTargets = project.providers
+        .gradleProperty("target-platform")
+        .getOrElse("android-arm,android-arm64,android-x64")
+        .split(",")
 
-        // Add the rust target triples
-        flutterPlugin.getTargetPlatforms().collect().each { platform ->
-            def rustTarget = platformToRust[platform]
-            if (rustTarget == null) {
-                throw new GradleException("app_rs_dart: unrecognized flutter target platform: ${platform}")
-            }
-            out.add(rustTarget)
+    for (platform in flutterTargets) {
+        def rustTarget = platformToRust[platform]
+        if (rustTarget == null) {
+            throw new GradleException("app_rs_dart: unrecognized flutter target platform: ${platform}")
         }
+        out.add(rustTarget)
     }
 
     // Return as a space-separated string, since we'll be passing via env var.
