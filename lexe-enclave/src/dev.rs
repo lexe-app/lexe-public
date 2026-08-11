@@ -61,8 +61,14 @@ impl Identity {
 
     /// ELF section which lets `sgx-builder` locate the patch slot.
     //
-    // Keep in sync with the `read_patch_slot()` attribute literal.
-    pub const SECTION: &'static str = ".lexe_dev_id";
+    // Keep in sync with the `read_patch_slot()` attribute literals.
+    pub const SECTION_ELF: &'static str = ".lexe_dev_id";
+
+    /// Mach-O equivalent of [`Identity::SECTION_ELF`], for non-SGX dev builds
+    /// on macOS. Lives in the `__DATA` segment.
+    //
+    // Keep in sync with the `read_patch_slot()` attribute literals.
+    pub const SECTION_MACHO: &'static str = "__lexe_dev_id";
 
     const MEASUREMENT_OFFSET: usize = 32;
     const VERSION_MAX_LEN: usize = Self::MEASUREMENT_OFFSET - 1;
@@ -132,7 +138,17 @@ impl Identity {
     #[inline(never)]
     fn read_patch_slot() -> Self {
         #[used]
-        #[unsafe(link_section = ".lexe_dev_id")] // sync w/ `Identity::SECTION`
+        // Keep in sync with `Identity::SECTION_ELF` / `SECTION_MACHO`.
+        // Assume ELF normally.
+        #[cfg_attr(
+            not(target_vendor = "apple"),
+            unsafe(link_section = ".lexe_dev_id")
+        )]
+        // For Apple Mach-O binaries, we also need to specify the segment first.
+        #[cfg_attr(
+            target_vendor = "apple",
+            unsafe(link_section = "__DATA,__lexe_dev_id")
+        )]
         static mut PATCH_SLOT: [u8; Identity::LEN] = Identity::PLACEHOLDER.0;
 
         // SAFETY: The patch slot is never mutated while the process runs, and
