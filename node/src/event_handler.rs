@@ -43,7 +43,10 @@ use anyhow::{Context, anyhow};
 use lexe_api::{
     cli::LspInfo,
     def::NodeLspApi,
-    types::payments::{LnClaimId, PaymentHash, PaymentId},
+    types::{
+        bolt12_invoice::Bolt12Invoice,
+        payments::{LnClaimId, PaymentHash, PaymentId},
+    },
     vfs::VfsFile,
 };
 use lexe_common::{
@@ -74,6 +77,7 @@ use lexe_tokio::{events_bus::EventsBus, notify_once::NotifyOnce};
 use lightning::{
     events::{Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent},
     ln::channelmanager::TrustedChannelFeatures,
+    offers::payer_proof::PaidBolt12Invoice,
 };
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
@@ -459,13 +463,17 @@ async fn do_handle_event(
             fee_paid_msat,
             // The total amount paid across all paths (minus fees).
             amount_msat,
-            // TODO(phlip9): if this is a non-static-invoice payment, you can
-            // use this for proof-of-payment I guess?
-            bolt12_invoice: _,
+            bolt12_invoice,
         } => {
             // NOTE: Err(Replay) ==> must be handled idempotently
             let hash = PaymentHash::from(payment_hash);
             let id = PaymentId::from_ldk_event(payment_id, hash);
+            let maybe_bolt12_invoice = match bolt12_invoice {
+                Some(PaidBolt12Invoice::Bolt12Invoice(invoice)) =>
+                    Some(Arc::new(Bolt12Invoice::from(invoice))),
+                // We don't track static invoices b/c they can't prove payment.
+                Some(PaidBolt12Invoice::StaticInvoice(_)) | None => None,
+            };
             // `None` for still-pending sends before 0.2
             let maybe_amount_msat = amount_msat;
             // NOTE: As of ldk-v0.2.2, their docs claim this can never be `None`
@@ -492,6 +500,7 @@ async fn do_handle_event(
                     payment_preimage.into(),
                     maybe_amount_msat,
                     fees_paid_msat,
+                    maybe_bolt12_invoice,
                 )
                 .await
                 .context("Error handling PaymentSent")

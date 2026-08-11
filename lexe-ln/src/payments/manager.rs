@@ -11,6 +11,7 @@ use either::Either;
 use lexe_api::{
     models::command::UpdatePersonalNote,
     types::{
+        bolt12_invoice::Bolt12Invoice,
         bounded_string::BoundedString,
         invoice::Invoice,
         payments::{
@@ -37,7 +38,7 @@ use tracing::{debug, error, info, info_span, instrument, warn};
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
-        PaymentV2, PaymentWithMetadata,
+        PaymentMetadataUpdate, PaymentV2, PaymentWithMetadata,
         inbound::{
             ClaimableError, InboundOfferReusablePaymentV2,
             InboundSpontaneousPaymentV2, LnClaimCtx,
@@ -831,6 +832,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         preimage: PaymentPreimage,
         maybe_amount_msat: Option<u64>,
         fees_paid_msat: u64,
+        maybe_bolt12_invoice: Option<Arc<Bolt12Invoice>>,
     ) -> anyhow::Result<()> {
         let maybe_amount = maybe_amount_msat.map(Amount::from_msat);
         let fees_paid = Amount::from_msat(fees_paid_msat);
@@ -853,7 +855,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check
         let checked = locked_data
-            .check_payment_sent(id, hash, preimage, maybe_amount, fees_paid)
+            .check_payment_sent(
+                id,
+                hash,
+                preimage,
+                maybe_amount,
+                fees_paid,
+                maybe_bolt12_invoice,
+            )
             .context("Error validating PaymentSent")?;
 
         // Persist
@@ -1639,11 +1648,19 @@ impl PaymentsData {
         preimage: PaymentPreimage,
         maybe_amount: Option<Amount>,
         fees_paid: Amount,
+        maybe_bolt12_invoice: Option<Arc<Bolt12Invoice>>,
     ) -> anyhow::Result<CheckedPayment> {
         let pending_pwm = self
             .pending
             .get(&id)
             .context("Pending payment does not exist")?;
+
+        // Record the `bolt12_invoice`, if the event gave us one.
+        let update = PaymentMetadataUpdate {
+            bolt12_invoice: maybe_bolt12_invoice.map(Some),
+            ..Default::default()
+        };
+        let metadata = pending_pwm.metadata.clone().apply_update(update);
 
         let checked = match &pending_pwm.payment {
             PaymentV2::OutboundInvoice(oip) => {
@@ -1652,7 +1669,7 @@ impl PaymentsData {
                     .context("Error checking outbound invoice payment")?;
                 let oipwm = PaymentWithMetadata {
                     payment: checked_oip,
-                    metadata: pending_pwm.metadata.clone(),
+                    metadata,
                 };
                 CheckedPayment(oipwm.into_enum())
             }
@@ -1662,7 +1679,7 @@ impl PaymentsData {
                     .context("Error checking outbound offer payment")?;
                 let oopwm = PaymentWithMetadata {
                     payment: checked_oop,
-                    metadata: pending_pwm.metadata.clone(),
+                    metadata,
                 };
                 CheckedPayment(oopwm.into_enum())
             }
@@ -2111,9 +2128,17 @@ mod test {
             let id = payment.id();
             data.force_insert_payment(payment);
 
-            let _ = data.check_payment_sent(
-                    id, oip.hash, preimage, Some(oip.amount), oip.routing_fee
-                ).unwrap();
+            let maybe_bolt12_invoice = None;
+            let _ = data
+                .check_payment_sent(
+                    id,
+                    oip.hash,
+                    preimage,
+                    Some(oip.amount),
+                    oip.routing_fee,
+                    maybe_bolt12_invoice,
+                )
+                .unwrap();
             let _ = data.check_payment_failed(id, failure).unwrap();
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
@@ -2136,9 +2161,17 @@ mod test {
             data.force_insert_payment(payment);
 
             let hash = preimage.compute_hash();
-            let _ = data.check_payment_sent(
-                    id, hash, preimage, Some(oop.amount), fees
-                ).unwrap();
+            let maybe_bolt12_invoice = None;
+            let _ = data
+                .check_payment_sent(
+                    id,
+                    hash,
+                    preimage,
+                    Some(oop.amount),
+                    fees,
+                    maybe_bolt12_invoice,
+                )
+                .unwrap();
             let _ = data.check_payment_failed(id, failure).unwrap();
             data.check_payment_expiries(TimestampMs::MAX).unwrap();
         });
@@ -2167,11 +2200,20 @@ mod test {
             let id = payment.id();
             let data = PaymentsData::from_vec(vec![payment]);
 
+            let maybe_bolt12_invoice = None;
+
             // NOTE: New payment duplicate check moved to manager/DB layer.
 
             // (_, PaymentSent event) -> _
             let checked = data
-                .check_payment_sent(id, hash, preimage, Some(oip.amount), fees)
+                .check_payment_sent(
+                    id,
+                    hash,
+                    preimage,
+                    Some(oip.amount),
+                    fees,
+                    maybe_bolt12_invoice,
+                )
                 .unwrap();
             prop_assert_eq!(
                 PaymentStatus::Completed,
