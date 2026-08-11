@@ -95,6 +95,8 @@ pub(crate) struct UserRunner {
     mega_started_at: TimestampMs,
     /// Recently active users that we haven't yet notified the megarunner of.
     megarunner_activity_queue: HashSet<UserPk>,
+    /// Maximum observed per-usernode average heap usage across stat samples.
+    max_avg_user_bytes: usize,
     /// Maximum number of usernodes ever running concurrently.
     max_users: usize,
     /// Total number of usernodes ever run.
@@ -177,6 +179,7 @@ impl UserRunner {
             mega_last_used: now,
             mega_started_at: now,
             megarunner_activity_queue: HashSet::new(),
+            max_avg_user_bytes: 0,
             max_users: 0,
             total_users: 0,
 
@@ -624,7 +627,9 @@ impl UserRunner {
     }
 
     /// Log meganode stats like heap usage and per-user estimated heap usage.
-    fn log_stats(&self, reason: &'static str) {
+    /// Logs a warning if observed usage exceeds the estimates passed in via
+    /// CLI args.
+    fn log_stats(&mut self, reason: &'static str) {
         let heap_stats = allocator::stats();
         let heap_bytes = heap_stats.current_bytes;
         let heap_size_bytes = heap_stats.heap_size.unwrap_or_default();
@@ -633,6 +638,7 @@ impl UserRunner {
         // Roughly attribute everything above the fixed snapshot to usernodes.
         let users_bytes = heap_bytes.saturating_sub(self.fixed_heap_bytes);
         let avg_user_bytes = users_bytes.checked_div(users).unwrap_or_default();
+        self.max_avg_user_bytes = self.max_avg_user_bytes.max(avg_user_bytes);
 
         let heap_pct = if heap_size_bytes == 0 {
             0.0
@@ -646,6 +652,7 @@ impl UserRunner {
         let max_heap_mib = to_mib(heap_stats.max_bytes);
         let fixed_mib = to_mib(self.fixed_heap_bytes);
         let avg_user_mib = to_mib(avg_user_bytes);
+        let max_avg_user_mib = to_mib(self.max_avg_user_bytes);
 
         info!(
             reason,
@@ -655,11 +662,31 @@ impl UserRunner {
             max_heap_mib = %format_args!("{max_heap_mib:.1}"),
             fixed_mib = %format_args!("{fixed_mib:.1}"),
             avg_user_mib = %format_args!("{avg_user_mib:.1}"),
+            max_avg_user_mib = %format_args!("{max_avg_user_mib:.1}"),
             users,
             max_users = self.max_users,
             total_users = self.total_users,
             "Meganode stats",
         );
+
+        // Log WARN if observed usage exceeds the estimates passed in by the
+        // megarunner, which uses them to decide how many nodes fit in memory.
+        let usernode_memory = self.mega_args.usernode_memory as usize;
+        if avg_user_bytes > usernode_memory {
+            let estimate_mib = to_mib(usernode_memory);
+            warn!(
+                "Avg usernode heap usage ({avg_user_mib:.1} MiB) exceeds \
+                 the per-usernode memory estimate ({estimate_mib:.1} MiB)"
+            );
+        }
+        let memory_overhead = self.mega_args.memory_overhead as usize;
+        if self.fixed_heap_bytes > memory_overhead {
+            let overhead_mib = to_mib(memory_overhead);
+            warn!(
+                "Fixed heap usage ({fixed_mib:.1} MiB) exceeds \
+                 the meganode memory overhead estimate ({overhead_mib:.1} MiB)"
+            );
+        }
     }
 
     /// Amount of memory usage by currently evicting user nodes.
