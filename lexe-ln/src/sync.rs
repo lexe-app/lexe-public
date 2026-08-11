@@ -1,14 +1,18 @@
 use std::{sync::Arc, time::Instant};
 
 use anyhow::{Context, anyhow};
-use futures::future::Either;
+use futures::{
+    FutureExt,
+    future::{BoxFuture, Either},
+};
+use lexe_std::backoff;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
     sync::{mpsc, oneshot},
     time::{self, Duration},
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::{
     alias::EsploraSyncClientType,
@@ -21,6 +25,16 @@ use crate::{
 // This should be fairly infrequent because both sync using a transaction-based
 // API which makes HTTP requests to third party services.
 const SYNC_INTERVAL: Duration = Duration::from_secs(60 * 10);
+
+/// The # of times a failed sync attempt is retried after the initial attempt.
+//
+// (2026-08-11): 0 retries -> 1 retry because `bitreq` only supports HTTP/1.1,
+// which doesn't have a mechanism for the server to notify us when they close
+// the connection. When a new usernode is scheduled on a long-lived but dormant
+// meganode that has a cached Esplora connection, the first sync request
+// errors, ultimately causing the entire node boot to fail. More context:
+// https://github.com/rust-bitcoin/corepc/issues/587#issuecomment-5261195349
+const SYNC_RETRIES: usize = 1;
 
 // TODO(max): The control flow / logic in these two functions are sufficiently
 // complex and similar that it's probably a good idea to extract a helper fn.
@@ -74,27 +88,29 @@ pub fn spawn_bdk_sync_task(
                     info!(is_full_sync, "Starting BDK sync");
                     let start = Instant::now();
 
-                    // Give up if we time out or receive a shutdown signal
-                    let timeout = time::sleep(sync_timeout);
-                    let sync_fut = if !is_full_sync {
-                        Either::Left(wallet.sync(&esplora))
-                    } else {
-                        Either::Right(wallet.full_sync(&esplora))
+                    let mut sync = || {
+                        let sync_fut = if is_full_sync {
+                            Either::Left(wallet.full_sync(&esplora))
+                        } else {
+                            Either::Right(wallet.sync(&esplora))
+                        };
+                        async move { sync_fut.await.context("BDK sync failed") }
+                            .boxed()
                     };
-                    let timeout_secs = sync_timeout.as_secs();
-                    let sync_result = tokio::select! {
-                        res = sync_fut => res.context("BDK sync failed"),
-                        _ = timeout => Err(anyhow!(
-                            "BDK sync timed out after {timeout_secs}s"
-                        )),
-                        () = shutdown.recv() => break,
+                    let maybe_sync_res = sync_with_retries(
+                        "BDK", sync_timeout, &mut shutdown, &mut sync,
+                    ).await;
+                    let sync_res = match maybe_sync_res {
+                        Some(sync_res) => sync_res,
+                        // Shutdown signal received.
+                        None => break,
                     };
                     let elapsed_ms = start.elapsed().as_millis();
 
                     // Return and log the results of the first sync
                     if let Some(sync_tx) = maybe_first_bdk_sync_tx.take() {
                         // 'Clone' the sync result
-                        let first_bdk_sync_res = sync_result
+                        let first_bdk_sync_res = sync_res
                             .as_ref()
                             .map(|_| ())
                             .map_err(|e| anyhow!("{e:#}"));
@@ -104,7 +120,7 @@ pub fn spawn_bdk_sync_task(
                         }
                     }
 
-                    match sync_result {
+                    match sync_res {
                         Ok(sync_stats) => {
                             let is_legacy = false;
                             sync_stats.log_sync_complete(is_legacy, elapsed_ms);
@@ -165,21 +181,24 @@ where
                     info!("Starting LDK sync");
                     let start = Instant::now();
 
-                    let confirmables = vec![
-                        channel_manager.deref() as &(dyn Confirm + Send + Sync),
-                        chain_monitor.deref() as &(dyn Confirm + Send + Sync),
-                    ];
-
-                    // Give up if we time out or receive a shutdown signal
-                    let timeout = time::sleep(sync_timeout);
-                    let timeout_secs = sync_timeout.as_secs();
-                    let sync_res = tokio::select! {
-                        res = ldk_sync_client.sync(confirmables) =>
-                            res.context("LDK sync failed"),
-                        _ = timeout => Err(anyhow!(
-                            "LDK sync timed out after {timeout_secs}s"
-                        )),
-                        () = shutdown.recv() => break,
+                    let mut sync = || {
+                        let confirmables = vec![
+                            channel_manager.deref()
+                                as &(dyn Confirm + Send + Sync),
+                            chain_monitor.deref()
+                                as &(dyn Confirm + Send + Sync),
+                        ];
+                        let sync_fut = ldk_sync_client.sync(confirmables);
+                        async move { sync_fut.await.context("LDK sync failed") }
+                            .boxed()
+                    };
+                    let maybe_sync_res = sync_with_retries(
+                        "LDK", sync_timeout, &mut shutdown, &mut sync,
+                    ).await;
+                    let sync_res = match maybe_sync_res {
+                        Some(sync_res) => sync_res,
+                        // Shutdown signal received.
+                        None => break,
                     };
                     let elapsed = start.elapsed().as_millis();
 
@@ -212,4 +231,55 @@ where
 
         info!("LDK sync shutting down");
     })
+}
+
+/// Runs `sync` until success or `timeout` elapses, with up to
+/// [`SYNC_RETRIES`] retries.
+///
+/// - Returns `None` iff a shutdown signal is received.
+/// - The timeout bounds the total time across all attempts.
+async fn sync_with_retries<'a, T: 'a>(
+    kind: &str,
+    timeout: Duration,
+    shutdown: &mut NotifyOnce,
+    sync: &mut (dyn FnMut() -> BoxFuture<'a, anyhow::Result<T>> + Send),
+) -> Option<anyhow::Result<T>> {
+    let deadline = tokio::time::Instant::now() + timeout;
+    let mut backoff_durations = backoff::get_backoff_iter();
+    let mut attempts = 0;
+
+    loop {
+        attempts += 1;
+        let sync_result = tokio::select! {
+            result = sync() => result,
+            () = tokio::time::sleep_until(deadline) => {
+                let timeout_secs = timeout.as_secs();
+                return Some(Err(anyhow!(
+                    "{kind} sync timed out after {timeout_secs}s \
+                     (attempt #{attempts})"
+                )));
+            }
+            () = shutdown.recv() => return None,
+        };
+
+        let error = match sync_result {
+            Ok(value) => return Some(Ok(value)),
+            Err(e) => e,
+        };
+
+        // Give up if we're out of retries or if the deadline would pass before
+        // the next attempt starts.
+        let backoff_duration = backoff_durations.next_delay();
+        if attempts > SYNC_RETRIES
+            || tokio::time::Instant::now() + backoff_duration >= deadline
+        {
+            return Some(Err(error));
+        }
+
+        warn!("{kind} sync attempt #{attempts} failed; retrying: {error:#}");
+        tokio::select! {
+            () = tokio::time::sleep(backoff_duration) => (),
+            () = shutdown.recv() => return None,
+        }
+    }
 }
