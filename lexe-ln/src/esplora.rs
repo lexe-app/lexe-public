@@ -18,6 +18,7 @@ use lexe_common::{
     },
 };
 use lexe_crypto::rng::{RngCore, RngSliceExt};
+use lexe_tls_core::rustls;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FEERATE_FLOOR_SATS_PER_KW, FeeEstimator,
@@ -284,16 +285,39 @@ impl LexeEsplora {
         esplora_url: String,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
-        // `bitreq` owns the rustls config, so we can't pin to TLSv1.3.
-        // Aside from that, its defaults are already what we want:
-        // - WebPKI roots: no outages when Esplora providers rotate CA certs.
-        // - Default ring provider: our Esplora provider may not support our
-        //   preferred ciphersuite.
-        let client = esplora_client::Builder::new(&esplora_url)
-            .header("User-Agent", user_agent)
-            .timeout(ESPLORA_REQUEST_TIMEOUT)
-            .build_async()
-            .context("Could not build esplora client")?;
+        // - We must use the default ring `CryptoProvider` because our providers
+        //   may not support our specific ciphersuite, but we can at least
+        //   enforce use of TLSv1.3.
+        // - Use WebPKI certs to avoid production outages when external Esplora
+        //   providers change their CA certs.
+        // - reqwest uses a preconfigured rustls config as-is, so we must
+        //   advertise h2 in ALPN ourselves or we'd never negotiate HTTP/2.
+        #[allow(clippy::disallowed_methods)]
+        let mut tls_config =
+            rustls::ClientConfig::builder_with_protocol_versions(
+                lexe_tls_core::LEXE_TLS_PROTOCOL_VERSIONS,
+            )
+            .with_root_certificates(lexe_tls_core::WEBPKI_ROOT_CERTS.clone())
+            .with_no_client_auth();
+        tls_config.alpn_protocols = lexe_tls_core::LEXE_ALPN_PROTOCOLS.clone();
+
+        // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
+        let reqwest_client = {
+            let builder = reqwest::Client::builder()
+                .user_agent(user_agent)
+                .https_only(true)
+                .timeout(ESPLORA_REQUEST_TIMEOUT)
+                .use_preconfigured_tls(tls_config);
+
+            // Only allow http in tests
+            #[cfg(any(test, feature = "test-utils"))]
+            let builder = builder.https_only(false);
+
+            builder
+                .build()
+                .expect("Failed to build esplora reqwest client")
+        };
+        let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
         // Initial cached fee estimates
         let fee_estimates = client

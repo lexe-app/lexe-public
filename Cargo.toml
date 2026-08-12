@@ -295,7 +295,7 @@ dcap-ql = { version = "0.4", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
 enclave-runner = { version = "0.7", default-features = false }
 # Async Esplora client
-esplora-client = { version = "0.13", default-features = false, features = ["async", "async-https-rustls", "tokio"] }
+esplora-client = { version = "0.13", default-features = false, features = ["async", "tokio"] }
 # Hyper-related utilities
 hyper-util = { version = "0.1", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
@@ -358,15 +358,12 @@ bdk_esplora = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.22.2-
 # bdk_core.path = "../../bdk/crates/core"
 # bdk_esplora.path = "../../bdk/crates/esplora"
 
+# * refactor!: normalize responses into a shared HttpResponse
 # * license: Add dual license information
-# * sgx: Skip DNS resolution in SGX
-bitreq = { git = "https://github.com/lexe-app/corepc", branch = "lexe-bitreq-v0.3.7-2026_07_27" }
-# bitreq.path = "../../corepc/bitreq"
-
-# * license: Add dual license information
-# * async: log every esplora request
-esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.13.0-2026_07_27" }
-# esplora-client.path = "../../esplora-client"
+# * async: Change HTTP backend from bitreq to reqwest
+# * async: Log every esplora request
+esplora-client = { git = "https://github.com/lexe-app/rust-esplora-client", branch = "lexe-v0.13.0-2026_08_11" }
+# esplora-client.path = "../../rust-esplora-client"
 
 # * license: Add dual license information
 # * sgx: socket2 requires `client-legacy-socket2` cfg

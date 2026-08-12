@@ -812,21 +812,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af"
 
 [[package]]
-name = "bitreq"
-version = "0.3.7"
-source = "git+https://github.com/lexe-app/corepc?branch=lexe-bitreq-v0.3.7-2026_07_27#f5e54fb4f0bb8a9cdd19c2b4949673ae112e65da"
-dependencies = [
- "base64 0.22.1",
- "rustls",
- "rustls-webpki",
- "serde",
- "serde_json",
- "tokio",
- "tokio-rustls",
- "webpki-roots",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1567,15 +1552,15 @@ dependencies = [
 [[package]]
 name = "esplora-client"
 version = "0.13.0"
-source = "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.13.0-2026_07_27#2ab0c9672a76a3abfe074f69779ecad5953470a4"
+source = "git+https://github.com/lexe-app/rust-esplora-client?branch=lexe-v0.13.0-2026_08_11#02a7371131b3c517a277e839389908bae324d894"
 dependencies = [
  "bitcoin",
- "bitreq",
  "hex-conservative",
- "log",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2786,6 +2771,7 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "quick_cache",
+ "reqwest",
  "rust_decimal",
  "secrecy",
  "semver",
