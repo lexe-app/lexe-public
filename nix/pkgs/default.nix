@@ -475,6 +475,8 @@ rec {
     fenixPkgs.combine [
       fenixPkgs.stable.rustc
       fenixPkgs.stable.cargo
+      # TODO(phlip9): remove after flutter upgrade -> 3.41
+      fenixPkgs.stable.clippy
       # arm64 and arm-v7 cover 99.7% of all Android devices
       fenixPkgs.targets.aarch64-linux-android.stable.rust-std
       fenixPkgs.targets.armv7-linux-androideabi.stable.rust-std
@@ -498,7 +500,7 @@ rec {
   );
 
   # Our flutter version
-  flutter = pkgs.flutter332;
+  flutter = pkgs.flutter335;
 
   # composeAndroidPackages =
   # { cmdLineToolsVersion ? "latest",
@@ -536,11 +538,11 @@ rec {
       "arm64-v8a"
     ];
     platformVersions = [
-      "35" # lexe, flutter_zxing -> camera_android_camerax
+      "36" # lexe
       "34" # app_links
     ];
     buildToolsVersions = [
-      "35.0.0"
+      "35.0.0" # Android Gradle Plugin 8.13.2
     ];
     includeNDK = true;
     ndkVersion = "28.2.13676358";

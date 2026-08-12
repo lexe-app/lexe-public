@@ -83,7 +83,7 @@ SPEC CHECKSUMS:
   flutter_file_manager_macos: 11df72b919a6e010c8e03ec6adf7439f0319032b
   flutter_web_auth_2: 2e1dc2d2139973e4723c5286ce247dd590390d70
   flutter_zxing: ea030278aa2a051cd81a5b0053be9d0569d11c9a
-  FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
+  FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   share_plus: 1fa619de8392a4398bfaf176d441853922614e89

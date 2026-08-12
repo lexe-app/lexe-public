@@ -4,14 +4,14 @@ publish_to: none
 version: 0.1.0
 
 environment:
-  sdk: 3.8.1
+  sdk: 3.9.2
 
 dependencies:
   analyzer: ^8.1.1
   custom_lint_builder: ^0.8.1
 
 dev_dependencies:
-  analyzer_plugin: 0.13.7 # unpin after updating to dart sdk 3.9.0+
+  analyzer_plugin: ^0.13.7
   custom_lint: ^0.8.1
   flutter_lints: ^6.0.0
   lints: ^6.0.0

@@ -14,6 +14,27 @@ android {
     ndkVersion = "28.2.13676358"
     // ndkVersion = android.ndkVersion
 
+    // Flutter's `forceNdkDownload` points this at an empty CMake project solely
+    // to make AGP install the NDK. flutter/flutter#167240 made this happen
+    // per-buildType. With app flavors, AGP shares the resulting
+    // `buildCMakeDebug` task across flavor variants. Assembling `designDebug`
+    // then also runs `compileFlutterBuildProdDebug`, compiling the prod flavor
+    // with the design target and Dart defines, failing our flavor asserts.
+    //
+    // We already supply the pinned NDK via nix, so disabling the shim is ok.
+    // After an upgrade, see if this is still necessary by removing the override
+    // and building:
+    //
+    // ```bash
+    // $ just app::build apk --flavor=design --debug --target=lib/design_mode/main.dart
+    // ```
+    //
+    // It is safe to remove if no other flavor's `compileFlutterBuild` task
+    // runs.
+    //
+    // See: <https://github.com/flutter/flutter/pull/167240>
+    externalNativeBuild.cmake.path = null
+
     // println("app: flutter.minSdkVersion: ${flutter.minSdkVersion}")
     // println("app: flutter.targetSdkVersion: ${flutter.targetSdkVersion}")
     // println("app: flutter.compileSdkVersion: ${flutter.compileSdkVersion}")
@@ -34,7 +55,7 @@ android {
 
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
