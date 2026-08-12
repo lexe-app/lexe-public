@@ -18,6 +18,8 @@ pub mod lnurl;
 pub mod offer;
 /// Partners metadata, partner revshare schedules, other partner-related types.
 pub mod partners;
+/// `PayerProof`, a wrapper around LDK's BOLT12 payer proof type.
+pub mod payer_proof;
 /// Payments types and newtypes.
 pub mod payments;
 /// `Port`, `Ports`, `RunPorts`, etc, used in the Runner.
