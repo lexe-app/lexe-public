@@ -1,5 +1,3 @@
-# `flutter_zxing` requires at least iOS 11
-# <https://pub.dev/packages/flutter_zxing#supported-platforms>
 platform :ios, '13.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.

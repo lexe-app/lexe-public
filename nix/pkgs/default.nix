@@ -500,7 +500,7 @@ rec {
   );
 
   # Our flutter version
-  flutter = pkgs.flutter335;
+  flutter = pkgs.flutter338;
 
   # composeAndroidPackages =
   # { cmdLineToolsVersion ? "latest",

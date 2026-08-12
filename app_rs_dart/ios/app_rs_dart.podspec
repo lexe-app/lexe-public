@@ -18,7 +18,7 @@ Pod::Spec.new do |s|
   # the compiled `app_rs_dart.o` somehow.
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '12.0'
+  s.platform = :ios, '13.0'
   s.swift_version = '5.0'
 
   # Configure xcodebuild for this Pod specifically.
