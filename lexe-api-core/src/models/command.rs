@@ -641,7 +641,8 @@ pub struct PayOfferResponse {
     pub created_at: TimestampMs,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct CreatePayerProofRequest {
     /// The payment to prove. Must be a completed outbound offer payment.
     pub id: PaymentId,
@@ -657,6 +658,7 @@ pub struct CreatePayerProofRequest {
 /// `signature`, and `invoice_features` (if it exists) are always included.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PayerProofDisclosures {
     pub offer_description: bool,
     pub offer_issuer: bool,
@@ -667,6 +669,10 @@ pub struct PayerProofDisclosures {
     /// Raw BOLT12 TLV types to disclose beyond the fields named above.
     ///
     /// The request fails if a given TLV type cannot be disclosed.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary_impl::any_additional_disclosures()")
+    )]
     pub additional_disclosures: BTreeSet<u64>,
 }
 
@@ -904,6 +910,30 @@ mod arbitrary_impl {
                 .boxed()
         }
     }
+
+    /// The BOLT12 invoice TLV types a payer proof is allowed to disclose:
+    /// the invoice's whole TLV stream minus `invreq_metadata` (0) and
+    /// `signature` (240).
+    ///
+    /// Only feeds test data, so it's fine for this to fall behind the spec;
+    /// a missing type just narrows what the proptest explores.
+    #[rustfmt::skip]
+    const DISCLOSABLE_TLV_TYPES: &[u64] = &[
+        // offer
+        2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
+        // invoice request
+        80, 82, 84, 86, 88, 89, 90, 91,
+        // invoice
+        160, 162, 164, 166, 168, 170, 172, 174, 176,
+    ];
+
+    /// An arbitrary subset of [`DISCLOSABLE_TLV_TYPES`].
+    pub(super) fn any_additional_disclosures()
+    -> impl Strategy<Value = BTreeSet<u64>> {
+        let types = DISCLOSABLE_TLV_TYPES;
+        proptest::sample::subsequence(types, 0..=types.len())
+            .prop_map(BTreeSet::from_iter)
+    }
 }
 
 #[cfg(test)]
@@ -990,6 +1020,11 @@ mod test {
         roundtrip::json_value_roundtrip_proptest::<
             UpsertHumanBitcoinAddressResponse,
         >();
+    }
+
+    #[test]
+    fn create_payer_proof_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<CreatePayerProofRequest>();
     }
 
     /// Sanity check the `DebugInfo` serialization against a hard-coded string.

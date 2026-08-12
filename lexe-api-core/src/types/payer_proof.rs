@@ -125,7 +125,7 @@ pub mod tlv_type {
 /// carry.
 ///
 /// [`Bolt12Invoice`]: super::bolt12_invoice::Bolt12Invoice
-#[derive(SerializeDisplay, DeserializeFromStr)]
+#[derive(Debug, SerializeDisplay, DeserializeFromStr)]
 pub struct PayerProof(pub LdkPayerProof);
 
 impl PayerProof {
@@ -250,7 +250,6 @@ impl PayerProof {
     //   when two or more occurrences of the same `type` are met):
     //   - MUST fail to parse the `tlv_stream`.
     pub fn tlv_records(&self) -> impl Iterator<Item = (u64, &[u8])> {
-        // TODO(nicole): add arb impl and proptest
         const MALFORMED: &str = "PayerProof bytes were already checked by LDK";
 
         let mut buf = self.0.bytes();
@@ -280,6 +279,14 @@ impl From<LdkPayerProof> for PayerProof {
     }
 }
 
+// Not derived by LDK. A proof is fully determined by its TLV bytes.
+impl PartialEq for PayerProof {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.bytes() == other.0.bytes()
+    }
+}
+impl Eq for PayerProof {}
+
 impl fmt::Display for PayerProof {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
@@ -305,3 +312,162 @@ impl fmt::Display for ParseError {
 }
 
 impl std::error::Error for ParseError {}
+
+#[cfg(any(test, feature = "test-utils"))]
+mod arb {
+    use lexe_common::{secp256k1_ctx::SECP256K1, test_utils::arbitrary};
+    use lexe_crypto::rng::{FastRng, RngExt};
+    use lightning::{
+        ln::{channelmanager::PaymentId, inbound_payment::ExpandedKey},
+        offers::payer_proof::PaidBolt12Invoice,
+        types::payment::PaymentPreimage,
+    };
+    use proptest::{
+        arbitrary::{Arbitrary, any, any_with},
+        strategy::{BoxedStrategy, Just, Strategy},
+    };
+
+    use super::*;
+    use crate::{
+        models::command::PayerProofDisclosures,
+        types::bolt12_invoice::{Bolt12Invoice, arb::Bolt12InvoiceParams},
+    };
+
+    impl Arbitrary for PayerProof {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<FastRng>()
+                .prop_flat_map(|mut rng| {
+                    // Generate the invoice with our preimage and keys.
+                    let preimage = PaymentPreimage(rng.gen_bytes());
+                    let expanded_key = ExpandedKey::new(rng.gen_bytes());
+                    let payment_id = PaymentId(rng.gen_bytes());
+                    let params = Bolt12InvoiceParams {
+                        payment_preimage: Some(preimage),
+                        payer_keys: Some((expanded_key, payment_id)),
+                    };
+                    (
+                        Just(preimage),
+                        Just(expanded_key),
+                        Just(payment_id),
+                        any_with::<Bolt12Invoice>(params),
+                        any::<PayerProofDisclosures>(),
+                        arbitrary::any_option_string(),
+                    )
+                })
+                .prop_map(
+                    |(
+                        preimage,
+                        expanded_key,
+                        payment_id,
+                        invoice,
+                        disclosures,
+                        proof_note,
+                    )| {
+                        gen_payer_proof(
+                            preimage,
+                            expanded_key,
+                            payment_id,
+                            invoice,
+                            disclosures,
+                            proof_note,
+                        )
+                    },
+                )
+                .boxed()
+        }
+    }
+
+    fn gen_payer_proof(
+        preimage: PaymentPreimage,
+        expanded_key: ExpandedKey,
+        payment_id: PaymentId,
+        invoice: Bolt12Invoice,
+        disclosures: PayerProofDisclosures,
+        proof_note: Option<String>,
+    ) -> PayerProof {
+        let paid_invoice = PaidBolt12Invoice::Bolt12Invoice(invoice.0);
+        let mut builder = paid_invoice
+            .prove_payer_derived(
+                preimage,
+                &expanded_key,
+                payment_id,
+                &SECP256K1,
+            )
+            .expect("Failed to build payer proof");
+
+        let PayerProofDisclosures {
+            offer_description,
+            offer_issuer,
+            invreq_payer_note,
+            invoice_amount,
+            invoice_created_at,
+            additional_disclosures,
+        } = disclosures;
+        if offer_description {
+            builder = builder.include_offer_description();
+        }
+        if offer_issuer {
+            builder = builder.include_offer_issuer();
+        }
+        if invreq_payer_note {
+            builder = builder
+                .include_type(tlv_type::INVREQ_PAYER_NOTE)
+                .expect("Payer note is disclosable");
+        }
+        if invoice_amount {
+            builder = builder.include_invoice_amount();
+        }
+        if invoice_created_at {
+            builder = builder.include_invoice_created_at();
+        }
+        for tlv_type in additional_disclosures {
+            builder = builder
+                .include_type(tlv_type)
+                .expect("Strategy only yields disclosable TLV types");
+        }
+        if let Some(proof_note) = proof_note {
+            builder = builder.with_proof_note(proof_note);
+        }
+
+        let proof = builder.build_and_sign().expect("Failed to sign proof");
+        PayerProof::from(proof)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use lightning::util::ser::Writeable;
+    use proptest::{prop_assert_eq, proptest};
+
+    use super::*;
+
+    /// [`PayerProof::tlv_records`] doesn't panic and consumes the stream
+    /// exactly.
+    #[test]
+    fn tlv_records_walks_proofs() {
+        proptest!(|(proof: PayerProof)| {
+            let walked = proof
+                .tlv_records()
+                .map(|(tlv_type, value)| {
+                    BigSize(tlv_type).serialized_length()
+                        + BigSize(value.len() as u64).serialized_length()
+                        + value.len()
+                })
+                .sum::<usize>();
+            prop_assert_eq!(walked, proof.0.bytes().len());
+        });
+    }
+
+    /// A proof roundtrips through its bech32 form.
+    #[test]
+    fn payer_proof_roundtrip() {
+        proptest!(|(proof: PayerProof)| {
+            let reparsed = PayerProof::from_str(&proof.to_string())
+                .expect("Payer proof failed to verify");
+            prop_assert_eq!(reparsed, proof);
+        });
+    }
+}
