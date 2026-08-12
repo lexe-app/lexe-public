@@ -454,6 +454,7 @@ mod test {
 
     // NOTE: see `take_client_credentials_snapshot` to generate new sample data.
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn client_credentials_deser_compat() {
         let snapshot =
             fs::read_to_string("test_data/client_credentials_snapshot.txt")

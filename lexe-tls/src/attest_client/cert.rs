@@ -354,6 +354,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_sgx_pck_extensions_parse() {
         let cert_pem = fs::read_to_string("test_data/pck_cert.pem").unwrap();
         let cert_der = rustls::pki_types::CertificateDer::from_pem_slice(

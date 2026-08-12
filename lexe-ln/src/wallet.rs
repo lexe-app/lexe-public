@@ -2791,6 +2791,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_changeset_snapshots() {
         let snapshot =
             fs::read_to_string("data/changeset-snapshot.v1.0.0-beta.5.json")
@@ -2855,6 +2856,7 @@ mod test {
     /// derivation (RootSeed directly into BIP32) even after we change to
     /// BIP39-compatible derivation for new wallets.
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_legacy_wallet_snapshot_loads() {
         let snapshot =
             fs::read_to_string("data/legacy-onchain-wallet-snapshot.json")
@@ -2874,6 +2876,7 @@ mod test {
 
     /// Tests that we can load a new BIP39-compatible wallet from snapshot.
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_bip39_wallet_snapshot_loads() {
         let snapshot =
             fs::read_to_string("data/bip39-onchain-wallet-snapshot.json")

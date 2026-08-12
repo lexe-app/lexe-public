@@ -905,6 +905,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_intel_sgx_trust_anchor_der_pem_equal() {
         let intel_sgx_root_ca_cert_der1 = INTEL_SGX_ROOT_CA_CERT_DER;
 
@@ -921,6 +922,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_verify_sgx_server_quote() {
         let (cert_der, measurement) = attest_cert_fixture();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
@@ -943,6 +945,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_verify_sgx_server_cert() {
         let (cert_der, measurement) = attest_cert_fixture();
 
@@ -1011,6 +1014,7 @@ mod test {
     //    is not supported.
     // ```
     #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
     fn test_intel_sgx_tcb_level_supported() {
         let (cert_der, _) = attest_cert_fixture();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
