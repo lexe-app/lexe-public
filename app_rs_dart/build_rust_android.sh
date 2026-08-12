@@ -27,14 +27,14 @@ CARGO_NDK_VERSION="4.1.2"
 #
 # ANDROID_NDK_HOME (ex: "/Users/phlip9/.local/android/ndk/23.1.7779620")
 # APP_RS__OUT_DIR (ex: "/Users/phlip9/dev/lexe/public/app/build/app_rs_dart/jniLibs/release")
-# APP_RS__COMPILE_SDK_VERSION (ex: "34")
+# APP_RS__MIN_SDK_VERSION (ex: "24")
 # APP_RS__TARGETS (ex: "aarch64-linux-android armv7-linux-androideabi")
 
 #
 # Read input from gradle
 #
 
-APP_RS__COMPILE_SDK_VERSION="${APP_RS__COMPILE_SDK_VERSION:-34}"
+APP_RS__MIN_SDK_VERSION="${APP_RS__MIN_SDK_VERSION:-24}"
 APP_RS__TARGETS="${APP_RS__TARGETS-"aarch64-linux-android"}"
 
 if [[ -z $APP_RS__TARGETS ]]; then
@@ -142,7 +142,7 @@ env -i "${clean_envs[@]}" \
   cargo ndk \
   "${targetArgs[@]}" \
   --output-dir="$APP_RS__OUT_DIR" \
-  --platform="$APP_RS__COMPILE_SDK_VERSION" \
+  --platform="$APP_RS__MIN_SDK_VERSION" \
   -- rustc --lib --crate-type=cdylib -p app-rs "$@"
 
 set +x

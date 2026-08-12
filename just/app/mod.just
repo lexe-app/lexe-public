@@ -88,7 +88,7 @@ rs-codegen-check:
 rs-lint-android *args:
     cd .. && cargo ndk \
         --target=aarch64-linux-android \
-        --platform=34 \
+        --platform=24 \
         -- clippy -p app-rs {{ args }}
 
 # lint native app-rs crate, built for ios target

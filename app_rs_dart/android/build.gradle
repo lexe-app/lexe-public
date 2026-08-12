@@ -49,7 +49,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = 23
+        minSdk = 24
     }
 }
 
@@ -141,8 +141,8 @@ project.android.buildTypes.all { buildType ->
         environment ANDROID_NDK_HOME: project.android.ndkDirectory
         // Where we're supposed to dump the `libapp_rs.so` shared libs.
         environment APP_RS__OUT_DIR: outDir
-        // "android-34" -> "34"
-        environment APP_RS__COMPILE_SDK_VERSION: project.android.compileSdkVersion.substring(8)
+        // The minimum Android API the native library must support.
+        environment APP_RS__MIN_SDK_VERSION: project.android.defaultConfig.minSdkVersion.apiLevel
         // The space-separated rustc targets that flutter wants to build.
         // ex: -> "aarch64-linux-android"
         // ex: -> "aarch64-linux-android armv7-linux-androideabi x86_64-linux-android"
