@@ -86,6 +86,8 @@ rs-codegen-check:
 
 # lint native app-rs crate, built for android target
 rs-lint-android *args:
+    @echo "WARN: run the normal 'just cargo-clippy-public' unless you are"
+    @echo "debugging a specific NDK-related build issue."
     cd .. && cargo ndk \
         --target=aarch64-linux-android \
         --platform=24 \

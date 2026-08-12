@@ -77,8 +77,8 @@ rec {
             android-sdk-ndk = null;
             android-sdk-platform-tools = null;
             android-sdk-platforms = null;
-            android-sdk-system-image-35-default-arm64-v8a = null;
-            android-sdk-system-image-35-default-x86_64 = null;
+            android-sdk-system-image-36-default-arm64-v8a = null;
+            android-sdk-system-image-36-default-x86_64 = null;
             android-sdk-tools = null;
             build-tools = null;
             cmake = null;
@@ -87,8 +87,8 @@ rec {
             ndk = null;
             platform-tools = null;
             platforms = null;
-            system-image-35-default-arm64-v8a = null;
-            system-image-35-default-x86_64 = null;
+            system-image-36-default-arm64-v8a = null;
+            system-image-36-default-x86_64 = null;
             tools = null;
           };
         in

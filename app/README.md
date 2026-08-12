@@ -375,7 +375,7 @@ Check the flutter version on `pubspec.yaml` and ckeckout to the flutter tag of
 specific version.
 
 ```
-$ git checkout tags/3.38.10
+$ git checkout tags/3.41.9
 ```
 
 Disable their pesky telemetry : )

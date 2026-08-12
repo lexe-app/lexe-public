@@ -475,8 +475,7 @@ rec {
     fenixPkgs.combine [
       fenixPkgs.stable.rustc
       fenixPkgs.stable.cargo
-      # TODO(phlip9): remove after flutter upgrade -> 3.41
-      fenixPkgs.stable.clippy
+
       # arm64 and arm-v7 cover 99.7% of all Android devices
       fenixPkgs.targets.aarch64-linux-android.stable.rust-std
       fenixPkgs.targets.armv7-linux-androideabi.stable.rust-std
@@ -500,7 +499,7 @@ rec {
   );
 
   # Our flutter version
-  flutter = pkgs.flutter338;
+  flutter = pkgs.flutter341;
 
   # composeAndroidPackages =
   # { cmdLineToolsVersion ? "latest",
@@ -554,7 +553,7 @@ rec {
 
   # Keep the emulator SDK composition separate so the build SDK's multiple
   # platform versions don't each pull in a system image.
-  androidEmulatorApiVersion = "35";
+  androidEmulatorApiVersion = "36";
   androidEmulatorAbiVersion =
     if pkgs.stdenv.hostPlatform.isAarch64 then "arm64-v8a" else "x86_64";
   androidEmulatorSystemImageType = "default";

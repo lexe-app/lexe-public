@@ -28,8 +28,8 @@ version: 0.10.0+54
 # - `app/pubspec.yaml`
 # - `.github/workflows/ci.yaml`
 environment:
-  sdk: 3.10.9
-  flutter: 3.38.10
+  sdk: 3.11.5
+  flutter: 3.41.9
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
