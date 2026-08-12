@@ -24,7 +24,8 @@ use lexe_api::{
             BackupInfo, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
+            CreateOfferResponse, CreatePayerProofRequest,
+            CreatePayerProofResponse, DebugInfo, EnclavesToProvisionRequest,
             GetHumanBitcoinAddressResponse, GetNewPayments,
             GetNextUnusedAddressResponse, GetUpdatedPayments,
             HumanBitcoinAddressV1, LatestPaymentUpdateResponse,
@@ -722,6 +723,17 @@ impl UserNodeRunApi for NodeClient {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/pay_offer_preflight");
+        let req = run_rest.post(url, &req);
+        run_rest.send(req).await
+    }
+
+    async fn create_payer_proof(
+        &self,
+        req: CreatePayerProofRequest,
+    ) -> Result<CreatePayerProofResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/user/v1/create_payer_proof");
         let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }

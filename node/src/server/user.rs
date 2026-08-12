@@ -10,7 +10,8 @@ use lexe_api::{
         command::{
             BackupInfo, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
-            CreateOfferRequest, CreateOfferResponse, DebugInfo, GDriveStatus,
+            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+            CreatePayerProofResponse, DebugInfo, GDriveStatus,
             GetHumanBitcoinAddressResponse, GetNewPayments,
             GetNextUnusedAddressResponse, GetUpdatedPayments,
             HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
@@ -397,6 +398,20 @@ pub(super) async fn pay_offer_preflight(
         &state.network_graph,
         state.lsp_info.lsp_fees(),
         &state.lsp_info.node_pk,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
+}
+
+pub(super) async fn create_payer_proof(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<CreatePayerProofRequest>,
+) -> Result<LxJson<CreatePayerProofResponse>, NodeApiError> {
+    lexe_ln::command::create_payer_proof(
+        req,
+        &state.keys_manager,
+        &state.payments_manager,
     )
     .await
     .map(LxJson)

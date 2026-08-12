@@ -16,13 +16,15 @@ use lexe_api::{
     models::command::{
         CloseChannelPreflightRequest, CloseChannelPreflightResponse,
         CloseChannelRequest, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, ListChannelsResponse,
-        NodeInfo, OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+        CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+        CreatePayerProofResponse, ListChannelsResponse, NodeInfo,
+        OpenChannelPreflightRequest, OpenChannelPreflightResponse,
         OpenChannelResponse, PayInvoicePreflightRequest, PayInvoiceRequest,
         PayInvoiceResponse, PayOfferPreflightRequest,
         PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
         PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-        PayOnchainRequest, PayOnchainResponse, ResyncRequest,
+        PayOnchainRequest, PayOnchainResponse, PayerProofDisclosures,
+        ResyncRequest,
     },
     revocable_clients::{
         RevocableClient, RevocableClients,
@@ -37,6 +39,7 @@ use lexe_api::{
         invoice::Invoice,
         offer::{MaxQuantity, Offer},
         partners::PartnersInfo,
+        payer_proof::{PayerProof, tlv_type},
         payments::{
             PartnerFeeFields, PaymentDirection, PaymentId, PaymentKind,
             PaymentRail,
@@ -60,6 +63,7 @@ use lexe_common::{
         route::LxRoute,
     },
     ppm::Ppm,
+    secp256k1_ctx::SECP256K1,
     time::TimestampMs,
 };
 use lexe_crypto::{ed25519, rng::SysRng};
@@ -77,6 +81,7 @@ use lightning::{
         msgs::RoutingMessageHandler, outbound_payment::RetryableSendFailure,
         peer_handler::PeerDetails,
     },
+    offers::payer_proof::PaidBolt12Invoice,
     routing::{gossip::NodeId, router::Route},
     sign::{NodeSigner, Recipient},
     util::config::UserConfig,
@@ -93,7 +98,7 @@ use crate::{
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     payments::{
-        PaymentWithMetadata,
+        PaymentV2, PaymentWithMetadata,
         inbound::InboundInvoicePaymentV2,
         manager::PaymentsManager,
         outbound::{
@@ -1615,6 +1620,88 @@ where
         route: lx_route,
         routing_context,
     })
+}
+
+/// Create a BOLT12 payer proof.
+#[instrument(skip_all, name = "(create-payer-proof)")]
+pub async fn create_payer_proof<CM, PS>(
+    req: CreatePayerProofRequest,
+    keys_manager: &LexeKeysManager,
+    payments_manager: &PaymentsManager<CM, PS>,
+) -> anyhow::Result<CreatePayerProofResponse>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let pwm = payments_manager
+        .get_payment(&req.id)
+        .await
+        .context("Could not fetch payment")?
+        .context("No payment with this id")?;
+    let PaymentV2::OutboundOffer(payment) = &pwm.payment else {
+        bail!("Can only create a payer proof for outbound offer payments");
+    };
+    let preimage = payment
+        .preimage
+        .context("Payment hasn't completed; no preimage to prove it with")?;
+    let invoice = pwm.metadata.bolt12_invoice.context(
+        "Didn't find the BOLT12 invoice for this payment; \
+         this payment may have been made to a static invoice, or using a \
+         pre-0.10.2 version of Lexe, of which neither support payer proofs.",
+    )?;
+
+    // We pay offers via LDK's `pay_for_offer`, which derives the payer signing
+    // key from our `ExpandedKey`, so `prove_payer_derived` can re-derive it.
+    let paid_invoice = PaidBolt12Invoice::Bolt12Invoice(invoice.0.clone());
+    let mut builder = paid_invoice
+        .prove_payer_derived(
+            lightning::types::payment::PaymentPreimage::from(preimage),
+            &keys_manager.get_expanded_key(),
+            payment.ldk_id(),
+            &SECP256K1,
+        )
+        .map_err(|e| anyhow!("Couldn't build payer proof: {e:?}"))?;
+
+    let PayerProofDisclosures {
+        offer_description,
+        offer_issuer,
+        invreq_payer_note,
+        invoice_amount,
+        invoice_created_at,
+        additional_disclosures,
+    } = req.disclosures;
+    if offer_description {
+        builder = builder.include_offer_description();
+    }
+    if offer_issuer {
+        builder = builder.include_offer_issuer();
+    }
+    if invreq_payer_note {
+        builder = builder
+            .include_type(tlv_type::INVREQ_PAYER_NOTE)
+            .map_err(|e| anyhow!("Couldn't disclose payer note: {e:?}"))?;
+    }
+    if invoice_amount {
+        builder = builder.include_invoice_amount();
+    }
+    if invoice_created_at {
+        builder = builder.include_invoice_created_at();
+    }
+    for tlv_type in additional_disclosures {
+        builder = builder.include_type(tlv_type).map_err(|e| {
+            anyhow!("Couldn't disclose TLV type {tlv_type}: {e:?}")
+        })?;
+    }
+    if let Some(proof_note) = req.proof_note {
+        builder = builder.with_proof_note(proof_note.into_inner());
+    }
+
+    let proof = builder
+        .build_and_sign()
+        .map(PayerProof::from)
+        .map_err(|e| anyhow!("Couldn't sign payer proof: {e:?}"))?;
+
+    Ok(CreatePayerProofResponse { proof })
 }
 
 /// Payments validation helpers.

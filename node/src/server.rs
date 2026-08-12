@@ -143,6 +143,7 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         .route("/user/v1/create_offer", post(user::create_offer))
         .route("/user/v1/pay_offer", post(user::pay_offer))
         .route("/user/v1/pay_offer_preflight", post(user::pay_offer_preflight))
+        .route("/user/v1/create_payer_proof", post(user::create_payer_proof))
         .route("/user/v1/get_next_unused_address", post(user::get_next_unused_address))
         .route("/user/v1/pay_onchain", post(user::pay_onchain))
         .route("/user/v1/pay_onchain_preflight", post(user::pay_onchain_preflight))

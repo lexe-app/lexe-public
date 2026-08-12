@@ -29,6 +29,7 @@ use crate::types::{
     continuation::LdkRouteContinuation,
     invoice::Invoice,
     offer::{MaxQuantity, Offer},
+    payer_proof::PayerProof,
     payments::{
         ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentKind,
         PaymentUpdatedIndex,
@@ -638,6 +639,40 @@ pub struct PayOfferResponse {
     /// When the node registered this payment. Used in the
     /// [`PaymentCreatedIndex`].
     pub created_at: TimestampMs,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CreatePayerProofRequest {
+    /// The payment to prove. Must be a completed outbound offer payment.
+    pub id: PaymentId,
+    /// Invoice fields to disclose on top of the ones a proof always carries.
+    pub disclosures: PayerProofDisclosures,
+    /// An optional note to bind to the proof.
+    pub proof_note: Option<BoundedString>,
+}
+
+/// The BOLT12 invoice fields to include in the [`PayerProof`].
+///
+/// Note that `invreq_payer_id`, `invoice_payment_hash`, `invoice_node_id`,
+/// `signature`, and `invoice_features` (if it exists) are always included.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Serialize, Deserialize)]
+pub struct PayerProofDisclosures {
+    pub offer_description: bool,
+    pub offer_issuer: bool,
+    pub invreq_payer_note: bool,
+    pub invoice_amount: bool,
+    pub invoice_created_at: bool,
+
+    /// Raw BOLT12 TLV types to disclose beyond the fields named above.
+    ///
+    /// The request fails if a given TLV type cannot be disclosed.
+    pub additional_disclosures: BTreeSet<u64>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CreatePayerProofResponse {
+    pub proof: PayerProof,
 }
 
 // --- On-chain payments --- //

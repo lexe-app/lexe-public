@@ -75,7 +75,8 @@ use crate::{
             BackupInfo, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, DebugInfo, EnclavesToProvisionRequest,
+            CreateOfferResponse, CreatePayerProofRequest,
+            CreatePayerProofResponse, DebugInfo, EnclavesToProvisionRequest,
             GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
             GetNewPayments, GetNextUnusedAddressResponse,
             GetUpdatedPaymentMetadata, GetUpdatedPayments,
@@ -343,6 +344,18 @@ pub trait UserNodeRunApi {
         &self,
         req: PayOfferPreflightRequest,
     ) -> Result<PayOfferPreflightResponse, NodeApiError>;
+
+    /// POST /user/v1/create_payer_proof [`CreatePayerProofRequest`]
+    ///                               -> [`CreatePayerProofResponse`]
+    ///
+    /// Prove that we paid a completed outbound offer (BOLT12) payment,
+    /// disclosing only the invoice fields the caller asks for.
+    //
+    // Added in `node-v0.10.2`.
+    async fn create_payer_proof(
+        &self,
+        req: CreatePayerProofRequest,
+    ) -> Result<CreatePayerProofResponse, NodeApiError>;
 
     // TODO(phlip9): BOLT12: /user/request_refund
 
