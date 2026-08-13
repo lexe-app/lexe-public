@@ -849,12 +849,14 @@ mod helpers {
 
                 let try_future = async {
                     let mut rng = SysRng::new();
-                    let mut node = UserNode::init(
+                    // Box: keep large one-time init future state out of
+                    // long-lived task.
+                    let mut node = Box::pin(UserNode::init(
                         &mut rng,
                         run_args,
                         mega_ctxt,
                         user_context,
-                    )
+                    ))
                     .await
                     .context("Error during run init")?;
                     node.sync().await.context("Error while syncing")?;

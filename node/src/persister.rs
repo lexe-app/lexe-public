@@ -40,6 +40,7 @@ use std::{
 
 use anyhow::{Context, anyhow, ensure};
 use async_trait::async_trait;
+use futures::FutureExt;
 use gdrive::{GoogleVfs, GvfsRoot, oauth2::GDriveCredentials};
 use lexe_api::{
     auth::BearerAuthenticator,
@@ -1400,17 +1401,16 @@ impl Persist<SignerType> for NodePersister {
 
             anyhow::Ok(())
         };
+        let archive_fut = try_archive_fut.map(|result| match result {
+            Ok(()) => info!("Success: archived channel monitor"),
+            Err(e) => warn!("Couldn't archive monitor: {e:#}"),
+        });
 
         const SPAN_NAME: &str = "(chan-monitor-archiver)";
         let task = LxTask::spawn_with_span(
             SPAN_NAME,
             info_span!(SPAN_NAME, %monitor_name),
-            async move {
-                match try_archive_fut.await {
-                    Ok(()) => info!("Success: archived channel monitor"),
-                    Err(e) => warn!("Couldn't archive monitor: {e:#}"),
-                }
-            },
+            archive_fut,
         );
         let _ = self.eph_tasks_tx.try_send(task);
     }
