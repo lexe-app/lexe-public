@@ -179,7 +179,7 @@ where
                     Some(request) = bgp_control_rx.recv() => {
                         // Handle a test-only quiescence request.
                         process_events_timer.reset();
-                        let result = process_until_quiescent(
+                        let result = Box::pin(process_until_quiescent(
                             &channel_manager,
                             &chain_monitor,
                             &channel_monitor_persister_tx,
@@ -191,7 +191,8 @@ where
                             &persister,
                             &mut rng,
                             &mut shutdown,
-                        ).await;
+                        ))
+                        .await;
 
                         let should_continue = result.is_ok();
                         let result = result.map_err(|FatalError| {
