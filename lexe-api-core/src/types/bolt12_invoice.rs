@@ -45,7 +45,7 @@ impl<'de> Deserialize<'de> for Bolt12Invoice {
 }
 
 #[cfg(any(test, feature = "test-utils"))]
-mod arb {
+pub(crate) mod arb {
     use std::{ops::RangeInclusive, time::Duration};
 
     use bitcoin::secp256k1::{Keypair, PublicKey};
@@ -66,7 +66,10 @@ mod arb {
             offer::Offer as LdkOffer,
         },
         onion_message::dns_resolution::HumanReadableName,
-        types::{features::BlindedHopFeatures, payment::PaymentHash},
+        types::{
+            features::BlindedHopFeatures,
+            payment::{PaymentHash, PaymentPreimage},
+        },
     };
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
@@ -77,13 +80,32 @@ mod arb {
     use super::*;
     use crate::types::offer::{Offer, arb::OfferParams};
 
+    /// [`proptest`] parameters for generating a [`Bolt12Invoice`].
+    #[derive(Default)]
+    pub struct Bolt12InvoiceParams {
+        /// The preimage of the invoice's payment hash.
+        ///
+        /// If not given, an arbitrary preimage is generated.
+        pub payment_preimage: Option<PaymentPreimage>,
+        /// The payer's key material and payment id, which together re-derive
+        /// the payer signing key. Needed to build a `PayerProof` for the
+        /// generated invoice.
+        ///
+        /// If not given, arbitrary key material is generated.
+        pub payer_keys: Option<(ExpandedKey, PaymentId)>,
+    }
+
     impl Arbitrary for Bolt12Invoice {
-        type Parameters = ();
+        type Parameters = Bolt12InvoiceParams;
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let Bolt12InvoiceParams {
+                payment_preimage,
+                payer_keys,
+            } = args;
             any::<FastRng>()
-                .prop_flat_map(|mut rng| {
+                .prop_flat_map(move |mut rng| {
                     // Generate an arbitrary offer using our own root_seed and
                     // key materials
                     let root_seed = RootSeed::from_rng(&mut rng);
@@ -101,6 +123,9 @@ mod arb {
                         derived_keys,
                     };
                     (
+                        // Caller-injected params
+                        Just(payment_preimage),
+                        Just(payer_keys),
                         // Offer params
                         Just(rng),
                         Just(payee_node_keypair),
@@ -116,6 +141,8 @@ mod arb {
                 })
                 .prop_map(
                     |(
+                        payment_preimage,
+                        payer_keys,
                         rng,
                         payee_node_keypair,
                         payee_nonce,
@@ -127,6 +154,8 @@ mod arb {
                         created_at,
                     )| {
                         gen_bolt12_invoice(
+                            payment_preimage,
+                            payer_keys,
                             rng,
                             payee_node_keypair,
                             payee_nonce,
@@ -156,6 +185,8 @@ mod arb {
     /// [`InvoiceRequest::respond_with_no_std`]: lightning::offers::invoice_request::InvoiceRequest::respond_with_no_std
     /// [`Bolt12Invoice`]: lightning::offers::invoice::Bolt12Invoice
     fn gen_bolt12_invoice(
+        payment_preimage: Option<PaymentPreimage>,
+        payer_keys: Option<(ExpandedKey, PaymentId)>,
         mut rng: FastRng,
         payee_node_keypair: Keypair,
         payee_nonce: Nonce,
@@ -170,8 +201,12 @@ mod arb {
 
         let payer_nonce =
             Nonce::from_entropy_source(FastRngDerefHack::from_rng(&mut rng));
-        let payer_expanded_key = ExpandedKey::new(rng.gen_bytes());
-        let payment_id = PaymentId(rng.gen_bytes());
+        let (payer_expanded_key, payment_id) =
+            payer_keys.unwrap_or_else(|| {
+                let expanded_key = ExpandedKey::new(rng.gen_bytes());
+                let id = PaymentId(rng.gen_bytes());
+                (expanded_key, id)
+            });
 
         let mut request = offer
             .request_invoice(
@@ -215,7 +250,9 @@ mod arb {
         // --- Build invoice from invoice request --- //
 
         let payment_paths = vec![payment_path(payee_node_keypair.public_key())];
-        let payment_hash = PaymentHash(rng.gen_bytes());
+        let payment_preimage = payment_preimage
+            .unwrap_or_else(|| PaymentPreimage(rng.gen_bytes()));
+        let payment_hash = PaymentHash::from(payment_preimage);
         // The invoice uses a different key based on how the `Offer` was built.
         // See `OfferBuilder::deriving_signing_pubkey` docs for details.
         //
