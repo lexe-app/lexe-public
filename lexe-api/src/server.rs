@@ -6,8 +6,9 @@
 //! # Serving
 //!
 //! Methods to serve a [`Router`] with a fallback handler (for unmatched paths),
-//! tracing / request instrumentation, backpressure, load shedding, concurrency
-//! limits, server-side timeouts, TLS, and graceful shutdown:
+//! tracing / request instrumentation, shared service backpressure, load
+//! shedding, concurrency limits, server-side timeouts, TLS, and graceful
+//! shutdown:
 //!
 //! - [`build_server_fut`]
 //! - [`build_server_fut_with_listener`]
@@ -115,14 +116,17 @@ pub struct LayerConfig {
     pub body_limit: Option<usize>,
     /// Whether to shed load when the service has reached capacity.
     /// Helps prevent OOM when combined with the buffer or concurrency layer.
+    /// Capacity is shared by all routes in the service.
     pub load_shed: bool,
     /// The size of the work buffer for our service ([`None`] to disable).
     /// Allows the server to immediately work on more queued requests when a
     /// request completes, and prevents a large backlog from building up.
+    /// The buffer and its worker are shared by all routes in the service.
     pub buffer_size: Option<usize>,
     /// The maximum # of requests we'll process at once ([`None`] to disable).
     /// Bounds memory held by in-flight requests, and provides the
     /// backpressure which triggers load shedding under overload.
+    /// The limit is shared by all routes in the service.
     pub concurrency: Option<usize>,
     /// The maximum time a server can spend handling a request.
     /// ([`None`] to disable). Helps prevent degenerate cases which take
@@ -253,7 +257,6 @@ pub fn build_server_fut_with_listener(
 
     // Used to annotate the service / request / response types
     // at each point in the ServiceBuilder chains.
-    type HyperService = RouterIntoService<hyper::body::Incoming, ()>;
     type AxumService = RouterIntoService<axum::body::Body, ()>;
     type BoxErrAxumService =
         tower::util::MapErr<AxumService, fn(Infallible) -> tower::BoxError>;
@@ -276,35 +279,81 @@ pub fn build_server_fut_with_listener(
         match never {}
     }
 
-    // The outer middleware stack which wraps the entire Router.
+    /// Convert a hyper request body into an [`axum::body::Body`].
+    fn into_axum_request(request: HyperReq) -> AxumReq {
+        request.map(axum::body::Body::new)
+    }
+
+    async fn handle_capacity_error(error: tower::BoxError) -> CommonApiError {
+        CommonApiError {
+            kind: CommonErrorKind::AtCapacity,
+            msg: format!("Service is at capacity; retry later: {error:#}"),
+        }
+    }
+
+    async fn handle_timeout_error(error: tower::BoxError) -> CommonApiError {
+        CommonApiError {
+            kind: CommonErrorKind::Server,
+            msg: format!("Server timed out handling request: {error:#}"),
+        }
+    }
+
+    // Our middleware which wraps the entire Router.
     //
     // Axum docs explain ordering better than tower's ServiceBuilder docs do:
     // https://docs.rs/axum/latest/axum/middleware/index.html#ordering
     // Basically, requests go from top to bottom and responses bottom to top.
-    let outer_middleware = tower::ServiceBuilder::new()
-        .check_service::<HyperService, HyperReq, AxumResp, Infallible>()
+    let middleware = tower::ServiceBuilder::new()
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Log everything on its way in and out, even load-shedded requests.
         // This layer changes the response type.
         .layer(trace::server::trace_layer(server_span.clone()))
-        .check_service::<HyperService, HyperReq, TraceResp, Infallible>()
+        .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
         // Run our post-processor which can modify responses *after* the Axum
         // Router has constructed the response.
         .layer(tower::util::MapResponseLayer::new(
             middleware::post_process_response,
         ))
-        .check_service::<HyperService, HyperReq, TraceResp, Infallible>();
-
-    // The inner middleware stack which is cloned to each route in the Router.
-    // We put most of the layers here because it is a lot easier to work with
-    // axum types; moving these outside quickly degenerates into type hell.
-    let inner_middleware = tower::ServiceBuilder::new()
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
-        // Immediately reject anything with a CONTENT_LENGTH over the limit.
+        .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
+        // Adapt Hyper's request body once, before entering the shared service.
+        .layer(MapRequestLayer::new(into_axum_request))
+        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
+        // Quickly reject oversized bodies before they consume service capacity.
+        // Only rejects requests with a content-length header. Rejecting
+        // streamed requests happens below.
         .layer(axum::middleware::map_request_with_state(
             layer_config.body_limit,
             middleware::check_content_length_header,
         ))
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
+        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
+        // Handles errors from the load shed, buffer, and concurrency layers.
+        .layer(HandleErrorLayer::new(handle_capacity_error))
+        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        // Returns an `Err` if the inner service returns `Poll::Pending`.
+        // Helps prevent OOM when combined with the buffer or concurrency layer.
+        .option_layer(layer_config.load_shed.then(LoadShedLayer::new))
+        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        // Returns Poll::Pending when the buffer is full (backpressure).
+        // Allows the server to immediately work on more queued requests when a
+        // request completes, and prevents a large backlog from building up.
+        .option_layer(layer_config.buffer_size.map(BufferLayer::new))
+        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        // Returns `Poll::Pending` when the concurrency limit has been reached.
+        // Bounds memory held by in-flight requests, and provides the
+        // backpressure which triggers load shedding under overload.
+        .option_layer(layer_config.concurrency.map(ConcurrencyLimitLayer::new))
+        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .map_err(infallible_to_box_error)
+        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
+        // Handles errors generated by the timeout layer.
+        .layer(HandleErrorLayer::new(handle_timeout_error))
+        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        // Starts after a request leaves the buffer so queue time does not use
+        // up the request's handling allowance.
+        .option_layer(layer_config.handling_timeout.map(TimeoutLayer::new))
+        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .map_err(infallible_to_box_error)
+        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
         // Set the default request body limit for all requests. This adds a
         // `DefaultBodyLimitKind` (private axum type) into the request
         // extensions so that any inner layers or extractors which call
@@ -317,58 +366,16 @@ pub fn build_server_fut_with_listener(
                 .map(DefaultBodyLimit::max)
                 .unwrap_or_else(DefaultBodyLimit::disable),
         )
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
+        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
         // Here, we explicitly apply the body limit from the request extensions,
         // transforming the request body type into `http_body_util::Limited`.
         .layer(MapRequestLayer::new(axum::RequestExt::with_limited_body))
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
-        // Handles errors from the load_shed, buffer, and concurrency layers.
-        .layer(HandleErrorLayer::new(|error: tower::BoxError| async move {
-            CommonApiError {
-                kind: CommonErrorKind::AtCapacity,
-                msg: format!("Service is at capacity; retry later: {error:#}"),
-            }
-        }))
-        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
-        // Returns an `Err` if the inner service returns `Poll::Pending`.
-        // Helps prevent OOM when combined with the buffer or concurrency layer.
-        .option_layer(layer_config.load_shed.then(LoadShedLayer::new))
-        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
-        // Returns Poll::Pending when the buffer is full (backpressure).
-        // Allows the server to immediately work on more queued requests when a
-        // request completes, and prevents a large backlog from building up.
-        // Note that while the layer is often cloned, the buffer itself is not.
-        .option_layer(layer_config.buffer_size.map(BufferLayer::new))
-        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
-        // Returns `Poll::Pending` when the concurrency limit has been reached.
-        // Bounds memory held by in-flight requests, and provides the
-        // backpressure which triggers load shedding under overload.
-        .option_layer(layer_config.concurrency.map(ConcurrencyLimitLayer::new))
-        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
-        .map_err(infallible_to_box_error)
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
-        // Handles errors generated by the timeout layer.
-        .layer(HandleErrorLayer::new(|error: tower::BoxError| async move {
-            CommonApiError {
-                kind: CommonErrorKind::Server,
-                msg: format!("Server timed out handling request: {error:#}"),
-            }
-        }))
-        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
-        // Returns an error if the inner service takes longer than the timeout
-        // to handle the request. Prevents degenerate cases which take
-        // abnormally long to process from crowding out normal workloads.
-        .option_layer(layer_config.handling_timeout.map(TimeoutLayer::new))
-        .check_service::<BoxErrAxumService, AxumReq, AxumResp, Infallible>()
-        .map_err(infallible_to_box_error)
-        .check_service::<AxumService, AxumReq, AxumResp, Infallible>();
+        .check_service::<AxumService, HyperReq, TraceResp, Infallible>();
 
-    // Apply inner middleware
-    let layered_router = router.layer(inner_middleware);
-    // Convert into Service
-    let router_service = layered_router.into_service::<hyper::body::Incoming>();
-    // Apply outer middleware
-    let layered_service = Layer::layer(&outer_middleware, router_service);
+    // Convert Router into Service
+    let router_service = router.into_service::<axum::body::Body>();
+    // Apply our middleware
+    let layered_service = Layer::layer(&middleware, router_service);
     // Convert into MakeService
     let make_service = layered_service.into_make_service();
 
@@ -960,5 +967,65 @@ pub async fn default_fallback(
         kind: LxRejectionKind::BadEndpoint,
         // e.g. "POST /user/v2/node_info"
         source_msg: format!("{method} {path}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::routing::post;
+    use futures::stream;
+    use http_body_util::StreamBody;
+    use hyper::body::Frame;
+    use lexe_common::net;
+    use tracing::info_span;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn request_body_limit_is_enforced() {
+        const BODY_LIMIT: usize = 4;
+        let router = Router::new().route("/", post(|_: Bytes| async {}));
+        let layer_config = LayerConfig {
+            body_limit: Some(BODY_LIMIT),
+            buffer_size: Some(4),
+            concurrency: Some(2),
+            handling_timeout: None,
+            ..LayerConfig::default()
+        };
+
+        let shutdown = NotifyOnce::new();
+        const SPAN_NAME: &str = "(body-limit-test-server)";
+        let (server_task, server_url) = spawn_server_task(
+            net::LOCALHOST_WITH_EPHEMERAL_PORT,
+            router,
+            layer_config,
+            None,
+            SPAN_NAME.into(),
+            info_span!(parent: None, SPAN_NAME),
+            shutdown.clone(),
+        )
+        .unwrap();
+
+        let client = reqwest::Client::new();
+        for (body_len, expected_status) in [
+            (BODY_LIMIT, StatusCode::OK),
+            (BODY_LIMIT + 1, StatusCode::PAYLOAD_TOO_LARGE),
+        ] {
+            // An unknown size hint bypasses the Content-Length precheck and
+            // exercises the route-local body limit.
+            let frames = stream::iter([Ok::<_, Infallible>(Frame::data(
+                Bytes::from(vec![0; body_len]),
+            ))]);
+            let body = reqwest::Body::wrap(StreamBody::new(frames));
+            let response =
+                client.post(&server_url).body(body).send().await.unwrap();
+            assert_eq!(response.status(), expected_status);
+        }
+
+        shutdown.send();
+        tokio::time::timeout(Duration::from_secs(5), server_task)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }
