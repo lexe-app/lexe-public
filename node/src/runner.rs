@@ -650,7 +650,7 @@ impl UserRunner {
         let heap_mib = to_mib(heap_bytes);
         let heap_size_mib = to_mib(heap_size_bytes);
         let max_heap_mib = to_mib(heap_stats.max_bytes);
-        let fixed_mib = to_mib(self.fixed_heap_bytes);
+        let fixed_heap_mib = to_mib(self.fixed_heap_bytes);
         let avg_user_mib = to_mib(avg_user_bytes);
         let max_avg_user_mib = to_mib(self.max_avg_user_bytes);
 
@@ -660,7 +660,7 @@ impl UserRunner {
             heap_pct = %format_args!("{heap_pct:.1}"),
             heap_size_mib = %format_args!("{heap_size_mib:.1}"),
             max_heap_mib = %format_args!("{max_heap_mib:.1}"),
-            fixed_mib = %format_args!("{fixed_mib:.1}"),
+            fixed_heap_mib = %format_args!("{fixed_heap_mib:.1}"),
             avg_user_mib = %format_args!("{avg_user_mib:.1}"),
             max_avg_user_mib = %format_args!("{max_avg_user_mib:.1}"),
             users,
@@ -683,7 +683,7 @@ impl UserRunner {
         if self.fixed_heap_bytes > memory_overhead {
             let overhead_mib = to_mib(memory_overhead);
             warn!(
-                "Fixed heap usage ({fixed_mib:.1} MiB) exceeds \
+                "Fixed heap usage ({fixed_heap_mib:.1} MiB) exceeds \
                  the meganode memory overhead estimate ({overhead_mib:.1} MiB)"
             );
         }
