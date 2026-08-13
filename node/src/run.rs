@@ -756,7 +756,7 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // Start API server for user
+        // Start the user API server.
         let lsp_info = args.lsp.clone();
         let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&root_seed);
         let eph_ca_cert_der = eph_ca_cert
@@ -824,6 +824,10 @@ impl UserNode {
             handling_timeout: Some(
                 timeout::user_node_run_api::SERVER_HANDLER_TIMEOUT,
             ),
+            // NOTE(phlip9): tokio mpsc channels already pre-allocate in
+            // 32-entry chunks, so might as well use that capacity.
+            buffer_size: Some(32),
+            concurrency: Some(2),
             ..Default::default()
         };
         let (user_tls_config, user_dns) =
@@ -855,11 +859,19 @@ impl UserNode {
         let lexe_port = lexe_listener.local_addr()?.port();
         const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-run-server)";
         let lexe_tls_and_dns = None;
+        let lexe_layer_config = LayerConfig {
+            handling_timeout: Some(timeout::server::DEFAULT_HANDLER_TIMEOUT),
+            // NOTE(phlip9): tokio mpsc channels already pre-allocate in
+            // 32-entry chunks, so might as well use that capacity.
+            buffer_size: Some(32),
+            concurrency: Some(2),
+            ..Default::default()
+        };
         let (lexe_server_task, _lexe_url) =
             lexe_api::server::spawn_server_task_with_listener(
                 lexe_listener,
                 server::lexe_router(router_state),
-                LayerConfig::default(),
+                lexe_layer_config,
                 lexe_tls_and_dns,
                 LEXE_SERVER_SPAN_NAME.into(),
                 info_span!(LEXE_SERVER_SPAN_NAME),
