@@ -1,7 +1,7 @@
 # A rustc custom target-spec.json for x86_64-fortanix-unknown-sgx with LVI-CFI
 # and LVI-LOAD mitigations removed.
 #
-# Regen: `just rust-regen-sgx-target-spec`
+# Regen: `just rust-regen-sgx`
 
 {
   jq,
