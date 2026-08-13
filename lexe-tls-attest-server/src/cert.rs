@@ -188,7 +188,7 @@ mod test {
     /// Dump fresh attestation cert (intended for SGX only):
     ///
     /// ```bash
-    /// RUSTC_BOOTSTRAP=1 cargo test -p lexe-tls-attest-server --target=x86_64-fortanix-unknown-sgx dump_attest_cert -- --ignored --show-output
+    /// just cargo-test-sgx -p lexe-tls-attest-server dump_attest_cert -- --ignored --show-output
     /// ```
     #[test]
     #[cfg(target_env = "sgx")]

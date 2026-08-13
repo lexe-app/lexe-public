@@ -410,22 +410,22 @@ Build the node
 $ cargo build -p node
 # Build for SGX
 $ nix develop .#sgx
-$ cargo build -p node --target=x86_64-fortanix-unknown-sgx
-$ cargo build -p node --release --target=x86_64-fortanix-unknown-sgx
+$ cargo build -p node --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort
+$ cargo build -p node --release --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort
 ```
 
 Check that the node runs by printing the current version
 ```bash
 $ cargo run -p node -- --version
-$ cargo run -p node --target=x86_64-fortanix-unknown-sgx -- --version
-$ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- --version
+$ cargo run -p node --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort -- --version
+$ cargo run -p node --release --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort -- --version
 ```
 
 See node help
 ```bash
 $ cargo run -p node -- run --help
-$ cargo run -p node --target=x86_64-fortanix-unknown-sgx -- run --help
-$ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- run --help
+$ cargo run -p node --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort -- run --help
+$ cargo run -p node --release --target=nix/pkgs/rustc-target-specs/x86_64-fortanix-unknown-sgx.json -Zbuild-std=std,panic_abort -- run --help
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
   SGX enabled.

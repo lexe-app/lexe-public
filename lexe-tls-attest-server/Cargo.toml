@@ -9,6 +9,12 @@ publish = false
 [lints]
 workspace = true
 
+# Config for testing in SGX
+# Need more threads and more stack for tokio. See: lexe-common/Cargo.toml.
+[package.metadata.fortanix-sgx]
+stack-size = 0x20_0000
+threads = 4
+
 [dependencies]
 
 # --- LEXE --- #
