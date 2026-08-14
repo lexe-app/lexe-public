@@ -1,6 +1,7 @@
 use std::{fmt, num::NonZeroU64, str::FromStr};
 
 use anyhow::Context;
+use bitcoin::secp256k1;
 use lexe_common::{
     api::user::NodePk,
     ln::{amount::Amount, network::Network},
@@ -146,6 +147,18 @@ impl Offer {
         } else {
             None
         }
+    }
+
+    /// The public key used by the payee to sign BOLT12 invoices.
+    ///
+    /// If the offer was created by a Lexe node, this is always set. This is the
+    /// field that should match against [`PayerProof::invoice_node_id`] to prove
+    /// which offer was paid.
+    ///
+    /// [`PayerProof::invoice_node_id`]: super::payer_proof::PayerProof::invoice_node_id
+    // The `offer_always_sets_issuer_id` proptest asserts that it's always set.
+    pub fn issuer_signing_pubkey(&self) -> Option<secp256k1::PublicKey> {
+        self.0.issuer_signing_pubkey()
     }
 
     /// The absolute expiration time of the offer, if any.
@@ -843,6 +856,20 @@ mod test {
             offer_str.make_ascii_uppercase();
             prop_assert!(Offer::matches_hrp_prefix(&offer_str));
             prop_assert_eq!(Offer::from_str(&offer_str).unwrap(), offer);
+        });
+    }
+
+    /// Guards [`Offer::issuer_signing_pubkey`]'s claim that every LDK-built
+    /// offer sets `offer_issuer_id` (TLV 22), which is what lets a verifier
+    /// tie a payer proof back to a Lexe offer.
+    #[test]
+    fn offer_always_sets_issuer_id() {
+        proptest!(|(offer: Offer)| {
+            prop_assert!(offer.issuer_signing_pubkey().is_some());
+            // Ensure the TLV is on the wire. Existing roundtrip proptest isn't
+            // sufficient if `issuer_signing_pubkey` doesn't count towards `Eq`.
+            let parsed = Offer::from_str(&offer.to_string()).unwrap();
+            prop_assert!(parsed.issuer_signing_pubkey().is_some());
         });
     }
 

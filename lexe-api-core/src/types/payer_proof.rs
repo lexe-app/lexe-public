@@ -5,7 +5,8 @@
 //!
 //! A [`PayerProof`] is already validated, but verifiers of a `PayerProof`
 //! should check the [`invoice_node_id`] (the key used to sign the paid BOLT12
-//! invoice) to ensure that the payee is who they expect.
+//! invoice) to ensure that the payee is who they expect. For an offer created
+//! by a Lexe node, this should match the offer's [`issuer_signing_pubkey`].
 //!
 //! Note that `invoice_node_id` may not match a node's consistent ID if a
 //! blinded path was used.
@@ -47,6 +48,7 @@
 //!
 //! [`PayerProof`]: crate::types::payer_proof::PayerProof
 //! [`invoice_node_id`]: crate::types::payer_proof::PayerProof::invoice_node_id
+//! [`issuer_signing_pubkey`]: crate::types::offer::Offer::issuer_signing_pubkey
 
 use std::{fmt, str::FromStr};
 
@@ -152,7 +154,11 @@ impl PayerProof {
     /// the name, this is not necessarily a consistent node ID if the offer
     /// used a blinded path.
     ///
+    /// This should match the paid offer's [`issuer_signing_pubkey`], if set.
+    ///
     /// TLV type: 176 (`invoice_node_id`)
+    ///
+    /// [`issuer_signing_pubkey`]: super::offer::Offer::issuer_signing_pubkey
     pub fn invoice_node_id(&self) -> secp256k1::PublicKey {
         self.0.issuer_signing_pubkey()
     }
