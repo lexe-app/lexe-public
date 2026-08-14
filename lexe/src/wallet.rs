@@ -1867,15 +1867,13 @@ impl LexeWallet {
                 return Ok(latest_index);
             }
 
-            // Sleep until the next poll, or bail if the deadline passes.
+            // Sleep until the next poll, or bail if the deadline would pass.
             let sleep_duration = backoff.next().unwrap();
             match deadline {
-                Some(deadline) => tokio::select! {
-                    () = tokio::time::sleep(sleep_duration) => (),
-                    () = tokio::time::sleep_until(deadline) =>
-                        return Err(anyhow!("Deadline reached")),
-                },
-                None => tokio::time::sleep(sleep_duration).await,
+                Some(deadline)
+                    if Instant::now() + sleep_duration >= deadline =>
+                    return Err(anyhow!("Deadline reached")),
+                _ => tokio::time::sleep(sleep_duration).await,
             }
         }
     }
