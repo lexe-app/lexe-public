@@ -52,9 +52,9 @@ use crate::{
             CashAppBuyResponse, ChannelDetails, ClaimableDetails, ClientInfo,
             ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
             CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse,
-            GetHumanBitcoinAddressResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+            CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -1577,6 +1577,25 @@ impl LexeWallet {
             .await
             .context("Failed to update Human Bitcoin Address")?;
         Ok(GetHumanBitcoinAddressResponse::from(resp.hba))
+    }
+
+    /// Create a payer proof for a completed outbound offer payment.
+    ///
+    /// The returned proof (`lnp1...`) proves to any third party that the
+    /// offer's invoice was paid, disclosing only the invoice fields named
+    /// in `disclosures`.
+    #[instrument(skip_all, name = "(create-payer-proof)")]
+    pub async fn create_payer_proof(
+        &self,
+        req: CreatePayerProofRequest,
+    ) -> anyhow::Result<CreatePayerProofResponse> {
+        let req = command::CreatePayerProofRequest::try_from(req)?;
+        let resp = self
+            .node_client
+            .create_payer_proof(req)
+            .await
+            .context("Failed to create payer proof")?;
+        Ok(CreatePayerProofResponse { proof: resp.proof })
     }
 
     // --- Payment information and management --- //

@@ -656,6 +656,8 @@ pub struct CreatePayerProofRequest {
 ///
 /// Note that `invreq_payer_id`, `invoice_payment_hash`, `invoice_node_id`,
 /// `signature`, and `invoice_features` (if it exists) are always included.
+//
+// NOTE: This is exposed in the Rust SDK.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]

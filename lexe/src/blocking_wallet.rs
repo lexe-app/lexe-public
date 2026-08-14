@@ -20,6 +20,7 @@ use crate::{
             CashAppBuyResponse, ClientInfoResponse, CloseChannelRequest,
             CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+            CreatePayerProofRequest, CreatePayerProofResponse,
             GetHumanBitcoinAddressResponse, GetPaymentRequest,
             GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
@@ -439,6 +440,18 @@ impl BlockingLexeWallet {
         username: &str,
     ) -> anyhow::Result<GetHumanBitcoinAddressResponse> {
         block_on(self.inner.update_human_bitcoin_address(username))
+    }
+
+    /// Create a payer proof for a completed outbound offer payment.
+    ///
+    /// The returned proof (`lnp1...`) proves to any third party that the
+    /// offer's invoice was paid, disclosing only the invoice fields named
+    /// in `disclosures`.
+    pub fn create_payer_proof(
+        &self,
+        req: CreatePayerProofRequest,
+    ) -> anyhow::Result<CreatePayerProofResponse> {
+        block_on(self.inner.create_payer_proof(req))
     }
 
     // --- Payment information and management --- //

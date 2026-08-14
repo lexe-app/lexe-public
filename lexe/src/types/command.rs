@@ -30,11 +30,18 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         auth::{ClientCredentials, Measurement, NodePk, UserPk},
-        bitcoin::{ChannelId, Offer, OutPoint, UserChannelId},
+        bitcoin::{ChannelId, Offer, OutPoint, PayerProof, UserChannelId},
         payment::Payment,
     },
     util::ed25519,
 };
+
+/// Re-exports that are part of the SDK's public API.
+/// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
+mod reexports {
+    pub use lexe_api::models::command::PayerProofDisclosures;
+}
+pub use reexports::*;
 
 // --- Node management --- //
 
@@ -614,6 +621,45 @@ impl From<command::ActiveHumanBitcoinAddress>
             updatable: active.updatable,
         }
     }
+}
+
+/// A request to prove that an offer was paid. Specifically, it proves that a
+/// BOLT 12 invoice was paid.
+#[derive(Serialize, Deserialize)]
+pub struct CreatePayerProofRequest {
+    /// The index of the payment to create a proof for.
+    /// Must be a completed outbound offer payment.
+    pub index: PaymentCreatedIndex,
+    /// Which of the paid invoice's optional fields the proof discloses.
+    /// [`PayerProofDisclosures::default()`] discloses none of them.
+    pub disclosures: PayerProofDisclosures,
+    /// An optional note bound to the proof, readable by anyone the proof is
+    /// shown to. If provided, it must be non-empty and no longer than 200
+    /// chars / 512 UTF-8 bytes.
+    pub proof_note: Option<String>,
+}
+
+impl TryFrom<CreatePayerProofRequest> for command::CreatePayerProofRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(req: CreatePayerProofRequest) -> anyhow::Result<Self> {
+        Ok(Self {
+            id: req.index.id,
+            disclosures: req.disclosures,
+            proof_note: req
+                .proof_note
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid proof note")?,
+        })
+    }
+}
+
+/// The response to a [`CreatePayerProofRequest`].
+#[derive(Serialize, Deserialize)]
+pub struct CreatePayerProofResponse {
+    /// The payer proof. Serializes as bech32: `lnp1...`.
+    pub proof: PayerProof,
 }
 
 // --- Payment information and management --- //

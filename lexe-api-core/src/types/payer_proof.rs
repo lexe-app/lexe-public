@@ -125,6 +125,8 @@ pub mod tlv_type {
 /// carry.
 ///
 /// [`Bolt12Invoice`]: super::bolt12_invoice::Bolt12Invoice
+//
+// NOTE: This is exposed in the Rust SDK.
 #[derive(Debug, SerializeDisplay, DeserializeFromStr)]
 pub struct PayerProof(pub LdkPayerProof);
 

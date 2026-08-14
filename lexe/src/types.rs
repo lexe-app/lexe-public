@@ -37,6 +37,7 @@ pub mod bitcoin {
         invoice::Invoice,
         lnurl::{LnurlPayRequest, LnurlPayRequestMetadata},
         offer::Offer,
+        payer_proof::PayerProof,
     };
     pub use lexe_common::ln::{
         amount::Amount,
