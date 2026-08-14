@@ -31,10 +31,25 @@ test-utils = [
 debug = true
 # Heap size in bytes. Default: 0x200_0000.
 #
-# Sized to fit `NODE_MAX_GRAPH_MEMORY`, other shared state, and usernodes.
+# (2026-08-13): Sized to `DEFAULT_MEGANODE_MEMORY_OVERHEAD` + a reasonable
+# number of usernodes, with enough room to survive the network graph channel
+# map's next HashMap doubling (65536 -> 131072 buckets once the graph exceeds
+# ~57344 channels), whose post-doubling init peak we estimate at ~215 MiB:
 #
-# Current: 512 MiB
-heap-size = 0x2000_0000
+# - Prod: max_heap_mib=138.6 (during init, 0 users);
+#   fixed_heap_mib=93.7 stable; heap_mib=103.8 with 4 users running.
+# - Memory profiling: the in-memory graph is 86.6 MiB and 158.6 MiB with a
+#   doubled channel map (only the bucket table doubles: +72 MiB).
+# - Deserialize peak = in-memory graph + one serialized copy (~48.5 MiB);
+#   profiled at 208 MiB with doubled map capacity, matching this model.
+# - 208 + ~4 (serialized bytes grown to the doubling threshold)
+#   + ~3 (non-graph init) => ~215 MiB init peak; ~170 MiB stable.
+#
+# 288 MiB leaves ~73 MiB of margin over that peak in case some unanticipated
+# thing starts using a bunch of memory.
+#
+# Current: 288 MiB
+heap-size = 0x1200_0000
 # SSA frame size (in pages) for each thread. Default: 1.
 # You normally don't need to change the SSA frame size.
 ssaframesize = 1

@@ -262,7 +262,7 @@ mod helpers {
             runner_url: String::new(),
             rust_backtrace: None,
             rust_log: None,
-            sgx_heap_size: 0x2000_0000, // 512 MiB
+            sgx_heap_size: 0x1200_0000, // 288 MiB
             usernode_sync_timeout_secs: Some(
                 timeout::usernode::DEFAULT_SYNC_TIMEOUT.as_secs(),
             ),
