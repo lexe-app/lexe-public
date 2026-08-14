@@ -7,7 +7,7 @@
 //! [`CertInjectorAcceptor`]: crate::tls_acceptor::CertInjectorAcceptor
 //! [`VerifiedTlsClientCert`]: crate::tls_acceptor::VerifiedTlsClientCert
 
-use std::io;
+use std::{io, sync::Arc};
 
 use axum_server::{accept::Accept, tls_rustls::RustlsAcceptor};
 use futures::{FutureExt, future::Map};
@@ -29,7 +29,7 @@ use tower_http::add_extension::{AddExtension, AddExtensionLayer};
 ///
 /// [`ClientCertVerifier`]: rustls::server::danger::ClientCertVerifier
 #[derive(Clone, Debug)]
-pub struct VerifiedTlsClientCert(pub Option<CertificateDer<'static>>);
+pub struct VerifiedTlsClientCert(pub Option<Arc<CertificateDer<'static>>>);
 
 /// An acceptor that wraps [`RustlsAcceptor`] to inject the verified client
 /// certificate into request extensions.
@@ -97,7 +97,8 @@ where
                 let client_cert = server_conn
                     .peer_certificates()
                     .and_then(|chain| chain.first())
-                    .cloned();
+                    .cloned()
+                    .map(Arc::new);
                 let verified_cert = VerifiedTlsClientCert(client_cert);
 
                 // Wrap service to inject the cert into http request extensions
@@ -195,7 +196,7 @@ mod test {
             let cert_der = req
                 .extensions()
                 .get::<VerifiedTlsClientCert>()
-                .and_then(|cert| cert.0.as_ref())
+                .and_then(|cert| cert.0.as_deref())
                 .map(|cert| cert.as_ref().to_vec());
             LxJson(cert_der)
         }
