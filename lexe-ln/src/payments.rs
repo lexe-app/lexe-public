@@ -168,10 +168,7 @@ pub struct PaymentMetadata {
     pub id: PaymentId,
 
     /// The ids of payments related to this payment.
-    #[cfg_attr(
-        test,
-        serde(default, skip_serializing_if = "HashSet::is_empty")
-    )]
+    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
     #[cfg_attr(
         test,
         proptest(strategy = "arbitrary::any_hashset::<PaymentId>()")
@@ -181,7 +178,7 @@ pub struct PaymentMetadata {
     // --- Payment methods --- //
     // -
     /// (On-chain send only) The address that we're sending to.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(
         test,
         proptest(
@@ -191,7 +188,7 @@ pub struct PaymentMetadata {
     pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
 
     /// The BOLT11 invoice corresponding to this payment, if any.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(
         test,
         proptest(strategy = "arbitrary_helpers::any_option_arc_invoice()")
@@ -199,7 +196,7 @@ pub struct PaymentMetadata {
     pub invoice: Option<Arc<Invoice>>,
 
     /// The BOLT12 offer associated with this payment, if any.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(
         test,
         proptest(strategy = "arbitrary_helpers::any_option_arc_offer()")
@@ -210,7 +207,7 @@ pub struct PaymentMetadata {
     // -
     /// (Inbound offer reusable only)
     /// The payer's self-reported human-readable name.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(
         test,
         proptest(strategy = "option::of(Just(String::from(\"payer name\")))")
@@ -219,7 +216,7 @@ pub struct PaymentMetadata {
 
     /// A payer-provided message for this payment. Set for BOLT12 offers
     /// (LDK truncates to PAYER_NOTE_LIMIT) and LNURL-pay (LUD-12 comment).
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(
         test,
         proptest(strategy = "option::of(Just(String::from(\"payer note\")))")
@@ -230,7 +227,7 @@ pub struct PaymentMetadata {
 
     /// Optional personal note, private to the user.
     // Suppress useless unicode gibberish in tests.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(
         test,
         proptest(strategy = "option::of(Just(String::from(\"note\")))")
@@ -242,15 +239,15 @@ pub struct PaymentMetadata {
     // --- Other --- //
     // -
     /// (On-chain send only) The confirmation priority used for this payment.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<ConfirmationPriority>,
 
     /// (Inbound offer reusable only) The number of items the payer bought.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub quantity: Option<NonZeroU64>,
 
     /// (Onchain payments only) The txid of the replacement tx, if one exists.
-    #[cfg_attr(test, serde(default, skip_serializing_if = "Option::is_none"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub replacement_txid: Option<Txid>,
 }
 
