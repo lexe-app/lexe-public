@@ -357,14 +357,28 @@ impl LexeWallet {
         self.db.as_ref()
     }
 
-    /// Get a reference to the payments database.
-    /// This is the primary data source for constructing a payments
-    /// list UI.
-    ///
-    /// Returns [`None`] if local persistence is disabled for this wallet.
-    #[cfg(feature = "unstable")]
-    pub fn payments_db(&self) -> Option<&PaymentsDb<DiskFs>> {
-        self.db.as_ref().map(WalletDb::payments_db)
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "unstable")] {
+            /// Get a reference to the payments database.
+            /// This is the primary data source for constructing a payments
+            /// list UI.
+            ///
+            /// Returns [`None`] if local persistence is disabled for this
+            /// wallet.
+            pub fn payments_db(&self) -> Option<&PaymentsDb<DiskFs>> {
+                self.db.as_ref().map(WalletDb::payments_db)
+            }
+        } else {
+            /// Get a reference to the payments database.
+            /// This is the primary data source for constructing a payments
+            /// list UI.
+            ///
+            /// Returns [`None`] if local persistence is disabled for this
+            /// wallet.
+            pub(crate) fn payments_db(&self) -> Option<&PaymentsDb<DiskFs>> {
+                self.db.as_ref().map(WalletDb::payments_db)
+            }
+        }
     }
 
     // --- Client accessors --- //
@@ -1781,9 +1795,9 @@ impl LexeWallet {
         // Default the start index to the last `updated_at` from db or node.
         let start_index = match req.start_index {
             Some(start_index) => Some(start_index),
-            None => match self.require_payments_db() {
-                Ok(payments_db) => payments_db.latest_updated_index(),
-                Err(_) => self.node_client.latest_payment_update().await?,
+            None => match self.payments_db() {
+                Some(payments_db) => payments_db.latest_updated_index(),
+                None => self.node_client.latest_payment_update().await?,
             },
         };
 
@@ -1794,12 +1808,12 @@ impl LexeWallet {
                 format!("No payment update within {timeout_secs}s timeout")
             })?;
 
-        let maybe_payment = match self.require_payments_db() {
-            Ok(payments_db) => payments_db
+        let maybe_payment = match self.payments_db() {
+            Some(payments_db) => payments_db
                 .get_updated_payments(start_index, 1)
                 .into_iter()
                 .next(),
-            Err(_) => {
+            None => {
                 let req = command::GetUpdatedPayments {
                     start_index,
                     limit: Some(1),
@@ -1845,8 +1859,8 @@ impl LexeWallet {
         let mut backoff = Backoff::new(INITIAL_WAIT_MS, MAX_WAIT_MS);
 
         loop {
-            let latest_index = match self.require_payments_db() {
-                Ok(payments_db) => {
+            let latest_index = match self.payments_db() {
+                Some(payments_db) => {
                     // Skip the sync if the db already has a newer update.
                     let local_latest = payments_db.latest_updated_index();
                     if local_latest > start_index {
@@ -1859,7 +1873,7 @@ impl LexeWallet {
                         payments_db.latest_updated_index()
                     }
                 }
-                Err(_) => self.node_client.latest_payment_update().await?,
+                None => self.node_client.latest_payment_update().await?,
             };
 
             // Some > None
@@ -1914,7 +1928,7 @@ impl LexeWallet {
         req: GetUpdatedPaymentsRequest,
     ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
         // Serve from the local db when we have one.
-        if let Ok(payments_db) = self.require_payments_db() {
+        if let Some(payments_db) = self.payments_db() {
             self.sync_payments().await?;
 
             let limit = req.limit.unwrap_or(usize::MAX);
