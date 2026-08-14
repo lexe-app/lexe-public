@@ -544,6 +544,10 @@ pub enum CommonErrorKind {
     ClientAuth = 9,
     /// Client lacks the required permission
     InsufficientScope = 10,
+    /// Error
+    // NOTE: Intentionally NOT descriptive.
+    // These might be surfaced to an end user and should be concise.
+    General = 11,
     // NOTE: If adding a variant, be sure to also update Self::KINDS!
 }
 
@@ -561,6 +565,7 @@ impl ToHttpStatus for CommonErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -594,6 +599,10 @@ api_error_kind! {
         ClientAuth = 9,
         /// Client lacks the required permission
         InsufficientScope = 10,
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These might be surfaced to an end user and should be concise.
+        General = 11,
 
         // --- Backend --- //
 
@@ -638,6 +647,7 @@ impl ToHttpStatus for BackendErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
 
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
@@ -683,6 +693,10 @@ api_error_kind! {
         ClientAuth = 9,
         /// Client lacks the required permission
         InsufficientScope = 10,
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These might be surfaced to an end user and should be concise.
+        General = 11,
 
         // --- Gateway --- //
 
@@ -707,6 +721,7 @@ impl ToHttpStatus for GatewayErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
 
             FiatRatesMissing => SERVER_500_INTERNAL_SERVER_ERROR,
         }
@@ -742,6 +757,10 @@ api_error_kind! {
         ClientAuth = 9,
         /// Client lacks the required permission
         InsufficientScope = 10,
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These might be surfaced to an end user and should be concise.
+        General = 11,
 
         // --- LSP --- //
 
@@ -751,7 +770,7 @@ api_error_kind! {
         Scid = 101,
         /// Error
         // NOTE: Intentionally NOT descriptive.
-        // These get displayed on the app UI frequently and should be concise.
+        // These might be surfaced to an end user and should be concise.
         Command = 102,
         /// Resource not found
         NotFound = 103,
@@ -774,6 +793,7 @@ impl ToHttpStatus for LspErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
 
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Scid => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -812,6 +832,10 @@ api_error_kind! {
         ClientAuth = 9,
         /// Client lacks the required permission
         InsufficientScope = 10,
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These might be surfaced to an end user and should be concise.
+        General = 11,
 
         // --- Mega --- //
 
@@ -842,6 +866,7 @@ impl ToHttpStatus for MegaErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
 
             WrongMegaId => CLIENT_400_BAD_REQUEST,
             RunnerUnreachable => SERVER_503_SERVICE_UNAVAILABLE,
@@ -880,6 +905,10 @@ api_error_kind! {
         ClientAuth = 9,
         /// Client lacks the required permission
         InsufficientScope = 10,
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These might be surfaced to an end user and should be concise.
+        General = 11,
 
         // --- Node --- //
 
@@ -897,7 +926,7 @@ api_error_kind! {
         Proxy = 105,
         /// Error
         // NOTE: Intentionally NOT descriptive.
-        // These get displayed on the app UI frequently and should be concise.
+        // These might be surfaced to an end user and should be concise.
         Command = 106,
         /// Resource not found
         NotFound = 107,
@@ -920,6 +949,7 @@ impl ToHttpStatus for NodeErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
 
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
@@ -962,6 +992,10 @@ api_error_kind! {
         ClientAuth = 9,
         /// Client lacks the required permission
         InsufficientScope = 10,
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These might be surfaced to an end user and should be concise.
+        General = 11,
 
         // --- Runner --- //
 
@@ -1008,6 +1042,7 @@ impl ToHttpStatus for RunnerErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
 
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
             UnknownMeasurement => CLIENT_404_NOT_FOUND,
@@ -1053,6 +1088,10 @@ api_error_kind! {
         ClientAuth = 9,
         /// Client lacks the required permission
         InsufficientScope = 10,
+        /// Error
+        // NOTE: Intentionally NOT descriptive.
+        // These might be surfaced to an end user and should be concise.
+        General = 11,
 
         // --- SDK --- //
 
@@ -1083,6 +1122,7 @@ impl ToHttpStatus for SdkErrorKind {
             AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
             ClientAuth => CLIENT_401_UNAUTHORIZED,
             InsufficientScope => CLIENT_403_FORBIDDEN,
+            General => SERVER_500_INTERNAL_SERVER_ERROR,
 
             Command => SERVER_500_INTERNAL_SERVER_ERROR,
             BadAuth => CLIENT_401_UNAUTHORIZED,
@@ -1095,6 +1135,13 @@ impl ToHttpStatus for SdkErrorKind {
 
 impl CommonApiError {
     pub fn new(kind: CommonErrorKind, msg: String) -> Self {
+        Self { kind, msg }
+    }
+
+    /// A general server-side command error (HTTP 500).
+    pub fn general(error: impl fmt::Display) -> Self {
+        let kind = CommonErrorKind::General;
+        let msg = format!("{error:#}");
         Self { kind, msg }
     }
 
@@ -1182,6 +1229,7 @@ impl CommonErrorKind {
         Self::AtCapacity,
         Self::ClientAuth,
         Self::InsufficientScope,
+        Self::General,
     ];
 
     #[inline]
