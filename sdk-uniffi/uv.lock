@@ -262,7 +262,7 @@ wheels = [
 
 [[package]]
 name = "lexe-sdk"
-version = "0.1.16"
+version = "0.1.17"
 source = { editable = "." }
 
 [package.dev-dependencies]
