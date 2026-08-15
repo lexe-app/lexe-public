@@ -5,6 +5,12 @@ import 'package:intl/intl.dart' show NumberFormat;
 
 const int satsPerBtc = 100000000; // 1e8, 100 million sats
 
+/// Regex to strip trailing fractional zeros
+final _trailingZerosRe = RegExp(r"0+$");
+
+/// Regex matching a single digit
+final _digitRe = RegExp(r"\d");
+
 double satsToBtc(int sats) => sats * 1e-8;
 
 double msatToBtc(int msats) => msats * 1e-11;
@@ -164,14 +170,14 @@ String formatMsatAmount(
   final trimmed = msatsFrac
       .toString()
       .padLeft(3, "0")
-      .replaceAll(RegExp(r"0+$"), "");
+      .replaceAll(_trailingZerosRe, "");
   final decimalSep = NumberFormat.decimalPatternDigits(
     locale: locale,
   ).symbols.DECIMAL_SEP;
 
   // Insert the fraction right after the last digit, so it lands inside the
   // number regardless of which side the locale places the ₿ symbol.
-  final lastDigit = whole.lastIndexOf(RegExp(r"\d"));
+  final lastDigit = whole.lastIndexOf(_digitRe);
   return "${whole.substring(0, lastDigit + 1)}$decimalSep$trimmed"
       "${whole.substring(lastDigit + 1)}";
 }
