@@ -1,0 +1,5 @@
+- Client credentials now support authorization scopes! Pick Read, Receive, Spend, Admin, or a custom set when creating them, and see each client's scopes and permissions at a glance.
+- Fixed a bug that prevented some nodes from starting.
+- More reliable sync during node startup.
+- Your node stays awake while serving BIP-353 and LNURL requests.
+- Better error messages when your wallet can't start.
