@@ -21,7 +21,8 @@ use lexe::{
             ClaimableDetails as SdkClaimableDetails, ClientInfoResponse,
             CloseChannelRequest, CreateClientRequest, CreateClientResponse,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, GetHumanBitcoinAddressResponse,
+            CreateOfferResponse, CreatePayerProofRequest,
+            CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
             GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
@@ -105,6 +106,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             "/v2/node/human_bitcoin_address",
             get(node::get_human_bitcoin_address)
                 .put(node::update_human_bitcoin_address),
+        )
+        .route(
+            "/v2/node/create_payer_proof",
+            post(node::create_payer_proof),
         )
         .route("/v2/node/sync_payments", put(node::sync_payments))
         .route("/v2/node/list_payments", get(node::list_payments))
@@ -578,6 +583,19 @@ mod node {
     ) -> Result<LxJson<GetHumanBitcoinAddressResponse>, SdkApiError> {
         let resp = wallet
             .update_human_bitcoin_address(&req.username)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(create-payer-proof)")]
+    pub(crate) async fn create_payer_proof(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<CreatePayerProofRequest>,
+    ) -> Result<LxJson<CreatePayerProofResponse>, SdkApiError> {
+        let resp = wallet
+            .create_payer_proof(req)
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(resp))

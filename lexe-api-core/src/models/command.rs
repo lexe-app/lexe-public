@@ -661,6 +661,9 @@ pub struct CreatePayerProofRequest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+// Uses Default impl to fill in omitted fields. Allows JSON wire users to avoid
+// specifying each field.
+#[serde(default)]
 pub struct PayerProofDisclosures {
     // The field docs below are copied verbatim from the corresponding
     // `PayerProof` getters.

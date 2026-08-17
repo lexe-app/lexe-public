@@ -638,6 +638,7 @@ pub struct CreatePayerProofRequest {
     /// `offer_description`, `invreq_payer_note`, `invoice_amount`, and
     /// `invoice_created_at`; use [`PayerProofDisclosures::EMPTY`] to disclose
     /// nothing.
+    #[serde(default)]
     pub disclosures: PayerProofDisclosures,
     /// An optional note bound to the proof, readable by anyone the proof is
     /// shown to. If provided, it must be non-empty and no longer than 200

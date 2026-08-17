@@ -5,13 +5,14 @@ use lexe::types::{
         AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
         ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
         CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse,
-        GetHumanBitcoinAddressResponse, GetPaymentRequest, GetPaymentResponse,
-        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
-        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
+        CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+        CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
+        GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
+        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
+        WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -185,6 +186,16 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/human_bitcoin_address");
         let http_req = self.rest.put(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn create_payer_proof(
+        &self,
+        req: &CreatePayerProofRequest,
+    ) -> Result<CreatePayerProofResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/create_payer_proof");
+        let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 

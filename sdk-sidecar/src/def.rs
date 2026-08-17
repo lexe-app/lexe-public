@@ -12,13 +12,14 @@ use lexe::types::{
         AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
         ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
         CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse,
-        GetHumanBitcoinAddressResponse, GetPaymentRequest, GetPaymentResponse,
-        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
-        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
+        CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+        CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
+        GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
+        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
+        WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -197,6 +198,21 @@ pub trait UserSidecarApi {
         &self,
         req: &UpdateHumanBitcoinAddressRequest,
     ) -> Result<GetHumanBitcoinAddressResponse, SdkApiError>;
+
+    /// POST /v2/node/create_payer_proof [`CreatePayerProofRequest`]
+    ///                               -> [`CreatePayerProofResponse`]
+    ///
+    /// Create a payer proof for a completed outbound offer payment.
+    ///
+    /// The returned proof (`lnp1...`) proves to any third party that the
+    /// offer's invoice was paid. A proof always carries the payer id, payment
+    /// hash, payee node id, signature, and invoice features (if present);
+    /// `disclosures` names which of the invoice's remaining fields to reveal
+    /// on top of those.
+    async fn create_payer_proof(
+        &self,
+        req: &CreatePayerProofRequest,
+    ) -> Result<CreatePayerProofResponse, SdkApiError>;
 
     /// PUT /v2/node/sync_payments [`Empty`] -> [`PaymentSyncSummary`]
     ///
