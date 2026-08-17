@@ -1612,8 +1612,7 @@ impl LexeWallet {
     /// Create a payer proof for a completed outbound offer payment.
     ///
     /// The returned proof (`lnp1...`) proves to any third party that the
-    /// offer's invoice was paid, disclosing only the invoice fields named
-    /// in `disclosures`.
+    /// offer's invoice was paid.
     #[instrument(skip_all, name = "(create-payer-proof)")]
     pub async fn create_payer_proof(
         &self,

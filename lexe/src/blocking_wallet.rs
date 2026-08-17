@@ -445,8 +445,7 @@ impl BlockingLexeWallet {
     /// Create a payer proof for a completed outbound offer payment.
     ///
     /// The returned proof (`lnp1...`) proves to any third party that the
-    /// offer's invoice was paid, disclosing only the invoice fields named
-    /// in `disclosures`.
+    /// offer's invoice was paid.
     pub fn create_payer_proof(
         &self,
         req: CreatePayerProofRequest,
