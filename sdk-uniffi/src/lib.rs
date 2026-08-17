@@ -55,6 +55,8 @@ use lexe::{
             CreateInvoiceResponse as SdkCreateInvoiceResponse,
             CreateOfferRequest as SdkCreateOfferRequest,
             CreateOfferResponse as SdkCreateOfferResponse,
+            CreatePayerProofRequest as SdkCreatePayerProofRequest,
+            CreatePayerProofResponse as SdkCreatePayerProofResponse,
             GetHumanBitcoinAddressResponse as SdkGetHumanBitcoinAddressResponse,
             GetPaymentRequest as SdkGetPaymentRequest,
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
@@ -66,6 +68,7 @@ use lexe::{
             PayLnurlRequest as SdkPayLnurlRequest,
             PayOfferRequest as SdkPayOfferRequest, PayRequest as SdkPayRequest,
             PayableDetails as SdkPayableDetails,
+            PayerProofDisclosures as SdkPayerProofDisclosures,
             RevokeClientRequest as SdkRevokeClientRequest,
             UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
@@ -1271,6 +1274,31 @@ impl AsyncLexeWallet {
         Ok(GetHumanBitcoinAddressResponse::from(resp))
     }
 
+    /// Create a payer proof for a completed outbound offer payment.
+    ///
+    /// The returned proof (`lnp1...`) proves to any third party that the
+    /// offer's invoice was paid. `proof_note` is an optional note bound to the
+    /// proof, readable by anyone the proof is shown to. If provided, it must be
+    /// non-empty and no longer than 200 chars / 512 UTF-8 bytes.
+    #[uniffi::method(default(disclosures = None, proof_note = None))]
+    pub async fn create_payer_proof(
+        &self,
+        index: String,
+        disclosures: Option<PayerProofDisclosures>,
+        proof_note: Option<String>,
+    ) -> Result<CreatePayerProofResponse, FfiError> {
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
+        let req = SdkCreatePayerProofRequest {
+            index,
+            disclosures: disclosures
+                .map(SdkPayerProofDisclosures::from)
+                .unwrap_or_default(),
+            proof_note,
+        };
+        let resp = self.inner.create_payer_proof(req).await?;
+        Ok(CreatePayerProofResponse::from(resp))
+    }
+
     // --- Payment information and management --- //
 
     /// Sync payments from the user node to the local payments cache.
@@ -2202,6 +2230,31 @@ impl BlockingLexeWallet {
     ) -> Result<GetHumanBitcoinAddressResponse, FfiError> {
         let resp = self.inner.update_human_bitcoin_address(&username)?;
         Ok(GetHumanBitcoinAddressResponse::from(resp))
+    }
+
+    /// Create a payer proof for a completed outbound offer payment.
+    ///
+    /// The returned proof (`lnp1...`) proves to any third party that the
+    /// offer's invoice was paid. `proof_note` is an optional note bound to the
+    /// proof, readable by anyone the proof is shown to. If provided, it must be
+    /// non-empty and no longer than 200 chars / 512 UTF-8 bytes.
+    #[uniffi::method(default(disclosures = None, proof_note = None))]
+    pub fn create_payer_proof(
+        &self,
+        index: String,
+        disclosures: Option<PayerProofDisclosures>,
+        proof_note: Option<String>,
+    ) -> Result<CreatePayerProofResponse, FfiError> {
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
+        let req = SdkCreatePayerProofRequest {
+            index,
+            disclosures: disclosures
+                .map(SdkPayerProofDisclosures::from)
+                .unwrap_or_default(),
+            proof_note,
+        };
+        let resp = self.inner.create_payer_proof(req)?;
+        Ok(CreatePayerProofResponse::from(resp))
     }
 
     // --- Payment information and management --- //
@@ -3536,6 +3589,66 @@ impl From<SdkGetHumanBitcoinAddressResponse>
             lightning_address: resp.lightning_address,
             offer: Offer::from(resp.offer),
             updatable: resp.updatable,
+        }
+    }
+}
+
+/// The BOLT 12 invoice fields a payer proof discloses, on top of the payer id,
+/// payment hash, payee node id, signature, and invoice features (if present)
+/// it always carries.
+///
+/// Defaults to exposing `offer_description`, `invreq_payer_note`,
+/// `invoice_amount`, and `invoice_created_at`.
+#[derive(Clone, uniffi::Record)]
+pub struct PayerProofDisclosures {
+    /// The offer's advertised description. (TLV type 10)
+    #[uniffi(default = true)]
+    pub offer_description: bool,
+    /// The payee's self-reported human-readable name. (TLV type 18)
+    #[uniffi(default = false)]
+    pub offer_issuer: bool,
+    /// The message the payer sent when paying the offer. (TLV type 89)
+    #[uniffi(default = true)]
+    pub invreq_payer_note: bool,
+    /// The amount the payee's invoice asked for. (TLV type 170)
+    #[uniffi(default = true)]
+    pub invoice_amount: bool,
+    /// The timestamp when the payee created the invoice. (TLV type 164)
+    #[uniffi(default = true)]
+    pub invoice_created_at: bool,
+    /// Raw BOLT 12 TLV types to disclose beyond the fields named above.
+    /// Creating the proof fails if a given TLV type cannot be disclosed.
+    #[uniffi(default = [])]
+    pub additional_disclosures: Vec<u64>,
+}
+
+impl From<PayerProofDisclosures> for SdkPayerProofDisclosures {
+    fn from(disclosures: PayerProofDisclosures) -> Self {
+        Self {
+            offer_description: disclosures.offer_description,
+            offer_issuer: disclosures.offer_issuer,
+            invreq_payer_note: disclosures.invreq_payer_note,
+            invoice_amount: disclosures.invoice_amount,
+            invoice_created_at: disclosures.invoice_created_at,
+            additional_disclosures: disclosures
+                .additional_disclosures
+                .into_iter()
+                .collect(),
+        }
+    }
+}
+
+/// Response from creating a payer proof.
+#[derive(Clone, uniffi::Record)]
+pub struct CreatePayerProofResponse {
+    /// The bech32-encoded payer proof: `lnp1...`.
+    pub proof: String,
+}
+
+impl From<SdkCreatePayerProofResponse> for CreatePayerProofResponse {
+    fn from(resp: SdkCreatePayerProofResponse) -> Self {
+        Self {
+            proof: resp.proof.to_string(),
         }
     }
 }

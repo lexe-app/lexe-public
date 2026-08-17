@@ -1006,6 +1006,42 @@ Example::
     print(resp.human_bitcoin_address)
 """)
 
+_set_method_doc(LexeWallet, "create_payer_proof", """\
+Create a proof that you paid a BOLT 12 offer.
+
+The returned proof (``lnp1...``) proves to any third party that the offer's
+invoice was paid. A proof always carries the payer id, payment hash, payee
+node id, signature, and invoice features (if present); ``disclosures`` names
+which of the invoice's remaining fields to reveal on top of those.
+
+Args:
+    index: The index of the payment to prove. Must be a completed outbound
+        offer payment.
+    disclosures: A :class:`PayerProofDisclosures` naming which of the paid
+        invoice's optional fields to disclose. By default, discloses
+        ``offer_description``, ``invreq_payer_note``, ``invoice_amount``, and
+        ``invoice_created_at``.
+    proof_note: An optional note bound to the proof, readable by anyone the
+        proof is shown to. If provided, must be non-empty and no longer than
+        200 chars / 512 UTF-8 bytes.
+
+Returns:
+    A :class:`CreatePayerProofResponse` with the bech32-encoded proof.
+
+Raises:
+    FfiError: If the payment is not a completed outbound offer payment, the
+        proof note is invalid, or a requested TLV type cannot be disclosed.
+
+Example::
+
+    resp = wallet.create_payer_proof(
+        payment.index,
+        disclosures=PayerProofDisclosures(invoice_amount=True),
+        proof_note="3f9a2c8e1b7d40561a0e",
+    )
+    print(resp.proof)
+""")
+
 _set_method_doc(LexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -1853,6 +1889,42 @@ Example::
     print(resp.human_bitcoin_address)
 """)
 
+_set_method_doc(AsyncLexeWallet, "create_payer_proof", """\
+Create a proof that you paid a BOLT 12 offer.
+
+The returned proof (``lnp1...``) proves to any third party that the offer's
+invoice was paid. A proof always carries the payer id, payment hash, payee
+node id, signature, and invoice features (if present); ``disclosures`` names
+which of the invoice's remaining fields to reveal on top of those.
+
+Args:
+    index: The index of the payment to prove. Must be a completed outbound
+        offer payment.
+    disclosures: A :class:`PayerProofDisclosures` naming which of the paid
+        invoice's optional fields to disclose. By default, discloses
+        ``offer_description``, ``invreq_payer_note``, ``invoice_amount``, and
+        ``invoice_created_at``.
+    proof_note: An optional note bound to the proof, readable by anyone the
+        proof is shown to. If provided, must be non-empty and no longer than
+        200 chars / 512 UTF-8 bytes.
+
+Returns:
+    A :class:`CreatePayerProofResponse` with the bech32-encoded proof.
+
+Raises:
+    FfiError: If the payment is not a completed outbound offer payment, the
+        proof note is invalid, or a requested TLV type cannot be disclosed.
+
+Example::
+
+    resp = await wallet.create_payer_proof(
+        payment.index,
+        disclosures=PayerProofDisclosures(invoice_amount=True),
+        proof_note="3f9a2c8e1b7d40561a0e",
+    )
+    print(resp.proof)
+""")
+
 _set_method_doc(AsyncLexeWallet, "sync_payments", """\
 Sync payments from the user node to the local payments cache.
 
@@ -2614,6 +2686,37 @@ Attributes:
     offer: The BOLT 12 offer that the Human Bitcoin Address resolves to.
     updatable: Whether the username can currently be changed. Usernames are
         updatable for 24 hours after being claimed, then frozen for 90 days.
+"""
+
+lexe.PayerProofDisclosures.__doc__ = """\
+The BOLT 12 invoice fields a payer proof discloses, on top of the payer id,
+payment hash, payee node id, signature, and invoice features (if present)
+it always carries.
+
+Defaults to exposing ``offer_description``, ``invreq_payer_note``,
+``invoice_amount``, and ``invoice_created_at``.
+
+Attributes:
+    offer_description (default: ``True``): The offer's advertised description.
+        (TLV type 10)
+    offer_issuer (default: ``False``): The payee's self-reported human-readable
+        name. (TLV type 18)
+    invreq_payer_note (default: ``True``): The message the payer sent when
+        paying the offer. (TLV type 89)
+    invoice_amount (default: ``True``): The amount the payee's invoice asked
+        for. (TLV type 170)
+    invoice_created_at (default: ``True``): The timestamp when the payee created
+        the invoice. (TLV type 164)
+    additional_disclosures: Raw BOLT 12 TLV types to disclose beyond the
+        fields named above. Creating the proof fails if a given TLV type
+        cannot be disclosed.
+"""
+
+lexe.CreatePayerProofResponse.__doc__ = """\
+Response from creating a payer proof.
+
+Attributes:
+    proof: The bech32-encoded payer proof: ``lnp1...``.
 """
 
 # ================ #
