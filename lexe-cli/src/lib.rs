@@ -22,12 +22,12 @@ use lexe::{
         command::{
             AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest, ChannelDetails,
             ClientInfo, CloseChannelRequest, CreateClientRequest,
-            CreateInvoiceRequest, CreateOfferRequest, GetPaymentRequest,
-            GetUpdatedPaymentsRequest, OpenChannelRequest, PayInvoiceRequest,
-            PayLnurlRequest, PayOfferRequest, PayRequest, PaymentSyncSummary,
-            RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
-            WithdrawLnurlRequest,
+            CreateInvoiceRequest, CreateOfferRequest, CreatePayerProofRequest,
+            GetPaymentRequest, GetUpdatedPaymentsRequest, OpenChannelRequest,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
+            PayerProofDisclosures, PaymentSyncSummary, RevokeClientRequest,
+            UpdateClientRequest, UpdatePersonalNoteRequest,
+            WaitForNextPaymentRequest, WithdrawLnurlRequest,
         },
         payment::{
             Order, Payment, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
@@ -219,6 +219,7 @@ pub enum LexeCommand {
     BuyWithCashApp(BuyWithCashAppArgs),
     GetHumanBitcoinAddress(GetHumanBitcoinAddressArgs),
     UpdateHumanBitcoinAddress(UpdateHumanBitcoinAddressArgs),
+    CreatePayerProof(CreatePayerProofArgs),
     SyncPayments(SyncPaymentsArgs),
     ListPayments(ListPaymentsArgs),
     ClearPayments(ClearPaymentsArgs),
@@ -361,6 +362,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::BuyWithCashApp(a) => a.run(&wallet).await,
         LexeCommand::GetHumanBitcoinAddress(a) => a.run(&wallet).await,
         LexeCommand::UpdateHumanBitcoinAddress(a) => a.run(&wallet).await,
+        LexeCommand::CreatePayerProof(a) => a.run(&wallet).await,
         LexeCommand::SyncPayments(a) => a.run(&wallet).await,
         LexeCommand::ListPayments(a) => a.run(&wallet),
         LexeCommand::ClearPayments(a) => a.run(&wallet),
@@ -1623,6 +1625,118 @@ impl UpdateHumanBitcoinAddressArgs {
             // Lexe app encodes BOLT12 offers (see `PaymentOffer.uri` in app).
             helpers::encode_and_print_qr(&format!("bitcoin:?lno={offer}"))?;
         }
+
+        Ok(())
+    }
+}
+
+// --- `create-payer-proof` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Create a proof that you paid a BOLT 12 offer",
+    long_about = "Create a proof that you paid a BOLT 12 offer.\n\
+        \n\
+        The proof (lnp1...) proves to any third party that the offer's\n\
+        invoice was paid. It always carries the payer id, payment hash,\n\
+        payee node id, signature, and invoice features (if present), plus\n\
+        the offer description, payer note, invoice amount, and invoice\n\
+        creation time. Use the per-field flags to change what it carries.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct CreatePayerProofArgs {
+    #[arg(help = "The index of the payment to prove.\n\
+        Must be a completed outbound offer payment.")]
+    index: PaymentCreatedIndex,
+
+    #[arg(
+        long,
+        help = "Omit the offer's advertised description\n\
+        (TLV type 10)"
+    )]
+    omit_offer_description: bool,
+
+    #[arg(
+        long,
+        help = "Disclose the payee's self-reported human-readable name\n\
+        (TLV type 18)"
+    )]
+    disclose_offer_issuer: bool,
+
+    #[arg(
+        long,
+        help = "Omit the message the payer sent when paying the offer\n\
+        (TLV type 89)"
+    )]
+    omit_invreq_payer_note: bool,
+
+    #[arg(
+        long,
+        help = "Omit the amount the payee's invoice asked for\n\
+        (TLV type 170)"
+    )]
+    omit_invoice_amount: bool,
+
+    #[arg(
+        long,
+        help = "Omit the timestamp when the payee created the invoice\n\
+        (TLV type 164)"
+    )]
+    omit_invoice_created_at: bool,
+
+    #[arg(
+        long = "tlv-types",
+        value_delimiter = ',',
+        value_name = "TLV_TYPE",
+        help = "A raw BOLT 12 TLV type to disclose, for fields without a\n\
+        dedicated flag. Comma-separate or pass multiple times to disclose\n\
+        multiple. Fails if the TLV type cannot be disclosed."
+    )]
+    additional_disclosures: Vec<u64>,
+
+    #[arg(
+        long,
+        help = "A note to bind to the proof, readable by anyone the proof\n\
+        is shown to. Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    proof_note: Option<String>,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl CreatePayerProofArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let disclosures = PayerProofDisclosures {
+            offer_description: !self.omit_offer_description,
+            offer_issuer: self.disclose_offer_issuer,
+            invreq_payer_note: !self.omit_invreq_payer_note,
+            invoice_amount: !self.omit_invoice_amount,
+            invoice_created_at: !self.omit_invoice_created_at,
+            additional_disclosures: BTreeSet::from_iter(
+                self.additional_disclosures,
+            ),
+        };
+
+        let req = CreatePayerProofRequest {
+            index: self.index,
+            disclosures,
+            proof_note: self.proof_note,
+        };
+        let resp = wallet
+            .create_payer_proof(req)
+            .await
+            .context("Failed to create payer proof")?;
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        let proof = resp.proof;
+        println!("\nPayer proof:\n");
+        // Don't wrap this to keep it copy/paste-able
+        println!("{proof}");
 
         Ok(())
     }
