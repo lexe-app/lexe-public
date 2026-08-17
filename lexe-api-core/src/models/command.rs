@@ -662,10 +662,28 @@ pub struct CreatePayerProofRequest {
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PayerProofDisclosures {
+    // The field docs below are copied verbatim from the corresponding
+    // `PayerProof` getters.
+    /// The offer's advertised description.
+    ///
+    /// TLV type: 10 (`offer_description`)
     pub offer_description: bool,
+    /// The payee's self-reported human-readable name.
+    ///
+    /// TLV type: 18 (`offer_issuer`)
     pub offer_issuer: bool,
+    /// The message the payer sent to the payee when paying the offer.
+    ///
+    /// TLV type: 89 (`invreq_payer_note`)
     pub invreq_payer_note: bool,
+    /// The amount the payee's invoice asked for.
+    ///
+    /// TLV type: 170 (`invoice_amount`)
     pub invoice_amount: bool,
+    /// The timestamp when the payee created the invoice. This is not the same
+    /// as a Lexe payment's `created_at`.
+    ///
+    /// TLV type: 164 (`invoice_created_at`)
     pub invoice_created_at: bool,
 
     /// Raw BOLT12 TLV types to disclose beyond the fields named above.
