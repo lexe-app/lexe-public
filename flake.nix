@@ -128,6 +128,16 @@
 
           # Android app development toolchain with emulator image (several GiB)
           app-android-with-emulator = lexePubDevShells.app-android-with-emulator;
+
+          #
+          # Linting
+          #
+
+          # Linting and formatting for *.sh scripts
+          bash-lint = lexePubDevShells.bash-lint;
+
+          # Linting for *.nix files
+          nix-lint = lexePubDevShells.nix-lint;
         }
         // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
           # iOS/macOS app development toolchains

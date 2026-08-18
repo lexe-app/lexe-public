@@ -203,6 +203,30 @@ rec {
   };
 
   #
+  # Linting
+  #
+
+  # Linting and formatting for *.sh scripts
+  bash-lint = pkgs.mkShellNoCC {
+    name = "bash-lint";
+    packages = [
+      pkgs.fd
+      pkgs.shellcheck
+      pkgs.shfmt
+    ];
+  };
+
+  # Linting for *.nix files
+  nix-lint = pkgs.mkShellNoCC {
+    name = "nix-lint";
+    packages = [
+      pkgs.jq
+      pkgs.statix
+      pkgs.unixtools.column
+    ];
+  };
+
+  #
   # SGX
   #
 

@@ -1,0 +1,10 @@
+# `statix` - nix linter config
+# Github: <https://github.com/NerdyPepper/statix>
+# View available lints: `statix list`
+disabled = [
+  # `inherit` is usually less readable in most circumstances, IMO.
+  "manual_inherit",
+  "manual_inherit_from",
+  # This is idiomatic in nixos modules.
+  "repeated_keys"
+]

@@ -3,6 +3,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 mod app 'just/app/mod.just'
+mod ci 'just/ci/mod.just'
 
 # select a recipe interactively
 default:

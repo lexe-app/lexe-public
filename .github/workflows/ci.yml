@@ -184,6 +184,68 @@ jobs:
       # don't cache built docs, they take up a lot of space and rebuild quickly
       - run: rm -rf target/doc/
 
+  # --- Check that every individual commit in the PR compiles --- #
+  check-all-commits:
+    # Only run this job on pull requests, not the master branch
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: # Fetch the last 100 commits. PRs shouldn't be bigger than this
+          fetch-depth: 100
+      - uses: taiki-e/install-action@just
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo check on all commits
+        run: just ci check-all-commits ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+
+  # --- Check commit message formatting --- #
+  check-commits-fmt:
+    # Only run this job on pull requests, not the master branch
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: # Fetch the last 100 commits. PRs shouldn't be bigger than this
+          fetch-depth: 100
+      - uses: taiki-e/install-action@just
+      - name: Check commit messages
+        run: just ci check-commits-fmt ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+
+  just-fmt:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@just
+      - run: just ci just-fmt-check
+
+  bash-fmt:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@just
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: just ci bash-fmt-check
+
+  bash-lint:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@just
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: just ci bash-lint
+
+  nix-lint:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@just
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: just ci nix-lint
+
   # Build user node SGX enclave. Builds in debug mode to save CI time. Not the
   # same as the reproducible build; that would be `nix build .#node-release-sgx`.
   nix-sgx-build:
