@@ -26,10 +26,12 @@ check-all-commits pr-base-hash="" pr-head-hash="":
     PR_BASE_HASH="{{ pr-base-hash }}" PR_HEAD_HASH="{{ pr-head-hash }}" \
       ./just/ci/check-all-commits.sh
 
-# Check commit messages: no Claude attribution
+# Check commit messages: no Claude attribution, lines fit in 72 chars
 check-commits-fmt pr-base-hash="" pr-head-hash="":
     PR_BASE_HASH="{{ pr-base-hash }}" PR_HEAD_HASH="{{ pr-head-hash }}" \
       ./just/ci/check-commits-no-claude.sh
+    PR_BASE_HASH="{{ pr-base-hash }}" PR_HEAD_HASH="{{ pr-head-hash }}" \
+      ./just/ci/check-commits-width.sh
 
 just-fmt-check:
     just --fmt --unstable --check
