@@ -776,7 +776,7 @@ pub trait NodeBackendApi {
 
     /// DELETE /node/v1/file [`VfsFileId`] -> [`Empty`]
     ///
-    /// Returns [`Ok`] only if exactly one row was deleted.
+    /// Idempotent; deleting a nonexistent file is a no-op.
     async fn delete_file(
         &self,
         file_id: &VfsFileId,

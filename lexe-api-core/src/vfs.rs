@@ -112,6 +112,9 @@ pub trait Vfs {
     ) -> Result<Vec<VfsFile>, BackendApiError> {
         // Get all filenames in the directory
         let directory_list = self.list_directory(dir).await?;
+        if directory_list.filenames.is_empty() {
+            return Ok(vec![]);
+        }
 
         // Fetch all files concurrently
         let fetch_futs = directory_list.filenames.into_iter().map(|filename| {
@@ -389,12 +392,13 @@ pub trait Vfs {
     }
 
     /// Wraps [`Vfs::delete_file`] to add logging and error context.
+    /// Idempotent: returns [`Ok`] if the file already doesn't exist.
     async fn remove_file(&self, file_id: &VfsFileId) -> anyhow::Result<()> {
         debug!("Deleting file {file_id}");
         let result = self
             .delete_file(file_id)
             .await
-            .map(|_| ())
+            .map(|Empty {}| ())
             .with_context(|| format!("{file_id}"))
             .context("Couldn't delete file from DB");
 

@@ -376,7 +376,7 @@ impl NodeBackendApi for NodeBackendClient {
     }
 
     // TODO We want to delete LN peers / monitors when channels close
-    /// Returns "OK" if exactly one row was deleted.
+    /// Idempotent; deleting a nonexistent file is a no-op.
     #[allow(dead_code)]
     async fn delete_file(
         &self,

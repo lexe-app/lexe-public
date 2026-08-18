@@ -30,7 +30,6 @@ use crate::{
 
 // Allows tests to assert that these `anyhow::Error`s happened.
 pub const CREATE_DUPE_MSG: &str = "Tried to create duplicate";
-pub const NOT_FOUND_MSG: &str = "not found";
 
 /// The name of the fully namespaced data dir inside `LEXE_DIR_NAME`
 /// that contains the actual channel_manager, etc...
@@ -392,7 +391,7 @@ impl GoogleVfs {
         Ok(())
     }
 
-    /// The error will contain [`NOT_FOUND_MSG`] if the file was not found.
+    /// Idempotent; deleting a nonexistent file is a no-op.
     // TODO(max): GoogleVfs should impl the Vfs trait
     #[instrument(skip_all, name = "(gvfs-delete-file)")]
     pub async fn delete_file(
@@ -403,11 +402,7 @@ impl GoogleVfs {
 
         let gid = match locked_cache.get(vfile_id) {
             Some(gid) => gid,
-            None => {
-                let dirname = &vfile_id.dir.dirname;
-                let filename = &vfile_id.filename;
-                return Err(anyhow!("{dirname}/{filename} {NOT_FOUND_MSG}"));
-            }
+            None => return Ok(()),
         };
 
         self.client
@@ -685,9 +680,8 @@ mod test {
         let get_dir_resp = gvfs.get_directory(&node_dir).await.unwrap();
         assert_eq!(get_dir_resp, vec![file2.clone()]);
 
-        // Attempting to delete file1 again should return a 'NotFound' error
-        let err = gvfs.delete_file(&file1_data2.id).await.unwrap_err();
-        assert!(err.to_string().contains(NOT_FOUND_MSG));
+        // Attempting to delete file1 again should succeed (idempotent)
+        gvfs.delete_file(&file1_data2.id).await.unwrap();
     }
 
     /// Initialize a [`GoogleVfs`] with a [`GvfsRoot`] whose [`GFileId`] is
