@@ -2,11 +2,16 @@ use std::collections::BTreeSet;
 
 use bitcoin::{address::NetworkUnchecked, bip32::Xpub};
 #[cfg(doc)]
+use lexe_common::api::fiat_rates::FiatRates;
+#[cfg(doc)]
 use lexe_common::root_seed::RootSeed;
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
-    api::user::{NodePk, UserPk},
+    api::{
+        fiat_rates::IsoCurrencyCode,
+        user::{NodePk, UserPk},
+    },
     ln::{
         amount::Amount,
         balance::{LightningBalance, OnchainBalance},
@@ -132,6 +137,15 @@ pub struct EnclavesToProvisionRequest {
     /// The enclave measurements the client trusts.
     /// Typically the `RELEASE_WINDOW_SIZE` latest from releases.json.
     pub trusted_measurements: BTreeSet<Measurement>,
+}
+
+/// A request for the current [`FiatRates`].
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetFiatRatesRequest {
+    /// `None` requests every rate we have; `Some` requests just those
+    /// currencies. Fails if a code with no known rate is requested.
+    pub currency_codes: Option<Vec<IsoCurrencyCode>>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -993,6 +1007,11 @@ mod test {
     use lexe_common::test_utils::roundtrip;
 
     use super::*;
+
+    #[test]
+    fn get_fiat_rates_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<GetFiatRatesRequest>();
+    }
 
     #[test]
     fn pay_onchain_preflight_roundtrip() {
