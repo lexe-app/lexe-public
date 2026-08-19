@@ -4143,6 +4143,7 @@ dependencies = [
  "argh",
  "enclave-runner",
  "lexe-enclave",
+ "mio",
  "object 0.38.1",
  "rustc-demangle",
  "serde",

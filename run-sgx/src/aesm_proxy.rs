@@ -5,16 +5,13 @@
 use std::{
     future::Future,
     io::{Error as IoError, Result as IoResult},
-    os::unix::net::UnixStream as StdUnixStream,
+    os::fd::{FromRawFd, IntoRawFd},
     pin::Pin,
     task::{Context, Poll},
 };
 
 use enclave_runner::usercalls::{AsyncStream, UsercallExtension};
-use tokio::{
-    io::{AsyncRead, AsyncWrite, ReadBuf},
-    net::UnixStream,
-};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 const DEFAULT_AESM_SOCKET_PATH: &str = "/var/run/aesmd/aesm.socket";
 const AESM_FAKE_DNS_NAME: &str = "aesm.local";
@@ -51,8 +48,9 @@ pub struct AesmProxy;
 ///    some reads, without actually understanding the protobuf protocol.
 ///
 /// [`TcpStream`]: tokio::net::TcpStream
+/// [`UnixStream`]: tokio::net::UnixStream
 pub struct AesmProxyStream {
-    aesm_sock: Option<UnixStream>,
+    aesm_sock: Option<tokio::net::UnixStream>,
     just_read: bool,
 }
 
@@ -73,7 +71,7 @@ impl UsercallExtension for AesmProxy {
     ) -> BoxFuture<'fut, IoResult<Option<Box<dyn AsyncStream>>>> {
         let fut = async move {
             if addr == AESM_FAKE_DNS_NAME {
-                // TODO(phlip9): what to do here?
+                // Just set a dummy local address
                 if let Some(local_addr) = local_addr {
                     *local_addr = "enclave.local".to_string();
                 }
@@ -119,10 +117,31 @@ impl AsyncWrite for AesmProxyStream {
         // from the AESM. We need to open a fresh socket to handle the next
         // request.
         if self.just_read || self.aesm_sock.is_none() {
-            // Blocking open here just to keep things simple for now. O/w would
-            // need separate connection state + pin project :/
-            let aesm_sock = StdUnixStream::connect(DEFAULT_AESM_SOCKET_PATH)?;
-            let aesm_sock = UnixStream::from_std(aesm_sock)?;
+            // mio correctly connect(2)'s over a nonblocking fd, which tokio
+            // needs.
+            //
+            // tokio's UnixStream just wraps a nonblocking mio UnixStream (but
+            // doesn't expose any builder fn).
+            //
+            // Using tokio's connect future would require a pointless
+            // `Pin<Box<dyn Future>>` allocation and an extra connect state
+            // in the state machine.
+            //
+            // ==> just go mio -> std -> tokio and let the first write pick up
+            //     any initial write-readiness errors. This is much simpler.
+            let aesm_sock =
+                mio::net::UnixStream::connect(DEFAULT_AESM_SOCKET_PATH)?;
+
+            // SAFETY: `into_raw_fd` transfers mio's uniquely owned AF_UNIX
+            // SOCK_STREAM fd, which remains valid and non-blocking.
+            let aesm_sock = unsafe {
+                std::os::unix::net::UnixStream::from_raw_fd(
+                    aesm_sock.into_raw_fd(),
+                )
+            };
+
+            let aesm_sock = tokio::net::UnixStream::from_std(aesm_sock)?;
+
             self.aesm_sock = Some(aesm_sock);
             self.just_read = false;
         }
