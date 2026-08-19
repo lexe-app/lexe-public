@@ -77,20 +77,20 @@ use crate::{
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, DebugInfo, EnclavesToProvisionRequest,
-            GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
-            GetNewPayments, GetNextUnusedAddressResponse,
-            GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            HumanBitcoinAddressV1, LatestPaymentUpdateResponse,
-            ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
-            OpenChannelPreflightResponse, OpenChannelRequest,
-            OpenChannelResponse, PayInvoicePreflightRequest,
-            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
-            PayOfferPreflightRequest, PayOfferPreflightResponse,
-            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
-            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
-            PaymentCreatedIndexStruct, PaymentCreatedIndexes, PaymentIdStruct,
-            ResyncRequest, SetupGDrive, UpdatePersonalNote,
-            UpsertCustomHumanBitcoinAddress,
+            GetFiatRatesRequest, GetGeneratedUsernameResponse,
+            GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetNextUnusedAddressResponse, GetUpdatedPaymentMetadata,
+            GetUpdatedPayments, HumanBitcoinAddressV1,
+            LatestPaymentUpdateResponse, ListChannelsResponse, NodeInfo,
+            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+            OpenChannelRequest, OpenChannelResponse,
+            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
+            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
+            PaymentCreatedIndexes, PaymentIdStruct, ResyncRequest, SetupGDrive,
+            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
             UpsertGeneratedHumanBitcoinAddress,
             UpsertHumanBitcoinAddressResponse, VecPaymentId,
         },
@@ -693,6 +693,17 @@ pub trait NodeBackendApi {
         &self,
         data: &SealedSeedId,
     ) -> Result<MaybeSealedSeed, BackendApiError>;
+
+    /// Get the latest BTC/fiat exchange rates for the requested currencies.
+    /// Fails if a code with no known rate is requested.
+    ///
+    /// POST /node/v1/fiat_rates [`GetFiatRatesRequest`] -> [`FiatRates`]
+    //
+    // We use POST because the codes are a list, which doesn't fit query params.
+    async fn get_fiat_rates(
+        &self,
+        req: GetFiatRatesRequest,
+    ) -> Result<FiatRates, BackendApiError>;
 
     // --- Bearer authentication required --- //
 

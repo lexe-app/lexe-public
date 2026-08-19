@@ -11,8 +11,9 @@ use lexe_api::{
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
         command::{
-            GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
-            GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            GetFiatRatesRequest, GetGeneratedUsernameResponse,
+            GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments,
             HumanBitcoinAddressV1, PaymentCreatedIndexStruct,
             PaymentCreatedIndexes, PaymentIdStruct,
             UpsertCustomHumanBitcoinAddress,
@@ -45,6 +46,7 @@ use lexe_api::{
 use lexe_common::{
     api::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
+        fiat_rates::FiatRates,
         user::{
             GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk, UserPkSet,
             UserPkStruct,
@@ -277,6 +279,17 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/sealed_seed"), data);
+        self.rest.send(req).await
+    }
+
+    async fn get_fiat_rates(
+        &self,
+        data: GetFiatRatesRequest,
+    ) -> Result<FiatRates, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .post(format!("{backend}/node/v1/fiat_rates"), &data);
         self.rest.send(req).await
     }
 
