@@ -658,7 +658,7 @@ pub struct CreatePayerProofRequest {
 /// `signature`, and `invoice_features` (if it exists) are always included.
 //
 // NOTE: This is exposed in the Rust SDK.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PayerProofDisclosures {
@@ -694,6 +694,33 @@ pub struct PayerProofDisclosures {
         proptest(strategy = "arbitrary_impl::any_additional_disclosures()")
     )]
     pub additional_disclosures: BTreeSet<u64>,
+}
+
+impl PayerProofDisclosures {
+    /// Discloses nothing beyond the fields a proof always carries.
+    /// Useful as a base to spread over: `..PayerProofDisclosures::EMPTY`.
+    pub const EMPTY: Self = Self {
+        offer_description: false,
+        offer_issuer: false,
+        invreq_payer_note: false,
+        invoice_amount: false,
+        invoice_created_at: false,
+        additional_disclosures: BTreeSet::new(),
+    };
+}
+
+impl Default for PayerProofDisclosures {
+    /// Discloses `offer_description`, `invreq_payer_note`, `invoice_amount`,
+    /// and `invoice_created_at` by default.
+    fn default() -> Self {
+        Self {
+            offer_description: true,
+            invreq_payer_note: true,
+            invoice_amount: true,
+            invoice_created_at: true,
+            ..Self::EMPTY
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

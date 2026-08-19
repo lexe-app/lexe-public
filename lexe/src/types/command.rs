@@ -634,7 +634,10 @@ pub struct CreatePayerProofRequest {
     /// Must be a completed outbound offer payment.
     pub index: PaymentCreatedIndex,
     /// Which of the paid invoice's optional fields the proof discloses.
-    /// [`PayerProofDisclosures::default()`] discloses none of them.
+    /// [Default](PayerProofDisclosures::default)s to disclosing
+    /// `offer_description`, `invreq_payer_note`, `invoice_amount`, and
+    /// `invoice_created_at`; use [`PayerProofDisclosures::EMPTY`] to disclose
+    /// nothing.
     pub disclosures: PayerProofDisclosures,
     /// An optional note bound to the proof, readable by anyone the proof is
     /// shown to. If provided, it must be non-empty and no longer than 200
