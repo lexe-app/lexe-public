@@ -30,7 +30,7 @@ pub struct Retries {
     /// In-flight requests are also bounded by the time remaining.
     timeout: Option<Duration>,
     /// Stop retrying immediately if an attempt fails with one of these codes.
-    stop_codes: Vec<ErrorCode>,
+    stop_codes: &'static [ErrorCode],
     /// Wait between attempts per a [`Backoff`] constructed with these params.
     backoff_initial_wait_ms: u64,
     backoff_max_wait_ms: u64,
@@ -55,7 +55,7 @@ impl Retries {
         Self {
             count: Some(count),
             timeout: None,
-            stop_codes: Vec::new(),
+            stop_codes: &[],
             backoff_initial_wait_ms: Backoff::DEFAULT_INITIAL_WAIT_MS,
             backoff_max_wait_ms: Backoff::DEFAULT_MAX_WAIT_MS,
         }
@@ -66,7 +66,7 @@ impl Retries {
         Self {
             count: None,
             timeout: Some(timeout),
-            stop_codes: Vec::new(),
+            stop_codes: &[],
             backoff_initial_wait_ms: Backoff::DEFAULT_INITIAL_WAIT_MS,
             backoff_max_wait_ms: Backoff::DEFAULT_MAX_WAIT_MS,
         }
@@ -85,7 +85,10 @@ impl Retries {
     }
 
     /// Stop retrying immediately if an attempt fails with one of these codes.
-    pub fn with_stop_codes(mut self, stop_codes: Vec<ErrorCode>) -> Self {
+    pub const fn with_stop_codes(
+        mut self,
+        stop_codes: &'static [ErrorCode],
+    ) -> Self {
         self.stop_codes = stop_codes;
         self
     }
@@ -105,11 +108,16 @@ impl Retries {
     /// iterator, for consumption by `RestClient::send_with_retries_inner`.
     pub fn parts(
         &self,
-    ) -> (Option<usize>, Option<Duration>, &[ErrorCode], Backoff) {
+    ) -> (
+        Option<usize>,
+        Option<Duration>,
+        &'static [ErrorCode],
+        Backoff,
+    ) {
         let backoff = Backoff::new(
             self.backoff_initial_wait_ms,
             self.backoff_max_wait_ms,
         );
-        (self.count, self.timeout, &self.stop_codes, backoff)
+        (self.count, self.timeout, self.stop_codes, backoff)
     }
 }

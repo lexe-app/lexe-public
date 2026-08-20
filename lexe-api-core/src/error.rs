@@ -378,6 +378,17 @@ macro_rules! api_error_kind {
 
         // --- macro-generated impls --- //
 
+        impl $error_kind_name {
+            // NOTE(phlip9): can't make `to_code` const as rust doesn't support
+            // const fn in trait on stable.
+            pub const fn to_code_const(self) -> ErrorCode {
+                match self {
+                    $( Self::$item_name => $item_code, )*
+                    Self::Unknown(code) => code,
+                }
+            }
+        }
+
         impl ApiErrorKind for $error_kind_name {
             const KINDS: &'static [Self] = &[
                 $( Self::$item_name, )*
@@ -403,11 +414,9 @@ macro_rules! api_error_kind {
                 kind_msg.trim_start()
             }
 
+            #[inline]
             fn to_code(self) -> ErrorCode {
-                match self {
-                    $( Self::$item_name => $item_code, )*
-                    Self::Unknown(code) => code,
-                }
+                self.to_code_const()
             }
 
             fn from_code(code: ErrorCode) -> Self {
@@ -455,7 +464,7 @@ macro_rules! api_error_kind {
         impl From<$error_kind_name> for ErrorCode {
             #[inline]
             fn from(val: $error_kind_name) -> ErrorCode {
-                val.to_code()
+                val.to_code_const()
             }
         }
 
