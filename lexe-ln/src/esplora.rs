@@ -46,12 +46,25 @@ const FALLBACK_FEE_RATE: bitcoin::FeeRate =
 /// The timeout we'll use for requests to our Esplora backends.
 pub const ESPLORA_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Whether this esplora url is contained in the whitelist for this network.
+/// Whether this Esplora URL is contained in the whitelist for this network.
+/// `include_lexe` also allows Lexe-operated mainnet Esplora endpoints.
+/// Usernodes should not `include_lexe: true`.
+#[inline]
 #[must_use]
-pub fn url_is_whitelisted(esplora_url: &str, network: Network) -> bool {
+pub fn url_is_whitelisted(
+    esplora_url: &str,
+    network: Network,
+    include_lexe: bool,
+) -> bool {
     match network {
-        Network::Mainnet =>
-            constants::MAINNET_ESPLORA_WHITELIST.contains(&esplora_url),
+        Network::Mainnet => {
+            let whitelist = if !include_lexe {
+                constants::MAINNET_ESPLORA_WHITELIST.as_slice()
+            } else {
+                constants::MAINNET_ESPLORA_WHITELIST_INCLUDING_LEXE.as_slice()
+            };
+            whitelist.contains(&esplora_url)
+        }
         Network::Testnet3 =>
             constants::TESTNET3_ESPLORA_WHITELIST.contains(&esplora_url),
         Network::Testnet4 => todo!("Don't have testnet4 esplora whitelist"),

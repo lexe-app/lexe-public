@@ -1,7 +1,7 @@
 use std::include_bytes;
 
 use lexe_enclave::enclave::{Measurement, MrShort};
-use lexe_std::const_concat_str;
+use lexe_std::{array, const_concat_str};
 
 use crate::{ppm, ppm::Ppm};
 
@@ -135,11 +135,21 @@ pub const MAINNET_LEXE_BLOCKSTREAM_ESPLORA: &str =
     "https://ipwl.blockstream.info/api";
 pub const MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/api";
+pub const MAINNET_LEXE_ESPLORA: [&str; 3] = [
+    "https://esplora.lexe.app/api",
+    "https://lexe-prod-esplora.uswest2.prod.lx/api",
+    "https://lexe-prod-esplora.uswest2.prod.lexe.app/api",
+];
+/// Usernode mainnet esplora whitelist.
 pub const MAINNET_ESPLORA_WHITELIST: [&str; 3] = [
     MAINNET_LEXE_MEMPOOL_ESPLORA,
     MAINNET_LEXE_BLOCKSTREAM_ESPLORA,
     MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA,
 ];
+/// Mainnet esplora whitelist including Lexe-operated esplora instances. Not
+/// used by usernodes.
+pub const MAINNET_ESPLORA_WHITELIST_INCLUDING_LEXE: [&str; 6] =
+    array::concat(MAINNET_LEXE_ESPLORA, MAINNET_ESPLORA_WHITELIST);
 
 // Introduced in node-v0.7.12
 pub const TESTNET3_LEXE_MEMPOOL_ESPLORA: &str =

@@ -151,9 +151,16 @@ impl MegaContext {
         let mut static_tasks = Vec::with_capacity(20);
 
         // Only accept esplora urls whitelisted in the given `network`.
+        let include_lexe = false;
         let esplora_urls = untrusted_esplora_urls
             .iter()
-            .filter(|url| esplora::url_is_whitelisted(url, untrusted_network))
+            .filter(|url| {
+                esplora::url_is_whitelisted(
+                    url,
+                    untrusted_network,
+                    include_lexe,
+                )
+            })
             .cloned()
             .collect::<Vec<String>>();
         ensure!(
