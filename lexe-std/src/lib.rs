@@ -10,7 +10,7 @@
 #[doc(hidden)]
 pub use std;
 
-/// `[u8; N]` array functions.
+/// Array functions.
 pub mod array;
 /// Exponential backoff.
 pub mod backoff;

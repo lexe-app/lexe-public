@@ -1,4 +1,13 @@
-//! Small helper functions for `[u8; N]` arrays.
+//! Small helper functions for arrays.
+
+/// `const` concatenate two arrays.
+pub const fn concat<T: Copy, const N: usize, const M: usize, const O: usize>(
+    first: [T; N],
+    second: [T; M],
+) -> [T; O] {
+    assert!(O == N + M);
+    crate::const_utils::const_concat_inner(&[&first, &second])
+}
 
 /// `const` pad an `M`-byte array with zeroes, so that it's `N` bytes long.
 // TODO(phlip9): should be an extension trait method, but rust doesn't allow
@@ -51,6 +60,16 @@ impl<const N: usize> ArrayExt<N> for [u8; N] {
 #[cfg(test)]
 mod test {
     use crate::array;
+
+    #[test]
+    fn test_concat() {
+        const ACTUAL: [&str; 3] = array::concat(["a"], ["b", "c"]);
+        assert_eq!(ACTUAL, ["a", "b", "c"]);
+
+        const EMPTY: [&str; 0] = [];
+        const ACTUAL_WITH_EMPTY: [&str; 3] = array::concat(EMPTY, ACTUAL);
+        assert_eq!(ACTUAL_WITH_EMPTY, ACTUAL);
+    }
 
     #[test]
     fn test_pad() {
