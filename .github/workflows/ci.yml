@@ -53,6 +53,7 @@ jobs:
   clippy:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
@@ -64,6 +65,7 @@ jobs:
   clippy-sgx:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: taiki-e/install-action@just
@@ -85,6 +87,7 @@ jobs:
   clippy-lexe-cli-windows:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: windows-latest
+    timeout-minutes: 30
     env:
       RUSTFLAGS: -D warnings
     steps:
@@ -98,6 +101,7 @@ jobs:
   check-release:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: taiki-e/install-action@just
@@ -116,7 +120,7 @@ jobs:
   test:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
@@ -131,7 +135,7 @@ jobs:
   test-sdk-python:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
@@ -171,6 +175,7 @@ jobs:
   fmt:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - run: rustup install --profile minimal --component=rustfmt ${{ env.LEXE_RUST_FMT_VERSION }}
@@ -179,6 +184,7 @@ jobs:
   doc:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
@@ -191,6 +197,7 @@ jobs:
     # Only run this job on pull requests, not the master branch
     if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with: # Fetch the last 100 commits. PRs shouldn't be bigger than this
@@ -205,6 +212,7 @@ jobs:
     # Only run this job on pull requests, not the master branch
     if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with: # Fetch the last 100 commits. PRs shouldn't be bigger than this
@@ -216,6 +224,7 @@ jobs:
   just-fmt:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: taiki-e/install-action@just
@@ -224,6 +233,7 @@ jobs:
   bash-fmt:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: taiki-e/install-action@just
@@ -233,6 +243,7 @@ jobs:
   bash-lint:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: taiki-e/install-action@just
@@ -242,6 +253,7 @@ jobs:
   nix-lint:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: taiki-e/install-action@just
@@ -253,6 +265,7 @@ jobs:
   nix-sgx-build:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
