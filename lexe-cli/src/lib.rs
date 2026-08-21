@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use clap::{ArgAction, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Parser, Subcommand};
 use lexe::{
     bitcoin::address::Address,
     config::{Network, WalletEnvConfig},
@@ -114,7 +114,7 @@ pub struct LexeArgs {
     //
     // TODO(max): Discrepancy between `LEXE_NETWORK` and our internal `NETWORK`
     #[arg(long, env = "LEXE_NETWORK", value_enum)]
-    network: Option<ClapNetwork>,
+    network: Option<types::Network>,
 
     /// The client credentials string exported from the Lexe app.
     /// [env: LEXE_CLIENT_CREDENTIALS]
@@ -156,95 +156,6 @@ pub struct LexeArgs {
     /// Print version
     #[arg(short = 'v', short_alias = 'V', long, action = ArgAction::Version)]
     version: (),
-}
-
-/// Network enum for clap's ValueEnum derive.
-#[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum ClapNetwork {
-    Mainnet,
-    Testnet3,
-    Regtest,
-}
-
-impl From<ClapNetwork> for Network {
-    fn from(n: ClapNetwork) -> Self {
-        match n {
-            ClapNetwork::Mainnet => Network::Mainnet,
-            ClapNetwork::Testnet3 => Network::Testnet3,
-            ClapNetwork::Regtest => Network::Regtest,
-        }
-    }
-}
-
-/// Confirmation priority enum for clap's ValueEnum derive.
-#[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum ClapConfirmationPriority {
-    /// Confirm within ~1 block
-    High,
-    /// Confirm within ~3 blocks
-    Normal,
-    /// Confirm within ~72 blocks
-    Background,
-}
-
-impl From<ClapConfirmationPriority> for ConfirmationPriority {
-    fn from(p: ClapConfirmationPriority) -> Self {
-        match p {
-            ClapConfirmationPriority::High => ConfirmationPriority::High,
-            ClapConfirmationPriority::Normal => ConfirmationPriority::Normal,
-            ClapConfirmationPriority::Background =>
-                ConfirmationPriority::Background,
-        }
-    }
-}
-
-/// Scope enum for clap's ValueEnum derive.
-#[derive(Clone, Copy, Debug, ValueEnum)]
-#[value(rename_all = "snake_case")]
-pub enum ClapScope {
-    /// Read basic node info: identity, balance, channels
-    ReadInfo,
-    /// Read all payments
-    ReadPayments,
-    /// Read everything; cannot spend funds
-    Read,
-    /// Create invoices, offers, and addresses; resync
-    Receive,
-    /// Open and close channels
-    ManageChannels,
-    /// Pay invoices, offers, and on-chain addresses
-    Spend,
-    /// Full admin access: every permission
-    Full,
-}
-
-impl ClapScope {
-    /// The scope's canonical name, matching its JSON serialization.
-    fn as_str(self) -> &'static str {
-        match self {
-            ClapScope::ReadInfo => "read_info",
-            ClapScope::ReadPayments => "read_payments",
-            ClapScope::Read => "read",
-            ClapScope::Receive => "receive",
-            ClapScope::ManageChannels => "manage_channels",
-            ClapScope::Spend => "spend",
-            ClapScope::Full => "full",
-        }
-    }
-}
-
-impl From<ClapScope> for Scope {
-    fn from(s: ClapScope) -> Self {
-        match s {
-            ClapScope::ReadInfo => Scope::ReadInfo,
-            ClapScope::ReadPayments => Scope::ReadPayments,
-            ClapScope::Read => Scope::Read,
-            ClapScope::Receive => Scope::Receive,
-            ClapScope::ManageChannels => Scope::ManageChannels,
-            ClapScope::Spend => Scope::Spend,
-            ClapScope::Full => Scope::Full,
-        }
-    }
 }
 
 #[derive(Subcommand)]
@@ -306,7 +217,7 @@ impl LexeArgs {
     /// Populate unset non-credential args from env vars.
     fn other_or_env_mut(&mut self) -> anyhow::Result<()> {
         self.lexe_data_dir.or_env_mut("LEXE_DATA_DIR")?;
-        // Network is handled via ClapNetwork enum, not direct env parsing here
+        // Network is handled via `types::Network`, not direct env parsing here
         self.rust_log.or_env_mut("RUST_LOG")?;
         Ok(())
     }
@@ -1483,7 +1394,7 @@ pub struct PayOnchainArgs {
             A higher priority pays a higher on-chain fee.\n\
             Defaults to `normal`."
     )]
-    priority: Option<ClapConfirmationPriority>,
+    priority: Option<types::ConfirmationPriority>,
 
     #[arg(
         long,
@@ -2742,7 +2653,7 @@ pub struct CreateClientArgs {
         help = "Permission scope to grant. Pass multiple times to\n\
         grant multiple."
     )]
-    scopes: Vec<ClapScope>,
+    scopes: Vec<types::Scope>,
 
     #[arg(
         long = "permission",
@@ -2907,7 +2818,7 @@ pub struct UpdateClientArgs {
         help = "Replacement permission scope. Pass multiple times to grant\n\
         multiple."
     )]
-    scopes: Option<Vec<ClapScope>>,
+    scopes: Option<Vec<types::Scope>>,
 
     #[arg(
         long = "permission",
@@ -3060,6 +2971,100 @@ impl ExportArgs {
         }
 
         Ok(())
+    }
+}
+
+/// CLI newtypes for `clap`.
+mod types {
+    use clap::ValueEnum;
+    use lexe::{
+        config,
+        types::{auth, bitcoin},
+    };
+
+    #[derive(Clone, Copy, Debug, ValueEnum)]
+    pub enum Network {
+        Mainnet,
+        Testnet3,
+        Regtest,
+    }
+
+    impl From<Network> for config::Network {
+        fn from(n: Network) -> Self {
+            match n {
+                Network::Mainnet => Self::Mainnet,
+                Network::Testnet3 => Self::Testnet3,
+                Network::Regtest => Self::Regtest,
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, ValueEnum)]
+    pub enum ConfirmationPriority {
+        /// Confirm within ~1 block
+        High,
+        /// Confirm within ~3 blocks
+        Normal,
+        /// Confirm within ~72 blocks
+        Background,
+    }
+
+    impl From<ConfirmationPriority> for bitcoin::ConfirmationPriority {
+        fn from(p: ConfirmationPriority) -> Self {
+            match p {
+                ConfirmationPriority::High => Self::High,
+                ConfirmationPriority::Normal => Self::Normal,
+                ConfirmationPriority::Background => Self::Background,
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, ValueEnum)]
+    #[value(rename_all = "snake_case")]
+    pub enum Scope {
+        /// Read basic node info: identity, balance, channels
+        ReadInfo,
+        /// Read all payments
+        ReadPayments,
+        /// Read everything; cannot spend funds
+        Read,
+        /// Create invoices, offers, and addresses; resync
+        Receive,
+        /// Open and close channels
+        ManageChannels,
+        /// Pay invoices, offers, and on-chain addresses
+        Spend,
+        /// Full admin access: every permission
+        Full,
+    }
+
+    impl Scope {
+        /// The scope's canonical name, matching its JSON serialization.
+        pub(crate) fn as_str(self) -> &'static str {
+            match self {
+                Scope::ReadInfo => "read_info",
+                Scope::ReadPayments => "read_payments",
+                Scope::Read => "read",
+                Scope::Receive => "receive",
+                Scope::ManageChannels => "manage_channels",
+                Scope::Spend => "spend",
+                Scope::Full => "full",
+            }
+        }
+    }
+
+    impl From<Scope> for auth::Scope {
+        fn from(s: Scope) -> Self {
+            match s {
+                Scope::ReadInfo => Self::ReadInfo,
+                Scope::ReadPayments => Self::ReadPayments,
+                Scope::Read => Self::Read,
+                Scope::Receive => Self::Receive,
+                Scope::ManageChannels => Self::ManageChannels,
+                Scope::Spend => Self::Spend,
+                Scope::Full => Self::Full,
+            }
+        }
     }
 }
 
