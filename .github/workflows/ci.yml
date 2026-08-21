@@ -66,9 +66,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@just
       - uses: Swatinem/rust-cache@v2
       # SGX builds compile `aesm-client`, whose build script needs `protoc`
-      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - run: just ci apt-install protobuf-compiler
       # SGX builds compile rust std with build-std, which requires `rust-src`
       - run: rustup component add rust-src
       # SGX
@@ -99,9 +100,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@just
       - uses: Swatinem/rust-cache@v2
       # SGX builds compile `aesm-client`, whose build script needs `protoc`
-      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - run: just ci apt-install protobuf-compiler
       # SGX builds compile rust std with build-std, which requires `rust-src`
       - run: rustup component add rust-src
       # Utils

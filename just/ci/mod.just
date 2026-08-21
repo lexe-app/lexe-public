@@ -11,6 +11,14 @@ shfmt-config := "--indent 2 --simplify --space-redirects --language-dialect bash
 default:
     @just --choose
 
+# `apt-get install` for CI. No man pages, docs, or recommended packages.
+apt-install +packages:
+    sudo apt-get install -y \
+      --no-install-recommends \
+      -o DPkg::Options::="--path-exclude=/usr/share/man/*" \
+      -o DPkg::Options::="--path-exclude=/usr/share/doc/*" \
+      {{ packages }}
+
 bash-fmt-check:
     nix develop .#bash-lint --command \
       fd --extension "sh" --exec-batch \
