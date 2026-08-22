@@ -1,0 +1,4 @@
+Performance and reliability improvements.
+- Removed an unreliable HTTP client that could cause nodes to fail to start.
+- Drastic capacity improvements and memory efficiency gains behind the scenes.
+- Fixed a rare case where an ill-timed node restart could force-close your Lightning channels.
