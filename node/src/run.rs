@@ -832,7 +832,7 @@ impl UserNode {
             // 32-entry chunks, so might as well use that capacity.
             buffer_size: Some(32),
             concurrency: Some(2),
-            ..Default::default()
+            ..LayerConfig::default()
         };
         let (user_tls_config, user_dns) =
             lexe_tls::shared_seed::node_run_server_config(
@@ -869,7 +869,7 @@ impl UserNode {
             // 32-entry chunks, so might as well use that capacity.
             buffer_size: Some(32),
             concurrency: Some(2),
-            ..Default::default()
+            ..LayerConfig::default()
         };
         let (lexe_server_task, _lexe_url) =
             lexe_api::server::spawn_server_task_with_listener(

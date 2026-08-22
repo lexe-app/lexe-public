@@ -447,6 +447,7 @@ pub(crate) mod server {
     /// [`ServiceBuilder::layer`]: tower::ServiceBuilder::layer
     pub(crate) fn trace_layer(
         api_span: tracing::Span,
+        log_query_params: bool,
     ) -> TraceLayer<
         SharedClassifier<LxClassifyResponse>,
         LxMakeSpan,
@@ -458,7 +459,10 @@ pub(crate) mod server {
     > {
         // `tower_http::trace` documents when each of these callbacks is called.
         TraceLayer::new(SharedClassifier::new(LxClassifyResponse))
-            .make_span_with(LxMakeSpan { api_span })
+            .make_span_with(LxMakeSpan {
+                api_span,
+                log_query_params,
+            })
             .on_request(LxOnRequest)
             .on_response(LxOnResponse)
             // Do nothing on body chunk
@@ -499,16 +503,25 @@ pub(crate) mod server {
     pub(crate) struct LxMakeSpan {
         /// The server API span, used as each request span's parent.
         api_span: tracing::Span,
+        /// See [`LayerConfig::log_query_params`].
+        ///
+        /// [`LayerConfig::log_query_params`]: crate::server::LayerConfig
+        log_query_params: bool,
     }
 
     impl<B> MakeSpan<B> for LxMakeSpan {
         fn make_span(&mut self, request: &http::Request<B>) -> tracing::Span {
-            // Get the full url, including query params
-            let url = request
-                .uri()
-                .path_and_query()
-                .map(|url| url.as_str())
-                .unwrap_or("/");
+            // Get the full url including query params, or just the path if
+            // query param logging is disabled.
+            let url = if self.log_query_params {
+                request
+                    .uri()
+                    .path_and_query()
+                    .map(|url| url.as_str())
+                    .unwrap_or("/")
+            } else {
+                request.uri().path()
+            };
 
             // Parse the client-provided trace id from the trace id header.
             // Generate a new trace id if none existed or if the header value

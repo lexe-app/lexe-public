@@ -103,6 +103,7 @@ pub mod client_authz;
 ///         concurrency: Some(4096),
 ///         handling_timeout: Some(Duration::from_secs(25)),
 ///         default_fallback: true,
+///         log_query_params: false,
 ///     }
 /// );
 /// ```
@@ -142,6 +143,25 @@ pub struct LayerConfig {
     /// NOTE, however, that the caller is responsible for ensuring that the
     /// [`Router`] has a fallback configured in this case.
     pub default_fallback: bool,
+    /// Whether request spans include query params in the logged url.
+    /// The url path is always logged. Query params may contain sensitive
+    /// user data, so this is off by default, but this should be turned on for
+    /// all Lexe services. See [`Self::with_query_param_logging`].
+    pub log_query_params: bool,
+}
+
+impl LayerConfig {
+    /// [`Self::default`], but request spans log the full url including query
+    /// params. See [`Self::log_query_params`].
+    ///
+    /// Use this for Lexe services, where query params generally do not
+    /// contain sensitive user information (that we don't already know).
+    pub fn with_query_param_logging() -> Self {
+        Self {
+            log_query_params: true,
+            ..Self::default()
+        }
+    }
 }
 
 impl Default for LayerConfig {
@@ -157,6 +177,7 @@ impl Default for LayerConfig {
             concurrency: Some(4096),
             handling_timeout: Some(timeout::server::DEFAULT_HANDLER_TIMEOUT),
             default_fallback: true,
+            log_query_params: false,
         }
     }
 }
@@ -307,7 +328,10 @@ pub fn build_server_fut_with_listener(
         .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Log everything on its way in and out, even load-shedded requests.
         // This layer changes the response type.
-        .layer(trace::server::trace_layer(server_span.clone()))
+        .layer(trace::server::trace_layer(
+            server_span.clone(),
+            layer_config.log_query_params,
+        ))
         .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
         // Run our post-processor which can modify responses *after* the Axum
         // Router has constructed the response.
