@@ -79,6 +79,9 @@ mod unstable {
     /// Wallet database.
     pub mod wallet_db;
 
+    /// Builds the `<crate>/<version>` token for the calling crate.
+    pub use lexe_api::user_agent_to_lexe;
+
     /// The user agent string used for SDK requests to Lexe infrastructure.
     ///
     /// Format: `lexe/<sdk_version> node/<latest_node_version>`
@@ -93,7 +96,7 @@ mod unstable {
             let (latest_node_version, _release) =
                 node_releases.last_key_value().expect("No node releases");
 
-            let sdk_with_version = lexe_api::user_agent_to_lexe!();
+            let sdk_with_version = user_agent_to_lexe!();
             let user_agent =
                 format!("{sdk_with_version} node/{latest_node_version}");
 

@@ -295,7 +295,9 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
             );
             WalletEnvConfig::regtest(false, gateway_url)
         }
-    };
+    }
+    // Final user agent: e.g. "lexe-cli/0.1.22 lexe/0.1.21 node/0.10.3"
+    .with_user_agent_prefix(lexe::user_agent_to_lexe!());
 
     // Show basic parameters and data dir location in logs.
     let lexe_data_dir = lexe_args

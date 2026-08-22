@@ -234,6 +234,17 @@ impl WalletEnvConfig {
         &self.user_agent
     }
 
+    /// Prepend a token identifying the first-party surface embedding the SDK,
+    /// e.g. `sdk-sidecar/0.4.18`.
+    ///
+    /// The resulting user agent looks like:
+    /// `sdk-sidecar/0.4.18 lexe/0.1.21 node/0.10.3`.
+    #[cfg(feature = "unstable")]
+    pub fn with_user_agent_prefix(mut self, prefix: &str) -> Self {
+        self.user_agent = Cow::Owned(format!("{prefix} {}", self.user_agent));
+        self
+    }
+
     /// Returns the path to the seedphrase file for this environment.
     pub fn seedphrase_path(&self, data_dir: &Path) -> PathBuf {
         self.wallet_env.seedphrase_path(data_dir)
@@ -374,5 +385,15 @@ mod test {
         // Validate node version
         let _node_version = semver::Version::from_str(node_part)
             .expect("Invalid node semver version");
+    }
+
+    /// Ensure the prefix is prepended to the user agent.
+    #[cfg(feature = "unstable")]
+    #[test]
+    fn test_with_user_agent_prefix() {
+        let env_config = WalletEnvConfig::mainnet()
+            .with_user_agent_prefix("sdk-sidecar/0.4.2");
+        let expected = format!("sdk-sidecar/0.4.2 {}", *SDK_USER_AGENT);
+        assert_eq!(env_config.user_agent(), expected);
     }
 }

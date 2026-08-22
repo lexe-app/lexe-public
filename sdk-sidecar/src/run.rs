@@ -56,7 +56,9 @@ impl Sidecar {
             Network::Testnet3 => WalletEnvConfig::testnet3(),
             Network::Signet | Network::Testnet4 =>
                 return Err(anyhow!("{network} network is not supported.")),
-        };
+        }
+        // Final user agent: e.g. "sdk-sidecar/0.4.18 lexe/0.1.21 node/0.10.3"
+        .with_user_agent_prefix(lexe::user_agent_to_lexe!());
 
         // Get the data dir from args with fallback to the Lexe default
         let data_dir =

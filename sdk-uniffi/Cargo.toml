@@ -39,7 +39,7 @@ doc = false
 # NOTE: To ensure `lexe` exposes all types and sub-crates needed for SDK
 # implementors, this crate should *only* depend on `lexe`.
 # TODO(nicole): Drop `lexe-api-core` once `GatewayApiError` reachable via `lexe`
-lexe = { workspace = true, features = ["blocking"] }
+lexe = { workspace = true, features = ["blocking", "unstable"] }
 lexe-api-core = { workspace = true }
 
 # --- WORKSPACE --- #

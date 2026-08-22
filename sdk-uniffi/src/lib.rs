@@ -361,6 +361,8 @@ impl WalletConfig {
                 self.gateway_url.clone(),
             ),
         }
+        // Final user agent: e.g. "sdk-uniffi/0.0.0 lexe/0.1.21 node/0.10.3"
+        .with_user_agent_prefix(lexe::user_agent_to_lexe!())
     }
 }
 
