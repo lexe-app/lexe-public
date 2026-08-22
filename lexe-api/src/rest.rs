@@ -379,8 +379,6 @@ impl RestClient {
         trace_id: &TraceId,
     ) -> Result<Result<SuccessResponse, ErrorResponse>, CommonApiError> {
         let start = Instant::now();
-        // This message should mirror `LxOnRequest`.
-        debug!(target: trace::TARGET, "New client request");
 
         // Add the trace id header to the request.
         match request.headers_mut().try_insert(

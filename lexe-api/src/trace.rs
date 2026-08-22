@@ -436,8 +436,7 @@ pub(crate) mod server {
     ///
     /// - Instruments each incoming request with its own request span, reusing
     ///   the [`TraceId`] from the `lexe-trace-id` header if available
-    /// - Logs "New server request" at the start of each received request
-    /// - Logs "Done (result) after the completion of each response"
+    /// - Logs "Done (result)" after the completion of each response
     /// - Logs "Stream ended" when streaming bodies (post-response) complete
     /// - Logs "Other failure" whenever anything else goes wrong
     ///
@@ -569,17 +568,24 @@ pub(crate) mod server {
     impl<B> OnRequest<B> for LxOnRequest {
         fn on_request(
             &mut self,
-            request: &http::Request<B>,
+            _request: &http::Request<B>,
             _request_span: &tracing::Span,
         ) {
-            let headers = request.headers();
-            debug!(target: TARGET, "New server request");
-            debug!(target: TARGET, ?headers, "Server request (headers)");
+            // Headers may contain sensitive data (e.g. auth tokens), so only
+            // log them in tests. Requests are logged by [`LxOnResponse`].
+            #[cfg(any(test, feature = "test-utils"))]
+            {
+                let headers = _request.headers();
+                tracing::trace!(target: TARGET, ?headers, "New server request");
+            }
         }
     }
 
     /// [`OnResponse`] impl which logs the completion of requests by the server.
     /// `RestClient` logs `req_time`; analogously here we log `resp_time`.
+    ///
+    /// The "Done" event is the single per-request log line; its request span
+    /// carries `trace_id`, `from`, `method` and `url`.
     #[derive(Clone)]
     pub(crate) struct LxOnResponse;
 
@@ -592,12 +598,9 @@ pub(crate) mod server {
             _request_span: &tracing::Span,
         ) {
             let status = response.status();
-            let headers = response.headers();
             let resp_time = DisplayMs(resp_time);
 
             if status.is_success() {
-                // NOTE: This server request log can be at INFO.
-                // It's cluttering our logs though, so we're suppressing.
                 debug!(target: TARGET, %resp_time, ?status, "Done (success)");
             } else if status.is_client_error() {
                 warn!(target: TARGET, %resp_time, ?status, "Done (client error)");
@@ -608,14 +611,14 @@ pub(crate) mod server {
             } else if status.is_server_error() {
                 error!(target: TARGET, %resp_time, ?status, "Done (server error)");
             } else {
-                // NOTE: This server request log can be at INFO.
-                // It's cluttering our logs though, so we're suppressing.
                 debug!(target: TARGET, %resp_time, ?status, "Done (other)");
             }
 
-            // Log the headers too, but only at DEBUG.
-            debug!(
-                target: TARGET, %resp_time, ?status, ?headers,
+            // Headers may contain sensitive data, so only log them in tests.
+            #[cfg(any(test, feature = "test-utils"))]
+            tracing::trace!(
+                target: TARGET, %resp_time, ?status,
+                headers = ?response.headers(),
                 "Done (headers)",
             );
         }
