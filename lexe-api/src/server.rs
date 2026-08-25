@@ -19,6 +19,8 @@
 //!
 //! - [`LxJson`] to deserialize from HTTP body JSON
 //! - [`LxQuery`] to deserialize from query strings
+//! - [`ClientAddr`] to read the client's socket address (requires
+//!   `LayerConfig::inject_client_addr`)
 //!
 //! # [`IntoResponse`] types / impls for building Lexe API-conformant responses:
 //!
@@ -27,6 +29,7 @@
 //! - [`LxRejection`] for notifying clients of bad JSON, query strings, etc.
 //!
 //! [`ApiError`]: lexe_api_core::error::ApiError
+//! [`ClientAddr`]: crate::server::extract::ClientAddr
 //! [`CommonApiError`]: lexe_api_core::error::CommonApiError
 //! [`Router`]: axum::Router
 //! [`IntoResponse`]: axum::response::IntoResponse
@@ -43,7 +46,7 @@ use std::{
     convert::Infallible,
     fmt::{self, Display},
     future::Future,
-    net::{SocketAddr, TcpListener},
+    net::{IpAddr, SocketAddr, TcpListener},
     str::FromStr,
     sync::Arc,
     time::Duration,
@@ -51,7 +54,7 @@ use std::{
 
 use anyhow::Context;
 use axum::{
-    Router, ServiceExt as AxumServiceExt,
+    Router,
     error_handling::HandleErrorLayer,
     extract::{
         DefaultBodyLimit, FromRequest, OptionalFromRequest,
@@ -77,9 +80,14 @@ use lexe_crypto::ed25519;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{Serialize, de::DeserializeOwned};
 use tower::{
-    Layer, buffer::BufferLayer, limit::ConcurrencyLimitLayer,
-    load_shed::LoadShedLayer, timeout::TimeoutLayer, util::MapRequestLayer,
+    Layer,
+    buffer::BufferLayer,
+    limit::ConcurrencyLimitLayer,
+    load_shed::LoadShedLayer,
+    timeout::TimeoutLayer,
+    util::{Either, MapRequestLayer},
 };
+use tower_http::add_extension::{AddExtension, AddExtensionLayer};
 use tracing::{Instrument, debug, error, info, warn};
 
 use crate::{tls_acceptor::CertInjectorAcceptor, trace};
@@ -104,6 +112,7 @@ pub mod client_authz;
 ///         handling_timeout: Some(Duration::from_secs(25)),
 ///         default_fallback: true,
 ///         log_query_params: false,
+///         inject_client_addr: false,
 ///     }
 /// );
 /// ```
@@ -148,6 +157,10 @@ pub struct LayerConfig {
     /// user data, so this is off by default, but this should be turned on for
     /// all Lexe services. See [`Self::with_query_param_logging`].
     pub log_query_params: bool,
+    /// Whether to inject the client socket address (connection peer address)
+    /// into request extensions, making the [`ClientAddr`](extract::ClientAddr)
+    /// extractor available to handlers. Off by default.
+    pub inject_client_addr: bool,
 }
 
 impl LayerConfig {
@@ -178,6 +191,7 @@ impl Default for LayerConfig {
             handling_timeout: Some(timeout::server::DEFAULT_HANDLER_TIMEOUT),
             default_fallback: true,
             log_query_params: false,
+            inject_client_addr: false,
         }
     }
 }
@@ -401,7 +415,10 @@ pub fn build_server_fut_with_listener(
     // Apply our middleware
     let layered_service = Layer::layer(&middleware, router_service);
     // Convert into MakeService
-    let make_service = layered_service.into_make_service();
+    let make_service = LxMakeService {
+        service: layered_service,
+        inject_client_addr: layer_config.inject_client_addr,
+    };
 
     let handle = axum_server::Handle::new();
     let handle_clone = handle.clone();
@@ -525,6 +542,40 @@ pub fn spawn_server_task_with_listener(
         LxTask::spawn_with_span(server_span_name, server_span, server_fut);
 
     Ok((server_task, primary_server_url))
+}
+
+/// The `MakeService` for Lexe servers. [`axum_server`] calls it once per
+/// connection with the peer [`SocketAddr`], so it can apply connection-level
+/// [`LayerConfig`] options. Currently that means only
+/// [`LayerConfig::inject_client_addr`].
+struct LxMakeService<S> {
+    service: S,
+    /// [`LayerConfig::inject_client_addr`]
+    inject_client_addr: bool,
+}
+
+impl<S: Clone> tower::Service<SocketAddr> for LxMakeService<S> {
+    type Response = Either<AddExtension<S, extract::ClientAddr>, S>;
+    type Error = Infallible;
+    type Future = std::future::Ready<Result<Self::Response, Infallible>>;
+
+    fn poll_ready(
+        &mut self,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Infallible>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, client_addr: SocketAddr) -> Self::Future {
+        let service = self.service.clone();
+        let service = if self.inject_client_addr {
+            let client_addr = extract::ClientAddr(client_addr);
+            Either::Left(AddExtensionLayer::new(client_addr).layer(service))
+        } else {
+            Either::Right(service)
+        };
+        std::future::ready(Ok(service))
+    }
 }
 
 // --- LxJson --- //
@@ -901,6 +952,43 @@ pub mod extract {
     impl<T: PartialEq> PartialEq for LxPath<T> {
         fn eq(&self, other: &Self) -> bool {
             self.0.eq(&other.0)
+        }
+    }
+
+    /// The client's remote socket address.
+    ///
+    /// Extractable in any handler whose server was built with
+    /// [`LayerConfig::inject_client_addr`] enabled.
+    #[derive(Copy, Clone, Debug)]
+    pub struct ClientAddr(pub SocketAddr);
+
+    impl ClientAddr {
+        pub fn ip(&self) -> IpAddr {
+            self.0.ip()
+        }
+    }
+
+    impl Display for ClientAddr {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Display::fmt(&self.0, f)
+        }
+    }
+
+    impl<S: Send + Sync> FromRequestParts<S> for ClientAddr {
+        type Rejection = CommonApiError;
+
+        async fn from_request_parts(
+            parts: &mut http::request::Parts,
+            _state: &S,
+        ) -> Result<Self, Self::Rejection> {
+            parts.extensions.get::<Self>().copied().ok_or_else(|| {
+                CommonApiError {
+                    kind: CommonErrorKind::Server,
+                    msg: "ClientAddr extension missing; is \
+                          `LayerConfig::inject_client_addr` enabled?"
+                        .to_owned(),
+                }
+            })
         }
     }
 }
