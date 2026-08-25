@@ -1309,6 +1309,7 @@ impl PayOfferArgs {
         let req = PayOfferRequest {
             offer,
             amount: self.amount_sats,
+            client_payment_id: None,
             message: self.message,
             personal_note: self.personal_note,
         };

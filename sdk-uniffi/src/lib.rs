@@ -1134,6 +1134,7 @@ impl AsyncLexeWallet {
         let req = SdkPayOfferRequest {
             offer,
             amount,
+            client_payment_id: None,
             message,
             personal_note,
         };
@@ -2172,6 +2173,7 @@ impl BlockingLexeWallet {
         let req = SdkPayOfferRequest {
             offer,
             amount,
+            client_payment_id: None,
             message,
             personal_note,
         };

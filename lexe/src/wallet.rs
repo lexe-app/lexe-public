@@ -8,8 +8,8 @@ use lexe_api::{
     types::{
         bounded_string::BoundedString,
         payments::{
-            ClientPaymentId, PaymentCreatedIndex, PaymentDirection, PaymentId,
-            PaymentKind, PaymentRail, PaymentStatus,
+            PaymentCreatedIndex, PaymentDirection, PaymentId, PaymentKind,
+            PaymentRail, PaymentStatus,
         },
         username::{Username, UsernameStruct},
     },
@@ -1064,6 +1064,7 @@ impl LexeWallet {
                 let pay_req = PayOfferRequest {
                     offer,
                     amount,
+                    client_payment_id: None,
                     message: message.map(BoundedString::into_inner),
                     personal_note: personal_note.map(BoundedString::into_inner),
                 };
@@ -1178,9 +1179,8 @@ impl LexeWallet {
         &self,
         req: PayOfferRequest,
     ) -> anyhow::Result<Payment> {
-        let client_payment_id = ClientPaymentId::generate();
-        let id = PaymentId::OfferSend(client_payment_id);
-        let req = req.into_unstable(client_payment_id)?;
+        let req = req.into_unstable()?;
+        let id = PaymentId::OfferSend(req.client_payment_id);
         let resp = self
             .node_client
             .pay_offer(req)

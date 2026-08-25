@@ -481,6 +481,15 @@ pub struct PayOfferRequest {
     /// The amount we will pay. If the offer specifies a minimum amount,
     /// this value must satisfy that minimum.
     pub amount: Amount,
+    /// An optional client-generated ID that also serves as an idempotency key.
+    /// `pay_offer` attempts can only be safely retried by supplying the same
+    /// `client_payment_id`; otherwise, you will make a duplicate payment.
+    ///
+    /// If `None`, the SDK generates a random ID for this call, which provides
+    /// no idempotency across separate [`pay_offer`] calls.
+    ///
+    /// [`pay_offer`]: crate::wallet::LexeWallet::pay_offer
+    pub client_payment_id: Option<ClientPaymentId>,
     /// An optional message (sent as a BOLT 12 `payer_note`) included with the
     /// invoice request and visible to the recipient. If provided, it must be
     /// non-empty and no longer than 200 chars / 512 UTF-8 bytes.
@@ -496,19 +505,26 @@ impl PayOfferRequest {
     /// Build a [`command::PayOfferRequest`] from this SDK request.
     pub(crate) fn into_unstable(
         self,
-        client_payment_id: ClientPaymentId,
     ) -> anyhow::Result<command::PayOfferRequest> {
+        let Self {
+            offer,
+            amount,
+            client_payment_id,
+            message,
+            personal_note,
+        } = self;
+        let client_payment_id =
+            client_payment_id.unwrap_or_else(ClientPaymentId::generate);
+
         Ok(command::PayOfferRequest {
             client_payment_id,
-            offer: self.offer,
-            amount: self.amount,
-            message: self
-                .message
+            offer,
+            amount,
+            message: message
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid message")?,
-            personal_note: self
-                .personal_note
+            personal_note: personal_note
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid personal note")?,
