@@ -31,7 +31,9 @@ pub(crate) const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OnchainSendV2 {
-    pub cid: ClientPaymentId,
+    // compat: Renamed in node-v0.10.5
+    #[serde(rename = "cid", alias = "client_payment_id")]
+    pub client_payment_id: ClientPaymentId,
     pub txid: Txid,
 
     pub kind: PaymentKind,
@@ -120,7 +122,7 @@ impl OnchainSendV2 {
 
         // Destructure to ensure we don't miss any fields.
         let PayOnchainRequest {
-            cid,
+            client_payment_id,
             address,
             amount,
             priority,
@@ -130,7 +132,7 @@ impl OnchainSendV2 {
 
         let txid = Txid(tx.compute_txid());
         let os = Self {
-            cid,
+            client_payment_id,
             txid,
             kind,
             tx: Arc::new(tx),
@@ -164,7 +166,7 @@ impl OnchainSendV2 {
 
     #[inline]
     pub fn id(&self) -> PaymentId {
-        PaymentId::OnchainSend(self.cid)
+        PaymentId::OnchainSend(self.client_payment_id)
     }
 
     // Event sources:

@@ -313,12 +313,17 @@ impl AppHandle {
         req: PayOnchainRequest,
     ) -> anyhow::Result<PayOnchainResponse> {
         let req = PayOnchainRequestRs::try_from(req)?;
-        let cid = req.cid;
+        let client_payment_id = req.client_payment_id;
         self.inner
             .node_client()?
             .pay_onchain(req)
             .await
-            .map(|resp| PayOnchainResponse::from_cid_and_response(cid, resp))
+            .map(|resp| {
+                PayOnchainResponse::from_client_payment_id_and_response(
+                    client_payment_id,
+                    resp,
+                )
+            })
             .map_err(anyhow::Error::new)
     }
 
@@ -418,7 +423,7 @@ impl AppHandle {
         req: PayOfferRequest,
     ) -> anyhow::Result<PayOfferResponse> {
         let req = PayOfferRequestRs::try_from(req)?;
-        let id = PaymentId::OfferSend(req.cid);
+        let id = PaymentId::OfferSend(req.client_payment_id);
         self.inner
             .node_client()?
             .pay_offer(req)

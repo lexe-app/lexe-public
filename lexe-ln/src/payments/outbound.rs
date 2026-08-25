@@ -376,7 +376,9 @@ impl OutboundInvoicePaymentV2 {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutboundOfferPaymentV2 {
     /// The unique idempotency id for this payment.
-    pub client_id: ClientPaymentId,
+    // compat: Renamed in node-v0.10.5
+    #[serde(rename = "client_id", alias = "client_payment_id")]
+    pub client_payment_id: ClientPaymentId,
     /// The payment hash encoded in the BOLT12 invoice. Since we don't fetch
     /// the BOLT12 invoice before registering the offer payment, this field
     /// is populated iff. the status is `Completed`.
@@ -452,7 +454,7 @@ impl OutboundOfferPaymentV2 {
     // Event sources:
     // - `pay_offer` API
     pub fn new(
-        client_id: ClientPaymentId,
+        client_payment_id: ClientPaymentId,
         offer: Offer,
         kind: PaymentKind,
         amount: Amount,
@@ -470,7 +472,7 @@ impl OutboundOfferPaymentV2 {
         let offer_id = offer.id();
         let expires_at = offer.expires_at();
         let oop = Self {
-            client_id,
+            client_payment_id,
             hash: None,
             preimage: None,
             offer_id,
@@ -507,12 +509,12 @@ impl OutboundOfferPaymentV2 {
 
     #[inline]
     pub fn id(&self) -> PaymentId {
-        PaymentId::OfferSend(self.client_id)
+        PaymentId::OfferSend(self.client_payment_id)
     }
 
     #[inline]
     pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
-        lightning::ln::channelmanager::PaymentId(self.client_id.0)
+        lightning::ln::channelmanager::PaymentId(self.client_payment_id.0)
     }
 
     /// Handle a [`PaymentSent`] event for this payment.
@@ -944,7 +946,7 @@ pub(crate) mod arbitrary_impl {
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
-            let client_id = any::<ClientPaymentId>();
+            let client_payment_id = any::<ClientPaymentId>();
             let preimage = any::<PaymentPreimage>();
             let offer_id = any::<OfferId>();
             let kind = PaymentRail::Offer.any_child_kind();
@@ -959,7 +961,7 @@ pub(crate) mod arbitrary_impl {
 
             let gen_oop = move |(
                 status,
-                client_id,
+                client_payment_id,
                 preimage,
                 offer_id,
                 kind,
@@ -992,7 +994,7 @@ pub(crate) mod arbitrary_impl {
                 };
 
                 OutboundOfferPaymentV2 {
-                    client_id,
+                    client_payment_id,
                     hash,
                     preimage,
                     offer_id,
@@ -1009,7 +1011,7 @@ pub(crate) mod arbitrary_impl {
 
             (
                 status,
-                client_id,
+                client_payment_id,
                 preimage,
                 offer_id,
                 kind,

@@ -40,13 +40,13 @@ class NeedUriState {
     required this.app,
     required this.configNetwork,
     required this.balance,
-    required this.cid,
+    required this.clientPaymentId,
     required this.fiatRate,
   });
   final AppHandle app;
   final Network configNetwork;
   final Balance balance;
-  final ClientPaymentId cid;
+  final ClientPaymentId clientPaymentId;
   final ValueListenable<FiatRate?> fiatRate;
 
   Future<Result<(PaymentMethod?, ClaimMethod?), String>> resolve(
@@ -87,7 +87,7 @@ class NeedUriState {
       app: this.app,
       configNetwork: this.configNetwork,
       balance: this.balance,
-      cid: this.cid,
+      clientPaymentId: this.clientPaymentId,
       fiatRate: this.fiatRate,
       paymentMethod: paymentMethod,
     );

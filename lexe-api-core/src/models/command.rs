@@ -610,7 +610,9 @@ pub struct CreateOfferResponse {
 #[derive(Serialize, Deserialize)]
 pub struct PayOfferPreflightRequest {
     /// The user-provided idempotency id for this payment.
-    pub cid: ClientPaymentId,
+    // compat: Renamed in node-v0.10.5
+    #[serde(rename = "cid", alias = "client_payment_id")]
+    pub client_payment_id: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: Offer,
     /// Specifies the amount we will pay. If the offer specifies a minimum
@@ -653,7 +655,9 @@ fn default_offer_kind() -> PaymentKind {
 #[derive(Serialize, Deserialize)]
 pub struct PayOfferRequest {
     /// The user-provided idempotency id for this payment.
-    pub cid: ClientPaymentId,
+    // compat: Renamed in node-v0.10.5
+    #[serde(rename = "cid", alias = "client_payment_id")]
+    pub client_payment_id: ClientPaymentId,
     /// The offer we want to pay.
     pub offer: Offer,
     /// Specifies the amount we will pay. If the offer specifies a minimum
@@ -796,7 +800,9 @@ pub struct GetNextUnusedAddressResponse {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary, Debug))]
 pub struct PayOnchainRequest {
     /// The identifier to use for this payment.
-    pub cid: ClientPaymentId,
+    // compat: Renamed in node-v0.10.5
+    #[serde(rename = "cid", alias = "client_payment_id")]
+    pub client_payment_id: ClientPaymentId,
     /// The address we want to send funds to.
     #[cfg_attr(
         any(test, feature = "test-utils"),

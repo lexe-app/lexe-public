@@ -4783,7 +4783,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 3)
       throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return PayOfferPreflightRequest(
-      cid: dco_decode_client_payment_id(arr[0]),
+      clientPaymentId: dco_decode_client_payment_id(arr[0]),
       offer: dco_decode_String(arr[1]),
       amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
     );
@@ -4810,7 +4810,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 6)
       throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return PayOfferRequest(
-      cid: dco_decode_client_payment_id(arr[0]),
+      clientPaymentId: dco_decode_client_payment_id(arr[0]),
       offer: dco_decode_String(arr[1]),
       amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
       message: dco_decode_opt_String(arr[3]),
@@ -4864,7 +4864,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     if (arr.length != 5)
       throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return PayOnchainRequest(
-      cid: dco_decode_client_payment_id(arr[0]),
+      clientPaymentId: dco_decode_client_payment_id(arr[0]),
       address: dco_decode_String(arr[1]),
       amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
       priority: dco_decode_confirmation_priority(arr[3]),
@@ -6763,11 +6763,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_cid = sse_decode_client_payment_id(deserializer);
+    var var_clientPaymentId = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PayOfferPreflightRequest(
-      cid: var_cid,
+      clientPaymentId: var_clientPaymentId,
       offer: var_offer,
       amountSats: var_amountSats,
     );
@@ -6789,14 +6789,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   PayOfferRequest sse_decode_pay_offer_request(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_cid = sse_decode_client_payment_id(deserializer);
+    var var_clientPaymentId = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_message = sse_decode_opt_String(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
     var var_kind = sse_decode_payment_kind(deserializer);
     return PayOfferRequest(
-      cid: var_cid,
+      clientPaymentId: var_clientPaymentId,
       offer: var_offer,
       amountSats: var_amountSats,
       message: var_message,
@@ -6845,13 +6845,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_cid = sse_decode_client_payment_id(deserializer);
+    var var_clientPaymentId = sse_decode_client_payment_id(deserializer);
     var var_address = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_priority = sse_decode_confirmation_priority(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
     return PayOnchainRequest(
-      cid: var_cid,
+      clientPaymentId: var_clientPaymentId,
       address: var_address,
       amountSats: var_amountSats,
       priority: var_priority,
@@ -8687,7 +8687,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_client_payment_id(self.cid, serializer);
+    sse_encode_client_payment_id(self.clientPaymentId, serializer);
     sse_encode_String(self.offer, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
   }
@@ -8708,7 +8708,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_client_payment_id(self.cid, serializer);
+    sse_encode_client_payment_id(self.clientPaymentId, serializer);
     sse_encode_String(self.offer, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_opt_String(self.message, serializer);
@@ -8752,7 +8752,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_client_payment_id(self.cid, serializer);
+    sse_encode_client_payment_id(self.clientPaymentId, serializer);
     sse_encode_String(self.address, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_confirmation_priority(self.priority, serializer);

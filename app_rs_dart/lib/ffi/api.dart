@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'types.dart';
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
+// These functions are ignored because they are not marked as `pub`: `from_client_payment_id_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -266,7 +266,7 @@ sealed class PayInvoiceResponse with _$PayInvoiceResponse {
 @freezed
 sealed class PayOfferPreflightRequest with _$PayOfferPreflightRequest {
   const factory PayOfferPreflightRequest({
-    required ClientPaymentId cid,
+    required ClientPaymentId clientPaymentId,
     required String offer,
     required int amountSats,
   }) = _PayOfferPreflightRequest;
@@ -289,7 +289,7 @@ sealed class PayOfferPreflightResponse with _$PayOfferPreflightResponse {
 @freezed
 sealed class PayOfferRequest with _$PayOfferRequest {
   const factory PayOfferRequest({
-    required ClientPaymentId cid,
+    required ClientPaymentId clientPaymentId,
     required String offer,
     required int amountSats,
     String? message,
@@ -336,7 +336,7 @@ sealed class PayOnchainPreflightResponse with _$PayOnchainPreflightResponse {
 @freezed
 sealed class PayOnchainRequest with _$PayOnchainRequest {
   const factory PayOnchainRequest({
-    required ClientPaymentId cid,
+    required ClientPaymentId clientPaymentId,
     required String address,
     required int amountSats,
     required ConfirmationPriority priority,

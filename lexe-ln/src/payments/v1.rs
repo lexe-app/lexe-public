@@ -360,14 +360,16 @@ impl PaymentV1 {
 
     pub fn id(&self) -> PaymentId {
         match self {
-            Self::OnchainSend(os) => PaymentId::OnchainSend(os.cid),
+            Self::OnchainSend(os) =>
+                PaymentId::OnchainSend(os.client_payment_id),
             Self::OnchainReceive(or) => PaymentId::OnchainRecv(or.txid),
             Self::InboundInvoice(iip) => PaymentId::Lightning(iip.hash),
             Self::InboundOfferReusable(iorp) =>
                 PaymentId::OfferRecvReusable(iorp.claim_id),
             Self::InboundSpontaneous(isp) => PaymentId::Lightning(isp.hash),
             Self::OutboundInvoice(oip) => PaymentId::Lightning(oip.hash),
-            Self::OutboundOffer(oop) => PaymentId::OfferSend(oop.cid),
+            Self::OutboundOffer(oop) =>
+                PaymentId::OfferSend(oop.client_payment_id),
             Self::OutboundSpontaneous(osp) => PaymentId::Lightning(osp.hash),
         }
     }

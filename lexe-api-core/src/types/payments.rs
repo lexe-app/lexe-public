@@ -1216,7 +1216,8 @@ impl TryFrom<PaymentId> for ClientPaymentId {
     fn try_from(id: PaymentId) -> anyhow::Result<Self> {
         use PaymentId::*;
         match id {
-            OnchainSend(cid) | OfferSend(cid) => Ok(cid),
+            OnchainSend(client_payment_id) | OfferSend(client_payment_id) =>
+                Ok(client_payment_id),
             OfferRecvReusable(_) | OnchainRecv(_) | Lightning(_) =>
                 bail!("Not an onchain send"),
         }
@@ -1302,8 +1303,8 @@ impl From<PaymentHash> for lightning::ln::channelmanager::PaymentId {
 }
 
 impl From<ClientPaymentId> for lightning::ln::channelmanager::PaymentId {
-    fn from(cid: ClientPaymentId) -> Self {
-        Self(cid.0)
+    fn from(client_payment_id: ClientPaymentId) -> Self {
+        Self(client_payment_id.0)
     }
 }
 
@@ -1735,10 +1736,12 @@ impl Display for PaymentId {
         match self {
             Self::OfferRecvReusable(claim_id) =>
                 write!(f, "{prefix}_{claim_id}"),
-            Self::OfferSend(cid) => write!(f, "{prefix}_{cid}"),
+            Self::OfferSend(client_payment_id) =>
+                write!(f, "{prefix}_{client_payment_id}"),
             Self::Lightning(hash) => write!(f, "{prefix}_{hash}"),
             Self::OnchainRecv(txid) => write!(f, "{prefix}_{txid}"),
-            Self::OnchainSend(cid) => write!(f, "{prefix}_{cid}"),
+            Self::OnchainSend(client_payment_id) =>
+                write!(f, "{prefix}_{client_payment_id}"),
         }
     }
 }

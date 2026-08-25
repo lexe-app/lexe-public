@@ -1178,9 +1178,9 @@ impl LexeWallet {
         &self,
         req: PayOfferRequest,
     ) -> anyhow::Result<Payment> {
-        let cid = ClientPaymentId::generate();
-        let id = PaymentId::OfferSend(cid);
-        let req = req.into_unstable(cid)?;
+        let client_payment_id = ClientPaymentId::generate();
+        let id = PaymentId::OfferSend(client_payment_id);
+        let req = req.into_unstable(client_payment_id)?;
         let resp = self
             .node_client
             .pay_offer(req)
@@ -1228,7 +1228,7 @@ impl LexeWallet {
         req: PayOnchainRequest,
     ) -> anyhow::Result<Payment> {
         let req = command::PayOnchainRequest::try_from(req)?;
-        let id = PaymentId::OnchainSend(req.cid);
+        let id = PaymentId::OnchainSend(req.client_payment_id);
         let resp = self
             .node_client
             .pay_onchain(req)

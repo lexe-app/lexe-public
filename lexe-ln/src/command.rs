@@ -1279,7 +1279,7 @@ where
     PS: LexePaymentsPersister,
 {
     let req = PayOfferRequest {
-        cid: req.cid,
+        client_payment_id: req.client_payment_id,
         offer: req.offer,
         amount: req.amount,
         message: None,
@@ -1527,7 +1527,7 @@ where
     );
 
     // Fail early if we already tried paying with this client ID.
-    let payment_id = PaymentId::OfferSend(req.cid);
+    let payment_id = PaymentId::OfferSend(req.client_payment_id);
     let maybe_existing_payment = payments_manager
         .get_payment(&payment_id)
         .await
@@ -1615,7 +1615,7 @@ where
     // TODO(max): Include `payer_name` in `PayOfferRequest`
     let payer_name = None;
     let oopwm = OutboundOfferPaymentV2::new(
-        req.cid,
+        req.client_payment_id,
         offer,
         req.kind,
         amount,

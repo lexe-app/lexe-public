@@ -199,7 +199,8 @@ impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OutboundOfferPaymentV1 {
     /// The unique idempotency id for this payment.
-    pub cid: ClientPaymentId,
+    #[serde(rename = "cid")]
+    pub client_payment_id: ClientPaymentId,
     /// The offer we're paying.
     // Offer is ~568 bytes, Box to avoid the enum variant lint
     pub offer: Arc<Offer>,
@@ -233,12 +234,12 @@ pub struct OutboundOfferPaymentV1 {
 impl OutboundOfferPaymentV1 {
     #[inline]
     pub fn id(&self) -> PaymentId {
-        PaymentId::OfferSend(self.cid)
+        PaymentId::OfferSend(self.client_payment_id)
     }
 
     #[inline]
     pub fn ldk_id(&self) -> lightning::ln::channelmanager::PaymentId {
-        lightning::ln::channelmanager::PaymentId(self.cid.0)
+        lightning::ln::channelmanager::PaymentId(self.client_payment_id.0)
     }
 }
 
@@ -249,7 +250,7 @@ impl From<OutboundOfferPaymentV1>
         let offer_id = v1.offer.id();
         let expires_at = v1.offer.expires_at();
         let payment = OutboundOfferPaymentV2 {
-            client_id: v1.cid,
+            client_payment_id: v1.client_payment_id,
             hash: v1.hash,
             preimage: v1.preimage,
             offer_id,
@@ -291,7 +292,7 @@ impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
     ) -> Result<Self, Self::Error> {
         // Intentionally destructure to ensure all fields are considered.
         let OutboundOfferPaymentV2 {
-            client_id: cid,
+            client_payment_id,
             hash,
             preimage,
             offer_id: _,
@@ -323,7 +324,7 @@ impl TryFrom<PaymentWithMetadata<OutboundOfferPaymentV2>>
         let created_at = created_at.context("Missing created_at")?;
 
         Ok(Self {
-            cid,
+            client_payment_id,
             offer,
             hash,
             preimage,
@@ -561,7 +562,7 @@ pub(crate) mod arb {
 
         fn arbitrary_with(pending_only: Self::Parameters) -> Self::Strategy {
             let status = any_with::<OutboundOfferPaymentStatus>(pending_only);
-            let cid = any::<ClientPaymentId>();
+            let client_payment_id = any::<ClientPaymentId>();
             let offer = any::<Offer>().prop_map(Arc::new);
             let preimage = any::<PaymentPreimage>();
 
@@ -575,7 +576,7 @@ pub(crate) mod arb {
 
             let gen_oop = move |(
                 status,
-                cid,
+                client_payment_id,
                 offer,
                 preimage,
                 amount,
@@ -598,7 +599,7 @@ pub(crate) mod arb {
                     .then_some(finalized_at);
 
                 OutboundOfferPaymentV1 {
-                    cid,
+                    client_payment_id,
                     offer,
                     hash,
                     preimage,
@@ -615,7 +616,7 @@ pub(crate) mod arb {
 
             (
                 status,
-                cid,
+                client_payment_id,
                 offer,
                 preimage,
                 amount,

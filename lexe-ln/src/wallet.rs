@@ -1956,7 +1956,7 @@ mod test {
             amount: Amount,
         ) -> PaymentWithMetadata<OnchainSendV2> {
             let send_req = PayOnchainRequest {
-                cid: ClientPaymentId([42; 32]),
+                client_payment_id: ClientPaymentId([42; 32]),
                 address,
                 amount,
                 priority: ConfirmationPriority::Normal,
@@ -2409,7 +2409,7 @@ mod test {
         )
         .unwrap();
         let req = PayOnchainRequest {
-            cid: ClientPaymentId([42; 32]),
+            client_payment_id: ClientPaymentId([42; 32]),
             address,
             amount: sat!(9_000),
             priority: ConfirmationPriority::Normal,

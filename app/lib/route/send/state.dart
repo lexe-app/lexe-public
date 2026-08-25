@@ -72,7 +72,7 @@ class SendState_NeedAmount implements SendState {
     required this.app,
     required this.configNetwork,
     required this.balance,
-    required this.cid,
+    required this.clientPaymentId,
     required this.fiatRate,
     required this.paymentMethod,
   });
@@ -80,7 +80,7 @@ class SendState_NeedAmount implements SendState {
   final AppHandle app;
   final Network configNetwork;
   final Balance balance;
-  final ClientPaymentId cid;
+  final ClientPaymentId clientPaymentId;
   final ValueListenable<FiatRate?> fiatRate;
 
   /// The current payment method (onchain send, BOLT11 invoice send, BOLT12
@@ -167,7 +167,7 @@ class SendState_NeedAmount implements SendState {
       case PaymentMethod_Offer(:final field0):
         final offer = field0;
         final req = PayOfferPreflightRequest(
-          cid: this.cid,
+          clientPaymentId: this.clientPaymentId,
           offer: offer.string,
           amountSats: amountSats,
         );
@@ -243,7 +243,7 @@ class SendState_NeedAmount implements SendState {
         app: this.app,
         configNetwork: this.configNetwork,
         balance: this.balance,
-        cid: this.cid,
+        clientPaymentId: this.clientPaymentId,
         fiatRate: this.fiatRate,
         preflightedPayment: preflighted,
       ),
@@ -259,7 +259,7 @@ class SendState_Preflighted implements SendState {
     required this.app,
     required this.configNetwork,
     required this.balance,
-    required this.cid,
+    required this.clientPaymentId,
     required this.fiatRate,
     required this.preflightedPayment,
   });
@@ -267,7 +267,7 @@ class SendState_Preflighted implements SendState {
   final AppHandle app;
   final Network configNetwork;
   final Balance balance;
-  final ClientPaymentId cid;
+  final ClientPaymentId clientPaymentId;
   final ValueListenable<FiatRate?> fiatRate;
 
   final PreflightedPayment preflightedPayment;
@@ -302,7 +302,7 @@ class SendState_Preflighted implements SendState {
     final ConfirmationPriority confPriority,
   ) async {
     final req = PayOnchainRequest(
-      cid: this.cid,
+      clientPaymentId: this.clientPaymentId,
       address: preflighted.onchain.address,
       amountSats: preflighted.amountSats,
       priority: confPriority,
@@ -396,7 +396,7 @@ class SendState_Preflighted implements SendState {
     final PaymentKind kind = preflighted.kind();
 
     final req = PayOfferRequest(
-      cid: this.cid,
+      clientPaymentId: this.clientPaymentId,
       offer: preflighted.offer.string,
       amountSats: preflighted.amountSats,
       message: preflighted.message,

@@ -496,10 +496,10 @@ impl PayOfferRequest {
     /// Build a [`command::PayOfferRequest`] from this SDK request.
     pub(crate) fn into_unstable(
         self,
-        cid: ClientPaymentId,
+        client_payment_id: ClientPaymentId,
     ) -> anyhow::Result<command::PayOfferRequest> {
         Ok(command::PayOfferRequest {
-            cid,
+            client_payment_id,
             offer: self.offer,
             amount: self.amount,
             message: self
@@ -567,7 +567,7 @@ impl TryFrom<PayOnchainRequest> for command::PayOnchainRequest {
 
     fn try_from(req: PayOnchainRequest) -> anyhow::Result<Self> {
         Ok(Self {
-            cid: req
+            client_payment_id: req
                 .client_payment_id
                 .unwrap_or_else(ClientPaymentId::generate),
             address: req.address,

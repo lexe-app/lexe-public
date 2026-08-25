@@ -290,8 +290,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       mockSignupApiErr,
     );
 
-    final cidBytes = List.generate(32, (idx) => idx);
-    final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
+    final clientPaymentIdBytes = List.generate(32, (idx) => idx);
+    final clientPaymentId = ClientPaymentId(
+      id: U8Array32(Uint8List.fromList(clientPaymentIdBytes)),
+    );
 
     final mockFiatRate = ValueNotifier<FiatRate?>(
       const FiatRate(fiat: "USD", rate: 96626.76),
@@ -301,7 +303,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       app: mockApp,
       configNetwork: this.widget.config.network,
       balance: mockApp.balance,
-      cid: cid,
+      clientPaymentId: clientPaymentId,
       fiatRate: mockFiatRate,
     );
 
@@ -691,7 +693,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
-            cid: cid,
+            clientPaymentId: clientPaymentId,
             fiatRate: mockFiatRate,
             paymentMethod: const PaymentMethod.onchain(
               Onchain(
@@ -713,7 +715,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockApp,
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 paymentMethod: const PaymentMethod.invoice(
                   Invoice(
@@ -740,7 +742,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockApp,
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 paymentMethod: const PaymentMethod.offer(mocks.defaultOffer),
               ),
@@ -755,7 +757,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockApp,
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 paymentMethod: PaymentMethod.offer(
                   Offer(
@@ -779,7 +781,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockAppErr,
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 paymentMethod: const PaymentMethod.onchain(
                   Onchain(
@@ -801,7 +803,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockApp,
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 paymentMethod: PaymentMethod.lnurlPay(
                   LnurlPay(
@@ -837,7 +839,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             app: mockApp,
             configNetwork: this.widget.config.network,
             balance: mockApp.balance,
-            cid: cid,
+            clientPaymentId: clientPaymentId,
             fiatRate: mockFiatRate,
             preflightedPayment: const PreflightedPayment_Onchain(
               onchain: Onchain(
@@ -859,7 +861,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockAppErr,
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 preflightedPayment: (() {
                   final invoice = mocks.dummyInvoiceOutboundPending01.invoice!;
@@ -1337,7 +1339,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mocks.MockAppHandleScreenshots(),
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 preflightedPayment: PreflightedPayment_Invoice(
                   invoice: Invoice(
@@ -1628,7 +1630,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockApp,
                 configNetwork: this.widget.config.network,
                 balance: mockApp.balance,
-                cid: cid,
+                clientPaymentId: clientPaymentId,
                 fiatRate: mockFiatRate,
                 preflightedPayment: (() {
                   final invoice = mocks.dummyInvoiceOutboundPending01.invoice!;

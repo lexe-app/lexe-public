@@ -52,9 +52,11 @@ const testOffer =
     'lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q';
 
 /// Create a deterministic ClientPaymentId for tests.
-ClientPaymentId testCid() {
-  final cidBytes = List.generate(32, (idx) => idx);
-  return ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
+ClientPaymentId testClientPaymentId() {
+  final clientPaymentIdBytes = List.generate(32, (idx) => idx);
+  return ClientPaymentId(
+    id: U8Array32(Uint8List.fromList(clientPaymentIdBytes)),
+  );
 }
 
 /// Create a test balance.
@@ -98,7 +100,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
       );
 
@@ -129,7 +131,7 @@ void main() {
           app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
-          cid: testCid(),
+          clientPaymentId: testClientPaymentId(),
           fiatRate: fiatRate,
         );
 
@@ -150,7 +152,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
       );
 
@@ -175,7 +177,7 @@ void main() {
           app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
-          cid: testCid(),
+          clientPaymentId: testClientPaymentId(),
           fiatRate: fiatRate,
         );
 
@@ -197,7 +199,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.onchain(onchain),
       );
@@ -213,7 +215,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.onchain(onchain),
       );
@@ -233,7 +235,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.invoice(invoice),
       );
@@ -258,7 +260,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.onchain(onchain),
       );
@@ -289,7 +291,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.invoice(invoice),
       );
@@ -312,7 +314,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.offer(offer),
       );
@@ -339,7 +341,7 @@ void main() {
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        cid: testCid(),
+        clientPaymentId: testClientPaymentId(),
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.onchain(onchain),
       );
@@ -447,7 +449,7 @@ void main() {
           app: mockApp,
           configNetwork: Network.mainnet,
           balance: testBalance(),
-          cid: testCid(),
+          clientPaymentId: testClientPaymentId(),
           fiatRate: fiatRate,
         );
 
@@ -482,7 +484,7 @@ SendState_Preflighted _createPreflightedOnchain(
     app: mockApp,
     configNetwork: Network.mainnet,
     balance: testBalance(),
-    cid: testCid(),
+    clientPaymentId: testClientPaymentId(),
     fiatRate: fiatRate,
     preflightedPayment: const PreflightedPayment_Onchain(
       onchain: Onchain(address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'),
@@ -505,7 +507,7 @@ SendState_Preflighted _createPreflightedInvoice(
     app: mockApp,
     configNetwork: Network.mainnet,
     balance: testBalance(),
-    cid: testCid(),
+    clientPaymentId: testClientPaymentId(),
     fiatRate: fiatRate,
     preflightedPayment: PreflightedPayment_Invoice(
       invoice: const Invoice(
@@ -535,7 +537,7 @@ SendState_Preflighted _createPreflightedOffer(
     app: mockApp,
     configNetwork: Network.mainnet,
     balance: testBalance(),
-    cid: testCid(),
+    clientPaymentId: testClientPaymentId(),
     fiatRate: fiatRate,
     preflightedPayment: PreflightedPayment_Offer(
       offer: Offer(string: testOffer),

@@ -73,6 +73,7 @@ class RequireThis extends DartLintRule {
     if (!_isWithinInstanceMemberBody(node)) return false;
     if (_isInDisallowedInitializer(node)) return false;
 
+    // ignore: experimental_member_use
     final element = node.element;
     if (element == null) return false;
     return _isImplicitInstanceMember(element);

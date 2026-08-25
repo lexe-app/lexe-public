@@ -325,7 +325,7 @@ fn validate_note(note: String) -> anyhow::Result<BoundedString> {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOnchainRequest {
-    pub cid: ClientPaymentId,
+    pub client_payment_id: ClientPaymentId,
     pub address: String,
     pub amount_sats: u64,
     pub priority: ConfirmationPriority,
@@ -341,7 +341,7 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
         let amount = Amount::try_from_sats_u64(req.amount_sats)?;
 
         Ok(Self {
-            cid: req.cid.into(),
+            client_payment_id: req.client_payment_id.into(),
             address,
             amount,
             priority: req.priority.into(),
@@ -359,13 +359,13 @@ pub struct PayOnchainResponse {
 }
 
 impl PayOnchainResponse {
-    pub(crate) fn from_cid_and_response(
-        cid: ClientPaymentIdRs,
+    pub(crate) fn from_client_payment_id_and_response(
+        client_payment_id: ClientPaymentIdRs,
         resp: PayOnchainResponseRs,
     ) -> Self {
         let index = PaymentCreatedIndexRs {
             created_at: resp.created_at,
-            id: PaymentIdRs::OnchainSend(cid),
+            id: PaymentIdRs::OnchainSend(client_payment_id),
         };
         Self {
             index: PaymentCreatedIndex::from(index),
@@ -655,7 +655,7 @@ impl From<CreateOfferResponseRs> for CreateOfferResponse {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOfferPreflightRequest {
-    pub cid: ClientPaymentId,
+    pub client_payment_id: ClientPaymentId,
     pub offer: String,
     pub amount_sats: u64,
 }
@@ -664,7 +664,7 @@ impl TryFrom<PayOfferPreflightRequest> for PayOfferPreflightRequestRs {
     type Error = anyhow::Error;
     fn try_from(value: PayOfferPreflightRequest) -> Result<Self, Self::Error> {
         Ok(Self {
-            cid: ClientPaymentIdRs::from(value.cid),
+            client_payment_id: ClientPaymentIdRs::from(value.client_payment_id),
             offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
             amount: Amount::try_from_sats_u64(value.amount_sats)?,
@@ -694,7 +694,7 @@ impl From<PayOfferPreflightResponseRs> for PayOfferPreflightResponse {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOfferRequest {
-    pub cid: ClientPaymentId,
+    pub client_payment_id: ClientPaymentId,
     pub offer: String,
     pub amount_sats: u64,
     pub message: Option<String>,
@@ -706,7 +706,7 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
     type Error = anyhow::Error;
     fn try_from(value: PayOfferRequest) -> Result<Self, Self::Error> {
         Ok(Self {
-            cid: ClientPaymentIdRs::from(value.cid),
+            client_payment_id: ClientPaymentIdRs::from(value.client_payment_id),
             offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
             amount: Amount::try_from_sats_u64(value.amount_sats)?,

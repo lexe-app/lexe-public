@@ -27,7 +27,8 @@ use crate::payments::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainSendV1 {
-    pub cid: ClientPaymentId,
+    #[serde(rename = "cid")]
+    pub client_payment_id: ClientPaymentId,
     pub txid: Txid,
     #[cfg_attr(
         test,
@@ -53,7 +54,7 @@ pub struct OnchainSendV1 {
 impl OnchainSendV1 {
     #[inline]
     pub fn id(&self) -> PaymentId {
-        PaymentId::OnchainSend(self.cid)
+        PaymentId::OnchainSend(self.client_payment_id)
     }
 }
 
@@ -62,7 +63,7 @@ impl From<OnchainSendV1> for PaymentWithMetadata<OnchainSendV2> {
         let id = v1.id();
 
         let payment = OnchainSendV2 {
-            cid: v1.cid,
+            client_payment_id: v1.client_payment_id,
             txid: v1.txid,
             kind: PaymentKind::Onchain,
             tx: v1.tx,
@@ -99,7 +100,7 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
     ) -> Result<Self, Self::Error> {
         // Intentionally destructure to ensure all fields are considered.
         let OnchainSendV2 {
-            cid,
+            client_payment_id,
             txid,
             kind: _,
             tx,
@@ -125,7 +126,7 @@ impl TryFrom<PaymentWithMetadata<OnchainSendV2>> for OnchainSendV1 {
         } = pwm.metadata;
 
         Ok(Self {
-            cid,
+            client_payment_id,
             txid,
             tx,
             replacement,
