@@ -643,8 +643,8 @@ extension ScopeExt on Scope {
     Scope.readPayments => "View full payment history.",
     Scope.read => "View all wallet data. Cannot spend funds.",
     Scope.receive =>
-      "Create invoices, offers, and addresses to receive to, and resync "
-          "the node.",
+      "Create invoices, offers, and addresses to receive to, resync the "
+          "node, and cancel payments.",
     Scope.manageChannels => "Open and close Lightning channels.",
     Scope.spend =>
       "Pay invoices, offers, and on-chain addresses; update payment notes.",

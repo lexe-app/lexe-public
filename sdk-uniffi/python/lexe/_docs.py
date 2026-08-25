@@ -2883,6 +2883,27 @@ Attributes:
 # --- Client credentials --- #
 # ========================== #
 
+lexe.Scope.__doc__ = """\
+A named bundle of permissions to grant a client credential.
+
+- **READ_INFO** -- Read basic info: user identity, node version, balance,
+  and channels.
+- **READ_PAYMENTS** -- Read all payments.
+- **READ** -- Read everything: ``READ_INFO`` + ``READ_PAYMENTS``, plus
+  on-chain descriptors, Lexe SDK clients, and other miscellaneous data.
+  Cannot read any secrets that would allow spending funds.
+- **RECEIVE** -- Create invoices, offers, and addresses to receive to,
+  resync the node, and cancel payments. Cannot determine if invoices or
+  offers were actually paid.
+- **MANAGE_CHANNELS** -- Open and close channels.
+- **SPEND** -- Pay invoices, offers, and on-chain addresses; update payment
+  notes.
+- **FULL** -- Full admin access: every permission granted by other scopes,
+  plus signing with the identity pubkey, managing and revoking SDK clients,
+  reading encrypted files, and updating the user's Human Bitcoin Address
+  and node settings.
+"""
+
 lexe.GetClientInfoResponse.__doc__ = """\
 The response to a ``client_info`` request: how this wallet is authenticated
 and the authorization associated with those credentials.

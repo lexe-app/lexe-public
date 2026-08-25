@@ -68,7 +68,7 @@ Create a new mainnet wallet:
   subsequent runs. Be sure to back up your seedphrase to a safe place.
 
 Control a wallet created from the Lexe mobile app:
-  Export credentials from the app (Menu > SDK clients), then set via:
+  Export credentials from the app (Menu > Client credentials), then set via:
     • LEXE_CLIENT_CREDENTIALS     Set in environment or .env file
     • --client-credentials        Pass directly in CLI
     • --client-credentials-path   Path to file with client credentials
@@ -1032,7 +1032,7 @@ pub struct CreateInvoiceArgs {
     #[arg(
         long,
         help = "Partner user_pk for partner-set fees. Required for\n\
-        partner_prop_fee and partner_base_fee to take effect."
+        partner_prop_fee and partner_base_fee_sats to take effect."
     )]
     partner_pk: Option<UserPk>,
 
@@ -1048,7 +1048,7 @@ pub struct CreateInvoiceArgs {
         long,
         help = "Partner base fee in satoshis. Requires amount_sats to also be set."
     )]
-    partner_base_fee: Option<Amount>,
+    partner_base_fee_sats: Option<Amount>,
 
     /// Don't render the QR code
     #[arg(long)]
@@ -1068,7 +1068,7 @@ impl CreateInvoiceArgs {
             personal_note: self.personal_note,
             partner_pk: self.partner_pk,
             partner_prop_fee: self.partner_prop_fee,
-            partner_base_fee: self.partner_base_fee,
+            partner_base_fee: self.partner_base_fee_sats,
         };
         let resp = wallet
             .create_invoice(req)

@@ -443,8 +443,9 @@ pub enum Scope {
     /// descriptors, Lexe SDK clients, and other miscellaneous data.
     /// Cannot read any secrets that would allow spending funds.
     Read,
-    /// Create invoices, offers, and addresses to receive to, and resync the
-    /// node. Cannot determine if invoices or offers were actually paid.
+    /// Create invoices, offers, and addresses to receive to, resync the node,
+    /// and cancel payments. Cannot determine if invoices or offers were
+    /// actually paid.
     Receive,
     /// Open and close channels.
     ManageChannels,
