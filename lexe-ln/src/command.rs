@@ -117,7 +117,10 @@ use crate::{
     },
     route::{self, LastHopHint, RoutingContext},
     sync::BdkSyncRequest,
-    traits::{LexeChannelManager, LexePeerManager, LexePersister},
+    traits::{
+        LexeChannelManager, LexePaymentsPersister, LexePeerManager,
+        LexePersister,
+    },
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
@@ -642,7 +645,7 @@ pub async fn create_invoice<CM, PS>(
 ) -> anyhow::Result<CreateInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     let amount = &req.amount;
     info!("Handling create_invoice command for {amount:?} msats");
@@ -891,7 +894,7 @@ pub async fn pay_invoice<CM, PS>(
 ) -> anyhow::Result<PayInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     // Preflight the invoice payment (verify and route).
     // Compute an `ldk_route` if the caller didn't supply one.
@@ -1050,7 +1053,7 @@ pub async fn pay_invoice_preflight<CM, PS>(
 ) -> anyhow::Result<PayInvoicePreflightResponseInner>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     let req = PayInvoiceRequestInner {
         invoice: req.invoice,
@@ -1172,7 +1175,7 @@ pub async fn pay_offer<CM, PS>(
 ) -> anyhow::Result<PayOfferResponse>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     let offer = req.offer.clone();
 
@@ -1273,7 +1276,7 @@ pub async fn pay_offer_preflight<CM, PS>(
 ) -> anyhow::Result<PayOfferPreflightResponse>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     let req = PayOfferRequest {
         cid: req.cid,
@@ -1317,7 +1320,7 @@ pub async fn pay_onchain<CM, PS>(
 ) -> anyhow::Result<PayOnchainResponse>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     // Create and sign the onchain send tx.
     let oswm = wallet
@@ -1390,7 +1393,7 @@ async fn pay_invoice_preflight_inner<CM, PS>(
 ) -> anyhow::Result<PreflightedPayInvoice>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     let invoice = req.invoice;
 
@@ -1510,7 +1513,7 @@ async fn pay_offer_preflight_inner<CM, PS>(
 ) -> anyhow::Result<PreflightedPayOffer>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     let offer = req.offer;
 
@@ -1640,7 +1643,7 @@ pub async fn create_payer_proof<CM, PS>(
 ) -> anyhow::Result<CreatePayerProofResponse>
 where
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 {
     let pwm = payments_manager
         .get_payment(&req.id)

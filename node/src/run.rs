@@ -62,7 +62,7 @@ use lexe_ln::{
     message_router::LexeMessageRouter,
     migrations::{self, Migrations},
     payments::manager::PaymentsManager,
-    persister::LexePersisterMethods,
+    persister::PaymentsPersisterMethods,
     route::LexeRouter,
     sync::{self, BdkSyncRequest},
     test_event,

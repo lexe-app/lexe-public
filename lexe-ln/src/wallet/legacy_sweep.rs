@@ -32,8 +32,8 @@ use tracing::{debug, error, instrument};
 use crate::{
     esplora::{FeeEstimates, LexeEsplora},
     payments::{manager::PaymentsManager, onchain::OnchainSendV2},
-    persister::LexePersisterMethods,
-    traits::{LexeChannelManager, LexePersister},
+    persister::PaymentsPersisterMethods,
+    traits::{LexeChannelManager, LexePaymentsPersister},
     tx_broadcaster::TxBroadcaster,
     wallet::{LexeCoinSelector, OnchainWallet},
 };
@@ -42,7 +42,7 @@ use crate::{
 const WALLET_CHANGESET_LEGACY_FILENAME: &str = "bdk_wallet_changeset";
 
 /// Context required for legacy wallet sweep.
-pub struct LegacySweepCtx<CM: LexeChannelManager<PS>, PS: LexePersister> {
+pub struct LegacySweepCtx<CM, PS> {
     /// The legacy (pre-BIP39-compatible) master extended private key.
     pub legacy_master_xprv: Xpriv,
     pub network: Network,
@@ -62,7 +62,7 @@ pub struct LegacySweepCtx<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// On failure, it logs an error and the sweep will be retried on next startup.
 pub fn spawn_legacy_sweep_task<
     CM: LexeChannelManager<PS>,
-    PS: LexePersister,
+    PS: LexePaymentsPersister,
 >(
     ctx: LegacySweepCtx<CM, PS>,
 ) -> LxTask<()> {
@@ -70,7 +70,10 @@ pub fn spawn_legacy_sweep_task<
 }
 
 #[instrument(skip_all, name = "(legacy-sweep)")]
-async fn do_legacy_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
+async fn do_legacy_sweep<
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+>(
     ctx: LegacySweepCtx<CM, PS>,
 ) {
     // Read the legacy wallet changeset from the persister.
@@ -130,7 +133,10 @@ async fn do_legacy_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
 }
 
 /// Attempts to sync and then sweep the legacy wallet.
-async fn sync_and_sweep<CM: LexeChannelManager<PS>, PS: LexePersister>(
+async fn sync_and_sweep<
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+>(
     ctx: &LegacySweepCtx<CM, PS>,
     legacy_wallet: &OnchainWallet,
 ) -> anyhow::Result<()> {

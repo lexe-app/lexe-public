@@ -96,7 +96,10 @@ use lexe_ln::{
         manager::{CheckedPayment, PersistedPayment},
         v1::PaymentV1,
     },
-    persister::{self, BackupCommand, LexePersisterMethods},
+    persister::{
+        self, BackupCommand, LightningPersisterMethods,
+        PaymentsPersisterMethods,
+    },
     traits::LexePersister,
     wallet::ChangeSet,
 };
@@ -835,7 +838,7 @@ impl Vfs for NodePersister {
 }
 
 #[async_trait]
-impl LexePersisterMethods for NodePersister {
+impl LightningPersisterMethods for NodePersister {
     /// NOTE: See module docs for info on how manager/monitor persist works.
     async fn persist_manager<CM: Writeable + Send + Sync>(
         &self,
@@ -895,6 +898,15 @@ impl LexePersisterMethods for NodePersister {
                 .context("Could not queue backup")?;
         }
         Ok(())
+    }
+}
+
+#[async_trait]
+impl PaymentsPersisterMethods for NodePersister {
+    async fn read_wallet_changeset_legacy(
+        &self,
+    ) -> anyhow::Result<Option<ChangeSet>> {
+        NodePersister::read_wallet_changeset_legacy(self).await
     }
 
     async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV2>> {
@@ -1195,12 +1207,6 @@ impl LexePersisterMethods for NodePersister {
             created_at,
             updated_at,
         )
-    }
-
-    async fn read_wallet_changeset_legacy(
-        &self,
-    ) -> anyhow::Result<Option<ChangeSet>> {
-        NodePersister::read_wallet_changeset_legacy(self).await
     }
 }
 

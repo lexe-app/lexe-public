@@ -19,7 +19,7 @@ use tracing::{debug, error, info, info_span, warn};
 use crate::{
     alias::LexeChainMonitorType,
     logger::LexeTracingLogger,
-    persister::{LexePersisterMethods, persist_manager_and_flush},
+    persister::{LightningPersisterMethods, persist_manager_and_flush},
     traits::{LexeChannelManager, LexePersister},
 };
 

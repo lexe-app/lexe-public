@@ -38,7 +38,7 @@ use crate::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
-    persister::LexePersisterMethods,
+    persister::LightningPersisterMethods,
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeEventHandler, LexePersister},
     tx_broadcaster::TxBroadcaster,

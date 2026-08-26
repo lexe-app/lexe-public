@@ -47,10 +47,10 @@ use crate::{
         onchain::{OnchainReceiveV2, OnchainSendStatus},
         outbound::{self, ExpireError, LxOutboundPaymentFailure},
     },
-    persister::LexePersisterMethods,
+    persister::PaymentsPersisterMethods,
     route::{self, LexeRouter, RoutingContext},
     test_event::TestEventSender,
-    traits::{LexeChannelManager, LexePersister},
+    traits::{LexeChannelManager, LexePaymentsPersister},
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
@@ -98,7 +98,7 @@ pub struct PersistedPayment {
 /// the persister, and LDK to ensure that state updates are in sync, and that
 /// there are no update / persist races.
 #[derive(Clone)]
-pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
+pub struct PaymentsManager<CM, PS> {
     data: Arc<tokio::sync::Mutex<PaymentsData>>,
     persister: PS,
     channel_manager: CM,
@@ -145,8 +145,8 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// persist, and commit stages. TODO(max): If this turns out to be a performance
 /// bottleneck, we should switch to per-payment or per-payment-type locks.
 ///
-/// [`upsert_payment`]: LexePersisterMethods::upsert_payment
-/// [`upsert_payment_batch`]: LexePersisterMethods::upsert_payment_batch
+/// [`upsert_payment`]: PaymentsPersisterMethods::upsert_payment
+/// [`upsert_payment_batch`]: PaymentsPersisterMethods::upsert_payment_batch
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
     pending: HashMap<PaymentId, PaymentWithMetadata>,
@@ -181,7 +181,9 @@ struct RetryInfo {
     failed_channel_scids: Vec<u64>,
 }
 
-impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
+impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
+    PaymentsManager<CM, PS>
+{
     /// Instantiates a new [`PaymentsManager`] and spawns associated tasks.
     pub fn new(
         persister: PS,

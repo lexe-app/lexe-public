@@ -12,7 +12,7 @@ use crate::{
         SignerType,
     },
     event::LexeEventHandlerMethods,
-    persister::LexePersisterMethods,
+    persister::{LightningPersisterMethods, PaymentsPersisterMethods},
 };
 
 /// A 'trait alias' defining all the requirements of a Lexe persister.
@@ -22,7 +22,11 @@ pub trait LexePersister:
     + Sync
     + 'static
     + Deref<
-        Target: LexePersisterMethods + Vfs + Persist<SignerType> + Send + Sync,
+        Target: LightningPersisterMethods
+                    + Vfs
+                    + Persist<SignerType>
+                    + Send
+                    + Sync,
     >
 {
 }
@@ -33,12 +37,23 @@ impl<PS> LexePersister for PS where
         + Sync
         + 'static
         + Deref<
-            Target: LexePersisterMethods
+            Target: LightningPersisterMethods
                         + Vfs
                         + Persist<SignerType>
                         + Send
                         + Sync,
         >
+{
+}
+
+/// A 'trait alias' for a [`LexePersister`] which also persists payments.
+pub trait LexePaymentsPersister:
+    LexePersister + Deref<Target: PaymentsPersisterMethods>
+{
+}
+
+impl<PS> LexePaymentsPersister for PS where
+    PS: LexePersister + Deref<Target: PaymentsPersisterMethods>
 {
 }
 

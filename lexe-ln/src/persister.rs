@@ -246,11 +246,12 @@ where
     Ok(())
 }
 
-// --- LexePersisterMethods --- //
+// --- LightningPersisterMethods --- //
 
-/// Defines all persister methods used in shared Lexe LN logic.
+/// Defines the core persister methods used in shared Lexe LN logic.
+/// See [`PaymentsPersisterMethods`] for the payments-specific methods.
 #[async_trait]
-pub trait LexePersisterMethods: Vfs {
+pub trait LightningPersisterMethods: Vfs {
     // --- Required methods: general --- //
 
     async fn persist_manager<CM: Writeable + Send + Sync>(
@@ -267,6 +268,60 @@ pub trait LexePersisterMethods: Vfs {
 
     /// Queue an encrypted file for asynchronous backup to configured stores.
     fn queue_backup(&self, file: &VfsFile) -> anyhow::Result<()>;
+
+    // --- Provided methods: events --- //
+
+    /// Reads all persisted events, along with their event IDs.
+    async fn read_events(&self) -> anyhow::Result<Vec<(EventId, Event)>> {
+        let dir = VfsDirectory::new(vfs::EVENTS_DIR);
+        let ids_and_events = self
+            .read_dir_maybereadable(&dir)
+            .await?
+            .into_iter()
+            .map(|(file_id, event)| {
+                let event_id = EventId::from_str(&file_id.filename)
+                    .with_context(|| file_id.filename.clone())
+                    .context("Couldn't parse event ID from filename")?;
+                Ok((event_id, event))
+            })
+            .collect::<anyhow::Result<_>>()
+            .context("Error while reading events")?;
+        Ok(ids_and_events)
+    }
+
+    async fn persist_event(
+        &self,
+        event: &Event,
+        event_id: &EventId,
+    ) -> anyhow::Result<()> {
+        let filename = event_id.to_string();
+        let file_id = VfsFileId::new(vfs::EVENTS_DIR, filename);
+        // With LDK's fallible event handling, persistence failures return
+        // `ReplayEvent` to LDK, which handles replays for us. A single retry
+        // handles transient errors while avoiding excessive retry loops.
+        let retries = Retries::from_count(1);
+        self.persist_ldk_writeable(file_id, &event, retries).await
+    }
+
+    async fn remove_event(&self, event_id: &EventId) -> anyhow::Result<()> {
+        let filename = event_id.to_string();
+        let file_id = VfsFileId::new(vfs::EVENTS_DIR, filename);
+        self.remove_file(&file_id).await
+    }
+}
+
+/// Defines the payments-related persister methods, which only nodes that
+/// process payments (i.e. not a recovery node) need to implement.
+#[async_trait]
+pub trait PaymentsPersisterMethods: LightningPersisterMethods {
+    // --- Required methods: wallet --- //
+
+    /// Read the legacy (<= node-v0.9.1) wallet changeset, if it exists.
+    /// Used only by the legacy wallet sweep, which registers its sweep tx as
+    /// a payment, hence its home in the payments persister.
+    async fn read_wallet_changeset_legacy(
+        &self,
+    ) -> anyhow::Result<Option<bdk_wallet::ChangeSet>>;
 
     // --- Required methods: payments --- //
 
@@ -351,13 +406,6 @@ pub trait LexePersisterMethods: Vfs {
         &self,
         db_metadata: DbPaymentMetadata,
     ) -> anyhow::Result<PaymentMetadata>;
-
-    // --- Required methods: wallet --- //
-
-    /// Read the legacy (<= node-v0.9.1) wallet changeset, if it exists.
-    async fn read_wallet_changeset_legacy(
-        &self,
-    ) -> anyhow::Result<Option<bdk_wallet::ChangeSet>>;
 
     // --- Provided methods --- //
 
@@ -779,43 +827,5 @@ pub trait LexePersisterMethods: Vfs {
         );
 
         Ok(())
-    }
-
-    /// Reads all persisted events, along with their event IDs.
-    async fn read_events(&self) -> anyhow::Result<Vec<(EventId, Event)>> {
-        let dir = VfsDirectory::new(vfs::EVENTS_DIR);
-        let ids_and_events = self
-            .read_dir_maybereadable(&dir)
-            .await?
-            .into_iter()
-            .map(|(file_id, event)| {
-                let event_id = EventId::from_str(&file_id.filename)
-                    .with_context(|| file_id.filename.clone())
-                    .context("Couldn't parse event ID from filename")?;
-                Ok((event_id, event))
-            })
-            .collect::<anyhow::Result<_>>()
-            .context("Error while reading events")?;
-        Ok(ids_and_events)
-    }
-
-    async fn persist_event(
-        &self,
-        event: &Event,
-        event_id: &EventId,
-    ) -> anyhow::Result<()> {
-        let filename = event_id.to_string();
-        let file_id = VfsFileId::new(vfs::EVENTS_DIR, filename);
-        // With LDK's fallible event handling, persistence failures return
-        // `ReplayEvent` to LDK, which handles replays for us. A single retry
-        // handles transient errors while avoiding excessive retry loops.
-        let retries = Retries::from_count(1);
-        self.persist_ldk_writeable(file_id, &event, retries).await
-    }
-
-    async fn remove_event(&self, event_id: &EventId) -> anyhow::Result<()> {
-        let filename = event_id.to_string();
-        let file_id = VfsFileId::new(vfs::EVENTS_DIR, filename);
-        self.remove_file(&file_id).await
     }
 }
