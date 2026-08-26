@@ -1,10 +1,12 @@
 use std::{
     cmp,
     collections::{HashMap, HashSet},
+    io::Cursor,
     str::FromStr,
+    sync::Arc,
 };
 
-use anyhow::{Context, ensure};
+use anyhow::{Context, anyhow, ensure};
 use async_trait::async_trait;
 use lexe_api::{
     models::command::{GetUpdatedPaymentMetadata, GetUpdatedPayments},
@@ -22,14 +24,27 @@ use lexe_crypto::{
     rng::{Crng, SysRng},
 };
 use lexe_std::fmt::DisplayOption;
-use lightning::{events::Event, util::ser::Writeable};
+use lightning::{
+    chain::BlockLocator,
+    events::Event,
+    ln::channelmanager::ChannelManagerReadArgs,
+    util::{
+        config::UserConfig,
+        ser::{ReadableArgs, Writeable},
+    },
+};
 use serde::{Serialize, de::DeserializeOwned};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
-    alias::LexeChainMonitorType,
+    alias::{
+        BroadcasterType, ChannelMonitorType, FeeEstimatorType,
+        LexeChainMonitorType, LexeChannelManagerType, MessageRouterType,
+        RouterType,
+    },
     channel_monitor::LxMonitorName,
     event::EventId,
+    keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
     migrations::{self, Migrations, MigrationsReadOnce},
     payments::{
@@ -204,6 +219,106 @@ pub fn decrypt_json_file<D: DeserializeOwned>(
         .context("JSON deserialization failed")?;
 
     Ok(value)
+}
+
+// --- Channel manager / monitor reads --- //
+
+/// Reads and deserializes the channel manager, if it exists.
+pub async fn read_channel_manager<PS: LexePersister>(
+    persister: &PS,
+    config: UserConfig,
+    channel_monitors: &mut [(BlockLocator, ChannelMonitorType)],
+    keys_manager: Arc<LexeKeysManager>,
+    fee_estimator: Arc<FeeEstimatorType>,
+    chain_monitor: Arc<LexeChainMonitorType<PS>>,
+    broadcaster: BroadcasterType,
+    router: Arc<RouterType>,
+    message_router: Arc<MessageRouterType>,
+    logger: LexeTracingLogger,
+) -> anyhow::Result<Option<(BlockLocator, LexeChannelManagerType<PS>)>> {
+    debug!("Reading channel manager");
+    let file_id =
+        VfsFileId::new(vfs::SINGLETON_DIRECTORY, vfs::CHANNEL_MANAGER_FILENAME);
+
+    let channel_monitor_refs = channel_monitors
+        .iter()
+        .map(|(_hash, monitor)| monitor)
+        .collect::<Vec<_>>();
+    let read_args = ChannelManagerReadArgs::new(
+        keys_manager.clone(),
+        keys_manager.clone(),
+        keys_manager,
+        fee_estimator,
+        chain_monitor,
+        broadcaster,
+        router,
+        message_router,
+        logger,
+        config,
+        channel_monitor_refs,
+    );
+
+    // XXX(max): Read channel manager from multiple independent VSS stores
+    persister
+        .read_readableargs(&file_id, read_args)
+        .await
+        .context("Failed to read channel manager")
+}
+
+/// Fetches channel monitor bytes without deserializing.
+/// This allows fetching to happen concurrently with other operations.
+//
+// XXX(max): Read channel monitors from multiple independent VSS stores
+pub async fn read_channel_monitor_bytes<PS: LexePersister>(
+    persister: &PS,
+) -> anyhow::Result<Vec<(VfsFileId, Vec<u8>)>> {
+    debug!("Fetching channel monitor bytes");
+    let dir = VfsDirectory::new(vfs::CHANNEL_MONITORS_DIR);
+    persister.read_dir_bytes(&dir).await
+}
+
+/// Deserializes channel monitors from previously fetched bytes.
+pub fn deserialize_channel_monitors(
+    ids_and_bytes: Vec<(VfsFileId, Vec<u8>)>,
+    keys_manager: &LexeKeysManager,
+) -> anyhow::Result<Vec<(BlockLocator, ChannelMonitorType)>> {
+    debug!("Deserializing channel monitors");
+
+    let read_args = (keys_manager, keys_manager);
+    let mut values = Vec::with_capacity(ids_and_bytes.len());
+
+    // Deserialize each channel monitor.
+    for (file_id, bytes) in &ids_and_bytes {
+        let mut reader = Cursor::new(bytes);
+        let value =
+            <(BlockLocator, ChannelMonitorType)>::read(&mut reader, read_args)
+                .map_err(|err| {
+                    anyhow!(
+                        "ChannelMonitor deserialization failed for file: \
+                         {file_id}: {err:?}"
+                    )
+                })?;
+        values.push(value);
+    }
+
+    // Check that each monitor's funding txo matches the file_id.
+    for ((file_id, _bytes), (_best_block, channel_monitor)) in
+        ids_and_bytes.iter().zip(values.iter())
+    {
+        let expected_name = LxMonitorName::from_str(&file_id.filename)
+            .with_context(|| file_id.filename.clone())
+            .context("Invalid channel monitor name")?;
+        let derived_name =
+            LxMonitorName::from(channel_monitor.persistence_key());
+
+        ensure!(
+            derived_name == expected_name,
+            "Expected and derived channel monitor names don't match: \
+             {expected_name} != {derived_name}"
+        );
+    }
+
+    Ok(values)
 }
 
 // --- Channel manager persistence --- //

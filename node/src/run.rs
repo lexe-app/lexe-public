@@ -407,7 +407,7 @@ impl UserNode {
             pending_payments_fut,
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
             persister.read_json::<UserSettings>(&USER_SETTINGS_FILE_ID),
-            persister.fetch_channel_monitor_bytes(),
+            lexe_ln::persister::read_channel_monitor_bytes(&persister),
         );
         let initial_migrations = try_initial_migrations?;
         if deploy_env.is_staging_or_prod() {
@@ -599,11 +599,12 @@ impl UserNode {
         // Deserialize channel monitors from previously fetched bytes
         let channel_monitor_bytes = try_channel_monitor_bytes
             .context("Could not fetch channel monitor bytes")?;
-        let mut channel_monitors = NodePersister::deserialize_channel_monitors(
-            channel_monitor_bytes,
-            &keys_manager,
-        )
-        .context("Could not deserialize channel monitors")?;
+        let mut channel_monitors =
+            lexe_ln::persister::deserialize_channel_monitors(
+                channel_monitor_bytes,
+                &keys_manager,
+            )
+            .context("Could not deserialize channel monitors")?;
 
         // Initialize Router
         let router = Arc::new(LexeRouter::new_user_node(
@@ -619,20 +620,20 @@ impl UserNode {
             network_graph.clone(),
             args.lsp.clone(),
         ));
-        let maybe_manager = persister
-            .read_channel_manager(
-                (*config).clone(),
-                &mut channel_monitors,
-                keys_manager.clone(),
-                fee_estimates.clone(),
-                chain_monitor.clone(),
-                tx_broadcaster.clone(),
-                router.clone(),
-                message_router.clone(),
-                logger.clone(),
-            )
-            .await
-            .context("Could not read channel manager")?;
+        let maybe_manager = lexe_ln::persister::read_channel_manager(
+            &persister,
+            (*config).clone(),
+            &mut channel_monitors,
+            keys_manager.clone(),
+            fee_estimates.clone(),
+            chain_monitor.clone(),
+            tx_broadcaster.clone(),
+            router.clone(),
+            message_router.clone(),
+            logger.clone(),
+        )
+        .await
+        .context("Could not read channel manager")?;
 
         // Init the NodeChannelManager
         let channel_manager = NodeChannelManager::init(

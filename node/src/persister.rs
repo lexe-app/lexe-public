@@ -35,9 +35,7 @@
 //! - Archive: Copy the primary monitor to the archive namespace, queue backups,
 //!   then delete the primary live monitor.
 
-use std::{
-    collections::HashMap, io::Cursor, str::FromStr, sync::Arc, time::SystemTime,
-};
+use std::{collections::HashMap, str::FromStr, sync::Arc, time::SystemTime};
 
 use anyhow::{Context, anyhow, ensure};
 use async_trait::async_trait;
@@ -81,16 +79,11 @@ use lexe_crypto::{
     rng::{Crng, SysRng},
 };
 use lexe_ln::{
-    alias::{
-        BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-        LexeChainMonitorType, MessageRouterType, RouterType, SignerType,
-    },
+    alias::{ChannelMonitorType, LexeChainMonitorType, SignerType},
     channel_monitor::{
         self, ChannelMonitorPersisterCommand, ChannelMonitorUpdateKind,
         LxChannelMonitorUpdate, LxMonitorName,
     },
-    keys_manager::LexeKeysManager,
-    logger::LexeTracingLogger,
     payments::{
         self, PaymentMetadata, PaymentV2, PaymentWithMetadata,
         manager::{CheckedPayment, PersistedPayment},
@@ -106,15 +99,10 @@ use lexe_ln::{
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
-        BlockLocator, ChannelMonitorUpdateStatus, chainmonitor::Persist,
+        ChannelMonitorUpdateStatus, chainmonitor::Persist,
         channelmonitor::ChannelMonitorUpdate,
     },
-    ln::channelmanager::ChannelManagerReadArgs,
-    util::{
-        config::UserConfig,
-        persist::MonitorName,
-        ser::{ReadableArgs, Writeable},
-    },
+    util::{persist::MonitorName, ser::Writeable},
 };
 use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
@@ -122,9 +110,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
-    alias::{ChainMonitorType, ChannelManagerType},
-    approved_versions::ApprovedVersions,
-    client::NodeBackendClient,
+    approved_versions::ApprovedVersions, client::NodeBackendClient,
     nwc::NwcClient,
 };
 
@@ -640,105 +626,6 @@ impl NodePersister {
             .collect::<anyhow::Result<Vec<BasicPaymentV2>>>()?;
 
         Ok(payments)
-    }
-
-    /// NOTE: See module docs for info on how manager/monitor persist works.
-    pub(crate) async fn read_channel_manager(
-        &self,
-        config: UserConfig,
-        channel_monitors: &mut [(BlockLocator, ChannelMonitorType)],
-        keys_manager: Arc<LexeKeysManager>,
-        fee_estimator: Arc<FeeEstimatorType>,
-        chain_monitor: Arc<ChainMonitorType>,
-        broadcaster: BroadcasterType,
-        router: Arc<RouterType>,
-        message_router: Arc<MessageRouterType>,
-        logger: LexeTracingLogger,
-    ) -> anyhow::Result<Option<(BlockLocator, ChannelManagerType)>> {
-        debug!("Reading channel manager");
-        let file_id =
-            VfsFileId::new(SINGLETON_DIRECTORY, vfs::CHANNEL_MANAGER_FILENAME);
-
-        let channel_monitor_refs = channel_monitors
-            .iter()
-            .map(|(_hash, monitor)| monitor)
-            .collect::<Vec<_>>();
-        let read_args = ChannelManagerReadArgs::new(
-            keys_manager.clone(),
-            keys_manager.clone(),
-            keys_manager,
-            fee_estimator,
-            chain_monitor,
-            broadcaster,
-            router,
-            message_router,
-            logger,
-            config,
-            channel_monitor_refs,
-        );
-
-        // XXX(max): Read channel manager from multiple independent VSS stores
-        self.read_readableargs(&file_id, read_args)
-            .await
-            .context("Failed to read channel manager")
-    }
-
-    /// Fetches channel monitor bytes without deserializing.
-    /// This allows fetching to happen concurrently with other operations.
-    pub(crate) async fn fetch_channel_monitor_bytes(
-        &self,
-    ) -> anyhow::Result<Vec<(VfsFileId, Vec<u8>)>> {
-        debug!("Fetching channel monitor bytes");
-        let dir = VfsDirectory::new(vfs::CHANNEL_MONITORS_DIR);
-        self.read_dir_bytes(&dir).await
-    }
-
-    /// Deserializes channel monitors from previously fetched bytes.
-    /// NOTE: See module docs for info on how manager/monitor persist works.
-    pub(crate) fn deserialize_channel_monitors(
-        ids_and_bytes: Vec<(VfsFileId, Vec<u8>)>,
-        keys_manager: &LexeKeysManager,
-    ) -> anyhow::Result<Vec<(BlockLocator, ChannelMonitorType)>> {
-        debug!("Deserializing channel monitors");
-
-        // XXX(max): Read channel manager from multiple independent VSS stores
-        let read_args = (keys_manager, keys_manager);
-        let mut values = Vec::with_capacity(ids_and_bytes.len());
-
-        // Deserialize each channel monitor.
-        for (file_id, bytes) in &ids_and_bytes {
-            let mut reader = Cursor::new(bytes);
-            let value = <(BlockLocator, ChannelMonitorType)>::read(
-                &mut reader,
-                read_args,
-            )
-            .map_err(|err| {
-                anyhow!(
-                    "ChannelMonitor deserialization failed for file: \
-                     {file_id}: {err:?}"
-                )
-            })?;
-            values.push(value);
-        }
-
-        // Check that each monitor's funding txo matches the file_id.
-        for ((file_id, _bytes), (_best_block, channel_monitor)) in
-            ids_and_bytes.iter().zip(values.iter())
-        {
-            let expected_name = LxMonitorName::from_str(&file_id.filename)
-                .with_context(|| file_id.filename.clone())
-                .context("Invalid channel monitor name")?;
-            let derived_name =
-                LxMonitorName::from(channel_monitor.persistence_key());
-
-            ensure!(
-                derived_name == expected_name,
-                "Expected and derived channel monitor names don't match: \
-                 {expected_name} != {derived_name}"
-            );
-        }
-
-        Ok(values)
     }
 }
 
