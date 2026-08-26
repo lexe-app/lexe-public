@@ -57,7 +57,8 @@ use lexe_api::{
         Empty,
         payments::{
             BasicPaymentV1, BasicPaymentV2, DbPaymentMetadata, DbPaymentV2,
-            PaymentId, VecDbPaymentMetadata, VecDbPaymentV2,
+            DbPaymentWithMetadata, PaymentId, VecDbPaymentMetadata,
+            VecDbPaymentV2, VecDbPaymentWithMetadata,
         },
         retries::Retries,
     },
@@ -1030,18 +1031,14 @@ impl LexePersisterMethods for NodePersister {
         .context("Failed to encrypt payment")?;
         let token = self.get_token().await?;
 
-        // Payment must be written first due to FK constraint on metadata.
+        let db_pwm = DbPaymentWithMetadata {
+            payment: db_payment,
+            metadata: db_metadata,
+        };
         self.backend_api
-            .upsert_payment(db_payment, token.clone())
+            .upsert_payment_with_metadata(db_pwm, token)
             .await
-            .context("upsert_payment API call failed")?;
-
-        if let Some(m) = db_metadata {
-            self.backend_api
-                .upsert_payment_metadata(m, token)
-                .await
-                .context("upsert_payment_metadata API call failed")?;
-        }
+            .context("upsert_payment_with_metadata")?;
 
         Ok(PersistedPayment {
             pwm,
@@ -1062,9 +1059,7 @@ impl LexePersisterMethods for NodePersister {
         let now = TimestampMs::now();
         let updated_at = now;
 
-        let mut payments = Vec::with_capacity(checked_batch.len());
-        let mut metadatas = Vec::with_capacity(checked_batch.len());
-
+        let mut db_pwms = Vec::with_capacity(checked_batch.len());
         for CheckedPayment(pwm) in checked_batch.iter_mut() {
             // Ensure the payment's created_at field is set,
             // as it may be None if this is the payment's first persist.
@@ -1080,28 +1075,19 @@ impl LexePersisterMethods for NodePersister {
             )
             .context("Failed to encrypt payment")?;
 
-            payments.push(db_payment);
-            if let Some(metadata) = db_metadata {
-                metadatas.push(metadata);
-            }
+            db_pwms.push(DbPaymentWithMetadata {
+                payment: db_payment,
+                metadata: db_metadata,
+            });
         }
 
-        let batch = VecDbPaymentV2 { payments };
+        let batch = VecDbPaymentWithMetadata { payments: db_pwms };
         let token = self.get_token().await?;
 
-        // Payments must be written first due to FK constraint on metadata.
         self.backend_api
-            .upsert_payment_batch(batch, token.clone())
+            .upsert_payment_with_metadata_batch(batch, token)
             .await
-            .context("upsert_payment_batch API call failed")?;
-
-        if !metadatas.is_empty() {
-            let metadata_batch = VecDbPaymentMetadata { metadatas };
-            self.backend_api
-                .upsert_payment_metadata_batch(metadata_batch, token)
-                .await
-                .context("upsert_payment_metadata_batch API call failed")?;
-        }
+            .context("upsert_payment_with_metadata_batch failed")?;
 
         let persisted_batch = checked_batch
             .into_iter()
