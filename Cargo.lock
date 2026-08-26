@@ -2818,6 +2818,7 @@ name = "lexe-cli"
 version = "0.1.28"
 dependencies = [
  "anyhow",
+ "bitcoin",
  "chrono",
  "clap",
  "dotenvy",
@@ -2825,12 +2826,14 @@ dependencies = [
  "lexe-common",
  "lexe-payment-uri-core",
  "lexe-qr",
+ "lexe-tokio",
  "proptest",
  "serde",
  "serde_json",
  "textwrap",
  "tokio",
  "tracing",
+ "unilateral-exit",
 ]
 
 [[package]]

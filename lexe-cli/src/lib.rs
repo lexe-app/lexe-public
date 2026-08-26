@@ -47,6 +47,10 @@ use serde::Serialize;
 use textwrap::wrap;
 use tracing::{info, warn};
 
+use crate::unilateral_exit::UnilateralExitArgs;
+
+mod unilateral_exit;
+
 // --- Top-level args and command enum --- //
 
 /// Clap's default help template, but with `$ ` prefixed to the usage line.
@@ -193,6 +197,7 @@ pub enum LexeCommand {
     OpenChannel(OpenChannelArgs),
     CloseChannel(CloseChannelArgs),
     ClientInfo(ClientInfoArgs),
+    UnilateralExit(UnilateralExitArgs),
     ListClients(ListClientsArgs),
     CreateClient(CreateClientArgs),
     UpdateClient(UpdateClientArgs),
@@ -280,6 +285,21 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
             .await;
     }
 
+    // UnilateralExit is also special: it runs a local recovery node, which
+    // needs neither an authenticated wallet nor a reachable Lexe.
+    if let LexeCommand::UnilateralExit(exit_args) = lexe_args.command {
+        let root_seed = exit_args.resolve_root_seed(
+            &env_config,
+            &lexe_args.lexe_data_dir,
+            credentials_from_cli,
+            lexe_args.client_credentials,
+            lexe_args.client_credentials_path,
+            lexe_args.root_seed,
+            lexe_args.root_seed_path,
+        )?;
+        return exit_args.run(env_config, root_seed, lexe_data_dir).await;
+    }
+
     // All other commands need an authenticated wallet.
     let credentials = helpers::resolve_credentials(
         &env_config,
@@ -317,6 +337,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
 
     match lexe_args.command {
         LexeCommand::Init(_) => unreachable!("Handled above"),
+        LexeCommand::UnilateralExit(_) => unreachable!("Handled above"),
         LexeCommand::Signup(a) => a.run(&wallet, &credentials).await,
         LexeCommand::Provision(a) => a.run(&wallet, &credentials).await,
         LexeCommand::NodeInfo(a) => a.run(&wallet).await,
