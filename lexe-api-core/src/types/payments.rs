@@ -424,6 +424,21 @@ pub struct VecDbPaymentMetadata {
     pub metadatas: Vec<DbPaymentMetadata>,
 }
 
+/// A payment upsert with optional metadata.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DbPaymentWithMetadata {
+    pub payment: DbPaymentV2,
+    /// If absent, any existing metadata is left unchanged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<DbPaymentMetadata>,
+}
+
+/// An upgradeable version of [`Vec<DbPaymentWithMetadata>`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VecDbPaymentWithMetadata {
+    pub payments: Vec<DbPaymentWithMetadata>,
+}
+
 /// The protocol used to fulfill a payment: `"onchain"`, `"invoice"`,
 /// `"offer"`, `"spontaneous"`, etc.
 #[derive(Clone, Debug, Eq, PartialEq, DeserializeFromStr)]

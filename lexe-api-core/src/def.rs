@@ -120,10 +120,11 @@ use crate::{
             LnurlPayRequestWire,
         },
         payments::{
-            DbPaymentMetadata, DbPaymentV1, DbPaymentV2, MaybeBasicPaymentV2,
-            MaybeDbPaymentMetadata, MaybeDbPaymentV1, MaybeDbPaymentV2,
-            VecBasicPaymentV1, VecBasicPaymentV2, VecDbPaymentMetadata,
-            VecDbPaymentV1, VecDbPaymentV2,
+            DbPaymentMetadata, DbPaymentV1, DbPaymentV2, DbPaymentWithMetadata,
+            MaybeBasicPaymentV2, MaybeDbPaymentMetadata, MaybeDbPaymentV1,
+            MaybeDbPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2,
+            VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
+            VecDbPaymentWithMetadata,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -843,6 +844,16 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
+    /// PUT /node/v1/payments/with_metadata [`DbPaymentWithMetadata`]
+    ///                                  -> [`Empty`]
+    ///
+    /// Atomically upserts a payment and its optional metadata.
+    async fn upsert_payment_with_metadata(
+        &self,
+        payment: DbPaymentWithMetadata,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
     /// GET /node/v1/payments/id [`PaymentIdStruct`] -> [`MaybeDbPaymentV1`]
     #[deprecated(note = "since node-v0.8.10: Use get_payment_by_id instead")]
     async fn get_payment_by_id_v1(
@@ -883,6 +894,16 @@ pub trait NodeBackendApi {
     async fn upsert_payment_batch(
         &self,
         payments: VecDbPaymentV2,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
+    /// PUT /node/v1/payments/with_metadata/batch [`VecDbPaymentWithMetadata`]
+    ///                                        -> [`Empty`]
+    ///
+    /// Atomically upserts a batch of payments and their optional metadata.
+    async fn upsert_payment_with_metadata_batch(
+        &self,
+        payments: VecDbPaymentWithMetadata,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
