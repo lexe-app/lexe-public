@@ -23,6 +23,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ClaimMethod_LnurlWithdraw,
         ClientPaymentId,
         Config,
+        GDriveStatus,
         Invoice,
         LnurlPay,
         LnurlPayRequest,
@@ -1135,11 +1136,51 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       }),
       Component(
         "SecurityPage",
-        subtitle: "seed phrase will fail",
+        subtitle: "gdrive connected",
         (_) => SecurityPage(
           config: this.widget.config,
           app: mockApp,
           gdriveAuth: GDriveAuth.mock,
+          rootSeedStore: mockRootSeedStore,
+        ),
+      ),
+      Component(
+        "SecurityPage",
+        subtitle: "gdrive not connected",
+        (_) => SecurityPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandle(
+            balance: mocks.balanceDefault,
+            payments: mocks.defaultDummyPayments,
+            channels: mocks.defaultDummyChannels,
+            gDriveStatus: const GDriveStatus.disabled(),
+          ),
+          gdriveAuth: GDriveAuth.mock,
+          rootSeedStore: mockRootSeedStore,
+        ),
+      ),
+      Component(
+        "SecurityPage",
+        subtitle: "gdrive error",
+        (_) => SecurityPage(
+          config: this.widget.config,
+          app: mockAppErr,
+          gdriveAuth: GDriveAuth.mock,
+          rootSeedStore: mockRootSeedStore,
+        ),
+      ),
+      Component(
+        "SecurityPage",
+        subtitle: "gdrive not connected, real gdrive",
+        (_) => SecurityPage(
+          config: this.widget.config,
+          app: mocks.MockAppHandle(
+            balance: mocks.balanceDefault,
+            payments: mocks.defaultDummyPayments,
+            channels: mocks.defaultDummyChannels,
+            gDriveStatus: const GDriveStatus.disabled(),
+          ),
+          gdriveAuth: GDriveAuth.prod,
           rootSeedStore: mockRootSeedStore,
         ),
       ),

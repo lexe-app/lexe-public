@@ -116,12 +116,14 @@ class MockAppHandle extends AppHandle {
     required this.payments,
     required this.channels,
     this.walletFundingState,
+    this.gDriveStatus = const GDriveStatus.ok(),
   }) : assert(payments.isSortedBy((payment) => payment.index.field0)),
        assert(balance.totalSats == balance.lightningSats + balance.onchainSats),
        super(inner: MockApp());
 
   /// Optional funding state to return from settings.
   final WalletFundingState? walletFundingState;
+  final GDriveStatus gDriveStatus;
 
   // Wallet balance
   Balance balance;
@@ -390,8 +392,12 @@ class MockAppHandle extends AppHandle {
   @override
   Future<BackupInfo> backupInfo() => Future.delayed(
     const Duration(milliseconds: 1000),
-    () => BackupInfo(gdriveStatus: GDriveStatus.ok()),
+    () => BackupInfo(gdriveStatus: this.gDriveStatus),
   );
+  @override
+  Future<void> setupGdrive({
+    required GDriveSignupCredentials gdriveSignupCredentials,
+  }) => Future.delayed(const Duration(milliseconds: 1000), () {});
   @override
   Future<bool> syncPayments() =>
       Future.delayed(const Duration(milliseconds: 1500), () => true);
@@ -638,6 +644,24 @@ class MockAppHandleErr extends MockAppHandle {
     required super.payments,
     required super.channels,
   });
+
+  @override
+  Future<BackupInfo> backupInfo() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => BackupInfo(gdriveStatus: GDriveStatus.error("")),
+  );
+
+  @override
+  Future<void> setupGdrive({
+    required GDriveSignupCredentials gdriveSignupCredentials,
+  }) {
+    return Future.delayed(
+      const Duration(milliseconds: 1000),
+      () => throw const FfiError(
+        "[106=Command] Failed to set up Google Drive backup",
+      ).toFfi(),
+    );
+  }
 
   @override
   Future<CreateInvoiceResponse> createInvoice({
