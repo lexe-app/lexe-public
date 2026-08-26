@@ -61,6 +61,8 @@ pub mod test_event;
 pub mod traits;
 /// A transaction broadcaster task.
 pub mod tx_broadcaster;
+/// The usernode's LDK `UserConfig`.
+pub mod usernode_config;
 /// BDK wallet.
 pub mod wallet;
 
