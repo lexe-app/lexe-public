@@ -49,7 +49,7 @@ use lexe_common::{
         auth::{BearerAuthRequestWire, BearerAuthResponse, BearerAuthToken},
         fiat_rates::FiatRates,
         user::{
-            GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk, UserPkSet,
+            GetNewScidsRequest, MaybeUser, Scids, UserPk, UserPkSet,
             UserPkStruct,
         },
         version::MeasurementStruct,
@@ -329,18 +329,6 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/scids"), &Empty {})
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
-    async fn get_scid(
-        &self,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeScid, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/scid"), &Empty {})
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

@@ -48,7 +48,7 @@ use lexe_common::api::{
     },
     provision::NodeProvisionRequest,
     test_event::TestEventOp,
-    user::{GetNewScidsRequest, MaybeScid, MaybeUser, Scids, UserPk},
+    user::{GetNewScidsRequest, MaybeUser, Scids, UserPk},
     version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
 };
 #[cfg(doc)]
@@ -732,14 +732,6 @@ pub trait NodeBackendApi {
         &self,
         auth: BearerAuthToken,
     ) -> Result<Scids, BackendApiError>;
-
-    /// GET /node/v1/scid [`Empty`] -> [`MaybeScid`]
-    // NOTE: Keep this def around until we can remove the backend handler.
-    #[deprecated(note = "since lsp-v0.7.3: Use multi scid version instead")]
-    async fn get_scid(
-        &self,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeScid, BackendApiError>;
 
     /// GET /node/v1/file [`VfsFileId`] -> [`MaybeVfsFile`]
     #[deprecated(note = "since node-v0.8.5: Use get_file instead")]
