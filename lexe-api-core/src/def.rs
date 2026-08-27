@@ -822,7 +822,9 @@ pub trait NodeBackendApi {
     ) -> Result<MaybeDbPaymentV1, BackendApiError>;
 
     /// POST /node/v1/payments [`DbPaymentV1`] -> [`Empty`]
-    #[deprecated(note = "since node-v0.8.10: Use upsert_payment instead")]
+    #[deprecated(
+        note = "since node-v0.8.10: Use upsert_payment_with_metadata instead"
+    )]
     async fn create_payment(
         &self,
         payment: DbPaymentV1,
@@ -830,7 +832,9 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// PUT /node/v1/payments [`DbPaymentV1`] -> [`Empty`]
-    #[deprecated(note = "since node-v0.8.8: Use upsert_payment instead")]
+    #[deprecated(
+        note = "since node-v0.8.8: Use upsert_payment_with_metadata instead"
+    )]
     async fn upsert_payment_v1(
         &self,
         payment: DbPaymentV1,
@@ -838,6 +842,9 @@ pub trait NodeBackendApi {
     ) -> Result<Empty, BackendApiError>;
 
     /// PUT /node/v2/payments [`DbPaymentV2`] -> [`Empty`]
+    #[deprecated(
+        note = "since node-v0.10.4: Use upsert_payment_with_metadata instead"
+    )]
     async fn upsert_payment(
         &self,
         payment: DbPaymentV2,

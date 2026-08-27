@@ -489,7 +489,7 @@ impl NodeBackendApi for NodeBackendClient {
         _: DbPaymentV1,
         _: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        unimplemented!("Deprecated")
+        unimplemented!("Deprecated. Use upsert_payment_with_metadata instead.")
     }
 
     async fn upsert_payment_v1(
@@ -497,20 +497,15 @@ impl NodeBackendApi for NodeBackendClient {
         _: DbPaymentV1,
         _: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        unimplemented!("Deprecated")
+        unimplemented!("Deprecated. Use upsert_payment_with_metadata instead.")
     }
 
     async fn upsert_payment(
         &self,
-        payment: DbPaymentV2,
-        auth: BearerAuthToken,
+        _: DbPaymentV2,
+        _: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .put(format!("{backend}/node/v2/payments"), &payment)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated. Use upsert_payment_with_metadata instead.")
     }
 
     async fn upsert_payment_with_metadata(
@@ -560,15 +555,10 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn upsert_payment_batch_v1(
         &self,
-        payments: VecDbPaymentV1,
-        auth: BearerAuthToken,
+        _: VecDbPaymentV1,
+        _: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .put(format!("{backend}/node/v1/payments/batch"), &payments)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
+        unimplemented!("Deprecated. Use upsert_payment_batch instead.")
     }
 
     async fn upsert_payment_batch(
