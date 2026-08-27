@@ -88,9 +88,9 @@ use crate::{
             PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
             PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
             PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct, ResyncRequest, SetupGDrive,
-            UpdatePersonalNote, UpsertCustomHumanBitcoinAddress,
+            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
+            PaymentIdStruct, ResyncRequest, SetupGDrive, UpdatePersonalNote,
+            UpsertCustomHumanBitcoinAddress,
             UpsertGeneratedHumanBitcoinAddress,
             UpsertHumanBitcoinAddressResponse, VecPaymentId,
         },
@@ -120,11 +120,10 @@ use crate::{
             LnurlPayRequestWire,
         },
         payments::{
-            DbPaymentMetadata, DbPaymentV1, DbPaymentV2, DbPaymentWithMetadata,
-            MaybeBasicPaymentV2, MaybeDbPaymentMetadata, MaybeDbPaymentV1,
-            MaybeDbPaymentV2, VecBasicPaymentV1, VecBasicPaymentV2,
-            VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
-            VecDbPaymentWithMetadata,
+            DbPaymentMetadata, DbPaymentV2, DbPaymentWithMetadata,
+            MaybeBasicPaymentV2, MaybeDbPaymentMetadata, MaybeDbPaymentV2,
+            VecBasicPaymentV1, VecBasicPaymentV2, VecDbPaymentMetadata,
+            VecDbPaymentV1, VecDbPaymentV2, VecDbPaymentWithMetadata,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -769,35 +768,6 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VfsDirectoryList, BackendApiError>;
 
-    /// GET /node/v1/payments [`PaymentCreatedIndexStruct`]
-    ///                    -> [`MaybeDbPaymentV1`]
-    #[deprecated(note = "since node-v0.8.8: Use get_payment_by_index instead")]
-    async fn get_payment_by_index_v1(
-        &self,
-        req: PaymentCreatedIndexStruct,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeDbPaymentV1, BackendApiError>;
-
-    /// POST /node/v1/payments [`DbPaymentV1`] -> [`Empty`]
-    #[deprecated(
-        note = "since node-v0.8.10: Use upsert_payment_with_metadata instead"
-    )]
-    async fn create_payment(
-        &self,
-        payment: DbPaymentV1,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError>;
-
-    /// PUT /node/v1/payments [`DbPaymentV1`] -> [`Empty`]
-    #[deprecated(
-        note = "since node-v0.8.8: Use upsert_payment_with_metadata instead"
-    )]
-    async fn upsert_payment_v1(
-        &self,
-        payment: DbPaymentV1,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError>;
-
     /// PUT /node/v2/payments [`DbPaymentV2`] -> [`Empty`]
     #[deprecated(
         note = "since node-v0.10.4: Use upsert_payment_with_metadata instead"
@@ -818,39 +788,12 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/payments/id [`PaymentIdStruct`] -> [`MaybeDbPaymentV1`]
-    #[deprecated(note = "since node-v0.8.10: Use get_payment_by_id instead")]
-    async fn get_payment_by_id_v1(
-        &self,
-        req: PaymentIdStruct,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeDbPaymentV1, BackendApiError>;
-
     /// GET /node/v2/payments/id [`PaymentIdStruct`] -> [`MaybeDbPaymentV2`]
     async fn get_payment_by_id(
         &self,
         req: PaymentIdStruct,
         auth: BearerAuthToken,
     ) -> Result<MaybeDbPaymentV2, BackendApiError>;
-
-    /// GET /node/v1/payments/index [`PaymentCreatedIndexStruct`]
-    ///                          -> [`MaybeDbPaymentV1`]
-    #[deprecated(note = "since node-v0.8.10: Use get_payment_by_id instead")]
-    async fn get_payment_by_index(
-        &self,
-        req: PaymentCreatedIndexStruct,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeDbPaymentV1, BackendApiError>;
-
-    /// PUT /node/v1/payments/batch [`VecDbPaymentV1`] -> [`Empty`]
-    ///
-    /// ACID endpoint for upserting a batch of payments.
-    #[deprecated(note = "since node-v0.8.8: Use upsert_payment_batch instead")]
-    async fn upsert_payment_batch_v1(
-        &self,
-        payments: VecDbPaymentV1,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError>;
 
     /// PUT /node/v2/payments/batch [`VecDbPaymentV2`] -> [`Empty`]
     ///
@@ -870,23 +813,6 @@ pub trait NodeBackendApi {
         payments: VecDbPaymentWithMetadata,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
-
-    /// POST /node/v1/payments/indexes [`PaymentCreatedIndexes`]
-    ///                             -> [`VecDbPaymentV1`]
-    ///
-    /// Fetch a batch of payments by their [`PaymentCreatedIndex`]s. This is
-    /// typically used by a mobile client to poll for updates on payments
-    /// which it currently has stored locally as "pending"; the intention is
-    /// to check if any of these payments have been updated.
-    //
-    // We use POST because there may be a lot of idxs, which might be too large
-    // to fit inside query parameters.
-    #[deprecated(note = "since node-v0.8.10: Use get_payments_by_ids instead")]
-    async fn get_payments_by_indexes(
-        &self,
-        req: PaymentCreatedIndexes,
-        auth: BearerAuthToken,
-    ) -> Result<VecDbPaymentV1, BackendApiError>;
 
     /// POST /node/v1/payments/ids [`VecPaymentId`]
     ///                         -> [`VecDbPaymentV2`]
@@ -926,15 +852,6 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError>;
 
-    /// GET /node/v1/payments/pending -> [`VecDbPaymentV1`]
-    ///
-    /// Fetches all pending payments.
-    #[deprecated(note = "since node-v0.8.10: Use get_pending_payments instead")]
-    async fn get_pending_payments_v1(
-        &self,
-        auth: BearerAuthToken,
-    ) -> Result<VecDbPaymentV1, BackendApiError>;
-
     /// GET /node/v2/payments/pending -> [`VecDbPaymentV2`]
     ///
     /// Fetches all pending payments.
@@ -942,15 +859,6 @@ pub trait NodeBackendApi {
         &self,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError>;
-
-    /// GET /node/v1/payments/final -> [`VecPaymentId`]
-    ///
-    /// Fetches the IDs of all finalized payments.
-    #[deprecated(note = "since node-v0.8.8")]
-    async fn get_finalized_payment_ids(
-        &self,
-        auth: BearerAuthToken,
-    ) -> Result<VecPaymentId, BackendApiError>;
 
     /// PUT /node/v1/payments/metadata [`DbPaymentMetadata`] -> [`Empty`]
     async fn upsert_payment_metadata(

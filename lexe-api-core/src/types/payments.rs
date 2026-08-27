@@ -347,12 +347,6 @@ pub struct DbPaymentV1 {
     pub created_at: i64,
 }
 
-/// An upgradeable version of [`Option<DbPaymentV1>`].
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct MaybeDbPaymentV1 {
-    pub maybe_payment: Option<DbPaymentV1>,
-}
-
 /// An upgradeable version of [`Vec<DbPaymentV1>`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VecDbPaymentV1 {

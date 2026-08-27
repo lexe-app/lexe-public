@@ -252,14 +252,6 @@ pub struct VecPaymentId {
     pub ids: Vec<PaymentId>,
 }
 
-/// Upgradeable API struct for a payment index.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct PaymentCreatedIndexStruct {
-    /// The index of the payment to be fetched.
-    pub index: PaymentCreatedIndex,
-}
-
 /// The index of the user's latest payment update, if they have any payments.
 #[derive(Serialize, Deserialize)]
 pub struct LatestPaymentUpdateResponse {
@@ -1022,12 +1014,6 @@ mod test {
     #[test]
     fn payment_id_struct_roundtrip() {
         roundtrip::query_string_roundtrip_proptest::<PaymentIdStruct>();
-    }
-
-    #[test]
-    fn payment_index_struct_roundtrip() {
-        roundtrip::query_string_roundtrip_proptest::<PaymentCreatedIndexStruct>(
-        );
     }
 
     #[test]

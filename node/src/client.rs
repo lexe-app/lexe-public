@@ -14,8 +14,7 @@ use lexe_api::{
             GetFiatRatesRequest, GetGeneratedUsernameResponse,
             GetHumanBitcoinAddressResponse, GetNewPayments,
             GetUpdatedPaymentMetadata, GetUpdatedPayments,
-            HumanBitcoinAddressV1, PaymentCreatedIndexStruct,
-            PaymentCreatedIndexes, PaymentIdStruct,
+            HumanBitcoinAddressV1, PaymentIdStruct,
             UpsertCustomHumanBitcoinAddress,
             UpsertGeneratedHumanBitcoinAddress,
             UpsertHumanBitcoinAddressResponse, VecPaymentId,
@@ -30,10 +29,9 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            DbPaymentMetadata, DbPaymentV1, DbPaymentV2, DbPaymentWithMetadata,
-            MaybeDbPaymentMetadata, MaybeDbPaymentV1, MaybeDbPaymentV2,
-            VecDbPaymentMetadata, VecDbPaymentV1, VecDbPaymentV2,
-            VecDbPaymentWithMetadata,
+            DbPaymentMetadata, DbPaymentV2, DbPaymentWithMetadata,
+            MaybeDbPaymentMetadata, MaybeDbPaymentV2, VecDbPaymentMetadata,
+            VecDbPaymentV1, VecDbPaymentV2, VecDbPaymentWithMetadata,
         },
         ports::MegaPorts,
         retries::Retries,
@@ -404,35 +402,6 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_payment_by_index_v1(
-        &self,
-        req: PaymentCreatedIndexStruct,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeDbPaymentV1, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/payments"), &req)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
-    async fn create_payment(
-        &self,
-        _: DbPaymentV1,
-        _: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError> {
-        unimplemented!("Deprecated. Use upsert_payment_with_metadata instead.")
-    }
-
-    async fn upsert_payment_v1(
-        &self,
-        _: DbPaymentV1,
-        _: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError> {
-        unimplemented!("Deprecated. Use upsert_payment_with_metadata instead.")
-    }
-
     async fn upsert_payment(
         &self,
         _: DbPaymentV2,
@@ -452,19 +421,6 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_payment_by_id_v1(
-        &self,
-        req: PaymentIdStruct,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeDbPaymentV1, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/payments/id"), &req)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
     async fn get_payment_by_id(
         &self,
         req: PaymentIdStruct,
@@ -476,22 +432,6 @@ impl NodeBackendApi for NodeBackendClient {
             .get(format!("{backend}/node/v2/payments/id"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
-    }
-
-    async fn get_payment_by_index(
-        &self,
-        _: PaymentCreatedIndexStruct,
-        _: BearerAuthToken,
-    ) -> Result<MaybeDbPaymentV1, BackendApiError> {
-        unimplemented!("Deprecated")
-    }
-
-    async fn upsert_payment_batch_v1(
-        &self,
-        _: VecDbPaymentV1,
-        _: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError> {
-        unimplemented!("Deprecated. Use upsert_payment_batch instead.")
     }
 
     async fn upsert_payment_batch(
@@ -516,14 +456,6 @@ impl NodeBackendApi for NodeBackendClient {
         let url = format!("{backend}/node/v1/payments/with_metadata/batch");
         let req = self.rest.put(url, &payments).bearer_auth(&auth);
         self.rest.send(req).await
-    }
-
-    async fn get_payments_by_indexes(
-        &self,
-        _: PaymentCreatedIndexes,
-        _: BearerAuthToken,
-    ) -> Result<VecDbPaymentV1, BackendApiError> {
-        unimplemented!("Deprecated")
     }
 
     async fn get_payments_by_ids(
@@ -568,19 +500,6 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_pending_payments_v1(
-        &self,
-        auth: BearerAuthToken,
-    ) -> Result<VecDbPaymentV1, BackendApiError> {
-        let backend = &self.backend_url;
-        let data = Empty {};
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/payments/pending"), &data)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
     async fn get_pending_payments(
         &self,
         auth: BearerAuthToken,
@@ -590,19 +509,6 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v2/payments/pending"), &data)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
-    async fn get_finalized_payment_ids(
-        &self,
-        auth: BearerAuthToken,
-    ) -> Result<VecPaymentId, BackendApiError> {
-        let backend = &self.backend_url;
-        let data = Empty {};
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/payments/final"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
