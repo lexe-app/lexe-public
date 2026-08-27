@@ -17,9 +17,9 @@
 //!
 //! Each endpoint should be documented with:
 //! - 1) HTTP method e.g. `GET`
-//! - 2) Endpoint e.g. `/v1/file`
-//! - 3) Data used to make the request e.g. `VfsFileId`
-//! - 4) The return type e.g. `MaybeVfsFile`
+//! - 2) Endpoint e.g. `/user/v2/node_info`
+//! - 3) Data used to make the request e.g. `Empty`
+//! - 4) The return type e.g. `NodeInfo`
 //!
 //! The methods below should resemble the data actually sent across the wire.
 //!
@@ -130,10 +130,7 @@ use crate::{
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         username::UsernameStruct,
     },
-    vfs::{
-        MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,
-        VfsFileId,
-    },
+    vfs::{VfsDirectory, VfsDirectoryList, VfsFileId},
 };
 
 // TODO(max): To make clear that only upgradeable structs are being serialized,
@@ -733,42 +730,18 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Scids, BackendApiError>;
 
-    /// GET /node/v1/file [`VfsFileId`] -> [`MaybeVfsFile`]
-    #[deprecated(note = "since node-v0.8.5: Use get_file instead")]
-    async fn get_file_v1(
-        &self,
-        file_id: &VfsFileId,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeVfsFile, BackendApiError>;
-
-    /// GET /node/v2/file [`VfsFileId`] -> [`Bytes`] ([`VfsFile::data`])
+    /// GET /node/v2/file [`VfsFileId`] -> [`Bytes`]
     async fn get_file(
         &self,
         file_id: &VfsFileId,
         token: BearerAuthToken,
     ) -> Result<Bytes, BackendApiError>;
 
-    /// POST /node/v1/file [`VfsFile`] -> [`Empty`]
-    #[deprecated(note = "since node-v0.8.5: Use create_file instead")]
-    async fn create_file_v1(
-        &self,
-        file: &VfsFile,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError>;
-
     /// POST /node/v2/file [`VfsFileId`] (query) + [`Bytes`] (body) -> [`Empty`]
     async fn create_file(
         &self,
         file_id: &VfsFileId,
         data: bytes::Bytes,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError>;
-
-    /// PUT /node/v1/file [`VfsFile`] -> [`Empty`]
-    #[deprecated(note = "since node-v0.8.5: Use upsert_file instead")]
-    async fn upsert_file_v1(
-        &self,
-        file: &VfsFile,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
@@ -789,15 +762,7 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// GET /node/v1/directory [`VfsDirectory`] -> [`VecVfsFile`]
-    #[deprecated(note = "since node-v0.8.5: Use list_directory instead")]
-    async fn get_directory_v1(
-        &self,
-        dir: &VfsDirectory,
-        auth: BearerAuthToken,
-    ) -> Result<VecVfsFile, BackendApiError>;
-
-    /// GET /node/v2/directory [`VfsDirectory`] -> [`VecVfsFile`]
+    /// GET /node/v2/directory [`VfsDirectory`] -> [`VfsDirectoryList`]
     async fn list_directory(
         &self,
         dir: &VfsDirectory,

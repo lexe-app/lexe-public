@@ -447,12 +447,6 @@ pub struct MaybeVfsFile {
     pub maybe_file: Option<VfsFile>,
 }
 
-/// An upgradeable version of [`Vec<VfsFile>`].
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct VecVfsFile {
-    pub files: Vec<VfsFile>,
-}
-
 /// A list of all filenames within a [`VfsDirectory`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VfsDirectoryList {

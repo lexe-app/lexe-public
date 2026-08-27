@@ -39,10 +39,7 @@ use lexe_api::{
         retries::Retries,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
     },
-    vfs::{
-        MaybeVfsFile, VecVfsFile, VfsDirectory, VfsDirectoryList, VfsFile,
-        VfsFileId,
-    },
+    vfs::{VfsDirectory, VfsDirectoryList, VfsFileId},
 };
 use lexe_common::{
     api::{
@@ -333,19 +330,6 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_file_v1(
-        &self,
-        data: &VfsFileId,
-        auth: BearerAuthToken,
-    ) -> Result<MaybeVfsFile, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/file"), data)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
     async fn get_file(
         &self,
         file_id: &VfsFileId,
@@ -357,19 +341,6 @@ impl NodeBackendApi for NodeBackendClient {
             .get(format!("{backend}/node/v2/file"), file_id)
             .bearer_auth(&token);
         self.rest.send_no_deserialize(req).await
-    }
-
-    async fn create_file_v1(
-        &self,
-        data: &VfsFile,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .post(format!("{backend}/node/v1/file"), data)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
     }
 
     async fn create_file(
@@ -384,19 +355,6 @@ impl NodeBackendApi for NodeBackendClient {
             .builder(POST, format!("{backend}/node/v2/file"))
             .query(file_id)
             .body(data)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
-    async fn upsert_file_v1(
-        &self,
-        data: &VfsFile,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .put(format!("{backend}/node/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -429,19 +387,6 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .delete(format!("{backend}/node/v1/file"), data)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
-    async fn get_directory_v1(
-        &self,
-        data: &VfsDirectory,
-        auth: BearerAuthToken,
-    ) -> Result<VecVfsFile, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .get(format!("{backend}/node/v1/directory"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
