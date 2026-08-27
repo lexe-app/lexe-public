@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use lexe_api::{
     def::{
-        BearerAuthBackendApi, MegaRunnerApi, NodeBackendApi, NodeLspApi,
-        NodeRunnerApi,
+        BearerAuthBackendApi, FiatRatesBackendApi, MegaRunnerApi,
+        NodeBackendApi, NodeLspApi, NodeRunnerApi,
     },
     error::{BackendApiError, LspApiError, RunnerApiError},
     models::{
@@ -254,6 +254,19 @@ impl BearerAuthBackendApi for NodeBackendClient {
     }
 }
 
+impl FiatRatesBackendApi for NodeBackendClient {
+    async fn get_fiat_rates(
+        &self,
+        data: GetFiatRatesRequest,
+    ) -> Result<FiatRates, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .post(format!("{backend}/node/v1/fiat_rates"), &data);
+        self.rest.send(req).await
+    }
+}
+
 impl NodeBackendApi for NodeBackendClient {
     // not authenticated, node calls this to get sealed seed on startup
     async fn get_user(
@@ -275,17 +288,6 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/sealed_seed"), data);
-        self.rest.send(req).await
-    }
-
-    async fn get_fiat_rates(
-        &self,
-        data: GetFiatRatesRequest,
-    ) -> Result<FiatRates, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .post(format!("{backend}/node/v1/fiat_rates"), &data);
         self.rest.send(req).await
     }
 

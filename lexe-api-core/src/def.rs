@@ -679,6 +679,26 @@ pub trait MegaRunnerApi {
     ) -> Result<Empty, RunnerApiError>;
 }
 
+/// The fiat rates API exposed by the backend to the node and LSP. This trait
+/// is defined separately from the node/lsp backend API traits because
+/// budget enforcement in `lexe-ln` needs to abstract over a generic
+/// implementor of [`FiatRatesBackendApi`].
+pub trait FiatRatesBackendApi {
+    /// Get the latest BTC/fiat exchange rates for the requested currencies.
+    /// Fails if a code with no known rate is requested.
+    ///
+    /// - Node: POST /node/v1/fiat_rates
+    /// - LSP: POST /lsp/fiat_rates
+    ///
+    /// [`GetFiatRatesRequest`] -> [`FiatRates`]
+    //
+    // We use POST because the codes are a list, which doesn't fit query params.
+    async fn get_fiat_rates(
+        &self,
+        req: GetFiatRatesRequest,
+    ) -> Result<FiatRates, BackendApiError>;
+}
+
 /// Defines the api that the backend exposes to the node.
 pub trait NodeBackendApi {
     // --- Unauthenticated --- //
@@ -694,17 +714,6 @@ pub trait NodeBackendApi {
         &self,
         data: &SealedSeedId,
     ) -> Result<MaybeSealedSeed, BackendApiError>;
-
-    /// Get the latest BTC/fiat exchange rates for the requested currencies.
-    /// Fails if a code with no known rate is requested.
-    ///
-    /// POST /node/v1/fiat_rates [`GetFiatRatesRequest`] -> [`FiatRates`]
-    //
-    // We use POST because the codes are a list, which doesn't fit query params.
-    async fn get_fiat_rates(
-        &self,
-        req: GetFiatRatesRequest,
-    ) -> Result<FiatRates, BackendApiError>;
 
     // --- Bearer authentication required --- //
 
