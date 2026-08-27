@@ -64,6 +64,7 @@ use tower::util::MapRequestLayer;
 use crate::{
     alias::{ChainMonitorType, PaymentsManagerType},
     channel_manager::NodeChannelManager,
+    client::NodeBackendClient,
     peer_manager::NodePeerManager,
     persister::NodePersister,
     runner::UserRunnerCommand,
@@ -103,6 +104,7 @@ pub(crate) struct RouterState {
     pub hba_offer_ids: Arc<RwLock<HashSet<OfferId>>>,
 
     // --- Actors --- //
+    pub backend_api: Arc<NodeBackendClient>,
     pub channel_manager: NodeChannelManager,
     pub peer_manager: NodePeerManager,
     pub keys_manager: Arc<LexeKeysManager>,
