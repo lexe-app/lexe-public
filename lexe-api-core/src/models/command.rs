@@ -171,6 +171,31 @@ pub struct SetupGDrive {
     #[serde(with = "hexstr_or_bytes")]
     pub encrypted_seed: Vec<u8>,
 }
+
+/// Lexe-related settings which the user configures on their node.
+///
+/// This is persisted at [`USER_SETTINGS_FILE_ID`].
+///
+/// [`USER_SETTINGS_FILE_ID`]: crate::vfs::USER_SETTINGS_FILE_ID
+//
+// A setting belongs here if it affects node behavior. Settings which only
+// affect how the app presents things belong in the app's own `SettingsRs`
+// (`app-rs/src/settings.rs`) instead.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct UserSettings {
+    /// The user-preferred fiat currency. `None` if the user never set one.
+    pub preferred_fiat_currency: Option<IsoCurrencyCode>,
+}
+
+/// A partial update to the user's [`UserSettings`].
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct UpdateUserSettingsRequest {
+    /// The new preferred fiat currency.
+    pub preferred_fiat_currency: Option<IsoCurrencyCode>,
+}
+
 // --- Channel Management --- //
 
 #[derive(Serialize, Deserialize)]
@@ -1021,6 +1046,16 @@ mod test {
     #[test]
     fn get_fiat_rates_request_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<GetFiatRatesRequest>();
+    }
+
+    #[test]
+    fn user_settings_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<UserSettings>();
+    }
+
+    #[test]
+    fn update_user_settings_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<UpdateUserSettingsRequest>();
     }
 
     #[test]

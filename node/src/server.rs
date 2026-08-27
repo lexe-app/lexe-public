@@ -21,7 +21,7 @@ use lexe_api::{
     error::NodeApiError,
     models::command::{
         CreateInvoiceRequest, CreateInvoiceResponse, GDriveStatus,
-        OnchainDescriptors,
+        OnchainDescriptors, UserSettings,
     },
     revocable_clients::{
         ListRevocableClientsHandle, RevocableClientsHandle, scopes::Permission,
@@ -84,6 +84,7 @@ pub(crate) struct RouterState {
     pub measurement: Measurement,
     pub version: semver::Version,
     pub config: Arc<UserConfig>,
+    pub settings: Arc<tokio::sync::RwLock<UserSettings>>,
     pub fee_estimates: Arc<FeeEstimates>,
     pub lsp_info: LspInfo,
     pub eph_ca_cert_der: Arc<LxCertificateDer>,

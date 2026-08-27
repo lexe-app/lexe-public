@@ -17,7 +17,7 @@ use lexe_api::{
     models::{
         command::{
             GDriveStatus, UpsertCustomHumanBitcoinAddress,
-            UpsertGeneratedHumanBitcoinAddress,
+            UpsertGeneratedHumanBitcoinAddress, UserSettings,
         },
         runner::UserLeaseRenewalRequest,
     },
@@ -27,7 +27,9 @@ use lexe_api::{
         payments::OfferId, ports::RunPorts, retries::Retries,
         sealed_seed::SealedSeedId,
     },
-    vfs::{self, REVOCABLE_CLIENTS_FILE_ID, Vfs, VfsFileId},
+    vfs::{
+        self, REVOCABLE_CLIENTS_FILE_ID, USER_SETTINGS_FILE_ID, Vfs, VfsFileId,
+    },
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
@@ -373,6 +375,7 @@ impl UserNode {
             try_existing_scids,
             try_pending_payments,
             try_maybe_revocable_clients,
+            try_maybe_settings,
             try_channel_monitor_bytes,
         ) = tokio::join!(
             initial_migrations_fut,
@@ -381,6 +384,7 @@ impl UserNode {
             persister.read_scids(),
             pending_payments_fut,
             persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
+            persister.read_json::<UserSettings>(&USER_SETTINGS_FILE_ID),
             persister.fetch_channel_monitor_bytes(),
         );
         let initial_migrations = try_initial_migrations?;
@@ -436,6 +440,11 @@ impl UserNode {
             .context("Could not read revocable clients")?
             .unwrap_or_default()
             .apply(|rcs| Arc::new(RevocableClientsHandle(RwLock::new(rcs))));
+        let settings = Arc::new(tokio::sync::RwLock::new(
+            try_maybe_settings
+                .context("Could not read user settings")?
+                .unwrap_or_default(),
+        ));
 
         // Create a fresh EsploraSyncClient for this user node. The sync client
         // maintains internal state and cannot be shared between nodes, though
@@ -780,6 +789,7 @@ impl UserNode {
             measurement,
             version: version.clone(),
             config: config.clone(),
+            settings,
             fee_estimates: fee_estimates.clone(),
             lsp_info: lsp_info.clone(),
             eph_ca_cert_der: eph_ca_cert_der.clone(),
