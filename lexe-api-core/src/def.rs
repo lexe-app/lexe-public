@@ -933,17 +933,6 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<HumanBitcoinAddressV1, BackendApiError>;
 
-    /// GET /node/v1/payment_address [`Empty`] -> [`HumanBitcoinAddressV1`]
-    //
-    // compat: nodes <= v0.9.2 use this to proxy app HBA fetches.
-    // TODO(max): Remove once all nodes are >= v0.9.3
-    #[deprecated(note = "since node-v0.9.3: \
-                         Use get_human_bitcoin_address_v1 instead")]
-    async fn get_payment_address_v1(
-        &self,
-        auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddressV1, BackendApiError>;
-
     /// PUT /node/v2/human_bitcoin_address [`UpsertCustomHumanBitcoinAddress`]
     ///                                 -> [`UpsertHumanBitcoinAddressResponse`]
     ///
@@ -987,21 +976,6 @@ pub trait NodeBackendApi {
     #[deprecated(note = "since node-v0.10.2: \
                          Use upsert_generated_human_bitcoin_address instead")]
     async fn claim_generated_human_bitcoin_address(
-        &self,
-        req: UpsertGeneratedHumanBitcoinAddress,
-        auth: BearerAuthToken,
-    ) -> Result<Empty, BackendApiError> {
-        self.upsert_generated_human_bitcoin_address(req, auth).await
-    }
-
-    /// POST /node/v1/claim_generated_payment_address
-    ///   [`UpsertGeneratedHumanBitcoinAddress`] -> [`Empty`]
-    //
-    // compat: nodes v0.9.0..=v0.9.2 use this to claim generated HBAs.
-    // TODO(max): Remove once all nodes are >= v0.9.3
-    #[deprecated(note = "since node-v0.9.3: \
-                         Use upsert_generated_human_bitcoin_address instead")]
-    async fn claim_generated_payment_address(
         &self,
         req: UpsertGeneratedHumanBitcoinAddress,
         auth: BearerAuthToken,

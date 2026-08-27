@@ -629,13 +629,6 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_payment_address_v1(
-        &self,
-        _auth: BearerAuthToken,
-    ) -> Result<HumanBitcoinAddressV1, BackendApiError> {
-        unimplemented!("Deprecated")
-    }
-
     async fn get_generated_username(
         &self,
         auth: BearerAuthToken,
