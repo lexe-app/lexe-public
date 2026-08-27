@@ -188,7 +188,7 @@ pub enum Scope {
     LspOps,
     /// Full admin access: every permission granted by other scopes, plus
     /// signing with the identity pubkey, managing and revoking SDK clients,
-    /// reading encrypted files, and updating the user's HBA.
+    /// reading encrypted files, and updating the user's HBA and settings.
     //
     // TODO(max): Change to "managing and revoking SDK and NWC clients" when
     // NWC is supported; propagate updated doc to SDKs and app.
@@ -220,6 +220,7 @@ impl Scope {
                 NodeInfo,
                 ListChannels,
                 GetHumanBitcoinAddress,
+                GetUserSettings,
             ]),
             Scope::ReadPayments => PermissionSet::from_slice(&[
                 GetPaymentsByIndexes,
@@ -293,6 +294,7 @@ impl Scope {
                     DeleteNwcClient,
                     SetupGdrive,
                     UpdateHumanBitcoinAddress,
+                    UpdateUserSettings,
                     GetFile,
                 ])),
         }
@@ -484,6 +486,7 @@ pub enum Permission {
     NodeInfo,
     ListChannels,
     GetHumanBitcoinAddress,
+    GetUserSettings,
 
     // --- read_payments --- //
     GetPaymentsByIndexes,
@@ -539,6 +542,7 @@ pub enum Permission {
     DeleteNwcClient,
     SetupGdrive,
     UpdateHumanBitcoinAddress,
+    UpdateUserSettings,
     GetFile,
 }
 
@@ -549,6 +553,7 @@ impl Permission {
             Permission::NodeInfo => "node_info",
             Permission::ListChannels => "list_channels",
             Permission::GetHumanBitcoinAddress => "get_human_bitcoin_address",
+            Permission::GetUserSettings => "get_user_settings",
             Permission::GetPaymentsByIndexes => "get_payments_by_indexes",
             Permission::GetNewPayments => "get_new_payments",
             Permission::GetUpdatedPayments => "get_updated_payments",
@@ -591,6 +596,7 @@ impl Permission {
             Permission::SetupGdrive => "setup_gdrive",
             Permission::UpdateHumanBitcoinAddress =>
                 "update_human_bitcoin_address",
+            Permission::UpdateUserSettings => "update_user_settings",
             Permission::GetFile => "get_file",
         }
     }
@@ -706,6 +712,7 @@ mod test {
             Permission::DeleteNwcClient,
             Permission::SetupGdrive,
             Permission::UpdateHumanBitcoinAddress,
+            Permission::UpdateUserSettings,
             Permission::GetFile,
         ]);
         assert_eq!(PermissionSet::ALL.difference(non_full), expected);
@@ -769,7 +776,7 @@ mod test {
     ///   snapshot.
     #[test]
     fn json_backwards_compat() {
-        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","create_invoice","create_offer","resync","cancel_payment","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","get_file"]"#;
+        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_user_settings","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","create_invoice","create_offer","resync","cancel_payment","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","update_user_settings","get_file"]"#;
         roundtrip::json_unit_enum_backwards_compat::<Permission>(
             permissions_ser,
         );

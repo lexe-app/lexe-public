@@ -150,6 +150,11 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
             scoped::get(DebugInfo, user::debug_info))
         .route("/user/v1/list_channels",
             scoped::get(ListChannels, user::list_channels))
+        .route("/user/v1/settings",
+            scoped::get(GetUserSettings, user::get_user_settings)
+                .merge(scoped::put(
+                    UpdateUserSettings, user::update_user_settings,
+                )))
         .route("/user/v1/sign_message",
             scoped::post(SignMessage, user::sign_message))
         .route("/user/v1/open_channel",

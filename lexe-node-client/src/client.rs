@@ -37,7 +37,8 @@ use lexe_api::{
             PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
             PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
             PaymentCreatedIndexes, PaymentIdStruct, SetupGDrive,
-            UpdatePersonalNote, UpsertHumanBitcoinAddressResponse,
+            UpdatePersonalNote, UpdateUserSettingsRequest,
+            UpsertHumanBitcoinAddressResponse, UserSettings,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse,
@@ -569,6 +570,25 @@ impl UserNodeRunApi for NodeClient {
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/list_channels");
         let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
+    }
+
+    async fn get_user_settings(&self) -> Result<UserSettings, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/user/v1/settings");
+        let req = run_rest.get(url, &Empty {});
+        run_rest.send(req).await
+    }
+
+    async fn update_user_settings(
+        &self,
+        req: UpdateUserSettingsRequest,
+    ) -> Result<UserSettings, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/user/v1/settings");
+        let req = run_rest.put(url, &req);
         run_rest.send(req).await
     }
 

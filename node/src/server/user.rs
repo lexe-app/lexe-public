@@ -1,10 +1,10 @@
 use std::{ops::Deref, slice, sync::Arc};
 
-use anyhow::{Context, ensure};
+use anyhow::{Context, anyhow, ensure};
 use axum::extract::State;
 use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
-    def::NodeBackendApi,
+    def::{FiatRatesBackendApi, NodeBackendApi},
     error::NodeApiError,
     models::{
         command::{
@@ -12,8 +12,8 @@ use lexe_api::{
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, DebugInfo, GDriveStatus,
-            GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetNextUnusedAddressResponse, GetUpdatedPayments,
+            GetFiatRatesRequest, GetHumanBitcoinAddressResponse,
+            GetNewPayments, GetNextUnusedAddressResponse, GetUpdatedPayments,
             HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
             OpenChannelPreflightRequest, OpenChannelPreflightResponse,
             OpenChannelRequest, OpenChannelResponse,
@@ -23,7 +23,8 @@ use lexe_api::{
             PayOnchainPreflightRequest, PayOnchainPreflightResponse,
             PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
             PaymentIdStruct, SetupGDrive, UpdatePersonalNote,
-            UpsertCustomHumanBitcoinAddress, UpsertHumanBitcoinAddressResponse,
+            UpdateUserSettingsRequest, UpsertCustomHumanBitcoinAddress,
+            UpsertHumanBitcoinAddressResponse, UserSettings,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, GetNwcClients,
@@ -49,6 +50,7 @@ use lexe_api::{
             BasicPaymentV1, MaybeBasicPaymentV2, VecBasicPaymentV1,
             VecBasicPaymentV2,
         },
+        retries::Retries,
         username::UsernameStruct,
     },
     vfs::{self, Vfs, VfsDirectory},
@@ -123,6 +125,57 @@ pub(super) async fn list_channels(
     )
     .map(LxJson)
     .map_err(NodeApiError::command)
+}
+
+pub(super) async fn get_user_settings(
+    State(state): State<Arc<RouterState>>,
+) -> LxJson<UserSettings> {
+    LxJson(state.settings.read().await.clone())
+}
+
+pub(super) async fn update_user_settings(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<UpdateUserSettingsRequest>,
+) -> Result<LxJson<UserSettings>, NodeApiError> {
+    let UpdateUserSettingsRequest {
+        preferred_fiat_currency,
+    } = req;
+
+    // Reject a currency we publish no BTC rate for upfront.
+    // TODO(nicole): Hardcoded client-side supported currencies check/CLI flags,
+    //               then remove this check
+    if let Some(currency) = preferred_fiat_currency {
+        let req = GetFiatRatesRequest {
+            currency_codes: Some(vec![currency]),
+        };
+        let fiat_rates = state
+            .backend_api
+            .get_fiat_rates(req)
+            .await
+            .map_err(NodeApiError::command)?;
+        if !fiat_rates.rates.contains_key(&currency) {
+            let err = anyhow!("Unsupported fiat currency: {currency}");
+            return Err(NodeApiError::command(err));
+        }
+    }
+
+    let mut locked_settings = state.settings.write().await;
+    let updated = UserSettings {
+        preferred_fiat_currency: preferred_fiat_currency
+            .or(locked_settings.preferred_fiat_currency),
+    };
+
+    let retries = Retries::from_count(1);
+    state
+        .persister
+        .persist_json(vfs::USER_SETTINGS_FILE_ID.clone(), &updated, retries)
+        .await
+        .map_err(NodeApiError::command)?;
+
+    // In-memory update only after persist succeeds.
+    *locked_settings = updated.clone();
+
+    Ok(LxJson(updated))
 }
 
 pub(super) async fn sign_message(

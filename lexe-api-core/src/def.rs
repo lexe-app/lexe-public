@@ -87,9 +87,9 @@ use crate::{
             PayOnchainPreflightRequest, PayOnchainPreflightResponse,
             PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
             PaymentIdStruct, ResyncRequest, SetupGDrive, UpdatePersonalNote,
-            UpsertCustomHumanBitcoinAddress,
+            UpdateUserSettingsRequest, UpsertCustomHumanBitcoinAddress,
             UpsertGeneratedHumanBitcoinAddress,
-            UpsertHumanBitcoinAddressResponse, VecPaymentId,
+            UpsertHumanBitcoinAddressResponse, UserSettings, VecPaymentId,
         },
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
@@ -224,6 +224,15 @@ pub trait UserNodeRunApi {
     /// GET /user/v1/list_channels [`Empty`] -> [`ListChannelsResponse`]
     async fn list_channels(&self)
     -> Result<ListChannelsResponse, NodeApiError>;
+
+    /// GET /user/v1/settings [`Empty`] -> [`UserSettings`]
+    async fn get_user_settings(&self) -> Result<UserSettings, NodeApiError>;
+
+    /// PUT /user/v1/settings [`UpdateUserSettingsRequest`] -> [`UserSettings`]
+    async fn update_user_settings(
+        &self,
+        req: UpdateUserSettingsRequest,
+    ) -> Result<UserSettings, NodeApiError>;
 
     /// POST /user/v1/sign_message [`SignMsgRequest`] -> [`SignMsgResponse`]
     ///

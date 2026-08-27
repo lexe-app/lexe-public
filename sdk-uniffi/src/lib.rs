@@ -3856,7 +3856,7 @@ pub enum Scope {
     /// Full admin access: every permission granted by other scopes, plus
     /// signing with the identity pubkey, managing and revoking SDK clients,
     /// reading encrypted files, and updating the user's Human Bitcoin
-    /// Address.
+    /// Address and node settings.
     Full,
 }
 
