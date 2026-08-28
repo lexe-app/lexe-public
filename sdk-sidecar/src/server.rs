@@ -23,8 +23,8 @@ use lexe::{
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
-            GetHumanBitcoinAddressResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -100,6 +100,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/pay_invoice", post(node::pay_invoice))
         .route("/v2/node/create_offer", post(node::create_offer))
         .route("/v2/node/pay_offer", post(node::pay_offer))
+        .route(
+            "/v2/node/get_next_unused_address",
+            post(node::get_next_unused_address),
+        )
         .route("/v2/node/pay_lnurl", post(node::pay_lnurl))
         .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
         .route("/v2/node/buy_with_cash_app", post(node::buy_with_cash_app))
@@ -480,6 +484,19 @@ mod node {
         let resp = wallet.pay_offer(req).await.map_err(SdkApiError::command)?;
 
         helpers::try_track_payment(&state, credentials, resp.index);
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(get-next-unused-address)")]
+    pub(crate) async fn get_next_unused_address(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<GetNextUnusedAddressResponse>, SdkApiError> {
+        let resp = wallet
+            .get_next_unused_address()
+            .await
+            .map_err(SdkApiError::command)?;
 
         Ok(LxJson(resp))
     }

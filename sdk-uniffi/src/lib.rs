@@ -60,6 +60,7 @@ use lexe::{
             CredentialKind as SdkCredentialKind,
             GetClientInfoResponse as SdkGetClientInfoResponse,
             GetHumanBitcoinAddressResponse as SdkGetHumanBitcoinAddressResponse,
+            GetNextUnusedAddressResponse as SdkGetNextUnusedAddressResponse,
             GetPaymentRequest as SdkGetPaymentRequest,
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse as SdkGetUpdatedPaymentsResponse,
@@ -1137,6 +1138,24 @@ impl AsyncLexeWallet {
         Ok(Payment::from(resp))
     }
 
+    /// Get an unused Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Returns an address with no payments to it as of the node's latest sync.
+    /// Repeated calls return the same address until a payment is detected, so
+    /// the address may have been previously issued to a different caller.
+    /// Sending to it thus carries a small chance of address reuse.
+    ///
+    /// The upside, however, is that the node can afford to sync and check for
+    /// payments to this address indefinitely. This method is thus suitable for
+    /// peer-to-peer payments or as a possibly-reused deposit address.
+    pub async fn get_next_unused_address(
+        &self,
+    ) -> Result<GetNextUnusedAddressResponse, FfiError> {
+        let resp = self.inner.get_next_unused_address().await?;
+        Ok(GetNextUnusedAddressResponse::from(resp))
+    }
+
     /// Pay an LNURL via the `payRequest` flow.
     ///
     /// Use `analyze` to get the associated LNURL pay request, which contains
@@ -2098,6 +2117,24 @@ impl BlockingLexeWallet {
         };
         let resp = self.inner.pay_offer(req)?;
         Ok(Payment::from(resp))
+    }
+
+    /// Get an unused Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Returns an address with no payments to it as of the node's latest sync.
+    /// Repeated calls return the same address until a payment is detected, so
+    /// the address may have been previously issued to a different caller.
+    /// Sending to it thus carries a small chance of address reuse.
+    ///
+    /// The upside, however, is that the node can afford to sync and check for
+    /// payments to this address indefinitely. This method is thus suitable for
+    /// peer-to-peer payments or as a possibly-reused deposit address.
+    pub fn get_next_unused_address(
+        &self,
+    ) -> Result<GetNextUnusedAddressResponse, FfiError> {
+        let resp = self.inner.get_next_unused_address()?;
+        Ok(GetNextUnusedAddressResponse::from(resp))
     }
 
     /// Pay an LNURL via the `payRequest` flow.
@@ -3556,6 +3593,21 @@ impl From<SdkCreateOfferResponse> for CreateOfferResponse {
     fn from(resp: SdkCreateOfferResponse) -> Self {
         Self {
             offer: resp.offer.to_string(),
+        }
+    }
+}
+
+/// Response from getting the next unused on-chain Bitcoin address.
+#[derive(Clone, uniffi::Record)]
+pub struct GetNextUnusedAddressResponse {
+    /// An unused Bitcoin address from the wallet's on-chain keychain.
+    pub address: String,
+}
+
+impl From<SdkGetNextUnusedAddressResponse> for GetNextUnusedAddressResponse {
+    fn from(resp: SdkGetNextUnusedAddressResponse) -> Self {
+        Self {
+            address: resp.address.assume_checked_ref().to_string(),
         }
     }
 }

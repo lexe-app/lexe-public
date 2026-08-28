@@ -14,12 +14,13 @@ use lexe::types::{
         CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
         CreatePayerProofResponse, GetClientInfoResponse,
-        GetHumanBitcoinAddressResponse, GetPaymentRequest, GetPaymentResponse,
-        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
-        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
+        GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
+        GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
+        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
+        WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -131,6 +132,24 @@ pub trait UserSidecarApi {
         &self,
         req: &PayOfferRequest,
     ) -> Result<Payment, SdkApiError>;
+
+    /// POST /v2/node/get_next_unused_address [`Empty`]
+    ///                                    -> [`GetNextUnusedAddressResponse`]
+    ///
+    /// Get an unused Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Returns an address with no payments to it as of the node's latest sync.
+    /// Repeated calls return the same address until a payment is detected, so
+    /// the address may have been previously issued to a different caller.
+    /// Sending to it thus carries a small chance of address reuse.
+    ///
+    /// The upside, however, is that the node can afford to sync and check for
+    /// payments to this address indefinitely. This endpoint is thus suitable
+    /// for peer-to-peer payments or as a possibly-reused deposit address.
+    async fn get_next_unused_address(
+        &self,
+    ) -> Result<GetNextUnusedAddressResponse, SdkApiError>;
 
     /// POST /v2/node/pay_lnurl [`PayLnurlRequest`] -> [`Payment`]
     ///

@@ -870,6 +870,27 @@ Example::
     print(f"Payment {payment.status}")
 """)
 
+_set_method_doc(LexeWallet, "get_next_unused_address", """\
+Get an unused Bitcoin address which can be used to receive on-chain funds.
+
+Returns an address with no payments to it as of the node's latest sync.
+Repeated calls return the same address until a payment is detected, so the
+address may have been previously issued to a different caller. Sending to it
+thus carries a small chance of address reuse.
+
+The upside, however, is that the node can afford to sync and check for
+payments to this address indefinitely. This method is thus suitable for
+peer-to-peer payments or as a possibly-reused deposit address.
+
+Returns:
+    A :class:`GetNextUnusedAddressResponse` with the Bitcoin address.
+
+Example::
+
+    resp = wallet.get_next_unused_address()
+    print(f"Deposit address: {resp.address}")
+""")
+
 _set_method_doc(LexeWallet, "pay_lnurl", """\
 Pay an LNURL via the ``payRequest`` flow.
 
@@ -1767,6 +1788,27 @@ Example::
 
     payment = await wallet.pay_offer(bolt12_offer, 1000)
     print(f"Payment {payment.status}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "get_next_unused_address", """\
+Get an unused Bitcoin address which can be used to receive on-chain funds.
+
+Returns an address with no payments to it as of the node's latest sync.
+Repeated calls return the same address until a payment is detected, so the
+address may have been previously issued to a different caller. Sending to it
+thus carries a small chance of address reuse.
+
+The upside, however, is that the node can afford to sync and check for
+payments to this address indefinitely. This method is thus suitable for
+peer-to-peer payments or as a possibly-reused deposit address.
+
+Returns:
+    A :class:`GetNextUnusedAddressResponse` with the Bitcoin address.
+
+Example::
+
+    resp = await wallet.get_next_unused_address()
+    print(f"Deposit address: {resp.address}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "pay_lnurl", """\
@@ -2695,6 +2737,13 @@ Response from creating a BOLT 12 offer.
 
 Attributes:
     offer: BOLT 12 offer string.
+"""
+
+lexe.GetNextUnusedAddressResponse.__doc__ = """\
+Response from getting the next unused on-chain Bitcoin address.
+
+Attributes:
+    address: An unused Bitcoin address from the wallet's on-chain keychain.
 """
 
 lexe.CashAppBuyResponse.__doc__ = """\

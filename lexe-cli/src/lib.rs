@@ -215,6 +215,7 @@ pub enum LexeCommand {
     PayInvoice(PayInvoiceArgs),
     CreateOffer(CreateOfferArgs),
     PayOffer(PayOfferArgs),
+    GetNextUnusedAddress(GetNextUnusedAddressArgs),
     PayLnurl(PayLnurlArgs),
     WithdrawLnurl(WithdrawLnurlArgs),
     BuyWithCashApp(BuyWithCashAppArgs),
@@ -361,6 +362,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayInvoice(a) => a.run(&wallet).await,
         LexeCommand::CreateOffer(a) => a.run(&wallet).await,
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
+        LexeCommand::GetNextUnusedAddress(a) => a.run(&wallet).await,
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
         LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
         LexeCommand::BuyWithCashApp(a) => a.run(&wallet).await,
@@ -1295,6 +1297,47 @@ impl PayOfferArgs {
         }
 
         helpers::print_payment(&payment)
+    }
+}
+
+// --- `get-next-unused-address` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get an unused Bitcoin address to receive on-chain funds",
+    long_about = "Get an unused Bitcoin address to receive on-chain funds.\n\
+        \n\
+        Returns an address with no payments to it as of the node's latest\n\
+        sync. Repeated calls return the same address until a payment is\n\
+        detected, so the address may have been previously issued to a\n\
+        different caller. Sending to it thus carries a small chance of\n\
+        address reuse.\n\
+        \n\
+        The upside, however, is that the node can afford to sync and check\n\
+        for payments to this address indefinitely. This command is thus\n\
+        suitable for peer-to-peer payments or as a possibly-reused deposit\n\
+        address.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetNextUnusedAddressArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl GetNextUnusedAddressArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .get_next_unused_address()
+            .await
+            .context("Failed to get next unused address")?;
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        println!("{}", resp.address.assume_checked_ref());
+        Ok(())
     }
 }
 
