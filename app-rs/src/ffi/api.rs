@@ -401,7 +401,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
     type Error = anyhow::Error;
     fn try_from(value: CreateInvoiceRequest) -> Result<Self, Self::Error> {
         Ok(Self {
-            expiry_secs: value.expiry_secs,
+            expiration_secs: value.expiry_secs,
             amount: value
                 .amount_sats
                 .map(Amount::try_from_sats_u64)

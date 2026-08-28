@@ -328,7 +328,10 @@ fn default_invoice_kind() -> PaymentKind {
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
-    pub expiry_secs: u32,
+    /// The invoice expiration, in seconds.
+    // compat: Alias added in node-v0.10.4
+    #[serde(rename = "expiry_secs", alias = "expiration_secs")]
+    pub expiration_secs: u32,
 
     /// The amount to encode into the invoice.
     pub amount: Option<Amount>,
@@ -401,7 +404,7 @@ pub struct CreateInvoiceRequest {
 impl Default for CreateInvoiceRequest {
     fn default() -> Self {
         Self {
-            expiry_secs: 0,
+            expiration_secs: 0,
             amount: None,
             description: None,
             description_hash: None,

@@ -657,7 +657,7 @@ where
     }
 
     // Enforce maximum invoice expiration of one day
-    let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
+    let expiry_time = Duration::from_secs(u64::from(req.expiration_secs));
     if expiry_time > constants::MAX_INVOICE_EXPIRY {
         return Err(anyhow!(
             "Invoice expiration exceeds maximum duration of {}s",
@@ -676,7 +676,7 @@ where
     let (hash, secret, empty_metadata) = channel_manager
         .create_inbound_payment(
             req.amount.map(|amt| amt.msat()),
-            req.expiry_secs,
+            req.expiration_secs,
             Some(cltv_expiry),
             payment_metadata,
         )

@@ -360,7 +360,9 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
         const DEFAULT_EXPIRATION_SECS: u32 = 60 * 60 * 24; // 1 day
 
         Ok(Self {
-            expiry_secs: req.expiration_secs.unwrap_or(DEFAULT_EXPIRATION_SECS),
+            expiration_secs: req
+                .expiration_secs
+                .unwrap_or(DEFAULT_EXPIRATION_SECS),
             amount: req.amount,
             description: req.description,
             // TODO(maurice): Add description_hash if we really need it.

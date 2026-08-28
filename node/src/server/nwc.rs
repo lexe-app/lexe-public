@@ -92,7 +92,7 @@ async fn handle_make_invoice(
     };
 
     let create_inv_req = CreateInvoiceRequest {
-        expiry_secs,
+        expiration_secs: expiry_secs,
         amount: Some(amount),
         description: params.description,
         description_hash,

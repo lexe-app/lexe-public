@@ -1517,7 +1517,7 @@ impl LexeWallet {
         // small balances
         const MINIMUM_BUY_SATS: u32 = 5_000;
         /// The minted invoice's expiration, in seconds.
-        const EXPIRY_SECS: u32 = 60 * 60 * 2; // 2 hours
+        const EXPIRATION_SECS: u32 = 60 * 60 * 2; // 2 hours
 
         // Cash App buys real Bitcoin, so they only make sense on mainnet.
         let network = self.user_config.env_config.wallet_env.network;
@@ -1539,7 +1539,7 @@ impl LexeWallet {
         // Create the invoice with our internal create_invoice API instead of
         // SDK create_invoice so we can label it with `PaymentKind::BuyCashApp`.
         let invoice_req = command::CreateInvoiceRequest {
-            expiry_secs: EXPIRY_SECS,
+            expiration_secs: EXPIRATION_SECS,
             amount: Some(amount),
             description: Some("Cash App Buy".to_owned()),
             description_hash: None,
