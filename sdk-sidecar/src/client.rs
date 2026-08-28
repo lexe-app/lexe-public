@@ -6,13 +6,13 @@ use lexe::types::{
         ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
         CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
-        CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
-        GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
-        WaitForNextPaymentResponse,
+        CreatePayerProofResponse, GetClientInfoResponse,
+        GetHumanBitcoinAddressResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -312,6 +312,13 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/close_channel");
         let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn client_info(&self) -> Result<GetClientInfoResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/client_info");
+        let http_req = self.rest.get(url, &Empty {});
         self.rest.send(http_req).await
     }
 

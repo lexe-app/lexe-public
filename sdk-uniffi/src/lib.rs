@@ -57,6 +57,8 @@ use lexe::{
             CreateOfferResponse as SdkCreateOfferResponse,
             CreatePayerProofRequest as SdkCreatePayerProofRequest,
             CreatePayerProofResponse as SdkCreatePayerProofResponse,
+            CredentialKind as SdkCredentialKind,
+            GetClientInfoResponse as SdkGetClientInfoResponse,
             GetHumanBitcoinAddressResponse as SdkGetHumanBitcoinAddressResponse,
             GetPaymentRequest as SdkGetPaymentRequest,
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
@@ -1535,6 +1537,14 @@ impl AsyncLexeWallet {
 
     // --- Client credentials management --- //
 
+    /// Get info about the credentials associated with this `AsyncLexeWallet`.
+    ///
+    /// Includes granted scopes and permissions, expiration, etc.
+    pub async fn client_info(&self) -> Result<GetClientInfoResponse, FfiError> {
+        let resp = self.inner.client_info().await?;
+        Ok(GetClientInfoResponse::from(resp))
+    }
+
     /// List the clients authorized to control this node, keyed by each
     /// client's hex-encoded public key.
     ///
@@ -2486,6 +2496,15 @@ impl BlockingLexeWallet {
     }
 
     // --- Client credentials management --- //
+
+    /// Get info about the credentials associated with this
+    /// `BlockingLexeWallet`.
+    ///
+    /// Includes granted scopes and permissions, expiration, etc.
+    pub fn client_info(&self) -> Result<GetClientInfoResponse, FfiError> {
+        let resp = self.inner.client_info()?;
+        Ok(GetClientInfoResponse::from(resp))
+    }
 
     /// List the clients authorized to control this node, keyed by each
     /// client's hex-encoded public key.
@@ -3782,6 +3801,74 @@ impl From<Scope> for SdkScope {
             Scope::ManageChannels => SdkScope::ManageChannels,
             Scope::Spend => SdkScope::Spend,
             Scope::Full => SdkScope::Full,
+        }
+    }
+}
+
+/// The response to a `client_info` request: how this wallet is authenticated
+/// and the authorization associated with those credentials.
+#[derive(Clone, uniffi::Record)]
+pub struct GetClientInfoResponse {
+    /// How this wallet is authenticated: root seed or client credentials.
+    pub kind: CredentialKind,
+    /// Hex-encoded public key of the client.
+    /// `Some` iff `kind` is `CredentialKind::ClientCredentials`.
+    pub client_pk: Option<String>,
+    /// Client creation time (milliseconds since the UNIX epoch).
+    /// `Some` iff `kind` is `CredentialKind::ClientCredentials`.
+    pub created_at_ms: Option<u64>,
+    /// Client expiration time (milliseconds since the UNIX epoch).
+    /// `None` means the client never expires. Root seed clients never expire.
+    pub expires_at_ms: Option<u64>,
+    /// The label for the client, if any.
+    pub label: Option<String>,
+    /// The scope aliases granted to this client.
+    /// Root seed clients hold the `full` scope.
+    pub scopes: Vec<String>,
+    /// Extra permissions granted explicitly, beyond those from `scopes`.
+    /// Each permission grants access to a single API endpoint,
+    /// e.g. `"create_invoice"`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    pub permissions: Vec<String>,
+    /// Every permission this client currently holds: the union of all
+    /// `scopes`' permissions plus the explicit `permissions`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    pub effective_permissions: Vec<String>,
+}
+
+impl From<SdkGetClientInfoResponse> for GetClientInfoResponse {
+    fn from(resp: SdkGetClientInfoResponse) -> Self {
+        Self {
+            kind: CredentialKind::from(resp.kind),
+            client_pk: resp.client_pk.map(|pk| pk.to_string()),
+            created_at_ms: resp.created_at.map(|t| t.to_millis()),
+            expires_at_ms: resp.expires_at.map(|t| t.to_millis()),
+            label: resp.label,
+            scopes: resp.scopes,
+            permissions: resp.permissions,
+            effective_permissions: resp.effective_permissions,
+        }
+    }
+}
+
+/// How a wallet authenticates with its node: root seed or client credentials.
+#[derive(Clone, uniffi::Enum)]
+pub enum CredentialKind {
+    /// The wallet authenticated with the root seed itself.
+    RootSeed,
+    /// The wallet authenticated with revocable client credentials.
+    ClientCredentials,
+}
+
+impl From<SdkCredentialKind> for CredentialKind {
+    fn from(kind: SdkCredentialKind) -> Self {
+        match kind {
+            SdkCredentialKind::RootSeed => Self::RootSeed,
+            SdkCredentialKind::ClientCredentials => Self::ClientCredentials,
         }
     }
 }

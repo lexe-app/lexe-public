@@ -13,13 +13,13 @@ use lexe::types::{
         ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
         CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
         CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
-        CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
-        GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
-        WaitForNextPaymentResponse,
+        CreatePayerProofResponse, GetClientInfoResponse,
+        GetHumanBitcoinAddressResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -325,6 +325,13 @@ pub trait UserSidecarApi {
         &self,
         req: &CloseChannelRequest,
     ) -> Result<Empty, SdkApiError>;
+
+    /// GET /v2/node/client_info [`Empty`] -> [`GetClientInfoResponse`]
+    ///
+    /// Get info about the credentials used to make this request.
+    ///
+    /// Includes granted scopes and permissions, expiration, etc.
+    async fn client_info(&self) -> Result<GetClientInfoResponse, SdkApiError>;
 
     /// GET /v2/node/list_clients [`Empty`] -> [`ListClientsResponse`]
     ///

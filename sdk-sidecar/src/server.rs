@@ -22,8 +22,9 @@ use lexe::{
             CloseChannelRequest, CreateClientRequest, CreateClientResponse,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
-            CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            CreatePayerProofResponse, GetClientInfoResponse,
+            GetHumanBitcoinAddressResponse, GetPaymentRequest,
+            GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -128,6 +129,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/list_channels", get(node::list_channels))
         .route("/v2/node/open_channel", post(node::open_channel))
         .route("/v2/node/close_channel", post(node::close_channel))
+        .route("/v2/node/client_info", get(node::client_info))
         .route("/v2/node/list_clients", get(node::list_clients))
         .route("/v2/node/create_client", post(node::create_client))
         .route("/v2/node/update_client", put(node::update_client))
@@ -772,6 +774,15 @@ mod node {
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(Empty {}))
+    }
+
+    #[instrument(skip_all, name = "(client-info)")]
+    pub(crate) async fn client_info(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<GetClientInfoResponse>, SdkApiError> {
+        let resp = wallet.client_info().await.map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
     }
 
     #[instrument(skip_all, name = "(list-clients)")]

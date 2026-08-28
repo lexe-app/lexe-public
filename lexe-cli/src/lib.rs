@@ -23,11 +23,12 @@ use lexe::{
             AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest, ChannelDetails,
             ClientInfo, CloseChannelRequest, CreateClientRequest,
             CreateInvoiceRequest, CreateOfferRequest, CreatePayerProofRequest,
-            GetPaymentRequest, GetUpdatedPaymentsRequest, OpenChannelRequest,
-            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest, PayRequest,
-            PayerProofDisclosures, PaymentSyncSummary, RevokeClientRequest,
-            UpdateClientRequest, UpdatePersonalNoteRequest,
-            WaitForNextPaymentRequest, WithdrawLnurlRequest,
+            CredentialKind, GetPaymentRequest, GetUpdatedPaymentsRequest,
+            OpenChannelRequest, PayInvoiceRequest, PayLnurlRequest,
+            PayOfferRequest, PayRequest, PayerProofDisclosures,
+            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
+            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
+            WithdrawLnurlRequest,
         },
         payment::{
             Order, Payment, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
@@ -231,6 +232,7 @@ pub enum LexeCommand {
     ListChannels(ListChannelsArgs),
     OpenChannel(OpenChannelArgs),
     CloseChannel(CloseChannelArgs),
+    ClientInfo(ClientInfoArgs),
     ListClients(ListClientsArgs),
     CreateClient(CreateClientArgs),
     UpdateClient(UpdateClientArgs),
@@ -376,6 +378,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::ListChannels(a) => a.run(&wallet).await,
         LexeCommand::OpenChannel(a) => a.run(&wallet).await,
         LexeCommand::CloseChannel(a) => a.run(&wallet).await,
+        LexeCommand::ClientInfo(a) => a.run(&wallet).await,
         LexeCommand::ListClients(a) => a.run(&wallet).await,
         LexeCommand::CreateClient(a) => a.run(&wallet).await,
         LexeCommand::UpdateClient(a) => a.run(&wallet).await,
@@ -2260,6 +2263,85 @@ impl CloseChannelArgs {
     }
 }
 
+// --- `client-info` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get info about the credentials associated with this wallet",
+    long_about = "Get info about the credentials associated with this wallet.\n\
+        \n\
+        Includes granted scopes and permissions, expiration, etc.\n\
+        \n\
+        Note: permission ids in the output (e.g. create_invoice) are unstable\n\
+        and may be renamed; rely on scopes instead.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct ClientInfoArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl ClientInfoArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .client_info()
+            .await
+            .context("Failed to get client info")?;
+
+        // JSON response
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        let kind = match resp.kind {
+            CredentialKind::RootSeed => "root_seed",
+            CredentialKind::ClientCredentials => "client_credentials",
+        };
+        println!("Credentials [{kind}]");
+
+        if let Some(client_pk) = resp.client_pk {
+            println!("    - client_pk: {client_pk}");
+        }
+
+        let now = TimestampMs::now();
+
+        if let Some(created_at) = resp.created_at {
+            let created_rel = created_at.to_relative_string(now);
+            let created_at =
+                helpers::timestamp_to_datetime(created_at).to_rfc2822();
+            println!("    - created_at: {created_rel} ({created_at})");
+        }
+
+        match resp.expires_at {
+            Some(expires_at) => {
+                let expires_rel = expires_at.to_relative_string(now);
+                let expires_at =
+                    helpers::timestamp_to_datetime(expires_at).to_rfc2822();
+                println!("    - expires_at: {expires_rel} ({expires_at})");
+            }
+            None => println!("    - expires_at: Never expires!"),
+        }
+
+        if let Some(label) = &resp.label {
+            println!("    - label: {label}");
+        }
+
+        println!("    - scopes: {}", resp.scopes.join(", "));
+        if !resp.permissions.is_empty() {
+            println!("    - permissions: {}", resp.permissions.join(", "));
+        }
+        if !resp.effective_permissions.is_empty() {
+            println!(
+                "    - effective_permissions: {}",
+                resp.effective_permissions.join(", "),
+            );
+        }
+
+        Ok(())
+    }
+}
+
 // --- `list-clients` --- //
 
 #[derive(Parser)]
@@ -2733,10 +2815,7 @@ mod helpers {
             None => client.client_pk.to_string(),
         };
         println!("Client [{title}]");
-        // `- client_pk: <hex>` is always 81 chars wide (a 64-char hex pubkey),
-        // so we linebreak
-        println!("    - client_pk:");
-        println!("        {}", client.client_pk);
+        println!("    - client_pk: {}", client.client_pk);
 
         let now = TimestampMs::now();
 

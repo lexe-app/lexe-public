@@ -1283,6 +1283,23 @@ Example::
     wallet.close_channel(channel_id)
 """)
 
+_set_method_doc(LexeWallet, "client_info", """\
+Get info about the credentials associated with this :class:`LexeWallet`.
+
+Includes granted scopes and permissions, expiration, etc.
+
+Returns:
+    A :class:`GetClientInfoResponse` describing this wallet's credentials.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    info = wallet.client_info()
+    print(f"{info.kind}: {info.scopes}")
+""")
+
 _set_method_doc(LexeWallet, "list_clients", """\
 List the clients authorized to control this node.
 
@@ -2165,6 +2182,23 @@ Example::
     await wallet.close_channel(channel_id)
 """)
 
+_set_method_doc(AsyncLexeWallet, "client_info", """\
+Get info about the credentials associated with this :class:`AsyncLexeWallet`.
+
+Includes granted scopes and permissions, expiration, etc.
+
+Returns:
+    A :class:`GetClientInfoResponse` describing this wallet's credentials.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    info = await wallet.client_info()
+    print(f"{info.kind}: {info.scopes}")
+""")
+
 _set_method_doc(AsyncLexeWallet, "list_clients", """\
 List the clients authorized to control this node.
 
@@ -2771,6 +2805,40 @@ Attributes:
 # ========================== #
 # --- Client credentials --- #
 # ========================== #
+
+lexe.GetClientInfoResponse.__doc__ = """\
+The response to a ``client_info`` request: how this wallet is authenticated
+and the authorization associated with those credentials.
+
+Attributes:
+    kind: How this wallet is authenticated (root seed or client
+        credentials), as a :class:`CredentialKind`.
+    client_pk: Hex-encoded public key of the client, or ``None`` if this
+        wallet authenticated with the root seed.
+    created_at_ms: Client creation time (ms since UNIX epoch), or ``None``
+        if this wallet authenticated with the root seed.
+    expires_at_ms: Client expiration time (ms since UNIX epoch), or ``None``
+        if the client never expires. Root seed clients never expire.
+    label: The label for the client, if any.
+    scopes: The scope aliases granted to this client. Root seed clients hold
+        the ``"full"`` scope.
+    permissions: Extra permissions granted explicitly, beyond those from
+        ``scopes``.
+    effective_permissions: Every permission this client currently holds:
+        the union of all ``scopes``' permissions plus the explicit
+        ``permissions``.
+
+**Unstable**: permission ids are not part of the stable API and may be renamed.
+Avoid matching on specific ids; prefer ``scopes`` instead.
+"""
+
+lexe.CredentialKind.__doc__ = """\
+How a wallet authenticates with its node.
+
+- **ROOT_SEED** -- The wallet authenticated with the root seed itself.
+- **CLIENT_CREDENTIALS** -- The wallet authenticated with revocable client
+  credentials.
+"""
 
 lexe.ClientInfo.__doc__ = """\
 Information about a client authorized to control a Lexe node.
