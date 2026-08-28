@@ -10,18 +10,102 @@ use anyhow::{Context, anyhow};
 use futures::{StreamExt, stream::FuturesUnordered};
 use lexe_common::ln::channel::{ChannelId, OutPoint};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use lightning::util::persist::MonitorName;
+use lightning::{
+    chain::{ChannelMonitorUpdateStatus, channelmonitor::ChannelMonitorUpdate},
+    util::persist::MonitorName,
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
-    alias::LexeChainMonitorType,
+    alias::{ChannelMonitorType, LexeChainMonitorType},
     logger::LexeTracingLogger,
     persister::{LightningPersisterMethods, persist_manager_and_flush},
     traits::{LexeChannelManager, LexePersister},
 };
+
+// --- Public API -- //
+
+/// Shared implementation of the `Persist` trait's `persist_new_channel` /
+/// `update_persisted_channel` callbacks for Lexe persisters: queue the monitor
+/// update to the [`ChannelMonitorPersister`] task, then return `InProgress`,
+/// which freezes the channel until the chain monitor is notified that
+/// persistence completed. Triggers a shutdown if the update can't be queued.
+pub fn queue_monitor_persist(
+    tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
+    shutdown: &NotifyOnce,
+    backlog_warn_threshold: usize,
+    kind: ChannelMonitorUpdateKind,
+    name: MonitorName,
+    update: Option<&ChannelMonitorUpdate>,
+    monitor: &ChannelMonitorType,
+) -> ChannelMonitorUpdateStatus {
+    let channel_id = ChannelId::from(monitor.channel_id());
+    let name = LxMonitorName::from(name);
+    let update_id = update
+        .map(|u| u.update_id)
+        .unwrap_or_else(|| monitor.get_latest_update_id());
+    let update = LxChannelMonitorUpdate::new(kind, channel_id, name, update_id);
+    let update_span = update.span();
+
+    update_span.in_scope(|| {
+        info!("Persisting channel monitor");
+
+        // Queue up the channel monitor update for persisting. Shut down if
+        // we can't send the update for some reason.
+        if let Err(e) = try_send_update(tx, update, backlog_warn_threshold) {
+            // NOTE: Although failing to send the channel monitor update to
+            // the channel monitor persistence task is a serious error, we
+            // do not return a PermanentFailure here because that force
+            // closes the channel.
+            error!("Fatal: Couldn't send channel monitor update: {e:#}");
+            shutdown.send();
+        }
+    });
+
+    // As documented in the `Persist` trait docs, return `InProgress`,
+    // which freezes the channel until persistence succeeds.
+    ChannelMonitorUpdateStatus::InProgress
+}
+
+/// Queue a channel monitor update and warn if the queue is backed up.
+fn try_send_update(
+    tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
+    update: LxChannelMonitorUpdate,
+    backlog_warn_threshold: usize,
+) -> Result<(), mpsc::error::TrySendError<()>> {
+    tx.try_reserve()?
+        .send(ChannelMonitorPersisterCommand::Update(update));
+
+    let remaining_updates = tx.max_capacity() - tx.capacity();
+    if remaining_updates > backlog_warn_threshold {
+        warn!(
+            "Channel monitor persist queue backlog: \
+             {remaining_updates} updates remaining"
+        );
+    }
+
+    Ok(())
+}
+
+/// Wait until every monitor update queued before this call has persisted.
+///
+/// Only one flush may be outstanding at a time.
+pub async fn wait_flush(
+    tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
+) -> anyhow::Result<()> {
+    let (flush_tx, flush_rx) = oneshot::channel();
+    tx.send(ChannelMonitorPersisterCommand::Flush(flush_tx))
+        .await
+        .map_err(|_| anyhow!("Channel monitor persister queue closed"))?;
+    flush_rx
+        .await
+        .map_err(|_| anyhow!("Channel monitor persister canceled flush"))
+}
+
+// --- ChannelMonitorPersister -- //
 
 /// An actor which persists channel monitors. Channel monitors are persisted
 /// serially per-channel, and concurrently across channels.
@@ -177,41 +261,6 @@ pub struct LxChannelMonitorUpdate {
     /// [`ChannelMonitor::get_latest_update_id`]: lightning::chain::channelmonitor::ChannelMonitor::get_latest_update_id
     update_id: u64,
     span: tracing::Span,
-}
-
-/// Queue a channel monitor update and warn if the queue is backed up.
-pub fn try_send_update(
-    tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
-    update: LxChannelMonitorUpdate,
-    backlog_warn_threshold: usize,
-) -> Result<(), mpsc::error::TrySendError<()>> {
-    tx.try_reserve()?
-        .send(ChannelMonitorPersisterCommand::Update(update));
-
-    let remaining_updates = tx.max_capacity() - tx.capacity();
-    if remaining_updates > backlog_warn_threshold {
-        warn!(
-            "Channel monitor persist queue backlog: \
-             {remaining_updates} updates remaining"
-        );
-    }
-
-    Ok(())
-}
-
-/// Wait until every monitor update queued before this call has persisted.
-///
-/// Only one flush may be outstanding at a time.
-pub async fn wait_flush(
-    tx: &mpsc::Sender<ChannelMonitorPersisterCommand>,
-) -> anyhow::Result<()> {
-    let (flush_tx, flush_rx) = oneshot::channel();
-    tx.send(ChannelMonitorPersisterCommand::Flush(flush_tx))
-        .await
-        .map_err(|_| anyhow!("Channel monitor persister queue closed"))?;
-    flush_rx
-        .await
-        .map_err(|_| anyhow!("Channel monitor persister canceled flush"))
 }
 
 /// Whether the [`LxChannelMonitorUpdate`] represents a new or updated channel.

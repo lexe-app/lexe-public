@@ -82,7 +82,7 @@ use lexe_ln::{
     alias::{ChannelMonitorType, LexeChainMonitorType, SignerType},
     channel_monitor::{
         self, ChannelMonitorPersisterCommand, ChannelMonitorUpdateKind,
-        LxChannelMonitorUpdate, LxMonitorName,
+        LxMonitorName,
     },
     payments::{
         self, PaymentMetadata, PaymentV2, PaymentWithMetadata,
@@ -1104,36 +1104,16 @@ impl Persist<SignerType> for NodePersister {
         name: MonitorName,
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
-        let kind = ChannelMonitorUpdateKind::New;
-        let channel_id = ChannelId::from(monitor.channel_id());
-        let name = LxMonitorName::from(name);
-        let update_id = monitor.get_latest_update_id();
-        let update =
-            LxChannelMonitorUpdate::new(kind, channel_id, name, update_id);
-        let update_span = update.span();
-
-        update_span.in_scope(|| {
-            info!("Persisting channel monitor");
-
-            // Queue up the channel monitor update for persisting. Shut down if
-            // we can't send the update for some reason.
-            if let Err(e) = channel_monitor::try_send_update(
-                &self.channel_monitor_persister_tx,
-                update,
-                CHANNEL_MONITOR_PERSISTER_BACKLOG_WARN_THRESHOLD,
-            ) {
-                // NOTE: Although failing to send the channel monutor update to
-                // the channel monitor persistence task is a serious error, we
-                // do not return a PermanentFailure here because that force
-                // closes the channel.
-                error!("Fatal: Couldn't send channel monitor update: {e:#}");
-                self.shutdown.send();
-            }
-        });
-
-        // As documented in the `Persist` trait docs, return `InProgress`,
-        // which freezes the channel until persistence succeeds.
-        ChannelMonitorUpdateStatus::InProgress
+        let update = None;
+        channel_monitor::queue_monitor_persist(
+            &self.channel_monitor_persister_tx,
+            &self.shutdown,
+            CHANNEL_MONITOR_PERSISTER_BACKLOG_WARN_THRESHOLD,
+            ChannelMonitorUpdateKind::New,
+            name,
+            update,
+            monitor,
+        )
     }
 
     fn update_persisted_channel(
@@ -1143,39 +1123,15 @@ impl Persist<SignerType> for NodePersister {
         update: Option<&ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
     ) -> ChannelMonitorUpdateStatus {
-        let kind = ChannelMonitorUpdateKind::Updated;
-        let channel_id = ChannelId::from(monitor.channel_id());
-        let name = LxMonitorName::from(name);
-        let update_id = update
-            .as_ref()
-            .map(|u| u.update_id)
-            .unwrap_or_else(|| monitor.get_latest_update_id());
-        let update =
-            LxChannelMonitorUpdate::new(kind, channel_id, name, update_id);
-        let update_span = update.span();
-
-        update_span.in_scope(|| {
-            info!("Persisting channel monitor");
-
-            // Queue up the channel monitor update for persisting. Shut down if
-            // we can't send the update for some reason.
-            if let Err(e) = channel_monitor::try_send_update(
-                &self.channel_monitor_persister_tx,
-                update,
-                CHANNEL_MONITOR_PERSISTER_BACKLOG_WARN_THRESHOLD,
-            ) {
-                // NOTE: Although failing to send the channel monutor update to
-                // the channel monitor persistence task is a serious error, we
-                // do not return a PermanentFailure here because that force
-                // closes the channel.
-                error!("Fatal: Couldn't send channel monitor update: {e:#}");
-                self.shutdown.send();
-            }
-        });
-
-        // As documented in the `Persist` trait docs, return `InProgress`,
-        // which freezes the channel until persistence succeeds.
-        ChannelMonitorUpdateStatus::InProgress
+        channel_monitor::queue_monitor_persist(
+            &self.channel_monitor_persister_tx,
+            &self.shutdown,
+            CHANNEL_MONITOR_PERSISTER_BACKLOG_WARN_THRESHOLD,
+            ChannelMonitorUpdateKind::Updated,
+            name,
+            update,
+            monitor,
+        )
     }
 
     fn archive_persisted_channel(&self, name: MonitorName) {
