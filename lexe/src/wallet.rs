@@ -54,8 +54,8 @@ use crate::{
             CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
-            GetHumanBitcoinAddressResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -1292,6 +1292,29 @@ impl LexeWallet {
             id,
         };
         self.wait_for_payment(index, None).await
+    }
+
+    /// Get an unused Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Returns an address with no payments to it as of the node's latest sync.
+    /// Repeated calls return the same address until a payment is detected, so
+    /// the address may have been previously issued to a different caller.
+    /// Sending to it thus carries a small chance of address reuse.
+    ///
+    /// The upside, however, is that the node can afford to sync and check for
+    /// payments to this address indefinitely. This method is thus suitable for
+    /// peer-to-peer payments or as a possibly-reused deposit address.
+    #[instrument(skip_all, name = "(get-next-unused-address)")]
+    pub async fn get_next_unused_address(
+        &self,
+    ) -> anyhow::Result<GetNextUnusedAddressResponse> {
+        let resp = self
+            .node_client
+            .get_next_unused_address()
+            .await
+            .context("Failed to get next unused address")?;
+        Ok(GetNextUnusedAddressResponse::from(resp))
     }
 
     /// Pay an LNURL or Lightning Address via the `payRequest` flow.

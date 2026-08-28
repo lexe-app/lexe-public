@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, ensure};
+use bitcoin::address::NetworkUnchecked;
 use lexe_api::{
     models::command,
     revocable_clients,
@@ -511,6 +512,21 @@ impl PayOfferRequest {
             // We intentionally do not expose the payment kind in the Lexe SDK.
             kind: PaymentKind::Offer,
         })
+    }
+}
+
+/// The response to a `get_next_unused_address` request.
+#[derive(Serialize, Deserialize)]
+pub struct GetNextUnusedAddressResponse {
+    /// An unused Bitcoin address from the wallet's on-chain keychain.
+    pub address: bitcoin::Address<NetworkUnchecked>,
+}
+
+impl From<command::GetNextUnusedAddressResponse>
+    for GetNextUnusedAddressResponse
+{
+    fn from(resp: command::GetNextUnusedAddressResponse) -> Self {
+        Self { address: resp.addr }
     }
 }
 

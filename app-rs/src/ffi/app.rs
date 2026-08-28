@@ -15,7 +15,6 @@ use lexe::{
 use lexe_api::{
     def::{UserGatewayApi, UserNodeRunApi},
     models::command::{
-        GetNextUnusedAddressResponse,
         OpenChannelPreflightRequest as OpenChannelPreflightRequestRs,
         OpenChannelRequest as OpenChannelRequestRs,
         PayInvoiceRequest as PayInvoiceRequestRs,
@@ -310,12 +309,10 @@ impl AppHandle {
     #[instrument(skip_all, name = "(get-next-unused-address)")]
     pub async fn get_next_unused_address(&self) -> anyhow::Result<String> {
         self.inner
-            .node_client()?
+            .wallet()?
             .get_next_unused_address()
             .await
-            .map(|GetNextUnusedAddressResponse { addr }| addr)
-            .map(|addr| addr.assume_checked_ref().to_string())
-            .map_err(anyhow::Error::new)
+            .map(|resp| resp.address.assume_checked_ref().to_string())
     }
 
     #[instrument(skip_all, name = "(create-invoice)")]
