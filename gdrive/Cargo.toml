@@ -40,7 +40,7 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 lexe-common = { workspace = true, features = ["test-utils"] }
-lexe-logger = { workspace = true, features = ["test-utils"] }
+lexe-logger = { workspace = true, features = ["subscriber", "test-utils"] }
 
 proptest = { workspace = true }
 proptest-derive = { workspace = true }

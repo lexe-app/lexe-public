@@ -34,7 +34,7 @@ lexe-common = { workspace = true }
 lexe-crypto = { workspace = true }
 lexe-enclave = { workspace = true }
 lexe-hex = { workspace = true }
-lexe-logger = { workspace = true }
+lexe-logger = { workspace = true, features = ["subscriber"] }
 lexe-node-client = { workspace = true }
 lexe-payment-uri = { workspace = true }
 lexe-std = { workspace = true }
