@@ -7,7 +7,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use lexe_api::{define_trace_id_fns, trace};
+use lexe_logger::trace;
 use tracing::{Event, Level, Subscriber, field, span};
 use tracing_subscriber::{
     Registry,
@@ -48,7 +48,7 @@ pub(crate) fn init(log_fn: LogFnPtr, rust_log: &str) {
     // _DONT_ panic here if there is already a logger set. Instead we just
     // update the `RUST_LOG_TX`. We do this to support flutter hot reload.
     let _ = subscriber.try_init();
-    define_trace_id_fns!(SubscriberType);
+    lexe_logger::define_trace_id_fns!(SubscriberType);
     let _ = trace::GET_TRACE_ID_FN.set(get_trace_id_from_span);
     let _ = trace::INSERT_TRACE_ID_FN.set(insert_trace_id_into_span);
 }
@@ -273,7 +273,7 @@ mod atomic_log_ptr {
 
 // #[cfg(test)]
 // mod test {
-//     use lexe_api::trace::TraceId;
+//     use lexe_logger::trace::TraceId;
 //     use flutter_rust_bridge::rust2dart::Rust2Dart;
 //
 //     use super::*;

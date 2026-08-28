@@ -1,14 +1,20 @@
-//! Common logger configuration for non-SGX lexe services.
+//! Lexe tracing primitives and logger configuration.
 //!
-//! See also: the `logger` module in the `public/lexe-ln` crate for log config
-//! in enclaves.
+//! - The `trace` module holds `TraceId` and the statics which allow other
+//!   crates (e.g. `lexe-api`) to read and write `TraceId`s in tracing span
+//!   `Extensions` without knowing the concrete subscriber type.
+//! - The crate root holds the logger configuration for non-SGX lexe services.
+//!   See also: the `logger` module in the `public/lexe-ln` crate for log
+//!   config in enclaves.
+
+/// `TraceId` and the logger-side span plumbing for it.
+pub mod trace;
 
 use std::{env, io, str::FromStr};
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 #[cfg(doc)]
-use lexe_api::trace::TraceId;
-use lexe_api::{define_trace_id_fns, trace};
+use crate::trace::TraceId;
 use tracing::{Level, level_filters::LevelFilter};
 use tracing_subscriber::{
     Registry,
@@ -64,7 +70,7 @@ pub fn try_init_with_default(rust_log_default: &str) -> anyhow::Result<()> {
         .try_init()
         .context("Logger already initialized")?;
 
-    define_trace_id_fns!(SubscriberType);
+    crate::define_trace_id_fns!(SubscriberType);
     trace::GET_TRACE_ID_FN
         .set(get_trace_id_from_span)
         .map_err(|_| anyhow!("GET_TRACE_ID_FN already set"))?;
@@ -154,9 +160,8 @@ fn enforce_log_policy(targets: Targets) -> Targets {
 mod test {
     use std::env;
 
-    use lexe_api::trace::TraceId;
-
     use super::*;
+    use crate::trace::TraceId;
 
     #[test]
     fn get_and_insert_trace_ids() {

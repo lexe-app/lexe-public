@@ -35,8 +35,8 @@
 
 use std::{io, ops::Deref, str::FromStr, sync::LazyLock};
 
-use anyhow::anyhow;
-use lexe_api::{define_trace_id_fns, trace};
+use anyhow::{Context, anyhow};
+use lexe_logger::trace;
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
 use tracing_core::{
     Callsite, Event, Kind, Level, LevelFilter, Metadata, dispatcher,
@@ -90,7 +90,7 @@ pub fn try_init(
         .try_init()
         .context("Logger already initialized")?;
 
-    define_trace_id_fns!(SubscriberType);
+    lexe_logger::define_trace_id_fns!(SubscriberType);
     trace::GET_TRACE_ID_FN
         .set(get_trace_id_from_span)
         .map_err(|_| anyhow!("GET_TRACE_ID_FN already set"))?;
@@ -326,7 +326,7 @@ fn loglevel_to_cs(
 mod test {
     use std::{collections::HashMap, env};
 
-    use lexe_api::trace::TraceId;
+    use lexe_logger::trace::TraceId;
     use tracing_core::{
         Dispatch, Subscriber,
         span::{Attributes, Id, Record},

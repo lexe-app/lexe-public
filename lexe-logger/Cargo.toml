@@ -2,7 +2,7 @@
 name = "lexe-logger"
 version = "0.1.27"
 license = "MIT"
-description = "Lexe SDK tracing logger configuration"
+description = "Lexe tracing primitives and logger configuration"
 documentation = "https://docs.rs/lexe-logger"
 authors = { workspace = true }
 edition = { workspace = true }
@@ -17,17 +17,14 @@ workspace = true
 [features]
 default = []
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
-test-utils = ["lexe-api/test-utils"]
+test-utils = ["dep:proptest"]
 
 [dependencies]
-
-# --- LEXE --- #
-
-lexe-api = { workspace = true }
 
 # --- WORKSPACE --- #
 
 anyhow = { workspace = true }
+http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = [
     # Enable colored log outputs
@@ -38,6 +35,10 @@ tracing-subscriber = { workspace = true, features = [
     "tracing-log",
 ] }
 
+# --- OPTIONAL --- #
+# These must have `optional = true` to prevent infecting production binaries.
+
+proptest = { optional = true, workspace = true, features = ["alloc"] }
+
 [dev-dependencies]
-# Enable lexe-api test-utils in tests
-lexe-api = { workspace = true, features = ["test-utils"] }
+proptest = { workspace = true, features = ["alloc"] }

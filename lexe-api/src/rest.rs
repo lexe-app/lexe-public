@@ -11,13 +11,14 @@ use lexe_api_core::{
 };
 use lexe_common::{constants::timeout, time::DisplayMs};
 use lexe_crypto::ed25519;
+use lexe_logger::trace::TraceId;
 use lightning::util::ser::Writeable;
 use reqwest::IntoUrl;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::time::Instant;
 use tracing::{Instrument, debug, warn};
 
-use crate::{trace, trace::TraceId};
+use crate::trace;
 
 /// The CONTENT-TYPE header for signed BCS-serialized structs.
 pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =

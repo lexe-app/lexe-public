@@ -31,6 +31,7 @@ test-utils = [
   "dep:proptest-derive",
   "lexe-api-core/test-utils",
   "lexe-common/test-utils",
+  "lexe-logger/test-utils",
   "lexe-tls/test-utils",
 ]
 
@@ -41,6 +42,7 @@ test-utils = [
 lexe-api-core = { workspace = true, features = ["axum", "reqwest"] }
 lexe-common = { workspace = true }
 lexe-crypto = { workspace = true }
+lexe-logger = { workspace = true }
 lexe-std = { workspace = true }
 lexe-tls = { workspace = true }
 lexe-tokio = { workspace = true }
@@ -79,6 +81,7 @@ proptest-derive = { optional = true, workspace = true }
 [dev-dependencies]
 lexe-common = { workspace = true, features = ["test-utils"] }
 lexe-crypto = { workspace = true, features = ["test-utils"] }
+lexe-logger = { workspace = true, features = ["test-utils"] }
 lexe-tls = { workspace = true, features = ["test-utils"] }
 
 axum = { workspace = true }

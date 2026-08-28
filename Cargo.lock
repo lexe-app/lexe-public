@@ -184,6 +184,7 @@ dependencies = [
  "lexe-connect",
  "lexe-crypto",
  "lexe-hex",
+ "lexe-logger",
  "lexe-node-client",
  "lexe-payment-uri",
  "lexe-qr",
@@ -2744,6 +2745,7 @@ dependencies = [
  "lexe-api-core",
  "lexe-common",
  "lexe-crypto",
+ "lexe-logger",
  "lexe-std",
  "lexe-tls",
  "lexe-tokio",
@@ -2978,6 +2980,7 @@ dependencies = [
  "lexe-crypto",
  "lexe-enclave",
  "lexe-hex",
+ "lexe-logger",
  "lexe-std",
  "lexe-tls",
  "lexe-tls-core",
@@ -3010,7 +3013,8 @@ name = "lexe-logger"
 version = "0.1.27"
 dependencies = [
  "anyhow",
- "lexe-api",
+ "http",
+ "proptest",
  "tracing",
  "tracing-subscriber",
 ]

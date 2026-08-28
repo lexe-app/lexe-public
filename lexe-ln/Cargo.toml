@@ -36,6 +36,7 @@ lexe-common = { workspace = true }
 lexe-crypto = { workspace = true }
 lexe-enclave = { workspace = true }
 lexe-hex = { workspace = true }
+lexe-logger = { workspace = true }
 lexe-std = { workspace = true }
 lexe-tls = { workspace = true }
 lexe-tls-core = { workspace = true, features = ["webpki-roots"] }

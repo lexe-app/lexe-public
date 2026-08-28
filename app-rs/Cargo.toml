@@ -28,6 +28,7 @@ lexe-common = { workspace = true }
 lexe-connect = { workspace = true, features = ["crypto", "http"] }
 lexe-crypto = { workspace = true }
 lexe-hex = { workspace = true }
+lexe-logger = { workspace = true }
 lexe-node-client = { workspace = true }
 lexe-payment-uri = { workspace = true }
 # Only enable QR code generation when actually building for app
