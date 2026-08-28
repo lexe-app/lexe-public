@@ -1,6 +1,7 @@
 //! Lexe SDK API request and response types.
 
 use std::{
+    borrow::Cow,
     collections::{BTreeSet, HashMap},
     time::Duration,
 };
@@ -921,6 +922,105 @@ impl From<CloseChannelRequest> for command::CloseChannelRequest {
 }
 
 // --- Client credentials management --- //
+
+/// The response to a `client_info` request: how this wallet is authenticated
+/// and the authorization associated with those credentials.
+#[derive(Serialize, Deserialize)]
+pub struct GetClientInfoResponse {
+    /// How this wallet is authenticated: root seed or client credentials.
+    pub kind: CredentialKind,
+    /// The public key of the client.
+    /// `Some` iff `kind` is [`CredentialKind::ClientCredentials`].
+    pub client_pk: Option<ed25519::PublicKey>,
+    /// The time at which the client was created,
+    /// in milliseconds since the UNIX epoch.
+    /// `Some` iff `kind` is [`CredentialKind::ClientCredentials`].
+    pub created_at: Option<TimestampMs>,
+    /// The time at which the client expires,
+    /// in milliseconds since the UNIX epoch.
+    ///
+    /// [`None`] means that the client will never expire.
+    /// Root seed clients never expire.
+    pub expires_at: Option<TimestampMs>,
+    /// The label for the client, if any.
+    pub label: Option<String>,
+    /// The scope aliases granted to this client.
+    /// Root seed clients hold the `full` scope.
+    pub scopes: Vec<String>,
+    /// Extra permissions granted explicitly, beyond those from `scopes`.
+    /// Each permission grants access to a single API endpoint,
+    /// e.g. `"create_invoice"`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<String>,
+    /// Every permission this client currently holds: the union of all
+    /// `scopes`' permissions plus the explicit `permissions`.
+    ///
+    /// **Unstable**: permission ids are not part of the stable API and may be
+    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effective_permissions: Vec<String>,
+}
+
+impl From<revocable_clients::models::GetClientInfoResponse>
+    for GetClientInfoResponse
+{
+    fn from(value: revocable_clients::models::GetClientInfoResponse) -> Self {
+        let revocable_clients::models::GetClientInfoResponse {
+            kind,
+            pubkey,
+            created_at,
+            expires_at,
+            label,
+            permissions,
+            effective_permissions,
+        } = value;
+        let ClientPermissions {
+            scopes,
+            permissions,
+        } = permissions;
+
+        Self {
+            kind: CredentialKind::from(kind),
+            client_pk: pubkey,
+            created_at,
+            expires_at,
+            label,
+            scopes: scopes.iter().map(|s| s.as_str().to_owned()).collect(),
+            permissions: permissions
+                .iter()
+                .map(|p| p.as_str().to_owned())
+                .collect(),
+            effective_permissions: effective_permissions
+                .into_iter()
+                .map(Cow::into_owned)
+                .collect(),
+        }
+    }
+}
+
+/// How a wallet authenticates with its node: root seed or client credentials.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CredentialKind {
+    /// The wallet authenticated with the root seed itself.
+    RootSeed,
+    /// The wallet authenticated with revocable client credentials.
+    ClientCredentials,
+}
+
+impl From<revocable_clients::models::CredentialKind> for CredentialKind {
+    fn from(value: revocable_clients::models::CredentialKind) -> Self {
+        match value {
+            revocable_clients::models::CredentialKind::RootSeed =>
+                Self::RootSeed,
+            revocable_clients::models::CredentialKind::ClientCredentials =>
+                Self::ClientCredentials,
+        }
+    }
+}
 
 /// Information about a client that can authenticate with a Lexe node.
 #[derive(Serialize, Deserialize)]

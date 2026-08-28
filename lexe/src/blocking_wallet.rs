@@ -21,8 +21,8 @@ use crate::{
             CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
             CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
             CreatePayerProofRequest, CreatePayerProofResponse,
-            GetHumanBitcoinAddressResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetClientInfoResponse, GetHumanBitcoinAddressResponse,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -583,6 +583,14 @@ impl BlockingLexeWallet {
     }
 
     // --- Client credentials management --- //
+
+    /// Get info about the credentials associated with this
+    /// `BlockingLexeWallet`.
+    ///
+    /// Includes granted scopes and permissions, expiration, etc.
+    pub fn client_info(&self) -> anyhow::Result<GetClientInfoResponse> {
+        block_on(self.inner.client_info())
+    }
 
     /// List the active clients for this node.
     ///

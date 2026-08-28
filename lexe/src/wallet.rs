@@ -53,8 +53,9 @@ use crate::{
             ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
             CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
-            CreatePayerProofResponse, GetHumanBitcoinAddressResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            CreatePayerProofResponse, GetClientInfoResponse,
+            GetHumanBitcoinAddressResponse, GetPaymentRequest,
+            GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -2046,6 +2047,15 @@ impl LexeWallet {
     }
 
     // --- Client credentials management --- //
+
+    /// Get info about the credentials associated with this `LexeWallet`.
+    ///
+    /// Includes granted scopes and permissions, expiration, etc.
+    #[instrument(skip_all, name = "(client-info)")]
+    pub async fn client_info(&self) -> anyhow::Result<GetClientInfoResponse> {
+        let resp = self.node_client.client_info().await?;
+        Ok(GetClientInfoResponse::from(resp))
+    }
 
     /// List the active clients for this node.
     ///
