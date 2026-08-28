@@ -50,7 +50,8 @@ use lexe_api::{
         RevocableClient, RevocableClients,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
+            GetClientInfoResponse, ListRevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
         },
     },
     types::{
@@ -797,6 +798,14 @@ impl UserNodeRunApi for NodeClient {
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/payments/note");
         let req = run_rest.put(url, &req);
+        run_rest.send(req).await
+    }
+
+    async fn client_info(&self) -> Result<GetClientInfoResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/user/v1/client_info");
+        let req = run_rest.get(url, &Empty {});
         run_rest.send(req).await
     }
 

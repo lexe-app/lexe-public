@@ -110,7 +110,8 @@ use crate::{
         RevocableClients,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
+            GetClientInfoResponse, ListRevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
         },
     },
     types::{
@@ -430,6 +431,12 @@ pub trait UserNodeRunApi {
         &self,
         req: UpdatePersonalNote,
     ) -> Result<Empty, NodeApiError>;
+
+    /// Get information about the client used to make this request.
+    ///
+    /// GET /user/v1/client_info [`Empty`] -> [`GetClientInfoResponse`]
+    // Added in `node-v0.10.4`
+    async fn client_info(&self) -> Result<GetClientInfoResponse, NodeApiError>;
 
     /// Lists all revocable clients.
     ///

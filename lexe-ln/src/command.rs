@@ -32,8 +32,10 @@ use lexe_api::{
         RevocableClient, RevocableClients, RevocableClientsHandle,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
+            CredentialKind, GetClientInfoResponse, ListRevocableClients,
+            UpdateClientRequest, UpdateClientResponse,
         },
+        scopes::{ClientPermissions, Scope},
     },
     server::client_authz::VerifiedClientAuthorization,
     types::{
@@ -73,7 +75,10 @@ use lexe_crypto::{ed25519, rng::SysRng};
 use lexe_enclave::enclave::Measurement;
 use lexe_std::{Apply, const_assert};
 use lexe_tls::{
-    shared_seed::certs::{RevocableClientCert, RevocableIssuingCaCert},
+    shared_seed::{
+        ClientCertKind,
+        certs::{RevocableClientCert, RevocableIssuingCaCert},
+    },
     types::LxCertificateDer,
 };
 use lexe_tokio::events_bus::{EventsBus, EventsRx};
@@ -1955,6 +1960,47 @@ mod validate {
         pff.validate()?;
 
         Ok(pff)
+    }
+}
+
+pub fn client_info(
+    authz: &VerifiedClientAuthorization,
+    revocable_clients: &RwLock<RevocableClients>,
+) -> Result<GetClientInfoResponse, CommonApiError> {
+    let effective_permissions = authz
+        .permission_set()
+        .iter()
+        .map(|permission| Cow::Borrowed(permission.as_str()))
+        .collect();
+
+    match authz.cert_kind() {
+        ClientCertKind::Ephemeral => Ok(GetClientInfoResponse {
+            kind: CredentialKind::RootSeed,
+            pubkey: None,
+            created_at: None,
+            expires_at: None,
+            label: None,
+            permissions: ClientPermissions::from_single_scope(Scope::Full),
+            effective_permissions,
+        }),
+        ClientCertKind::Revocable { client_pk } => {
+            let locked_clients = revocable_clients.read().unwrap();
+            let client =
+                locked_clients.clients.get(client_pk).ok_or_else(|| {
+                    // The authz extractor just resolved this client, so it can
+                    // only be missing if it was revoked in the meantime.
+                    CommonApiError::general("Revocable client not found")
+                })?;
+            Ok(GetClientInfoResponse {
+                kind: CredentialKind::ClientCredentials,
+                pubkey: Some(client.pubkey),
+                created_at: Some(client.created_at),
+                expires_at: client.expires_at,
+                label: client.label.clone(),
+                permissions: client.permissions.clone(),
+                effective_permissions,
+            })
+        }
     }
 }
 

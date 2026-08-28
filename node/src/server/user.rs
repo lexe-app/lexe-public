@@ -35,7 +35,8 @@ use lexe_api::{
         RevocableClients,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            ListRevocableClients, UpdateClientRequest, UpdateClientResponse,
+            GetClientInfoResponse, ListRevocableClients, UpdateClientRequest,
+            UpdateClientResponse,
         },
     },
     server::{
@@ -515,6 +516,15 @@ pub(super) async fn update_personal_note(
         .map_err(NodeApiError::command)?;
 
     Ok(LxJson(Empty {}))
+}
+
+pub(super) async fn client_info(
+    permissions: VerifiedClientAuthorization,
+    State(state): State<Arc<RouterState>>,
+) -> Result<LxJson<GetClientInfoResponse>, NodeApiError> {
+    lexe_ln::command::client_info(&permissions, &state.revocable_clients.0)
+        .map(LxJson)
+        .map_err(NodeApiError::from)
 }
 
 pub(super) async fn list_revocable_clients(

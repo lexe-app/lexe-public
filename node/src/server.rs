@@ -26,7 +26,10 @@ use lexe_api::{
     revocable_clients::{
         ListRevocableClientsHandle, RevocableClientsHandle, scopes::Permission,
     },
-    server::{LxJson, client_authz::scoped},
+    server::{
+        LxJson,
+        client_authz::{scoped, unscoped},
+    },
     types::{partners::PartnersInfo, payments::OfferId},
 };
 use lexe_common::{
@@ -182,6 +185,9 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
             scoped::get(GetUpdatedPayments, user::get_updated_payments))
         .route("/user/v1/payments/note",
             scoped::put(UpdatePersonalNote, user::update_personal_note))
+        // Intentionally unscoped: any client may see its own authorization.
+        .route("/user/v1/client_info",
+            unscoped::get(user::client_info))
         .route("/user/v1/clients",
             scoped::get(ListRevocableClients, user::list_revocable_clients)
                 .merge(scoped::post(

@@ -19,6 +19,47 @@ use super::{
     RevocableClient, grandfathered_permissions, scopes::ClientPermissions,
 };
 
+/// The response to a `client_info` request: the caller's own authentication
+/// kind and granted authorization.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GetClientInfoResponse {
+    /// Root seed or client credentials.
+    pub kind: CredentialKind,
+
+    /// The client cert pubkey. `Some` iff `kind` is `ClientCredentials`.
+    pub pubkey: Option<ed25519::PublicKey>,
+
+    /// When the client was created. `Some` iff `kind` is `ClientCredentials`.
+    pub created_at: Option<TimestampMs>,
+
+    /// When the client expires. [`None`] means it never expires.
+    /// Root seed clients never expire.
+    pub expires_at: Option<TimestampMs>,
+
+    /// The client's label, if any.
+    pub label: Option<String>,
+
+    /// The caller's granted authorization.
+    /// Root seed clients hold the equivalent of the `full` scope.
+    #[serde(deserialize_with = "ClientPermissions::deserialize_drop_unknown")]
+    pub permissions: ClientPermissions,
+
+    /// Every permission the caller currently holds.
+    //
+    // Since clients aren't able to compute the scope -> permissions mapping,
+    // we compute this for them server-side.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effective_permissions: Vec<Cow<'static, str>>,
+}
+
+/// How a client authenticated: root seed or client credentials.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CredentialKind {
+    RootSeed,
+    ClientCredentials,
+}
+
 /// A request to list all revocable clients.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Eq, PartialEq, Arbitrary))]
