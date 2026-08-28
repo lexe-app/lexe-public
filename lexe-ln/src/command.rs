@@ -656,14 +656,15 @@ where
         ));
     }
 
-    // Enforce maximum invoice expiration of one day
-    let expiry_time = Duration::from_secs(u64::from(req.expiration_secs));
-    if expiry_time > constants::MAX_INVOICE_EXPIRY {
+    // Enforce maximum invoice expiration
+    let max_expiration_secs = CreateInvoiceRequest::MAX_EXPIRATION_SECS;
+    if req.expiration_secs > max_expiration_secs {
+        let max_secs = max_expiration_secs;
         return Err(anyhow!(
-            "Invoice expiration exceeds maximum duration of {}s",
-            constants::MAX_INVOICE_EXPIRY.as_secs()
+            "Invoice expiration exceeds maximum duration of {max_secs}s"
         ));
     }
+    let expiration_dur = Duration::from_secs(u64::from(req.expiration_secs));
 
     // We persist our own payment metadata, so we have no use for this.
     let payment_metadata = None;
@@ -714,7 +715,7 @@ where
         .min_final_cltv_expiry_delta(u64::from(cltv_expiry))     // C: False -> True
         .payment_secret(secret)                                  // S: False -> True
         .basic_mpp()                                             // S: _ -> True
-        .expiry_time(expiry_time)
+        .expiry_time(expiration_dur)
         .payee_pub_key(our_node_pk);
 
     if let Some(amount) = req.amount {

@@ -328,7 +328,8 @@ fn default_invoice_kind() -> PaymentKind {
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
-    /// The invoice expiration, in seconds.
+    /// The invoice expiration duration, in seconds.
+    /// Maximum: [`Self::MAX_EXPIRATION_SECS`].
     // compat: Alias added in node-v0.10.4
     #[serde(rename = "expiry_secs", alias = "expiration_secs")]
     pub expiration_secs: u32,
@@ -399,6 +400,12 @@ pub struct CreateInvoiceRequest {
     // Added in `node-v0.9.6`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub partner_base_fee: Option<Amount>,
+}
+
+impl CreateInvoiceRequest {
+    /// Maximum invoice expiration.
+    /// Requests with `expiration_secs` greater than this value are rejected.
+    pub const MAX_EXPIRATION_SECS: u32 = 7 * 24 * 60 * 60; // 1 week
 }
 
 impl Default for CreateInvoiceRequest {
