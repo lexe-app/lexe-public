@@ -968,8 +968,9 @@ impl AsyncLexeWallet {
     }
 
     /// Create a BOLT11 invoice.
-    /// `expiration_secs` is the optional invoice expiry, in seconds;
-    /// if `None`, the invoice expiry defaults to 86,400 (1 day).
+    /// `expiration_secs` is the optional invoice expiration duration, in
+    /// seconds, at most 604,800 (1 week); if `None`, it defaults to 86,400
+    /// (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
     /// `personal_note` is a private note that the payer does not see.
@@ -1926,8 +1927,9 @@ impl BlockingLexeWallet {
     }
 
     /// Create a BOLT11 invoice.
-    /// `expiration_secs` is the optional invoice expiry, in seconds;
-    /// if `None`, the invoice expiry defaults to 86,400 (1 day).
+    /// `expiration_secs` is the optional invoice expiration duration, in
+    /// seconds, at most 604,800 (1 week); if `None`, it defaults to 86,400
+    /// (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
     /// `personal_note` is a private note that the payer does not see.

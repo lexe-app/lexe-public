@@ -770,8 +770,9 @@ _set_method_doc(LexeWallet, "create_invoice", """\
 Create a BOLT 11 Lightning invoice.
 
 Args:
-    expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour),
-        or ``None`` for a default of ``86400`` (1 day).
+    expiration_secs: Invoice expiration duration in seconds (e.g. ``3600``
+        for 1 hour), or ``None`` for a default of ``86400`` (1 day).
+        Max: ``604800`` (1 week).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
     personal_note: Optional personal note (not visible to the payer).
@@ -1653,8 +1654,9 @@ _set_method_doc(AsyncLexeWallet, "create_invoice", """\
 Create a BOLT 11 Lightning invoice.
 
 Args:
-    expiration_secs: Invoice expiry in seconds (e.g. ``3600`` for 1 hour),
-        or ``None`` for a default of ``86400`` (1 day).
+    expiration_secs: Invoice expiration duration in seconds (e.g. ``3600``
+        for 1 hour), or ``None`` for a default of ``86400`` (1 day).
+        Max: ``604800`` (1 week).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
     personal_note: Optional personal note (not visible to the payer).

@@ -1017,7 +1017,8 @@ pub struct CreateInvoiceArgs {
 
     #[arg(
         long,
-        help = "Invoice expiration in seconds. [default: 86400 = 1 day]"
+        help = "Invoice expiration duration in seconds. Maximum: 604800 = 1 \
+        week.\n[default: 86400 = 1 day]"
     )]
     expiration_secs: Option<u32>,
 

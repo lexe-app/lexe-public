@@ -259,9 +259,11 @@ pub struct PayRequest {
 /// A request to create a BOLT 11 invoice.
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
-    /// The expiration, in seconds, to encode into the invoice.
-    /// If no duration is provided, the expiration time defaults to 86400
+    /// The expiration duration, in seconds, to encode into the invoice.
+    /// If no duration is provided, the expiration defaults to 86400
     /// (1 day).
+    ///
+    /// Maximum: 604800 (1 week)
     pub expiration_secs: Option<u32>,
 
     /// Optionally include an amount to encode into the invoice.
