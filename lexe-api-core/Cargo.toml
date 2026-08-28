@@ -44,6 +44,7 @@ lexe-byte-array = { workspace = true }
 lexe-common = { workspace = true }
 lexe-crypto = { workspace = true }
 lexe-enclave = { workspace = true }
+lexe-logger = { workspace = true }
 lexe-serde = { workspace = true }
 lexe-sha256 = { workspace = true }
 lexe-std = { workspace = true }

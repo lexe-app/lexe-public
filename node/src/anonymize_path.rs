@@ -5,8 +5,9 @@
 
 use std::collections::{HashMap, hash_map::Entry};
 
-use lexe_common::{debug_panic_release_log, time::DisplayMs};
+use lexe_common::time::DisplayMs;
 use lexe_ln::alias::NetworkGraphType;
+use lexe_logger::debug_panic_release_log;
 use lightning::{
     events::{Event, PathFailure},
     routing::{

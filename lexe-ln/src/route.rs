@@ -13,12 +13,13 @@ use lexe_api::{cli::LspInfo, types::invoice::Invoice};
 use lexe_common::{
     api::user::{NodePk, Scid},
     constants::{ROUTING_FEE_LIMIT_BASE_MSAT, ROUTING_FEE_LIMIT_PROP},
-    debug_panic_release_log, dec,
+    dec,
     ln::amount::Amount,
     ppm::Ppm,
     rng::SysRngDerefHack,
     time::DisplayMs,
 };
+use lexe_logger::debug_panic_release_log;
 use lexe_std::const_assert;
 use lightning::{
     blinded_path::payment::{

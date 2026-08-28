@@ -76,6 +76,7 @@ lexe-crypto = { workspace = true }
 lexe-enclave = { workspace = true }
 lexe-hex = { workspace = true }
 lexe-ln = { path = "../lexe-ln" }
+lexe-logger = { workspace = true }
 lexe-std = { workspace = true }
 lexe-tls = { workspace = true }
 lexe-tls-attest-server = { path = "../lexe-tls-attest-server" }

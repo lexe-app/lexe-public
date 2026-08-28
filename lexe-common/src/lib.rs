@@ -60,15 +60,3 @@ pub fn default_lexe_data_dir() -> anyhow::Result<PathBuf> {
         .ok_or_else(|| anyhow!("Could not determine home directory"))?;
     Ok(home.join(".lexe"))
 }
-
-/// `panic!(..)`s in debug mode, `tracing::error!(..)`s in release mode
-#[macro_export]
-macro_rules! debug_panic_release_log {
-    ($($arg:tt)*) => {
-        if core::cfg!(debug_assertions) {
-            core::panic!($($arg)*);
-        } else {
-            tracing::error!($($arg)*);
-        }
-    };
-}

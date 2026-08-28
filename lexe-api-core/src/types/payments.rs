@@ -17,7 +17,6 @@ use lexe_byte_array::ByteArray;
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
     api::user::UserPk,
-    debug_panic_release_log,
     ln::{amount::Amount, hashes::Txid, priority::ConfirmationPriority},
     ppm::Ppm,
     time::TimestampMs,
@@ -26,6 +25,7 @@ use lexe_crypto::{
     ed25519,
     rng::{RngCore, ThreadFastRng},
 };
+use lexe_logger::debug_panic_release_log;
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
 #[cfg(any(test, feature = "test-utils"))]

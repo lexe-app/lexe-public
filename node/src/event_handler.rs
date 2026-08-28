@@ -53,7 +53,6 @@ use lexe_common::{
         test_event::TestEvent,
         user::{NodePk, UserPk},
     },
-    debug_panic_release_log,
     ln::{amount::Amount, channel::ChannelId},
 };
 use lexe_crypto::rng::{RngExt, ThreadFastRng};
@@ -72,6 +71,7 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
+use lexe_logger::debug_panic_release_log;
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };

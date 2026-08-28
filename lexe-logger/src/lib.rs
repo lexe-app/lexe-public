@@ -10,6 +10,18 @@
 /// `TraceId` and the logger-side span plumbing for it.
 pub mod trace;
 
+/// `panic!(..)`s in debug mode, `tracing::error!(..)`s in release mode
+#[macro_export]
+macro_rules! debug_panic_release_log {
+    ($($arg:tt)*) => {
+        if core::cfg!(debug_assertions) {
+            core::panic!($($arg)*);
+        } else {
+            tracing::error!($($arg)*);
+        }
+    };
+}
+
 #[cfg(feature = "subscriber")]
 mod subscriber;
 #[cfg(feature = "subscriber")]

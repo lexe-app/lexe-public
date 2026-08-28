@@ -64,7 +64,6 @@ use lexe_common::{
         DEFAULT_USERNODE_FIRST_HOP_BASE_FEE,
         DEFAULT_USERNODE_FIRST_HOP_PROP_FEE, timeout,
     },
-    debug_panic_release_log,
     ln::{
         amount::Amount,
         channel::{ChannelId, LxChannelDetails, UserChannelId},
@@ -77,6 +76,7 @@ use lexe_common::{
 };
 use lexe_crypto::{ed25519, rng::SysRng};
 use lexe_enclave::enclave::Measurement;
+use lexe_logger::debug_panic_release_log;
 use lexe_std::{Apply, const_assert};
 use lexe_tls::{
     shared_seed::{
