@@ -47,12 +47,26 @@ use crate::tls_acceptor::VerifiedTlsClientCert;
 /// [`ClientPermissions`]: lexe_api_core::revocable_clients::scopes::ClientPermissions
 /// [`RevocableClientsHandle`]: lexe_api_core::revocable_clients::RevocableClientsHandle
 pub struct VerifiedClientAuthorization {
+    /// The verified cert kind: ephemeral (root seed) or revocable.
+    cert_kind: ClientCertKind,
+    /// The client's resolved permissions: the union of all granted scopes'
+    /// permissions plus any explicitly granted permissions.
     permissions: PermissionSet,
     /// When this client expires. `None` means it never expires.
     expires_at: Option<TimestampMs>,
 }
 
 impl VerifiedClientAuthorization {
+    /// The verified cert kind: ephemeral (root seed) or revocable.
+    pub fn cert_kind(&self) -> &ClientCertKind {
+        &self.cert_kind
+    }
+
+    /// The client's resolved permission set.
+    pub fn permission_set(&self) -> PermissionSet {
+        self.permissions
+    }
+
     /// Require the client to hold `permission`, else reject (fail-closed).
     pub fn require(
         &self,
@@ -174,7 +188,7 @@ where
             )
         })?;
 
-        let (permissions, expires_at) = match cert_kind {
+        let (permissions, expires_at) = match &cert_kind {
             // Ephemeral (root-seed) client: full access, never expires.
             ClientCertKind::Ephemeral => (Scope::Full.permissions(), None),
             // Revocable client: resolve its stored authorization.
@@ -183,7 +197,7 @@ where
                 let locked_rev_clients = revocable_clients.0.read().unwrap();
                 let client = locked_rev_clients
                     .clients
-                    .get(&client_pk)
+                    .get(client_pk)
                     .ok_or_else(|| {
                         CommonApiError::client_auth(
                             "Revocable client not found",
@@ -194,6 +208,7 @@ where
         };
 
         Ok(VerifiedClientAuthorization {
+            cert_kind,
             permissions,
             expires_at,
         })
@@ -384,6 +399,7 @@ mod test {
         let pubkey = target.pubkey;
         let revocable_clients = store(target);
         let caller = VerifiedClientAuthorization {
+            cert_kind: ClientCertKind::Ephemeral,
             permissions: Scope::Full.permissions(),
             expires_at: Some(expires_at),
         };
@@ -407,6 +423,7 @@ mod test {
         let pubkey = target.pubkey;
         let revocable_clients = store(target);
         let caller = VerifiedClientAuthorization {
+            cert_kind: ClientCertKind::Ephemeral,
             permissions: Scope::Spend.permissions(),
             expires_at: Some(expires_at),
         };
