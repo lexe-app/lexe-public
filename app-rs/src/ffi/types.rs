@@ -50,8 +50,6 @@ use lexe_common::{
 };
 use lexe_crypto::rng::SysRng;
 
-use crate::types::GDriveSignupCredentials as GDriveSignupCredentialsRs;
-
 /// See [`lexe_common::constants::HBA_CLAIM_MIN_BALANCE_SATS`]
 pub const HBA_CLAIM_MIN_BALANCE_SATS: u32 =
     lexe_common::constants::HBA_CLAIM_MIN_BALANCE_SATS;
@@ -273,15 +271,6 @@ pub struct GDriveSignupCredentials {
     pub backup_password: String,
     /// The google auth code passed to the node enclave during provisioning.
     pub google_auth_code: String,
-}
-
-impl From<GDriveSignupCredentials> for GDriveSignupCredentialsRs {
-    fn from(creds: GDriveSignupCredentials) -> Self {
-        Self {
-            backup_password: creds.backup_password,
-            google_auth_code: creds.google_auth_code,
-        }
-    }
 }
 
 /// Some assorted user/node info. This is kinda hacked together currently just

@@ -132,8 +132,6 @@ impl AppHandle {
         // consent flow, used by the enclave to get access+refresh tokens.
         let (backup_password, google_auth_code) =
             match config.wallet_env().deploy_env {
-                // TODO(phlip9): don't know why frb keeps trying to add a
-                // conversion for the Rust-only type...
                 DeployEnv::Prod | DeployEnv::Staging => {
                     let backup_password = gdrive_signup_creds
                         .as_ref()
