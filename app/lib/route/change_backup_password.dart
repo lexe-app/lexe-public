@@ -11,20 +11,22 @@ import 'package:lexeapp/components.dart'
         AnimatedFillButton,
         ErrorMessage,
         ErrorMessageSection,
-        HeadingText,
         LxBackButton,
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
         MultistepFlow,
-        ScrollableSinglePageBody,
-        baseInputDecoration;
+        ScrollableSinglePageBody;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/gdrive.dart'
+    show
+        GDriveBackupPasswordFields,
+        GDriveBackupPasswordFieldsState,
+        GDriveBackupPasswordPreamble;
 import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
-import 'package:lexeapp/validators.dart' as validators;
 
 /// Entry point for the change backup password flow.
 class ChangeBackupPasswordPage extends StatelessWidget {
@@ -207,8 +209,8 @@ class ChangeBackupPasswordFormPage extends StatefulWidget {
 
 class _ChangeBackupPasswordFormPageState
     extends State<ChangeBackupPasswordFormPage> {
-  final GlobalKey<FormFieldState<String>> newPasswordFieldKey = GlobalKey();
-  final GlobalKey<FormFieldState<String>> confirmPasswordFieldKey = GlobalKey();
+  final GlobalKey<GDriveBackupPasswordFieldsState> passwordFieldsKey =
+      GlobalKey();
 
   final ValueNotifier<bool> isSaving = ValueNotifier(false);
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
@@ -225,21 +227,12 @@ class _ChangeBackupPasswordFormPageState
 
     this.errorMessage.value = null;
 
-    final newPasswordState = this.newPasswordFieldKey.currentState!;
-    final confirmPasswordState = this.confirmPasswordFieldKey.currentState!;
-
-    final newPasswordIsValid = newPasswordState.validate();
-    final confirmPasswordIsValid = confirmPasswordState.validate();
-    if (!newPasswordIsValid || !confirmPasswordIsValid) {
+    // Get the validated password
+    final fieldState = this.passwordFieldsKey.currentState!;
+    final newPassword = fieldState.validateAndGetPassword();
+    // Do nothing if the password is invalid
+    if (newPassword == null) {
       return;
-    }
-
-    final String newPassword;
-    switch (validators.validatePassword(newPasswordState.value)) {
-      case Ok(:final ok):
-        newPassword = ok;
-      case Err():
-        return;
     }
 
     this.isSaving.value = true;
@@ -315,63 +308,15 @@ class _ChangeBackupPasswordFormPageState
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const HeadingText(text: "Change backup password"),
-          const SizedBox(height: Space.s200),
-          MarkdownBody(
-            data: '''
-Enter at least 12 characters.
-
-This password encrypts your recovery data so Google can't read it.
-Store it in a safe place, like a password manager—you **need this to
-recover your funds**.
-''',
-            styleSheet: LxTheme.markdownStyle.copyWith(
-              blockSpacing: Space.s0,
-              pPadding: const EdgeInsets.symmetric(vertical: Space.s100),
-            ),
-          ),
+          const GDriveBackupPasswordPreamble(heading: "Change backup password"),
           const SizedBox(height: Space.s600),
 
-          // New password
-          TextFormField(
-            key: this.newPasswordFieldKey,
-            autofocus: true,
-            textInputAction: TextInputAction.next,
-            validator: (str) => validators.validatePassword(str).err,
-            onEditingComplete: () {
-              final state = this.newPasswordFieldKey.currentState!;
-              if (state.validate()) {
-                FocusScope.of(this.context).nextFocus();
-              } else {
-                FocusScope.of(this.context).unfocus();
-              }
-            },
-            decoration: baseInputDecoration.copyWith(hintText: "New password"),
-            obscureText: true,
-            style: Fonts.fontPassword,
-          ),
-          const SizedBox(height: Space.s200),
-
-          // Confirm new password
-          TextFormField(
-            key: this.confirmPasswordFieldKey,
-            autofocus: false,
-            textInputAction: TextInputAction.done,
-            validator: (str) => validators
-                .validateConfirmPassword(
-                  password: this.newPasswordFieldKey.currentState!.value,
-                  confirmPassword: str,
-                )
-                .err,
-            onEditingComplete: () {
-              FocusScope.of(this.context).unfocus();
-              this.onSubmit();
-            },
-            decoration: baseInputDecoration.copyWith(
-              hintText: "Confirm new password",
-            ),
-            obscureText: true,
-            style: Fonts.fontPassword,
+          // Password fields
+          GDriveBackupPasswordFields(
+            key: this.passwordFieldsKey,
+            onSubmit: this.onSubmit,
+            passwordHint: "New password",
+            confirmPasswordHint: "Confirm new password",
           ),
 
           // Error message

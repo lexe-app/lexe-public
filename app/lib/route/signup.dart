@@ -23,14 +23,18 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SeedWordsCard,
         StackedButton,
-        SubheadingText,
-        baseInputDecoration;
+        SubheadingText;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveServerAuthCode;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/gdrive.dart'
+    show
+        GDriveBackupPasswordFields,
+        GDriveBackupPasswordFieldsState,
+        GDriveBackupPasswordPreamble,
+        GDrivePreamble;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:lexeapp/url.dart' as url;
-import 'package:lexeapp/validators.dart' as validators;
 
 /// A tiny interface so we can mock the [AppHandle.signup] call in design mode.
 abstract interface class SignupApi {
@@ -173,29 +177,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          // Big Google Drive icon
-          const Icon(
-            LxIcons.gdrive,
-            size: Space.s900,
-            weight: 300,
-            opticalSize: 48,
-            grade: -50,
-          ),
-          MarkdownBody(
-            data: '''
-# Connect your Google Drive
-
-Lexe will create a **LexeData** folder in your Google Drive to store
-encrypted recovery data and keep it up-to-date.
-
-- Your node can only access the files it creates, and **nothing else**.
-- Neither Google nor Lexe can decrypt your recovery data, but you can, using
-  your **backup password**.
-- With your recovery data, **you can always recover your funds**—even if Lexe goes away.
-''',
-            // styleSheet: LxTheme.buildMarkdownStyle(),
-            styleSheet: LxTheme.markdownStyle,
-          ),
+          const GDrivePreamble(),
 
           Padding(
             padding: const EdgeInsets.only(top: Space.s500),
@@ -246,8 +228,8 @@ class SignupBackupPasswordPage extends StatefulWidget {
 }
 
 class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
-  final GlobalKey<FormFieldState<String>> passwordFieldKey = GlobalKey();
-  final GlobalKey<FormFieldState<String>> confirmPasswordFieldKey = GlobalKey();
+  final GlobalKey<GDriveBackupPasswordFieldsState> passwordFieldsKey =
+      GlobalKey();
 
   final ValueNotifier<bool> isSigningUp = ValueNotifier(false);
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
@@ -266,20 +248,12 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
     // Hide error message
     this.errorMessage.value = null;
 
-    final passwordIsValid = this.passwordFieldKey.currentState!.validate();
-    final fieldState = this.confirmPasswordFieldKey.currentState!;
-    if (!passwordIsValid || !fieldState.validate()) {
+    // Get the validated password
+    final fieldState = this.passwordFieldsKey.currentState!;
+    final password = fieldState.validateAndGetPassword();
+    // Do nothing if the password is invalid
+    if (password == null) {
       return;
-    }
-
-    final String password;
-    switch (validators.validatePassword(
-      this.passwordFieldKey.currentState!.value,
-    )) {
-      case Ok(:final ok):
-        password = ok;
-      case Err():
-        return;
     }
 
     info("SignupBackupPasswordPage: ready to sign up");
@@ -324,13 +298,6 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textFieldStyle = Fonts.fontUI.copyWith(
-      fontSize: Fonts.size700,
-      fontVariations: [Fonts.weightMedium],
-      fontFeatures: [Fonts.featDisambugation],
-      letterSpacing: -0.5,
-    );
-
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
@@ -342,65 +309,15 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          MarkdownBody(
-            data: '''
-# Enter your backup password
-
-Enter at least 12 characters.
-
-This password encrypts your recovery data so Google can't read it.
-Store it in a safe place, like a password manager—you **need this to
-recover your funds**.
-''',
-            // styleSheet: LxTheme.buildMarkdownStyle().copyWith(
-            styleSheet: LxTheme.markdownStyle.copyWith(
-              h1Padding: const EdgeInsets.only(
-                top: Space.s200,
-                bottom: Space.s200,
-              ),
-            ),
-            // styleSheet: LxTheme.buildMarkdownStyle(),
-            // styleSheet: LxTheme.markdownStyle,
+          const GDriveBackupPasswordPreamble(
+            heading: "Enter your backup password",
           ),
-          const SizedBox(height: Space.s100),
+          const SizedBox(height: Space.s600),
 
-          // Password field
-          TextFormField(
-            key: this.passwordFieldKey,
-            autofocus: true,
-            textInputAction: TextInputAction.next,
-            validator: (str) => validators.validatePassword(str).err,
-            onEditingComplete: () {
-              // Only show the input error on field completion (good UX).
-              // Only move to the next field if the input is valid.
-              final state = this.passwordFieldKey.currentState!;
-              if (state.validate()) {
-                FocusScope.of(this.context).nextFocus();
-              }
-            },
-            decoration: baseInputDecoration.copyWith(hintText: "Password"),
-            obscureText: true,
-            style: textFieldStyle,
-          ),
-          const SizedBox(height: Space.s100),
-
-          // Confirm password field
-          TextFormField(
-            key: this.confirmPasswordFieldKey,
-            autofocus: false,
-            textInputAction: TextInputAction.done,
-            validator: (str) => validators
-                .validateConfirmPassword(
-                  password: this.passwordFieldKey.currentState!.value,
-                  confirmPassword: str,
-                )
-                .err,
-            onEditingComplete: this.onSubmit,
-            decoration: baseInputDecoration.copyWith(
-              hintText: "Confirm password",
-            ),
-            obscureText: true,
-            style: textFieldStyle,
+          // Password fields
+          GDriveBackupPasswordFields(
+            key: this.passwordFieldsKey,
+            onSubmit: this.onSubmit,
           ),
 
           // Error message
@@ -417,9 +334,8 @@ recover your funds**.
             ),
           ),
         ],
-        bottomPadding: EdgeInsets.zero,
         bottom: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Space.s300),
+          padding: const EdgeInsets.only(top: Space.s500),
           child: ValueListenableBuilder(
             valueListenable: this.isSigningUp,
             builder: (context, isSending, widget) => SignupButton(

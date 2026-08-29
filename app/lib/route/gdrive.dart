@@ -278,7 +278,9 @@ class _GDriveBackupPasswordPageState extends State<GDriveBackupPasswordPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          GDriveBackupPasswordPreamble(),
+          const GDriveBackupPasswordPreamble(
+            heading: "Enter your backup password",
+          ),
           const SizedBox(height: Space.s600),
 
           // Password fields
@@ -324,13 +326,16 @@ class _GDriveBackupPasswordPageState extends State<GDriveBackupPasswordPage> {
 }
 
 class GDriveBackupPasswordPreamble extends StatelessWidget {
-  const GDriveBackupPasswordPreamble({super.key});
+  const GDriveBackupPasswordPreamble({super.key, required this.heading});
+
+  final String heading;
 
   @override
   Widget build(BuildContext context) {
     return MarkdownBody(
-      data: '''
-# Enter your backup password
+      data:
+          '''
+# ${this.heading}
 
 Enter at least 12 characters.
 
@@ -346,10 +351,18 @@ recover your funds**.
 }
 
 class GDriveBackupPasswordFields extends StatefulWidget {
-  const GDriveBackupPasswordFields({super.key, required this.onSubmit});
+  const GDriveBackupPasswordFields({
+    super.key,
+    required this.onSubmit,
+    this.passwordHint = "Password",
+    this.confirmPasswordHint = "Confirm password",
+  });
 
   /// Called when the user finishes the last field.
   final VoidCallback onSubmit;
+
+  final String passwordHint;
+  final String confirmPasswordHint;
 
   @override
   State<GDriveBackupPasswordFields> createState() =>
@@ -404,7 +417,9 @@ class GDriveBackupPasswordFieldsState
               FocusScope.of(this.context).nextFocus();
             }
           },
-          decoration: baseInputDecoration.copyWith(hintText: "Password"),
+          decoration: baseInputDecoration.copyWith(
+            hintText: this.widget.passwordHint,
+          ),
           obscureText: true,
           style: Fonts.fontPassword,
         ),
@@ -426,7 +441,7 @@ class GDriveBackupPasswordFieldsState
             this.widget.onSubmit();
           },
           decoration: baseInputDecoration.copyWith(
-            hintText: "Confirm password",
+            hintText: this.widget.confirmPasswordHint,
           ),
           obscureText: true,
           style: Fonts.fontPassword,
