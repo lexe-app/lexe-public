@@ -344,6 +344,7 @@ pub(super) async fn close_channel_preflight(
 }
 
 pub(super) async fn pay_invoice(
+    auth: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoiceRequest>,
 ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
@@ -368,6 +369,7 @@ pub(super) async fn pay_invoice(
         &state.network_graph,
         &state.chain_monitor,
         state.lsp_info.lsp_fees(),
+        auth.cert_kind().client_pk(),
     )
     .await
     .map(LxJson)
@@ -375,6 +377,7 @@ pub(super) async fn pay_invoice(
 }
 
 pub(super) async fn pay_invoice_preflight(
+    auth: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoicePreflightRequest>,
 ) -> Result<LxJson<PayInvoicePreflightResponse>, NodeApiError> {
@@ -387,6 +390,7 @@ pub(super) async fn pay_invoice_preflight(
         &state.network_graph,
         &state.chain_monitor,
         state.lsp_info.lsp_fees(),
+        auth.cert_kind().client_pk(),
     )
     .await
     .map_err(NodeApiError::command)?;
@@ -413,6 +417,7 @@ pub(super) async fn create_offer(
 }
 
 pub(super) async fn pay_offer(
+    auth: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOfferRequest>,
 ) -> Result<LxJson<PayOfferResponse>, NodeApiError> {
@@ -425,6 +430,7 @@ pub(super) async fn pay_offer(
         &state.network_graph,
         state.lsp_info.lsp_fees(),
         &state.lsp_info.node_pk,
+        auth.cert_kind().client_pk(),
     )
     .await
     .map(LxJson)
@@ -432,6 +438,7 @@ pub(super) async fn pay_offer(
 }
 
 pub(super) async fn pay_offer_preflight(
+    auth: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOfferPreflightRequest>,
 ) -> Result<LxJson<PayOfferPreflightResponse>, NodeApiError> {
@@ -444,6 +451,7 @@ pub(super) async fn pay_offer_preflight(
         &state.network_graph,
         state.lsp_info.lsp_fees(),
         &state.lsp_info.node_pk,
+        auth.cert_kind().client_pk(),
     )
     .await
     .map(LxJson)
@@ -465,6 +473,7 @@ pub(super) async fn create_payer_proof(
 }
 
 pub(super) async fn pay_onchain(
+    auth: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOnchainRequest>,
 ) -> Result<LxJson<PayOnchainResponse>, NodeApiError> {
@@ -474,6 +483,7 @@ pub(super) async fn pay_onchain(
         &state.wallet,
         &state.tx_broadcaster,
         &state.payments_manager,
+        auth.cert_kind().client_pk(),
     )
     .await
     .map_err(NodeApiError::command)?;

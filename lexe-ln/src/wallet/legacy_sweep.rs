@@ -187,8 +187,10 @@ async fn sync_and_sweep<
         )
         .ok(),
     };
-    let oswm = OnchainSendV2::new(tx, req, PaymentKind::Onchain, fee)
-        .context("Failed to create onchain send")?;
+    let client_pk = None;
+    let oswm =
+        OnchainSendV2::new(tx, req, PaymentKind::Onchain, fee, client_pk)
+            .context("Failed to create onchain send")?;
 
     let tx = oswm.payment.tx.clone();
     let id = oswm.payment.id();

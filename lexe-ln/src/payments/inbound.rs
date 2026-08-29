@@ -430,6 +430,7 @@ impl InboundInvoicePaymentV2 {
             invoice: Some(Arc::new(invoice)),
             offer: None,
             bolt12_invoice: None,
+            client_pk: None,
             payer_name: None,
             message,
             personal_note,
@@ -791,6 +792,9 @@ impl InboundOfferReusablePaymentV2 {
             invoice: None,
             offer: ctx.offer,
             bolt12_invoice: None,
+            // TODO(nicole): Once offers are stored immutably, look up the
+            // client which created the offer and record it here.
+            client_pk: None,
             payer_name: ctx.payer_name,
             message: ctx.message.map(BoundedString::into_inner),
             personal_note: None,

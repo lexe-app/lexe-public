@@ -24,6 +24,7 @@ use lexe_common::{
     ppm::Ppm,
     time::TimestampMs,
 };
+use lexe_crypto::ed25519;
 use lexe_std::const_assert_mem_size;
 #[cfg(test)]
 use proptest::{option, prelude::Just};
@@ -216,6 +217,13 @@ pub struct PaymentMetadata {
 
     // --- Notes and sender/receiver identifiers --- //
     // -
+    /// The Lexe SDK client which created this payment. (Inbound offer payments
+    /// aren't tracked yet.) [`None`] means either root seed authentication was
+    /// used, or the client was never recorded.
+    // compat: Added in node-v0.10.5.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_pk: Option<ed25519::PublicKey>,
+
     /// (Inbound offer reusable only)
     /// The payer's self-reported human-readable name.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -263,7 +271,7 @@ pub struct PaymentMetadata {
 }
 
 // Debug the size_of `PaymentMetadata`
-const_assert_mem_size!(PaymentMetadata, 232);
+const_assert_mem_size!(PaymentMetadata, 264);
 
 /// An update to a [`PaymentMetadata`].
 #[must_use]
@@ -441,6 +449,7 @@ impl PaymentMetadata {
             invoice: None,
             offer: None,
             bolt12_invoice: None,
+            client_pk: None,
             payer_name: None,
             message: None,
             personal_note: None,
@@ -462,6 +471,7 @@ impl PaymentMetadata {
             invoice,
             offer,
             bolt12_invoice,
+            client_pk,
             payer_name,
             message,
             personal_note,
@@ -475,6 +485,7 @@ impl PaymentMetadata {
             && invoice.is_none()
             && offer.is_none()
             && bolt12_invoice.is_none()
+            && client_pk.is_none()
             && payer_name.is_none()
             && message.is_none()
             && personal_note.is_none()

@@ -398,6 +398,15 @@ impl ClientCertKind {
             _ => None,
         }
     }
+
+    /// The authenticated client's pubkey.
+    /// [`None`] means a root seed client.
+    pub fn client_pk(&self) -> Option<ed25519::PublicKey> {
+        match self {
+            Self::Ephemeral => None,
+            Self::Revocable { client_pk } => Some(*client_pk),
+        }
+    }
 }
 
 /// A [`ClientCertVerifier`] which trusts either the "ephemeral issuing" or

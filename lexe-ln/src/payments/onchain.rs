@@ -13,6 +13,7 @@ use lexe_common::{
     ln::{amount::Amount, hashes::Txid},
     time::TimestampMs,
 };
+use lexe_crypto::ed25519;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -117,6 +118,7 @@ impl OnchainSendV2 {
         req: PayOnchainRequest,
         kind: PaymentKind,
         onchain_fee: Amount,
+        client_pk: Option<ed25519::PublicKey>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Onchain)?;
 
@@ -150,6 +152,7 @@ impl OnchainSendV2 {
             invoice: None,
             offer: None,
             bolt12_invoice: None,
+            client_pk,
             payer_name: None,
             message: None,
             personal_note,
@@ -519,6 +522,7 @@ mod arbitrary_impl {
             let any_req = any::<PayOnchainRequest>();
             let any_kind = PaymentRail::Onchain.any_child_kind();
             let any_fees = any::<Amount>();
+            let any_client_pk = any::<Option<ed25519::PublicKey>>();
             let any_is_broadcasted = proptest::bool::weighted(0.8);
             // TODO(max): Make optional once payment_encryption_roundtrip tests
             // with PaymentV2 only. Currently must be non-optional because the
@@ -533,6 +537,7 @@ mod arbitrary_impl {
                 any_req,
                 any_kind,
                 any_fees,
+                any_client_pk,
                 any_created_at,
                 any_is_broadcasted,
                 any_conf_status,
@@ -543,12 +548,14 @@ mod arbitrary_impl {
                         req,
                         kind,
                         fees,
+                        client_pk,
                         created_at,
                         is_broadcasted,
                         conf_status,
                     )| {
-                        let mut pwm = OnchainSendV2::new(tx, req, kind, fees)
-                            .expect("Valid kind");
+                        let mut pwm =
+                            OnchainSendV2::new(tx, req, kind, fees, client_pk)
+                                .expect("Valid kind");
                         // Set created_at for test purposes
                         pwm.payment.created_at = Some(created_at);
                         if !is_broadcasted {

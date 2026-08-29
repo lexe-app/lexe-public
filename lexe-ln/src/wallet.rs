@@ -81,7 +81,7 @@ use lexe_common::{
     secp256k1_ctx::SECP256K1,
     time::TimestampMs,
 };
-use lexe_crypto::rng::RngCore;
+use lexe_crypto::{ed25519, rng::RngCore};
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 use lightning::util::wallet_utils;
 use tracing::{debug, error, info, instrument, warn};
@@ -1058,6 +1058,7 @@ impl OnchainWallet {
         &self,
         req: PayOnchainRequest,
         network: Network,
+        client_pk: Option<ed25519::PublicKey>,
     ) -> anyhow::Result<PaymentWithMetadata<OnchainSendV2>> {
         let (tx, onchain_fee) = {
             let mut locked_wallet = self.inner.write().unwrap();
@@ -1096,7 +1097,7 @@ impl OnchainWallet {
         self.trigger_persist();
 
         let kind = PaymentKind::Onchain;
-        OnchainSendV2::new(tx, req, kind, onchain_fee)
+        OnchainSendV2::new(tx, req, kind, onchain_fee, client_pk)
             .context("Failed to create payment")
     }
 
@@ -1962,9 +1963,10 @@ mod test {
                 priority: ConfirmationPriority::Normal,
                 personal_note: None,
             };
+            let client_pk = None;
             let oswm = self
                 .wallet
-                .create_onchain_send(send_req, self.network)
+                .create_onchain_send(send_req, self.network, client_pk)
                 .expect("Failed to create onchain send");
             self.wallet.transactions_broadcasted_at(
                 self.now(),
@@ -2417,7 +2419,11 @@ mod test {
             priority: ConfirmationPriority::Normal,
             personal_note: None,
         };
-        let oswm = h.wallet.create_onchain_send(req, h.network).unwrap();
+        let client_pk = None;
+        let oswm = h
+            .wallet
+            .create_onchain_send(req, h.network, client_pk)
+            .unwrap();
         let tx = &oswm.payment.tx;
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.input[0].previous_output.txid, tx_c.compute_txid());

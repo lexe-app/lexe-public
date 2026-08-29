@@ -896,6 +896,7 @@ pub async fn pay_invoice<CM, PS>(
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PayInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -911,6 +912,7 @@ where
         network_graph,
         chain_monitor,
         lsp_fees,
+        client_pk,
     )
     .await?;
 
@@ -1051,6 +1053,7 @@ pub async fn pay_invoice_preflight<CM, PS>(
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PayInvoicePreflightResponseInner>
 where
     CM: LexeChannelManager<PS>,
@@ -1074,6 +1077,7 @@ where
         network_graph,
         chain_monitor,
         lsp_fees,
+        client_pk,
     )
     .await?;
 
@@ -1185,6 +1189,7 @@ pub async fn pay_offer<CM, PS>(
     network_graph: &NetworkGraphType,
     lsp_fees: LspFees,
     lsp_node_pk: &NodePk,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PayOfferResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1202,6 +1207,7 @@ where
         network_graph,
         lsp_fees,
         lsp_node_pk,
+        client_pk,
     )
     .await?;
 
@@ -1302,6 +1308,7 @@ pub async fn pay_offer_preflight<CM, PS>(
     network_graph: &NetworkGraphType,
     lsp_fees: LspFees,
     lsp_node_pk: &NodePk,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PayOfferPreflightResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1327,6 +1334,7 @@ where
         network_graph,
         lsp_fees,
         lsp_node_pk,
+        client_pk,
     )
     .await?;
 
@@ -1352,6 +1360,7 @@ pub async fn pay_onchain<CM, PS>(
     wallet: &OnchainWallet,
     tx_broadcaster: &TxBroadcaster,
     payments_manager: &PaymentsManager<CM, PS>,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PayOnchainResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1378,7 +1387,7 @@ where
 
     // Create and sign the onchain send tx.
     let oswm = wallet
-        .create_onchain_send(req, network)
+        .create_onchain_send(req, network, client_pk)
         .context("Error while creating outbound tx")?;
     let tx = oswm.payment.tx.clone();
     let id = oswm.payment.id();
@@ -1484,6 +1493,7 @@ async fn pay_invoice_preflight_inner<CM, PS>(
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PreflightedPayInvoice>
 where
     CM: LexeChannelManager<PS>,
@@ -1530,6 +1540,7 @@ where
             lx_route.fees(),
             req.message,
             req.personal_note,
+            client_pk,
         )
         .context("Failed to create payment")?;
         return Ok(PreflightedPayInvoice::Ready {
@@ -1602,6 +1613,7 @@ where
         fees,
         req.message,
         req.personal_note,
+        client_pk,
     )
     .context("Failed to create payment")?;
 
@@ -1640,6 +1652,7 @@ async fn pay_offer_preflight_inner<CM, PS>(
     network_graph: &NetworkGraphType,
     lsp_fees: LspFees,
     lsp_node_pk: &NodePk,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PreflightedPayOffer>
 where
     CM: LexeChannelManager<PS>,
@@ -1766,6 +1779,7 @@ where
         payer_name,
         req.message,
         req.personal_note,
+        client_pk,
     )
     .context("Failed to create payment")?;
 
