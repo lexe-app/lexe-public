@@ -255,6 +255,13 @@ class AppHandle {
   SettingsDb settingsDb() =>
       AppRs.instance.api.crateFfiAppAppHandleSettingsDb(that: this);
 
+  Future<void> setupGdrive({
+    required GDriveSignupCredentials gdriveSignupCredentials,
+  }) => AppRs.instance.api.crateFfiAppAppHandleSetupGdrive(
+    that: this,
+    gdriveSignupCredentials: gdriveSignupCredentials,
+  );
+
   static Future<AppHandle> signup({
     required Config config,
     required RootSeed rootSeed,

@@ -25,6 +25,9 @@ use lexe::{
     wallet::LexeWallet,
     wallet_db::WalletDb,
 };
+use lexe_api::{
+    def::UserNodeRunApi, models::command::SetupGDrive, types::Empty,
+};
 use lexe_common::api::user::NodePkProof;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{bip353, lnurl};
@@ -311,6 +314,37 @@ impl App {
             )
             .await?;
         self.is_provisioned.store(true, Ordering::Relaxed);
+        Ok(())
+    }
+
+    pub async fn setup_gdrive(
+        &self,
+        backup_password: &str,
+        google_auth_code: String,
+    ) -> anyhow::Result<()> {
+        let secret_store = SecretStore::new(
+            self.use_mock_secret_store,
+            self.wallet_env(),
+            self.user_db_config.env_db_dir(),
+        );
+        let root_seed = secret_store
+            .read_root_seed()
+            .context("Failed to read root seed from SecretStore")?
+            .context("Couldn't find root seed in SecretStore")?;
+
+        let encrypted_seed = root_seed
+            .password_encrypt(backup_password)
+            .context("Could not encrypt root seed under password")?;
+
+        let req = SetupGDrive {
+            encrypted_seed,
+            google_auth_code,
+        };
+        self.node_client()?
+            .setup_gdrive(req)
+            .await
+            .map(|Empty {}| ())
+            .map_err(anyhow::Error::new)?;
         Ok(())
     }
 

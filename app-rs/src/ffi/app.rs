@@ -91,6 +91,18 @@ impl AppHandle {
         self.inner.provision().await
     }
 
+    pub async fn setup_gdrive(
+        &self,
+        gdrive_signup_credentials: GDriveSignupCredentials,
+    ) -> anyhow::Result<()> {
+        self.inner
+            .setup_gdrive(
+                &gdrive_signup_credentials.backup_password,
+                gdrive_signup_credentials.google_auth_code,
+            )
+            .await
+    }
+
     pub async fn restore(
         config: Config,
         google_auth_code: Option<String>,
