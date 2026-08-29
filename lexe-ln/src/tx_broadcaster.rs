@@ -82,7 +82,7 @@ impl TxBroadcaster {
         esplora: Arc<LexeEsplora>,
         wallet: OnchainWallet,
         broadcast_hook: Option<PreBroadcastHook>,
-        test_event_sender: TestEventSender,
+        test_event_sender: Option<TestEventSender>,
         mut shutdown: NotifyOnce,
     ) -> (Self, LxTask<()>) {
         // Avoid tx/rx idiom here since "transaction" also abbreviates to "tx"
@@ -111,7 +111,7 @@ impl TxBroadcaster {
                             &wallet,
                             broadcast_hook.clone(),
                             request,
-                            &test_event_sender,
+                            test_event_sender.as_ref(),
                         )
                         .instrument(span)
                     };
@@ -160,7 +160,7 @@ impl TxBroadcaster {
         wallet: &OnchainWallet,
         broadcast_hook: Option<PreBroadcastHook>,
         req: BroadcastRequest,
-        test_event_sender: &TestEventSender,
+        test_event_sender: Option<&TestEventSender>,
     ) {
         // Package relay requires transactions to be topologically sorted, with
         // parents before children.
@@ -181,7 +181,9 @@ impl TxBroadcaster {
                 // transactions are indexed together and its inputs aren't
                 // double spent.
                 wallet.transactions_broadcasted(txs);
-                test_event_sender.send(TestEvent::TxsBroadcasted);
+                if let Some(tx) = test_event_sender {
+                    tx.send(TestEvent::TxsBroadcasted);
+                }
             }
             Err(err) => warn!("Error broadcasting tx(s): {err:#}, {tx_infos}"),
         }

@@ -482,7 +482,7 @@ pub trait LexeEventHandlerMethods: Clone + Send + Sync + 'static {
 pub fn handle_funding_generation_ready<CM, PS>(
     wallet: &OnchainWallet,
     channel_manager: &CM,
-    test_event_tx: &TestEventSender,
+    test_event_tx: Option<&TestEventSender>,
 
     temporary_channel_id: lightning::ln::types::ChannelId,
     counterparty_node_id: secp256k1::PublicKey,
@@ -526,7 +526,10 @@ where
         counterparty_node_id,
         signed_raw_funding_tx,
     ) {
-        Ok(()) => test_event_tx.send(TestEvent::FundingGenerationHandled),
+        Ok(()) =>
+            if let Some(tx) = test_event_tx {
+                tx.send(TestEvent::FundingGenerationHandled)
+            },
         Err(APIError::APIMisuseError { err }) =>
             return Err(EventHandleError::Discard(anyhow!(
                 "Failed to finish channel funding generation: \
@@ -683,7 +686,7 @@ pub async fn handle_spendable_outputs<CM, PS>(
     persister: PS,
     fee_estimates: &FeeEstimates,
     keys_manager: &LexeKeysManager,
-    test_event_tx: &TestEventSender,
+    test_event_tx: Option<&TestEventSender>,
     tx_broadcaster: &TxBroadcaster,
     wallet: &OnchainWallet,
     event_id: &EventId,
@@ -740,7 +743,9 @@ where
     let sweep_tx = match maybe_sweep_tx {
         Some(tx) => tx,
         None => {
-            test_event_tx.send(TestEvent::SpendableOutputs);
+            if let Some(tx) = test_event_tx {
+                tx.send(TestEvent::SpendableOutputs);
+            }
             return Ok(());
         }
     };
@@ -752,7 +757,9 @@ where
     debug!("Broadcasting tx to spend spendable outputs");
     match tx_broadcaster.broadcast_transaction(sweep_tx.clone()).await {
         Ok(()) => {
-            test_event_tx.send(TestEvent::SpendableOutputs);
+            if let Some(tx) = test_event_tx {
+                tx.send(TestEvent::SpendableOutputs);
+            }
             return Ok(());
         }
 

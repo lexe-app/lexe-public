@@ -558,7 +558,7 @@ impl UserNode {
             esplora.clone(),
             wallet.clone(),
             Some(broadcast_hook),
-            test_event_tx.clone(),
+            Some(test_event_tx.clone()),
             shutdown.clone(),
         );
         static_tasks.push(broadcaster_task);

@@ -272,7 +272,7 @@ async fn do_handle_event(
         } => event::handle_funding_generation_ready(
             &ctx.wallet,
             &ctx.channel_manager,
-            &ctx.test_event_tx,
+            Some(&ctx.test_event_tx),
             temporary_channel_id,
             counterparty_node_id,
             channel_value_satoshis,
@@ -642,7 +642,7 @@ async fn do_handle_event(
                 ctx.persister.clone(),
                 &ctx.fee_estimates,
                 &ctx.keys_manager,
-                &ctx.test_event_tx,
+                Some(&ctx.test_event_tx),
                 &ctx.tx_broadcaster,
                 &ctx.wallet,
                 event_id,
