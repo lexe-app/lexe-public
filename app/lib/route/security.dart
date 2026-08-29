@@ -20,6 +20,7 @@ import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/change_backup_password.dart'
     show ChangeBackupPasswordPage;
+import 'package:lexeapp/route/gdrive.dart' show GDriveAuthCtx, GDrivePage;
 import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:lexeapp/url.dart' as url;
@@ -49,6 +50,9 @@ class SecurityPage extends StatefulWidget {
 
 class _SecurityPageState extends State<SecurityPage> {
   final ValueNotifier<BackupInfo?> backupInfo = ValueNotifier(null);
+
+  /// Whether a route pushed from this page is still open.
+  bool isNavigating = false;
 
   @override
   void initState() {
@@ -102,16 +106,40 @@ class _SecurityPageState extends State<SecurityPage> {
     );
   }
 
-  void onChangeBackupPasswordTap() {
-    Navigator.of(this.context).push(
-      MaterialPageRoute(
-        builder: (context) => ChangeBackupPasswordPage(
-          config: this.widget.config,
-          gdriveAuth: this.widget.gdriveAuth,
-          rootSeedStore: this.widget.rootSeedStore,
-        ),
+  Future<void> onChangeBackupPasswordTap() => this.pushGuarded<void>(
+    (context) => ChangeBackupPasswordPage(
+      config: this.widget.config,
+      gdriveAuth: this.widget.gdriveAuth,
+      rootSeedStore: this.widget.rootSeedStore,
+    ),
+  );
+
+  Future<void> onConnectGDriveTap() async {
+    final bool? flowResult = await this.pushGuarded<bool>(
+      (context) => GDrivePage(
+        ctx: GDriveAuthCtx(this.widget.app, this.widget.gdriveAuth),
       ),
     );
+    if (flowResult == null || !this.mounted) return;
+
+    // Display spinner while we wait for load
+    this.backupInfo.value = null;
+    await this.loadBackupInfo();
+  }
+
+  /// Push a route, ignoring repeat taps until it pops. Returns null if the
+  /// tap was ignored.
+  Future<T?> pushGuarded<T>(WidgetBuilder builder) async {
+    if (this.isNavigating) return null;
+
+    this.isNavigating = true;
+    try {
+      return await Navigator.of(
+        this.context,
+      ).push<T>(MaterialPageRoute(builder: builder));
+    } finally {
+      this.isNavigating = false;
+    }
   }
 
   void onAccountDeletionRequestTap() {
@@ -173,16 +201,11 @@ class _SecurityPageState extends State<SecurityPage> {
           const SizedBox(height: Space.s100),
           ValueListenableBuilder(
             valueListenable: this.backupInfo,
-            builder: (_, backupInfo, _) {
-              final onChangeBackupPasswordTap =
-                  (backupInfo?.gdriveStatus is GDriveStatus_Ok)
-                  ? this.onChangeBackupPasswordTap
-                  : null;
-              return GDriveStatusCard(
-                backupStatus: backupInfo?.gdriveStatus,
-                onChangeBackupPasswordTap: onChangeBackupPasswordTap,
-              );
-            },
+            builder: (_, backupInfo, _) => GDriveStatusCard(
+              backupStatus: backupInfo?.gdriveStatus,
+              onChangeBackupPasswordTap: this.onChangeBackupPasswordTap,
+              onConnectGDriveTap: this.onConnectGDriveTap,
+            ),
           ),
 
           // Account deletion
@@ -211,16 +234,23 @@ class GDriveStatusCard extends StatelessWidget {
     super.key,
     required this.backupStatus,
     required this.onChangeBackupPasswordTap,
+    required this.onConnectGDriveTap,
   });
 
   final GDriveStatus? backupStatus;
   final VoidCallback? onChangeBackupPasswordTap;
+  final VoidCallback? onConnectGDriveTap;
 
   @override
   Widget build(BuildContext context) {
     const description = Text(
       "Your node can automatically back up your encrypted wallet data to Google Drive. Neither Google nor Lexe can decrypt this data.",
     );
+    // `null`, unless GDrive backup isn't connected
+    final onConnectTap = switch (this.backupStatus) {
+      null || GDriveStatus_Ok() => null,
+      _ => this.onConnectGDriveTap,
+    };
     final onChangePasswordTap = switch (this.backupStatus) {
       GDriveStatus_Ok() => this.onChangeBackupPasswordTap,
       _ => null,
@@ -230,14 +260,14 @@ class GDriveStatusCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InfoCard(
-          header: const Text("Google drive backup status"),
+          header: const Text("Google drive backup"),
           children: [
             InfoRowButton(
-              onTap: null,
-              trailingIcon: const SizedBox(
-                width: Fonts.size100,
-                height: Fonts.size100,
-              ),
+              onTap: onConnectTap,
+              // Only show the chevron when the row is actionable.
+              trailingIcon: (onConnectTap != null)
+                  ? null
+                  : const SizedBox(width: Fonts.size100, height: Fonts.size100),
               label: switch (this.backupStatus) {
                 null => SizedBox.square(
                   dimension: Fonts.size200,
@@ -246,7 +276,7 @@ class GDriveStatusCard extends StatelessWidget {
                     color: LxColors.grey750,
                   ),
                 ),
-                GDriveStatus_Disabled() => Text("Not connected"),
+                GDriveStatus_Disabled() => Text("Connect Google Drive"),
                 GDriveStatus_Error() => Text(
                   "Connection failed - reconnect required",
                 ),
