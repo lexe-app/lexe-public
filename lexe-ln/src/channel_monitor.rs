@@ -225,7 +225,7 @@ pub enum ChannelMonitorUpdateKind {
 /// deserializing from the actual channel monitor filename, so it can't always
 /// contain the `channel_id`. We need a newtype here as [`OutPoint`] has a
 /// different serialization from LDK's `lightning::chain::transaction::OutPoint`
-/// for historical reasons.
+/// for historical reasons (`:` is usually disallowed in filenames).
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub enum LxMonitorName {

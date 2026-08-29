@@ -455,6 +455,10 @@ impl FromStr for OutPoint {
 }
 
 /// Serializes to `<txid>_<index>`
+//
+// Why not the more standard `<txid>:<index>`? A historical reason:
+// ldk-sample persisted channel monitors locally, and `:` is not accepted in
+// filenames in most filesystems.
 impl fmt::Display for OutPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}_{}", self.txid, self.index)

@@ -182,8 +182,6 @@ fn clamp_targets(targets: Targets) -> Targets {
 /// An adapter that impls LDK's [`Logger`] trait and dispatches LDK logs to the
 /// current registered [`tracing`] log backend.
 ///
-/// It is fine to clone and use the LexeTracingLogger directly.
-///
 /// [`Logger`]: lightning::util::logger::Logger
 /// [`tracing`]: https://crates.io/crates/tracing
 #[derive(Clone)]

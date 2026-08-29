@@ -176,7 +176,6 @@ const fn channel_config() -> ChannelConfig {
     }
 }
 
-/// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
 pub struct NodeChannelManager(Arc<ChannelManagerType>);
 
