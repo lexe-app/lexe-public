@@ -512,13 +512,6 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textFieldStyle = Fonts.fontUI.copyWith(
-      fontSize: Fonts.size700,
-      fontVariations: [Fonts.weightMedium],
-      fontFeatures: [Fonts.featDisambugation],
-      letterSpacing: -0.5,
-    );
-
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
@@ -546,7 +539,7 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
             onEditingComplete: this.onSubmit,
             decoration: baseInputDecoration.copyWith(hintText: "Password"),
             obscureText: true,
-            style: textFieldStyle,
+            style: Fonts.fontPassword,
           ),
 
           // Error message

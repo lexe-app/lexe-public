@@ -714,6 +714,9 @@ final class Fonts {
   /// <https://rsms.me/inter/#features/ss02>
   static const FontFeature featDisambugation = FontFeature("ss02");
 
+  /// Disable contextual alternates
+  static const FontFeature featNoContextualAlts = FontFeature.disable("calt");
+
   /// Features: Tabular Numbers and Symbols
   ///
   /// Fixed-width numbers and accounting symbols. Useful for tabular data, where
@@ -762,6 +765,20 @@ final class Fonts {
     color: LxColors.foreground,
     height: 1.25,
     fontVariations: [Fonts.weightNormal],
+    decoration: TextDecoration.none,
+  );
+
+  /// Style for an obscured password field.
+  static const TextStyle fontPassword = TextStyle(
+    debugLabel: "Fonts.fontPassword",
+    fontFamily: "Inter V",
+    fontSize: Fonts.size700,
+    color: LxColors.foreground,
+    height: 1.0,
+    fontVariations: [Fonts.weightMedium],
+    // Inter's calt causes bullets to offset vertically near capitals and digits
+    fontFeatures: [Fonts.featDisambugation, Fonts.featNoContextualAlts],
+    letterSpacing: -0.5,
     decoration: TextDecoration.none,
   );
 

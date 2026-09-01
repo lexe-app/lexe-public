@@ -304,13 +304,6 @@ class _ChangeBackupPasswordFormPageState
 
   @override
   Widget build(BuildContext context) {
-    final textFieldStyle = Fonts.fontUI.copyWith(
-      fontSize: Fonts.size700,
-      fontVariations: [Fonts.weightMedium],
-      fontFeatures: [Fonts.featDisambugation],
-      letterSpacing: -0.5,
-    );
-
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
@@ -355,7 +348,7 @@ recover your funds**.
             },
             decoration: baseInputDecoration.copyWith(hintText: "New password"),
             obscureText: true,
-            style: textFieldStyle,
+            style: Fonts.fontPassword,
           ),
           const SizedBox(height: Space.s200),
 
@@ -378,7 +371,7 @@ recover your funds**.
               hintText: "Confirm new password",
             ),
             obscureText: true,
-            style: textFieldStyle,
+            style: Fonts.fontPassword,
           ),
 
           // Error message
