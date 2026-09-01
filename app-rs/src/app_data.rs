@@ -2,6 +2,7 @@
 
 use anyhow::Context;
 use lexe::{ffs::Ffs, types::command::GetHumanBitcoinAddressResponse};
+use lexe_common::api::fiat_rates::IsoCurrencyCode;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::db::{SchemaVersion, Update, WritebackDb};
@@ -22,6 +23,10 @@ pub(crate) struct AppDataRs {
     /// the next `get_human_bitcoin_address` repopulates it.
     #[serde(default, deserialize_with = "deserialize_drop_invalid")]
     pub human_bitcoin_address: Option<GetHumanBitcoinAddressResponse>,
+    /// Best-effort cache of the user's preferred fiat currency.
+    /// Used as the default fiat of choice in amount inputs.
+    #[serde(default, deserialize_with = "deserialize_drop_invalid")]
+    pub preferred_fiat_currency: Option<IsoCurrencyCode>,
 }
 
 impl AppDataRs {
@@ -40,30 +45,35 @@ impl Update for AppDataRs {
             .context("AppDb schema version mismatch")?;
         self.human_bitcoin_address
             .update(update.human_bitcoin_address)?;
+        self.preferred_fiat_currency
+            .update(update.preferred_fiat_currency)?;
         Ok(())
     }
 }
 
-// The cached HBA is replaced wholesale, never field-merged.
+// Both caches are replaced wholesale, never field-merged.
 impl Update for GetHumanBitcoinAddressResponse {}
+impl Update for IsoCurrencyCode {}
 
 impl Default for AppDataRs {
     fn default() -> Self {
         Self {
             schema: AppDataRs::CURRENT_SCHEMA,
             human_bitcoin_address: None,
+            preferred_fiat_currency: None,
         }
     }
 }
 
-/// Deserialize the cached HBA leniently: any malformed or legacy value degrades
+/// Deserialize a cached value leniently: any malformed or legacy value degrades
 /// to `None` instead of failing the whole `app.json` load. Relies on the
 /// self-describing JSON format (the only format this db is (de)serialized as).
-fn deserialize_drop_invalid<'de, D>(
+fn deserialize_drop_invalid<'de, D, T>(
     deserializer: D,
-) -> Result<Option<GetHumanBitcoinAddressResponse>, D::Error>
+) -> Result<Option<T>, D::Error>
 where
     D: Deserializer<'de>,
+    T: serde::de::DeserializeOwned,
 {
     let value = serde_json::Value::deserialize(deserializer)?;
     Ok(serde_json::from_value(value).ok())

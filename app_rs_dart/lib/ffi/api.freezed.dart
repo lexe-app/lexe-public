@@ -2118,6 +2118,126 @@ String toString() {
 
 
 /// @nodoc
+mixin _$UpdateUserSettingsRequest {
+
+ String? get preferredFiatCurrency;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdateUserSettingsRequest&&(identical(other.preferredFiatCurrency, preferredFiatCurrency) || other.preferredFiatCurrency == preferredFiatCurrency));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,preferredFiatCurrency);
+
+@override
+String toString() {
+  return 'UpdateUserSettingsRequest(preferredFiatCurrency: $preferredFiatCurrency)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _UpdateUserSettingsRequest implements UpdateUserSettingsRequest {
+  const _UpdateUserSettingsRequest({this.preferredFiatCurrency});
+  
+
+@override final  String? preferredFiatCurrency;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateUserSettingsRequest&&(identical(other.preferredFiatCurrency, preferredFiatCurrency) || other.preferredFiatCurrency == preferredFiatCurrency));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,preferredFiatCurrency);
+
+@override
+String toString() {
+  return 'UpdateUserSettingsRequest(preferredFiatCurrency: $preferredFiatCurrency)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$UserSettings {
+
+ String? get preferredFiatCurrency;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserSettings&&(identical(other.preferredFiatCurrency, preferredFiatCurrency) || other.preferredFiatCurrency == preferredFiatCurrency));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,preferredFiatCurrency);
+
+@override
+String toString() {
+  return 'UserSettings(preferredFiatCurrency: $preferredFiatCurrency)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _UserSettings implements UserSettings {
+  const _UserSettings({this.preferredFiatCurrency});
+  
+
+@override final  String? preferredFiatCurrency;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserSettings&&(identical(other.preferredFiatCurrency, preferredFiatCurrency) || other.preferredFiatCurrency == preferredFiatCurrency));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,preferredFiatCurrency);
+
+@override
+String toString() {
+  return 'UserSettings(preferredFiatCurrency: $preferredFiatCurrency)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$WithdrawLnurlRequest {
 
  LnurlWithdrawRequest get withdrawRequest; int get amountMsat; String? get description; String? get personalNote;

@@ -42,6 +42,8 @@ use lexe_api::{
         PayOnchainPreflightResponse as PayOnchainPreflightResponseRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PayOnchainResponse as PayOnchainResponseRs,
+        UpdateUserSettingsRequest as UpdateUserSettingsRequestRs,
+        UserSettings as UserSettingsRs,
     },
     types::{
         bounded_string::BoundedString,
@@ -56,7 +58,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::fiat_rates::FiatRates as FiatRatesRs,
+    api::fiat_rates::{FiatRates as FiatRatesRs, IsoCurrencyCode},
     ln::{
         amount::Amount,
         channel::{ChannelId, UserChannelId as UserChannelIdRs},
@@ -86,6 +88,25 @@ impl From<NodeInfoRs> for NodeInfo {
             version: info.version.to_string(),
             measurement: info.measurement.to_string(),
             balance,
+        }
+    }
+}
+
+/// The user's Lexe node settings.
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct UserSettings {
+    /// The user-preferred fiat currency, as an ISO 4217 code, e.g. "USD".
+    /// `null` if the user has never set one.
+    pub preferred_fiat_currency: Option<String>,
+}
+
+impl From<UserSettingsRs> for UserSettings {
+    fn from(settings: UserSettingsRs) -> Self {
+        let preferred_fiat_currency = settings
+            .preferred_fiat_currency
+            .map(|code| code.as_str().to_owned());
+        Self {
+            preferred_fiat_currency,
         }
     }
 }
@@ -138,6 +159,26 @@ impl From<&NodeInfoRs> for Balance {
             lightning_max_sendable_sats: lightning_max_sendable.sats_u64(),
             onchain_sats: onchain.sats_u64(),
         }
+    }
+}
+
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct UpdateUserSettingsRequest {
+    pub preferred_fiat_currency: Option<String>,
+}
+
+impl TryFrom<UpdateUserSettingsRequest> for UpdateUserSettingsRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: UpdateUserSettingsRequest) -> Result<Self, Self::Error> {
+        let preferred_fiat_currency = value
+            .preferred_fiat_currency
+            .as_deref()
+            .map(IsoCurrencyCode::from_str)
+            .transpose()
+            .context("Invalid fiat currency code")?;
+        Ok(Self {
+            preferred_fiat_currency,
+        })
     }
 }
 

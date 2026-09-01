@@ -157,6 +157,10 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
+  /// Get the user's node settings.
+  Future<UserSettings> getUserSettings() =>
+      AppRs.instance.api.crateFfiAppAppHandleGetUserSettings(that: this);
+
   Future<String> listBroadcastedTxs() =>
       AppRs.instance.api.crateFfiAppAppHandleListBroadcastedTxs(that: this);
 
@@ -298,6 +302,14 @@ class AppHandle {
       .instance
       .api
       .crateFfiAppAppHandleUpdatePersonalNote(that: this, req: req);
+
+  /// Update the user's node settings. Settings left as `null` are unchanged.
+  Future<UserSettings> updateUserSettings({
+    required UpdateUserSettingsRequest req,
+  }) => AppRs.instance.api.crateFfiAppAppHandleUpdateUserSettings(
+    that: this,
+    req: req,
+  );
 
   /// flutter_rust_bridge:sync
   AppUserInfo walletUser() =>

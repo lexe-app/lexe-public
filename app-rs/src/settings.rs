@@ -2,7 +2,6 @@
 
 use anyhow::Context;
 use lexe::ffs::Ffs;
-use lexe_common::api::fiat_rates::IsoCurrencyCode;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -12,6 +11,9 @@ use crate::db::{SchemaVersion, Update, WritebackDb};
 const SETTINGS_JSON: &str = "settings.json";
 
 /// In-memory app settings state.
+//
+// App-authoritative. Node-authoritative settings live in
+// `ffi::api::UserSettings`.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Debug, Arbitrary))]
 pub(crate) struct SettingsRs {
@@ -19,8 +21,6 @@ pub(crate) struct SettingsRs {
     pub schema: SchemaVersion,
     /// Preferred locale.
     pub locale: Option<String>,
-    /// Perferred fiat currency (e.g. "USD").
-    pub fiat_currency: Option<IsoCurrencyCode>,
     /// Show lightning and bitcoin sub-balances on the wallet home-page.
     pub show_split_balances: Option<bool>,
     /// Skip the confirmation dialog when canceling a payment.
@@ -46,7 +46,6 @@ impl Update for SettingsRs {
             .context("Settings schema version mismatch")?;
 
         self.locale.update(update.locale)?;
-        self.fiat_currency.update(update.fiat_currency)?;
         self.show_split_balances
             .update(update.show_split_balances)?;
         self.skip_cancel_payment_confirm
@@ -62,7 +61,6 @@ impl Default for SettingsRs {
         Self {
             schema: SettingsRs::CURRENT_SCHEMA,
             locale: None,
-            fiat_currency: None,
             show_split_balances: None,
             skip_cancel_payment_confirm: None,
             onboarding_status: None,
@@ -127,9 +125,6 @@ impl Update for OnboardingStatus {
     }
 }
 
-// --- impl Update --- //
-impl Update for IsoCurrencyCode {}
-
 #[cfg(test)]
 mod test {
     use std::{ops::Deref, rc::Rc, time::Duration};
@@ -158,7 +153,6 @@ mod test {
         let settings: SettingsRs = DbPersister::load(&ffs, SETTINGS_JSON);
         assert_eq!(settings.schema, SchemaVersion(1));
         assert_eq!(settings.locale, None);
-        assert_eq!(settings.fiat_currency, Some(IsoCurrencyCode::USD));
         assert_eq!(settings.show_split_balances, Some(true));
         let onboarding_status = settings.onboarding_status.unwrap();
         assert_eq!(onboarding_status.has_connected_gdrive, Some(true));
@@ -304,21 +298,6 @@ mod test {
                 }
             );
 
-            // update: fiat_currency=USD
-            db.update(SettingsRs {
-                fiat_currency: Some(IsoCurrencyCode::USD),
-                ..Default::default()
-            })
-            .unwrap();
-            assert_eq!(
-                db.db().lock().unwrap().deref(),
-                &SettingsRs {
-                    locale: Some("USD".to_owned()),
-                    fiat_currency: Some(IsoCurrencyCode::USD),
-                    ..Default::default()
-                }
-            );
-
             // update: onboarding_status={ has_connected_gdrive: true }
             db.update(SettingsRs {
                 onboarding_status: Some(OnboardingStatus {
@@ -335,7 +314,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &SettingsRs {
                     locale: Some("USD".to_owned()),
-                    fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
                         has_backed_up_seed_phrase: None,
                         has_connected_gdrive: Some(true),
@@ -362,7 +340,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &SettingsRs {
                     locale: Some("USD".to_owned()),
-                    fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
                         has_backed_up_seed_phrase: Some(true),
                         has_connected_gdrive: Some(true),
@@ -389,7 +366,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &SettingsRs {
                     locale: Some("USD".to_owned()),
-                    fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
                         has_backed_up_seed_phrase: Some(true),
                         has_connected_gdrive: Some(true),
@@ -419,7 +395,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &SettingsRs {
                     locale: Some("USD".to_owned()),
-                    fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
                         has_backed_up_seed_phrase: Some(true),
                         has_connected_gdrive: Some(true),
@@ -448,7 +423,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &SettingsRs {
                     locale: Some("USD".to_owned()),
-                    fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
                         has_connected_gdrive: Some(true),
                         has_backed_up_seed_phrase: Some(true),
@@ -468,7 +442,6 @@ mod test {
                 db.db().lock().unwrap().deref(),
                 &SettingsRs {
                     locale: Some("USD".to_owned()),
-                    fiat_currency: Some(IsoCurrencyCode::USD),
                     onboarding_status: Some(OnboardingStatus {
                         has_backed_up_seed_phrase: Some(true),
                         has_connected_gdrive: Some(true),

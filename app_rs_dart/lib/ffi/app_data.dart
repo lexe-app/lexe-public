@@ -21,18 +21,21 @@ abstract class WritebackDbRsAppDataRs implements RustOpaqueInterface {}
 
 class AppData {
   final GetHumanBitcoinAddressResponse? humanBitcoinAddress;
+  final String? preferredFiatCurrency;
 
-  const AppData({this.humanBitcoinAddress});
+  const AppData({this.humanBitcoinAddress, this.preferredFiatCurrency});
 
   @override
-  int get hashCode => humanBitcoinAddress.hashCode;
+  int get hashCode =>
+      humanBitcoinAddress.hashCode ^ preferredFiatCurrency.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is AppData &&
           runtimeType == other.runtimeType &&
-          humanBitcoinAddress == other.humanBitcoinAddress;
+          humanBitcoinAddress == other.humanBitcoinAddress &&
+          preferredFiatCurrency == other.preferredFiatCurrency;
 }
 
 class AppDataDb {

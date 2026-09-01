@@ -4,25 +4,25 @@ import 'package:app_rs_dart/ffi/api.dart' show FiatRate, FiatRates;
 import 'package:app_rs_dart/ffi/api.ext.dart' show FiatRatesExt;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
+import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
 import 'package:lexeapp/notifier_ext.dart' show AlwaysValueNotifier;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/settings.dart' show LxSettings;
 
 /// Maintains the user's current preferred [FiatRate] stream and periodically
 /// refreshes the full [FiatRates] feed in the background.
 class FiatRateService {
-  FiatRateService._(this._app, this._settings, this._onError);
+  FiatRateService._(this._app, this._appData, this._onError);
 
   factory FiatRateService.start({
     required AppHandle app,
-    required LxSettings settings,
+    required LxAppData appData,
     void Function(String)? onError,
   }) {
-    final svc = FiatRateService._(app, settings, onError);
+    final svc = FiatRateService._(app, appData, onError);
 
     svc.fiatRates.addListener(svc.updateFiatRate);
-    settings.fiatCurrency.addListener(svc.updateFiatRate);
+    appData.preferredFiatCurrency.addListener(svc.updateFiatRate);
 
     // Kick off with an initial fetch
     unawaited(svc.fetch());
@@ -31,7 +31,7 @@ class FiatRateService {
   }
 
   final AppHandle _app;
-  final LxSettings _settings;
+  final LxAppData _appData;
   void Function(String)? _onError;
 
   bool isDisposed = false;
@@ -62,7 +62,7 @@ class FiatRateService {
   }
 
   void updateFiatRate() {
-    final fiatCurrency = this._settings.fiatCurrency.value;
+    final fiatCurrency = this._appData.preferredFiatCurrency.value;
     final fiatRate = this.fiatRates.value?.findByFiat(fiatCurrency ?? "USD");
     info("fiat-rate: $fiatRate");
     this.fiatRate.value = fiatRate;
@@ -76,7 +76,7 @@ class FiatRateService {
     this.fiatRate.dispose();
 
     this.fiatRates.removeListener(this.updateFiatRate);
-    this._settings.fiatCurrency.removeListener(this.updateFiatRate);
+    this._appData.preferredFiatCurrency.removeListener(this.updateFiatRate);
 
     this.isDisposed = true;
     // info("fiat-rates: disposed");

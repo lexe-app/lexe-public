@@ -293,6 +293,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   UpdatePersonalNote dco_decode_box_autoadd_update_personal_note(dynamic raw);
 
   @protected
+  UpdateUserSettingsRequest dco_decode_box_autoadd_update_user_settings_request(
+    dynamic raw,
+  );
+
+  @protected
   Username dco_decode_box_autoadd_username(dynamic raw);
 
   @protected
@@ -652,7 +657,15 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   UpdatePersonalNote dco_decode_update_personal_note(dynamic raw);
 
   @protected
+  UpdateUserSettingsRequest dco_decode_update_user_settings_request(
+    dynamic raw,
+  );
+
+  @protected
   UserChannelId dco_decode_user_channel_id(dynamic raw);
+
+  @protected
+  UserSettings dco_decode_user_settings(dynamic raw);
 
   @protected
   Username dco_decode_username(dynamic raw);
@@ -936,6 +949,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   UpdatePersonalNote sse_decode_box_autoadd_update_personal_note(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UpdateUserSettingsRequest sse_decode_box_autoadd_update_user_settings_request(
     SseDeserializer deserializer,
   );
 
@@ -1373,7 +1391,15 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  UpdateUserSettingsRequest sse_decode_update_user_settings_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UserChannelId sse_decode_user_channel_id(SseDeserializer deserializer);
+
+  @protected
+  UserSettings sse_decode_user_settings(SseDeserializer deserializer);
 
   @protected
   Username sse_decode_username(SseDeserializer deserializer);
@@ -1724,6 +1750,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_update_personal_note(
     UpdatePersonalNote self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_update_user_settings_request(
+    UpdateUserSettingsRequest self,
     SseSerializer serializer,
   );
 
@@ -2248,7 +2280,16 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_update_user_settings_request(
+    UpdateUserSettingsRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_user_channel_id(UserChannelId self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_settings(UserSettings self, SseSerializer serializer);
 
   @protected
   void sse_encode_username(Username self, SseSerializer serializer);

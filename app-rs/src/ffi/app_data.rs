@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::types::command::GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs;
+use lexe_common::api::fiat_rates::IsoCurrencyCode;
 
 use crate::{
     app_data::AppDataRs, db::WritebackDb as WritebackDbRs,
@@ -15,6 +16,7 @@ pub struct AppDataDb {
 
 pub struct AppData {
     pub human_bitcoin_address: Option<GetHumanBitcoinAddressResponse>,
+    pub preferred_fiat_currency: Option<String>,
 }
 
 //  --- impl AppDataDb --- //
@@ -60,6 +62,9 @@ impl From<AppDataRs> for AppData {
             human_bitcoin_address: a
                 .human_bitcoin_address
                 .map(GetHumanBitcoinAddressResponse::from),
+            preferred_fiat_currency: a
+                .preferred_fiat_currency
+                .map(|code| code.as_str().to_owned()),
         }
     }
 }
@@ -73,9 +78,16 @@ impl TryFrom<AppData> for AppDataRs {
             .map(GetHumanBitcoinAddressResponseRs::try_from)
             .transpose()
             .context("Invalid cached HBA")?;
+        let preferred_fiat_currency = a
+            .preferred_fiat_currency
+            .as_deref()
+            .map(IsoCurrencyCode::from_str)
+            .transpose()
+            .context("Invalid cached fiat currency")?;
         Ok(Self {
             schema: AppDataRs::CURRENT_SCHEMA,
             human_bitcoin_address,
+            preferred_fiat_currency,
         })
     }
 }

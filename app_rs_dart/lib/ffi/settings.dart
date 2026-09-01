@@ -50,14 +50,12 @@ class OnboardingStatus {
 
 class Settings {
   final String? locale;
-  final String? fiatCurrency;
   final bool? showSplitBalances;
   final bool? skipCancelPaymentConfirm;
   final OnboardingStatus? onboardingStatus;
 
   const Settings({
     this.locale,
-    this.fiatCurrency,
     this.showSplitBalances,
     this.skipCancelPaymentConfirm,
     this.onboardingStatus,
@@ -66,7 +64,6 @@ class Settings {
   @override
   int get hashCode =>
       locale.hashCode ^
-      fiatCurrency.hashCode ^
       showSplitBalances.hashCode ^
       skipCancelPaymentConfirm.hashCode ^
       onboardingStatus.hashCode;
@@ -77,7 +74,6 @@ class Settings {
       other is Settings &&
           runtimeType == other.runtimeType &&
           locale == other.locale &&
-          fiatCurrency == other.fiatCurrency &&
           showSplitBalances == other.showSplitBalances &&
           skipCancelPaymentConfirm == other.skipCancelPaymentConfirm &&
           onboardingStatus == other.onboardingStatus;

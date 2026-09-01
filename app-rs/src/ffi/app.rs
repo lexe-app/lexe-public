@@ -22,6 +22,7 @@ use lexe_api::{
         PayInvoiceRequest as PayInvoiceRequestRs,
         PayOfferRequest as PayOfferRequestRs,
         PayOnchainRequest as PayOnchainRequestRs,
+        UpdateUserSettingsRequest as UpdateUserSettingsRequestRs,
     },
     types::{
         Empty,
@@ -46,7 +47,8 @@ use crate::ffi::{
         PayOfferPreflightRequest, PayOfferPreflightResponse, PayOfferRequest,
         PayOfferResponse, PayOnchainPreflightRequest,
         PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
-        RevokeClientRequest, UpdatePersonalNote, WithdrawLnurlRequest,
+        RevokeClientRequest, UpdatePersonalNote, UpdateUserSettingsRequest,
+        UserSettings, WithdrawLnurlRequest,
     },
     app_data::AppDataDb,
     settings::SettingsDb,
@@ -202,6 +204,32 @@ impl AppHandle {
             .node_info()
             .await
             .map(NodeInfo::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    /// Get the user's node settings.
+    #[instrument(skip_all, name = "(user-settings)")]
+    pub async fn get_user_settings(&self) -> anyhow::Result<UserSettings> {
+        self.inner
+            .node_client()?
+            .get_user_settings()
+            .await
+            .map(UserSettings::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    /// Update the user's node settings. Settings left as `null` are unchanged.
+    #[instrument(skip_all, name = "(update-user-settings)")]
+    pub async fn update_user_settings(
+        &self,
+        req: UpdateUserSettingsRequest,
+    ) -> anyhow::Result<UserSettings> {
+        let req = UpdateUserSettingsRequestRs::try_from(req)?;
+        self.inner
+            .node_client()?
+            .update_user_settings(req)
+            .await
+            .map(UserSettings::from)
             .map_err(anyhow::Error::new)
     }
 

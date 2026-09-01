@@ -11,11 +11,12 @@ class LxAppData {
     final appData = db.read();
 
     final humanBitcoinAddress = ValueNotifier(appData.humanBitcoinAddress);
+    final preferredFiatCurrency = ValueNotifier(appData.preferredFiatCurrency);
 
-    return LxAppData._(db, humanBitcoinAddress);
+    return LxAppData._(db, humanBitcoinAddress, preferredFiatCurrency);
   }
 
-  LxAppData._(this._db, this._humanBitcoinAddress);
+  LxAppData._(this._db, this._humanBitcoinAddress, this._preferredFiatCurrency);
 
   final AppDataDb _db;
 
@@ -23,10 +24,15 @@ class LxAppData {
   ValueListenable<GetHumanBitcoinAddressResponse?> get humanBitcoinAddress =>
       this._humanBitcoinAddress;
 
+  final ValueNotifier<String?> _preferredFiatCurrency;
+  ValueListenable<String?> get preferredFiatCurrency =>
+      this._preferredFiatCurrency;
+
   void reset() {
     this._db.reset();
 
     this._humanBitcoinAddress.value = null;
+    this._preferredFiatCurrency.value = null;
   }
 
   FfiResult<void> update(final AppData update) {
@@ -38,6 +44,7 @@ class LxAppData {
 
     // Update ValueNotifier's
     this._humanBitcoinAddress.update(update.humanBitcoinAddress);
+    this._preferredFiatCurrency.update(update.preferredFiatCurrency);
 
     // Can't create an Ok(void), so just return this `result` that conveniently
     // has the right type.

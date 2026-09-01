@@ -1,10 +1,9 @@
 //! Dart interface for app settings.
 
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
-use lexe_common::api::fiat_rates::IsoCurrencyCode;
 
 use crate::{
     db::WritebackDb as WritebackDbRs,
@@ -20,7 +19,6 @@ pub struct SettingsDb {
 
 pub struct Settings {
     pub locale: Option<String>,
-    pub fiat_currency: Option<String>,
     pub show_split_balances: Option<bool>,
     pub skip_cancel_payment_confirm: Option<bool>,
     pub onboarding_status: Option<OnboardingStatus>,
@@ -96,7 +94,6 @@ impl From<SettingsRs> for Settings {
     fn from(s: SettingsRs) -> Self {
         Self {
             locale: s.locale,
-            fiat_currency: s.fiat_currency.map(|x| x.as_str().to_owned()),
             show_split_balances: s.show_split_balances,
             skip_cancel_payment_confirm: s.skip_cancel_payment_confirm,
             onboarding_status: s.onboarding_status.map(OnboardingStatus::from),
@@ -110,11 +107,6 @@ impl TryFrom<Settings> for SettingsRs {
         Ok(Self {
             schema: SettingsRs::CURRENT_SCHEMA,
             locale: s.locale,
-            fiat_currency: s
-                .fiat_currency
-                .as_deref()
-                .map(IsoCurrencyCode::from_str)
-                .transpose()?,
             show_split_balances: s.show_split_balances,
             skip_cancel_payment_confirm: s.skip_cancel_payment_confirm,
             onboarding_status: s

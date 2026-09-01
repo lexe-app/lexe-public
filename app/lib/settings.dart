@@ -10,7 +10,6 @@ class LxSettings {
     final settings = db.read();
 
     final locale = ValueNotifier(settings.locale);
-    final fiatCurrency = ValueNotifier(settings.fiatCurrency);
     final showSplitBalances = ValueNotifier(settings.showSplitBalances);
     final skipCancelPaymentConfirm = ValueNotifier(
       settings.skipCancelPaymentConfirm,
@@ -20,7 +19,6 @@ class LxSettings {
     return LxSettings._(
       db,
       locale,
-      fiatCurrency,
       showSplitBalances,
       skipCancelPaymentConfirm,
       onboardingStatus,
@@ -30,7 +28,6 @@ class LxSettings {
   LxSettings._(
     this._db,
     this._locale,
-    this._fiatCurrency,
     this._showSplitBalances,
     this._skipCancelPaymentConfirm,
     this._onboardingStatus,
@@ -40,9 +37,6 @@ class LxSettings {
 
   final ValueNotifier<String?> _locale;
   ValueListenable<String?> get locale => this._locale;
-
-  final ValueNotifier<String?> _fiatCurrency;
-  ValueListenable<String?> get fiatCurrency => this._fiatCurrency;
 
   final ValueNotifier<bool?> _showSplitBalances;
   ValueListenable<bool?> get showSplitBalances => this._showSplitBalances;
@@ -65,7 +59,6 @@ class LxSettings {
     this._db.reset();
 
     this._locale.value = null;
-    this._fiatCurrency.value = null;
     this._showSplitBalances.value = null;
     this._skipCancelPaymentConfirm.value = null;
     this._onboardingStatus.value = null;
@@ -80,7 +73,6 @@ class LxSettings {
 
     // Update ValueNotifier's
     this._locale.update(update.locale);
-    this._fiatCurrency.update(update.fiatCurrency);
     this._showSplitBalances.update(update.showSplitBalances);
     this._skipCancelPaymentConfirm.update(update.skipCancelPaymentConfirm);
     this._onboardingStatus.update(update.onboardingStatus);

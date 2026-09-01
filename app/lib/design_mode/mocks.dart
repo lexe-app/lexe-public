@@ -41,6 +41,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         PayOnchainResponse,
         RevokeClientRequest,
         UpdatePersonalNote,
+        UpdateUserSettingsRequest,
+        UserSettings,
         WithdrawLnurlRequest;
 import 'package:app_rs_dart/ffi/app.dart'
     show App, AppHandle, WritebackDbRsSettingsRs;
@@ -172,6 +174,17 @@ class MockAppHandle extends AppHandle {
   Future<ListChannelsResponse> listChannels() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => ListChannelsResponse(channels: this.channels),
+  );
+
+  @override
+  Future<UserSettings> getUserSettings() =>
+      Future.value(const UserSettings(preferredFiatCurrency: "USD"));
+
+  @override
+  Future<UserSettings> updateUserSettings({
+    required UpdateUserSettingsRequest req,
+  }) => Future.value(
+    UserSettings(preferredFiatCurrency: req.preferredFiatCurrency),
   );
 
   @override
@@ -651,6 +664,14 @@ class MockAppHandleErr extends MockAppHandle {
   });
 
   @override
+  Future<UserSettings> getUserSettings() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to get user settings",
+    ).toFfi(),
+  );
+
+  @override
   Future<BackupInfo> backupInfo() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => BackupInfo(gdriveStatus: GDriveStatus.error("")),
@@ -947,7 +968,8 @@ class MockAppDataDb extends AppDataDb {
   MockAppDataDb() : super(inner: MockAppDataDbRs());
 
   @override
-  AppData read() => const AppData(humanBitcoinAddress: null);
+  AppData read() =>
+      const AppData(humanBitcoinAddress: null, preferredFiatCurrency: "USD");
 
   @override
   void reset() {}

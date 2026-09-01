@@ -100,6 +100,7 @@ import 'package:lexeapp/service/provision.dart' show ProvisionService;
 import 'package:lexeapp/service/refresh.dart' show RefreshService;
 import 'package:lexeapp/service/root_seed_store.dart'
     show SecretStoreRootSeedStore;
+import 'package:lexeapp/service/user_settings.dart' show UserSettingsService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
@@ -158,6 +159,12 @@ class WalletPageState extends State<WalletPage> {
   );
   late final LxListener nodeInfoFetchOnRefresh;
 
+  /// Fetch the node-authoritative user settings once, after provisioning.
+  late final UserSettingsService userSettingsService = UserSettingsService(
+    app: this.widget.app,
+    appData: this.widget.appData,
+  );
+
   /// Provision node.
   late final ProvisionService provisionService = ProvisionService(
     app: this.widget.app,
@@ -192,6 +199,7 @@ class WalletPageState extends State<WalletPage> {
     this.humanBitcoinAddressService.dispose();
     this.nodeInfoFetchOnRefresh.dispose();
     this.nodeInfoService.dispose();
+    this.userSettingsService.dispose();
     this.paymentSyncOnRefresh.dispose();
     this.paymentSyncService.dispose();
     this.fiatRateService.dispose();
@@ -214,7 +222,7 @@ class WalletPageState extends State<WalletPage> {
     // different source (lexe backend vs user node).
     this.fiatRateService = FiatRateService.start(
       app: this.widget.app,
-      settings: this.widget.settings,
+      appData: this.widget.appData,
       onError: (err) =>
           this.errorService.enqueue(BackgroundError.fiatRates(err)),
     );
@@ -269,12 +277,14 @@ class WalletPageState extends State<WalletPage> {
       if (this.provisionService.isProvisioned.value) {
         this.refreshService.triggerRefreshUnthrottled();
         // Tries to fetch and update the cached HBA from the node.
-        this.humanBitcoinAddressService.fetch();
+        unawaited(this.humanBitcoinAddressService.fetch());
+        // Likewise for the cached user settings.
+        unawaited(this.userSettingsService.fetch());
       }
     });
 
     // Try to provision the node.
-    this.provisionService.provision();
+    unawaited(this.provisionService.provision());
   }
 
   /// User triggers a refresh (fetch balance, fiat rates, payment sync).
