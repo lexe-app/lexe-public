@@ -852,15 +852,16 @@ mod helpers {
                     let mut rng = SysRng::new();
                     // Box: keep large one-time init future state out of
                     // long-lived task.
-                    let mut node = Box::pin(UserNode::init(
-                        &mut rng,
-                        run_args,
-                        mega_ctxt,
-                        user_context,
-                    ))
-                    .await
-                    .context("Error during run init")?;
-                    node.sync().await.context("Error while syncing")?;
+                    let (mut node, sync_ctx, run_ctx) =
+                        Box::pin(UserNode::init(
+                            &mut rng,
+                            run_args,
+                            mega_ctxt,
+                            user_context,
+                        ))
+                        .await
+                        .context("Error during run init")?;
+                    node.sync(sync_ctx).await.context("Error while syncing")?;
 
                     // We're ready; hand the readiness waiter channel to the
                     // node's ports responder.
@@ -869,7 +870,7 @@ mod helpers {
                         .expect("Present until we take it here");
                     node.spawn_ports_responder(ready_rx);
 
-                    node.run().await.context("Error while running")
+                    node.run(run_ctx).await.context("Error while running")
                 };
                 let result = try_future.await;
 

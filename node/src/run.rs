@@ -184,14 +184,10 @@ pub struct UserNode {
     persister: Arc<NodePersister>,
     router: Arc<LexeRouter>,
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
-
-    // --- Contexts --- //
-    sync: Option<SyncContext>,
-    run: Option<RunContext>,
 }
 
-/// Fields which are "moved" out of [`UserNode`] during `sync`.
-struct SyncContext {
+/// Inputs to [`UserNode::sync`].
+pub struct SyncContext {
     init_start: Instant,
     ldk_sync_client: Arc<EsploraSyncClientType>,
     sync_timeout: Duration,
@@ -200,8 +196,8 @@ struct SyncContext {
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
-/// Fields which are "moved" out of [`UserNode`] during `run`.
-struct RunContext {
+/// Inputs to [`UserNode::run`].
+pub struct RunContext {
     eph_tasks_rx: mpsc::Receiver<LxTask<()>>,
 }
 
@@ -215,7 +211,7 @@ impl UserNode {
         args: RunArgs,
         mega_ctxt: MegaContext,
         user_ctxt: UserContext,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<(Self, SyncContext, RunContext)> {
         info!(%args.user_pk, "Initializing node");
         let init_start = Instant::now();
 
@@ -1074,7 +1070,7 @@ impl UserNode {
         info!("Node initialization complete. <{elapsed}ms>");
 
         // Build and return the UserNode
-        Ok(Self {
+        let node = Self {
             // General
             args,
             deploy_env,
@@ -1101,34 +1097,32 @@ impl UserNode {
             persister,
             router,
             scorer,
-
-            // Contexts
-            sync: Some(SyncContext {
-                init_start,
-                ldk_sync_client,
-                sync_timeout: usernode_sync_timeout,
-                onchain_recv_tx,
-                bdk_resync_rx,
-                ldk_resync_rx,
-            }),
-            run: Some(RunContext { eph_tasks_rx }),
-        })
+        };
+        let sync_ctx = SyncContext {
+            init_start,
+            ldk_sync_client,
+            sync_timeout: usernode_sync_timeout,
+            onchain_recv_tx,
+            bdk_resync_rx,
+            ldk_resync_rx,
+        };
+        let run_ctx = RunContext { eph_tasks_rx };
+        Ok((node, sync_ctx, run_ctx))
     }
 
-    pub async fn sync(&mut self) -> anyhow::Result<()> {
+    pub async fn sync(&mut self, sync_ctx: SyncContext) -> anyhow::Result<()> {
         info!("Starting sync");
-        let ctxt = self.sync.take().expect("sync() must be called only once");
 
         // BDK: Do initial wallet sync
         let (first_bdk_sync_tx, first_bdk_sync_rx) = oneshot::channel();
         self.static_tasks.push(sync::spawn_bdk_sync_task(
             self.esplora.clone(),
             self.wallet.clone(),
-            ctxt.onchain_recv_tx,
+            sync_ctx.onchain_recv_tx,
             first_bdk_sync_tx,
-            ctxt.bdk_resync_rx,
+            sync_ctx.bdk_resync_rx,
             self.shutdown.clone(),
-            ctxt.sync_timeout,
+            sync_ctx.sync_timeout,
         ));
         let bdk_sync_fut = first_bdk_sync_rx
             .map(|res| res.context("Failed to recv result of first BDK sync"));
@@ -1138,11 +1132,11 @@ impl UserNode {
         self.static_tasks.push(sync::spawn_ldk_sync_task(
             self.channel_manager.clone(),
             self.chain_monitor.clone(),
-            ctxt.ldk_sync_client,
+            sync_ctx.ldk_sync_client,
             first_ldk_sync_tx,
-            ctxt.ldk_resync_rx,
+            sync_ctx.ldk_resync_rx,
             self.shutdown.clone(),
-            ctxt.sync_timeout,
+            sync_ctx.sync_timeout,
         ));
         let ldk_sync_fut = first_ldk_sync_rx
             .map(|res| res.context("Failed to recv result of first LDK sync"));
@@ -1186,7 +1180,7 @@ impl UserNode {
         .context("connect_to_lsp_then_spawn_connector_task failed")?;
         self.static_tasks.push(connector_task);
 
-        let total_elapsed = ctxt.init_start.elapsed().as_millis();
+        let total_elapsed = sync_ctx.init_start.elapsed().as_millis();
         info!("Sync complete. Total init + sync time: <{total_elapsed}ms>");
 
         Ok(())
@@ -1209,8 +1203,6 @@ impl UserNode {
             oneshot::Sender<Result<RunPorts, MegaApiError>>,
         >,
     ) {
-        assert!(self.sync.is_none(), "Must sync before responding ready");
-
         let run_ports = self.run_ports;
         let mut shutdown = self.shutdown.clone();
 
@@ -1234,10 +1226,8 @@ impl UserNode {
         self.static_tasks.push(ports_responder_task);
     }
 
-    pub async fn run(mut self) -> anyhow::Result<()> {
+    pub async fn run(self, run_ctx: RunContext) -> anyhow::Result<()> {
         info!("Running...");
-        assert!(self.sync.is_none(), "Must sync before run");
-        let ctxt = self.run.take().expect("run() must be called only once");
 
         // Sync complete. Trigger shutdown if we were asked to do so after sync.
         if self.args.shutdown_after_sync {
@@ -1248,7 +1238,7 @@ impl UserNode {
 
         task::try_join_tasks_and_shutdown(
             self.static_tasks,
-            ctxt.eph_tasks_rx,
+            run_ctx.eph_tasks_rx,
             self.shutdown.clone(),
             timeout::usernode::SHUTDOWN_TIMEOUT,
         )
