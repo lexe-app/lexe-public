@@ -71,11 +71,21 @@ void main() {
     // Build the components list
     final components = state.buildComponentsList(designPageElement) as List;
 
-    // Filter to only components with a screenshot path
-    final screenshotComponents = components.where((component) {
+    // Flatten components and their sublists, keeping only those with a
+    // screenshot path.
+    final screenshotComponents = <dynamic>[];
+    for (final component in components) {
       final comp = component as dynamic;
-      return comp.screenshot != null;
-    }).toList();
+      if (comp.screenshot != null) {
+        screenshotComponents.add(comp);
+      }
+      for (final entry in comp.sublist as List) {
+        final sub = entry as dynamic;
+        if (sub.screenshot != null) {
+          screenshotComponents.add(sub);
+        }
+      }
+    }
 
     print('Found ${screenshotComponents.length} components to screenshot');
 
