@@ -30,7 +30,7 @@ use lightning::{
 use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use thiserror::Error;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::{
@@ -281,6 +281,10 @@ pub trait LexeEventHandlerMethods: Clone + Send + Sync + 'static {
         event: Event,
     ) -> impl Future<Output = Result<(), EventHandleError>> + Send;
 
+    /// Spawned handler tasks are sent here so that the node's task joiner
+    /// polls them, propagating any panics.
+    fn eph_tasks_tx(&self) -> &mpsc::Sender<LxTask<()>>;
+
     fn persister(&self) -> &impl LexePersister;
 
     fn shutdown(&self) -> &NotifyOnce;
@@ -340,7 +344,7 @@ pub trait LexeEventHandlerMethods: Clone + Send + Sync + 'static {
             let (persist_tx, persist_rx) = oneshot::channel();
 
             // Immediately spawn off the handler, so as to reduce latency a bit.
-            LxTask::spawn(event_id.to_string(), {
+            let task = LxTask::spawn(event_id.to_string(), {
                 let myself = self.clone();
                 let event = event.clone();
                 let event_id = event_id.clone();
@@ -394,8 +398,8 @@ pub trait LexeEventHandlerMethods: Clone + Send + Sync + 'static {
                     }
                 }
                 .instrument(span.clone())
-            })
-            .detach();
+            });
+            let _ = self.eph_tasks_tx().try_send(task);
 
             // Ensure the event is persisted before we return.
             let persist_result = async {

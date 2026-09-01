@@ -752,6 +752,7 @@ impl UserNode {
                 payments_manager: payments_manager.clone(),
 
                 channel_events_bus: channel_events_bus.clone(),
+                eph_tasks_tx: eph_tasks_tx.clone(),
                 runner_tx: runner_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),

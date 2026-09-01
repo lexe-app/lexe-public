@@ -72,7 +72,9 @@ use lexe_ln::{
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
-use lexe_tokio::{events_bus::EventsBus, notify_once::NotifyOnce};
+use lexe_tokio::{
+    events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
+};
 use lightning::{
     events::{Event, InboundChannelFunds, PaymentFailureReason, ReplayEvent},
     ln::channelmanager::TrustedChannelFeatures,
@@ -110,6 +112,7 @@ pub(crate) struct EventCtx {
     pub payments_manager: PaymentsManagerType,
 
     pub channel_events_bus: EventsBus<ChannelEvent>,
+    pub eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
@@ -152,6 +155,9 @@ impl LexeEventHandlerMethods for NodeEventHandler {
         do_handle_event(&self.ctx, event_id, event)
     }
 
+    fn eph_tasks_tx(&self) -> &mpsc::Sender<LxTask<()>> {
+        &self.ctx.eph_tasks_tx
+    }
     fn persister(&self) -> &impl LexePersister {
         &self.ctx.persister
     }
