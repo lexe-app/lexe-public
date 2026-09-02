@@ -50,6 +50,11 @@ pub(super) async fn wait_bgp_quiescent(
     State(state): State<Arc<RouterState>>,
     LxJson(_): LxJson<Empty>,
 ) -> Result<LxJson<Empty>, NodeApiError> {
+    if cfg!(not(any(test, feature = "test-utils"))) {
+        return Err(NodeApiError::command(
+            "This endpoint is disabled in staging/prod",
+        ));
+    }
     background_processor::wait_quiescent(&state.bgp_control_tx)
         .await
         .map(|()| LxJson(Empty {}))

@@ -1,9 +1,6 @@
 use std::{ops::Range, pin::Pin, sync::Arc, time::Duration};
 
-#[cfg(any(test, feature = "test-utils"))]
-use anyhow::Context as _;
-use anyhow::anyhow;
-use cfg_if::cfg_if;
+use anyhow::{Context, anyhow};
 use futures::FutureExt;
 use lexe_common::time::DisplayMs;
 use lexe_crypto::rng::{RngExt, ThreadFastRng};
@@ -62,7 +59,7 @@ mod delay {
 #[derive(Copy, Clone, Debug)]
 pub struct HtlcsForwarded;
 
-/// A test-only request to wait for BGP quiescence.
+/// A request to wait for BGP quiescence.
 pub struct QuiescenceRequest {
     response: oneshot::Sender<anyhow::Result<()>>,
 }
@@ -180,7 +177,7 @@ where
                     }
 
                     Some(request) = bgp_control_rx.recv() => {
-                        // Handle a test-only quiescence request.
+                        // Handle a quiescence request.
                         process_events_timer.reset();
                         let result = Box::pin(process_until_quiescent(
                             &channel_manager,
@@ -386,7 +383,7 @@ fn process_pending_htlc_forwards<CM, PS>(
     *forward_delay_timer = None;
 }
 
-/// Creates a test-only background processor control channel.
+/// Creates a background processor control channel.
 pub fn control_channel() -> (
     mpsc::Sender<QuiescenceRequest>,
     mpsc::Receiver<QuiescenceRequest>,
@@ -395,7 +392,7 @@ pub fn control_channel() -> (
     (bgp_control_tx, bgp_control_rx)
 }
 
-/// Test-only: waits for LDK event and HTLC quiescence.
+/// Waits for LDK event and HTLC quiescence.
 //
 // NOTE(phlip9): calling this method is the only way to actually
 // `wait_quiescent`, since `QuiescenceRequest` can't be created outside this
@@ -403,26 +400,19 @@ pub fn control_channel() -> (
 pub async fn wait_quiescent(
     bgp_control_tx: &mpsc::Sender<QuiescenceRequest>,
 ) -> anyhow::Result<()> {
-    cfg_if! {
-        if #[cfg(any(test, feature = "test-utils"))] {
-            let (response, receiver) = oneshot::channel();
-            bgp_control_tx
-                .send(QuiescenceRequest { response })
-                .await
-                .map_err(|_| anyhow!("Background processor stopped"))?;
-            receiver
-                .await
-                .context("Background processor canceled quiescence request")?
-        } else {
-            let _ = bgp_control_tx;
-            Err(anyhow!("This endpoint is disabled in staging/prod"))
-        }
-    }
+    let (response, receiver) = oneshot::channel();
+    bgp_control_tx
+        .send(QuiescenceRequest { response })
+        .await
+        .map_err(|_| anyhow!("Background processor stopped"))?;
+    receiver
+        .await
+        .context("Background processor canceled quiescence request")?
 }
 
-/// Test-only: processes LDK events until all event sources and HTLCs are
-/// quiescent. Doesn't include timer ticks, since we shouldn't rely on those
-/// for forward progress.
+/// Processes LDK events until all event sources and HTLCs are quiescent.
+/// Doesn't include timer ticks, since we shouldn't rely on those for
+/// forward progress.
 async fn process_until_quiescent<CM, PM, PS, EH, RMH>(
     channel_manager: &CM,
     chain_monitor: &LexeChainMonitorType<PS>,
