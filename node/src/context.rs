@@ -177,6 +177,7 @@ impl MegaContext {
                     crate::client::USER_AGENT_EXTERNAL,
                     rng,
                     esplora_urls,
+                    untrusted_network,
                     mega_shutdown.clone(),
                 ),
                 lsp_api.get_network_graph(),

@@ -255,6 +255,7 @@ impl LexeEsplora {
         user_agent: &'static str,
         rng: &mut impl RngCore,
         mut esplora_urls: Vec<String>,
+        network: Network,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>, String)>
     {
@@ -267,7 +268,8 @@ impl LexeEsplora {
         for url in esplora_urls {
             info!("Initializing Esplora from url: {url}");
             let init_result =
-                Self::init(user_agent, url.clone(), shutdown.clone()).await;
+                Self::init(user_agent, url.clone(), network, shutdown.clone())
+                    .await;
 
             match init_result {
                 Ok((client, fee_estimates, task)) => {
@@ -296,6 +298,7 @@ impl LexeEsplora {
     pub async fn init(
         user_agent: &'static str,
         esplora_url: String,
+        network: Network,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
         // - We must use the default ring `CryptoProvider` because our providers
@@ -316,17 +319,13 @@ impl LexeEsplora {
 
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
         let reqwest_client = {
-            let builder = reqwest::Client::builder()
+            reqwest::Client::builder()
                 .user_agent(user_agent)
-                .https_only(true)
+                // Regtest esploras are local or self-hosted; only they may
+                // use plain http.
+                .https_only(network != Network::Regtest)
                 .timeout(ESPLORA_REQUEST_TIMEOUT)
-                .use_preconfigured_tls(tls_config);
-
-            // Only allow http in tests
-            #[cfg(any(test, feature = "test-utils"))]
-            let builder = builder.https_only(false);
-
-            builder
+                .use_preconfigured_tls(tls_config)
                 .build()
                 .expect("Failed to build esplora reqwest client")
         };
@@ -612,10 +611,14 @@ mod test {
         });
 
         let shutdown = NotifyOnce::new();
-        let (_esplora, fee_estimates, task) =
-            LexeEsplora::init("lexe-ln-test", url, shutdown.clone())
-                .await
-                .expect("Failed to init esplora");
+        let (_esplora, fee_estimates, task) = LexeEsplora::init(
+            "lexe-ln-test",
+            url,
+            Network::Mainnet,
+            shutdown.clone(),
+        )
+        .await
+        .expect("Failed to init esplora");
 
         let feerate = fee_estimates.num_blocks_to_feerate(1);
         println!("1 block => {} sat/vB", feerate.to_sat_per_vb_ceil());
