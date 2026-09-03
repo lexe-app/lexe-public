@@ -200,6 +200,35 @@ def test_update_personal_note():
 
 
 @pytest.mark.integration
+def test_cancel_payment():
+    """Test canceling an unpaid inbound invoice payment."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        config = create_dev_config()
+        seed = create_test_root_seed()
+        creds = lexe.Credentials.from_root_seed(seed)
+
+        wallet = lexe.LexeWallet.fresh(config, creds, temp_dir)
+        wallet.signup(seed)
+
+        # Create an invoice to get a pending inbound payment
+        create_resp = wallet.create_invoice(
+            expiration_secs=3600,
+            amount_sats=1000,
+            description="Test",
+        )
+
+        # Cancel the payment; canceling again is idempotent
+        wallet.cancel_payment(create_resp.index)
+        wallet.cancel_payment(create_resp.index)
+
+        # Verify the payment is now failed ("canceled")
+        payment = wallet.get_payment(create_resp.index)
+        assert payment is not None
+        assert payment.status == lexe.PaymentStatus.FAILED
+        assert payment.status_msg == "canceled"
+
+
+@pytest.mark.integration
 def test_clear_payments():
     """Test clearing local payment data."""
     with tempfile.TemporaryDirectory() as temp_dir:

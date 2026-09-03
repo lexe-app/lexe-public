@@ -1251,6 +1251,20 @@ Raises:
     FfiError: If the payment doesn't exist locally.
 """)
 
+_set_method_doc(LexeWallet, "cancel_payment", """\
+Cancel an inbound invoice payment. Idempotent.
+
+Args:
+    index: Payment index string.
+
+Raises:
+    FfiError: If the payment doesn't exist or cannot be canceled.
+
+Example::
+
+    wallet.cancel_payment(payment_index)
+""")
+
 _set_method_doc(LexeWallet, "list_channels", """\
 List this node's Lightning channels.
 
@@ -2169,6 +2183,20 @@ Args:
 
 Raises:
     FfiError: If the payment doesn't exist locally.
+""")
+
+_set_method_doc(AsyncLexeWallet, "cancel_payment", """\
+Cancel an inbound invoice payment. Idempotent.
+
+Args:
+    index: Payment index string.
+
+Raises:
+    FfiError: If the payment doesn't exist or cannot be canceled.
+
+Example::
+
+    await wallet.cancel_payment(payment_index)
 """)
 
 _set_method_doc(AsyncLexeWallet, "list_channels", """\

@@ -17,11 +17,11 @@ use lexe::{
         auth::Credentials,
         bitcoin::{ClaimMethod, PaymentMethod},
         command::{
-            AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
-            ClaimableDetails as SdkClaimableDetails, ClientInfoResponse,
-            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, CreatePayerProofRequest,
+            AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
+            CashAppBuyResponse, ClaimableDetails as SdkClaimableDetails,
+            ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
+            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
+            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
             GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
@@ -130,6 +130,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             "/v2/node/update_personal_note",
             post(node::update_personal_note),
         )
+        .route("/v2/node/cancel_payment", post(node::cancel_payment))
         .route("/v2/node/list_channels", get(node::list_channels))
         .route("/v2/node/open_channel", post(node::open_channel))
         .route("/v2/node/close_channel", post(node::close_channel))
@@ -752,6 +753,19 @@ mod node {
     ) -> Result<LxJson<Empty>, SdkApiError> {
         wallet
             .update_personal_note(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(Empty {}))
+    }
+
+    #[instrument(skip_all, name = "(cancel-payment)")]
+    pub(crate) async fn cancel_payment(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<CancelPaymentRequest>,
+    ) -> Result<LxJson<Empty>, SdkApiError> {
+        wallet
+            .cancel_payment(req)
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(Empty {}))

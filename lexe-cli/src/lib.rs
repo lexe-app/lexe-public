@@ -20,15 +20,15 @@ use lexe::{
             UserChannelId,
         },
         command::{
-            AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest, ChannelDetails,
-            ClientInfo, CloseChannelRequest, CreateClientRequest,
-            CreateInvoiceRequest, CreateOfferRequest, CreatePayerProofRequest,
-            CredentialKind, GetPaymentRequest, GetUpdatedPaymentsRequest,
-            OpenChannelRequest, PayInvoiceRequest, PayLnurlRequest,
-            PayOfferRequest, PayRequest, PayerProofDisclosures,
-            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
-            WithdrawLnurlRequest,
+            AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
+            CashAppBuyRequest, ChannelDetails, ClientInfo, CloseChannelRequest,
+            CreateClientRequest, CreateInvoiceRequest, CreateOfferRequest,
+            CreatePayerProofRequest, CredentialKind, GetPaymentRequest,
+            GetUpdatedPaymentsRequest, OpenChannelRequest, PayInvoiceRequest,
+            PayLnurlRequest, PayOfferRequest, PayRequest,
+            PayerProofDisclosures, PaymentSyncSummary, RevokeClientRequest,
+            UpdateClientRequest, UpdatePersonalNoteRequest,
+            WaitForNextPaymentRequest, WithdrawLnurlRequest,
         },
         payment::{
             Order, Payment, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
@@ -230,6 +230,7 @@ pub enum LexeCommand {
     GetPayment(GetPaymentArgs),
     GetUpdatedPayments(GetUpdatedPaymentsArgs),
     UpdatePersonalNote(UpdatePersonalNoteArgs),
+    CancelPayment(CancelPaymentArgs),
     ListChannels(ListChannelsArgs),
     OpenChannel(OpenChannelArgs),
     CloseChannel(CloseChannelArgs),
@@ -377,6 +378,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
         LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
         LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
+        LexeCommand::CancelPayment(a) => a.run(&wallet).await,
         LexeCommand::ListChannels(a) => a.run(&wallet).await,
         LexeCommand::OpenChannel(a) => a.run(&wallet).await,
         LexeCommand::CloseChannel(a) => a.run(&wallet).await,
@@ -2113,6 +2115,31 @@ impl UpdatePersonalNoteArgs {
             .await
             .context("Failed to update personal note")?;
         println!("Personal note updated");
+        Ok(())
+    }
+}
+
+// --- `cancel-payment` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Cancel an inbound invoice payment",
+    long_about = "Cancel an inbound invoice payment. Idempotent.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct CancelPaymentArgs {
+    /// The index of the payment to cancel
+    index: PaymentCreatedIndex,
+}
+
+impl CancelPaymentArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let req = CancelPaymentRequest { index: self.index };
+        wallet
+            .cancel_payment(req)
+            .await
+            .context("Failed to cancel payment")?;
+        println!("Payment canceled");
         Ok(())
     }
 }

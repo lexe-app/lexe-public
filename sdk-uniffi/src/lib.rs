@@ -43,6 +43,7 @@ use lexe::{
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
             AnalyzeResponse as SdkAnalyzeResponse,
+            CancelPaymentRequest as SdkCancelPaymentRequest,
             CashAppBuyRequest as SdkCashAppBuyRequest,
             CashAppBuyResponse as SdkCashAppBuyResponse,
             ChannelDetails as SdkChannelDetails,
@@ -1498,6 +1499,14 @@ impl AsyncLexeWallet {
         Ok(())
     }
 
+    /// Cancel an inbound invoice payment. Idempotent.
+    pub async fn cancel_payment(&self, index: String) -> Result<(), FfiError> {
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
+        let req = SdkCancelPaymentRequest { index };
+        self.inner.cancel_payment(req).await?;
+        Ok(())
+    }
+
     // --- Channel management --- //
 
     /// List this node's Lightning channels.
@@ -2476,6 +2485,14 @@ impl BlockingLexeWallet {
             personal_note,
         };
         self.inner.update_personal_note(req)?;
+        Ok(())
+    }
+
+    /// Cancel an inbound invoice payment. Idempotent.
+    pub fn cancel_payment(&self, index: String) -> Result<(), FfiError> {
+        let index = SdkPaymentCreatedIndex::from_str(&index)?;
+        let req = SdkCancelPaymentRequest { index };
+        self.inner.cancel_payment(req)?;
         Ok(())
     }
 

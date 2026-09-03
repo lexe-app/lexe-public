@@ -9,18 +9,18 @@
 
 use lexe::types::{
     command::{
-        AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
-        ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
-        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
-        CreatePayerProofResponse, GetClientInfoResponse,
-        GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
-        GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
-        WaitForNextPaymentResponse,
+        AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
+        CashAppBuyResponse, ClientInfoResponse, CloseChannelRequest,
+        CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
+        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+        CreatePayerProofRequest, CreatePayerProofResponse,
+        GetClientInfoResponse, GetHumanBitcoinAddressResponse,
+        GetNextUnusedAddressResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -321,6 +321,14 @@ pub trait UserSidecarApi {
     async fn update_personal_note(
         &self,
         req: &UpdatePersonalNoteRequest,
+    ) -> Result<Empty, SdkApiError>;
+
+    /// POST /v2/node/cancel_payment [`CancelPaymentRequest`] -> [`Empty`]
+    ///
+    /// Cancel an inbound invoice payment. Idempotent.
+    async fn cancel_payment(
+        &self,
+        req: &CancelPaymentRequest,
     ) -> Result<Empty, SdkApiError>;
 
     /// GET /v2/node/list_channels [`Empty`] -> [`ListChannelsResponse`]

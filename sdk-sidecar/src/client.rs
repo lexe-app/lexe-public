@@ -2,18 +2,18 @@ use std::time::Duration;
 
 use lexe::types::{
     command::{
-        AnalyzeRequest, CashAppBuyRequest, CashAppBuyResponse,
-        ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
-        CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-        CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
-        CreatePayerProofResponse, GetClientInfoResponse,
-        GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
-        GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PaymentSyncSummary, RevokeClientRequest, UpdatePersonalNoteRequest,
-        WaitForNextPaymentResponse,
+        AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
+        CashAppBuyResponse, ClientInfoResponse, CloseChannelRequest,
+        CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
+        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+        CreatePayerProofRequest, CreatePayerProofResponse,
+        GetClientInfoResponse, GetHumanBitcoinAddressResponse,
+        GetNextUnusedAddressResponse, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -294,6 +294,16 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<Empty, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/update_personal_note");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn cancel_payment(
+        &self,
+        req: &CancelPaymentRequest,
+    ) -> Result<Empty, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/cancel_payment");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
