@@ -77,7 +77,7 @@ import 'package:lexeapp/route/initial_deposit/page.dart'
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart' show OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart'
-    show PaymentDetailPage, PaymentSource;
+    show PaymentDetailPage, PaymentSource, cancelPaymentFlow;
 import 'package:lexeapp/route/profile.dart'
     show EditHumanBitcoinAddressPage, minHbaClaimBalanceMessage;
 import 'package:lexeapp/route/receive/page.dart' show ReceivePaymentPage;
@@ -708,6 +708,7 @@ class WalletPageState extends State<WalletPage> {
       MaterialPageRoute(
         builder: (context) => PaymentDetailPage(
           app: this.widget.app,
+          settings: this.widget.settings,
           paymentCreatedIndex: paymentCreatedIndex,
           paymentSource: paymentSource,
           paymentsUpdated: this.paymentSyncService.updated,
@@ -953,8 +954,10 @@ class WalletPageState extends State<WalletPage> {
             listenable: this.paymentSyncService.updated,
             builder: (context, child) => SliverPaymentsList(
               app: this.widget.app,
+              settings: this.widget.settings,
               filter: PaymentsListFilter.pendingNotJunk,
               onPaymentTap: this.onPaymentTap,
+              triggerRefresh: this.triggerRefresh,
             ),
           ),
 
@@ -963,8 +966,10 @@ class WalletPageState extends State<WalletPage> {
             listenable: this.paymentSyncService.updated,
             builder: (context, child) => SliverPaymentsList(
               app: this.widget.app,
+              settings: this.widget.settings,
               filter: PaymentsListFilter.finalizedNotJunk,
               onPaymentTap: this.onPaymentTap,
+              triggerRefresh: this.triggerRefresh,
             ),
           ),
         ],
@@ -2294,13 +2299,17 @@ class SliverPaymentsList extends StatefulWidget {
   const SliverPaymentsList({
     super.key,
     required this.app,
+    required this.settings,
     required this.filter,
     required this.onPaymentTap,
+    required this.triggerRefresh,
   });
 
   final AppHandle app;
+  final LxSettings settings;
   final PaymentsListFilter filter;
   final PaymentTapCallback onPaymentTap;
+  final VoidCallback triggerRefresh;
 
   @override
   State<SliverPaymentsList> createState() => _SliverPaymentsListState();
@@ -2392,13 +2401,47 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
           };
           if (result == null) return null;
 
-          return PaymentsListEntry(
+          final entry = PaymentsListEntry(
             payment: result,
             paymentDateUpdates: this.paymentDateUpdates,
             onTap: () => this.widget.onPaymentTap(
               result.index,
               PaymentSource.localDb(result.index),
             ),
+          );
+
+          // Swipe left to cancel a pending inbound invoice payment.
+          if (!result.isCancelable) return entry;
+
+          return Dismissible(
+            key: ValueKey(result.index),
+            direction: DismissDirection.endToStart,
+            // A fast fling triggers the flow regardless of this threshold.
+            dismissThresholds: const {DismissDirection.endToStart: 0.7},
+            // A canceled payment stays in the list and flips to "failed" on
+            // the next payments sync, so run the flow but never dismiss.
+            confirmDismiss: (_) async {
+              await cancelPaymentFlow(
+                context: context,
+                app: this.widget.app,
+                settings: this.widget.settings,
+                index: result.index,
+                rail: result.kind.rail(),
+                triggerRefresh: this.widget.triggerRefresh,
+              );
+              return false;
+            },
+            background: const ColoredBox(
+              color: LxColors.errorText,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: EdgeInsets.only(right: Space.s400),
+                  child: Icon(LxIcons.close, color: LxColors.grey1000),
+                ),
+              ),
+            ),
+            child: entry,
           );
         },
         // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),

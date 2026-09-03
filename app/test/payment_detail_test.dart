@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lexeapp/design_mode/mocks.dart' as mocks;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
+import 'package:lexeapp/settings.dart' show LxSettings;
 
 Widget buildPaymentDetail(Payment payment) {
   final app = mocks.MockAppHandle(
@@ -16,6 +17,7 @@ Widget buildPaymentDetail(Payment payment) {
   return MaterialApp(
     home: PaymentDetailPageInner(
       app: app,
+      settings: LxSettings(app.settingsDb()),
       payment: ValueNotifier(payment),
       paymentDateUpdates: ValueNotifier(
         DateTime.fromMillisecondsSinceEpoch(payment.createdAt, isUtc: true),
@@ -99,6 +101,43 @@ void main() {
     expect(find.text("Message to recipient"), findsOneWidget);
     expect(find.text("Payer note"), findsNothing);
     expect(find.text("Thanks for the lunch!"), findsOneWidget);
+  });
+
+  /// Scroll to the bottom buttons, which start out below the fold.
+  Future<void> scrollToBottomButtons(WidgetTester tester) async {
+    final scrollable = tester.state<ScrollableState>(
+      find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+    await tester.pump();
+    expect(find.text("Payment details"), findsOneWidget);
+  }
+
+  testWidgets("pending inbound invoice shows cancel payment button", (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildPaymentDetail(mocks.dummyLnInvoiceInboundPendingToComplete),
+    );
+    await scrollToBottomButtons(tester);
+
+    expect(find.text("Cancel payment"), findsOneWidget);
+  });
+
+  testWidgets("completed inbound invoice hides cancel payment button", (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildPaymentDetail(mocks.dummyInvoiceInboundCompleted01),
+    );
+    await scrollToBottomButtons(tester);
+
+    expect(find.text("Cancel payment"), findsNothing);
   });
 
   testWidgets("inbound invoice shows payer identity without offer kind", (

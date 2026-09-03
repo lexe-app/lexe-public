@@ -1,7 +1,9 @@
 import 'dart:async' show unawaited;
 
-import 'package:app_rs_dart/ffi/api.dart' show FiatRate, UpdatePersonalNote;
+import 'package:app_rs_dart/ffi/api.dart'
+    show CancelPaymentRequest, FiatRate, UpdatePersonalNote;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/settings.dart' show Settings;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         Payment,
@@ -32,11 +34,13 @@ import 'package:lexeapp/components.dart'
         PaymentNoteInput,
         ScrollableSinglePageBody,
         SheetDragHandle,
-        SliverPullToRefresh;
+        SliverPullToRefresh,
+        showModalAsyncFlow;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:lexeapp/url.dart' as url;
@@ -70,6 +74,7 @@ class PaymentDetailPage extends StatefulWidget {
   const PaymentDetailPage({
     super.key,
     required this.app,
+    required this.settings,
     required this.paymentCreatedIndex,
     required this.paymentSource,
     required this.paymentsUpdated,
@@ -79,6 +84,8 @@ class PaymentDetailPage extends StatefulWidget {
   });
 
   final AppHandle app;
+
+  final LxSettings settings;
 
   /// The id of the payment we want to display.
   final PaymentCreatedIndex paymentCreatedIndex;
@@ -212,6 +219,7 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   Widget build(BuildContext context) {
     return PaymentDetailPageInner(
       app: this.widget.app,
+      settings: this.widget.settings,
       payment: this.payment,
       paymentDateUpdates: this.paymentDateUpdates,
       fiatRate: this.widget.fiatRate,
@@ -228,6 +236,7 @@ class PaymentDetailPageInner extends StatelessWidget {
   const PaymentDetailPageInner({
     super.key,
     required this.app,
+    required this.settings,
     required this.payment,
     required this.paymentDateUpdates,
     required this.fiatRate,
@@ -236,6 +245,7 @@ class PaymentDetailPageInner extends StatelessWidget {
   });
 
   final AppHandle app;
+  final LxSettings settings;
   final ValueListenable<Payment> payment;
   final ValueListenable<DateTime> paymentDateUpdates;
   final ValueListenable<FiatRate?> fiatRate;
@@ -244,6 +254,17 @@ class PaymentDetailPageInner extends StatelessWidget {
 
   // HACK: parsing the serialized form like this is ugly af.
   String paymentIdxBody() => this.payment.value.index.body();
+
+  /// Confirm with the user, then cancel the payment on the user node.
+  Future<void> onCancelPaymentPressed(BuildContext context) =>
+      cancelPaymentFlow(
+        context: context,
+        app: this.app,
+        settings: this.settings,
+        index: this.payment.value.index,
+        rail: this.payment.value.kind.rail(),
+        triggerRefresh: this.triggerRefresh,
+      );
 
   void openBottomSheet(BuildContext context) {
     unawaited(
@@ -463,6 +484,17 @@ class PaymentDetailPageInner extends StatelessWidget {
                   label: const Text("Payment details"),
                   icon: const Icon(LxIcons.expandUp),
                 ),
+
+                // Cancel an unpaid inbound invoice payment
+                if (payment.isCancelable)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Space.s200),
+                    child: LxFilledButton(
+                      onTap: () => this.onCancelPaymentPressed(context),
+                      label: const Text("Cancel payment"),
+                      icon: const Icon(LxIcons.close),
+                    ),
+                  ),
               ],
             ),
           );
@@ -470,6 +502,114 @@ class PaymentDetailPageInner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Confirm with the user (unless they've opted out of confirmation), then
+/// cancel the payment on the user node.
+Future<void> cancelPaymentFlow({
+  required BuildContext context,
+  required AppHandle app,
+  required LxSettings settings,
+  required PaymentCreatedIndex index,
+  required PaymentRail rail,
+  required VoidCallback triggerRefresh,
+}) async {
+  final skipConfirm = settings.skipCancelPaymentConfirm.value ?? false;
+  if (!skipConfirm) {
+    final bool? confirmed = await _showCancelPaymentConfirmDialog(
+      context: context,
+      settings: settings,
+      rail: rail,
+    );
+    if (confirmed != true || !context.mounted) return;
+  }
+
+  final req = CancelPaymentRequest(index: index);
+  final fut = Result.tryFfiAsync(() async => app.cancelPayment(req: req));
+
+  final res = await showModalAsyncFlow(
+    context: context,
+    future: fut,
+    errorBuilder: (context, err) => AlertDialog(
+      title: const Text("Failed to cancel payment"),
+      content: Text(err.message),
+      scrollable: true,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text("Close"),
+        ),
+      ],
+    ),
+  );
+
+  if (res == null || res.isOk) {
+    triggerRefresh();
+  }
+}
+
+/// Ask the user to confirm canceling a payment.
+///
+/// If the user confirms with "Don't show this again" checked, persists the
+/// [LxSettings.skipCancelPaymentConfirm] opt-out.
+Future<bool?> _showCancelPaymentConfirmDialog({
+  required BuildContext context,
+  required LxSettings settings,
+  required PaymentRail rail,
+}) async {
+  bool dontShowAgain = false;
+
+  // Only invoices are cancelable today, but we may later support canceling
+  // onchain sends, so the copy is conditional.
+  final noun = rail is PaymentRail_Invoice ? "invoice" : "payment";
+
+  final bool? confirmed = await showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text("Cancel $noun?"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("This invoice will no longer be payable."),
+          const SizedBox(height: Space.s300),
+          StatefulBuilder(
+            builder: (context, setState) => CheckboxListTile(
+              value: dontShowAgain,
+              onChanged: (value) =>
+                  setState(() => dontShowAgain = value ?? false),
+              // Match the dialog body text; the default title style reads
+              // louder than this minor option should.
+              title: Text(
+                "Don't show this again",
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              dense: true,
+              controlAffinity: ListTileControlAffinity.trailing,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text("Cancel $noun"),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text("Never mind"),
+        ),
+      ],
+    ),
+  );
+
+  // Only persist the opt-out once the user actually confirms a cancellation.
+  if (confirmed == true && dontShowAgain) {
+    settings.update(Settings(skipCancelPaymentConfirm: true)).unwrap();
+  }
+
+  return confirmed;
 }
 
 /// Format a millisat amount (e.g. "123.456 sats") with the approximate fiat

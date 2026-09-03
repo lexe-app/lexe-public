@@ -939,6 +939,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         subtitle: "Onchain outbound (failed)",
         (context) => PaymentDetailPageInner(
           app: mockApp,
+          settings: LxSettings(mockApp.settingsDb()),
           payment: ValueNotifier(mocks.dummyOnchainOutboundFailed01),
           paymentDateUpdates: this.paymentDateUpdates,
           fiatRate: this.makeFiatRateStream(),
@@ -951,6 +952,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "Onchain inbound (completed)",
             (context) => PaymentDetailPageInner(
               app: mockApp,
+              settings: LxSettings(mockApp.settingsDb()),
               payment: ValueNotifier(mocks.dummyOnchainInboundCompleted01),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
@@ -963,7 +965,23 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "LN invoice inbound (pending -> complete)",
             (context) => PaymentDetailPageInner(
               app: mockApp,
+              settings: LxSettings(mockApp.settingsDb()),
               payment: this.makeCompletingPayment(
+                mocks.dummyLnInvoiceInboundPendingToComplete,
+              ),
+              paymentDateUpdates: this.paymentDateUpdates,
+              fiatRate: this.makeFiatRateStream(),
+              isSyncing: ValueNotifier(false),
+              triggerRefresh: () {},
+            ),
+          ),
+          Component(
+            "PaymentDetailPage",
+            subtitle: "LN invoice inbound (pending, cancelable)",
+            (context) => PaymentDetailPageInner(
+              app: mockApp,
+              settings: LxSettings(mockApp.settingsDb()),
+              payment: ValueNotifier(
                 mocks.dummyLnInvoiceInboundPendingToComplete,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
@@ -977,6 +995,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "LN offer outbound (completed)",
             (context) => PaymentDetailPageInner(
               app: mockApp,
+              settings: LxSettings(mockApp.settingsDb()),
               payment: ValueNotifier(mocks.dummyOfferOutboundPayment01),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
@@ -989,6 +1008,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "LN offer inbound (completed)",
             (context) => PaymentDetailPageInner(
               app: mockApp,
+              settings: LxSettings(mockApp.settingsDb()),
               payment: ValueNotifier(mocks.dummyOfferInboundPayment01),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
@@ -1001,6 +1021,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "Waived channel fee",
             (context) => PaymentDetailPageInner(
               app: mockApp,
+              settings: LxSettings(mockApp.settingsDb()),
               payment: ValueNotifier(mocks.dummyWaivedChannelFee01),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
@@ -1632,6 +1653,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             "DocsGettingStarted17",
             (context) => PaymentDetailPageInner(
               app: mockApp,
+              settings: LxSettings(mockApp.settingsDb()),
               payment: ValueNotifier(mocks.dummyInvoiceOutboundCompleted02),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),

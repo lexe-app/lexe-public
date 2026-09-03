@@ -139,6 +139,13 @@ extension PaymentExt on Payment {
     description: this.description,
     message: this.message,
   );
+
+  /// Whether the user can cancel this payment.
+  bool get isCancelable => _isCancelable(
+    status: this.status,
+    direction: this.direction,
+    kind: this.kind,
+  );
 }
 
 /// The best one-line label for a payment. Prefers the user's personal note,
@@ -216,4 +223,25 @@ extension ShortPaymentExt on ShortPayment {
     description: this.description,
     message: this.message,
   );
+
+  /// Whether the user can cancel this payment.
+  bool get isCancelable => _isCancelable(
+    status: this.status,
+    direction: this.direction,
+    kind: this.kind,
+  );
 }
+
+/// Whether the user can cancel a payment: an inbound invoice payment which
+/// is still pending (unpaid).
+///
+/// Keep in sync with `PaymentsManager::cancel_payment` in
+/// `public/lexe-ln/src/payments/manager.rs`.
+bool _isCancelable({
+  required PaymentStatus status,
+  required PaymentDirection direction,
+  required PaymentKind kind,
+}) =>
+    status == PaymentStatus.pending &&
+    direction == PaymentDirection.inbound &&
+    kind.rail() is PaymentRail_Invoice;
