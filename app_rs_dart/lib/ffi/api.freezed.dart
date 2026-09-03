@@ -76,6 +76,66 @@ String toString() {
 
 
 /// @nodoc
+mixin _$CancelPaymentRequest {
+
+ PaymentCreatedIndex get index;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CancelPaymentRequest&&(identical(other.index, index) || other.index == index));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,index);
+
+@override
+String toString() {
+  return 'CancelPaymentRequest(index: $index)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _CancelPaymentRequest implements CancelPaymentRequest {
+  const _CancelPaymentRequest({required this.index});
+  
+
+@override final  PaymentCreatedIndex index;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CancelPaymentRequest&&(identical(other.index, index) || other.index == index));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,index);
+
+@override
+String toString() {
+  return 'CancelPaymentRequest(index: $index)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$CloseChannelPreflightResponse {
 
  int get feeEstimateSats;

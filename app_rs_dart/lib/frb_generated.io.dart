@@ -149,6 +149,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  CancelPaymentRequest dco_decode_box_autoadd_cancel_payment_request(
+    dynamic raw,
+  );
+
+  @protected
   ClaimMethod dco_decode_box_autoadd_claim_method(dynamic raw);
 
   @protected
@@ -297,6 +302,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   WithdrawLnurlRequest dco_decode_box_autoadd_withdraw_lnurl_request(
     dynamic raw,
   );
+
+  @protected
+  CancelPaymentRequest dco_decode_cancel_payment_request(dynamic raw);
 
   @protected
   ClaimMethod dco_decode_claim_method(dynamic raw);
@@ -748,6 +756,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  CancelPaymentRequest sse_decode_box_autoadd_cancel_payment_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ClaimMethod sse_decode_box_autoadd_claim_method(SseDeserializer deserializer);
 
   @protected
@@ -936,6 +949,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   WithdrawLnurlRequest sse_decode_box_autoadd_withdraw_lnurl_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CancelPaymentRequest sse_decode_cancel_payment_request(
     SseDeserializer deserializer,
   );
 
@@ -1482,6 +1500,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_cancel_payment_request(
+    CancelPaymentRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_claim_method(
     ClaimMethod self,
     SseSerializer serializer,
@@ -1715,6 +1739,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_withdraw_lnurl_request(
     WithdrawLnurlRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_cancel_payment_request(
+    CancelPaymentRequest self,
     SseSerializer serializer,
   );
 

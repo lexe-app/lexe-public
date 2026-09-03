@@ -47,7 +47,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1462961059;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1218514352;
 
 // Section: executor
 
@@ -149,6 +149,22 @@ fn wire__crate__ffi__app__app_handle_buy_with_cash_app_impl(
 let api_amount_sats = <u64>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
                          let output_ok = crate::ffi::app::AppHandle::buy_with_cash_app(&api_that, api_amount_sats).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__ffi__app__app_handle_cancel_payment_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_cancel_payment", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
+let api_req = <crate::ffi::api::CancelPaymentRequest>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::cancel_payment(&api_that, api_req).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -1614,6 +1630,17 @@ impl SseDecode for bool {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
+impl SseDecode for crate::ffi::api::CancelPaymentRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_index =
+            <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
+        return crate::ffi::api::CancelPaymentRequest { index: var_index };
     }
 }
 
@@ -3451,48 +3478,49 @@ fn pde_ffi_dispatcher_primary_impl(
     match func_id {
                         6 => wire__crate__ffi__app__app_handle_backup_info_impl(port, ptr, rust_vec_len, data_len),
 7 => wire__crate__ffi__app__app_handle_buy_with_cash_app_impl(port, ptr, rust_vec_len, data_len),
-8 => wire__crate__ffi__app__app_handle_clear_payment_db_impl(port, ptr, rust_vec_len, data_len),
-9 => wire__crate__ffi__app__app_handle_close_channel_impl(port, ptr, rust_vec_len, data_len),
-10 => wire__crate__ffi__app__app_handle_close_channel_preflight_impl(port, ptr, rust_vec_len, data_len),
-11 => wire__crate__ffi__app__app_handle_create_client_impl(port, ptr, rust_vec_len, data_len),
-12 => wire__crate__ffi__app__app_handle_create_invoice_impl(port, ptr, rust_vec_len, data_len),
-13 => wire__crate__ffi__app__app_handle_create_offer_impl(port, ptr, rust_vec_len, data_len),
-14 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
-17 => wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
-18 => wire__crate__ffi__app__app_handle_get_next_unused_address_impl(port, ptr, rust_vec_len, data_len),
-28 => wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(port, ptr, rust_vec_len, data_len),
-29 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
-30 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
-31 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
-32 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
-33 => wire__crate__ffi__app__app_handle_open_channel_impl(port, ptr, rust_vec_len, data_len),
-34 => wire__crate__ffi__app__app_handle_open_channel_preflight_impl(port, ptr, rust_vec_len, data_len),
-35 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
-36 => wire__crate__ffi__app__app_handle_pay_invoice_preflight_impl(port, ptr, rust_vec_len, data_len),
-37 => wire__crate__ffi__app__app_handle_pay_offer_impl(port, ptr, rust_vec_len, data_len),
-38 => wire__crate__ffi__app__app_handle_pay_offer_preflight_impl(port, ptr, rust_vec_len, data_len),
-39 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
-40 => wire__crate__ffi__app__app_handle_pay_onchain_preflight_impl(port, ptr, rust_vec_len, data_len),
-41 => wire__crate__ffi__app__app_handle_provision_impl(port, ptr, rust_vec_len, data_len),
-42 => wire__crate__ffi__app__app_handle_resolve_best_impl(port, ptr, rust_vec_len, data_len),
-43 => wire__crate__ffi__app__app_handle_resolve_lnurl_pay_request_impl(port, ptr, rust_vec_len, data_len),
-44 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
-45 => wire__crate__ffi__app__app_handle_revoke_client_impl(port, ptr, rust_vec_len, data_len),
-47 => wire__crate__ffi__app__app_handle_setup_gdrive_impl(port, ptr, rust_vec_len, data_len),
-48 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
-49 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
-50 => wire__crate__ffi__app__app_handle_update_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
-51 => wire__crate__ffi__app__app_handle_update_personal_note_impl(port, ptr, rust_vec_len, data_len),
-53 => wire__crate__ffi__app__app_handle_withdraw_lnurl_impl(port, ptr, rust_vec_len, data_len),
-55 => wire__crate__ffi__types__config_validate_impl(port, ptr, rust_vec_len, data_len),
-60 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
-62 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
-65 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
-69 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
-70 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
-71 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-89 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-90 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+8 => wire__crate__ffi__app__app_handle_cancel_payment_impl(port, ptr, rust_vec_len, data_len),
+9 => wire__crate__ffi__app__app_handle_clear_payment_db_impl(port, ptr, rust_vec_len, data_len),
+10 => wire__crate__ffi__app__app_handle_close_channel_impl(port, ptr, rust_vec_len, data_len),
+11 => wire__crate__ffi__app__app_handle_close_channel_preflight_impl(port, ptr, rust_vec_len, data_len),
+12 => wire__crate__ffi__app__app_handle_create_client_impl(port, ptr, rust_vec_len, data_len),
+13 => wire__crate__ffi__app__app_handle_create_invoice_impl(port, ptr, rust_vec_len, data_len),
+14 => wire__crate__ffi__app__app_handle_create_offer_impl(port, ptr, rust_vec_len, data_len),
+15 => wire__crate__ffi__app__app_handle_fiat_rates_impl(port, ptr, rust_vec_len, data_len),
+18 => wire__crate__ffi__app__app_handle_get_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
+19 => wire__crate__ffi__app__app_handle_get_next_unused_address_impl(port, ptr, rust_vec_len, data_len),
+29 => wire__crate__ffi__app__app_handle_list_broadcasted_txs_impl(port, ptr, rust_vec_len, data_len),
+30 => wire__crate__ffi__app__app_handle_list_channels_impl(port, ptr, rust_vec_len, data_len),
+31 => wire__crate__ffi__app__app_handle_list_clients_impl(port, ptr, rust_vec_len, data_len),
+32 => wire__crate__ffi__app__app_handle_load_impl(port, ptr, rust_vec_len, data_len),
+33 => wire__crate__ffi__app__app_handle_node_info_impl(port, ptr, rust_vec_len, data_len),
+34 => wire__crate__ffi__app__app_handle_open_channel_impl(port, ptr, rust_vec_len, data_len),
+35 => wire__crate__ffi__app__app_handle_open_channel_preflight_impl(port, ptr, rust_vec_len, data_len),
+36 => wire__crate__ffi__app__app_handle_pay_invoice_impl(port, ptr, rust_vec_len, data_len),
+37 => wire__crate__ffi__app__app_handle_pay_invoice_preflight_impl(port, ptr, rust_vec_len, data_len),
+38 => wire__crate__ffi__app__app_handle_pay_offer_impl(port, ptr, rust_vec_len, data_len),
+39 => wire__crate__ffi__app__app_handle_pay_offer_preflight_impl(port, ptr, rust_vec_len, data_len),
+40 => wire__crate__ffi__app__app_handle_pay_onchain_impl(port, ptr, rust_vec_len, data_len),
+41 => wire__crate__ffi__app__app_handle_pay_onchain_preflight_impl(port, ptr, rust_vec_len, data_len),
+42 => wire__crate__ffi__app__app_handle_provision_impl(port, ptr, rust_vec_len, data_len),
+43 => wire__crate__ffi__app__app_handle_resolve_best_impl(port, ptr, rust_vec_len, data_len),
+44 => wire__crate__ffi__app__app_handle_resolve_lnurl_pay_request_impl(port, ptr, rust_vec_len, data_len),
+45 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
+46 => wire__crate__ffi__app__app_handle_revoke_client_impl(port, ptr, rust_vec_len, data_len),
+48 => wire__crate__ffi__app__app_handle_setup_gdrive_impl(port, ptr, rust_vec_len, data_len),
+49 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
+50 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
+51 => wire__crate__ffi__app__app_handle_update_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
+52 => wire__crate__ffi__app__app_handle_update_personal_note_impl(port, ptr, rust_vec_len, data_len),
+54 => wire__crate__ffi__app__app_handle_withdraw_lnurl_impl(port, ptr, rust_vec_len, data_len),
+56 => wire__crate__ffi__types__config_validate_impl(port, ptr, rust_vec_len, data_len),
+61 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
+63 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
+66 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
+70 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
+71 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
+72 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
+90 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+91 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3510,50 +3538,50 @@ fn pde_ffi_dispatcher_sync_impl(
 3 => wire__crate__ffi__app_data__app_data_db_reset_impl(ptr, rust_vec_len, data_len),
 4 => wire__crate__ffi__app_data__app_data_db_update_impl(ptr, rust_vec_len, data_len),
 5 => wire__crate__ffi__app__app_handle_app_data_db_impl(ptr, rust_vec_len, data_len),
-15 => wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-16 => wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-19 => wire__crate__ffi__app__app_handle_get_num_finalized_not_junk_payments_impl(ptr, rust_vec_len, data_len),
-20 => wire__crate__ffi__app__app_handle_get_num_finalized_payments_impl(ptr, rust_vec_len, data_len),
-21 => wire__crate__ffi__app__app_handle_get_num_payments_impl(ptr, rust_vec_len, data_len),
-22 => wire__crate__ffi__app__app_handle_get_num_pending_not_junk_payments_impl(ptr, rust_vec_len, data_len),
-23 => wire__crate__ffi__app__app_handle_get_num_pending_payments_impl(ptr, rust_vec_len, data_len),
-24 => wire__crate__ffi__app__app_handle_get_payment_by_created_index_impl(ptr, rust_vec_len, data_len),
-25 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-26 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-27 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-46 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
-52 => wire__crate__ffi__app__app_handle_wallet_user_impl(ptr, rust_vec_len, data_len),
-54 => wire__crate__ffi__types__client_payment_id_generate_impl(ptr, rust_vec_len, data_len),
-56 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
-57 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
-58 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-59 => wire__crate__ffi__types__deploy_env_gateway_url_impl(ptr, rust_vec_len, data_len),
-61 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
-63 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
-64 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
-66 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
-67 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
-68 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
-72 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
-73 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-74 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
-75 => wire__crate__ffi__types__payment_kind_rail_impl(ptr, rust_vec_len, data_len),
-76 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
-77 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
-78 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
-79 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-80 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
-81 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
-82 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
-83 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-84 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-85 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-86 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-87 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-88 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
-91 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-92 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-93 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+16 => wire__crate__ffi__app__app_handle_get_finalized_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+17 => wire__crate__ffi__app__app_handle_get_finalized_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+20 => wire__crate__ffi__app__app_handle_get_num_finalized_not_junk_payments_impl(ptr, rust_vec_len, data_len),
+21 => wire__crate__ffi__app__app_handle_get_num_finalized_payments_impl(ptr, rust_vec_len, data_len),
+22 => wire__crate__ffi__app__app_handle_get_num_payments_impl(ptr, rust_vec_len, data_len),
+23 => wire__crate__ffi__app__app_handle_get_num_pending_not_junk_payments_impl(ptr, rust_vec_len, data_len),
+24 => wire__crate__ffi__app__app_handle_get_num_pending_payments_impl(ptr, rust_vec_len, data_len),
+25 => wire__crate__ffi__app__app_handle_get_payment_by_created_index_impl(ptr, rust_vec_len, data_len),
+26 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+27 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+28 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
+47 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
+53 => wire__crate__ffi__app__app_handle_wallet_user_impl(ptr, rust_vec_len, data_len),
+55 => wire__crate__ffi__types__client_payment_id_generate_impl(ptr, rust_vec_len, data_len),
+57 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
+58 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
+59 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+60 => wire__crate__ffi__types__deploy_env_gateway_url_impl(ptr, rust_vec_len, data_len),
+62 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
+64 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
+65 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
+67 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+68 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
+69 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
+73 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
+74 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+75 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
+76 => wire__crate__ffi__types__payment_kind_rail_impl(ptr, rust_vec_len, data_len),
+77 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
+78 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
+79 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
+80 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
+81 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
+82 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
+83 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
+84 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+85 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+86 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+87 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+88 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+89 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
+92 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+93 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+94 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3673,6 +3701,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::Balance>
     for crate::ffi::api::Balance
 {
     fn into_into_dart(self) -> crate::ffi::api::Balance {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::api::CancelPaymentRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.index.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::api::CancelPaymentRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::CancelPaymentRequest>
+    for crate::ffi::api::CancelPaymentRequest
+{
+    fn into_into_dart(self) -> crate::ffi::api::CancelPaymentRequest {
         self
     }
 }
@@ -5517,6 +5562,18 @@ impl SseEncode for bool {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
+impl SseEncode for crate::ffi::api::CancelPaymentRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
+            self.index, serializer,
+        );
     }
 }
 

@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import 'package:app_rs_dart/ffi/api.dart'
     show
         Balance,
+        CancelPaymentRequest,
         CloseChannelPreflightResponse,
         CloseChannelRequest,
         CreateClientRequest,
@@ -478,6 +479,10 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<void> updatePersonalNote({required UpdatePersonalNote req}) =>
+      Future.delayed(const Duration(milliseconds: 1000), () => ());
+
+  @override
+  Future<void> cancelPayment({required CancelPaymentRequest req}) =>
       Future.delayed(const Duration(milliseconds: 1000), () => ());
 
   @override

@@ -4,6 +4,7 @@ use lexe::{
     types::{
         auth::UserPk,
         command::{
+            CancelPaymentRequest as CancelPaymentRequestRs,
             CashAppBuyRequest as CashAppBuyRequestRs,
             CreateClientRequest as CreateClientRequestRs,
             RevokeClientRequest as RevokeClientRequestRs,
@@ -34,18 +35,18 @@ use tracing::instrument;
 
 use crate::ffi::{
     api::{
-        CloseChannelPreflightRequest, CloseChannelPreflightResponse,
-        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-        CreateOfferResponse, FiatRates, GetHumanBitcoinAddressResponse,
-        ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
-        OpenChannelPreflightResponse, OpenChannelRequest, OpenChannelResponse,
-        PayInvoicePreflightRequest, PayInvoicePreflightResponse,
-        PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
-        PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
-        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-        PayOnchainRequest, PayOnchainResponse, RevokeClientRequest,
-        UpdatePersonalNote, WithdrawLnurlRequest,
+        CancelPaymentRequest, CloseChannelPreflightRequest,
+        CloseChannelPreflightResponse, CloseChannelRequest,
+        CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
+        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
+        FiatRates, GetHumanBitcoinAddressResponse, ListChannelsResponse,
+        NodeInfo, OpenChannelPreflightRequest, OpenChannelPreflightResponse,
+        OpenChannelRequest, OpenChannelResponse, PayInvoicePreflightRequest,
+        PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+        PayOfferPreflightRequest, PayOfferPreflightResponse, PayOfferRequest,
+        PayOfferResponse, PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+        RevokeClientRequest, UpdatePersonalNote, WithdrawLnurlRequest,
     },
     app_data::AppDataDb,
     settings::SettingsDb,
@@ -516,6 +517,15 @@ impl AppHandle {
     ) -> anyhow::Result<()> {
         let req = UpdatePersonalNoteRequestRs::try_from(req)?;
         self.inner.wallet()?.update_personal_note(req).await
+    }
+
+    #[instrument(skip_all, name = "(cancel-payment)")]
+    pub async fn cancel_payment(
+        &self,
+        req: CancelPaymentRequest,
+    ) -> anyhow::Result<()> {
+        let req = CancelPaymentRequestRs::try_from(req)?;
+        self.inner.wallet()?.cancel_payment(req).await
     }
 
     #[instrument(skip_all, name = "(create-client)")]

@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_cid_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -29,6 +29,15 @@ sealed class Balance with _$Balance {
     required int lightningUsableSats,
     required int lightningMaxSendableSats,
   }) = _Balance;
+}
+
+/// See `lexe::types::command::CancelPaymentRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class CancelPaymentRequest with _$CancelPaymentRequest {
+  const factory CancelPaymentRequest({required PaymentCreatedIndex index}) =
+      _CancelPaymentRequest;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")

@@ -7,6 +7,7 @@ use lexe::types::{
     auth::Scope as ScopeRs,
     bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
     command::{
+        CancelPaymentRequest as CancelPaymentRequestRs,
         CreateClientRequest as CreateClientRequestRs,
         CreateClientResponse as CreateClientResponseRs,
         GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs,
@@ -740,6 +741,22 @@ impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRequestRs {
         Ok(Self {
             index: PaymentCreatedIndexRs::try_from(value.index)?,
             personal_note: value.personal_note,
+        })
+    }
+}
+
+/// See `lexe::types::command::CancelPaymentRequest`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct CancelPaymentRequest {
+    pub index: PaymentCreatedIndex,
+}
+
+impl TryFrom<CancelPaymentRequest> for CancelPaymentRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: CancelPaymentRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            index: PaymentCreatedIndexRs::try_from(value.index)?,
         })
     }
 }

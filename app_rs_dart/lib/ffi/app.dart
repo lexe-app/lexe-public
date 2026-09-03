@@ -43,6 +43,11 @@ class AppHandle {
   Future<String> buyWithCashApp({required int amountSats}) => AppRs.instance.api
       .crateFfiAppAppHandleBuyWithCashApp(that: this, amountSats: amountSats);
 
+  Future<void> cancelPayment({required CancelPaymentRequest req}) => AppRs
+      .instance
+      .api
+      .crateFfiAppAppHandleCancelPayment(that: this, req: req);
+
   /// Clear both the local payment state and the on-disk payment db.
   Future<void> clearPaymentDb() =>
       AppRs.instance.api.crateFfiAppAppHandleClearPaymentDb(that: this);
