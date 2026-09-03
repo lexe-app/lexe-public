@@ -185,6 +185,8 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
             scoped::get(GetUpdatedPayments, user::get_updated_payments))
         .route("/user/v1/payments/note",
             scoped::put(UpdatePersonalNote, user::update_personal_note))
+        .route("/user/v1/cancel_payment",
+            scoped::post(CancelPayment, user::cancel_payment))
         // Intentionally unscoped: any client may see its own authorization.
         .route("/user/v1/client_info",
             unscoped::get(user::client_info))

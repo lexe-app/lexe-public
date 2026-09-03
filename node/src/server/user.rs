@@ -8,7 +8,7 @@ use lexe_api::{
     error::NodeApiError,
     models::{
         command::{
-            BackupInfo, CloseChannelPreflightRequest,
+            BackupInfo, CancelPaymentRequest, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, DebugInfo, GDriveStatus,
@@ -512,6 +512,23 @@ pub(super) async fn update_personal_note(
     state
         .payments_manager
         .update_personal_note(req)
+        .await
+        .map_err(NodeApiError::command)?;
+
+    Ok(LxJson(Empty {}))
+}
+
+pub(super) async fn cancel_payment(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<CancelPaymentRequest>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    // TODO(max): Enforce that a client can only cancel payments it created
+    // itself. Until then, any credential with `CancelPayment` can cancel
+    // any pending payment by id; this is safe because canceling can't
+    // steal funds.
+    state
+        .payments_manager
+        .cancel_payment(req.id)
         .await
         .map_err(NodeApiError::command)?;
 

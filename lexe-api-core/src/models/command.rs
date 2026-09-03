@@ -319,6 +319,14 @@ pub struct UpdatePersonalNote {
     pub personal_note: Option<BoundedString>,
 }
 
+/// A request to cancel a pending payment.
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct CancelPaymentRequest {
+    /// The id of the payment to cancel.
+    pub id: PaymentId,
+}
+
 // --- BOLT11 Invoice Payments --- //
 
 /// The default [`PaymentKind`] for invoice-rail request endpoints.
@@ -1035,6 +1043,11 @@ mod test {
     fn payment_indexes_roundtrip() {
         // This is serialized as JSON, not query strings.
         roundtrip::json_value_roundtrip_proptest::<PaymentCreatedIndexes>();
+    }
+
+    #[test]
+    fn cancel_payment_request_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<CancelPaymentRequest>();
     }
 
     #[test]

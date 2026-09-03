@@ -72,7 +72,7 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, CloseChannelPreflightRequest,
+            BackupInfo, CancelPaymentRequest, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
@@ -430,6 +430,15 @@ pub trait UserNodeRunApi {
     async fn update_personal_note(
         &self,
         req: UpdatePersonalNote,
+    ) -> Result<Empty, NodeApiError>;
+
+    /// POST /user/v1/cancel_payment [`CancelPaymentRequest`] -> [`Empty`]
+    ///
+    /// Cancel an inbound invoice payment. Idempotent.
+    // Added in node-v0.10.4
+    async fn cancel_payment(
+        &self,
+        req: CancelPaymentRequest,
     ) -> Result<Empty, NodeApiError>;
 
     /// Get information about the client used to make this request.

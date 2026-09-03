@@ -173,8 +173,9 @@ pub enum Scope {
     // TODO(max): Also add "NWC clients" when NWC is supported; propagate
     // updated doc to SDKs and app.
     Read,
-    /// Create invoices, offers, and addresses to receive to, and resync the
-    /// node. Cannot determine if invoices or offers were actually paid.
+    /// Create invoices, offers, and addresses to receive to, resync the node,
+    /// and cancel payments. Cannot determine if invoices or offers were
+    /// actually paid.
     Receive,
     /// Open and close channels.
     //
@@ -245,6 +246,7 @@ impl Scope {
                 CreateInvoice,
                 CreateOffer,
                 Resync,
+                CancelPayment,
             ]),
             Scope::ManageChannels => PermissionSet::from_slice(&[
                 OpenChannel,
@@ -506,6 +508,7 @@ pub enum Permission {
     CreateInvoice,
     CreateOffer,
     Resync,
+    CancelPayment,
 
     // --- manage_channels --- //
     OpenChannel,
@@ -565,6 +568,7 @@ impl Permission {
             Permission::CreateInvoice => "create_invoice",
             Permission::CreateOffer => "create_offer",
             Permission::Resync => "resync",
+            Permission::CancelPayment => "cancel_payment",
             Permission::OpenChannel => "open_channel",
             Permission::OpenChannelPreflight => "open_channel_preflight",
             Permission::CloseChannel => "close_channel",
@@ -578,8 +582,8 @@ impl Permission {
             Permission::PayOnchain => "pay_onchain",
             Permission::PayOnchainPreflight => "pay_onchain_preflight",
             Permission::CreatePayerProof => "create_payer_proof",
-            Permission::UpdateChannelConfig => "update_channel_config",
             Permission::UpdatePersonalNote => "update_personal_note",
+            Permission::UpdateChannelConfig => "update_channel_config",
             Permission::SignMessage => "sign_message",
             Permission::VerifyMessage => "verify_message",
             Permission::CreateRevocableClient => "create_revocable_client",
@@ -769,7 +773,7 @@ mod test {
     ///   snapshot.
     #[test]
     fn json_backwards_compat() {
-        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","create_invoice","create_offer","resync","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","verify_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","get_file"]"#;
+        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","create_invoice","create_offer","resync","cancel_payment","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","verify_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","get_file"]"#;
         roundtrip::json_unit_enum_backwards_compat::<Permission>(
             permissions_ser,
         );

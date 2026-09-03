@@ -21,7 +21,7 @@ use lexe_api::{
     error::{BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind},
     models::{
         command::{
-            BackupInfo, CloseChannelPreflightRequest,
+            BackupInfo, CancelPaymentRequest, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
@@ -798,6 +798,17 @@ impl UserNodeRunApi for NodeClient {
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/payments/note");
         let req = run_rest.put(url, &req);
+        run_rest.send(req).await
+    }
+
+    async fn cancel_payment(
+        &self,
+        req: CancelPaymentRequest,
+    ) -> Result<Empty, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/user/v1/cancel_payment");
+        let req = run_rest.post(url, &req);
         run_rest.send(req).await
     }
 
