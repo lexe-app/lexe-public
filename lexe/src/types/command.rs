@@ -827,6 +827,19 @@ impl TryFrom<UpdatePersonalNoteRequest> for command::UpdatePersonalNote {
     }
 }
 
+/// A request to cancel a pending payment.
+#[derive(Serialize, Deserialize)]
+pub struct CancelPaymentRequest {
+    /// The index of the payment to cancel.
+    pub index: PaymentCreatedIndex,
+}
+
+impl From<CancelPaymentRequest> for command::CancelPaymentRequest {
+    fn from(sdk: CancelPaymentRequest) -> Self {
+        Self { id: sdk.index.id }
+    }
+}
+
 // --- Channel management --- //
 
 /// Details about one of this node's Lightning channels.

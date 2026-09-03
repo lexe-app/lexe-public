@@ -16,14 +16,14 @@ use crate::{
     types::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
-            AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest,
-            CashAppBuyResponse, ClientInfoResponse, CloseChannelRequest,
-            CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
-            CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-            CreatePayerProofRequest, CreatePayerProofResponse,
-            GetClientInfoResponse, GetHumanBitcoinAddressResponse,
-            GetNextUnusedAddressResponse, GetPaymentRequest,
-            GetPaymentResponse, GetUpdatedPaymentsRequest,
+            AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
+            CashAppBuyRequest, CashAppBuyResponse, ClientInfoResponse,
+            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, CreatePayerProofRequest,
+            CreatePayerProofResponse, GetClientInfoResponse,
+            GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
@@ -571,6 +571,14 @@ impl BlockingLexeWallet {
         req: UpdatePersonalNoteRequest,
     ) -> anyhow::Result<()> {
         block_on(self.inner.update_personal_note(req))
+    }
+
+    /// Cancel an inbound invoice payment. Idempotent.
+    pub fn cancel_payment(
+        &self,
+        req: CancelPaymentRequest,
+    ) -> anyhow::Result<()> {
+        block_on(self.inner.cancel_payment(req))
     }
 
     // --- Channel management --- //

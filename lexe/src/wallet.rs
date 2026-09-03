@@ -8,8 +8,8 @@ use lexe_api::{
     types::{
         bounded_string::BoundedString,
         payments::{
-            ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentKind,
-            PaymentStatus,
+            ClientPaymentId, PaymentCreatedIndex, PaymentDirection, PaymentId,
+            PaymentKind, PaymentRail, PaymentStatus,
         },
         username::{Username, UsernameStruct},
     },
@@ -48,11 +48,12 @@ use crate::{
     types::{
         auth::{ClientCredentials, CredentialsRef, RootSeed, UserPk},
         command::{
-            AnalyzeRequest, AnalyzeResponse, CashAppBuyRequest,
-            CashAppBuyResponse, ChannelDetails, ClaimableDetails, ClientInfo,
-            ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
-            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+            AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
+            CashAppBuyRequest, CashAppBuyResponse, ChannelDetails,
+            ClaimableDetails, ClientInfo, ClientInfoResponse,
+            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
             GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
@@ -2000,6 +2001,56 @@ impl LexeWallet {
         // Success. If persistence is enabled, update the local payments store.
         if let WalletStore::Db(db) = &self.store {
             db.payments_db().update_personal_note(req)?;
+        }
+
+        Ok(())
+    }
+
+    /// Cancel an inbound invoice payment. Idempotent.
+    #[instrument(skip_all, name = "(cancel-payment)")]
+    pub async fn cancel_payment(
+        &self,
+        req: CancelPaymentRequest,
+    ) -> anyhow::Result<()> {
+        // Check locally-known payment state first, so the node is only woken
+        // when there is actually something to cancel.
+        let payment = self
+            .get_payment(GetPaymentRequest { index: req.index })
+            .await
+            .context("Could not get payment")?
+            .payment
+            .context("Payment not found")?;
+
+        match payment.status {
+            PaymentStatus::Pending => (),
+            // Idempotency: canceling an already-canceled payment returns Ok.
+            PaymentStatus::Failed
+                if payment.status_msg.contains("canceled") =>
+                return Ok(()),
+            PaymentStatus::Completed | PaymentStatus::Failed => {
+                let status_msg = &payment.status_msg;
+                return Err(anyhow!("Payment already finalized: {status_msg}"));
+            }
+        }
+
+        // Keep this in sync with `PaymentsManager::cancel_payment`.
+        let cancelable = matches!(
+            (&payment.rail, payment.direction),
+            (PaymentRail::Invoice, PaymentDirection::Inbound)
+        );
+        ensure!(cancelable, "Only inbound invoice payments can be canceled");
+
+        // Cancel on the user node
+        let req = command::CancelPaymentRequest::from(req);
+        self.node_client
+            .cancel_payment(req)
+            .await
+            .context("Failed to cancel payment on user node")?;
+
+        // Success. If persistence is enabled, sync the updated payment status
+        // into the local payments store.
+        if self.persistence_enabled() {
+            self.sync_payments().await?;
         }
 
         Ok(())
