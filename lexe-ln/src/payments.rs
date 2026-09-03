@@ -1136,6 +1136,7 @@ impl From<InboundInvoicePaymentStatus> for PaymentStatus {
             InboundInvoicePaymentStatus::Claiming => Self::Pending,
             InboundInvoicePaymentStatus::Completed => Self::Completed,
             InboundInvoicePaymentStatus::Expired => Self::Failed,
+            InboundInvoicePaymentStatus::Canceled => Self::Failed,
         }
     }
 }
@@ -1234,6 +1235,7 @@ impl InboundInvoicePaymentStatus {
             Self::Claiming => "claiming",
             Self::Completed => "completed",
             Self::Expired => "invoice expired",
+            Self::Canceled => "canceled",
         }
     }
 }

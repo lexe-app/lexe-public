@@ -40,8 +40,9 @@ use crate::{
     payments::{
         PaymentMetadataUpdate, PaymentV2, PaymentWithMetadata,
         inbound::{
-            ClaimableError, InboundOfferReusablePaymentV2,
-            InboundSpontaneousPaymentV2, LnClaimCtx,
+            ClaimableError, InboundInvoicePaymentStatus,
+            InboundOfferReusablePaymentV2, InboundSpontaneousPaymentV2,
+            LnClaimCtx,
         },
         onchain::{OnchainReceiveV2, OnchainSendStatus},
         outbound::{self, ExpireError, LxOutboundPaymentFailure},
@@ -599,6 +600,67 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         locked_data.commit(persisted);
 
         debug!(%id, "Successfully updated payment note");
+        Ok(())
+    }
+
+    /// Cancels a payment at the user's request.
+    /// Idempotent: Returns [`Ok`] if the payment was already canceled.
+    ///
+    /// - Inbound invoice payments can be canceled until we begin claiming.
+    /// - Other payment types cannot be canceled; e.g. in-flight outbound
+    ///   Lightning payments fail on their own once retries are exhausted.
+    //
+    // Event sources:
+    // - `cancel_payment` API
+    #[instrument(skip_all, name = "(cancel-payment)", fields(%id))]
+    pub async fn cancel_payment(&self, id: PaymentId) -> anyhow::Result<()> {
+        use InboundInvoicePaymentStatus::*;
+
+        info!("Canceling payment");
+        let mut locked_data = self.data.lock().await;
+
+        let pwm = self
+            .get_cow_payment(&mut locked_data, &id)
+            .await
+            .context("Could not get payment")?
+            .context("Payment not found")?;
+
+        // Only inbound invoice payments can be canceled.
+        // Keep in sync with `LexeWallet::cancel_payment` and the app's
+        // `ShortPaymentExt.isCancelable`.
+        let iip = match &pwm.payment {
+            PaymentV2::InboundInvoice(iip) => iip,
+            _ => bail!("Only inbound invoice payments can be canceled"),
+        };
+
+        match iip.status {
+            InvoiceGenerated | Claiming => (),
+            Completed => bail!("Payment already completed"),
+            Expired => bail!("Payment already expired"),
+            // Idempotency: canceling an already-canceled payment returns Ok.
+            Canceled => return Ok(()),
+        }
+
+        // Check
+        let checked_iip = iip
+            .check_cancel(TimestampMs::now())
+            .context("Invalid state transition")?;
+        let iipwm = PaymentWithMetadata {
+            payment: checked_iip,
+            metadata: pwm.metadata.clone(),
+        };
+        let checked = CheckedPayment(iipwm.into_enum());
+
+        // Persist
+        let persisted = self
+            .persister
+            .upsert_payment(checked)
+            .await
+            .context("Persist failed")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
         Ok(())
     }
 

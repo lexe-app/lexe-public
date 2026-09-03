@@ -1,6 +1,6 @@
 use std::{collections::HashSet, num::NonZeroU64, sync::Arc};
 
-use anyhow::{Context, anyhow, ensure};
+use anyhow::{Context, anyhow, bail, ensure};
 use lexe_api::types::{
     bounded_string::BoundedString,
     invoice::Invoice,
@@ -35,7 +35,7 @@ use crate::payments::{
 // the separation makes both functions cleaner and easier to read.
 impl PaymentWithMetadata {
     /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
+    /// - The payment must not be finalized.
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
@@ -357,7 +357,7 @@ pub struct InboundInvoicePaymentV2 {
     /// expiry duration. `None` if the expiry timestamp overflows.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<TimestampMs>,
-    /// When this payment either `Completed` or `Expired`.
+    /// When this payment `Completed`, `Expired`, or `Canceled`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
 }
@@ -377,6 +377,12 @@ pub enum InboundInvoicePaymentStatus {
     /// The inbound payment has reached its invoice expiry time. Any
     /// [`PaymentClaimable`] events which appear after this should be rejected.
     Expired,
+    /// The payment was canceled by the user prior to invoice expiration,
+    /// and no value was received. This is a finalized state.
+    ///
+    /// Any subsequent attempts to pay this invoice are failed back by the
+    /// finalized payment check in `PaymentsManager::check_payment_claimable`.
+    Canceled,
 }
 
 impl InboundInvoicePaymentV2 {
@@ -444,7 +450,8 @@ impl InboundInvoicePaymentV2 {
     }
 
     /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
+    /// - The payment must not be finalized (`Completed`, `Expired`, or
+    ///   `Canceled`).
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimable` (replayable)
@@ -512,8 +519,8 @@ impl InboundInvoicePaymentV2 {
                 warn!("claimable on invoice payment that's already claiming");
                 return Err(ClaimableError::IgnoreAndReclaim);
             }
-            Completed | Expired => unreachable!(
-                "caller ensures payment is not already finalized. \
+            Completed | Expired | Canceled => unreachable!(
+                "Caller ensures payment is not already finalized. \
                  {id} is already {status:?}",
                 id = self.id(),
                 status = self.status
@@ -554,7 +561,8 @@ impl InboundInvoicePaymentV2 {
     }
 
     /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
+    /// - The payment must not be finalized (`Completed`, `Expired`, or
+    ///   `Canceled`).
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
@@ -581,7 +589,7 @@ impl InboundInvoicePaymentV2 {
                 );
             }
             Claiming => (),
-            Completed | Expired => {
+            Completed | Expired | Canceled => {
                 unreachable!(
                     "caller ensures payment is not already finalized. \
                      {id} is already {status:?}",
@@ -605,7 +613,8 @@ impl InboundInvoicePaymentV2 {
     /// transition applied.
     ///
     /// ## Precondition
-    /// - The payment must not be finalized (Completed | Failed).
+    /// - The payment must not be finalized (`Completed`, `Expired`, or
+    ///   `Canceled`).
     //
     // Event sources:
     // - `PaymentsManager::spawn_payment_expiry_checker` task
@@ -628,7 +637,7 @@ impl InboundInvoicePaymentV2 {
             InvoiceGenerated => (),
             // We are already claiming the payment; too late to time it out now.
             Claiming => return None,
-            Completed | Expired => unreachable!(
+            Completed | Expired | Canceled => unreachable!(
                 "caller ensures payment is not already finalized. \
                  {id} is already {status:?}",
                 id = self.id(),
@@ -643,6 +652,40 @@ impl InboundInvoicePaymentV2 {
         clone.finalized_at = Some(now);
 
         Some(clone)
+    }
+
+    /// Cancels this payment at the user's request. If the state transition to
+    /// `Canceled` is valid, returns a clone with the transition applied.
+    ///
+    /// ## Precondition
+    /// - The payment must not be finalized (`Completed`, `Expired`, or
+    ///   `Canceled`).
+    //
+    // Event sources:
+    // - `PaymentsManager::cancel_payment` API
+    pub(crate) fn check_cancel(
+        &self,
+        now: TimestampMs,
+    ) -> anyhow::Result<Self> {
+        use InboundInvoicePaymentStatus::*;
+
+        match self.status {
+            InvoiceGenerated => (),
+            // We are already claiming the payment; too late to cancel it now.
+            Claiming => bail!("Payment is being claimed; too late to cancel"),
+            Completed | Expired | Canceled => unreachable!(
+                "Caller ensures payment is not already finalized. \
+                 {id} is already {status:?}",
+                id = self.id(),
+                status = self.status,
+            ),
+        }
+
+        let mut clone = self.clone();
+        clone.status = Canceled;
+        clone.finalized_at = Some(now);
+
+        Ok(clone)
     }
 }
 
@@ -816,7 +859,7 @@ impl InboundOfferReusablePaymentV2 {
     }
 
     /// ## Precondition
-    /// - The payment must not be finalized (`Completed` or `Expired`).
+    /// - The payment must not be finalized (`Completed`).
     //
     // Event sources:
     // - `EventHandler` -> `Event::PaymentClaimed` (replayable)
@@ -1091,29 +1134,33 @@ mod arbitrary_impl {
                 let invoice_amount = invoice.amount();
                 let expires_at = invoice.expires_at().ok();
                 let claim_id = match status {
-                    InvoiceGenerated | Expired => None,
+                    InvoiceGenerated | Expired | Canceled => None,
                     Claiming | Completed => Some(claim_id),
                 };
                 let recvd_amount = match status {
-                    InvoiceGenerated | Expired => None,
+                    InvoiceGenerated | Expired | Canceled => None,
                     Claiming | Completed => Some(recvd_amount),
                 };
                 let skimmed_fee = match status {
-                    InvoiceGenerated | Expired => None,
+                    InvoiceGenerated | Expired | Canceled => None,
                     Claiming | Completed => Some(skimmed_fee),
                 };
 
                 // If finalized, ensure created_at and finalized_at are set
                 let maybe_created_at: Option<TimestampMs> = maybe_created_at;
-                let created_at = matches!(status, Completed | Expired)
-                    .then(|| maybe_created_at.unwrap_or(created_at_fallback));
+                let created_at =
+                    matches!(status, Completed | Expired | Canceled).then(
+                        || maybe_created_at.unwrap_or(created_at_fallback),
+                    );
 
                 let finalized_at = if pending_only {
                     None
                 } else {
                     created_at
                         .map(|ts| ts.saturating_add(finalized_after))
-                        .filter(|_| matches!(status, Completed | Expired))
+                        .filter(|_| {
+                            matches!(status, Completed | Expired | Canceled)
+                        })
                 };
 
                 InboundInvoicePaymentV2 {
@@ -1359,16 +1406,48 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::test_utils::{arbitrary, roundtrip};
+    use lexe_common::{
+        ByteArray,
+        test_utils::{arbitrary, roundtrip},
+    };
     use lexe_crypto::rng::FastRng;
     use proptest::arbitrary::any;
 
     use super::*;
 
+    /// An unpaid invoice may be canceled; one being claimed may not.
+    #[test]
+    fn check_cancel_transitions() {
+        use InboundInvoicePaymentStatus::*;
+
+        // A minimal `InboundInvoicePaymentV2` at the given status.
+        let dummy_iip = |status| InboundInvoicePaymentV2 {
+            hash: PaymentHash::from_array([69; 32]),
+            secret: PaymentSecret::from_array([69; 32]),
+            preimage: PaymentPreimage::from_array([69; 32]),
+            claim_id: None,
+            kind: PaymentKind::Invoice,
+            invoice_amount: None,
+            recvd_amount: None,
+            skimmed_fee: None,
+            partner_fee: None,
+            status,
+            created_at: Some(TimestampMs::MIN),
+            expires_at: None,
+            finalized_at: None,
+        };
+
+        let now = TimestampMs::now();
+        let canceled = dummy_iip(InvoiceGenerated).check_cancel(now).unwrap();
+        assert_eq!(canceled.status, Canceled);
+        assert_eq!(canceled.finalized_at, Some(now));
+
+        assert!(dummy_iip(Claiming).check_cancel(now).is_err());
+    }
+
     #[test]
     fn status_json_backwards_compat() {
-        let expected_ser =
-            r#"["invoice_generated","claiming","completed","expired"]"#;
+        let expected_ser = r#"["invoice_generated","claiming","completed","expired","canceled"]"#;
         roundtrip::json_unit_enum_backwards_compat::<InboundInvoicePaymentStatus>(
             expected_ser,
         );
