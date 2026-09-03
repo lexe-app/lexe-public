@@ -1315,6 +1315,7 @@ Args:
         ``None`` for a client that never expires. Use carefully!
     label: An optional label of at most 64 UTF-8 bytes.
     permissions: Optional explicit permission ids beyond ``scopes``.
+        Permission ids are unstable and may be renamed; prefer ``scopes``.
 
 Returns:
     A :class:`CreateClientResponse` with the new client's public key and
@@ -1331,8 +1332,6 @@ Example::
     # ClientCredentials.from_string(...).
     creds_str = resp.client_credentials.export_string()
 
-**Unstable**: permission ids are not part of the stable API and may be renamed.
-Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(LexeWallet, "update_client", """\
@@ -1353,7 +1352,8 @@ Args:
     scopes: Replacement permission scopes, or ``None`` to leave the grant
         unchanged when ``permissions`` is also ``None``.
     permissions: Replacement explicit permission ids, or ``None`` to leave
-        the grant unchanged when ``scopes`` is also ``None``.
+        the grant unchanged when ``scopes`` is also ``None``. Permission ids
+        are unstable and may be renamed; prefer ``scopes``.
 
 Returns:
     The updated :class:`ClientInfo`.
@@ -1362,8 +1362,6 @@ Raises:
     FfiError: If ``client_pk`` is malformed, the arguments conflict, or the
         request fails.
 
-**Unstable**: permission ids are not part of the stable API and may be renamed.
-Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(LexeWallet, "revoke_client", """\
@@ -2199,6 +2197,7 @@ Args:
         ``None`` for a client that never expires. Use carefully!
     label: An optional label of at most 64 UTF-8 bytes.
     permissions: Optional explicit permission ids beyond ``scopes``.
+        Permission ids are unstable and may be renamed; prefer ``scopes``.
 
 Returns:
     A :class:`CreateClientResponse` with the new client's public key and
@@ -2215,8 +2214,6 @@ Example::
     # ClientCredentials.from_string(...).
     creds_str = resp.client_credentials.export_string()
 
-**Unstable**: permission ids are not part of the stable API and may be renamed.
-Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(AsyncLexeWallet, "update_client", """\
@@ -2237,7 +2234,8 @@ Args:
     scopes: Replacement permission scopes, or ``None`` to leave the grant
         unchanged when ``permissions`` is also ``None``.
     permissions: Replacement explicit permission ids, or ``None`` to leave
-        the grant unchanged when ``scopes`` is also ``None``.
+        the grant unchanged when ``scopes`` is also ``None``. Permission ids
+        are unstable and may be renamed; prefer ``scopes``.
 
 Returns:
     The updated :class:`ClientInfo`.
@@ -2246,8 +2244,6 @@ Raises:
     FfiError: If ``client_pk`` is malformed, the arguments conflict, or the
         request fails.
 
-**Unstable**: permission ids are not part of the stable API and may be renamed.
-Avoid matching on specific ids; prefer ``scopes`` instead.
 """)
 
 _set_method_doc(AsyncLexeWallet, "revoke_client", """\

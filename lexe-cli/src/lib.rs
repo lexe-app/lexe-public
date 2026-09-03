@@ -2271,8 +2271,8 @@ impl CloseChannelArgs {
         scopes, explicit permissions, and effective permissions.\n\
         Revoked and expired clients are not included.\n\
         \n\
-        Unstable: permission ids are not part of the stable API and may be renamed.\n\
-        Avoid matching on specific ids; prefer scopes instead.",
+        Note: permission ids in the output (e.g. create_invoice) are unstable\n\
+        and may be renamed; rely on scopes instead.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct ListClientsArgs {
@@ -2349,9 +2349,9 @@ pub struct CreateClientArgs {
 
     #[arg(
         long = "permission",
-        help = "Explicit permission id to grant.\nPass multiple times to grant \
-        multiple.\n\nUnstable: permission ids are not part of the stable API and may be\n\
-        renamed. Avoid matching on specific ids; prefer --scope instead."
+        help = "Explicit permission id to grant, e.g. \"create_invoice\".\n\
+        Can be passed multiple times.\n\nPermission ids are unstable and may \
+        be renamed; prefer --scope."
     )]
     permissions: Vec<String>,
 
@@ -2514,9 +2514,9 @@ pub struct UpdateClientArgs {
 
     #[arg(
         long = "permission",
-        help = "Replacement explicit permission id.\nPass multiple times to \
-        grant multiple.\n\nUnstable: permission ids are not part of the stable API and may be\n\
-        renamed. Avoid matching on specific ids; prefer --scope instead."
+        help = "Replacement explicit permission id, e.g. \"create_invoice\".\n\
+        Can be passed multiple times.\n\nPermission ids are unstable and may \
+        be renamed; prefer --scope."
     )]
     permissions: Option<Vec<String>>,
 

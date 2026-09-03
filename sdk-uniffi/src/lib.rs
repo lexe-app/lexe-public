@@ -1555,15 +1555,13 @@ impl AsyncLexeWallet {
     /// public key and credentials.
     ///
     /// `scopes` is the set of permission scopes to grant. `permissions` adds
-    /// explicit permission ids beyond those scopes. At least one scope or
+    /// explicit permission ids beyond those scopes, but permission ids are
+    /// unstable and may be renamed, so prefer `scopes`. At least one scope or
     /// permission is required.
     ///
     /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
     /// epoch); `None` means the client never expires. Use carefully! `label`
     /// is an optional label of at most 64 UTF-8 bytes.
-    ///
-    /// **Unstable**: permission ids are not part of the stable API and may be
-    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     // Explicitly omit default expiration to force opting into no expiration
     #[uniffi::method(default(label = None, permissions = None))]
     pub async fn create_client(
@@ -1600,9 +1598,7 @@ impl AsyncLexeWallet {
     /// If either `scopes` or `permissions` is provided, together they replace
     /// the client's complete grant; an omitted set is treated as empty. The
     /// resulting grant must contain at least one scope or permission.
-    ///
-    /// **Unstable**: permission ids are not part of the stable API and may be
-    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    /// Permission ids are unstable and may be renamed; prefer `scopes`.
     #[uniffi::method(default(
         label = None,
         clear_label = false,
@@ -2511,15 +2507,13 @@ impl BlockingLexeWallet {
     /// public key and credentials.
     ///
     /// `scopes` is the set of permission scopes to grant. `permissions` adds
-    /// explicit permission ids beyond those scopes. At least one scope or
+    /// explicit permission ids beyond those scopes, but permission ids are
+    /// unstable and may be renamed, so prefer `scopes`. At least one scope or
     /// permission is required.
     ///
     /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
     /// epoch); `None` means the client never expires. Use carefully! `label`
     /// is an optional label of at most 64 UTF-8 bytes.
-    ///
-    /// **Unstable**: permission ids are not part of the stable API and may be
-    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     // Explicitly omit default expiration to force opting into no expiration
     #[uniffi::method(default(label = None, permissions = None))]
     pub fn create_client(
@@ -2556,9 +2550,7 @@ impl BlockingLexeWallet {
     /// If either `scopes` or `permissions` is provided, together they replace
     /// the client's complete grant; an omitted set is treated as empty. The
     /// resulting grant must contain at least one scope or permission.
-    ///
-    /// **Unstable**: permission ids are not part of the stable API and may be
-    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
+    /// Permission ids are unstable and may be renamed; prefer `scopes`.
     #[uniffi::method(default(
         label = None,
         clear_label = false,
