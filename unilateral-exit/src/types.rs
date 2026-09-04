@@ -49,8 +49,6 @@ pub enum CloseMode {
     ForceOnly,
 }
 
-// TODO(max): Remove the allow once the recovery node uses these.
-#[allow(dead_code)]
 impl CloseMode {
     /// The LSP to coop close through, if this mode uses one.
     pub(crate) fn lsp(&self) -> Option<&LexeLsp> {
