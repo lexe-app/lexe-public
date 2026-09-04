@@ -1123,10 +1123,7 @@ impl OnchainWallet {
 
     /// Create a sweep transaction that drains all funds from the wallet to
     /// `dest_address`.
-    ///
-    /// Used by `wallet::legacy_sweep` to sweep legacy on-chain wallet funds to
-    /// the new BIP39-compatible on-chain wallet.
-    pub(crate) fn create_sweep_tx(
+    pub fn create_sweep_tx(
         &self,
         dest_address: &bitcoin::Address,
         priority: ConfirmationPriority,

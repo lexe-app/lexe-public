@@ -1,6 +1,7 @@
 use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::Context;
+use bitcoin::address::NetworkUnchecked;
 use lexe_common::{
     api::user::NodePk,
     constants,
@@ -15,27 +16,26 @@ use tokio::sync::watch;
 
 /// Arguments for a recovery run.
 pub struct RecoveryArgs {
-    /// Path to the encrypted channel manager backup (`channel_manager` in the
-    /// user's Google Drive). Not required if the recovery dir already
-    /// contains one from a previous run.
+    /// The encrypted channel manager backup from the user's Google Drive. Not
+    /// required if the recovery dir has one from a previous run.
     pub channel_manager_path: Option<PathBuf>,
-    /// How channels should be closed.
     pub close_mode: CloseMode,
-    /// Esplora API URLs for chain access. Tried in a random order until one
-    /// works, so a single unreachable provider can't strand the exit.
+    /// Esplora API URLs, tried in a random order until one works.
     pub esplora_urls: Vec<String>,
-    /// Paths to the encrypted channel monitor backups (`channel_monitors
-    /// <name>` files in the user's Google Drive).
+    /// The encrypted channel monitor backups from the user's Google Drive.
     pub monitor_paths: Vec<PathBuf>,
     pub network: Network,
     /// If set, receives a [`RecoveryProgress`] snapshot whenever a poll
-    /// observes a change, e.g. to render a progress display. Holds `None`
-    /// until the first poll completes.
+    /// observes a change. Holds `None` until the first poll completes.
     pub progress_tx: Option<watch::Sender<Option<RecoveryProgress>>>,
-    /// The recovery working dir. Imported backups and all recovery node state
-    /// persist here (encrypted under the root seed, like the Drive backup).
+    /// Where the imported backups and all recovery node state persist,
+    /// encrypted under the root seed.
     pub recovery_dir: PathBuf,
     pub root_seed: RootSeed,
+    /// If set, once all channel funds have confirmed in the BDK wallet, drain
+    /// the wallet to this external address. Otherwise, funds remain in the
+    /// root seed's BDK wallet.
+    pub sweep_address: Option<bitcoin::Address<NetworkUnchecked>>,
     /// How often to sync the chain and re-evaluate recovery progress.
     pub sync_interval: Duration,
 }
@@ -112,18 +112,24 @@ impl LexeLsp {
 /// The outcome of a completed recovery run.
 #[derive(Debug)]
 pub struct RecoveryReport {
-    /// How many channels were cooperatively closed by this run. An earlier
-    /// interrupted run may have closed more.
+    /// Channels coop closed by this run, not counting earlier runs.
     pub coop_closed: usize,
-    /// How many channels were force closed by this run. An earlier
-    /// interrupted run may have closed more.
+    /// Channels force closed by this run, not counting earlier runs.
     pub force_closed: usize,
-    /// The number of channel monitors tracked, i.e. how many channels' funds
-    /// this recovery covers, no matter which run closed them.
+    /// Channels whose funds this recovery covers, across all runs.
     pub num_monitors: usize,
-    /// The final confirmed on-chain balance, after all channel funds were
-    /// swept.
+    /// The BDK wallet's final confirmed balance, after any external sweep.
     pub onchain_balance: Amount,
+    /// The external sweep, if one was requested and funds were available.
+    pub sweep_info: Option<SweepInfo>,
+}
+
+/// A completed sweep of all recovered funds to an external address.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SweepInfo {
+    pub address: bitcoin::Address,
+    pub amount: Amount,
+    pub txid: bitcoin::Txid,
 }
 
 /// Force closing an anchor channel needs confirmed on-chain funds to fee-bump
@@ -146,47 +152,64 @@ pub struct AnchorFundsNeeded {
 }
 
 /// A snapshot of the recovery's remaining work, published to
-/// [`RecoveryArgs::progress_tx`] whenever a poll observes a change,
-/// e.g. to render a progress display.
+/// [`RecoveryArgs::progress_tx`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RecoveryProgress {
-    /// The deposit requirement, set while the recovery is stalled awaiting
-    /// confirmed funds for fee-bumps (see [`AnchorFundsNeeded`]).
+    /// The outstanding deposit requirement, while the recovery is stalled.
     /// Renewed only when `needed_deposit` outgrows the last
     /// `suggested_deposit`, or the confirmed balance changes while still
     /// short, so a UI can re-prompt on every change.
     pub awaiting_anchor_funds: Option<AnchorFundsNeeded>,
     /// The chain height as of this poll.
     pub best_height: u32,
-    /// The total balance still held in channel monitors, i.e. channel funds
-    /// which have not yet settled into the BDK wallet.
+    /// The total balance still claimable from channel monitors.
     pub claimable_balance: Amount,
     /// The BDK wallet's confirmed balance.
     pub confirmed_balance: Amount,
-    /// Channels which are still open (or still negotiating a close).
+    /// Channels still open or negotiating a close.
     pub num_channels: usize,
-    /// Events (e.g. `SpendableOutputs` sweeps) persisted but not yet
-    /// handled. Funds in this state are no longer reported by any monitor
-    /// and have not yet reached the wallet.
+    /// Persisted but unhandled events, e.g. `SpendableOutputs` sweeps. Funds
+    /// in this state are reported by no monitor and have not yet reached the
+    /// wallet.
     pub num_unhandled_events: usize,
-    /// Channel monitors with unswept/unconfirmed balances.
+    /// Channel monitors which still report claimable balances.
     pub num_unresolved_monitors: usize,
-    /// The BDK wallet's pending (unconfirmed) balance.
+    /// The BDK wallet's unconfirmed balance.
     pub pending_balance: Amount,
-    /// The height by which every timelocked monitor balance (e.g. a force
-    /// close's `to_local` waiting out its contest delay) will have unlocked,
-    /// if any balance is timelocked.
+    /// Set once the external sweep is broadcast.
+    pub sweep_progress: Option<SweepProgress>,
+    /// The height by which every timelocked monitor balance, e.g. a force
+    /// close's `to_local` output, will have unlocked.
     pub unlock_height: Option<u32>,
 }
 
 impl RecoveryProgress {
-    /// Whether every channel satoshi has settled into the BDK wallet.
+    /// Whether all channel funds have settled into the BDK wallet. Any
+    /// requested external sweep runs afterward, tracked by [`Self::is_swept`].
     pub fn is_settled(&self) -> bool {
         self.num_channels == 0
             && self.num_unresolved_monitors == 0
             && self.num_unhandled_events == 0
             && self.pending_balance == Amount::ZERO
     }
+
+    /// Whether the external sweep has reached its required confirmations.
+    pub fn is_swept(&self) -> bool {
+        match &self.sweep_progress {
+            Some(sweep) => sweep.confs >= sweep.confs_required,
+            None => false,
+        }
+    }
+}
+
+/// A broadcast external sweep's confirmation progress.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SweepProgress {
+    /// The sweep tx's current number of confirmations.
+    pub confs: u32,
+    /// The confirmations after which the sweep is considered final.
+    pub confs_required: u32,
+    pub info: SweepInfo,
 }
 
 #[cfg(test)]

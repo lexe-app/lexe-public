@@ -51,7 +51,7 @@ use crate::{
     event_handler::{EventCtx, RecoveryEventHandler},
     peer_manager::RecoveryPeerManager,
     persister::RecoveryPersister,
-    recover::{RecoveryCtx, StallDetector},
+    recover::{ExternalSweepCtx, RecoveryCtx, StallDetector},
     types::{RecoveryArgs, RecoveryReport},
 };
 
@@ -398,6 +398,15 @@ impl RecoveryNode {
             underfunded_claims,
             wallet.clone(),
         );
+        let sweep_ctx = args.sweep_address.map(|address| {
+            ExternalSweepCtx::new(
+                address,
+                esplora.clone(),
+                network,
+                tx_broadcaster,
+                wallet.clone(),
+            )
+        });
 
         let ctx = RecoveryCtx {
             bdk_resync_tx,
@@ -414,6 +423,7 @@ impl RecoveryNode {
             progress_tx: args.progress_tx,
             shutdown,
             stall_detector,
+            sweep_ctx,
             sync_interval: args.sync_interval,
             wallet,
         };
@@ -466,15 +476,10 @@ impl RecoveryNode {
         Ok(())
     }
 
-    /// Runs the recovery to completion, then shuts the node down. The
-    /// recovery closes all channels per [`CloseMode`] and waits for all
-    /// funds to confirm on-chain.
+    /// Runs the recovery to completion, then shuts the node down.
     ///
-    /// Returns early with an error if the `shutdown` given to
-    /// [`init`](Self::init) is triggered. All progress is persisted to the
-    /// recovery dir, so the run can simply be restarted.
-    ///
-    /// [`CloseMode`]: crate::types::CloseMode
+    /// Returns an error early if the `shutdown` given to [`init`](Self::init)
+    /// is triggered, in which case a re-run resumes from the recovery dir.
     pub async fn run(
         self,
         run_ctx: RunContext,

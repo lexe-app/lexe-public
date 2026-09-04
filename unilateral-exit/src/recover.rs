@@ -1,22 +1,31 @@
-//! The recovery flow: close every channel and drive every satoshi of channel
-//! funds into the BDK wallet.
+//! The recovery flow: close every channel, send all channel funds to the
+//! BDK wallet, then sweep to an external address, if one was requested.
 
-use std::{sync::Arc, time::Duration};
+use std::{
+    iter,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use anyhow::{Context, anyhow};
+use bitcoin::address::NetworkUnchecked;
 use lexe_api::models::command::CloseChannelRequest;
 use lexe_common::{
     api::user::NodePk,
-    ln::{amount::Amount, channel::ChannelId},
+    ln::{
+        amount::Amount, channel::ChannelId, hashes::Txid, network::Network,
+        priority::ConfirmationPriority,
+    },
 };
 use lexe_ln::{
     background_processor::{self, QuiescenceRequest},
     channel::ChannelEvent,
     command,
-    esplora::{FeeEstimates, LexeEsplora},
+    esplora::{FeeEstimates, LexeEsplora, TxConfQuery, TxConfStatus},
     p2p,
     persister::LightningPersisterMethods,
     sync::BdkSyncRequest,
+    tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
 use lexe_tokio::{
@@ -36,20 +45,20 @@ use crate::{
     },
     peer_manager::RecoveryPeerManager,
     persister::RecoveryPersister,
-    types::{AnchorFundsNeeded, CloseMode, RecoveryProgress, RecoveryReport},
+    types::{
+        AnchorFundsNeeded, CloseMode, RecoveryProgress, RecoveryReport,
+        SweepInfo, SweepProgress,
+    },
 };
 
-/// The delay before the first progress poll. See `drive_until_settled`.
+/// Confirmations after which the external sweep is final.
+const SWEEP_CONFS: u32 = 6;
 const FIRST_POLL_DELAY: Duration = Duration::from_secs(5);
 /// The most a poll waits for BGP quiescence before proceeding without it.
-/// Needs to cover one BGP event-processing turn, which is bounded by a few
-/// sequential esplora broadcasts (fee-bumps) on a slow public instance.
+/// Must cover one BGP event-processing turn, which may include a few
+/// sequential fee-bump broadcasts to a slow public esplora.
 const QUIESCENCE_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Everything the recovery loop operates on. Assembled by
-/// [`RecoveryNode::init`] and owned by the recovery task.
-///
-/// [`RecoveryNode::init`]: crate::node::RecoveryNode::init
 pub(crate) struct RecoveryCtx {
     pub bdk_resync_tx: mpsc::Sender<BdkSyncRequest>,
     pub bgp_control_tx: mpsc::Sender<QuiescenceRequest>,
@@ -65,22 +74,26 @@ pub(crate) struct RecoveryCtx {
     pub progress_tx: Option<watch::Sender<Option<RecoveryProgress>>>,
     pub shutdown: NotifyOnce,
     pub stall_detector: StallDetector,
+    pub sweep_ctx: Option<ExternalSweepCtx>,
     pub sync_interval: Duration,
     pub wallet: OnchainWallet,
 }
 
 impl RecoveryCtx {
-    /// Closes all channels and drives every channel satoshi into the BDK
-    /// wallet.
+    /// Closes all channels, sends all channel funds to the BDK wallet,
+    /// then performs the external sweep, if one was requested.
     pub(crate) async fn recover(&mut self) -> anyhow::Result<RecoveryReport> {
         let num_monitors = self.chain_monitor.list_monitors().len();
         let (coop_closed, force_closed) = self.close_all_channels().await?;
         let confirmed_balance = self.drive_until_settled().await?;
+        let (onchain_balance, sweep_info) =
+            self.do_external_sweep(confirmed_balance).await?;
         Ok(RecoveryReport {
             coop_closed,
             force_closed,
             num_monitors,
-            onchain_balance: confirmed_balance,
+            onchain_balance,
+            sweep_info,
         })
     }
 
@@ -206,7 +219,7 @@ impl RecoveryCtx {
     async fn await_anchor_funds(&mut self) -> anyhow::Result<()> {
         loop {
             let channels = self.channel_manager.list_channels();
-            let mut progress = self.measure_progress().await?;
+            let mut progress = self.measure_progress(None).await?;
             self.stall_detector
                 .check_before_close(&mut progress, &channels)
                 .await?;
@@ -264,7 +277,9 @@ impl RecoveryCtx {
                 }
             };
 
-            let mut progress = self.measure_progress().await?;
+            // No sweep is in flight before the recovery settles.
+            let sweep_progress = None;
+            let mut progress = self.measure_progress(sweep_progress).await?;
             self.stall_detector.check_for_stall(&mut progress)?;
 
             // Publish the snapshot for progress displays (e.g. the CLI's
@@ -277,8 +292,57 @@ impl RecoveryCtx {
         }
     }
 
-    /// Publishes a progress snapshot to `progress_tx`, if a subscriber
-    /// exists and the snapshot changed.
+    /// If an external sweep was requested, drains the whole BDK wallet to
+    /// the external address and waits for [`SWEEP_CONFS`] confirmations.
+    /// Returns the final confirmed balance and the sweep, if any.
+    /// Call only once all channel funds have settled into the wallet.
+    async fn do_external_sweep(
+        &mut self,
+        confirmed_balance: Amount,
+    ) -> anyhow::Result<(Amount, Option<SweepInfo>)> {
+        let sweep_ctx = match self.sweep_ctx.take() {
+            Some(ctx) => ctx,
+            None => return Ok((confirmed_balance, None)),
+        };
+        if confirmed_balance == Amount::ZERO {
+            warn!("No confirmed funds; skipping external sweep");
+            return Ok((confirmed_balance, None));
+        }
+
+        let (sweep_info, conf_query) = sweep_ctx.broadcast().await?;
+
+        // Wait for the sweep tx to confirm, resyncing so LDK and the wallet
+        // keep following the chain.
+        loop {
+            tokio::select! {
+                () = self.shutdown.recv() =>
+                    return Err(anyhow!("Interrupted; re-run to resume")),
+                () = tokio::time::sleep(self.sync_interval) => (),
+            }
+            self.resync().await?;
+            let confs = sweep_ctx.confs(&conf_query).await?;
+
+            let sweep_progress = SweepProgress {
+                confs,
+                confs_required: SWEEP_CONFS,
+                info: sweep_info.clone(),
+            };
+            let progress = self.measure_progress(Some(sweep_progress)).await?;
+            self.publish_progress(&progress);
+
+            if confs >= SWEEP_CONFS {
+                let txid = &sweep_info.txid;
+                info!(%txid, %confs, "External sweep confirmed");
+                break;
+            }
+        }
+
+        let balance = self.wallet.get_balance();
+        let confirmed_balance = Amount::try_from(balance.confirmed)
+            .context("Bad confirmed balance")?;
+        Ok((confirmed_balance, Some(sweep_info)))
+    }
+
     fn publish_progress(&self, progress: &RecoveryProgress) {
         if let Some(progress_tx) = &self.progress_tx {
             progress_tx.send_if_modified(|latest| {
@@ -292,10 +356,12 @@ impl RecoveryCtx {
     }
 
     /// Takes a [`RecoveryProgress`] snapshot and logs it.
-    async fn measure_progress(&mut self) -> anyhow::Result<RecoveryProgress> {
+    async fn measure_progress(
+        &mut self,
+        sweep_progress: Option<SweepProgress>,
+    ) -> anyhow::Result<RecoveryProgress> {
         let num_channels = self.channel_manager.list_channels().len();
 
-        // Channel monitors with unswept/unconfirmed balances.
         let mut num_unresolved_monitors = 0;
         let mut claimable_sats = 0u64;
         let mut unlock_height = None;
@@ -362,6 +428,7 @@ impl RecoveryCtx {
             num_unresolved_monitors,
             pending_balance: Amount::try_from(pending_balance)
                 .context("Bad pending balance")?,
+            sweep_progress,
             unlock_height,
         })
     }
@@ -545,3 +612,87 @@ impl StallDetector {
     }
 }
 
+pub(crate) struct ExternalSweepCtx {
+    /// The sweep destination.
+    address: bitcoin::Address<NetworkUnchecked>,
+    esplora: Arc<LexeEsplora>,
+    network: Network,
+    tx_broadcaster: TxBroadcaster,
+    wallet: OnchainWallet,
+}
+
+impl ExternalSweepCtx {
+    pub(crate) fn new(
+        address: bitcoin::Address<NetworkUnchecked>,
+        esplora: Arc<LexeEsplora>,
+        network: Network,
+        tx_broadcaster: TxBroadcaster,
+        wallet: OnchainWallet,
+    ) -> Self {
+        Self {
+            address,
+            esplora,
+            network,
+            tx_broadcaster,
+            wallet,
+        }
+    }
+
+    /// Broadcasts a sweep of the whole BDK wallet to the sweep address.
+    async fn broadcast(&self) -> anyhow::Result<(SweepInfo, TxConfQuery)> {
+        let address = self
+            .address
+            .clone()
+            .require_network(self.network.to_bitcoin())
+            .context("Sweep address is for the wrong network")?;
+        let (tx, _fee) = self
+            .wallet
+            .create_sweep_tx(&address, ConfirmationPriority::Normal)
+            .context("Failed to create external sweep tx")?;
+        let txid = tx.compute_txid();
+        let amount = Amount::try_from(
+            tx.output
+                .iter()
+                .map(|txout| txout.value)
+                .sum::<bitcoin::Amount>(),
+        )
+        .context("Bad sweep amount")?;
+        let conf_query = TxConfQuery {
+            txid: Txid(txid),
+            inputs: tx.input.iter().map(|txin| txin.previous_output).collect(),
+            created_at: SystemTime::now(),
+        };
+        self.tx_broadcaster
+            .broadcast_transaction(tx)
+            .await
+            .context("Failed to broadcast external sweep tx")?;
+        info!(%txid, %amount, %address, "Broadcasted external sweep");
+
+        let sweep_info = SweepInfo {
+            address,
+            amount,
+            txid,
+        };
+        Ok((sweep_info, conf_query))
+    }
+
+    /// Fetches the sweep tx's current confirmations from Esplora.
+    async fn confs(&self, conf_query: &TxConfQuery) -> anyhow::Result<u32> {
+        let txid = &conf_query.txid;
+        let statuses = self
+            .esplora
+            .get_tx_conf_statuses(iter::once(conf_query))
+            .await
+            .context("Failed to check sweep tx confs")?;
+        match statuses.first() {
+            Some(TxConfStatus::InBestChain { confs }) => {
+                info!(%txid, %confs, "External sweep confs");
+                Ok(*confs)
+            }
+            Some(_) | None => {
+                warn!(%txid, "External sweep not confirming; will keep waiting");
+                Ok(0)
+            }
+        }
+    }
+}
