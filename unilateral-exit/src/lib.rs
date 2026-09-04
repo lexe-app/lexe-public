@@ -16,14 +16,22 @@
 //! Progress persists to a local recovery dir (same encryption-at-rest as the
 //! Google Drive backup), so an interrupted run can simply be re-run.
 
+pub use crate::node::{RecoveryNode, RunContext, SyncContext};
+
 /// Publicly exposed types: The inputs and outputs of a recovery run.
 pub mod types;
 
+/// Concrete type aliases.
+mod alias;
 /// Imports downloaded backup files into the recovery dir.
-// TODO(max): Remove the allow once the recovery node uses this.
-#[allow(dead_code)]
 mod backups;
+/// Event handling.
+mod event_handler;
+/// The recovery node.
+mod node;
+/// The recovery node's peer manager.
+mod peer_manager;
 /// Local-directory persistence.
-// TODO(max): Remove the allow once the recovery node uses this.
-#[allow(dead_code)]
 mod persister;
+/// The recovery loop.
+mod recover;
