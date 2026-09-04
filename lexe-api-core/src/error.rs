@@ -1456,6 +1456,17 @@ impl From<auth::Error> for BackendApiError {
 }
 
 impl GatewayApiError {
+    /// Reject a request that parsed but failed validation.
+    pub fn rejection(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = GatewayErrorKind::Rejection;
+        Self {
+            kind,
+            msg,
+            ..Default::default()
+        }
+    }
+
     pub fn fiat_rates_missing() -> Self {
         let kind = GatewayErrorKind::FiatRatesMissing;
         let msg = kind.to_string();

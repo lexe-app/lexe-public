@@ -69,7 +69,8 @@ use crate::{
     },
     models::{
         command::{
-            BackupInfo, CancelPaymentRequest, CloseChannelPreflightRequest,
+            BackupInfo, CancelPaymentRequest, CheckAddressRequest,
+            CheckAddressResponse, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
@@ -173,6 +174,17 @@ pub trait UserGatewayApi {
         &self,
         auth: BearerAuthToken,
     ) -> Result<LatestPaymentUpdateResponse, GatewayApiError>;
+
+    /// Checks an address for on-chain activity since a block height, and
+    /// records any receives to it, returning their ids.
+    ///
+    /// POST /user/v1/check_address [`CheckAddressRequest`]
+    ///                          -> [`CheckAddressResponse`]
+    async fn check_address(
+        &self,
+        req: &CheckAddressRequest,
+        auth: BearerAuthToken,
+    ) -> Result<CheckAddressResponse, GatewayApiError>;
 
     /// Query which node enclaves the user needs to provision to.
     ///
@@ -379,9 +391,10 @@ pub trait UserNodeRunApi {
     /// attributed to exactly one caller (e.g. a payment gateway issuing one
     /// address per invoice).
     ///
-    /// The node does not watch the address for incoming payments. Callers that
-    /// only want to avoid address reuse should use `get_next_unused_address`,
-    /// which is watched indefinitely.
+    /// The node does not watch the address for incoming payments, so they are
+    /// detected only by `check_address`. Callers that only want to avoid
+    /// address reuse should use `get_next_unused_address`, which is watched
+    /// indefinitely.
     // Added in node-v0.10.9
     async fn get_exclusive_address(
         &self,

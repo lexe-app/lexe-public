@@ -898,6 +898,34 @@ pub struct NodeCheckAddressResponse {
     pub synced_block_height: u32,
 }
 
+/// A request to check an address for on-chain activity.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct CheckAddressRequest {
+    /// The address to check.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_mainnet_addr_unchecked()")
+    )]
+    pub address: bitcoin::Address<NetworkUnchecked>,
+    /// The `synced_block_height` from the previous check's response, or
+    /// `None` on the first check.
+    pub synced_block_height: Option<u32>,
+}
+
+/// The response to a [`CheckAddressRequest`].
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct CheckAddressResponse {
+    /// The ids of the receives to the address that are unconfirmed, or
+    /// confirmed at or after the request's `synced_block_height`. They are
+    /// recorded before this returns.
+    pub payment_ids: Vec<PaymentId>,
+    /// The block height the address has been synced to. Pass it back as the
+    /// next check's `synced_block_height`.
+    pub synced_block_height: u32,
+}
+
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary, Debug))]
 pub struct PayOnchainRequest {
@@ -1242,6 +1270,13 @@ mod test {
         roundtrip::json_value_roundtrip_proptest::<NodeCheckAddressRequest>();
         // `BasicPaymentV2::related_ids` serializes in `HashSet` order.
         roundtrip::json_string_roundtrip_proptest::<NodeCheckAddressResponse>();
+    }
+
+    #[test]
+    fn check_address_roundtrip() {
+        roundtrip::json_value_roundtrip_proptest::<CheckAddressRequest>();
+        // `BasicPaymentV2::related_ids` serializes in `HashSet` order.
+        roundtrip::json_string_roundtrip_proptest::<CheckAddressResponse>();
     }
 
     #[test]

@@ -21,7 +21,8 @@ use lexe_api::{
     error::{BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind},
     models::{
         command::{
-            BackupInfo, CancelPaymentRequest, CloseChannelPreflightRequest,
+            BackupInfo, CancelPaymentRequest, CheckAddressRequest,
+            CheckAddressResponse, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
@@ -224,6 +225,17 @@ impl UserGatewayApi for GatewayClient {
         let gateway_url = &self.gateway_url;
         let url = format!("{gateway_url}/user/v1/latest_payment_update");
         let req = self.rest.get(url, &Empty {}).bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn check_address(
+        &self,
+        req: &CheckAddressRequest,
+        auth: BearerAuthToken,
+    ) -> Result<CheckAddressResponse, GatewayApiError> {
+        let gateway_url = &self.gateway_url;
+        let url = format!("{gateway_url}/user/v1/check_address");
+        let req = self.rest.post(url, req).bearer_auth(&auth);
         self.rest.send(req).await
     }
 
