@@ -19,6 +19,10 @@
 /// Publicly exposed types: The inputs and outputs of a recovery run.
 pub mod types;
 
+/// Imports downloaded backup files into the recovery dir.
+// TODO(max): Remove the allow once the recovery node uses this.
+#[allow(dead_code)]
+mod backups;
 /// Local-directory persistence.
 // TODO(max): Remove the allow once the recovery node uses this.
 #[allow(dead_code)]
