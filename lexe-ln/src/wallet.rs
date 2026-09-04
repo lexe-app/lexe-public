@@ -1671,14 +1671,9 @@ impl SyncStats {
 /// Use this fake TXO drain script to prevent the BDK wallet from modifying its
 /// internal state when building fake txs, like the ones used to estimate fees
 /// during preflight.
-///
-/// Returns a 22-byte script: [
-///     OP_0
-///     OP_PUSHBYTES_20
-///     aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-/// ]
 fn fake_drain_script() -> bitcoin::ScriptBuf {
-    bitcoin::ScriptBuf::from_bytes(vec![0xaa; 22])
+    let wpkh = bitcoin::WPubkeyHash::from_byte_array([0xaa; 20]);
+    bitcoin::ScriptBuf::new_p2wpkh(&wpkh)
 }
 
 #[cfg(test)]
@@ -2329,7 +2324,7 @@ mod test {
     }
 
     #[test]
-    fn drain_script_len_equiv() {
+    fn drain_script_equiv() {
         let h = Harness::new(3684944666541);
         let address = h.wallet.get_internal_address();
 
@@ -2338,6 +2333,11 @@ mod test {
             spk.len(),
             fake_drain_script().len(),
             "Drain script ({spk:?}) has unexpected length"
+        );
+        assert_eq!(
+            spk.minimal_non_dust(),
+            fake_drain_script().minimal_non_dust(),
+            "Drain script ({spk:?}) has unexpected dust threshold"
         );
     }
 
