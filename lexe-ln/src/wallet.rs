@@ -1543,7 +1543,8 @@ impl CoinSelectionAlgorithm for LexeCoinSelector {
             .collect();
 
         // This implementation depends on `ChainPosition`'s derived Ord impl;
-        // unconfirmed UTXOs should be "less than" confirmed UTXOs.
+        // confirmed UTXOs sort "less than" unconfirmed UTXOs, so oldest-first
+        // selection spends them first.
         // BDK has a test named `chain_position_ord` which enforces this.
         let selection_result =
             bdk_wallet::coin_selection::OldestFirstCoinSelection.coin_select(
