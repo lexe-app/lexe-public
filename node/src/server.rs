@@ -172,6 +172,8 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
             scoped::post(CreatePayerProof, user::create_payer_proof))
         .route("/user/v1/get_next_unused_address",
             scoped::post(GetNextUnusedAddress, user::get_next_unused_address))
+        .route("/user/v1/get_exclusive_address",
+            scoped::post(GetExclusiveAddress, user::get_exclusive_address))
         .route("/user/v1/pay_onchain",
             scoped::post(PayOnchain, user::pay_onchain))
         .route("/user/v1/pay_onchain_preflight",

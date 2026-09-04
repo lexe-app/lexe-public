@@ -863,6 +863,16 @@ pub struct GetNextUnusedAddressResponse {
     pub addr: bitcoin::Address<NetworkUnchecked>,
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetExclusiveAddressResponse {
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_mainnet_addr_unchecked()")
+    )]
+    pub addr: bitcoin::Address<NetworkUnchecked>,
+}
+
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary, Debug))]
 pub struct PayOnchainRequest {
@@ -1197,6 +1207,8 @@ mod test {
     #[test]
     fn get_address_response_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<GetNextUnusedAddressResponse>(
+        );
+        roundtrip::json_value_roundtrip_proptest::<GetExclusiveAddressResponse>(
         );
     }
 

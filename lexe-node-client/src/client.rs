@@ -26,8 +26,8 @@ use lexe_api::{
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, DebugInfo, EnclavesToProvisionRequest,
-            GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetNextUnusedAddressResponse, GetUpdatedPayments,
+            GetExclusiveAddressResponse, GetHumanBitcoinAddressResponse,
+            GetNewPayments, GetNextUnusedAddressResponse, GetUpdatedPayments,
             HumanBitcoinAddressV1, LatestPaymentUpdateResponse,
             ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
             OpenChannelPreflightResponse, OpenChannelRequest,
@@ -756,6 +756,16 @@ impl UserNodeRunApi for NodeClient {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/get_next_unused_address");
+        let req = run_rest.post(url, &Empty {});
+        run_rest.send(req).await
+    }
+
+    async fn get_exclusive_address(
+        &self,
+    ) -> Result<GetExclusiveAddressResponse, NodeApiError> {
+        let run_rest = &self.authed_run_rest().await?.client;
+        let run_url = &self.inner.run_url;
+        let url = format!("{run_url}/user/v1/get_exclusive_address");
         let req = run_rest.post(url, &Empty {});
         run_rest.send(req).await
     }

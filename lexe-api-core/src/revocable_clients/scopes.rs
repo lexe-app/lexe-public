@@ -244,6 +244,7 @@ impl Scope {
                 ])),
             Scope::Receive => PermissionSet::from_slice(&[
                 GetNextUnusedAddress,
+                GetExclusiveAddress,
                 CreateInvoice,
                 CreateOffer,
                 Resync,
@@ -508,6 +509,7 @@ pub enum Permission {
 
     // --- receive --- //
     GetNextUnusedAddress,
+    GetExclusiveAddress,
     CreateInvoice,
     CreateOffer,
     Resync,
@@ -570,6 +572,7 @@ impl Permission {
             Permission::GetProbScorer => "get_prob_scorer",
             Permission::GetUtxos => "get_utxos",
             Permission::GetNextUnusedAddress => "get_next_unused_address",
+            Permission::GetExclusiveAddress => "get_exclusive_address",
             Permission::CreateInvoice => "create_invoice",
             Permission::CreateOffer => "create_offer",
             Permission::Resync => "resync",
@@ -780,7 +783,7 @@ mod test {
     ///   snapshot.
     #[test]
     fn json_backwards_compat() {
-        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_user_settings","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","create_invoice","create_offer","resync","cancel_payment","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","update_user_settings","get_file","archive_channel"]"#;
+        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_user_settings","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","get_exclusive_address","create_invoice","create_offer","resync","cancel_payment","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","update_user_settings","get_file","archive_channel"]"#;
         roundtrip::json_unit_enum_backwards_compat::<Permission>(
             permissions_ser,
         );

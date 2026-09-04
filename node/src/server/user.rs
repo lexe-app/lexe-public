@@ -13,8 +13,9 @@ use lexe_api::{
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, DebugInfo, GDriveStatus,
-            GetFiatRatesRequest, GetHumanBitcoinAddressResponse,
-            GetNewPayments, GetNextUnusedAddressResponse, GetUpdatedPayments,
+            GetExclusiveAddressResponse, GetFiatRatesRequest,
+            GetHumanBitcoinAddressResponse, GetNewPayments,
+            GetNextUnusedAddressResponse, GetUpdatedPayments,
             HumanBitcoinAddressV1, ListChannelsResponse, NodeInfo,
             OpenChannelPreflightRequest, OpenChannelPreflightResponse,
             OpenChannelRequest, OpenChannelResponse,
@@ -578,6 +579,18 @@ pub(super) async fn get_next_unused_address(
 ) -> LxJson<GetNextUnusedAddressResponse> {
     let addr = state.wallet.get_next_unused_address().into_unchecked();
     LxJson(GetNextUnusedAddressResponse { addr })
+}
+
+pub(super) async fn get_exclusive_address(
+    State(state): State<Arc<RouterState>>,
+) -> Result<LxJson<GetExclusiveAddressResponse>, NodeApiError> {
+    let addr = state
+        .wallet
+        .get_exclusive_address()
+        .await
+        .map_err(NodeApiError::command)?
+        .into_unchecked();
+    Ok(LxJson(GetExclusiveAddressResponse { addr }))
 }
 
 pub(super) async fn get_payments_by_indexes(

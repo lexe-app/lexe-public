@@ -74,20 +74,21 @@ use crate::{
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, DebugInfo, EnclavesToProvisionRequest,
-            GetFiatRatesRequest, GetGeneratedUsernameResponse,
-            GetHumanBitcoinAddressResponse, GetNewPayments,
-            GetNextUnusedAddressResponse, GetUpdatedPaymentMetadata,
-            GetUpdatedPayments, HumanBitcoinAddressV1,
-            LatestPaymentUpdateResponse, ListChannelsResponse, NodeInfo,
-            OpenChannelPreflightRequest, OpenChannelPreflightResponse,
-            OpenChannelRequest, OpenChannelResponse,
-            PayInvoicePreflightRequest, PayInvoicePreflightResponse,
-            PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
-            PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
-            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-            PayOnchainRequest, PayOnchainResponse, PaymentCreatedIndexes,
-            PaymentIdStruct, ResyncRequest, SetupGDrive, UpdatePersonalNote,
-            UpdateUserSettingsRequest, UpsertCustomHumanBitcoinAddress,
+            GetExclusiveAddressResponse, GetFiatRatesRequest,
+            GetGeneratedUsernameResponse, GetHumanBitcoinAddressResponse,
+            GetNewPayments, GetNextUnusedAddressResponse,
+            GetUpdatedPaymentMetadata, GetUpdatedPayments,
+            HumanBitcoinAddressV1, LatestPaymentUpdateResponse,
+            ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
+            OpenChannelPreflightResponse, OpenChannelRequest,
+            OpenChannelResponse, PayInvoicePreflightRequest,
+            PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
+            PayOfferPreflightRequest, PayOfferPreflightResponse,
+            PayOfferRequest, PayOfferResponse, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
+            PaymentCreatedIndexes, PaymentIdStruct, ResyncRequest, SetupGDrive,
+            UpdatePersonalNote, UpdateUserSettingsRequest,
+            UpsertCustomHumanBitcoinAddress,
             UpsertGeneratedHumanBitcoinAddress,
             UpsertHumanBitcoinAddressResponse, UserSettings, VecPaymentId,
         },
@@ -368,6 +369,22 @@ pub trait UserNodeRunApi {
     async fn get_next_unused_address(
         &self,
     ) -> Result<GetNextUnusedAddressResponse, NodeApiError>;
+
+    /// POST /user/v1/get_exclusive_address [`Empty`]
+    ///                                  -> [`GetExclusiveAddressResponse`]
+    ///
+    /// Returns a new address which has never been issued before, to this or
+    /// any other client, and never will be again, so a payment to it can be
+    /// attributed to exactly one caller (e.g. a payment gateway issuing one
+    /// address per invoice).
+    ///
+    /// The node does not watch the address for incoming payments. Callers that
+    /// only want to avoid address reuse should use `get_next_unused_address`,
+    /// which is watched indefinitely.
+    // Added in node-v0.10.9
+    async fn get_exclusive_address(
+        &self,
+    ) -> Result<GetExclusiveAddressResponse, NodeApiError>;
 
     /// POST /user/v1/pay_onchain [`PayOnchainRequest`] ->
     /// [`PayOnchainResponse`]
