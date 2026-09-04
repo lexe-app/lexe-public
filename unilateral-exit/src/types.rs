@@ -9,6 +9,7 @@ use lexe_common::{
     root_seed::RootSeed,
 };
 use lightning::util::ser::Hostname;
+use tokio::sync::watch;
 
 // --- Inputs --- //
 
@@ -27,6 +28,10 @@ pub struct RecoveryArgs {
     /// <name>` files in the user's Google Drive).
     pub monitor_paths: Vec<PathBuf>,
     pub network: Network,
+    /// If set, receives a [`RecoveryProgress`] snapshot whenever a poll
+    /// observes a change, e.g. to render a progress display. Holds `None`
+    /// until the first poll completes.
+    pub progress_tx: Option<watch::Sender<Option<RecoveryProgress>>>,
     /// The recovery working dir. Imported backups and all recovery node state
     /// persist here (encrypted under the root seed, like the Drive backup).
     pub recovery_dir: PathBuf,
@@ -119,6 +124,44 @@ pub struct RecoveryReport {
     /// The final confirmed on-chain balance, after all channel funds were
     /// swept.
     pub onchain_balance: Amount,
+}
+
+/// A snapshot of the recovery's remaining work, published to
+/// [`RecoveryArgs::progress_tx`] whenever a poll observes a change,
+/// e.g. to render a progress display.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecoveryProgress {
+    /// The chain height as of this poll.
+    pub best_height: u32,
+    /// The total balance still held in channel monitors, i.e. channel funds
+    /// which have not yet settled into the BDK wallet.
+    pub claimable_balance: Amount,
+    /// The BDK wallet's confirmed balance.
+    pub confirmed_balance: Amount,
+    /// Channels which are still open (or still negotiating a close).
+    pub num_channels: usize,
+    /// Events (e.g. `SpendableOutputs` sweeps) persisted but not yet
+    /// handled. Funds in this state are no longer reported by any monitor
+    /// and have not yet reached the wallet.
+    pub num_unhandled_events: usize,
+    /// Channel monitors with unswept/unconfirmed balances.
+    pub num_unresolved_monitors: usize,
+    /// The BDK wallet's pending (unconfirmed) balance.
+    pub pending_balance: Amount,
+    /// The height by which every timelocked monitor balance (e.g. a force
+    /// close's `to_local` waiting out its contest delay) will have unlocked,
+    /// if any balance is timelocked.
+    pub unlock_height: Option<u32>,
+}
+
+impl RecoveryProgress {
+    /// Whether every channel satoshi has settled into the BDK wallet.
+    pub fn is_settled(&self) -> bool {
+        self.num_channels == 0
+            && self.num_unresolved_monitors == 0
+            && self.num_unhandled_events == 0
+            && self.pending_balance == Amount::ZERO
+    }
 }
 
 #[cfg(test)]

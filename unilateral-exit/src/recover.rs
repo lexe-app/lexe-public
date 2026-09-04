@@ -5,23 +5,40 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, anyhow};
 use lexe_api::models::command::CloseChannelRequest;
-use lexe_common::{api::user::NodePk, ln::channel::ChannelId};
+use lexe_common::{
+    api::user::NodePk,
+    ln::{amount::Amount, channel::ChannelId},
+};
 use lexe_ln::{
-    background_processor::QuiescenceRequest, channel::ChannelEvent, command,
-    esplora::LexeEsplora, p2p, sync::BdkSyncRequest, wallet::OnchainWallet,
+    background_processor::{self, QuiescenceRequest},
+    channel::ChannelEvent,
+    command,
+    esplora::LexeEsplora,
+    p2p,
+    persister::LightningPersisterMethods,
+    sync::BdkSyncRequest,
+    wallet::OnchainWallet,
 };
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
-use tokio::sync::{mpsc, oneshot};
+use lightning::chain::channelmonitor::Balance;
+use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{info, warn};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
     peer_manager::RecoveryPeerManager,
     persister::RecoveryPersister,
-    types::CloseMode,
+    types::{CloseMode, RecoveryProgress, RecoveryReport},
 };
+
+/// The delay before the first progress poll. See `drive_until_settled`.
+const FIRST_POLL_DELAY: Duration = Duration::from_secs(5);
+/// The most a poll waits for BGP quiescence before proceeding without it.
+/// Needs to cover one BGP event-processing turn, which is bounded by a few
+/// sequential esplora broadcasts (fee-bumps) on a slow public instance.
+const QUIESCENCE_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Everything the recovery loop operates on. Assembled by
 /// [`RecoveryNode::init`] and owned by the recovery task.
@@ -39,12 +56,27 @@ pub(crate) struct RecoveryCtx {
     pub ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     pub peer_manager: RecoveryPeerManager,
     pub persister: Arc<RecoveryPersister>,
+    pub progress_tx: Option<watch::Sender<Option<RecoveryProgress>>>,
     pub shutdown: NotifyOnce,
     pub sync_interval: Duration,
     pub wallet: OnchainWallet,
 }
 
 impl RecoveryCtx {
+    /// Closes all channels and drives every channel satoshi into the BDK
+    /// wallet.
+    pub(crate) async fn recover(&mut self) -> anyhow::Result<RecoveryReport> {
+        let num_monitors = self.chain_monitor.list_monitors().len();
+        let (coop_closed, force_closed) = self.close_all_channels().await?;
+        let confirmed_balance = self.drive_until_settled().await?;
+        Ok(RecoveryReport {
+            coop_closed,
+            force_closed,
+            num_monitors,
+            onchain_balance: confirmed_balance,
+        })
+    }
+
     /// Closes all channels per [`CloseMode`], returning how many were coop
     /// closed and force closed.
     async fn close_all_channels(&mut self) -> anyhow::Result<(usize, usize)> {
@@ -151,6 +183,145 @@ impl RecoveryCtx {
         }
 
         Ok((coop_closed, force_closed))
+    }
+
+    /// Polls the chain until all channel funds have settled into the BDK
+    /// wallet, publishing progress along the way. Returns the confirmed
+    /// balance.
+    async fn drive_until_settled(&mut self) -> anyhow::Result<Amount> {
+        // The sync interval may be long, but a force close stalled from the
+        // start awaiting anchor funds should be reported promptly.
+        let mut poll_delay = FIRST_POLL_DELAY.min(self.sync_interval);
+
+        loop {
+            tokio::select! {
+                () = self.shutdown.recv() =>
+                    return Err(anyhow!("Interrupted; re-run to resume")),
+                () = tokio::time::sleep(poll_delay) => (),
+            }
+            poll_delay = self.sync_interval;
+
+            self.resync().await?;
+
+            // The resync may have just emitted a `SpendableOutputs` event
+            // into LDK's in-memory queue. Its funds are then in neither the
+            // monitor balances, the persisted events, nor the wallet, so
+            // measuring now could see `is_settled()` with funds in flight.
+            // Thus, wait for the BGP to handle all pending events first.
+            // Quiescence also waits out pending HTLCs, which only a channel
+            // close can resolve, so bound the wait.
+            let quiesce_fut =
+                background_processor::wait_quiescent(&self.bgp_control_tx);
+            #[allow(clippy::needless_late_init)] // Clearer this way IMO
+            let is_quiescent;
+            match tokio::time::timeout(QUIESCENCE_TIMEOUT, quiesce_fut).await {
+                Ok(result) => {
+                    result.context("Error while waiting for BGP quiescence")?;
+                    is_quiescent = true;
+                }
+                Err(_timeout) => {
+                    warn!("BGP not quiescent after {QUIESCENCE_TIMEOUT:?}");
+                    is_quiescent = false;
+                }
+            };
+
+            let progress = self.measure_progress().await?;
+
+            // Publish the snapshot for progress displays (e.g. the CLI's
+            // per-block countdown line).
+            self.publish_progress(&progress);
+
+            if is_quiescent && progress.is_settled() {
+                return Ok(progress.confirmed_balance);
+            }
+        }
+    }
+
+    /// Publishes a progress snapshot to `progress_tx`, if a subscriber
+    /// exists and the snapshot changed.
+    fn publish_progress(&self, progress: &RecoveryProgress) {
+        if let Some(progress_tx) = &self.progress_tx {
+            progress_tx.send_if_modified(|latest| {
+                let modified = latest.as_ref() != Some(progress);
+                if modified {
+                    *latest = Some(progress.clone());
+                }
+                modified
+            });
+        }
+    }
+
+    /// Takes a [`RecoveryProgress`] snapshot and logs it.
+    async fn measure_progress(&self) -> anyhow::Result<RecoveryProgress> {
+        let num_channels = self.channel_manager.list_channels().len();
+
+        // Channel monitors with unswept/unconfirmed balances.
+        let mut num_unresolved_monitors = 0;
+        let mut claimable_sats = 0u64;
+        let mut unlock_height = None;
+        for channel_id in self.chain_monitor.list_monitors() {
+            let Ok(monitor) = self.chain_monitor.get_monitor(channel_id) else {
+                continue;
+            };
+            let balances = monitor.get_claimable_balances();
+            if !balances.is_empty() {
+                num_unresolved_monitors += 1;
+                claimable_sats += balances
+                    .iter()
+                    .map(|balance| balance.claimable_amount_satoshis())
+                    .sum::<u64>();
+                // The height by which every timelocked balance will have
+                // unlocked.
+                unlock_height = balances
+                    .iter()
+                    .filter_map(|balance| match balance {
+                        Balance::ClaimableAwaitingConfirmations {
+                            confirmation_height,
+                            ..
+                        } => Some(*confirmation_height),
+                        _ => None,
+                    })
+                    .chain(unlock_height)
+                    .max();
+            }
+        }
+
+        let num_unhandled_events = self
+            .persister
+            .read_events()
+            .await
+            .context("Failed to read unhandled events")?
+            .len();
+
+        let wallet_balance = self.wallet.get_balance();
+        let pending_balance =
+            wallet_balance.trusted_pending + wallet_balance.untrusted_pending;
+        let best_height = self.channel_manager.current_best_block().height;
+
+        // Money first, then timing, then debug details.
+        info!(
+            confirmed_sats = %wallet_balance.confirmed.to_sat(),
+            pending_sats = %pending_balance.to_sat(),
+            %claimable_sats, ?unlock_height, %best_height,
+            %num_channels, %num_unresolved_monitors, %num_unhandled_events,
+            "Recovery progress"
+        );
+
+        let confirmed_balance = Amount::try_from(wallet_balance.confirmed)
+            .context("Bad confirmed balance")?;
+
+        Ok(RecoveryProgress {
+            best_height,
+            claimable_balance: Amount::try_from_sats_u64(claimable_sats)
+                .context("Bad claimable balance")?,
+            confirmed_balance,
+            num_channels,
+            num_unhandled_events,
+            num_unresolved_monitors,
+            pending_balance: Amount::try_from(pending_balance)
+                .context("Bad pending balance")?,
+            unlock_height,
+        })
     }
 
     /// Triggers a BDK + LDK resync and waits for both to complete.

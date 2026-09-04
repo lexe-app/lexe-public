@@ -25,8 +25,11 @@ use lexe_ln::{
     wallet::{self, AddressScanParams, LexeCoinSelector, OnchainWallet},
 };
 use lexe_tokio::{
-    DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE, events_bus::EventsBus, notify,
-    notify_once::NotifyOnce, task::LxTask,
+    DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE,
+    events_bus::EventsBus,
+    notify,
+    notify_once::NotifyOnce,
+    task::{self, LxTask},
 };
 use lightning::{
     chain::chainmonitor::ChainMonitor,
@@ -49,18 +52,17 @@ use crate::{
     peer_manager::RecoveryPeerManager,
     persister::RecoveryPersister,
     recover::RecoveryCtx,
-    types::RecoveryArgs,
+    types::{RecoveryArgs, RecoveryReport},
 };
 
-/// The timeout for the initial BDK + LDK chain sync.
 const FIRST_SYNC_TIMEOUT: Duration = Duration::from_secs(5 * 60);
-/// BDK address discovery params. The recovery wallet starts with no local
-/// state while the seed's keychains may have long histories with gaps, so
-/// scan much further than the usernode to avoid missing on-chain funds.
+/// The seed's keychains may have long histories with gaps, and the recovery
+/// wallet starts with no local state, so scan much further than the usernode.
 const RECOVERY_SCAN_PARAMS: AddressScanParams = AddressScanParams {
     full_scan_stop_gap: 50,
     lookahead: 50,
 };
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// A minimal close-and-sweep-only Lexe node.
 pub struct RecoveryNode {
@@ -393,6 +395,7 @@ impl RecoveryNode {
             ldk_resync_tx,
             peer_manager,
             persister,
+            progress_tx: args.progress_tx,
             shutdown,
             sync_interval: args.sync_interval,
             wallet,
@@ -438,5 +441,46 @@ impl RecoveryNode {
         try_first_bdk_sync.context("Initial BDK sync failed")?;
         try_first_ldk_sync.context("Initial LDK sync failed")?;
         Ok(())
+    }
+
+    /// Runs the recovery to completion, then shuts the node down. The
+    /// recovery closes all channels per [`CloseMode`] and waits for all
+    /// funds to confirm on-chain.
+    ///
+    /// Returns early with an error if the `shutdown` given to
+    /// [`init`](Self::init) is triggered. All progress is persisted to the
+    /// recovery dir, so the run can simply be restarted.
+    ///
+    /// [`CloseMode`]: crate::types::CloseMode
+    pub async fn run(
+        self,
+        run_ctx: RunContext,
+    ) -> anyhow::Result<RecoveryReport> {
+        let Self { mut ctx, mut tasks } = self;
+        let shutdown = ctx.shutdown.clone();
+        let (report_tx, report_rx) = oneshot::channel();
+
+        // A dead node task must abort the recovery, so run the recovery as a
+        // task alongside the node's tasks. However,
+        // `try_join_tasks_and_shutdown` treats a task which finishes before
+        // shutdown as an error, so the recovery task signals shutdown before
+        // finishing.
+        tasks.push(LxTask::spawn("recover", async move {
+            let _ = report_tx.send(ctx.recover().await);
+            ctx.shutdown.send();
+            ctx.peer_manager.disconnect_all_peers();
+        }));
+
+        task::try_join_tasks_and_shutdown(
+            tasks,
+            run_ctx.eph_tasks_rx,
+            shutdown,
+            SHUTDOWN_TIMEOUT,
+        )
+        .await
+        .context("Recovery node task failed")?;
+        info!("Recovery node shut down");
+
+        report_rx.await.context("Recovery task panicked")?
     }
 }
