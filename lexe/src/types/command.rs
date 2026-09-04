@@ -679,6 +679,21 @@ pub struct PayOnchainPreflightResponse {
     pub background_fees: Amount,
 }
 
+/// The response to a `get_exclusive_address` request.
+#[derive(Serialize, Deserialize)]
+pub struct GetExclusiveAddressResponse {
+    /// A Bitcoin address which has never been issued before.
+    pub address: bitcoin::Address<NetworkUnchecked>,
+}
+
+impl From<command::GetExclusiveAddressResponse>
+    for GetExclusiveAddressResponse
+{
+    fn from(resp: command::GetExclusiveAddressResponse) -> Self {
+        Self { address: resp.addr }
+    }
+}
+
 /// A request to pay to an LNURL-pay endpoint.
 ///
 /// Use [`analyze`] to get the associated [`LnurlPayRequest`], which

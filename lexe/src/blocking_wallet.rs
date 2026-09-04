@@ -22,15 +22,15 @@ use crate::{
             CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
-            GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
-            GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
-            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-            ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest,
-            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-            PayOnchainRequest, PayRequest, PaymentSyncSummary,
-            RevokeClientRequest, UpdateClientRequest,
+            GetExclusiveAddressResponse, GetHumanBitcoinAddressResponse,
+            GetNextUnusedAddressResponse, GetPaymentByIdRequest,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse, ListChannelsResponse,
+            ListClientsResponse, ListPaymentsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayLnurlRequest, PayOfferRequest, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest, PayRequest,
+            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
             WaitForNextPaymentResponse, WithdrawLnurlRequest,
         },
@@ -405,6 +405,28 @@ impl BlockingLexeWallet {
         &self,
     ) -> anyhow::Result<GetNextUnusedAddressResponse> {
         block_on(self.inner.get_next_unused_address())
+    }
+
+    /// Get an exclusive Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Every call returns a new address which has never been issued before, to
+    /// this or any other client of this wallet, and never will be again. A
+    /// payment to it can thus be attributed to exactly one caller, which suits
+    /// per-invoice receives, e.g. a payment gateway issuing one address per
+    /// invoice, or a service giving each customer their own deposit address.
+    ///
+    /// The node does not watch exclusive addresses for incoming payments.
+    ///
+    /// If you only want to avoid address reuse, or to receive a one-off
+    /// payment, use [`get_next_unused_address`] instead. It rotates after each
+    /// payment, and the node watches it indefinitely.
+    ///
+    /// [`get_next_unused_address`]: Self::get_next_unused_address
+    pub fn get_exclusive_address(
+        &self,
+    ) -> anyhow::Result<GetExclusiveAddressResponse> {
+        block_on(self.inner.get_exclusive_address())
     }
 
     /// Send Bitcoin on-chain to the given address.
