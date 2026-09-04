@@ -40,3 +40,4 @@ ${PODS_TARGET_SRCROOT}/../../sdk-uniffi/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgx-test/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgx-toml/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../sgxs-sign/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../unilateral-exit/Cargo.toml

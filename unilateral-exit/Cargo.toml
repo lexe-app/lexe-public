@@ -1,0 +1,40 @@
+[package]
+name = "unilateral-exit"
+license = "PolyForm-Noncommercial-1.0.0"
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Enables various test hooks and utilities. Should be disabled in staging/prod.
+test-utils = ["lexe-ln/test-utils"]
+
+[dependencies]
+
+# --- LEXE --- #
+
+lexe-api = { workspace = true }
+lexe-common = { workspace = true }
+lexe-crypto = { workspace = true }
+lexe-ln = { path = "../lexe-ln" }
+lexe-std = { workspace = true }
+lexe-tokio = { workspace = true }
+
+# --- WORKSPACE --- #
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+bitcoin = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+lightning = { workspace = true }
+lightning-transaction-sync = { workspace = true }
+secrecy = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros", "sync", "time"] }
+tracing = { workspace = true }

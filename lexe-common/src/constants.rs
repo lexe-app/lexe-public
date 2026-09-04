@@ -152,6 +152,16 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 /// Max request body size for the user node's Lexe API.
 pub const NODE_LEXE_API_BODY_LIMIT: usize = 16 * 1024;
 
+// --- Lexe LSP --- //
+// Keep in sync with the deployed LSPs.
+
+pub const PROD_LSP_NODE_ID: &str =
+    "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457";
+pub const PROD_LSP_DNS: &str = "lsp.lexe.app";
+pub const STAGING_LSP_NODE_ID: &str =
+    "033814087be90e646d513dd994625a72ec570157404fd19a1a45b2e77700d47ad7";
+pub const STAGING_LSP_DNS: &str = "lsp.staging.lexe.app";
+
 // --- Esplora --- //
 // Quickly test these by appending /fee-estimates and opening in browser,
 // e.g. "https://testnet.ltbl.io/api/fee-estimates"

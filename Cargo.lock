@@ -5905,6 +5905,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "unilateral-exit"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bitcoin",
+ "bytes",
+ "futures",
+ "lexe-api",
+ "lexe-common",
+ "lexe-crypto",
+ "lexe-ln",
+ "lexe-std",
+ "lexe-tokio",
+ "lightning",
+ "lightning-transaction-sync",
+ "secrecy",
+ "serde",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "unit-prefix"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
