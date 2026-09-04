@@ -13,8 +13,17 @@
 //!    seed, contesting any observed channel breaches along the way.
 //! 3. Waits until all funds are confirmed on-chain.
 //!
+//! Force closes need an on-chain UTXO to fee-bump the commitment tx, so if
+//! the BDK wallet is empty, the run pauses and publishes an
+//! [`AnchorFundsNeeded`] deposit requirement via
+//! [`RecoveryArgs::progress_tx`], then proceeds automatically once the
+//! deposit confirms.
+//!
 //! Progress persists to a local recovery dir (same encryption-at-rest as the
 //! Google Drive backup), so an interrupted run can simply be re-run.
+//!
+//! [`AnchorFundsNeeded`]: types::AnchorFundsNeeded
+//! [`RecoveryArgs::progress_tx`]: types::RecoveryArgs::progress_tx
 
 pub use crate::node::{RecoveryNode, RunContext, SyncContext};
 
@@ -25,6 +34,8 @@ pub mod types;
 mod alias;
 /// Imports downloaded backup files into the recovery dir.
 mod backups;
+/// Coin selection for fee-bump (anchor CPFP) txs.
+mod coin_selector;
 /// Event handling.
 mod event_handler;
 /// The recovery node.

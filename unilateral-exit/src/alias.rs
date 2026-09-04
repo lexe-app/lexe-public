@@ -2,13 +2,30 @@
 
 use std::sync::Arc;
 
-use lexe_ln::alias::{
-    LexeChainMonitorType, LexeChannelManagerType, LexeOnionMessengerType,
-    LexePeerManagerType,
+use lexe_ln::{
+    alias::{
+        LexeChainMonitorType, LexeChannelManagerType, LexeOnionMessengerType,
+        LexePeerManagerType,
+    },
+    keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
+    tx_broadcaster::TxBroadcaster,
 };
-use lightning::ln::peer_handler::IgnoringMessageHandler;
+use lightning::{
+    events::bump_transaction::BumpTransactionEventHandler,
+    ln::peer_handler::IgnoringMessageHandler,
+};
 
-use crate::persister::RecoveryPersister;
+use crate::{
+    coin_selector::RecoveryCoinSelector, persister::RecoveryPersister,
+};
+
+pub(crate) type BumpTransactionEventHandlerType = BumpTransactionEventHandler<
+    TxBroadcaster,
+    RecoveryCoinSelector,
+    Arc<LexeKeysManager>,
+    LexeTracingLogger,
+>;
 
 pub(crate) type ChainMonitorType = LexeChainMonitorType<Arc<RecoveryPersister>>;
 

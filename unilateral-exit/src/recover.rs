@@ -13,7 +13,7 @@ use lexe_ln::{
     background_processor::{self, QuiescenceRequest},
     channel::ChannelEvent,
     command,
-    esplora::LexeEsplora,
+    esplora::{FeeEstimates, LexeEsplora},
     p2p,
     persister::LightningPersisterMethods,
     sync::BdkSyncRequest,
@@ -22,15 +22,21 @@ use lexe_ln::{
 use lexe_tokio::{
     events_bus::EventsBus, notify_once::NotifyOnce, task::LxTask,
 };
-use lightning::chain::channelmonitor::Balance;
+use lightning::{
+    chain::channelmonitor::Balance, ln::channel_state::ChannelDetails,
+    util::wallet_utils::WalletSource,
+};
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{info, warn};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
+    coin_selector::{
+        DepositAsk, DepositEstimate, DepositEstimator, UnderfundedClaims,
+    },
     peer_manager::RecoveryPeerManager,
     persister::RecoveryPersister,
-    types::{CloseMode, RecoveryProgress, RecoveryReport},
+    types::{AnchorFundsNeeded, CloseMode, RecoveryProgress, RecoveryReport},
 };
 
 /// The delay before the first progress poll. See `drive_until_settled`.
@@ -58,6 +64,7 @@ pub(crate) struct RecoveryCtx {
     pub persister: Arc<RecoveryPersister>,
     pub progress_tx: Option<watch::Sender<Option<RecoveryProgress>>>,
     pub shutdown: NotifyOnce,
+    pub stall_detector: StallDetector,
     pub sync_interval: Duration,
     pub wallet: OnchainWallet,
 }
@@ -120,6 +127,13 @@ impl RecoveryCtx {
                 }
             }
         };
+
+        // Every channel is about to be force closed, so first make sure the
+        // wallet can fee-bump them all. A shortfall found mid-close would
+        // leave commitment txs stuck unconfirmed instead of channels open.
+        if !lsp_connected {
+            self.await_anchor_funds().await?;
+        }
 
         let mut coop_closed = 0;
         let mut force_closed = 0;
@@ -185,12 +199,37 @@ impl RecoveryCtx {
         Ok((coop_closed, force_closed))
     }
 
+    /// Waits until the wallet's confirmed funds can fee-bump every open
+    /// channel's commitment tx, publishing the deposit requirement meanwhile.
+    /// The node keeps syncing while it waits, so the monitors can still
+    /// contest a stale commitment tx from the counterparty.
+    async fn await_anchor_funds(&mut self) -> anyhow::Result<()> {
+        loop {
+            let channels = self.channel_manager.list_channels();
+            let mut progress = self.measure_progress().await?;
+            self.stall_detector
+                .check_before_close(&mut progress, &channels)
+                .await?;
+            self.publish_progress(&progress);
+            if progress.awaiting_anchor_funds.is_none() {
+                return Ok(());
+            }
+
+            tokio::select! {
+                () = self.shutdown.recv() =>
+                    return Err(anyhow!("Interrupted; re-run to resume")),
+                () = tokio::time::sleep(self.sync_interval) => (),
+            }
+            self.resync().await?;
+        }
+    }
+
     /// Polls the chain until all channel funds have settled into the BDK
     /// wallet, publishing progress along the way. Returns the confirmed
     /// balance.
     async fn drive_until_settled(&mut self) -> anyhow::Result<Amount> {
-        // The sync interval may be long, but a force close stalled from the
-        // start awaiting anchor funds should be reported promptly.
+        // The sync interval may be long, but a stall should be reported
+        // promptly.
         let mut poll_delay = FIRST_POLL_DELAY.min(self.sync_interval);
 
         loop {
@@ -225,7 +264,8 @@ impl RecoveryCtx {
                 }
             };
 
-            let progress = self.measure_progress().await?;
+            let mut progress = self.measure_progress().await?;
+            self.stall_detector.check_for_stall(&mut progress)?;
 
             // Publish the snapshot for progress displays (e.g. the CLI's
             // per-block countdown line).
@@ -252,7 +292,7 @@ impl RecoveryCtx {
     }
 
     /// Takes a [`RecoveryProgress`] snapshot and logs it.
-    async fn measure_progress(&self) -> anyhow::Result<RecoveryProgress> {
+    async fn measure_progress(&mut self) -> anyhow::Result<RecoveryProgress> {
         let num_channels = self.channel_manager.list_channels().len();
 
         // Channel monitors with unswept/unconfirmed balances.
@@ -311,6 +351,8 @@ impl RecoveryCtx {
             .context("Bad confirmed balance")?;
 
         Ok(RecoveryProgress {
+            // Filled in by [`StallDetector::check_for_stall`].
+            awaiting_anchor_funds: None,
             best_height,
             claimable_balance: Amount::try_from_sats_u64(claimable_sats)
                 .context("Bad claimable balance")?,
@@ -324,10 +366,13 @@ impl RecoveryCtx {
         })
     }
 
-    /// Triggers a BDK + LDK resync and waits for both to complete.
+    /// Resyncs BDK, then LDK, waiting for each to complete.
     async fn resync(&self) -> anyhow::Result<()> {
+        // BDK goes first so that the fee-bump attempts LDK makes on connecting
+        // a block select from a wallet which has seen that block too, e.g. a
+        // deposit which just confirmed. A failed attempt would escalate the
+        // next one's feerate and publish a stale deposit requirement.
         let (bdk_tx, bdk_rx) = oneshot::channel();
-        let (ldk_tx, ldk_rx) = oneshot::channel();
         self.bdk_resync_tx
             .send(BdkSyncRequest {
                 full_sync: false,
@@ -335,12 +380,168 @@ impl RecoveryCtx {
             })
             .await
             .context("BDK sync task died")?;
+        bdk_rx.await.context("BDK sync task dropped request")?;
+
+        let (ldk_tx, ldk_rx) = oneshot::channel();
         self.ldk_resync_tx
             .send(ldk_tx)
             .await
             .context("LDK sync task died")?;
-        bdk_rx.await.context("BDK sync task dropped request")?;
         ldk_rx.await.context("LDK sync task dropped request")?;
         Ok(())
     }
 }
+
+/// Detects when the recovery is stalled because force close fee-bumps can't
+/// gather enough confirmed on-chain funds, and computes the deposit
+/// requirement to publish.
+///
+/// LDK retries each claim's fee-bump on every block, so the recovery is
+/// stalled while any claim's latest attempt has failed.
+//
+// NOTE: On each new block, LDK regenerates pending claims with
+// `FeerateStrategy::ForceBump`. When the fee estimate hasn't risen, this
+// raises the previous attempt's package feerate by 25%, up to 5x the
+// estimate. This RBF escalation is meant for stuck txs, but LDK applies it
+// even when coin selection failed and nothing was broadcast. Thus, while
+// stalled, the `DepositEstimate`s and the published `needed_deposit` climb
+// every block at an unchanged fee estimate.
+//
+// TODO(max): Report this behavior upstream to rust-lightning.
+pub(crate) struct StallDetector {
+    fee_estimates: Arc<FeeEstimates>,
+    outstanding_requirement: Option<AnchorFundsNeeded>,
+    underfunded_claims: UnderfundedClaims,
+    wallet: OnchainWallet,
+}
+
+impl StallDetector {
+    pub(crate) fn new(
+        fee_estimates: Arc<FeeEstimates>,
+        underfunded_claims: UnderfundedClaims,
+        wallet: OnchainWallet,
+    ) -> Self {
+        Self {
+            fee_estimates,
+            outstanding_requirement: None,
+            underfunded_claims,
+            wallet,
+        }
+    }
+
+    /// Sets `progress.awaiting_anchor_funds` to the deposit requirement for
+    /// force closing all of `channels`, if the wallet can't fund their
+    /// fee-bumps. Checked before closing, so that a shortfall leaves the
+    /// channels open rather than their commitment txs stuck unconfirmed.
+    async fn check_before_close(
+        &mut self,
+        progress: &mut RecoveryProgress,
+        channels: &[ChannelDetails],
+    ) -> anyhow::Result<()> {
+        let wallet_utxos = self
+            .wallet
+            .list_confirmed_utxos()
+            .await
+            .map_err(|()| anyhow!("Failed to list confirmed UTXOs"))?;
+        let estimator =
+            DepositEstimator::new(&self.fee_estimates, &wallet_utxos);
+        let asks = channels
+            .iter()
+            .filter_map(|channel| estimator.channel_close_ask(channel))
+            .collect::<Vec<_>>();
+        self.update_requirement(progress, &asks)
+    }
+
+    /// Sets `progress.awaiting_anchor_funds` to the outstanding deposit
+    /// requirement if the recovery is stalled on fee-bump coin selection.
+    fn check_for_stall(
+        &mut self,
+        progress: &mut RecoveryProgress,
+    ) -> anyhow::Result<()> {
+        let mut underfunded_claims = self.underfunded_claims.lock().unwrap();
+        // A claim can resolve without a final successful coin selection,
+        // e.g. if an earlier bump confirms first, leaving a stale entry.
+        // Every pending claim backs an unresolved monitor, so once none
+        // remain, all entries are stale.
+        if progress.num_unresolved_monitors == 0 {
+            underfunded_claims.clear();
+        }
+        let asks = underfunded_claims.values().copied().collect::<Vec<_>>();
+        drop(underfunded_claims);
+        self.update_requirement(progress, &asks)
+    }
+
+    /// Aggregates per-claim asks into one deposit requirement and sets
+    /// `progress.awaiting_anchor_funds` to it, if a deposit is needed.
+    fn update_requirement(
+        &mut self,
+        progress: &mut RecoveryProgress,
+        asks: &[DepositAsk],
+    ) -> anyhow::Result<()> {
+        /// The wallet needs the sum of the claims' `total_sats`, minus what it
+        /// can already contribute. Each claim's `needed_sats` subtracts that
+        /// contribution too, so summing them would subtract it once per claim.
+        /// Instead, subtract the largest per-claim `total_sats - needed_sats`
+        /// from the summed totals.
+        fn aggregate_needed_sats(
+            estimates: impl Iterator<Item = DepositEstimate>,
+        ) -> u64 {
+            let (total_sats, credit_sats) =
+                estimates.fold((0, 0), |(total, credit), estimate| {
+                    let total = total + estimate.total_sats;
+                    let credit =
+                        credit.max(estimate.total_sats - estimate.needed_sats);
+                    (total, credit)
+                });
+            total_sats.saturating_sub(credit_sats)
+        }
+
+        let confirmed_balance = progress.confirmed_balance;
+
+        let needed_sats =
+            aggregate_needed_sats(asks.iter().map(|ask| ask.needed));
+        if needed_sats == 0 {
+            self.outstanding_requirement = None;
+            return Ok(());
+        }
+        let suggested_sats =
+            aggregate_needed_sats(asks.iter().map(|ask| ask.suggested));
+
+        // `needed_sats` climbs every block while stalled (see the NOTE on
+        // [`StallDetector`]), so renewing every poll would churn the
+        // published requirement. Instead, renew it only once `needed_sats`
+        // outgrows the last suggested deposit, i.e. the fee estimate rose, or
+        // when the confirmed balance changes while still short, e.g. after
+        // an insufficient deposit.
+        let renew = match &self.outstanding_requirement {
+            None => true,
+            Some(outstanding_requirement) =>
+                needed_sats
+                    > outstanding_requirement.suggested_deposit.sats_u64()
+                    || confirmed_balance
+                        != outstanding_requirement.confirmed_balance,
+        };
+        if renew {
+            let deposit_address = self.wallet.get_next_unused_address();
+            let needed_deposit = Amount::try_from_sats_u64(needed_sats)
+                .context("Bad needed_sats")?;
+            let suggested_deposit = Amount::try_from_sats_u64(suggested_sats)
+                .context("Bad suggested_sats")?;
+            warn!(
+                %deposit_address, %confirmed_balance, %needed_deposit,
+                %suggested_deposit,
+                "Force close needs confirmed on-chain funds for fee-bumping; \
+                 deposit some funds to proceed"
+            );
+            self.outstanding_requirement = Some(AnchorFundsNeeded {
+                confirmed_balance,
+                deposit_address,
+                needed_deposit,
+                suggested_deposit,
+            });
+        }
+        progress.awaiting_anchor_funds = self.outstanding_requirement.clone();
+        Ok(())
+    }
+}
+

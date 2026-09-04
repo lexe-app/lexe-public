@@ -9,7 +9,6 @@ use std::{future::Future, sync::Arc};
 
 use lexe_common::ln::channel::ChannelId;
 use lexe_ln::{
-    alias::BumpTransactionEventHandlerType,
     channel::ChannelEvent,
     esplora::FeeEstimates,
     event::{
@@ -27,7 +26,10 @@ use lightning::events::{Event, ReplayEvent};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
-use crate::{alias::ChannelManagerType, persister::RecoveryPersister};
+use crate::{
+    alias::{BumpTransactionEventHandlerType, ChannelManagerType},
+    persister::RecoveryPersister,
+};
 
 #[derive(Clone)]
 pub struct RecoveryEventHandler {

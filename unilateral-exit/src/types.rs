@@ -126,11 +126,36 @@ pub struct RecoveryReport {
     pub onchain_balance: Amount,
 }
 
+/// Force closing an anchor channel needs confirmed on-chain funds to fee-bump
+/// its commitment tx. If the BDK wallet can't provide them, the recovery
+/// waits with this deposit requirement, before closing or mid-close, until a
+/// sufficient deposit to `deposit_address` confirms.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AnchorFundsNeeded {
+    /// The BDK wallet's confirmed balance, which `needed_deposit` already
+    /// credits.
+    pub confirmed_balance: Amount,
+    pub deposit_address: bitcoin::Address,
+    /// The estimated minimum deposit, i.e. what all stalled fee-bumps
+    /// together need beyond `confirmed_balance`.
+    pub needed_deposit: Amount,
+    /// The deposit which keeps the fee-bumps funded as LDK escalates their
+    /// feerate, up to its cap of 5x the fee estimate. One deposit of this
+    /// size suffices unless the estimate itself rises.
+    pub suggested_deposit: Amount,
+}
+
 /// A snapshot of the recovery's remaining work, published to
 /// [`RecoveryArgs::progress_tx`] whenever a poll observes a change,
 /// e.g. to render a progress display.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RecoveryProgress {
+    /// The deposit requirement, set while the recovery is stalled awaiting
+    /// confirmed funds for fee-bumps (see [`AnchorFundsNeeded`]).
+    /// Renewed only when `needed_deposit` outgrows the last
+    /// `suggested_deposit`, or the confirmed balance changes while still
+    /// short, so a UI can re-prompt on every change.
+    pub awaiting_anchor_funds: Option<AnchorFundsNeeded>,
     /// The chain height as of this poll.
     pub best_height: u32,
     /// The total balance still held in channel monitors, i.e. channel funds

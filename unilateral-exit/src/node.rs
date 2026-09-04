@@ -10,7 +10,7 @@ use lexe_api::cli::LspInfo;
 use lexe_common::{ln::addr::LxSocketAddress, ppm::Ppm};
 use lexe_crypto::rng::SysRng;
 use lexe_ln::{
-    alias::{BumpTransactionEventHandlerType, EsploraSyncClientType},
+    alias::EsploraSyncClientType,
     background_processor,
     channel_monitor::ChannelMonitorPersister,
     esplora::LexeEsplora,
@@ -28,7 +28,7 @@ use lexe_tokio::{
     DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE,
     events_bus::EventsBus,
     notify,
-    notify_once::NotifyOnce,
+    notify_once::{NotifyOnce, NotifyOnceWithDrop},
     task::{self, LxTask},
 };
 use lightning::{
@@ -39,19 +39,19 @@ use lightning::{
         scoring::{ProbabilisticScorer, ProbabilisticScoringDecayParameters},
     },
     sign::NodeSigner,
-    util::wallet_utils,
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
 use crate::{
-    alias::OnionMessengerType,
+    alias::{BumpTransactionEventHandlerType, OnionMessengerType},
     backups,
+    coin_selector::{RecoveryCoinSelector, UnderfundedClaims},
     event_handler::{EventCtx, RecoveryEventHandler},
     peer_manager::RecoveryPeerManager,
     persister::RecoveryPersister,
-    recover::RecoveryCtx,
+    recover::{RecoveryCtx, StallDetector},
     types::{RecoveryArgs, RecoveryReport},
 };
 
@@ -76,6 +76,7 @@ pub struct SyncContext {
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
     ldk_sync_client: Arc<EsploraSyncClientType>,
     onchain_recv_tx: notify::Sender,
+    wallet_synced: NotifyOnceWithDrop,
 }
 
 /// Inputs to [`RecoveryNode::run`].
@@ -177,12 +178,21 @@ impl RecoveryNode {
             LexeKeysManager::new(&mut rng, &args.root_seed, wallet.clone())
                 .map(Arc::new)
                 .context("Failed to construct keys manager")?;
+        let underfunded_claims = UnderfundedClaims::default();
+        let wallet_synced = NotifyOnceWithDrop::new();
+        let coin_selector = RecoveryCoinSelector::new(
+            wallet.clone(),
+            logger.clone(),
+            fee_estimates.clone(),
+            wallet_synced.clone(),
+            underfunded_claims.clone(),
+        );
         // We delegate the fee-bumping itself to LDK's
         // `BumpTransactionEventHandler`, which builds, signs, and broadcasts
-        // the anchor child txs, funding them with confirmed wallet UTXOs.
+        // the anchor child txs; our coin selector only picks the UTXOs.
         let bump_transaction_handler = BumpTransactionEventHandlerType::new(
             tx_broadcaster.clone(),
-            wallet_utils::Wallet::new(Arc::new(wallet.clone()), logger.clone()),
+            coin_selector,
             keys_manager.clone(),
             logger.clone(),
         );
@@ -383,6 +393,12 @@ impl RecoveryNode {
         let (ldk_resync_tx, ldk_resync_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
 
+        let stall_detector = StallDetector::new(
+            fee_estimates.clone(),
+            underfunded_claims,
+            wallet.clone(),
+        );
+
         let ctx = RecoveryCtx {
             bdk_resync_tx,
             bgp_control_tx,
@@ -397,6 +413,7 @@ impl RecoveryNode {
             persister,
             progress_tx: args.progress_tx,
             shutdown,
+            stall_detector,
             sync_interval: args.sync_interval,
             wallet,
         };
@@ -405,6 +422,7 @@ impl RecoveryNode {
             ldk_resync_rx,
             ldk_sync_client,
             onchain_recv_tx,
+            wallet_synced,
         };
         let run_ctx = RunContext { eph_tasks_rx };
         Ok((Self { ctx, tasks }, sync_ctx, run_ctx))
@@ -435,8 +453,13 @@ impl RecoveryNode {
             FIRST_SYNC_TIMEOUT,
         ));
 
+        let first_bdk_sync = async {
+            let result = first_bdk_sync_rx.await;
+            sync_ctx.wallet_synced.send();
+            result
+        };
         let (try_first_bdk_sync, try_first_ldk_sync) =
-            tokio::try_join!(first_bdk_sync_rx, first_ldk_sync_rx)
+            tokio::try_join!(first_bdk_sync, first_ldk_sync_rx)
                 .context("Sync task died before first sync")?;
         try_first_bdk_sync.context("Initial BDK sync failed")?;
         try_first_ldk_sync.context("Initial LDK sync failed")?;
