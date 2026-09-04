@@ -6,7 +6,7 @@ use lexe_api::types::payments::{
 };
 use lexe_common::time::TimestampMs;
 use lexe_crypto::{aes::AesMasterKey, rng::Crng};
-use lexe_std::{const_assert, fmt::DisplayOption};
+use lexe_std::fmt::DisplayOption;
 use tracing::warn;
 
 use crate::payments::{
@@ -18,15 +18,10 @@ use crate::payments::{
 /// V1 format stores metadata inside the payment blob; there is no metadata.
 /// V2 format stores metadata separately; metadata is optional.
 const CURRENT_PAYMENTS_VERSION: i16 = 2;
-const_assert!(CURRENT_PAYMENTS_VERSION == 1 || CURRENT_PAYMENTS_VERSION == 2);
 
 // --- Public API --- //
 
 /// Encrypts a [`PaymentV2`] and optional [`PaymentMetadata`].
-///
-/// Returns the encrypted payment and optionally the encrypted metadata.
-/// V1 format stores metadata inside the payment blob and returns `None`.
-/// V2 format stores metadata separately and returns `Some` if provided.
 pub fn encrypt_pwm(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
@@ -36,24 +31,10 @@ pub fn encrypt_pwm(
     updated_at: TimestampMs,
 ) -> anyhow::Result<(DbPaymentV2, Option<DbPaymentMetadata>)> {
     match CURRENT_PAYMENTS_VERSION {
-        1 => {
-            let pwm = PaymentWithMetadata {
-                payment: payment.clone(),
-                metadata: metadata
-                    .cloned()
-                    .unwrap_or_else(|| PaymentMetadata::empty(payment.id())),
-            };
-            let payment_v1 = PaymentV1::try_from(pwm)
-                .context("Failed to convert payment to v1")?;
-            let db_payment = encrypt_payment_v1(
-                rng,
-                vfs_master_key,
-                &payment_v1,
-                created_at,
-                updated_at,
-            );
-            Ok((db_payment, None))
-        }
+        // v1 writes were removed: a v1 blob embeds (empty-substituted)
+        // metadata fields, which would shadow the payment's existing metadata
+        // row. Reads still support v1.
+        1 => panic!("v1 payment writes are no longer supported"),
         2 => {
             let db_payment = encrypt_payment_v2(
                 rng,
@@ -156,6 +137,8 @@ pub fn decrypt_metadata(
 // --- PaymentV1 / PaymentV2 --- //
 
 /// Encrypts a [`PaymentV1`] to a [`DbPaymentV2`].
+/// Production code no longer writes v1; kept to test the v1 read path.
+#[cfg(test)]
 fn encrypt_payment_v1(
     rng: &mut impl Crng,
     vfs_master_key: &AesMasterKey,
