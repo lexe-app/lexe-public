@@ -6,8 +6,8 @@ use lexe_api::types::{
     invoice::Invoice,
     offer::Offer,
     payments::{
-        ClientPaymentId, OfferId, PaymentHash, PaymentId, PaymentKind,
-        PaymentPreimage, PaymentRail, PaymentSecret,
+        ClientPaymentId, OfferId, PartnerFeeFields, PaymentHash, PaymentId,
+        PaymentKind, PaymentPreimage, PaymentRail, PaymentSecret,
     },
 };
 use lexe_common::{ByteArray, ln::amount::Amount, time::TimestampMs};
@@ -95,14 +95,27 @@ pub struct OutboundInvoicePaymentV2 {
     ///
     /// [`Route::get_total_amount`]: lightning::routing::router::Route::get_total_amount
     pub amount: Amount,
-    /// The routing fees for this payment. If the payment hasn't completed yet,
-    /// this value is only an estimation based on a [`Route`] computed prior to
-    /// the first send attempt, as the actual fees paid may vary somewhat due
-    /// to retries occurring on different paths. If the payment is
-    /// completed, then this field should reflect the actual fees paid.
+    /// The Lightning routing fees for this payment, excluding
+    /// [`Self::first_hop_fee`]. If the payment hasn't completed yet, this
+    /// value is only an estimation based on a [`Route`] computed prior to the
+    /// first send attempt, as the actual fees paid may vary somewhat due to
+    /// retries occurring on different paths. If the payment is completed, then
+    /// this field should reflect the actual fees paid.
     ///
     /// [`Route`]: lightning::routing::router::Route
     pub routing_fee: Amount,
+    /// The amount added to this payment's first hop as an extra fee taken by
+    /// our channel counterparty. Like [`Self::routing_fee`], this is only an
+    /// estimate until the payment completes: Routing assigns fees
+    /// proportionally across shards, so the exact msat amount may vary across
+    /// re-routes.
+    // compat: Added in node-v0.10.6.
+    #[serde(default = "zero_amount")]
+    pub first_hop_fee: Amount,
+    /// Optional partner fees.
+    // Added in node-v0.10.6
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partner_fee: Option<PartnerFeeFields>,
 
     /// The current status of the payment.
     pub status: OutboundInvoicePaymentStatus,
@@ -124,6 +137,11 @@ pub struct OutboundInvoicePaymentV2 {
     /// When this payment either `Completed` or `Failed`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<TimestampMs>,
+}
+
+/// For `serde(default = "zero_amount")`
+fn zero_amount() -> Amount {
+    Amount::ZERO
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -154,7 +172,9 @@ impl OutboundInvoicePaymentV2 {
     /// - `amount` is the total amount paid, excluding fees. May be greater than
     ///   the invoiced amount if the payer had to reach `htlc_minimum_msat`
     ///   limits.
-    /// - `routing_fee` is the total Lightning routing fees paid.
+    /// - `routing_fee` is the total Lightning routing fees paid, excluding
+    ///   `first_hop_fee`.
+    /// - `first_hop_fee` is the fee added to the first hop for the LSP.
     //
     // Event sources:
     // - `pay_invoice` API
@@ -163,6 +183,8 @@ impl OutboundInvoicePaymentV2 {
         kind: PaymentKind,
         amount: Amount,
         routing_fee: Amount,
+        first_hop_fee: Amount,
+        partner_fee: Option<PartnerFeeFields>,
         message: Option<BoundedString>,
         personal_note: Option<BoundedString>,
         client_pk: Option<ed25519::PublicKey>,
@@ -182,6 +204,8 @@ impl OutboundInvoicePaymentV2 {
             kind,
             amount,
             routing_fee,
+            first_hop_fee,
+            partner_fee,
             status: OutboundInvoicePaymentStatus::Pending,
             failure: None,
             created_at: None,
@@ -211,6 +235,12 @@ impl OutboundInvoicePaymentV2 {
         })
     }
 
+    /// The total fees paid or expected to be paid for this payment.
+    #[inline]
+    pub fn total_fees(&self) -> Amount {
+        self.routing_fee + self.first_hop_fee
+    }
+
     #[inline]
     pub fn id(&self) -> PaymentId {
         PaymentId::Lightning(self.hash)
@@ -235,6 +265,7 @@ impl OutboundInvoicePaymentV2 {
         preimage: PaymentPreimage,
         maybe_amount: Option<Amount>,
         fees_paid: Amount,
+        latest_first_hop_fee: Option<Amount>,
     ) -> anyhow::Result<Self> {
         use OutboundInvoicePaymentStatus::*;
 
@@ -243,11 +274,28 @@ impl OutboundInvoicePaymentV2 {
         let computed_hash = preimage.compute_hash();
         ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
 
-        // This can be different if we e.g. retry with a different path or need
-        // to increase the amount to meet `htlc_minimum_msat`.
+        // Outbound invoices always get an in-flight entry when first sent, so
+        // we usually expect `InFlightRetryState::latest_first_hop_fee` to be
+        // `Some`. However, in-flight state is memory-only, so it can be lost.
+        if latest_first_hop_fee.is_none() {
+            // Just warn; inaccuracy is bounded by number of shards,
+            // which is default <= 10, so <= 10 msat of inaccuracy.
+            warn!(
+                "In-flight state lost for sent outbound invoice \
+                 payment ({}); keeping the estimated fee. Routing fee \
+                 calculations will be affected.",
+                PaymentId::Lightning(hash)
+            );
+        }
+
+        // `est_amount` and `est_fee` can be different if we e.g.
+        // retry with a different path or need to increase the amount
+        // to meet `htlc_minimum_msat`.
         let est_amount = self.amount;
-        let est_fee = self.routing_fee;
         let amount = maybe_amount.unwrap_or(est_amount);
+        let est_fee = self.routing_fee + self.first_hop_fee;
+        let first_hop_fee = latest_first_hop_fee.unwrap_or(self.first_hop_fee);
+        let routing_fee = fees_paid.saturating_sub(first_hop_fee);
         if fees_paid != est_fee || amount != est_amount {
             info!(
                 %hash,
@@ -273,7 +321,8 @@ impl OutboundInvoicePaymentV2 {
         let mut clone = self.clone();
         clone.preimage = Some(preimage);
         clone.amount = amount;
-        clone.routing_fee = fees_paid;
+        clone.routing_fee = routing_fee;
+        clone.first_hop_fee = first_hop_fee;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -821,6 +870,7 @@ pub(crate) mod arbitrary_impl {
     use lexe_common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{Arbitrary, any, any_with},
+        option,
         strategy::{BoxedStrategy, Strategy},
     };
 
@@ -853,6 +903,8 @@ pub(crate) mod arbitrary_impl {
 
             let amount = any::<Amount>();
             let routing_fee = any::<Amount>();
+            let first_hop_fee = any::<Amount>();
+            let partner_fee = option::of(any::<PartnerFeeFields>());
             let failure = any::<LxOutboundPaymentFailure>();
             let maybe_created_at = any::<Option<TimestampMs>>();
             let created_at_fallback = any::<TimestampMs>();
@@ -864,6 +916,8 @@ pub(crate) mod arbitrary_impl {
                 kind,
                 amount,
                 routing_fee,
+                first_hop_fee,
+                partner_fee,
                 failure_val,
                 maybe_created_at,
                 created_at_fallback,
@@ -898,6 +952,8 @@ pub(crate) mod arbitrary_impl {
                     kind,
                     amount,
                     routing_fee,
+                    first_hop_fee,
+                    partner_fee,
                     status,
                     failure,
                     created_at,
@@ -912,6 +968,8 @@ pub(crate) mod arbitrary_impl {
                 kind,
                 amount,
                 routing_fee,
+                first_hop_fee,
+                partner_fee,
                 failure,
                 maybe_created_at,
                 created_at_fallback,

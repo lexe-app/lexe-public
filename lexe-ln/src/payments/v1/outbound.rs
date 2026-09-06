@@ -105,6 +105,8 @@ impl From<OutboundInvoicePaymentV1>
             kind: PaymentKind::Invoice,
             amount: v1.amount,
             routing_fee: v1.fees,
+            first_hop_fee: Amount::ZERO,
+            partner_fee: None,
             status: v1.status,
             failure: v1.failure,
             created_at: Some(v1.created_at),
@@ -146,7 +148,9 @@ impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
             preimage,
             kind: _,
             amount,
-            routing_fee: fees,
+            routing_fee,
+            first_hop_fee,
+            partner_fee: _,
             status,
             failure,
             created_at,
@@ -171,6 +175,9 @@ impl TryFrom<PaymentWithMetadata<OutboundInvoicePaymentV2>>
 
         let invoice = invoice.context("Missing invoice")?;
         let created_at = created_at.context("Missing created_at")?;
+
+        // V1 `fees` is the total, including any first-hop fee.
+        let fees = routing_fee + first_hop_fee;
 
         Ok(Self {
             invoice,

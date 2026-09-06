@@ -504,6 +504,24 @@ pub struct PayInvoiceRequest {
     //
     // Added in `node-v0.9.12`
     pub ldk_route: Option<LdkRouteContinuation>,
+    /// The partner's user_pk, if the partner is setting the fee for this
+    /// payment.
+    ///
+    /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
+    /// to take effect.
+    // Added in `node-v0.10.6`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partner_pk: Option<UserPk>,
+    /// The partner-chosen proportional fee to charge on this payment, paid on
+    /// top of the routing fees.
+    // Added in `node-v0.10.6`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partner_prop_fee: Option<Ppm>,
+    /// The partner-chosen base fee to charge on this payment, paid on top of
+    /// the routing fees.
+    // Added in `node-v0.10.6`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partner_base_fee: Option<Amount>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -524,6 +542,24 @@ pub struct PayInvoicePreflightRequest {
     // Added in `node-v0.9.11`
     #[serde(default = "default_invoice_kind")]
     pub kind: PaymentKind,
+    /// The partner's user_pk, if the partner is setting the fee for this
+    /// payment.
+    ///
+    /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
+    /// to take effect.
+    // Added in `node-v0.10.6`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partner_pk: Option<UserPk>,
+    /// The partner-chosen proportional fee to charge on this payment, paid on
+    /// top of the routing fees.
+    // Added in `node-v0.10.6`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partner_prop_fee: Option<Ppm>,
+    /// The partner-chosen base fee to charge on this payment, paid on top of
+    /// the routing fees.
+    // Added in `node-v0.10.6`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partner_base_fee: Option<Amount>,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -422,6 +422,10 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
             kind: PaymentKind::Invoice,
             // TODO(nicole): expose preflight endpoints
             ldk_route: None,
+            // TODO(nicole): expose partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         })
     }
 }

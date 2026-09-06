@@ -172,6 +172,17 @@ pub(crate) struct InFlightRetryState {
     pub invoice: Arc<Invoice>,
     /// The amount being sent (excluding fees).
     pub amount: Amount,
+    /// The proportional rate of the extra fee we pay our first hop.
+    pub first_hop_prop_fee: Ppm,
+    /// The base rate of the extra fee we pay our first hop.
+    pub first_hop_base_fee: Amount,
+    /// The extra fee our latest route actually pays our first hop. In MPP,
+    /// routing reassigns the fee proportionally across shards, where the
+    /// assigned amount is truncated. Re-routing may produce a different
+    /// number of shards or change how the fee is proportioned, leading to
+    /// variance due to truncation behavior. Thus, the first-hop fee is only
+    /// final once the payment is no longer pending.
+    pub latest_first_hop_fee: Amount,
 }
 
 /// The outcome of [`PaymentsManager::new_payment`]. Communicates whether the
@@ -187,6 +198,8 @@ struct RetryInfo {
     id: PaymentId,
     invoice: Arc<Invoice>,
     amount: Amount,
+    first_hop_prop_fee: Ppm,
+    first_hop_base_fee: Amount,
     failed_channel_scids: Vec<u64>,
 }
 
@@ -387,16 +400,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             payment_params,
         );
 
-        // TODO(nicole): wire partner fees
-        let first_hop_prop_fee = Ppm::ZERO;
-        let first_hop_base_fee = Amount::ZERO;
         let route_result = routing_context.find_route(
             &self.router,
             retry.amount,
-            first_hop_prop_fee,
-            first_hop_base_fee,
+            retry.first_hop_prop_fee,
+            retry.first_hop_base_fee,
         );
-        let RoutingResult { route, .. } = match route_result {
+        let RoutingResult {
+            route,
+            first_hop_fee,
+            ..
+        } = match route_result {
             Ok(r) => r,
             Err(_) => {
                 // No route found, give up immediately.
@@ -427,7 +441,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
 
         match send_result {
             Ok(()) => {
-                self.data.lock().await.increment_attempt(&retry.id);
+                self.data
+                    .lock()
+                    .await
+                    .increment_attempt(&retry.id, first_hop_fee);
                 info!("Retry send succeeded, waiting for events");
                 return Ok(());
             }
@@ -520,6 +537,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         max_attempts: u8,
         invoice: Arc<Invoice>,
         amount: Amount,
+        first_hop_prop_fee: Ppm,
+        first_hop_base_fee: Amount,
+        first_hop_fee: Amount,
     ) {
         let state = InFlightRetryState {
             max_attempts,
@@ -527,6 +547,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             failed_channel_scids: HashSet::new(),
             invoice,
             amount,
+            first_hop_prop_fee,
+            first_hop_base_fee,
+            latest_first_hop_fee: first_hop_fee,
         };
 
         debug!(%id, "Starting in-flight retry tracking");
@@ -939,6 +962,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             return Ok(());
         }
 
+        let latest_first_hop_fee = locked_data
+            .get_in_flight(&id)
+            .map(|state| state.latest_first_hop_fee);
+
         // Check
         let checked = locked_data
             .check_payment_sent(
@@ -947,6 +974,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                 preimage,
                 maybe_amount,
                 fees_paid,
+                latest_first_hop_fee,
                 maybe_bolt12_invoice,
             )
             .context("Error validating PaymentSent")?;
@@ -1572,6 +1600,8 @@ impl PaymentsData {
                 id: *id,
                 invoice: state.invoice.clone(),
                 amount: state.amount,
+                first_hop_prop_fee: state.first_hop_prop_fee,
+                first_hop_base_fee: state.first_hop_base_fee,
                 failed_channel_scids,
             })
         } else {
@@ -1579,10 +1609,12 @@ impl PaymentsData {
         }
     }
 
-    /// Increments the attempt count for an in-flight payment.
-    fn increment_attempt(&mut self, id: &PaymentId) {
+    /// Increments the attempt count for an in-flight payment, and records the
+    /// first-hop fee that the attempt's route pays.
+    fn increment_attempt(&mut self, id: &PaymentId, first_hop_fee: Amount) {
         if let Some(state) = self.get_in_flight_mut(id) {
             state.attempts_count = state.attempts_count.saturating_add(1);
+            state.latest_first_hop_fee = first_hop_fee;
         }
     }
 
@@ -1734,6 +1766,7 @@ impl PaymentsData {
         preimage: PaymentPreimage,
         maybe_amount: Option<Amount>,
         fees_paid: Amount,
+        latest_first_hop_fee: Option<Amount>,
         maybe_bolt12_invoice: Option<Arc<Bolt12Invoice>>,
     ) -> anyhow::Result<CheckedPayment> {
         let pending_pwm = self
@@ -1751,7 +1784,13 @@ impl PaymentsData {
         let checked = match &pending_pwm.payment {
             PaymentV2::OutboundInvoice(oip) => {
                 let checked_oip = oip
-                    .check_payment_sent(hash, preimage, maybe_amount, fees_paid)
+                    .check_payment_sent(
+                        hash,
+                        preimage,
+                        maybe_amount,
+                        fees_paid,
+                        latest_first_hop_fee,
+                    )
                     .context("Error checking outbound invoice payment")?;
                 let oipwm = PaymentWithMetadata {
                     payment: checked_oip,
@@ -1760,6 +1799,13 @@ impl PaymentsData {
                 CheckedPayment(oipwm.into_enum())
             }
             PaymentV2::OutboundOffer(oop) => {
+                // TODO(nicole): thread first_hop_fee for offers
+                if let Some(fee) = latest_first_hop_fee {
+                    error!(
+                        "Found in-flight state first_hop_fee of {fee} for a \
+                         sent outbound offer payment ({id})."
+                    );
+                }
                 let checked_oop = oop
                     .check_payment_sent(hash, preimage, maybe_amount, fees_paid)
                     .context("Error checking outbound offer payment")?;
@@ -2214,6 +2260,7 @@ mod test {
             let id = payment.id();
             data.force_insert_payment(payment);
 
+            let latest_first_hop_fee = Some(Amount::ZERO);
             let maybe_bolt12_invoice = None;
             let _ = data
                 .check_payment_sent(
@@ -2222,6 +2269,7 @@ mod test {
                     preimage,
                     Some(oip.amount),
                     oip.routing_fee,
+                    latest_first_hop_fee,
                     maybe_bolt12_invoice,
                 )
                 .unwrap();
@@ -2247,6 +2295,7 @@ mod test {
             data.force_insert_payment(payment);
 
             let hash = preimage.compute_hash();
+            let latest_first_hop_fee = None;
             let maybe_bolt12_invoice = None;
             let _ = data
                 .check_payment_sent(
@@ -2255,6 +2304,7 @@ mod test {
                     preimage,
                     Some(oop.amount),
                     fees,
+                    latest_first_hop_fee,
                     maybe_bolt12_invoice,
                 )
                 .unwrap();
@@ -2286,6 +2336,7 @@ mod test {
             let id = payment.id();
             let data = PaymentsData::from_vec(vec![payment]);
 
+            let latest_first_hop_fee = Some(Amount::ZERO);
             let maybe_bolt12_invoice = None;
 
             // NOTE: New payment duplicate check moved to manager/DB layer.
@@ -2298,6 +2349,7 @@ mod test {
                     preimage,
                     Some(oip.amount),
                     fees,
+                    latest_first_hop_fee,
                     maybe_bolt12_invoice,
                 )
                 .unwrap();
@@ -2365,6 +2417,9 @@ mod test {
                 failed_channel_scids: HashSet::new(),
                 invoice: Arc::new(invoice),
                 amount,
+                first_hop_prop_fee: Ppm::ZERO,
+                first_hop_base_fee: Amount::ZERO,
+                latest_first_hop_fee: Amount::ZERO,
             };
             data.start_in_flight(id, state);
 
@@ -2408,6 +2463,9 @@ mod test {
             failed_channel_scids: HashSet::new(),
             invoice: Arc::new(invoice),
             amount,
+            first_hop_prop_fee: Ppm::ZERO,
+            first_hop_base_fee: Amount::ZERO,
+            latest_first_hop_fee: Amount::ZERO,
         };
         data.start_in_flight(id, state);
 

@@ -167,6 +167,81 @@ pub enum CreateInvoiceCaller<'a> {
     Lsp,
 }
 
+/// Specifies whether it is the user node or the LSP calling the
+/// [`pay_invoice`] fn. Only the user node can charge a partner fee.
+pub enum PayInvoiceCaller<'a> {
+    UserNode {
+        /// Async closure to check whether a given [`UserPk`] exists.
+        user_exists_fn: &'a UserExistsFn,
+        partners: &'a PartnersInfo,
+        /// The payer, used to validate the partner fee fields.
+        user_pk: &'a UserPk,
+    },
+    Lsp,
+}
+
+impl PayInvoiceCaller<'_> {
+    /// Validate the request's partner fee params against `amount`, resolving
+    /// them into [`PartnerFeeFields`] if a partner fee was requested, and the
+    /// concrete first-hop fees to apply.
+    async fn validate_and_compute_first_hop_fees(
+        &self,
+        partner_pk: Option<&UserPk>,
+        partner_prop_fee: Option<Ppm>,
+        partner_base_fee: Option<Amount>,
+        amount: Amount,
+    ) -> anyhow::Result<(Option<PartnerFeeFields>, Ppm, Amount)> {
+        match self {
+            // LSP doesn't pay first-hop fees
+            Self::Lsp => {
+                ensure!(
+                    partner_pk.is_none()
+                        && partner_prop_fee.is_none()
+                        && partner_base_fee.is_none(),
+                    "Partner fees are unsupported for the LSP"
+                );
+                let pff = None;
+                let prop_fee = Ppm::ZERO;
+                let base_fee = Amount::ZERO;
+                Ok((pff, prop_fee, base_fee))
+            }
+            Self::UserNode {
+                user_exists_fn,
+                partners,
+                user_pk,
+            } => match partner_pk {
+                Some(partner_pk) => {
+                    let pff = validate::outbound_partner_fee(
+                        user_exists_fn,
+                        partners,
+                        amount,
+                        user_pk,
+                        partner_pk,
+                        partner_prop_fee,
+                        partner_base_fee,
+                    )
+                    .await?;
+                    let prop_fee = partner_prop_fee.unwrap_or(Ppm::ZERO);
+                    let base_fee = partner_base_fee.unwrap_or(Amount::ZERO);
+                    Ok((Some(pff), prop_fee, base_fee))
+                }
+                None => {
+                    ensure!(
+                        partner_prop_fee.is_none()
+                            && partner_base_fee.is_none(),
+                        "Must include a `partner_pk` in order to set \
+                            partner fees"
+                    );
+                    let pff = None;
+                    let prop_fee = Ppm::ZERO;
+                    let base_fee = Amount::ZERO;
+                    Ok((pff, prop_fee, base_fee))
+                }
+            },
+        }
+    }
+}
+
 #[instrument(skip_all, name = "(node-info)")]
 pub fn node_info<CM, PM, PS, RMH>(
     version: semver::Version,
@@ -866,6 +941,9 @@ pub struct PayInvoiceRequestInner {
     pub message: Option<BoundedString>,
     pub personal_note: Option<BoundedString>,
     pub kind: PaymentKind,
+    pub partner_pk: Option<UserPk>,
+    pub partner_prop_fee: Option<Ppm>,
+    pub partner_base_fee: Option<Amount>,
 }
 
 impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
@@ -877,6 +955,9 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
             personal_note,
             kind,
             ldk_route: _,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         } = req;
         Self {
             invoice,
@@ -884,6 +965,9 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
             message,
             personal_note,
             kind,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         }
     }
 }
@@ -891,6 +975,7 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
 #[instrument(skip_all, name = "(pay-invoice)")]
 pub async fn pay_invoice<CM, PS>(
     req: PayInvoiceRequestInner,
+    caller: PayInvoiceCaller<'_>,
     ldk_route: Option<LdkRouteValues>,
     router: &RouterType,
     channel_manager: &CM,
@@ -907,6 +992,7 @@ where
     // Preflight the invoice payment (verify and route).
     let preflighted = pay_invoice_preflight_inner(
         req,
+        caller,
         ldk_route,
         router,
         channel_manager,
@@ -918,7 +1004,13 @@ where
     )
     .await?;
 
-    let (oipwm, ldk_route) = match preflighted {
+    let (
+        oipwm,
+        ldk_route,
+        first_hop_fee,
+        first_hop_prop_fee,
+        first_hop_base_fee,
+    ) = match preflighted {
         PreflightedPayInvoice::Exists { oipwm } => {
             let created_at =
                 oipwm.payment.created_at.context("Missing created_at")?;
@@ -928,9 +1020,16 @@ where
             oipwm,
             ldk_route,
             lx_route: _,
-            // TODO(nicole): wire first hop fee
-            first_hop_fee: _,
-        } => (oipwm, ldk_route),
+            first_hop_fee,
+            first_hop_prop_fee,
+            first_hop_base_fee,
+        } => (
+            oipwm,
+            ldk_route,
+            first_hop_fee,
+            first_hop_prop_fee,
+            first_hop_base_fee,
+        ),
     };
     let hash = oipwm.payment.hash;
     let id = oipwm.payment.id();
@@ -989,6 +1088,9 @@ where
                     DEFAULT_MAX_RETRY_ATTEMPTS,
                     invoice,
                     amount,
+                    first_hop_prop_fee,
+                    first_hop_base_fee,
+                    first_hop_fee,
                 )
                 .await;
             info!(%hash, "Success: OIP initiated with Lexe-managed retries");
@@ -1052,6 +1154,7 @@ pub struct PayInvoicePreflightResponseInner {
 #[instrument(skip_all, name = "(pay-invoice-preflight)")]
 pub async fn pay_invoice_preflight<CM, PS>(
     req: PayInvoicePreflightRequest,
+    caller: PayInvoiceCaller<'_>,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -1071,10 +1174,14 @@ where
         // User note not relevant for pre-flight.
         personal_note: None,
         kind: req.kind,
+        partner_pk: req.partner_pk,
+        partner_prop_fee: req.partner_prop_fee,
+        partner_base_fee: req.partner_base_fee,
     };
     let ldk_route = None;
     let preflighted = pay_invoice_preflight_inner(
         req,
+        caller,
         ldk_route,
         router,
         channel_manager,
@@ -1095,9 +1202,10 @@ where
             ldk_route,
             lx_route,
             first_hop_fee,
+            ..
         } => Ok(PayInvoicePreflightResponseInner {
             amount: oipwm.payment.amount,
-            fees: oipwm.payment.routing_fee,
+            fees: oipwm.payment.total_fees(),
             route: lx_route,
             ldk_route,
             first_hop_fee,
@@ -1484,6 +1592,10 @@ enum PreflightedPayInvoice {
         lx_route: LxRoute,
         /// The fee added to the route's first hop.
         first_hop_fee: Amount,
+        /// The proportional rate used to derive `first_hop_fee`.
+        first_hop_prop_fee: Ppm,
+        /// The base rate used to derive `first_hop_fee`.
+        first_hop_base_fee: Amount,
     },
     /// This invoice payment attempt already exists (possibly paid).
     Exists {
@@ -1495,6 +1607,7 @@ enum PreflightedPayInvoice {
 // pay.
 async fn pay_invoice_preflight_inner<CM, PS>(
     req: PayInvoiceRequestInner,
+    caller: PayInvoiceCaller<'_>,
     ldk_route: Option<LdkRouteValues>,
     router: &RouterType,
     channel_manager: &CM,
@@ -1538,33 +1651,7 @@ where
     // Fail early if invoice is expired.
     ensure!(!invoice.is_expired(), "Invoice has expired");
 
-    // Reuse the caller's precomputed route if supplied.
-    if let Some(LdkRouteValues {
-        route: ldk_route,
-        first_hop_fee,
-    }) = ldk_route
-    {
-        let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
-        req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
-        let oipwm = OutboundInvoicePaymentV2::new(
-            invoice,
-            req.kind,
-            lx_route.amount(),
-            lx_route.fees(),
-            req.message,
-            req.personal_note,
-            client_pk,
-        )
-        .context("Failed to create payment")?;
-        return Ok(PreflightedPayInvoice::Ready {
-            oipwm,
-            ldk_route,
-            lx_route,
-            first_hop_fee,
-        });
-    }
-
-    // If `invoiced_amount` is set, `fallback_amount` shouldn't be set.
+    // If `invoice.amount()` is set, `fallback_amount` shouldn't be set.
     if invoice.amount().is_some() && req.fallback_amount.is_some() {
         return Err(anyhow!(
             "Only provide fallback amount for amountless invoices"
@@ -1576,6 +1663,49 @@ where
         .amount()
         .or(req.fallback_amount)
         .context("Missing fallback amount for amountless invoice")?;
+
+    let (partner_fee, first_hop_prop_fee, first_hop_base_fee) = caller
+        .validate_and_compute_first_hop_fees(
+            req.partner_pk.as_ref(),
+            req.partner_prop_fee,
+            req.partner_base_fee,
+            amount,
+        )
+        .await?;
+
+    // Reuse the caller's precomputed route if supplied.
+    if let Some(LdkRouteValues {
+        route: ldk_route,
+        first_hop_fee,
+    }) = ldk_route
+    {
+        let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
+        req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
+
+        // `lx_route.fees()` contains the `first_hop_fee`, so split that out
+        // to compute the routing fee
+        let routing_fee = lx_route.fees().saturating_sub(first_hop_fee);
+        let oipwm = OutboundInvoicePaymentV2::new(
+            invoice,
+            req.kind,
+            lx_route.amount(),
+            routing_fee,
+            first_hop_fee,
+            partner_fee,
+            req.message,
+            req.personal_note,
+            client_pk,
+        )
+        .context("Failed to create payment")?;
+        return Ok(PreflightedPayInvoice::Ready {
+            oipwm,
+            ldk_route,
+            lx_route,
+            first_hop_fee,
+            first_hop_prop_fee,
+            first_hop_base_fee,
+        });
+    }
 
     // Compute Lightning balances
     let channels = channel_manager.list_channels();
@@ -1598,10 +1728,6 @@ where
     // Construct payment routing context
     let routing_context =
         RoutingContext::from_payment_params(channel_manager, payment_params);
-
-    // TODO(nicole): wire partner fees
-    let first_hop_prop_fee = Ppm::ZERO;
-    let first_hop_base_fee = Amount::ZERO;
 
     // Check that the amount is OK wrt `max_sendable`.
     validate::outbound_lightning_amount(
@@ -1630,13 +1756,17 @@ where
     .await?;
 
     req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
+    // `lx_route.fees()` contains the `first_hop_fee`, so split that out
+    // to compute the routing fee
+    let routing_fee = lx_route.fees().saturating_sub(first_hop_fee);
     let amount = lx_route.amount();
-    let fees = lx_route.fees();
     let oipwm = OutboundInvoicePaymentV2::new(
         invoice,
         req.kind,
         amount,
-        fees,
+        routing_fee,
+        first_hop_fee,
+        partner_fee,
         req.message,
         req.personal_note,
         client_pk,
@@ -1648,6 +1778,8 @@ where
         ldk_route,
         lx_route,
         first_hop_fee,
+        first_hop_prop_fee,
+        first_hop_base_fee,
     })
 }
 
@@ -2149,6 +2281,36 @@ mod validate {
         .await
     }
 
+    /// Validate the partner fee params on an outbound payment, computing the
+    /// partner's revshare per the current [`RevshareSchedule`].
+    pub(super) async fn outbound_partner_fee(
+        user_exists_fn: &UserExistsFn,
+        partners: &PartnersInfo,
+        amount: Amount,
+        user_pk: &UserPk,
+        partner_pk: &UserPk,
+        partner_prop_fee: Option<Ppm>,
+        partner_base_fee: Option<Amount>,
+    ) -> anyhow::Result<PartnerFeeFields> {
+        ensure!(
+            partner_prop_fee.is_some() || partner_base_fee.is_some(),
+            "partner_prop_fee or partner_base_fee must be set"
+        );
+        let total_partner_fee =
+            total_partner_fee(partner_prop_fee, partner_base_fee, amount)?;
+
+        validate::partner_fee_and_resolve_revshare(
+            user_exists_fn,
+            partners,
+            total_partner_fee,
+            user_pk,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
+        )
+        .await
+    }
+
     /// Compute partner's total fee as a proportion of the payment:
     /// `prop_fee + base_fee / amount`.
     fn total_partner_fee(
@@ -2560,7 +2722,7 @@ mod test {
         let partners = PartnersInfo::current();
         let user_pk = UserPk::from_u64(123);
         let partner_pk = UserPk::from_u64(456);
-        let test =
+        let inbound =
             |amount, prop_fee, base_fee| -> anyhow::Result<PartnerFeeFields> {
                 futures::executor::block_on(validate::inbound_partner_fee(
                     &user_exists_fn,
@@ -2572,34 +2734,51 @@ mod test {
                     base_fee,
                 ))
             };
+        let outbound =
+            |amount, prop_fee, base_fee| -> anyhow::Result<PartnerFeeFields> {
+                futures::executor::block_on(validate::outbound_partner_fee(
+                    &user_exists_fn,
+                    &partners,
+                    amount,
+                    &user_pk,
+                    &partner_pk,
+                    prop_fee,
+                    base_fee,
+                ))
+            };
 
-        // ERR: partner_pk set but no fees set
-        test(Some(sat!(120_000)), None, None).unwrap_err();
-        test(None, None, None).unwrap_err();
+        // ERR: no fees set
+        inbound(Some(sat!(120_000)), None, None).unwrap_err();
+        inbound(None, None, None).unwrap_err();
+        outbound(sat!(120_000), None, None).unwrap_err();
 
         // ERR: base fee with amount=None
-        test(None, Some(ppm!(0.50%)), Some(sat!(50))).unwrap_err();
+        inbound(None, Some(ppm!(0.50%)), Some(sat!(50))).unwrap_err();
 
-        // ERR: base fee only
-        test(Some(sat!(120_000)), None, Some(sat!(10_000))).unwrap_err();
+        // Base fee only: fine for outbound, but not for inbound
+        inbound(Some(sat!(120_000)), None, Some(sat!(10_000))).unwrap_err();
+        outbound(sat!(120_000), None, Some(sat!(10_000)))
+            .expect("Base-only fee is valid for outbound");
 
         // ERR: total fee too small
-        test(Some(sat!(120_000)), Some(ppm!(0.49%)), None).unwrap_err();
-        test(Some(sat!(120_000)), Some(ppm!(0.25%)), Some(sat!(100)))
+        inbound(Some(sat!(120_000)), Some(ppm!(0.49%)), None).unwrap_err();
+        inbound(Some(sat!(120_000)), Some(ppm!(0.25%)), Some(sat!(100)))
             .unwrap_err();
-        test(None, Some(ppm!(0.01%)), None).unwrap_err();
-        test(None, Some(ppm!(0.49%)), None).unwrap_err();
+        inbound(None, Some(ppm!(0.01%)), None).unwrap_err();
+        inbound(None, Some(ppm!(0.49%)), None).unwrap_err();
+        outbound(sat!(120_000), Some(ppm!(0.49%)), None).unwrap_err();
 
         // ERR: total fee too large
-        test(Some(sat!(120_000)), Some(ppm!(50.0%)), None).unwrap_err();
-        test(None, Some(ppm!(50.0%)), None).unwrap_err();
-        test(None, Some(ppm!(99.0%)), None).unwrap_err();
-        test(Some(sat!(120_000)), Some(ppm!(1.0%)), Some(sat!(59_000)))
+        inbound(Some(sat!(120_000)), Some(ppm!(50.0%)), None).unwrap_err();
+        inbound(None, Some(ppm!(50.0%)), None).unwrap_err();
+        inbound(None, Some(ppm!(99.0%)), None).unwrap_err();
+        inbound(Some(sat!(120_000)), Some(ppm!(1.0%)), Some(sat!(59_000)))
             .unwrap_err();
+        outbound(sat!(120_000), Some(ppm!(50.0%)), None).unwrap_err();
 
-        // OK:
+        // OK: amountless invoice with a prop fee
         assert_eq!(
-            test(None, Some(ppm!(0.5%)), None).unwrap(),
+            inbound(None, Some(ppm!(0.5%)), None).unwrap(),
             PartnerFeeFields {
                 user_pk: partner_pk,
                 prop_fee: Some(ppm!(0.5%)),
@@ -2608,16 +2787,22 @@ mod test {
             }
         );
 
-        // OK:
+        // OK: prop + base fee, inbound and outbound alike
+        let expected = PartnerFeeFields {
+            user_pk: partner_pk,
+            prop_fee: Some(ppm!(0.5%)),
+            base_fee: Some(sat!(1_200)),
+            revshare: Some(ppm!(50.0%).to_decimal()),
+        };
         assert_eq!(
-            test(Some(sat!(120_000)), Some(ppm!(0.5%)), Some(sat!(1_200)))
+            inbound(Some(sat!(120_000)), Some(ppm!(0.5%)), Some(sat!(1_200)))
                 .unwrap(),
-            PartnerFeeFields {
-                user_pk: partner_pk,
-                prop_fee: Some(ppm!(0.5%)),
-                base_fee: Some(sat!(1_200)),
-                revshare: Some(ppm!(50.0%).to_decimal()),
-            }
+            expected
+        );
+        assert_eq!(
+            outbound(sat!(120_000), Some(ppm!(0.5%)), Some(sat!(1_200)))
+                .unwrap(),
+            expected
         );
     }
 }

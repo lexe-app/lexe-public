@@ -69,7 +69,8 @@ use lexe_common::{
 use lexe_crypto::rng::SysRng;
 use lexe_ln::{
     command::{
-        CounterpartyReserve, CreateInvoiceCaller, PayInvoiceRequestInner,
+        CounterpartyReserve, CreateInvoiceCaller, PayInvoiceCaller,
+        PayInvoiceRequestInner,
     },
     p2p,
 };
@@ -382,10 +383,9 @@ pub(super) async fn pay_invoice(
     let aad = LdkRouteAad {
         fallback_amount_msat: req.fallback_amount.map(|amount| amount.msat()),
         payment_hash: req.invoice.payment_hash(),
-        // TODO(nicole): wire partner fees
-        partner_pk: None,
-        partner_prop_fee: None,
-        partner_base_fee_msat: None,
+        partner_pk: req.partner_pk,
+        partner_prop_fee: req.partner_prop_fee,
+        partner_base_fee_msat: req.partner_base_fee.map(|fee| fee.msat()),
     };
     let ldk_route = req
         .ldk_route
@@ -396,8 +396,15 @@ pub(super) async fn pay_invoice(
         })
         .transpose()
         .map_err(NodeApiError::command)?;
+    let user_exists_fn = state.user_cache.user_exists_fn();
+    let caller = PayInvoiceCaller::UserNode {
+        user_exists_fn: &user_exists_fn,
+        partners: &state.partners,
+        user_pk: &state.user_pk,
+    };
     lexe_ln::command::pay_invoice(
         PayInvoiceRequestInner::from(req),
+        caller,
         ldk_route,
         &state.router,
         &state.channel_manager,
@@ -420,13 +427,19 @@ pub(super) async fn pay_invoice_preflight(
     let aad = LdkRouteAad {
         fallback_amount_msat: req.fallback_amount.map(|amount| amount.msat()),
         payment_hash: req.invoice.payment_hash(),
-        // TODO(nicole): wire partner fees
-        partner_pk: None,
-        partner_prop_fee: None,
-        partner_base_fee_msat: None,
+        partner_pk: req.partner_pk,
+        partner_prop_fee: req.partner_prop_fee,
+        partner_base_fee_msat: req.partner_base_fee.map(|fee| fee.msat()),
+    };
+    let user_exists_fn = state.user_cache.user_exists_fn();
+    let caller = PayInvoiceCaller::UserNode {
+        user_exists_fn: &user_exists_fn,
+        partners: &state.partners,
+        user_pk: &state.user_pk,
     };
     let preflight = lexe_ln::command::pay_invoice_preflight(
         req,
+        caller,
         &state.router,
         &state.channel_manager,
         &state.payments_manager,

@@ -1003,6 +1003,9 @@ impl LexeWallet {
                     // having `analyze` return a `state` field for the caller to
                     // pass back into `pay`.
                     ldk_route: None,
+                    partner_pk: None,
+                    partner_prop_fee: None,
+                    partner_base_fee: None,
                 };
                 let resp = self
                     .node_client
@@ -1362,6 +1365,10 @@ impl LexeWallet {
             personal_note,
             kind: PaymentKind::Invoice,
             ldk_route: None,
+            // TODO(nicole): expose partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let invoice_resp = self
             .node_client

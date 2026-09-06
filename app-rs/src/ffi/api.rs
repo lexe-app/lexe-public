@@ -522,6 +522,9 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
                 .transpose()?,
             kind: PaymentKindRs::from(value.kind),
             ldk_route: value.ldk_route.map(LdkRouteContinuation),
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         })
     }
 }
@@ -581,6 +584,9 @@ impl TryFrom<PayInvoicePreflightRequest> for PayInvoicePreflightRequestRs {
             invoice,
             fallback_amount,
             kind: PaymentKindRs::from(value.kind),
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         })
     }
 }

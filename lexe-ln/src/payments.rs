@@ -803,10 +803,7 @@ impl PaymentV2 {
                 skimmed_fee,
                 ..
             }) => skimmed_fee.unwrap_or(Amount::ZERO),
-            Self::OutboundInvoice(OutboundInvoicePaymentV2 {
-                routing_fee,
-                ..
-            }) => *routing_fee,
+            Self::OutboundInvoice(oip) => oip.total_fees(),
             Self::OutboundOffer(OutboundOfferPaymentV2 {
                 routing_fee, ..
             }) => *routing_fee,
@@ -851,7 +848,7 @@ impl PaymentV2 {
             Self::InboundInvoice(iip) => iip.partner_fee.clone(),
             Self::InboundOfferReusable(_) => None,
             Self::InboundSpontaneous(_) => None,
-            Self::OutboundInvoice(_) => None,
+            Self::OutboundInvoice(oip) => oip.partner_fee.clone(),
             Self::OutboundOffer(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }
