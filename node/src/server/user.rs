@@ -46,7 +46,7 @@ use lexe_api::{
     },
     types::{
         Empty,
-        continuation::LdkRouteContinuation,
+        continuation::{LdkRouteAad, LdkRouteContinuation},
         payments::{
             BasicPaymentV1, MaybeBasicPaymentV2, VecBasicPaymentV1,
             VecBasicPaymentV2,
@@ -379,15 +379,20 @@ pub(super) async fn pay_invoice(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoiceRequest>,
 ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
-    let payment_hash = req.invoice.payment_hash();
+    let aad = LdkRouteAad {
+        fallback_amount_msat: req.fallback_amount.map(|amount| amount.msat()),
+        payment_hash: req.invoice.payment_hash(),
+        // TODO(nicole): wire partner fees
+        partner_pk: None,
+        partner_prop_fee: None,
+        partner_base_fee_msat: None,
+    };
     let ldk_route = req
         .ldk_route
         .as_ref()
         .map(|continuation| {
-            continuation.as_route_and_validate(
-                &state.continuation_mac_key,
-                &payment_hash,
-            )
+            continuation
+                .as_route_and_validate(&state.continuation_mac_key, &aad)
         })
         .transpose()
         .map_err(NodeApiError::command)?;
@@ -412,7 +417,14 @@ pub(super) async fn pay_invoice_preflight(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayInvoicePreflightRequest>,
 ) -> Result<LxJson<PayInvoicePreflightResponse>, NodeApiError> {
-    let payment_hash = req.invoice.payment_hash();
+    let aad = LdkRouteAad {
+        fallback_amount_msat: req.fallback_amount.map(|amount| amount.msat()),
+        payment_hash: req.invoice.payment_hash(),
+        // TODO(nicole): wire partner fees
+        partner_pk: None,
+        partner_prop_fee: None,
+        partner_base_fee_msat: None,
+    };
     let preflight = lexe_ln::command::pay_invoice_preflight(
         req,
         &state.router,
@@ -432,7 +444,7 @@ pub(super) async fn pay_invoice_preflight(
         ldk_route: LdkRouteContinuation::from_route_and_sign(
             &preflight.ldk_route,
             &state.continuation_mac_key,
-            &payment_hash,
+            &aad,
         ),
     }))
 }
