@@ -23,6 +23,7 @@ use lexe_api::{
 use lexe_common::{
     api::test_event::TestEvent,
     ln::{amount::Amount, hashes::Txid},
+    ppm::Ppm,
     time::TimestampMs,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -48,7 +49,7 @@ use crate::{
         outbound::{self, ExpireError, LxOutboundPaymentFailure},
     },
     persister::PaymentsPersisterMethods,
-    route::{self, LexeRouter, RoutingContext},
+    route::{self, LexeRouter, RoutingContext, RoutingResult},
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexePaymentsPersister},
     tx_broadcaster::TxBroadcaster,
@@ -386,9 +387,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             payment_params,
         );
 
-        let route_result =
-            routing_context.find_route(&self.router, retry.amount);
-        let (route, _route_params) = match route_result {
+        // TODO(nicole): wire partner fees
+        let first_hop_prop_fee = Ppm::ZERO;
+        let first_hop_base_fee = Amount::ZERO;
+        let route_result = routing_context.find_route(
+            &self.router,
+            retry.amount,
+            first_hop_prop_fee,
+            first_hop_base_fee,
+        );
+        let RoutingResult { route, .. } = match route_result {
             Ok(r) => r,
             Err(_) => {
                 // No route found, give up immediately.

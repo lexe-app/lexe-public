@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, ensure};
+use anyhow::{Context, anyhow, ensure};
 use bitcoin::secp256k1;
 use cfg_if::cfg_if;
 use either::Either;
@@ -14,6 +14,7 @@ use lexe_common::{
     api::user::{NodePk, Scid},
     debug_panic_release_log, dec,
     ln::amount::Amount,
+    ppm::Ppm,
     rng::SysRngDerefHack,
     time::DisplayMs,
 };
@@ -26,9 +27,9 @@ use lightning::{
     ln::channel_state::ChannelDetails,
     routing::{
         router::{
-            DefaultRouter, InFlightHtlcs, MAX_PATH_LENGTH_ESTIMATE, Payee,
-            PaymentParameters, Route, RouteParameters, RouteParametersConfig,
-            Router,
+            DefaultRouter, InFlightHtlcs, MAX_PATH_LENGTH_ESTIMATE, Path,
+            Payee, PaymentParameters, Route, RouteParameters,
+            RouteParametersConfig, Router,
         },
         scoring::ProbabilisticScoringFeeParameters,
     },
@@ -578,6 +579,16 @@ pub struct RoutingContext {
     in_flight_htlcs: InFlightHtlcs,
 }
 
+/// The outcome of [`RoutingContext::find_route`].
+pub struct RoutingResult {
+    pub route: Route,
+    pub route_params: RouteParameters,
+    /// The fee added to the [`Route`]'s first hop. Each path's share rounds
+    /// down, so this can fall short of the theoretically owed fee by up to an
+    /// msat per path.
+    pub first_hop_fee: Amount,
+}
+
 impl RoutingContext {
     pub fn from_payment_params<CM, PS>(
         channel_manager: &CM,
@@ -600,22 +611,66 @@ impl RoutingContext {
         }
     }
 
+    /// Find a [`Route`] paying `amount` to the payee, adding a first-hop fee
+    /// (e.g. a sender fee) of `prop_fee * amount + base_fee` to our first
+    /// hop. The amount of first-hop fee actually included in the [`Route`] is
+    /// returned in the [`RoutingResult`].
+    ///
+    /// In MPP, the fee is divided proportional to the amount sent through each
+    /// first hop channel and truncated, so the total fee amount may vary by a
+    /// few msat.
     pub fn find_route(
         &self,
         router: &LexeRouter,
         amount: Amount,
-    ) -> anyhow::Result<(Route, RouteParameters)> {
+        first_hop_prop_fee: Ppm,
+        first_hop_base_fee: Amount,
+    ) -> anyhow::Result<RoutingResult> {
+        let amount_msat = amount.msat();
         let route_params = RouteParameters {
             payment_params: self.payment_params.clone(),
-            final_value_msat: amount.msat(),
+            final_value_msat: amount_msat,
             max_total_routing_fee_msat: MAX_TOTAL_ROUTING_FEE_MSAT,
         };
 
-        let usable_channels_refs =
-            self.usable_channels.iter().collect::<Vec<_>>();
+        let first_hop_fee_msat = (first_hop_prop_fee * amount)
+            .checked_add(first_hop_base_fee)
+            .context("First-hop fee overflowed")?
+            .msat();
+
+        // If charging a first-hop fee, reserve each first-hop channel's
+        // largest possible share of the fee out of its outbound HTLC limit, so
+        // that route-finding accounts for the fee-inflated first hop HTLCs.
+        //
+        // A path of value `v` will include a fee proportional to the total
+        // amount (`fee * v / amount`), so scaling each channel HTLC limit by
+        // `amount / (amount + fee)` guarantees the inflated HTLCs still fit.
+        let scaled_channels = (first_hop_fee_msat > 0).then(|| {
+            self.usable_channels
+                .iter()
+                .map(|channel| {
+                    let limit_msat =
+                        u128::from(channel.next_outbound_htlc_limit_msat);
+                    let amount_msat = u128::from(amount_msat);
+                    let first_hop_fee_msat = u128::from(first_hop_fee_msat);
+
+                    let scaled_limit_msat = limit_msat * amount_msat
+                        / (amount_msat + first_hop_fee_msat);
+
+                    let mut channel = channel.clone();
+                    channel.next_outbound_htlc_limit_msat =
+                        u64::try_from(scaled_limit_msat)
+                            .expect("scaled_limit <= limit");
+                    channel
+                })
+                .collect::<Vec<_>>()
+        });
+        let usable_channels =
+            scaled_channels.as_ref().unwrap_or(&self.usable_channels);
+        let usable_channels_refs = usable_channels.iter().collect::<Vec<_>>();
         let first_hops = Some(usable_channels_refs.as_slice());
 
-        let route = router
+        let mut route = router
             .find_route(
                 &self.payer_pk.0,
                 &route_params,
@@ -624,7 +679,16 @@ impl RoutingContext {
             )
             .map_err(anyhow::Error::msg)?;
 
-        Ok((route, route_params))
+        // Add the first hop fee to the routes and get the total first-hop fees
+        // actually assigned.
+        let first_hop_fee_msat =
+            helpers::assign_first_hop_fees(&mut route, first_hop_fee_msat)?;
+
+        Ok(RoutingResult {
+            route,
+            route_params,
+            first_hop_fee: Amount::from_msat(first_hop_fee_msat),
+        })
     }
 
     /// The "high-level", "we handle everything" LDK channel manager payment
@@ -757,6 +821,8 @@ pub async fn compute_max_flow_to_recipient(
     router: &LexeRouter,
     routing_context: &RoutingContext,
     starting_amount: Amount,
+    first_hop_prop_fee: Ppm,
+    first_hop_base_fee: Amount,
 ) -> anyhow::Result<Amount> {
     cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
@@ -799,7 +865,12 @@ pub async fn compute_max_flow_to_recipient(
 
         let mid = (low + high) / dec!(2);
 
-        let route_result = routing_context.find_route(router, mid);
+        let route_result = routing_context.find_route(
+            router,
+            mid,
+            first_hop_prop_fee,
+            first_hop_base_fee,
+        );
 
         match route_result {
             Ok(_) => {
@@ -835,4 +906,111 @@ pub async fn compute_max_flow_to_recipient(
     info!("Max flow result ({iter} iters) <{elapsed_ms}>: {max_flow_result:?}");
 
     max_flow_result
+}
+
+mod helpers {
+    use super::*;
+
+    /// Assigns a first hop fee to each path in `route`, proportional to the
+    /// path's value. Returns the total fee (in msat) actually assigned, which
+    /// can fall short of `target_first_hop_fee_msat` by up to an msat per path
+    /// due to per-shard scaled fee truncation.
+    ///
+    /// Assumes `route` was found with each first-hop channel's outbound HTLC
+    /// limit scaled down by `A/(A+F)`, where `A` is the payment amount
+    /// (exclusive of fees, i.e. `final_value_msat`) and `F` the target
+    /// first-hop fee; see [`RoutingContext::find_route`]. Otherwise the
+    /// assigned fees might exceed channel limits.
+    pub fn assign_first_hop_fees(
+        route: &mut Route,
+        target_first_hop_fee_msat: u64,
+    ) -> anyhow::Result<u64> {
+        if target_first_hop_fee_msat == 0 {
+            return Ok(0);
+        }
+
+        // Add up the total amount of msat in the Route
+        let mut total_routed_msat = 0;
+        for path in route.paths.iter() {
+            // Disallow fees when paying directly from User->LSP. Both parties
+            // would bookkeep the fee as part of the final amount, and we
+            // shouldn't have extra fees when paying the counterparty anyways.
+            ensure!(
+                path.hops.len() > 1 || path.blinded_tail.is_some(),
+                "Cannot charge a first-hop fee when paying our first hop \
+                 directly"
+            );
+
+            total_routed_msat += path_amount_msat(path);
+        }
+        ensure!(total_routed_msat > 0, "Route has no value");
+
+        // Notation:
+        //   A  = payment amount, exclusive of fees (`final_value_msat`).
+        //   F  = target first-hop fee.
+        //   Fi = path i's share of F.
+        //   R  = A plus routing fees: what our first-hop HTLCs carry, summed
+        //        over all paths, before the first-hop fee is added. R >= A.
+        //   Ri = path i's share of R, i.e. its first-hop HTLC value before
+        //        the first-hop fee.
+        //   Li = original outbound HTLC limit of path i's first-hop channel.
+        //   li = that channel's scaled-down limit used during routing:
+        //        li = floor[Li * A/(A+F)]
+        //
+        // We assign each path a fee proportional to its share of R:
+        //         Fi = floor[F * Ri/R]                                   (1)
+        //
+        // Claim: Ri + Fi <= Li, i.e. the fee-inflated HTLC still fits.
+        //
+        // Routing reserved this much capacity out of Li:
+        //         Li - li = Li - floor[Li * A/(A+F)]
+        //                 = ceil[Li - Li * A/(A+F)]
+        //                 = ceil[Li * F/(A+F)]                           (resv)
+        //
+        // Routing kept Ri under the scaled limit, so:
+        //         Ri <= li <= Li * A/(A+F)
+        //     ==> F * Ri/A <= Li * F/(A+F)                               (2)
+        //
+        // Thus Fi fits in the reserved capacity:
+        //         Fi <= F * Ri/R <= F * Ri/A <= Li * F/(A+F) <= Li - li
+        //           (1)        (R>=A)       (2)            (resv)
+        //
+        // And since Ri <= li, Ri + Fi <= Li.
+        //
+        // Multiple shards on one channel reduce to the same argument: their
+        // values sum to at most the one scaled limit, so by the same chain
+        // their fees sum to at most the one (resv).
+        //
+        // NOTE: In the blinded tail case, fees are payee-controlled, so the LSP
+        //       skims the fee itself. Thus, the LSP must calculate each shard's
+        //       fee exactly as computed here. Allocating greedily, by filling
+        //       each path's Li - li, would depend on our channel limits, which
+        //       the LSP can't see. So we instead allocate proportionally to the
+        //       shard amounts, which the LSP can see.
+        let mut total_fee_msat: u64 = 0;
+        for path in route.paths.iter_mut() {
+            let path_msat = path_amount_msat(path);
+            let fee_split = u64::try_from(
+                u128::from(target_first_hop_fee_msat) * u128::from(path_msat)
+                    / u128::from(total_routed_msat),
+            )
+            .expect("Path share <= target fee");
+
+            let first_hop =
+                path.hops.first_mut().context("Path has no hops")?;
+            first_hop.fee_msat += fee_split;
+            total_fee_msat += fee_split;
+        }
+        Ok(total_fee_msat)
+    }
+
+    /// The total amount (in msat) sent along `path`, fees included.
+    fn path_amount_msat(path: &Path) -> u64 {
+        let unblinded: u64 = path.hops.iter().map(|hop| hop.fee_msat).sum();
+        let blinded = path
+            .blinded_tail
+            .as_ref()
+            .map_or(0, |bt| bt.final_value_msat);
+        unblinded + blinded
+    }
 }

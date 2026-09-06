@@ -928,6 +928,8 @@ where
             oipwm,
             ldk_route,
             lx_route: _,
+            // TODO(nicole): wire first hop fee
+            first_hop_fee: _,
         } => (oipwm, ldk_route),
     };
     let hash = oipwm.payment.hash;
@@ -1044,6 +1046,7 @@ pub struct PayInvoicePreflightResponseInner {
     pub fees: Amount,
     pub route: LxRoute,
     pub ldk_route: Route,
+    pub first_hop_fee: Amount,
 }
 
 #[instrument(skip_all, name = "(pay-invoice-preflight)")]
@@ -1091,11 +1094,13 @@ where
             oipwm,
             ldk_route,
             lx_route,
+            first_hop_fee,
         } => Ok(PayInvoicePreflightResponseInner {
             amount: oipwm.payment.amount,
             fees: oipwm.payment.routing_fee,
             route: lx_route,
             ldk_route,
+            first_hop_fee,
         }),
     }
 }
@@ -1477,6 +1482,8 @@ enum PreflightedPayInvoice {
         ldk_route: Route,
         /// The Lexe route for client consumption.
         lx_route: LxRoute,
+        /// The fee added to the route's first hop.
+        first_hop_fee: Amount,
     },
     /// This invoice payment attempt already exists (possibly paid).
     Exists {
@@ -1549,6 +1556,8 @@ where
             oipwm,
             ldk_route,
             lx_route,
+            // TODO(nicole): wire first hop fee
+            first_hop_fee: Amount::ZERO,
         });
     }
 
@@ -1587,21 +1596,33 @@ where
     let routing_context =
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
+    // TODO(nicole): wire partner fees
+    let first_hop_prop_fee = Ppm::ZERO;
+    let first_hop_base_fee = Amount::ZERO;
+
     // Check that the amount is OK wrt `max_sendable`.
     validate::outbound_lightning_amount(
         router,
         &routing_context,
         amount,
+        first_hop_prop_fee,
+        first_hop_base_fee,
         &lightning_balance,
     )
     .await?;
 
     // Try to find a Route with the full intended amount.
-    let (ldk_route, lx_route) = validate::can_route_amount(
+    let validate::ValidatedRoute {
+        ldk_route,
+        lx_route,
+        first_hop_fee,
+    } = validate::can_route_amount(
         router,
         network_graph,
         &routing_context,
         amount,
+        first_hop_prop_fee,
+        first_hop_base_fee,
     )
     .await?;
 
@@ -1623,6 +1644,7 @@ where
         oipwm,
         ldk_route,
         lx_route,
+        first_hop_fee,
     })
 }
 
@@ -1745,11 +1767,17 @@ where
     let routing_context =
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
+    // TODO(nicole): wire partner fees
+    let first_hop_prop_fee = Ppm::ZERO;
+    let first_hop_base_fee = Amount::ZERO;
+
     // Check that the amount is OK wrt `max_sendable`.
     validate::outbound_lightning_amount(
         router,
         &routing_context,
         amount,
+        first_hop_prop_fee,
+        first_hop_base_fee,
         &lightning_balance,
     )
     .await?;
@@ -1757,11 +1785,13 @@ where
     // Try to find a Route with the full intended amount (well, to the first
     // publicly routable node so this will underestimate the route cost by
     // whatever the blinded hops charge).
-    let (_ldk_route, lx_route) = validate::can_route_amount(
+    let validate::ValidatedRoute { lx_route, .. } = validate::can_route_amount(
         router,
         network_graph,
         &routing_context,
         amount,
+        first_hop_prop_fee,
+        first_hop_base_fee,
     )
     .await?;
 
@@ -1919,6 +1949,8 @@ mod validate {
         router: &RouterType,
         routing_context: &RoutingContext,
         amount: Amount,
+        first_hop_prop_fee: Ppm,
+        first_hop_base_fee: Amount,
         lightning_balance: &LightningBalance,
     ) -> anyhow::Result<()> {
         let max_sendable = lightning_balance.max_sendable;
@@ -1962,6 +1994,8 @@ mod validate {
             router,
             routing_context,
             amount,
+            first_hop_prop_fee,
+            first_hop_base_fee,
         )
         .await;
 
@@ -1979,16 +2013,34 @@ mod validate {
         }
     }
 
+    /// A [`Route`] that we validated and are ready to pay.
+    pub(super) struct ValidatedRoute {
+        /// The raw LDK route, needed for `send_payment_with_route`.
+        pub ldk_route: Route,
+        /// The Lexe route wrapper with node alias annotations.
+        pub lx_route: LxRoute,
+        /// The fee added to the route's first hop.
+        pub first_hop_fee: Amount,
+    }
+
     // Ensure we can find a Route with the full intended amount.
     pub(super) async fn can_route_amount(
         router: &RouterType,
         network_graph: &NetworkGraphType,
         routing_context: &RoutingContext,
         amount: Amount,
-    ) -> anyhow::Result<(Route, LxRoute)> {
-        let route_result = routing_context.find_route(router, amount);
-        let route = match route_result {
-            Ok((route, _route_params)) => route,
+        first_hop_prop_fee: Ppm,
+        first_hop_base_fee: Amount,
+    ) -> anyhow::Result<ValidatedRoute> {
+        let route_result = routing_context.find_route(
+            router,
+            amount,
+            first_hop_prop_fee,
+            first_hop_base_fee,
+        );
+        let (route, first_hop_fee) = match route_result {
+            Ok(routing_result) =>
+                (routing_result.route, routing_result.first_hop_fee),
             // This error is just "Failed to find a path to the given
             // destination", which is not helpful, so we don't include it in our
             // error message.
@@ -2001,6 +2053,8 @@ mod validate {
                     router,
                     routing_context,
                     amount,
+                    first_hop_prop_fee,
+                    first_hop_base_fee,
                 )
                 .await;
 
@@ -2036,7 +2090,11 @@ mod validate {
         let lx_route = LxRoute::from_ldk(route.clone(), network_graph);
         // TODO(max): Don't log for privacy; instead, expose in app.
         info!("Preflighted route: {lx_route}");
-        Ok((route, lx_route))
+        Ok(ValidatedRoute {
+            ldk_route: route,
+            lx_route,
+            first_hop_fee,
+        })
     }
 
     /// Validate the partner fee params on an inbound payment, computing the
