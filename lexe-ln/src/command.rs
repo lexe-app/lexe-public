@@ -801,7 +801,7 @@ where
                 ..
             },
         ) => {
-            let partner_fee = validate::partner_fee(
+            let partner_fee = validate::inbound_partner_fee(
                 user_exists_fn,
                 partners,
                 *amount,
@@ -1588,7 +1588,7 @@ where
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
     // Check that the amount is OK wrt `max_sendable`.
-    validate::max_sendable_ok(
+    validate::outbound_lightning_amount(
         router,
         &routing_context,
         amount,
@@ -1746,7 +1746,7 @@ where
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
     // Check that the amount is OK wrt `max_sendable`.
-    validate::max_sendable_ok(
+    validate::outbound_lightning_amount(
         router,
         &routing_context,
         amount,
@@ -1876,7 +1876,7 @@ where
 
 /// Payments validation helpers.
 mod validate {
-    use lexe_api::types::partners::{PartnersInfo, RevshareSchedule};
+    use lexe_api::types::partners::RevshareSchedule;
     use lexe_common::ln::balance::LightningBalance;
 
     use super::*;
@@ -1907,14 +1907,15 @@ mod validate {
         Ok(())
     }
 
-    /// Check various bounds on the amount w.r.t. `max_sendable`:
+    /// Check various bounds on the amount so the user gets an error message
+    /// rather than a routing failure:
     /// - They don't have a zero usable Lightning balance, in which case they
     ///   can't send anything.
     /// - If their usable balance is non-zero but `max_sendable` is zero, return
     ///   an error telling them their funds are in the channel reserve.
     /// - If the amount they're trying to send is greater than `max_sendable`,
     ///   return an error telling them the maximum they can send.
-    pub(super) async fn max_sendable_ok(
+    pub(super) async fn outbound_lightning_amount(
         router: &RouterType,
         routing_context: &RoutingContext,
         amount: Amount,
@@ -2038,12 +2039,85 @@ mod validate {
         Ok((route, lx_route))
     }
 
-    /// Validate a partner's requested payment prop fee. Compute their revshare
-    /// of the payment fee according to the current [`RevshareSchedule`].
-    pub(super) async fn partner_fee(
+    /// Validate the partner fee params on an inbound payment, computing the
+    /// partner's revshare per the current [`RevshareSchedule`].
+    pub(super) async fn inbound_partner_fee(
         user_exists_fn: &UserExistsFn,
         partners: &PartnersInfo,
         amount: Option<Amount>,
+        user_pk: &UserPk,
+        partner_pk: &UserPk,
+        partner_prop_fee: Option<Ppm>,
+        partner_base_fee: Option<Amount>,
+    ) -> anyhow::Result<PartnerFeeFields> {
+        // When partner_prop_fee is unset on an amountless invoice, the LSP's
+        // HTLC intercept handler skims the default usernode fee, but the
+        // revshare accounting below would treat the fee as zero. So require
+        // partner_prop_fee to be set.
+        ensure!(partner_prop_fee.is_some(), "partner_prop_fee must be set");
+
+        let total_partner_fee = match amount {
+            Some(amount) =>
+                total_partner_fee(partner_prop_fee, partner_base_fee, amount)?,
+            None => {
+                // From a Lightning protocol standpoint, it's difficult for us
+                // to charge a per-payment base fee on inbound payments. Since a
+                // payment may be composed of multiple HTLCs and the LSP can't
+                // see the sender-intended amount nor determine what retry the
+                // HTLCs are associated with, it's non-trivial for the LSP to
+                // reliably correlate all successful HTLCs in a payment in order
+                // to charge a single base fee.
+                ensure!(
+                    partner_base_fee.is_none(),
+                    "To include a partner_base_fee you must specify an amount \
+                     to receive"
+                );
+                partner_prop_fee.unwrap_or(Ppm::ZERO)
+            }
+        };
+
+        validate::partner_fee_and_resolve_revshare(
+            user_exists_fn,
+            partners,
+            total_partner_fee,
+            user_pk,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
+        )
+        .await
+    }
+
+    /// Compute partner's total fee as a proportion of the payment:
+    /// `prop_fee + base_fee / amount`.
+    fn total_partner_fee(
+        partner_prop_fee: Option<Ppm>,
+        partner_base_fee: Option<Amount>,
+        amount: Amount,
+    ) -> anyhow::Result<Ppm> {
+        // Let's be defensive and avoid div-by-0
+        ensure!(
+            amount != Amount::ZERO,
+            "Cannot charge a partner fee on a zero amount payment"
+        );
+        let partner_prop_fee = partner_prop_fee.unwrap_or(Ppm::ZERO);
+        let partner_base_fee = partner_base_fee.unwrap_or(Amount::ZERO);
+        let total_partner_fee = partner_prop_fee.to_decimal()
+            + (partner_base_fee.sats() / amount.sats());
+        Ppm::try_from(total_partner_fee).map_err(|_| {
+            anyhow!(
+                "Total partner fee ({total_partner_fee}) exceeds >100% \
+                 of the payment value"
+            )
+        })
+    }
+
+    /// Check that the partner is a real Lexe user other than the payer, then
+    /// resolve their revshare for an already-computed total fee.
+    pub(super) async fn partner_fee_and_resolve_revshare(
+        user_exists_fn: &UserExistsFn,
+        partners: &PartnersInfo,
+        total_partner_fee: Ppm,
         user_pk: &UserPk,
         partner_pk: &UserPk,
         partner_prop_fee: Option<Ppm>,
@@ -2065,39 +2139,6 @@ mod validate {
             .context("Couldn't check if partner_pk exists")?;
         ensure!(user_exists, "No partner exists with the given partner_pk");
 
-        // Compute the total prop fee on the payment
-        // `total_partner_fee := partner_prop_fee + partner_base_fee / amount`
-        let total_partner_fee = match amount {
-            // Let's be defensive and avoid div-by-zero
-            Some(amount) if amount != Amount::ZERO => {
-                let partner_prop_fee = partner_prop_fee.unwrap_or(Ppm::ZERO);
-                let partner_base_fee = partner_base_fee.unwrap_or(Amount::ZERO);
-                let total_partner_fee = partner_prop_fee.to_decimal()
-                    + (partner_base_fee.sats() / amount.sats());
-                Ppm::try_from(total_partner_fee).map_err(|_| {
-                    anyhow!(
-                        "Total partner fee ({total_partner_fee}) exceeds >100% \
-                         of the payment value"
-                    )
-                })?
-            }
-            _ => {
-                // From a Lightning protocol standpoint, it's difficult to
-                // for us to charge a per-payment base fee on inbound payments.
-                // Since a payment may be composed of multiple HTLCs and the LSP
-                // can't see the sender-intended amount nor determine what retry
-                // the HTLCs are associated with, it's non-trivial for the LSP
-                // to reliably correlate all successful HTLCs in a payment in
-                // order to charge a single base fee.
-                ensure!(
-                    partner_base_fee.is_none(),
-                    "To include a partner_base_fee you must specify an amount \
-                     to receive"
-                );
-                partner_prop_fee.unwrap_or(Ppm::ZERO)
-            }
-        };
-
         // TODO(phlip9): support dynamic per-tier revshare. Partners would have
         // an associated by-partner/by-volume/by-promo/by-plan tier that
         // determines which revshare schedule they use.
@@ -2112,15 +2153,12 @@ mod validate {
                 "Failed to find revshare schedule with name: {schedule_name}"
             ))?;
 
-        let pff = PartnerFeeFields {
+        Ok(PartnerFeeFields {
             user_pk: *partner_pk,
             prop_fee: partner_prop_fee,
             base_fee: partner_base_fee,
             revshare: Some(revshare.to_decimal()),
-        };
-        pff.validate()?;
-
-        Ok(pff)
+        })
     }
 }
 
@@ -2463,7 +2501,7 @@ mod test {
         let partner_pk = UserPk::from_u64(456);
         let test =
             |amount, prop_fee, base_fee| -> anyhow::Result<PartnerFeeFields> {
-                futures::executor::block_on(validate::partner_fee(
+                futures::executor::block_on(validate::inbound_partner_fee(
                     &user_exists_fn,
                     &partners,
                     amount,

@@ -1760,15 +1760,6 @@ impl Display for PaymentId {
     }
 }
 
-// --- impl PartnerFeeFields --- //
-
-impl PartnerFeeFields {
-    pub fn validate(&self) -> anyhow::Result<()> {
-        ensure!(self.prop_fee.is_some(), "partner_prop_fee must be set");
-        Ok(())
-    }
-}
-
 #[cfg(any(test, feature = "test-utils"))]
 mod partner_fee_arbitrary_impl {
     use lexe_common::dec;
