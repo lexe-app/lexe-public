@@ -921,6 +921,8 @@ mod helpers {
     /// (exclusive of fees, i.e. `final_value_msat`) and `F` the target
     /// first-hop fee; see [`RoutingContext::find_route`]. Otherwise the
     /// assigned fees might exceed channel limits.
+    ///
+    /// Tested at: smoketest `user_pays_invoice_with_partner_fees`
     pub fn assign_first_hop_fees(
         route: &mut Route,
         target_first_hop_fee_msat: u64,
