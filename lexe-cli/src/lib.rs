@@ -1196,6 +1196,10 @@ impl PayInvoiceArgs {
             invoice,
             fallback_amount: self.fallback_amount_sats,
             personal_note: self.personal_note,
+            // TODO(nicole): propagate partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let payment = wallet
             .pay_invoice(req)
@@ -1547,6 +1551,10 @@ impl PayLnurlArgs {
             amount: self.amount_sats,
             message: self.message,
             personal_note: self.personal_note,
+            // TODO(nicole): propagate partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let payment =
             wallet.pay_lnurl(req).await.context("Failed to pay LNURL")?;

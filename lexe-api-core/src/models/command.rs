@@ -414,15 +414,16 @@ pub struct CreateInvoiceRequest {
     ///
     /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
     /// to take effect.
+    ///
+    /// The total fee (`partner_base_fee + partner_prop_fee * amount`) must be
+    /// at least 0.5% (5000 ppm) and less than 50% (500,000 ppm) of the payment
+    /// amount.
     // Added in `node-v0.9.6`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub partner_pk: Option<UserPk>,
 
     /// The partner-chosen proportional fee to charge on this payment.
     /// If `partner_pk` is set, this must be set to [`Some`].
-    ///
-    /// Minimum: 5000 ppm (`LSP_USERNODE_SKIM_FEE`)
-    /// Maximum: 500,000 ppm (50%)
     // Added in `node-v0.9.6`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub partner_prop_fee: Option<Ppm>,

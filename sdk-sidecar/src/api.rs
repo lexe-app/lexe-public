@@ -154,6 +154,10 @@ impl From<PayLnurlRequest> for SdkPayLnurlRequest {
             amount: req.amount,
             message: req.message,
             personal_note: req.personal_note,
+            // TODO(nicole): propagate partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         }
     }
 }

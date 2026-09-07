@@ -1071,6 +1071,10 @@ impl AsyncLexeWallet {
             invoice,
             fallback_amount,
             personal_note,
+            // TODO(nicole): propagate partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let resp = self.inner.pay_invoice(req).await?;
         Ok(Payment::from(resp))
@@ -1270,6 +1274,10 @@ impl AsyncLexeWallet {
             amount,
             message,
             personal_note,
+            // TODO(nicole): propagate partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let resp = self.inner.pay_lnurl(req).await?;
         Ok(Payment::from(resp))
@@ -2150,6 +2158,10 @@ impl BlockingLexeWallet {
             invoice,
             fallback_amount,
             personal_note,
+            // TODO(nicole): propagate partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let resp = self.inner.pay_invoice(req)?;
         Ok(Payment::from(resp))
@@ -2343,6 +2355,10 @@ impl BlockingLexeWallet {
             amount,
             message,
             personal_note,
+            // TODO(nicole): propagate partner fees
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
         };
         let resp = self.inner.pay_lnurl(req)?;
         Ok(Payment::from(resp))

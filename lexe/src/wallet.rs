@@ -1034,6 +1034,9 @@ impl LexeWallet {
                     amount,
                     message: message.map(BoundedString::into_inner),
                     personal_note: personal_note.map(BoundedString::into_inner),
+                    partner_pk: None,
+                    partner_prop_fee: None,
+                    partner_base_fee: None,
                 };
                 self.pay_lnurl(pay_req).await
             }
@@ -1365,10 +1368,9 @@ impl LexeWallet {
             personal_note,
             kind: PaymentKind::Invoice,
             ldk_route: None,
-            // TODO(nicole): expose partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk: req.partner_pk.map(|pk| pk.unstable()),
+            partner_prop_fee: req.partner_prop_fee,
+            partner_base_fee: req.partner_base_fee,
         };
         let invoice_resp = self
             .node_client
