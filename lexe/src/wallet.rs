@@ -1,6 +1,10 @@
-use std::{cmp::Ordering, collections::HashMap, path::PathBuf, time::Duration};
+use std::{
+    cmp::Ordering, collections::HashMap, path::PathBuf, sync::Mutex,
+    time::Duration,
+};
 
 use anyhow::{Context, anyhow, ensure};
+use bitcoin::address::NetworkUnchecked;
 use lexe_api::{
     def::{UserBackendApi, UserGatewayApi, UserNodeRunApi},
     models::command::{self, GetUpdatedPayments, PaymentIdStruct},
@@ -47,10 +51,10 @@ use crate::{
         command::{
             AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
             CashAppBuyRequest, CashAppBuyResponse, ChannelDetails,
-            ClaimableDetails, ClientInfo, ClientInfoResponse,
-            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, CreatePayerProofRequest,
+            CheckAddressResponse, ClaimableDetails, ClientInfo,
+            ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
+            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
+            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetExclusiveAddressResponse, GetHumanBitcoinAddressResponse,
             GetNextUnusedAddressResponse, GetPaymentByIdRequest,
@@ -95,8 +99,58 @@ enum WalletStore {
     /// A persisted local DB. Used by wallets created via `fresh`, `load`, or
     /// `load_or_fresh`.
     Db(Box<WalletDb<DiskFs>>),
-    /// An in-memory cache. Used by wallets created via `without_db`.
-    Cache(tokio::sync::RwLock<PaymentCache>),
+    /// In-memory caches. Used by wallets created via `without_db`.
+    Cache(Box<WalletCache>),
+}
+
+/// The in-memory stores of a wallet without local persistence.
+struct WalletCache {
+    payments: tokio::sync::RwLock<PaymentCache>,
+    /// Each checked address's `synced_block_height`, kept only for this
+    /// wallet's lifetime.
+    address_synced_block_heights: Mutex<HashMap<bitcoin::Address, u32>>,
+}
+
+impl WalletStore {
+    /// The `synced_block_height` from `address`'s last `check_address`.
+    fn address_synced_block_height(
+        &self,
+        address: &bitcoin::Address,
+    ) -> Option<u32> {
+        match self {
+            Self::Db(db) =>
+                db.address_synced_block_height(&address.to_string()),
+            Self::Cache(cache) => cache
+                .address_synced_block_heights
+                .lock()
+                .unwrap()
+                .get(address)
+                .copied(),
+        }
+    }
+
+    /// Record `address`'s `synced_block_height`, persisting it if this store
+    /// is persistent.
+    fn set_address_synced_block_height(
+        &self,
+        address: bitcoin::Address,
+        synced_block_height: u32,
+    ) -> anyhow::Result<()> {
+        match self {
+            Self::Db(db) => db.set_address_synced_block_height(
+                &address.to_string(),
+                synced_block_height,
+            ),
+            Self::Cache(cache) => {
+                cache
+                    .address_synced_block_heights
+                    .lock()
+                    .unwrap()
+                    .insert(address, synced_block_height);
+                Ok(())
+            }
+        }
+    }
 }
 
 // TODO(max): Consider what happens if someone provides *both* a client
@@ -274,9 +328,10 @@ impl LexeWallet {
 
         Ok(Self {
             user_config,
-            store: WalletStore::Cache(tokio::sync::RwLock::new(
-                PaymentCache::new(),
-            )),
+            store: WalletStore::Cache(Box::new(WalletCache {
+                payments: tokio::sync::RwLock::new(PaymentCache::new()),
+                address_synced_block_heights: Mutex::new(HashMap::new()),
+            })),
             payments_bus: OnceCell::new(),
             gateway_client,
             node_client,
@@ -1281,13 +1336,22 @@ impl LexeWallet {
     /// per-invoice receives, e.g. a payment gateway issuing one address per
     /// invoice, or a service giving each customer their own deposit address.
     ///
-    /// The node does not watch exclusive addresses for incoming payments.
+    /// The node does not watch exclusive addresses for incoming payments. Funds
+    /// sent to one are detected only when you call [`check_address`], so poll
+    /// it for as long as you still expect a payment.
     ///
     /// If you only want to avoid address reuse, or to receive a one-off
     /// payment, use [`get_next_unused_address`] instead. It rotates after each
     /// payment, and the node watches it indefinitely.
     ///
+    /// [`check_address`]: Self::check_address
     /// [`get_next_unused_address`]: Self::get_next_unused_address
+    //
+    // TODO(max): Once Lexe watches exclusive addresses after issue, replace the
+    // "does not watch" paragraph here and in the mirrored docs with: "Lexe
+    // watches an exclusive address for about 24 hours after it is issued.
+    // After that, funds sent to it are detected only when you call
+    // `check_address`, so poll it for as long as you still expect a payment."
     #[instrument(skip_all, name = "(get-exclusive-address)")]
     pub async fn get_exclusive_address(
         &self,
@@ -1298,6 +1362,88 @@ impl LexeWallet {
             .await
             .context("Failed to get exclusive address")?;
         Ok(GetExclusiveAddressResponse::from(resp))
+    }
+
+    /// Check an address from [`get_exclusive_address`] for new payments,
+    /// which the node does not otherwise detect. Records any payments to
+    /// the address, then returns those that are unconfirmed, or confirmed
+    /// at or after the previous check's block height (on the first check,
+    /// all of them). A payment can thus be returned more than once.
+    ///
+    /// [`get_exclusive_address`]: Self::get_exclusive_address
+    #[instrument(skip_all, name = "(check-address)")]
+    pub async fn check_address(
+        &self,
+        address: bitcoin::Address<NetworkUnchecked>,
+    ) -> anyhow::Result<CheckAddressResponse> {
+        let network = self.user_config.env_config.wallet_env.network;
+        let address = address
+            .require_network(network.to_bitcoin())
+            .with_context(|| format!("Address is not valid for {network}"))?;
+        let synced_block_height =
+            self.store.address_synced_block_height(&address);
+
+        let req = command::CheckAddressRequest {
+            address: address.as_unchecked().clone(),
+            synced_block_height,
+        };
+        let token = self
+            .node_client
+            .get_gateway_proxy_token()
+            .await
+            .context("Could not get bearer token")?;
+        let resp = self
+            .gateway_client
+            .check_address(&req, token)
+            .await
+            .context("Failed to check address")?;
+
+        // We don't trust the gateway with payment data, so it reports only
+        // ids and the payments themselves come from the node.
+        let payments = match &self.store {
+            WalletStore::Db(db) => {
+                // We know the node has just recorded these payments, so skip
+                // the latest_payment_update check and force a payment sync.
+                if !resp.payment_ids.is_empty() {
+                    db.force_sync_payments(
+                        &self.node_client,
+                        constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+                    )
+                    .await?;
+                }
+                let payments_db = db.payments_db();
+                resp.payment_ids
+                    .iter()
+                    .filter_map(|id| payments_db.get_payment_by_id(id))
+                    .map(Payment::from)
+                    .collect()
+            }
+            WalletStore::Cache(cache) => {
+                let mut payment_cache = cache.payments.write().await;
+                let mut payments = Vec::with_capacity(resp.payment_ids.len());
+                for id in resp.payment_ids {
+                    let payment = payment_cache
+                        .get_or_fetch(id, &self.node_client)
+                        .await?;
+                    payments.extend(payment.cloned());
+                }
+                payments
+            }
+        };
+
+        if let Err(e) = self
+            .store
+            .set_address_synced_block_height(address, resp.synced_block_height)
+        {
+            // The height is only a cache, so losing it just means a wider
+            // rescan on the next check.
+            warn!("Failed to persist synced block height: {e:#}");
+        }
+
+        Ok(CheckAddressResponse {
+            payments,
+            synced_block_height: resp.synced_block_height,
+        })
     }
 
     /// Send Bitcoin on-chain to the given address.
@@ -1909,6 +2055,7 @@ impl LexeWallet {
                     .map(Payment::from)
             }
             WalletStore::Cache(cache) => cache
+                .payments
                 .write()
                 .await
                 .get_or_fetch(req.id, &self.node_client)

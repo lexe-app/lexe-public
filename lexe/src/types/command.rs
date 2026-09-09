@@ -694,6 +694,17 @@ impl From<command::GetExclusiveAddressResponse>
     }
 }
 
+/// The response to a `check_address` request.
+#[derive(Serialize, Deserialize)]
+pub struct CheckAddressResponse {
+    /// The receives to the address since the previous check, or all of them
+    /// on the first check. Track their status with the payment APIs.
+    pub payments: Vec<Payment>,
+    /// The block height this address was checked up to. The next check of
+    /// this address reports payments at or after this height.
+    pub synced_block_height: u32,
+}
+
 /// A request to pay to an LNURL-pay endpoint.
 ///
 /// Use [`analyze`] to get the associated [`LnurlPayRequest`], which

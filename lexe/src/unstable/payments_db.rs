@@ -158,14 +158,6 @@ pub(crate) async fn sync_payments<F: Ffs>(
     auth: BearerAuthToken,
     batch_size: u16,
 ) -> anyhow::Result<PaymentSyncSummary> {
-    assert!(batch_size > 0);
-
-    let mut summary = PaymentSyncSummary {
-        latest_updated_index: db.latest_updated_index(),
-        num_new: 0,
-        num_updated: 0,
-    };
-
     // Ask the gateway if there are new updates, and short circuit if none.
     // This avoids needlessly waking up the node.
     // (If the gateway query is failing we expect the node query to fail too.)
@@ -174,13 +166,36 @@ pub(crate) async fn sync_payments<F: Ffs>(
         .await
         .context("Failed to fetch the latest payment update")?
         .latest_update;
-    if latest_update <= summary.latest_updated_index {
+    if latest_update <= db.latest_updated_index() {
         // Record the local-clock sync time, even if nothing changed, so we can
         // later tell users how fresh their local cache is.
         db.record_synced_at(TimestampMs::now())
             .context("Failed to persist sync timestamp")?;
-        return Ok(summary);
+        return Ok(PaymentSyncSummary {
+            latest_updated_index: db.latest_updated_index(),
+            num_new: 0,
+            num_updated: 0,
+        });
     }
+
+    force_sync_payments(db, node_client, batch_size).await
+}
+
+/// Like [`sync_payments`], but syncs from the node without first asking the
+/// gateway whether there are updates.
+#[allow(private_bounds)]
+pub(crate) async fn force_sync_payments<F: Ffs>(
+    db: &PaymentsDb<F>,
+    node_client: &impl UserNodeRunSyncApi,
+    batch_size: u16,
+) -> anyhow::Result<PaymentSyncSummary> {
+    assert!(batch_size > 0);
+
+    let mut summary = PaymentSyncSummary {
+        latest_updated_index: db.latest_updated_index(),
+        num_new: 0,
+        num_updated: 0,
+    };
 
     loop {
         // In every loop iteration, we fetch one batch of updated payments.

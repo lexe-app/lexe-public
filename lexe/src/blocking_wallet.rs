@@ -9,6 +9,8 @@
 
 use std::{path::PathBuf, time::Duration};
 
+use bitcoin::address::NetworkUnchecked;
+
 #[cfg(feature = "unstable")]
 use crate::unstable;
 use crate::{
@@ -17,10 +19,10 @@ use crate::{
         auth::{CredentialsRef, RootSeed, UserPk},
         command::{
             AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
-            CashAppBuyRequest, CashAppBuyResponse, ClientInfoResponse,
-            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, CreatePayerProofRequest,
+            CashAppBuyRequest, CashAppBuyResponse, CheckAddressResponse,
+            ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
+            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
+            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetExclusiveAddressResponse, GetHumanBitcoinAddressResponse,
             GetNextUnusedAddressResponse, GetPaymentByIdRequest,
@@ -416,17 +418,34 @@ impl BlockingLexeWallet {
     /// per-invoice receives, e.g. a payment gateway issuing one address per
     /// invoice, or a service giving each customer their own deposit address.
     ///
-    /// The node does not watch exclusive addresses for incoming payments.
+    /// The node does not watch exclusive addresses for incoming payments. Funds
+    /// sent to one are detected only when you call [`check_address`], so poll
+    /// it for as long as you still expect a payment.
     ///
     /// If you only want to avoid address reuse, or to receive a one-off
     /// payment, use [`get_next_unused_address`] instead. It rotates after each
     /// payment, and the node watches it indefinitely.
     ///
+    /// [`check_address`]: Self::check_address
     /// [`get_next_unused_address`]: Self::get_next_unused_address
     pub fn get_exclusive_address(
         &self,
     ) -> anyhow::Result<GetExclusiveAddressResponse> {
         block_on(self.inner.get_exclusive_address())
+    }
+
+    /// Check an address from [`get_exclusive_address`] for new payments,
+    /// which the node does not otherwise detect. Records any payments to
+    /// the address, then returns those that are unconfirmed, or confirmed
+    /// at or after the previous check's block height (on the first check,
+    /// all of them). A payment can thus be returned more than once.
+    ///
+    /// [`get_exclusive_address`]: Self::get_exclusive_address
+    pub fn check_address(
+        &self,
+        address: bitcoin::Address<NetworkUnchecked>,
+    ) -> anyhow::Result<CheckAddressResponse> {
+        block_on(self.inner.check_address(address))
     }
 
     /// Send Bitcoin on-chain to the given address.

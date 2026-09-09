@@ -1,12 +1,14 @@
 //! Lexe wallet database.
 
+use std::io;
+
 use anyhow::Context;
 use lexe_common::api::auth::BearerAuthToken;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use tracing::{debug, warn};
 
 use super::{
-    ffs::{DiskFs, fsext},
+    ffs::{DiskFs, Ffs, fsext},
     payments_db::{self, PaymentsDb},
 };
 use crate::{config::WalletUserDbConfig, types::command::PaymentSyncSummary};
@@ -20,6 +22,9 @@ pub struct WalletDb<F> {
 
     payments_db: PaymentsDb<F>,
     payment_sync_lock: tokio::sync::Mutex<()>,
+
+    /// `check_address` synced block heights, one file per address.
+    check_address_ffs: F,
 }
 
 // TODO(max): Rework Ffs so this impl can be generic across all Ffs impls.
@@ -36,6 +41,9 @@ impl WalletDb<DiskFs> {
         let payments_ffs =
             DiskFs::create_clean_dir_all(user_db_config.payments_db_dir())
                 .context("Could not create payments ffs")?;
+        let check_address_ffs =
+            DiskFs::create_clean_dir_all(user_db_config.check_address_db_dir())
+                .context("Could not create check_address ffs")?;
 
         // Delete the old payments_db dir just in case it exists.
         for old_dir in user_db_config.old_payment_db_dirs() {
@@ -50,6 +58,7 @@ impl WalletDb<DiskFs> {
             user_db_config,
             payments_db: PaymentsDb::empty(payments_ffs),
             payment_sync_lock: tokio::sync::Mutex::new(()),
+            check_address_ffs,
         })
     }
 
@@ -64,6 +73,9 @@ impl WalletDb<DiskFs> {
         let payments_ffs =
             DiskFs::create_dir_all(user_db_config.payments_db_dir())
                 .context("Could not create payments ffs")?;
+        let check_address_ffs =
+            DiskFs::create_dir_all(user_db_config.check_address_db_dir())
+                .context("Could not create check_address ffs")?;
 
         let payments_db = PaymentsDb::read(payments_ffs)
             .context("Failed to load payments db")?;
@@ -105,6 +117,7 @@ impl WalletDb<DiskFs> {
             user_db_config,
             payments_db,
             payment_sync_lock: tokio::sync::Mutex::new(()),
+            check_address_ffs,
         }))
     }
 
@@ -135,6 +148,49 @@ impl WalletDb<DiskFs> {
         &self.payments_db
     }
 
+    /// The `synced_block_height` from `address`'s last `check_address`, or
+    /// `None` if none is recorded.
+    pub(crate) fn address_synced_block_height(
+        &self,
+        address: &str,
+    ) -> Option<u32> {
+        let buf = match self.check_address_ffs.read(address) {
+            Ok(buf) => buf,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return None,
+            Err(e) => {
+                warn!(
+                    %address,
+                    "Failed to read synced block height; \
+                     checking from scratch: {e:#}"
+                );
+                return None;
+            }
+        };
+        let maybe_height = String::from_utf8(buf)
+            .ok()
+            .and_then(|height| height.parse::<u32>().ok());
+        if maybe_height.is_none() {
+            warn!(
+                %address,
+                "Corrupt synced block height; checking from scratch"
+            );
+        }
+        maybe_height
+    }
+
+    /// Persist `address`'s `synced_block_height`.
+    pub(crate) fn set_address_synced_block_height(
+        &self,
+        address: &str,
+        synced_block_height: u32,
+    ) -> anyhow::Result<()> {
+        // A racing write can only leave an older, lower height, which costs
+        // at most a redundant check, so no lock is needed.
+        self.check_address_ffs
+            .write(address, synced_block_height.to_string().as_bytes())
+            .context("Failed to write synced block height")
+    }
+
     /// Sync payments from the node to the local payments database.
     ///
     /// Only wakes the node if there are actually updates to fetch.
@@ -157,5 +213,78 @@ impl WalletDb<DiskFs> {
             batch_size,
         )
         .await
+    }
+
+    /// Like [`sync_payments`](Self::sync_payments), but syncs from the node
+    /// without first asking the gateway whether there are updates.
+    pub async fn force_sync_payments(
+        &self,
+        node_client: &NodeClient,
+        batch_size: u16,
+    ) -> anyhow::Result<PaymentSyncSummary> {
+        let _lock = self.payment_sync_lock.lock().await;
+        payments_db::force_sync_payments(
+            &self.payments_db,
+            node_client,
+            batch_size,
+        )
+        .await
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use lexe_common::{ByteArray, env::DeployEnv, ln::network::Network};
+
+    use super::*;
+    use crate::{
+        config::{WalletEnv, WalletEnvDbConfig},
+        types::auth::UserPk,
+    };
+
+    fn user_db_config(lexe_data_dir: &std::path::Path) -> WalletUserDbConfig {
+        let wallet_env = WalletEnv {
+            deploy_env: DeployEnv::Dev,
+            network: Network::Regtest,
+            use_sgx: false,
+        };
+        let env_db_config =
+            WalletEnvDbConfig::new(wallet_env, lexe_data_dir.to_owned());
+        WalletUserDbConfig::new(env_db_config, UserPk::from_array([42; 32]))
+    }
+
+    /// Each address's synced block height round-trips through its own file.
+    #[test]
+    fn address_synced_block_height_roundtrip() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config = user_db_config(tempdir.path());
+        let address1 = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+        let address2 =
+            "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3";
+
+        let db = WalletDb::fresh(config.clone()).unwrap();
+        assert_eq!(db.address_synced_block_height(address1), None);
+        db.set_address_synced_block_height(address1, 800_000)
+            .unwrap();
+        assert_eq!(db.address_synced_block_height(address1), Some(800_000));
+        assert_eq!(db.address_synced_block_height(address2), None);
+
+        let db = WalletDb::load(config).unwrap().unwrap();
+        assert_eq!(db.address_synced_block_height(address1), Some(800_000));
+        assert_eq!(db.address_synced_block_height(address2), None);
+    }
+
+    /// A corrupt height file reads as no height.
+    #[test]
+    fn address_synced_block_height_corrupt_file() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config = user_db_config(tempdir.path());
+        let address = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+
+        let db = WalletDb::fresh(config).unwrap();
+        db.check_address_ffs
+            .write(address, b"not a height")
+            .unwrap();
+        assert_eq!(db.address_synced_block_height(address), None);
     }
 }

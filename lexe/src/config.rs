@@ -338,6 +338,15 @@ impl WalletUserDbConfig {
         self.user_db_dir.join("payments_db")
     }
 
+    /// `check_address` address cursors.
+    ///
+    /// `<lexe_data_dir>/<deploy_env>-<network>-<use_sgx>/<user_pk>/
+    /// check_address_db`
+    // Unstable
+    pub(crate) fn check_address_db_dir(&self) -> PathBuf {
+        self.user_db_dir.join("check_address_db")
+    }
+
     // --- Old dirs --- //
 
     /// Old payment database directories that may need cleanup after migration.
