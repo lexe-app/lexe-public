@@ -23,17 +23,17 @@ use lexe::{
             CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
             CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
-            GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
-            GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
-            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-            ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
-            NodeInfo, OpenChannelRequest, OpenChannelResponse,
-            PayInvoiceRequest, PayLnurlRequest as SdkPayLnurlRequest,
-            PayOfferRequest, PayOnchainPreflightRequest,
-            PayOnchainPreflightResponse, PayOnchainRequest,
-            PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
-            PaymentSyncSummary, RevokeClientRequest,
-            UpdateClientRequest as SdkUpdateClientRequest,
+            GetExclusiveAddressResponse, GetHumanBitcoinAddressResponse,
+            GetNextUnusedAddressResponse, GetPaymentByIdRequest,
+            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
+            GetUpdatedPaymentsResponse, ListChannelsResponse,
+            ListClientsResponse, ListPaymentsResponse, NodeInfo,
+            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+            PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+            PayOnchainRequest, PayRequest as SdkPayRequest,
+            PayableDetails as SdkPayableDetails, PaymentSyncSummary,
+            RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
             WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
             WaitForNextPaymentResponse,
@@ -105,6 +105,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route(
             "/v2/node/get_next_unused_address",
             post(node::get_next_unused_address),
+        )
+        .route(
+            "/v2/node/get_exclusive_address",
+            post(node::get_exclusive_address),
         )
         .route("/v2/node/pay_onchain", post(node::pay_onchain))
         .route(
@@ -504,6 +508,19 @@ mod node {
     ) -> Result<LxJson<GetNextUnusedAddressResponse>, SdkApiError> {
         let resp = wallet
             .get_next_unused_address()
+            .await
+            .map_err(SdkApiError::command)?;
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(get-exclusive-address)")]
+    pub(crate) async fn get_exclusive_address(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<GetExclusiveAddressResponse>, SdkApiError> {
+        let resp = wallet
+            .get_exclusive_address()
             .await
             .map_err(SdkApiError::command)?;
 

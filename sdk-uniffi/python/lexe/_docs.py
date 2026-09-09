@@ -926,6 +926,30 @@ Example::
     print(f"Deposit address: {resp.address}")
 """)
 
+_set_method_doc(LexeWallet, "get_exclusive_address", """\
+Get an exclusive Bitcoin address which can be used to receive on-chain funds.
+
+Every call returns a new address which has never been issued before, to this or
+any other client of this wallet, and never will be again. A payment to it can
+thus be attributed to exactly one caller, which suits per-invoice receives, e.g.
+a payment gateway issuing one address per invoice, or a service giving each
+customer their own deposit address.
+
+The node does not watch exclusive addresses for incoming payments.
+
+If you only want to avoid address reuse, or to receive a one-off payment, use
+``get_next_unused_address`` instead. It rotates after each payment, and the node
+watches it indefinitely.
+
+Returns:
+    A :class:`GetExclusiveAddressResponse` with the Bitcoin address.
+
+Example::
+
+    resp = wallet.get_exclusive_address()
+    print(f"Invoice address: {resp.address}")
+""")
+
 _set_method_doc(LexeWallet, "pay_onchain", """\
 Send Bitcoin on-chain to the given address.
 
@@ -1982,6 +2006,30 @@ Example::
 
     resp = await wallet.get_next_unused_address()
     print(f"Deposit address: {resp.address}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "get_exclusive_address", """\
+Get an exclusive Bitcoin address which can be used to receive on-chain funds.
+
+Every call returns a new address which has never been issued before, to this or
+any other client of this wallet, and never will be again. A payment to it can
+thus be attributed to exactly one caller, which suits per-invoice receives, e.g.
+a payment gateway issuing one address per invoice, or a service giving each
+customer their own deposit address.
+
+The node does not watch exclusive addresses for incoming payments.
+
+If you only want to avoid address reuse, or to receive a one-off payment, use
+``get_next_unused_address`` instead. It rotates after each payment, and the node
+watches it indefinitely.
+
+Returns:
+    A :class:`GetExclusiveAddressResponse` with the Bitcoin address.
+
+Example::
+
+    resp = await wallet.get_exclusive_address()
+    print(f"Invoice address: {resp.address}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "pay_onchain", """\
@@ -3059,6 +3107,13 @@ Attributes:
         the wallet cannot afford it.
     normal_fees_sats: The fee at ``"normal"`` priority, in satoshis.
     background_fees_sats: The fee at ``"background"`` priority, in satoshis.
+"""
+
+lexe.GetExclusiveAddressResponse.__doc__ = """\
+Response from getting an exclusive on-chain Bitcoin address.
+
+Attributes:
+    address: A Bitcoin address which has never been issued before.
 """
 
 lexe.CashAppBuyResponse.__doc__ = """\

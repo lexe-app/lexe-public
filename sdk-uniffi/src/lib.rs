@@ -61,6 +61,7 @@ use lexe::{
             CreatePayerProofResponse as SdkCreatePayerProofResponse,
             CredentialKind as SdkCredentialKind,
             GetClientInfoResponse as SdkGetClientInfoResponse,
+            GetExclusiveAddressResponse as SdkGetExclusiveAddressResponse,
             GetHumanBitcoinAddressResponse as SdkGetHumanBitcoinAddressResponse,
             GetNextUnusedAddressResponse as SdkGetNextUnusedAddressResponse,
             GetPaymentByIdRequest as SdkGetPaymentByIdRequest,
@@ -1233,6 +1234,27 @@ impl AsyncLexeWallet {
     ) -> Result<GetNextUnusedAddressResponse, FfiError> {
         let resp = self.inner.get_next_unused_address().await?;
         Ok(GetNextUnusedAddressResponse::from(resp))
+    }
+
+    /// Get an exclusive Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Every call returns a new address which has never been issued before, to
+    /// this or any other client of this wallet, and never will be again. A
+    /// payment to it can thus be attributed to exactly one caller, which suits
+    /// per-invoice receives, e.g. a payment gateway issuing one address per
+    /// invoice, or a service giving each customer their own deposit address.
+    ///
+    /// The node does not watch exclusive addresses for incoming payments.
+    ///
+    /// If you only want to avoid address reuse, or to receive a one-off
+    /// payment, use `get_next_unused_address` instead. It rotates after each
+    /// payment, and the node watches it indefinitely.
+    pub async fn get_exclusive_address(
+        &self,
+    ) -> Result<GetExclusiveAddressResponse, FfiError> {
+        let resp = self.inner.get_exclusive_address().await?;
+        Ok(GetExclusiveAddressResponse::from(resp))
     }
 
     /// Send Bitcoin on-chain to the given address.
@@ -2418,6 +2440,27 @@ impl BlockingLexeWallet {
     ) -> Result<GetNextUnusedAddressResponse, FfiError> {
         let resp = self.inner.get_next_unused_address()?;
         Ok(GetNextUnusedAddressResponse::from(resp))
+    }
+
+    /// Get an exclusive Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Every call returns a new address which has never been issued before, to
+    /// this or any other client of this wallet, and never will be again. A
+    /// payment to it can thus be attributed to exactly one caller, which suits
+    /// per-invoice receives, e.g. a payment gateway issuing one address per
+    /// invoice, or a service giving each customer their own deposit address.
+    ///
+    /// The node does not watch exclusive addresses for incoming payments.
+    ///
+    /// If you only want to avoid address reuse, or to receive a one-off
+    /// payment, use `get_next_unused_address` instead. It rotates after each
+    /// payment, and the node watches it indefinitely.
+    pub fn get_exclusive_address(
+        &self,
+    ) -> Result<GetExclusiveAddressResponse, FfiError> {
+        let resp = self.inner.get_exclusive_address()?;
+        Ok(GetExclusiveAddressResponse::from(resp))
     }
 
     /// Send Bitcoin on-chain to the given address.
@@ -4112,6 +4155,21 @@ impl From<SdkPayOnchainPreflightResponse> for PayOnchainPreflightResponse {
             high_fees_sats: resp.high_fees.map(|a| a.sats_u64()),
             normal_fees_sats: resp.normal_fees.sats_u64(),
             background_fees_sats: resp.background_fees.sats_u64(),
+        }
+    }
+}
+
+/// Response from getting an exclusive on-chain Bitcoin address.
+#[derive(Clone, uniffi::Record)]
+pub struct GetExclusiveAddressResponse {
+    /// A Bitcoin address which has never been issued before.
+    pub address: String,
+}
+
+impl From<SdkGetExclusiveAddressResponse> for GetExclusiveAddressResponse {
+    fn from(resp: SdkGetExclusiveAddressResponse) -> Self {
+        Self {
+            address: resp.address.assume_checked_ref().to_string(),
         }
     }
 }

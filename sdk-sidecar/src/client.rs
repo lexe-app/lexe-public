@@ -7,15 +7,16 @@ use lexe::types::{
         CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
         CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
         CreatePayerProofRequest, CreatePayerProofResponse,
-        GetClientInfoResponse, GetHumanBitcoinAddressResponse,
-        GetNextUnusedAddressResponse, GetPaymentByIdRequest, GetPaymentRequest,
-        GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-        PayOnchainRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
+        GetClientInfoResponse, GetExclusiveAddressResponse,
+        GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
+        GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse, PayOnchainRequest, PaymentSyncSummary,
+        RevokeClientRequest, UpdatePersonalNoteRequest,
+        WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -148,6 +149,15 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<GetNextUnusedAddressResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/get_next_unused_address");
+        let http_req = self.rest.post(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn get_exclusive_address(
+        &self,
+    ) -> Result<GetExclusiveAddressResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/get_exclusive_address");
         let http_req = self.rest.post(url, &Empty {});
         self.rest.send(http_req).await
     }

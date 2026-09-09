@@ -176,6 +176,7 @@ pub enum LexeCommand {
     CreateOffer(CreateOfferArgs),
     PayOffer(PayOfferArgs),
     GetNextUnusedAddress(GetNextUnusedAddressArgs),
+    GetExclusiveAddress(GetExclusiveAddressArgs),
     PayOnchain(PayOnchainArgs),
     PayOnchainPreflight(PayOnchainPreflightArgs),
     PayLnurl(PayLnurlArgs),
@@ -349,6 +350,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::CreateOffer(a) => a.run(&wallet).await,
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::GetNextUnusedAddress(a) => a.run(&wallet).await,
+        LexeCommand::GetExclusiveAddress(a) => a.run(&wallet).await,
         LexeCommand::PayOnchain(a) => a.run(&wallet).await,
         LexeCommand::PayOnchainPreflight(a) => a.run(&wallet).await,
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
@@ -1400,6 +1402,43 @@ impl GetNextUnusedAddressArgs {
             .get_next_unused_address()
             .await
             .context("Failed to get next unused address")?;
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        println!("{}", resp.address.assume_checked_ref());
+        Ok(())
+    }
+}
+
+// --- `get-exclusive-address` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get a new Bitcoin address to receive on-chain funds",
+    long_about = "Get a new Bitcoin address to receive on-chain funds.\n\
+        \n\
+        Every call returns an address which has never been issued before, so\n\
+        a payment to it can be attributed to exactly one caller. This command\n\
+        is thus suitable for per-invoice receives, e.g. a payment gateway\n\
+        issuing an address for each invoice.\n\
+        \n\
+        The node does not watch exclusive addresses for incoming payments.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetExclusiveAddressArgs {
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl GetExclusiveAddressArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .get_exclusive_address()
+            .await
+            .context("Failed to get exclusive address")?;
 
         if self.json {
             return helpers::print_json_pretty(&resp);

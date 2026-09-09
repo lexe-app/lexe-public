@@ -14,15 +14,16 @@ use lexe::types::{
         CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
         CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
         CreatePayerProofRequest, CreatePayerProofResponse,
-        GetClientInfoResponse, GetHumanBitcoinAddressResponse,
-        GetNextUnusedAddressResponse, GetPaymentByIdRequest, GetPaymentRequest,
-        GetPaymentResponse, GetUpdatedPaymentsRequest,
-        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
-        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
-        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
-        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-        PayOnchainRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
+        GetClientInfoResponse, GetExclusiveAddressResponse,
+        GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
+        GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayOfferRequest, PayOnchainPreflightRequest,
+        PayOnchainPreflightResponse, PayOnchainRequest, PaymentSyncSummary,
+        RevokeClientRequest, UpdatePersonalNoteRequest,
+        WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -158,6 +159,27 @@ pub trait UserSidecarApi {
     async fn get_next_unused_address(
         &self,
     ) -> Result<GetNextUnusedAddressResponse, SdkApiError>;
+
+    /// POST /v2/node/get_exclusive_address [`Empty`]
+    ///                                  -> [`GetExclusiveAddressResponse`]
+    ///
+    /// Get an exclusive Bitcoin address which can be used to receive on-chain
+    /// funds.
+    ///
+    /// Every call returns a new address which has never been issued before, to
+    /// this or any other client of this wallet, and never will be again. A
+    /// payment to it can thus be attributed to exactly one caller, which suits
+    /// per-invoice receives, e.g. a payment gateway issuing one address per
+    /// invoice, or a service giving each customer their own deposit address.
+    ///
+    /// The node does not watch exclusive addresses for incoming payments.
+    ///
+    /// If you only want to avoid address reuse, or to receive a one-off
+    /// payment, use `get_next_unused_address` instead. It rotates after each
+    /// payment, and the node watches it indefinitely.
+    async fn get_exclusive_address(
+        &self,
+    ) -> Result<GetExclusiveAddressResponse, SdkApiError>;
 
     /// POST /v2/node/pay_onchain [`PayOnchainRequest`] -> [`Payment`]
     ///
