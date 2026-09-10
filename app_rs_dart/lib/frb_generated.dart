@@ -4928,13 +4928,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Settings dco_decode_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return Settings(
       locale: dco_decode_opt_String(arr[0]),
       fiatCurrency: dco_decode_opt_String(arr[1]),
       showSplitBalances: dco_decode_opt_box_autoadd_bool(arr[2]),
-      onboardingStatus: dco_decode_opt_box_autoadd_onboarding_status(arr[3]),
+      skipCancelPaymentConfirm: dco_decode_opt_box_autoadd_bool(arr[3]),
+      onboardingStatus: dco_decode_opt_box_autoadd_onboarding_status(arr[4]),
     );
   }
 
@@ -6892,6 +6893,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_locale = sse_decode_opt_String(deserializer);
     var var_fiatCurrency = sse_decode_opt_String(deserializer);
     var var_showSplitBalances = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_skipCancelPaymentConfirm = sse_decode_opt_box_autoadd_bool(
+      deserializer,
+    );
     var var_onboardingStatus = sse_decode_opt_box_autoadd_onboarding_status(
       deserializer,
     );
@@ -6899,6 +6903,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       locale: var_locale,
       fiatCurrency: var_fiatCurrency,
       showSplitBalances: var_showSplitBalances,
+      skipCancelPaymentConfirm: var_skipCancelPaymentConfirm,
       onboardingStatus: var_onboardingStatus,
     );
   }
@@ -8701,6 +8706,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_String(self.locale, serializer);
     sse_encode_opt_String(self.fiatCurrency, serializer);
     sse_encode_opt_box_autoadd_bool(self.showSplitBalances, serializer);
+    sse_encode_opt_box_autoadd_bool(self.skipCancelPaymentConfirm, serializer);
     sse_encode_opt_box_autoadd_onboarding_status(
       self.onboardingStatus,
       serializer,

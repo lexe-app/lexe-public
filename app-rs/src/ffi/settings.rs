@@ -18,6 +18,22 @@ pub struct SettingsDb {
     pub inner: RustOpaqueNom<WritebackDbRs<SettingsRs>>,
 }
 
+pub struct Settings {
+    pub locale: Option<String>,
+    pub fiat_currency: Option<String>,
+    pub show_split_balances: Option<bool>,
+    pub skip_cancel_payment_confirm: Option<bool>,
+    pub onboarding_status: Option<OnboardingStatus>,
+}
+
+pub struct OnboardingStatus {
+    pub has_backed_up_seed_phrase: Option<bool>,
+    pub has_connected_gdrive: Option<bool>,
+    pub has_seen_receive_hint: Option<bool>,
+    /// The current wallet funding state. Defaults to `NonFunded` if not set.
+    pub wallet_funding_state: Option<WalletFundingState>,
+}
+
 /// Wallet funding state machine.
 ///
 /// Tracks whether the user has funded their wallet and how.
@@ -34,21 +50,6 @@ pub enum WalletFundingState {
     ChannelReserveNotMet,
     /// User has a usable Lightning channel with outbound capacity.
     Funded,
-}
-
-pub struct OnboardingStatus {
-    pub has_backed_up_seed_phrase: Option<bool>,
-    pub has_connected_gdrive: Option<bool>,
-    pub has_seen_receive_hint: Option<bool>,
-    /// The current wallet funding state. Defaults to `NonFunded` if not set.
-    pub wallet_funding_state: Option<WalletFundingState>,
-}
-
-pub struct Settings {
-    pub locale: Option<String>,
-    pub fiat_currency: Option<String>,
-    pub show_split_balances: Option<bool>,
-    pub onboarding_status: Option<OnboardingStatus>,
 }
 
 // --- impl SettingsDb --- //
@@ -97,36 +98,33 @@ impl From<SettingsRs> for Settings {
             locale: s.locale,
             fiat_currency: s.fiat_currency.map(|x| x.as_str().to_owned()),
             show_split_balances: s.show_split_balances,
+            skip_cancel_payment_confirm: s.skip_cancel_payment_confirm,
             onboarding_status: s.onboarding_status.map(OnboardingStatus::from),
         }
     }
 }
 
-impl From<WalletFundingStateRs> for WalletFundingState {
-    fn from(s: WalletFundingStateRs) -> Self {
-        match s {
-            WalletFundingStateRs::NonFunded => Self::NonFunded,
-            WalletFundingStateRs::OnChainDeposited => Self::OnChainDeposited,
-            WalletFundingStateRs::ChannelOpening => Self::ChannelOpening,
-            WalletFundingStateRs::ChannelReserveNotMet =>
-                Self::ChannelReserveNotMet,
-            WalletFundingStateRs::Funded => Self::Funded,
-        }
+impl TryFrom<Settings> for SettingsRs {
+    type Error = anyhow::Error;
+    fn try_from(s: Settings) -> Result<Self, Self::Error> {
+        Ok(Self {
+            schema: SettingsRs::CURRENT_SCHEMA,
+            locale: s.locale,
+            fiat_currency: s
+                .fiat_currency
+                .as_deref()
+                .map(IsoCurrencyCode::from_str)
+                .transpose()?,
+            show_split_balances: s.show_split_balances,
+            skip_cancel_payment_confirm: s.skip_cancel_payment_confirm,
+            onboarding_status: s
+                .onboarding_status
+                .map(OnboardingStatusRs::from),
+        })
     }
 }
 
-impl From<WalletFundingState> for WalletFundingStateRs {
-    fn from(s: WalletFundingState) -> Self {
-        match s {
-            WalletFundingState::NonFunded => Self::NonFunded,
-            WalletFundingState::OnChainDeposited => Self::OnChainDeposited,
-            WalletFundingState::ChannelOpening => Self::ChannelOpening,
-            WalletFundingState::ChannelReserveNotMet =>
-                Self::ChannelReserveNotMet,
-            WalletFundingState::Funded => Self::Funded,
-        }
-    }
-}
+// --- impl OnboardingStatus --- //
 
 impl From<OnboardingStatusRs> for OnboardingStatus {
     fn from(s: OnboardingStatusRs) -> Self {
@@ -157,22 +155,31 @@ impl From<OnboardingStatus> for OnboardingStatusRs {
     }
 }
 
-impl TryFrom<Settings> for SettingsRs {
-    type Error = anyhow::Error;
-    fn try_from(s: Settings) -> Result<Self, Self::Error> {
-        Ok(Self {
-            schema: SettingsRs::CURRENT_SCHEMA,
-            locale: s.locale,
-            fiat_currency: s
-                .fiat_currency
-                .as_deref()
-                .map(IsoCurrencyCode::from_str)
-                .transpose()?,
-            show_split_balances: s.show_split_balances,
-            onboarding_status: s
-                .onboarding_status
-                .map(OnboardingStatusRs::from),
-        })
+// --- impl WalletFundingState --- //
+
+impl From<WalletFundingStateRs> for WalletFundingState {
+    fn from(s: WalletFundingStateRs) -> Self {
+        match s {
+            WalletFundingStateRs::NonFunded => Self::NonFunded,
+            WalletFundingStateRs::OnChainDeposited => Self::OnChainDeposited,
+            WalletFundingStateRs::ChannelOpening => Self::ChannelOpening,
+            WalletFundingStateRs::ChannelReserveNotMet =>
+                Self::ChannelReserveNotMet,
+            WalletFundingStateRs::Funded => Self::Funded,
+        }
+    }
+}
+
+impl From<WalletFundingState> for WalletFundingStateRs {
+    fn from(s: WalletFundingState) -> Self {
+        match s {
+            WalletFundingState::NonFunded => Self::NonFunded,
+            WalletFundingState::OnChainDeposited => Self::OnChainDeposited,
+            WalletFundingState::ChannelOpening => Self::ChannelOpening,
+            WalletFundingState::ChannelReserveNotMet =>
+                Self::ChannelReserveNotMet,
+            WalletFundingState::Funded => Self::Funded,
+        }
     }
 }
 

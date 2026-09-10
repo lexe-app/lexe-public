@@ -23,6 +23,8 @@ pub(crate) struct SettingsRs {
     pub fiat_currency: Option<IsoCurrencyCode>,
     /// Show lightning and bitcoin sub-balances on the wallet home-page.
     pub show_split_balances: Option<bool>,
+    /// Skip the confirmation dialog when canceling a payment.
+    pub skip_cancel_payment_confirm: Option<bool>,
     /// Onboarding state.
     pub onboarding_status: Option<OnboardingStatus>,
 }
@@ -47,6 +49,8 @@ impl Update for SettingsRs {
         self.fiat_currency.update(update.fiat_currency)?;
         self.show_split_balances
             .update(update.show_split_balances)?;
+        self.skip_cancel_payment_confirm
+            .update(update.skip_cancel_payment_confirm)?;
         self.onboarding_status.update(update.onboarding_status)?;
 
         Ok(())
@@ -60,6 +64,7 @@ impl Default for SettingsRs {
             locale: None,
             fiat_currency: None,
             show_split_balances: None,
+            skip_cancel_payment_confirm: None,
             onboarding_status: None,
         }
     }

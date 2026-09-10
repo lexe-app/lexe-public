@@ -3231,6 +3231,8 @@ impl SseDecode for crate::ffi::settings::Settings {
         let mut var_fiatCurrency = <Option<String>>::sse_decode(deserializer);
         let mut var_showSplitBalances =
             <Option<bool>>::sse_decode(deserializer);
+        let mut var_skipCancelPaymentConfirm =
+            <Option<bool>>::sse_decode(deserializer);
         let mut var_onboardingStatus = <Option<
             crate::ffi::settings::OnboardingStatus,
         >>::sse_decode(deserializer);
@@ -3238,6 +3240,7 @@ impl SseDecode for crate::ffi::settings::Settings {
             locale: var_locale,
             fiat_currency: var_fiatCurrency,
             show_split_balances: var_showSplitBalances,
+            skip_cancel_payment_confirm: var_skipCancelPaymentConfirm,
             onboarding_status: var_onboardingStatus,
         };
     }
@@ -5135,6 +5138,9 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::settings::Settings {
             self.locale.into_into_dart().into_dart(),
             self.fiat_currency.into_into_dart().into_dart(),
             self.show_split_balances.into_into_dart().into_dart(),
+            self.skip_cancel_payment_confirm
+                .into_into_dart()
+                .into_dart(),
             self.onboarding_status.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -6897,6 +6903,10 @@ impl SseEncode for crate::ffi::settings::Settings {
         <Option<String>>::sse_encode(self.locale, serializer);
         <Option<String>>::sse_encode(self.fiat_currency, serializer);
         <Option<bool>>::sse_encode(self.show_split_balances, serializer);
+        <Option<bool>>::sse_encode(
+            self.skip_cancel_payment_confirm,
+            serializer,
+        );
         <Option<crate::ffi::settings::OnboardingStatus>>::sse_encode(
             self.onboarding_status,
             serializer,

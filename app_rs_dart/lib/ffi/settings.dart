@@ -52,12 +52,14 @@ class Settings {
   final String? locale;
   final String? fiatCurrency;
   final bool? showSplitBalances;
+  final bool? skipCancelPaymentConfirm;
   final OnboardingStatus? onboardingStatus;
 
   const Settings({
     this.locale,
     this.fiatCurrency,
     this.showSplitBalances,
+    this.skipCancelPaymentConfirm,
     this.onboardingStatus,
   });
 
@@ -66,6 +68,7 @@ class Settings {
       locale.hashCode ^
       fiatCurrency.hashCode ^
       showSplitBalances.hashCode ^
+      skipCancelPaymentConfirm.hashCode ^
       onboardingStatus.hashCode;
 
   @override
@@ -76,6 +79,7 @@ class Settings {
           locale == other.locale &&
           fiatCurrency == other.fiatCurrency &&
           showSplitBalances == other.showSplitBalances &&
+          skipCancelPaymentConfirm == other.skipCancelPaymentConfirm &&
           onboardingStatus == other.onboardingStatus;
 }
 
