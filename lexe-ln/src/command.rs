@@ -60,7 +60,10 @@ use lexe_common::{
         auth::BearerAuthToken,
         user::{NodePk, Scid, UserPk},
     },
-    constants::timeout,
+    constants::{
+        DEFAULT_USERNODE_FIRST_HOP_BASE_FEE,
+        DEFAULT_USERNODE_FIRST_HOP_PROP_FEE, timeout,
+    },
     debug_panic_release_log,
     ln::{
         amount::Amount,
@@ -171,6 +174,8 @@ pub enum CreateInvoiceCaller<'a> {
 /// [`pay_invoice`] fn. Only the user node can charge a partner fee.
 pub enum PayInvoiceCaller<'a> {
     UserNode {
+        /// The node pk of our first hop, i.e. the LSP.
+        lsp_node_pk: &'a NodePk,
         /// Async closure to check whether a given [`UserPk`] exists.
         user_exists_fn: &'a UserExistsFn,
         partners: &'a PartnersInfo,
@@ -190,6 +195,7 @@ impl PayInvoiceCaller<'_> {
         partner_prop_fee: Option<Ppm>,
         partner_base_fee: Option<Amount>,
         amount: Amount,
+        payee_node_pk: NodePk,
     ) -> anyhow::Result<(Option<PartnerFeeFields>, Ppm, Amount)> {
         match self {
             // LSP doesn't pay first-hop fees
@@ -206,38 +212,53 @@ impl PayInvoiceCaller<'_> {
                 Ok((pff, prop_fee, base_fee))
             }
             Self::UserNode {
+                lsp_node_pk,
                 user_exists_fn,
                 partners,
                 user_pk,
-            } => match partner_pk {
-                Some(partner_pk) => {
-                    let pff = validate::outbound_partner_fee(
-                        user_exists_fn,
-                        partners,
-                        amount,
-                        user_pk,
-                        partner_pk,
-                        partner_prop_fee,
-                        partner_base_fee,
-                    )
-                    .await?;
-                    let prop_fee = partner_prop_fee.unwrap_or(Ppm::ZERO);
-                    let base_fee = partner_base_fee.unwrap_or(Amount::ZERO);
-                    Ok((Some(pff), prop_fee, base_fee))
-                }
-                None => {
-                    ensure!(
-                        partner_prop_fee.is_none()
-                            && partner_base_fee.is_none(),
-                        "Must include a `partner_pk` in order to set \
+            } => {
+                match partner_pk {
+                    Some(partner_pk) => {
+                        // Partners can't take first-hop fees when paying LSP
+                        if payee_node_pk == **lsp_node_pk {
+                            bail!("Can't set a partner fee when paying LSP");
+                        }
+                        let pff = validate::outbound_partner_fee(
+                            user_exists_fn,
+                            partners,
+                            amount,
+                            user_pk,
+                            partner_pk,
+                            partner_prop_fee,
+                            partner_base_fee,
+                        )
+                        .await?;
+                        let prop_fee = partner_prop_fee.unwrap_or(Ppm::ZERO);
+                        let base_fee = partner_base_fee.unwrap_or(Amount::ZERO);
+                        Ok((Some(pff), prop_fee, base_fee))
+                    }
+                    None => {
+                        ensure!(
+                            partner_prop_fee.is_none()
+                                && partner_base_fee.is_none(),
+                            "Must include a `partner_pk` in order to set \
                             partner fees"
-                    );
-                    let pff = None;
-                    let prop_fee = Ppm::ZERO;
-                    let base_fee = Amount::ZERO;
-                    Ok((pff, prop_fee, base_fee))
+                        );
+                        // No first-hop fees if payee is LSP
+                        if payee_node_pk == **lsp_node_pk {
+                            let pff = None;
+                            let prop_fee = Ppm::ZERO;
+                            let base_fee = Amount::ZERO;
+                            return Ok((pff, prop_fee, base_fee));
+                        }
+                        // Otherwise, default Lexe fees
+                        let pff = None;
+                        let prop_fee = DEFAULT_USERNODE_FIRST_HOP_PROP_FEE;
+                        let base_fee = DEFAULT_USERNODE_FIRST_HOP_BASE_FEE;
+                        Ok((pff, prop_fee, base_fee))
+                    }
                 }
-            },
+            }
         }
     }
 }
@@ -253,6 +274,7 @@ pub fn node_info<CM, PM, PS, RMH>(
     chain_monitor: &LexeChainMonitorType<PS>,
     channels: &[ChannelDetails],
     lsp_fees: LspFees,
+    caller_is_lsp: bool,
 ) -> NodeInfo
 where
     CM: LexeChannelManager<PS>,
@@ -265,7 +287,12 @@ where
     let num_channels = channels.len();
 
     let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(chain_monitor, channels, lsp_fees);
+        balance::all_channel_balances(
+            chain_monitor,
+            channels,
+            lsp_fees,
+            caller_is_lsp,
+        );
 
     let onchain_balance = wallet.get_balance();
     let best_block_height = channel_manager.current_best_block().height;
@@ -1305,6 +1332,7 @@ pub async fn pay_offer<CM, PS>(
     lsp_fees: LspFees,
     lsp_node_pk: &NodePk,
     client_pk: Option<ed25519::PublicKey>,
+    caller_is_lsp: bool,
 ) -> anyhow::Result<PayOfferResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1323,6 +1351,7 @@ where
         lsp_fees,
         lsp_node_pk,
         client_pk,
+        caller_is_lsp,
     )
     .await?;
 
@@ -1424,6 +1453,7 @@ pub async fn pay_offer_preflight<CM, PS>(
     lsp_fees: LspFees,
     lsp_node_pk: &NodePk,
     client_pk: Option<ed25519::PublicKey>,
+    caller_is_lsp: bool,
 ) -> anyhow::Result<PayOfferPreflightResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -1450,6 +1480,7 @@ where
         lsp_fees,
         lsp_node_pk,
         client_pk,
+        caller_is_lsp,
     )
     .await?;
 
@@ -1670,6 +1701,7 @@ where
             req.partner_prop_fee,
             req.partner_base_fee,
             amount,
+            invoice.payee_node_pk(),
         )
         .await?;
 
@@ -1710,8 +1742,14 @@ where
     // Compute Lightning balances
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
+    let caller_is_lsp = matches!(caller, PayInvoiceCaller::Lsp);
     let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
+        balance::all_channel_balances(
+            chain_monitor,
+            &channels,
+            lsp_fees,
+            caller_is_lsp,
+        );
 
     // Check that the user has at least one usable channel.
     validate::has_usable_channels(num_channels, num_usable_channels)?;
@@ -1729,7 +1767,13 @@ where
     let routing_context =
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
-    // Check that the amount is OK wrt `max_sendable`.
+    // `max_sendable` assumes the default User->LSP->X first-hop fee, but the
+    // User->LSP case doesn't pay first-hop fees.
+    let bypass_max_sendable = matches!(
+        caller,
+        PayInvoiceCaller::UserNode { lsp_node_pk, .. }
+            if invoice.payee_node_pk() == *lsp_node_pk
+    );
     validate::outbound_lightning_amount(
         router,
         &routing_context,
@@ -1737,6 +1781,7 @@ where
         first_hop_prop_fee,
         first_hop_base_fee,
         &lightning_balance,
+        bypass_max_sendable,
     )
     .await?;
 
@@ -1812,6 +1857,7 @@ async fn pay_offer_preflight_inner<CM, PS>(
     lsp_fees: LspFees,
     lsp_node_pk: &NodePk,
     client_pk: Option<ed25519::PublicKey>,
+    caller_is_lsp: bool,
 ) -> anyhow::Result<PreflightedPayOffer>
 where
     CM: LexeChannelManager<PS>,
@@ -1877,7 +1923,12 @@ where
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
     let (lightning_balance, num_usable_channels) =
-        balance::all_channel_balances(chain_monitor, &channels, lsp_fees);
+        balance::all_channel_balances(
+            chain_monitor,
+            &channels,
+            lsp_fees,
+            caller_is_lsp,
+        );
 
     // Check that the user has at least one usable channel.
     validate::has_usable_channels(num_channels, num_usable_channels)?;
@@ -1907,6 +1958,7 @@ where
     let first_hop_base_fee = Amount::ZERO;
 
     // Check that the amount is OK wrt `max_sendable`.
+    let bypass_max_sendable = false;
     validate::outbound_lightning_amount(
         router,
         &routing_context,
@@ -1914,6 +1966,7 @@ where
         first_hop_prop_fee,
         first_hop_base_fee,
         &lightning_balance,
+        bypass_max_sendable,
     )
     .await?;
 
@@ -2087,6 +2140,9 @@ mod validate {
         first_hop_prop_fee: Ppm,
         first_hop_base_fee: Amount,
         lightning_balance: &LightningBalance,
+        // Set `true` to skip checking `amount` against `max_sendable`, which
+        // sometimes underestimates the true maximum.
+        bypass_max_sendable: bool,
     ) -> anyhow::Result<()> {
         let max_sendable = lightning_balance.max_sendable;
         let usable_lightning_balance = lightning_balance.usable;
@@ -2114,7 +2170,7 @@ mod validate {
             ));
         }
 
-        if amount <= max_sendable {
+        if bypass_max_sendable || amount <= max_sendable {
             return Ok(());
         }
 

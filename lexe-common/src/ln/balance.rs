@@ -49,10 +49,10 @@ pub struct LightningBalance {
     ///
     /// This is computed as the sum of [`next_outbound_htlc_limit`] over all
     /// usable channels, then adjusted to account for the minimum fees Lexe's
-    /// LSP could charge us.
+    /// LSP could charge us, including any fee added to the first hop.
     ///
     /// - It should not be possible to send more than this amount over any
-    ///   multi-hop payment.
+    ///   multi-hop payment, excepting a few (<=10) msat.
     /// - Exactly this amount may be sendable only in very specific scenarios,
     ///   such as paying another Lexe user.
     /// - Technically, it is possible to send [`sum(next_outbound_htlc_limit)`]

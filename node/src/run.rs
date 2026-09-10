@@ -940,6 +940,7 @@ impl UserNode {
                         }
 
                         let channels = channel_manager.list_channels();
+                        let caller_is_lsp = false;
                         let mut node_info = lexe_ln::command::node_info(
                             version.clone(),
                             measurement,
@@ -950,6 +951,7 @@ impl UserNode {
                             &chain_monitor,
                             &channels,
                             lsp_info.lsp_fees(),
+                            caller_is_lsp,
                         );
                         // For privacy, zero out the on-chain balance so we
                         // don't leak this info in logs. Lexe can derive all of

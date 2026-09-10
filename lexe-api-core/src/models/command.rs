@@ -505,7 +505,7 @@ pub struct PayInvoiceRequest {
     // Added in `node-v0.9.12`
     pub ldk_route: Option<LdkRouteContinuation>,
     /// The partner's user_pk, if the partner is setting the fee for this
-    /// payment.
+    /// payment instead of using Lexe's default fees.
     ///
     /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
     /// to take effect.
@@ -543,7 +543,7 @@ pub struct PayInvoicePreflightRequest {
     #[serde(default = "default_invoice_kind")]
     pub kind: PaymentKind,
     /// The partner's user_pk, if the partner is setting the fee for this
-    /// payment.
+    /// payment instead of using Lexe's default fees.
     ///
     /// This must be set in order for `partner_prop_fee` and `partner_base_fee`
     /// to take effect.

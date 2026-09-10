@@ -84,6 +84,7 @@ pub(super) async fn node_info(
     State(state): State<Arc<RouterState>>,
 ) -> LxJson<NodeInfo> {
     let channels = state.channel_manager.list_channels();
+    let caller_is_lsp = false;
     LxJson(lexe_ln::command::node_info(
         state.version.clone(),
         state.measurement,
@@ -94,6 +95,7 @@ pub(super) async fn node_info(
         &state.chain_monitor,
         &channels,
         state.lsp_info.lsp_fees(),
+        caller_is_lsp,
     ))
 }
 
@@ -398,6 +400,7 @@ pub(super) async fn pay_invoice(
         .map_err(NodeApiError::command)?;
     let user_exists_fn = state.user_cache.user_exists_fn();
     let caller = PayInvoiceCaller::UserNode {
+        lsp_node_pk: &state.lsp_info.node_pk,
         user_exists_fn: &user_exists_fn,
         partners: &state.partners,
         user_pk: &state.user_pk,
@@ -433,6 +436,7 @@ pub(super) async fn pay_invoice_preflight(
     };
     let user_exists_fn = state.user_cache.user_exists_fn();
     let caller = PayInvoiceCaller::UserNode {
+        lsp_node_pk: &state.lsp_info.node_pk,
         user_exists_fn: &user_exists_fn,
         partners: &state.partners,
         user_pk: &state.user_pk,
@@ -478,6 +482,7 @@ pub(super) async fn pay_offer(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOfferRequest>,
 ) -> Result<LxJson<PayOfferResponse>, NodeApiError> {
+    let caller_is_lsp = false;
     lexe_ln::command::pay_offer(
         req,
         &state.router,
@@ -488,6 +493,7 @@ pub(super) async fn pay_offer(
         state.lsp_info.lsp_fees(),
         &state.lsp_info.node_pk,
         auth.cert_kind().client_pk(),
+        caller_is_lsp,
     )
     .await
     .map(LxJson)
@@ -499,6 +505,7 @@ pub(super) async fn pay_offer_preflight(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOfferPreflightRequest>,
 ) -> Result<LxJson<PayOfferPreflightResponse>, NodeApiError> {
+    let caller_is_lsp = false;
     lexe_ln::command::pay_offer_preflight(
         req,
         &state.router,
@@ -509,6 +516,7 @@ pub(super) async fn pay_offer_preflight(
         state.lsp_info.lsp_fees(),
         &state.lsp_info.node_pk,
         auth.cert_kind().client_pk(),
+        caller_is_lsp,
     )
     .await
     .map(LxJson)
@@ -873,11 +881,13 @@ fn check_hba_claim_min_balance(
     state: &RouterState,
 ) -> Result<(), NodeApiError> {
     let channels = state.channel_manager.list_channels();
+    let caller_is_lsp = false;
     let (lightning_balance, _num_usable_channels) =
         lexe_ln::balance::all_channel_balances(
             &state.chain_monitor,
             &channels,
             state.lsp_info.lsp_fees(),
+            caller_is_lsp,
         );
     let onchain_balance = Amount::try_from(state.wallet.get_balance().total())
         .map_err(NodeApiError::command)?;
