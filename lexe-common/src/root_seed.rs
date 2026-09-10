@@ -8,7 +8,7 @@ use bitcoin::{
 use lexe_byte_array::ByteArray;
 use lexe_crypto::{
     aes::{self, AesMasterKey},
-    ed25519, hmac, password,
+    ed25519, entropy, hmac, password,
     rng::{Crng, RngExt},
 };
 use lexe_hex::hex;
@@ -57,8 +57,18 @@ impl RootSeed {
         Self::new(Secret::new(seed))
     }
 
+    /// Sample directly from `rng` for tests.
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn from_rng<R: Crng>(rng: &mut R) -> Self {
         Self(Secret::new(rng.gen_bytes()))
+    }
+
+    /// Generate a root seed with [`entropy::gen_seed`], which mixes in extra
+    /// entropy.
+    ///
+    /// Always non-deterministic, so prefer [`RootSeed::from_rng`] in tests.
+    pub fn from_rng_with_extra_entropy<R: Crng>(rng: &mut R) -> Self {
+        Self(Secret::new(entropy::gen_seed(rng)))
     }
 
     // --- BIP39 Mnemonics --- //

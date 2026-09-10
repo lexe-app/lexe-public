@@ -123,9 +123,11 @@ pub struct RootSeed(UnstableRootSeed);
 impl RootSeed {
     // --- Constructors & File I/O --- //
 
-    /// Generate a new random [`RootSeed`] using the system CSPRNG.
+    /// Generate a new [`RootSeed`] using the system CSPRNG with extra entropy.
     pub fn generate() -> Self {
-        Self(UnstableRootSeed::from_rng(&mut SysRng::new()))
+        Self(UnstableRootSeed::from_rng_with_extra_entropy(
+            &mut SysRng::new(),
+        ))
     }
 
     /// Read a [`RootSeed`] from the default seedphrase path for this
