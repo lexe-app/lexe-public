@@ -286,7 +286,6 @@ impl Scope {
                 .union(PermissionSet::from_slice(&[
                     UpdateChannelConfig,
                     SignMessage,
-                    VerifyMessage,
                     CreateRevocableClient,
                     UpdateRevocableClient,
                     CreateNwcClient,
@@ -533,7 +532,6 @@ pub enum Permission {
 
     // --- full only --- //
     SignMessage,
-    VerifyMessage,
     CreateRevocableClient,
     UpdateRevocableClient,
     CreateNwcClient,
@@ -585,7 +583,6 @@ impl Permission {
             Permission::UpdatePersonalNote => "update_personal_note",
             Permission::UpdateChannelConfig => "update_channel_config",
             Permission::SignMessage => "sign_message",
-            Permission::VerifyMessage => "verify_message",
             Permission::CreateRevocableClient => "create_revocable_client",
             Permission::UpdateRevocableClient => "update_revocable_client",
             Permission::CreateNwcClient => "create_nwc_client",
@@ -702,7 +699,6 @@ mod test {
             });
         let expected = PermissionSet::from_slice(&[
             Permission::SignMessage,
-            Permission::VerifyMessage,
             Permission::CreateRevocableClient,
             Permission::UpdateRevocableClient,
             Permission::CreateNwcClient,
@@ -773,7 +769,7 @@ mod test {
     ///   snapshot.
     #[test]
     fn json_backwards_compat() {
-        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","create_invoice","create_offer","resync","cancel_payment","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","verify_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","get_file"]"#;
+        let permissions_ser = r#"["node_info","list_channels","get_human_bitcoin_address","get_payments_by_indexes","get_new_payments","get_updated_payments","get_payment_by_id","list_broadcasted_txs","backup_info","debug_info","list_revocable_clients","list_nwc_clients","list_peers","get_network_graph","get_prob_scorer","get_utxos","get_next_unused_address","create_invoice","create_offer","resync","cancel_payment","open_channel","open_channel_preflight","close_channel","close_channel_preflight","connect_peer","disconnect_peer","pay_invoice","pay_invoice_preflight","pay_offer","pay_offer_preflight","pay_onchain","pay_onchain_preflight","create_payer_proof","update_personal_note","update_channel_config","sign_message","create_revocable_client","update_revocable_client","create_nwc_client","update_nwc_client","delete_nwc_client","setup_gdrive","update_human_bitcoin_address","get_file"]"#;
         roundtrip::json_unit_enum_backwards_compat::<Permission>(
             permissions_ser,
         );

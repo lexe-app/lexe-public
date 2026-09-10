@@ -149,8 +149,6 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
             scoped::get(ListChannels, user::list_channels))
         .route("/user/v1/sign_message",
             scoped::post(SignMessage, user::sign_message))
-        .route("/user/v1/verify_message",
-            scoped::post(VerifyMessage, user::verify_message))
         .route("/user/v1/open_channel",
             scoped::post(OpenChannel, user::open_channel))
         .route("/user/v1/open_channel_preflight",
@@ -230,8 +228,6 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
             scoped::get(ListChannels, user::list_channels))
         .route("/app/sign_message",
             scoped::post(SignMessage, user::sign_message))
-        .route("/app/verify_message",
-            scoped::post(VerifyMessage, user::verify_message))
         .route("/app/open_channel",
             scoped::post(OpenChannel, user::open_channel))
         .route("/app/preflight_open_channel",

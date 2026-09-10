@@ -42,10 +42,7 @@ use lexe_common::api::{
         UserSignupRequestWire, UserSignupRequestWireV1,
     },
     fiat_rates::FiatRates,
-    models::{
-        SignMsgRequest, SignMsgResponse, Status, VerifyMsgRequest,
-        VerifyMsgResponse,
-    },
+    models::{SignMsgRequest, SignMsgResponse, Status},
     provision::NodeProvisionRequest,
     test_event::TestEventOp,
     user::{GetNewScidsRequest, MaybeUser, Scids, UserPk},
@@ -235,15 +232,6 @@ pub trait UserNodeRunApi {
         &self,
         req: SignMsgRequest,
     ) -> Result<SignMsgResponse, NodeApiError>;
-
-    /// POST /user/v1/verify_message [`VerifyMsgRequest`] ->
-    /// [`VerifyMsgResponse`]
-    ///
-    /// Introduced in `node-v0.6.5`.
-    async fn verify_message(
-        &self,
-        req: VerifyMsgRequest,
-    ) -> Result<VerifyMsgResponse, NodeApiError>;
 
     /// POST /user/v1/open_channel [`OpenChannelRequest`]
     ///                         -> [`OpenChannelResponse`]

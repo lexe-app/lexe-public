@@ -71,10 +71,7 @@ use lexe_common::{
             UserSignupRequestWireV1,
         },
         fiat_rates::FiatRates,
-        models::{
-            SignMsgRequest, SignMsgResponse, VerifyMsgRequest,
-            VerifyMsgResponse,
-        },
+        models::{SignMsgRequest, SignMsgResponse},
         provision::NodeProvisionRequest,
         user::UserPk,
         version::{CurrentEnclaves, EnclavesToProvision, NodeEnclave},
@@ -582,17 +579,6 @@ impl UserNodeRunApi for NodeClient {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/sign_message");
-        let req = run_rest.post(url, &data);
-        run_rest.send(req).await
-    }
-
-    async fn verify_message(
-        &self,
-        data: VerifyMsgRequest,
-    ) -> Result<VerifyMsgResponse, NodeApiError> {
-        let run_rest = &self.authed_run_rest().await?.client;
-        let run_url = &self.inner.run_url;
-        let url = format!("{run_url}/user/v1/verify_message");
         let req = run_rest.post(url, &data);
         run_rest.send(req).await
     }

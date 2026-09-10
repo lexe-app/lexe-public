@@ -58,7 +58,6 @@ use lexe_common::{
         auth::BearerAuthToken,
         models::{
             BroadcastedTx, BroadcastedTxInfo, SignMsgRequest, SignMsgResponse,
-            VerifyMsgRequest, VerifyMsgResponse,
         },
     },
     constants::{self},
@@ -132,15 +131,6 @@ pub(super) async fn sign_message(
 ) -> LxJson<SignMsgResponse> {
     let sig = state.keys_manager.sign_message(&req.msg);
     LxJson(SignMsgResponse { sig })
-}
-
-pub(super) async fn verify_message(
-    State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<VerifyMsgRequest>,
-) -> LxJson<VerifyMsgResponse> {
-    let VerifyMsgRequest { msg, sig, pk } = &req;
-    let is_valid = state.keys_manager.verify_message(msg, sig, pk);
-    LxJson(VerifyMsgResponse { is_valid })
 }
 
 pub(super) async fn open_channel(

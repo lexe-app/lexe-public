@@ -3,7 +3,6 @@ use bitcoin::{consensus::Decodable, io::Cursor};
 use lexe_serde::hexstr_or_bytes;
 use serde::{Deserialize, Serialize};
 
-use super::user::NodePk;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
@@ -31,23 +30,6 @@ pub struct SignMsgRequest {
 pub struct SignMsgResponse {
     /// The `zbase32`-encoded signature corresponding to the message.
     pub sig: String,
-}
-
-/// A request to verify that a message was signed by the given public key.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct VerifyMsgRequest {
-    /// The message to be verified. (Will be interpreted as UTF-8 bytes.)
-    pub msg: String,
-    /// The `zbase32`-encoded signature corresponding to the message.
-    pub sig: String,
-    /// The public key under which the signature should be valid.
-    pub pk: NodePk,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct VerifyMsgResponse {
-    /// Whether the signature for the message was valid under the given pk.
-    pub is_valid: bool,
 }
 
 /// The user node or LSP broadcasted an on-chain transaction.
