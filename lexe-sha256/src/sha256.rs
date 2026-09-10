@@ -1,4 +1,4 @@
-use std::io;
+use std::{hash::Hasher, io};
 
 use lexe_byte_array::ByteArray;
 use ref_cast::RefCast;
@@ -66,6 +66,17 @@ impl Context {
 impl Default for Context {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Hasher for Context {
+    fn finish(&self) -> u64 {
+        let hash = self.clone().finish();
+        u64::from_le_bytes(hash.as_array()[..8].try_into().unwrap())
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.update(bytes);
     }
 }
 
