@@ -7,6 +7,7 @@ use lexe::{
             CashAppBuyRequest as CashAppBuyRequestRs,
             CreateClientRequest as CreateClientRequestRs,
             RevokeClientRequest as RevokeClientRequestRs,
+            UpdatePersonalNoteRequest as UpdatePersonalNoteRequestRs,
             WithdrawLnurlRequest as WithdrawLnurlRequestRs,
         },
     },
@@ -20,7 +21,6 @@ use lexe_api::{
         PayInvoiceRequest as PayInvoiceRequestRs,
         PayOfferRequest as PayOfferRequestRs,
         PayOnchainRequest as PayOnchainRequestRs,
-        UpdatePersonalNote as UpdatePersonalNoteRs,
     },
     types::{
         Empty,
@@ -514,18 +514,8 @@ impl AppHandle {
         &self,
         req: UpdatePersonalNote,
     ) -> anyhow::Result<()> {
-        let req = UpdatePersonalNoteRs::try_from(req)?;
-
-        self.inner
-            .node_client()?
-            .update_personal_note(req)
-            .await
-            .map(|Empty {}| ())
-            .map_err(anyhow::Error::new)
-            .context("Failed to update payment note on user node")?;
-
-        let _ = self.inner.sync_payments().await?;
-        Ok(())
+        let req = UpdatePersonalNoteRequestRs::try_from(req)?;
+        self.inner.wallet()?.update_personal_note(req).await
     }
 
     #[instrument(skip_all, name = "(create-client)")]

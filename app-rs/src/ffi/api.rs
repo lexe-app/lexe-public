@@ -11,6 +11,7 @@ use lexe::types::{
         CreateClientResponse as CreateClientResponseRs,
         GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs,
         RevokeClientRequest as RevokeClientRequestRs,
+        UpdatePersonalNoteRequest as UpdatePersonalNoteRequestRs,
         WithdrawLnurlRequest as WithdrawLnurlRequestRs,
     },
 };
@@ -40,7 +41,6 @@ use lexe_api::{
         PayOnchainPreflightResponse as PayOnchainPreflightResponseRs,
         PayOnchainRequest as PayOnchainRequestRs,
         PayOnchainResponse as PayOnchainResponseRs,
-        UpdatePersonalNote as UpdatePersonalNoteRs,
     },
     types::{
         bounded_string::BoundedString,
@@ -726,7 +726,7 @@ impl From<WithdrawLnurlRequest> for WithdrawLnurlRequestRs {
     }
 }
 
-/// See `lexe_common::api::user::UpdatePersonalNote`.
+/// See `lexe::types::command::UpdatePersonalNoteRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct UpdatePersonalNote {
@@ -734,15 +734,12 @@ pub struct UpdatePersonalNote {
     pub personal_note: Option<String>,
 }
 
-impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRs {
+impl TryFrom<UpdatePersonalNote> for UpdatePersonalNoteRequestRs {
     type Error = anyhow::Error;
     fn try_from(value: UpdatePersonalNote) -> Result<Self, Self::Error> {
         Ok(Self {
             index: PaymentCreatedIndexRs::try_from(value.index)?,
-            personal_note: value
-                .personal_note
-                .map(validate_note)
-                .transpose()?,
+            personal_note: value.personal_note,
         })
     }
 }

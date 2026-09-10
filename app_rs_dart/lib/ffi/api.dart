@@ -355,7 +355,7 @@ sealed class RevokeClientRequest with _$RevokeClientRequest {
       _RevokeClientRequest;
 }
 
-/// See `lexe_common::api::user::UpdatePersonalNote`.
+/// See `lexe::types::command::UpdatePersonalNoteRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
