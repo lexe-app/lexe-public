@@ -541,27 +541,6 @@ impl<F: Ffs> PaymentsDb<F> {
         Ok(())
     }
 
-    /// Update the personal note on an existing payment in this [`PaymentsDb`].
-    /// This does NOT actually update the note on the user node, hence why this
-    /// is not a public API.
-    pub(crate) fn update_personal_note(
-        &self,
-        req: command::UpdatePersonalNote,
-    ) -> anyhow::Result<()> {
-        let mut state = self.state.write().unwrap();
-
-        let payment = state
-            .get_mut_payment_by_created_index(&req.index)
-            .context("Updating non-existent payment")?;
-
-        payment.personal_note = req.personal_note.map(|n| n.into_inner());
-
-        Self::write_payment(&self.ffs, payment)
-            .context("Failed to write payment to local db")?;
-
-        Ok(())
-    }
-
     /// Check the integrity of the whole PaymentsDb.
     ///
     /// (1.) The in-memory state should not be corrupted.
@@ -716,14 +695,6 @@ impl PaymentsDbState {
         created_index: &PaymentCreatedIndex,
     ) -> Option<&BasicPaymentV2> {
         self.payments.get(created_index)
-    }
-
-    /// Get a mutable payment by its `PaymentCreatedIndex`.
-    fn get_mut_payment_by_created_index(
-        &mut self,
-        created_index: &PaymentCreatedIndex,
-    ) -> Option<&mut BasicPaymentV2> {
-        self.payments.get_mut(created_index)
     }
 
     #[cfg_attr(not(feature = "unstable"), allow(dead_code))]

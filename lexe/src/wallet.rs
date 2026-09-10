@@ -1994,13 +1994,14 @@ impl LexeWallet {
 
         // Update remote store first
         self.node_client
-            .update_personal_note(req.clone())
+            .update_personal_note(req)
             .await
             .context("Failed to update personal note on user node")?;
 
-        // Success. If persistence is enabled, update the local payments store.
-        if let WalletStore::Db(db) = &self.store {
-            db.payments_db().update_personal_note(req)?;
+        // Success. If persistence is enabled, sync the updated note into the
+        // local payments store.
+        if self.persistence_enabled() {
+            self.sync_payments().await?;
         }
 
         Ok(())
