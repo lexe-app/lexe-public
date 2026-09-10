@@ -62,7 +62,7 @@ const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 const PAYMENT_EXPIRY_CHECK_DELAY: Duration = Duration::from_secs(1);
 const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
 /// How long after an onchain send's `created_at` we keep retrying to broadcast
-/// it before giving up and cancelling it.
+/// it before giving up and canceling it.
 const CREATED_SEND_REBROADCAST_TIMEOUT: Duration =
     Duration::from_secs(48 * 60 * 60);
 
@@ -1186,7 +1186,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         id: &PaymentId,
         now: TimestampMs,
     ) -> anyhow::Result<()> {
-        debug!(%id, "Cancelling stuck onchain send");
+        debug!(%id, "Canceling stuck onchain send");
         let mut locked_data = self.data.lock().await;
 
         let pwm = self
@@ -1199,9 +1199,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let checked = match &pwm.payment {
             PaymentV2::OnchainSend(os) => os
                 .cancel(now)
-                .map(|os_cancelled| {
+                .map(|os_canceled| {
                     let oswm = PaymentWithMetadata {
-                        payment: os_cancelled,
+                        payment: os_canceled,
                         metadata: pwm.metadata.clone(),
                     };
                     CheckedPayment(oswm.into_enum())
@@ -1220,7 +1220,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Commit
         locked_data.commit(persisted);
 
-        debug!("Successfully cancelled onchain send");
+        debug!("Successfully canceled onchain send");
         Ok(())
     }
 

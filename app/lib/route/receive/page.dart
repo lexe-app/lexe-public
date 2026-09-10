@@ -158,7 +158,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   /// Whether the peek hint animation is currently in progress.
   bool peekAnimationInProgress = false;
 
-  /// Whether the peek animation can continue or was cancelled.
+  /// Whether the peek animation can continue or was canceled.
   bool get canContinuePeekAnimation =>
       this.mounted &&
       this.peekAnimationInProgress &&

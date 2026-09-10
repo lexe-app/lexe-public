@@ -447,7 +447,7 @@ class WalletPageState extends State<WalletPage> {
           return;
       }
 
-      // Cancelled or errored
+      // Canceled or errored
       if (flowResult == null) return;
 
       // Refresh and open new payment detail

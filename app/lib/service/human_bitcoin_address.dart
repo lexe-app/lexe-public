@@ -74,7 +74,7 @@ class HumanBitcoinAddressService {
 
     switch (res) {
       case null:
-        debug("humanBitcoinAddress: Cancelled");
+        debug("humanBitcoinAddress: Canceled");
         return;
       case Ok(:final ok):
         this._appData.update(AppData(humanBitcoinAddress: ok));

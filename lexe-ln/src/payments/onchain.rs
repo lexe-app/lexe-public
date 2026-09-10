@@ -100,7 +100,10 @@ pub enum OnchainSendStatus {
     /// it into a mempool. This may be because the tx is unbroadcastable
     /// (e.g. its inputs were spent by another tx), or due to transient issues
     /// reaching the broadcast provider.
-    Cancelled,
+    // compat: Renamed from `cancelled` in node-v0.10.4, lsp-v0.10.5.
+    // TODO(max): Remove this if we ever explicitly migrate all persisted data.
+    #[serde(alias = "cancelled")]
+    Canceled,
 }
 
 impl OnchainSendV2 {
@@ -177,7 +180,7 @@ impl OnchainSendV2 {
             PartiallyConfirmed => bail!("Tx already has confirmations"),
             ReplacementBroadcasted => bail!("Tx was being replaced"),
             PartiallyReplaced => bail!("Tx already partially replaced"),
-            FullyConfirmed | FullyReplaced | Dropped | Cancelled =>
+            FullyConfirmed | FullyReplaced | Dropped | Canceled =>
                 bail!("Tx was final"),
         }
 
@@ -200,12 +203,12 @@ impl OnchainSendV2 {
             | ReplacementBroadcasted
             | PartiallyConfirmed
             | PartiallyReplaced => bail!("Tx was already broadcasted"),
-            FullyConfirmed | FullyReplaced | Dropped | Cancelled =>
+            FullyConfirmed | FullyReplaced | Dropped | Canceled =>
                 bail!("Tx was final"),
         }
 
         let mut clone = self.clone();
-        clone.status = Cancelled;
+        clone.status = Canceled;
         clone.finalized_at = Some(now);
 
         Ok(clone)
@@ -241,7 +244,7 @@ impl OnchainSendV2 {
             | PartiallyConfirmed
             | ReplacementBroadcasted
             | PartiallyReplaced => (),
-            FullyConfirmed | FullyReplaced | Dropped | Cancelled => bail!(
+            FullyConfirmed | FullyReplaced | Dropped | Canceled => bail!(
                 "Tx already finalized; shouldn't have checked for conf status"
             ),
         }
@@ -628,8 +631,15 @@ mod test {
 
     #[test]
     fn status_json_backwards_compat() {
-        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped","cancelled"]"#;
+        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped","canceled"]"#;
         json_unit_enum_backwards_compat::<OnchainSendStatus>(expected_ser);
+
+        // compat: Data persisted before node-v0.10.4 / lsp-v0.10.5 uses the
+        // pre-rename form.
+        let old_ser = r#""cancelled""#;
+        let status =
+            serde_json::from_str::<OnchainSendStatus>(old_ser).unwrap();
+        assert_eq!(status, OnchainSendStatus::Canceled);
 
         let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
         json_unit_enum_backwards_compat::<OnchainReceiveStatus>(expected_ser);

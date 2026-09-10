@@ -504,12 +504,12 @@ impl Display for TaskOutputDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let join_label = match &self.result {
             Ok(_) => "finished",
-            Err(e) if e.is_cancelled() => "cancelled",
+            Err(e) if e.is_cancelled() => "canceled",
             Err(e) if e.is_panic() => "panicked",
             _ => "(unknown join error)",
         };
 
-        // "Task '<name>' <finished|cancelled|panicked>: [<error>]"
+        // "Task '<name>' <finished|canceled|panicked>: [<error>]"
         let name = self.name;
         write!(f, "Task '{name}' {join_label}")?;
 

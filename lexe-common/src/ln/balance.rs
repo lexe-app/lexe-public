@@ -109,7 +109,7 @@ impl OnchainBalance {
     }
 
     /// The maximum amount we can spend without risk of our transaction being
-    /// cancelled by a counterparty double-spending one of our outputs.
+    /// canceled by a counterparty double-spending one of our outputs.
     ///
     /// - Equivalent to BDK's `trusted_spendable`.
     /// - "trusted_spendable + untrusted_pending = spendable"
