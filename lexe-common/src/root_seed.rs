@@ -66,7 +66,7 @@ impl RootSeed {
     /// Generate a root seed with [`entropy::gen_seed`], which mixes in extra
     /// entropy.
     ///
-    /// Always non-deterministic, so prefer [`RootSeed::from_rng`] in tests.
+    /// Always non-deterministic, so prefer `RootSeed::from_rng` in tests.
     pub fn from_rng_with_extra_entropy<R: Crng>(rng: &mut R) -> Self {
         Self(Secret::new(entropy::gen_seed(rng)))
     }
