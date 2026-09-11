@@ -87,6 +87,9 @@ pub struct LexeWallet {
     store: WalletStore,
     payments_bus: OnceCell<PaymentsBus>,
 
+    /// In-memory cache for [`Self::get_next_unused_address`].
+    next_unused_address: Mutex<Option<CachedUnusedAddress>>,
+
     gateway_client: GatewayClient,
     node_client: NodeClient,
     bip353_client: Bip353Client,
@@ -153,6 +156,15 @@ impl WalletStore {
     }
 }
 
+/// A cached [`get_next_unused_address`] result, along with the latest payment
+/// update index at fetch time.
+///
+/// [`get_next_unused_address`]: LexeWallet::get_next_unused_address
+struct CachedUnusedAddress {
+    address: bitcoin::Address<bitcoin::address::NetworkUnchecked>,
+    latest_update: Option<PaymentUpdatedIndex>,
+}
+
 // TODO(max): Consider what happens if someone provides *both* a client
 // credential and a root seed for the same user. Do we need locks for the dbs?
 
@@ -195,6 +207,7 @@ impl LexeWallet {
             user_config,
             store: WalletStore::Db(Box::new(db)),
             payments_bus: OnceCell::new(),
+            next_unused_address: Mutex::new(None),
             gateway_client,
             node_client,
             bip353_client,
@@ -250,6 +263,7 @@ impl LexeWallet {
             user_config,
             store: WalletStore::Db(Box::new(db)),
             payments_bus: OnceCell::new(),
+            next_unused_address: Mutex::new(None),
             gateway_client,
             node_client,
             bip353_client,
@@ -294,6 +308,7 @@ impl LexeWallet {
             user_config,
             store: WalletStore::Db(Box::new(db)),
             payments_bus: OnceCell::new(),
+            next_unused_address: Mutex::new(None),
             gateway_client,
             node_client,
             bip353_client,
@@ -333,6 +348,7 @@ impl LexeWallet {
                 address_synced_block_heights: Mutex::new(HashMap::new()),
             })),
             payments_bus: OnceCell::new(),
+            next_unused_address: Mutex::new(None),
             gateway_client,
             node_client,
             bip353_client,
@@ -1319,12 +1335,39 @@ impl LexeWallet {
     pub async fn get_next_unused_address(
         &self,
     ) -> anyhow::Result<GetNextUnusedAddressResponse> {
+        // Ask the gateway for the latest payment update index. If it hasn't
+        // moved since we cached an address, no payment can have used the
+        // address, so return it without waking the node.
+        let latest_update = self
+            .node_client
+            .latest_payment_update()
+            .await
+            .context("Failed to fetch latest payment update")?;
+
+        {
+            let cache = self.next_unused_address.lock().unwrap();
+            if let Some(cached) = cache.as_ref()
+                && cached.latest_update == latest_update
+            {
+                return Ok(GetNextUnusedAddressResponse {
+                    address: cached.address.clone(),
+                });
+            }
+        }
+
         let resp = self
             .node_client
             .get_next_unused_address()
             .await
             .context("Failed to get next unused address")?;
-        Ok(GetNextUnusedAddressResponse::from(resp))
+        let resp = GetNextUnusedAddressResponse::from(resp);
+
+        *self.next_unused_address.lock().unwrap() = Some(CachedUnusedAddress {
+            address: resp.address.clone(),
+            latest_update,
+        });
+
+        Ok(resp)
     }
 
     /// Get an exclusive Bitcoin address which can be used to receive on-chain
