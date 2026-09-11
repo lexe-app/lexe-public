@@ -1,0 +1,4 @@
+- Cancel an unpaid Lightning invoice by swiping left in your payments list.
+- Set up Google Drive backup even if you skipped it when you first created your wallet.
+- Creating a wallet now mixes in additional sources of randomness, for defense in depth.
+- Security fixes and various other improvements.
