@@ -160,8 +160,9 @@ rec {
   #
   # Get all updated output hashes:
   # ```
+  # # on Linux (x86_64):
   # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.x86_64-linux._gitDepOutputsDebugging
-  # # ... or ...
+  # # on macOS:
   # $ nix build --keep-going -L .#_dbg.systemLexePubPkgs.aarch64-darwin._gitDepOutputsDebugging
   # ```
   gitDepOutputHashes = {
