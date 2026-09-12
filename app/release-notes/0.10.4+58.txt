@@ -1,0 +1,1 @@
+- Client credentials now use roles: pick Reader, Receiver, Spender, Admin, or custom scopes.
