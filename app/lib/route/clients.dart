@@ -352,7 +352,7 @@ class CreateClientScopesPage extends StatefulWidget {
 
 class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
   final ScopePickerController scopePicker = ScopePickerController(
-    ScopePreset.receive.scopes()!,
+    ClientRole.receiver.scopes()!,
   );
 
   final ValueNotifier<bool> isPending = ValueNotifier(false);
@@ -452,7 +452,7 @@ class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
   }
 }
 
-/// A preset dropdown and scope checkbox list.
+/// A role dropdown and scope checkbox list.
 class ScopePicker extends StatelessWidget {
   const ScopePicker({super.key, required this.controller});
 
@@ -474,20 +474,21 @@ class ScopePicker extends StatelessWidget {
     return ListenableBuilder(
       listenable: this.controller,
       builder: (_context, _widget) {
-        final preset = this.controller.preset;
+        final role = this.controller.role;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DropdownButtonFormField<ScopePreset>(
-              initialValue: preset,
+            DropdownButtonFormField<ClientRole>(
+              initialValue: role,
+              decoration: const InputDecoration(labelText: "Role"),
               items: [
-                for (final preset in ScopePreset.values)
-                  DropdownMenuItem(value: preset, child: Text(preset.title())),
+                for (final role in ClientRole.values)
+                  DropdownMenuItem(value: role, child: Text(role.title())),
               ],
-              onChanged: this.controller.selectPreset,
+              onChanged: this.controller.selectRole,
             ),
             const SizedBox(height: Space.s400),
-            if (preset != ScopePreset.custom)
+            if (role != ClientRole.custom)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => this.onReadOnlyScopesTapped(context),
@@ -508,35 +509,35 @@ class ScopePicker extends StatelessWidget {
 /// Owns the selection state for a [ScopePicker].
 class ScopePickerController extends ChangeNotifier {
   ScopePickerController(Set<Scope> initialScopes)
-    : _preset = ScopePreset.values.firstWhere(
-        (preset) => setEquals(preset.scopes(), initialScopes),
-        orElse: () => ScopePreset.custom,
+    : _role = ClientRole.values.firstWhere(
+        (role) => setEquals(role.scopes(), initialScopes),
+        orElse: () => ClientRole.custom,
       ),
       _scopes = Set.unmodifiable(initialScopes);
 
-  ScopePreset _preset;
+  ClientRole _role;
   Set<Scope> _scopes;
 
-  ScopePreset get preset => this._preset;
+  ClientRole get role => this._role;
 
   Set<Scope> get scopes => this._scopes;
 
   /// Selected scopes in canonical declaration order.
   List<Scope> scopesList() => Scope.values.where(this.scopes.contains).toList();
 
-  void selectPreset(ScopePreset? preset) {
-    if (preset == null || preset == this._preset) return;
+  void selectRole(ClientRole? role) {
+    if (role == null || role == this._role) return;
 
-    this._preset = preset;
-    final presetScopes = preset.scopes();
-    if (presetScopes != null) {
-      this._scopes = Set.unmodifiable(presetScopes);
+    this._role = role;
+    final roleScopes = role.scopes();
+    if (roleScopes != null) {
+      this._scopes = Set.unmodifiable(roleScopes);
     }
     this.notifyListeners();
   }
 
   void toggleScope(Scope scope, bool selected) {
-    assert(this._preset == ScopePreset.custom);
+    assert(this._role == ClientRole.custom);
 
     final scopes = {...this._scopes};
     if (selected) {
@@ -602,26 +603,26 @@ class ScopeCheckboxList extends StatelessWidget {
   }
 }
 
-/// A named [Scope] bundle, or [ScopePreset.custom] for individual selection.
-enum ScopePreset { read, receive, spend, admin, custom }
+/// A named [Scope] bundle, or [ClientRole.custom] for individual selection.
+enum ClientRole { reader, receiver, spender, admin, custom }
 
-/// Display strings and requested scopes for each [ScopePreset].
-extension ScopePresetExt on ScopePreset {
+/// Display strings and requested scopes for each [ClientRole].
+extension ClientRoleExt on ClientRole {
   String title() => switch (this) {
-    ScopePreset.read => "Read",
-    ScopePreset.receive => "Receive",
-    ScopePreset.spend => "Spend",
-    ScopePreset.admin => "Admin",
-    ScopePreset.custom => "Custom",
+    ClientRole.reader => "Reader",
+    ClientRole.receiver => "Receiver",
+    ClientRole.spender => "Spender",
+    ClientRole.admin => "Admin",
+    ClientRole.custom => "Custom",
   };
 
-  /// The scopes this preset requests, or null for [ScopePreset.custom].
+  /// The scopes this role requests, or null for [ClientRole.custom].
   Set<Scope>? scopes() => switch (this) {
-    ScopePreset.read => {Scope.read},
-    ScopePreset.receive => {Scope.receive, ...Scope.receive.recommended()},
-    ScopePreset.spend => {Scope.spend, ...Scope.spend.recommended()},
-    ScopePreset.admin => {Scope.full},
-    ScopePreset.custom => null,
+    ClientRole.reader => {Scope.read},
+    ClientRole.receiver => {Scope.receive, ...Scope.receive.recommended()},
+    ClientRole.spender => {Scope.spend, ...Scope.spend.recommended()},
+    ClientRole.admin => {Scope.full},
+    ClientRole.custom => null,
   };
 }
 

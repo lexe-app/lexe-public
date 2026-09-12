@@ -334,8 +334,8 @@ impl Scope {
     /// For example, if someone can `Receive`, it's best if they can also
     /// `ReadPayments` as well, to see whether their invoices were paid.
     ///
-    /// UIs use this to select companion scopes for the "Read" / "Receive" /
-    /// "Spend" / "Admin" presets, but users are free to opt-out.
+    /// UIs use this to select companion scopes for the "Receiver" /
+    /// "Spender" roles, but users are free to opt-out.
     pub fn recommended(self) -> &'static [Scope] {
         match self {
             Scope::Receive => &[Scope::ReadInfo, Scope::ReadPayments],
