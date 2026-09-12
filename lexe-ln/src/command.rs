@@ -41,6 +41,7 @@ use lexe_api::{
     types::{
         Empty,
         bounded_string::BoundedString,
+        continuation::LdkRouteValues,
         invoice::Invoice,
         offer::{MaxQuantity, Offer},
         partners::PartnersInfo,
@@ -890,8 +891,7 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
 #[instrument(skip_all, name = "(pay-invoice)")]
 pub async fn pay_invoice<CM, PS>(
     req: PayInvoiceRequestInner,
-    // TODO(nicole): Either<Route, RouterType>?
-    ldk_route: Option<Route>,
+    ldk_route: Option<LdkRouteValues>,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -1495,7 +1495,7 @@ enum PreflightedPayInvoice {
 // pay.
 async fn pay_invoice_preflight_inner<CM, PS>(
     req: PayInvoiceRequestInner,
-    ldk_route: Option<Route>,
+    ldk_route: Option<LdkRouteValues>,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -1539,7 +1539,11 @@ where
     ensure!(!invoice.is_expired(), "Invoice has expired");
 
     // Reuse the caller's precomputed route if supplied.
-    if let Some(ldk_route) = ldk_route {
+    if let Some(LdkRouteValues {
+        route: ldk_route,
+        first_hop_fee,
+    }) = ldk_route
+    {
         let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
         req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
         let oipwm = OutboundInvoicePaymentV2::new(
@@ -1556,8 +1560,7 @@ where
             oipwm,
             ldk_route,
             lx_route,
-            // TODO(nicole): wire first hop fee
-            first_hop_fee: Amount::ZERO,
+            first_hop_fee,
         });
     }
 

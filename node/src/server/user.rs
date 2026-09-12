@@ -443,6 +443,7 @@ pub(super) async fn pay_invoice_preflight(
         route: preflight.route,
         ldk_route: LdkRouteContinuation::from_route_and_sign(
             &preflight.ldk_route,
+            preflight.first_hop_fee,
             &state.continuation_mac_key,
             &aad,
         ),

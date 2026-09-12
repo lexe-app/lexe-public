@@ -5,7 +5,7 @@
 //! See [`lexe_common::root_seed::RootSeed::derive_continuation_mac_key`].
 
 use anyhow::anyhow;
-use lexe_common::{api::user::UserPk, ppm::Ppm};
+use lexe_common::{api::user::UserPk, ln::amount::Amount, ppm::Ppm};
 use lexe_crypto::hmac;
 use lexe_serde::base64_or_bytes;
 use lexe_std::array;
@@ -37,6 +37,14 @@ use crate::types::payments::PaymentHash;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct LdkRouteContinuation(#[serde(with = "base64_or_bytes")] pub Vec<u8>);
 
+/// The values carried by [`LdkRouteContinuation`].
+pub struct LdkRouteValues {
+    pub route: Route,
+    /// The fee added to the [`Route`]'s first hop, which the payment must
+    /// reproduce so that it charges exactly what preflight quoted.
+    pub first_hop_fee: Amount,
+}
+
 /// The values an [`LdkRouteContinuation`] is bound to:
 /// - the fallback amount for amountless invoices
 /// - the invoice's payment hash
@@ -58,37 +66,55 @@ impl LdkRouteContinuation {
     const DOMAIN_SEPARATOR: [u8; 32] =
         array::pad(*b"LEXE-REALM::LdkRouteContinuation");
 
-    /// Serialize a [`Route`] and sign it, for use as an
-    /// [`LdkRouteContinuation`].
+    /// Byte length of the millisatoshi `first_hop_fee` prefix in the
+    /// plaintext.
+    const FEES_LEN: usize = size_of::<u64>();
+
+    /// Serialize a [`Route`] and its first-hop fee and sign them, for use as
+    /// an [`LdkRouteContinuation`].
     pub fn from_route_and_sign(
         route: &Route,
+        first_hop_fee: Amount,
         mac_key: &hmac::Key,
         aad: &LdkRouteAad,
     ) -> Self {
         let aad = aad.to_bytes();
+        let write_data_cb = |out: &mut Vec<u8>| {
+            let first_hop_fee_msat: u64 = first_hop_fee.msat();
+            out.extend_from_slice(&first_hop_fee_msat.to_le_bytes());
+            route.write(out).expect("Vec::write is infallible")
+        };
         let signed = mac_key.sign_and_append(
             &Self::DOMAIN_SEPARATOR,
             &[aad.as_slice()],
-            Some(route.serialized_length()),
-            &|out| route.write(out).expect("Vec::write is infallible"),
+            Some(Self::FEES_LEN + route.serialized_length()),
+            &write_data_cb,
         );
         Self(signed)
     }
 
-    /// Verify the authenticity of an [`LdkRouteContinuation`] and extract its
-    /// [`Route`].
+    /// Verify the authenticity of an [`LdkRouteContinuation`] and extract the
+    /// values it carries.
     pub fn as_route_and_validate(
         &self,
         mac_key: &hmac::Key,
         aad: &LdkRouteAad,
-    ) -> anyhow::Result<Route> {
+    ) -> anyhow::Result<LdkRouteValues> {
         let aad = aad.to_bytes();
         let bytes = mac_key
             .verify(&Self::DOMAIN_SEPARATOR, &[aad.as_slice()], &self.0)
             .map_err(|_| anyhow!("Invalid `ldk_route`."))?;
-        let route = Route::read(&mut &bytes[..])
+        let (first_hop_fee_msat, route_bytes) = bytes
+            .split_first_chunk::<{ Self::FEES_LEN }>()
+            .ok_or_else(|| anyhow!("Invalid `ldk_route`."))?;
+        let first_hop_fee =
+            Amount::from_msat(u64::from_le_bytes(*first_hop_fee_msat));
+        let route = Route::read(&mut &route_bytes[..])
             .map_err(|_| anyhow!("Invalid `ldk_route`."))?;
-        Ok(route)
+        Ok(LdkRouteValues {
+            route,
+            first_hop_fee,
+        })
     }
 }
 
@@ -101,13 +127,76 @@ impl LdkRouteAad {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::{ln::amount::Amount, test_utils::roundtrip};
+    use std::str::FromStr;
+
+    use bitcoin::secp256k1::PublicKey;
+    use lexe_common::test_utils::roundtrip;
+    use lightning::{
+        routing::router::{Path, RouteHop},
+        types::features::{ChannelFeatures, NodeFeatures},
+    };
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
 
     #[test]
     fn ldk_route_aad_bcs_roundtrip() {
         roundtrip::bcs_roundtrip_proptest::<LdkRouteAad>();
+    }
+
+    #[test]
+    fn ldk_route_continuation_roundtrip() {
+        let hop =
+            |pubkey: &str, short_channel_id: u64, fee_msat: u64| RouteHop {
+                pubkey: PublicKey::from_str(pubkey).unwrap(),
+                node_features: NodeFeatures::empty(),
+                short_channel_id,
+                channel_features: ChannelFeatures::empty(),
+                fee_msat,
+                cltv_expiry_delta: 144,
+                maybe_announced_channel: true,
+            };
+        let hops = vec![
+            hop(
+                "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                1,
+                1_000,
+            ),
+            hop(
+                "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+                2,
+                50_000,
+            ),
+        ];
+        // TODO(nicole): write a strategy for LDK's `Route`
+        let route = Route {
+            paths: vec![Path {
+                hops,
+                blinded_tail: None,
+            }],
+            route_params: None,
+        };
+
+        proptest!(|(
+            seed in any::<[u8; 32]>(),
+            aad in any::<LdkRouteAad>(),
+            first_hop_fee in any::<Amount>(),
+        )| {
+            let mac_key = hmac::Key::from_seed(&seed);
+            let continuation = LdkRouteContinuation::from_route_and_sign(
+                &route,
+                first_hop_fee,
+                &mac_key,
+                &aad,
+            );
+            let json = serde_json::to_string(&continuation).unwrap();
+            let continuation =
+                serde_json::from_str::<LdkRouteContinuation>(&json).unwrap();
+            let values =
+                continuation.as_route_and_validate(&mac_key, &aad).unwrap();
+            prop_assert_eq!(&values.route, &route);
+            prop_assert_eq!(values.first_hop_fee, first_hop_fee);
+        });
     }
 
     /// Equal [`Amount`]s can serialize differently, which is why
