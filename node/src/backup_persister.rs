@@ -3,11 +3,14 @@
 
 use std::{collections::HashMap, time::Duration};
 
+use gdrive::GoogleVfs;
 use lexe_api::vfs::VfsFileId;
 use lexe_ln::persister::BackupCommand;
-use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce};
+use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce, task::LxTask};
 use tokio::{sync::mpsc, time};
-use tracing::{debug, error};
+use tracing::{debug, error, info_span};
+
+use crate::gdrive_persister;
 
 #[cfg(test)]
 mod tests;
@@ -21,6 +24,7 @@ pub(crate) struct BackupPersister {
 }
 
 pub(crate) enum BackupStore {
+    GDrive(Box<GoogleVfs>),
     #[cfg(test)]
     Test(tests::TestStore),
 }
@@ -43,10 +47,26 @@ impl BackupPersister {
         (persister, tx)
     }
 
+    /// Spawn the `BackupPersister` task.
+    ///
     /// - `backup_persister_shutdown`: `ChannelMonitorPersister` triggers
     ///   `BackupPersister` shutdown only after it's done shutting down and all
     ///   monitor persists are flushed+enqueued.
     /// - `shutdown`: Used to trigger a node shutdown if backup fails.
+    pub(crate) fn spawn(
+        self,
+        backup_persister_shutdown: NotifyOnce,
+        shutdown: NotifyOnce,
+    ) -> LxTask<()> {
+        const SPAN_NAME: &str = "(backup-persister)";
+        let span = info_span!(SPAN_NAME, store = self.store.name());
+        LxTask::spawn_with_span(
+            SPAN_NAME,
+            span,
+            self.run(backup_persister_shutdown, shutdown),
+        )
+    }
+
     async fn run(
         mut self,
         mut backup_persister_shutdown: NotifyOnce,
@@ -120,7 +140,7 @@ impl BackupPersister {
         }
 
         let count = self.pending.len();
-        match self.store.persist(&mut self.pending).await {
+        match self.store.persist(&mut self.pending, shutdown).await {
             Ok(()) => debug!(count, "Successful backup"),
             Err(e) => {
                 error!("FATAL: Backup failed, shutting down: {e:#}");
@@ -131,9 +151,23 @@ impl BackupPersister {
 }
 
 impl BackupStore {
-    /// Drains `files`, retaining its allocation even on failure.
-    async fn persist(&self, files: &mut BackupBatch) -> anyhow::Result<()> {
+    fn name(&self) -> &'static str {
         match self {
+            Self::GDrive(_) => "GDrive",
+            #[cfg(test)]
+            Self::Test(_) => "Test",
+        }
+    }
+
+    /// Drains `files`, retaining its allocation even on failure.
+    async fn persist(
+        &self,
+        files: &mut BackupBatch,
+        shutdown: &NotifyOnce,
+    ) -> anyhow::Result<()> {
+        match self {
+            Self::GDrive(gvfs) =>
+                gdrive_persister::persist(gvfs, files, shutdown).await,
             #[cfg(test)]
             Self::Test(store) => store.persist(files).await,
         }

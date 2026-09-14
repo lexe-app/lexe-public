@@ -92,11 +92,11 @@ use tracing::{debug, error, info, info_span, trace, warn};
 
 use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
+    backup_persister::{BackupPersister, BackupStore},
     channel_manager::NodeChannelManager,
     client::{NodeBackendClient, RunnerClient},
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
-    gdrive_persister,
     gdrive_setup::{self, GoogleVfsInitError},
     p2p,
     peer_manager::NodePeerManager,
@@ -244,8 +244,6 @@ impl UserNode {
         let user_pk = args.user_pk;
 
         // Init channels
-        let (gdrive_persister_tx, gdrive_persister_rx) =
-            mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (bgp_control_tx, bgp_control_rx) =
@@ -319,7 +317,7 @@ impl UserNode {
                     Ok(None) => (None, GDriveStatus::Disabled),
                     Ok(Some((google_vfs, credentials_persister_task))) => {
                         static_tasks.push(credentials_persister_task);
-                        (Some(Arc::new(google_vfs)), GDriveStatus::Ok)
+                        (Some(google_vfs), GDriveStatus::Ok)
                     }
                     Err(GoogleVfsInitError::Google(e)) =>
                         (None, GDriveStatus::Error(format!("{e:#}"))),
@@ -329,14 +327,23 @@ impl UserNode {
                 (None, GDriveStatus::Disabled)
             };
 
+        // Initialize the configured backup stores.
+        let mut backup_persisters = Vec::new();
+        let mut backup_txs = Vec::new();
+        if let Some(gvfs) = maybe_google_vfs {
+            let (worker, tx) =
+                BackupPersister::new(BackupStore::GDrive(Box::new(gvfs)));
+            backup_persisters.push(worker);
+            backup_txs.push(tx);
+        }
+
         // Initialize Persister
         let persister = Arc::new(NodePersister::new(
             backend_api.clone(),
             authenticator.clone(),
             vfs_master_key.clone(),
-            maybe_google_vfs.clone(),
             channel_monitor_persister_tx.clone(),
-            gdrive_persister_tx.clone(),
+            backup_txs,
             eph_tasks_tx.clone(),
             shutdown.clone(),
         ));
@@ -733,7 +740,6 @@ impl UserNode {
                 payments_manager: payments_manager.clone(),
 
                 channel_events_bus: channel_events_bus.clone(),
-                gdrive_persister_tx,
                 runner_tx: runner_tx.clone(),
                 test_event_tx: test_event_tx.clone(),
                 shutdown: shutdown.clone(),
@@ -746,7 +752,7 @@ impl UserNode {
 
         // Set up the channel monitor persistence task
         let monitor_persister_shutdown = NotifyOnce::new();
-        let gdrive_persister_shutdown = NotifyOnce::new();
+        let backup_persister_shutdown = NotifyOnce::new();
         let max_active_persists = 4;
         let task = ChannelMonitorPersister::new(
             persister.clone(),
@@ -755,19 +761,18 @@ impl UserNode {
             channel_monitor_persister_rx,
             shutdown.clone(),
             monitor_persister_shutdown.clone(),
-            Some(gdrive_persister_shutdown.clone()),
+            Some(backup_persister_shutdown.clone()),
             max_active_persists,
         )
         .spawn();
         static_tasks.push(task);
 
-        // GDrive persister task
-        static_tasks.push(gdrive_persister::spawn_gdrive_persister_task(
-            persister.clone(),
-            gdrive_persister_rx,
-            gdrive_persister_shutdown,
-            shutdown.clone(),
-        ));
+        for worker in backup_persisters {
+            static_tasks.push(
+                worker
+                    .spawn(backup_persister_shutdown.clone(), shutdown.clone()),
+            );
+        }
 
         // Start the user API server.
         let lsp_info = args.lsp.clone();

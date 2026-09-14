@@ -47,7 +47,6 @@ use lexe_api::{
         bolt12_invoice::Bolt12Invoice,
         payments::{LnClaimId, PaymentHash, PaymentId},
     },
-    vfs::VfsFile,
 };
 use lexe_common::{
     api::{
@@ -111,7 +110,6 @@ pub(crate) struct EventCtx {
     pub payments_manager: PaymentsManagerType,
 
     pub channel_events_bus: EventsBus<ChannelEvent>,
-    pub gdrive_persister_tx: mpsc::Sender<VfsFile>,
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
     pub test_event_tx: TestEventSender,
     pub shutdown: NotifyOnce,
@@ -647,7 +645,6 @@ async fn do_handle_event(
                 &ctx.test_event_tx,
                 &ctx.tx_broadcaster,
                 &ctx.wallet,
-                Some(&ctx.gdrive_persister_tx),
                 event_id,
                 outputs,
                 channel_id,

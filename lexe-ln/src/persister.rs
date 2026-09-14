@@ -265,6 +265,9 @@ pub trait LexePersisterMethods: Vfs {
         monitor_name: &LxMonitorName,
     ) -> anyhow::Result<()>;
 
+    /// Queue an encrypted file for asynchronous backup to configured stores.
+    fn queue_backup(&self, file: &VfsFile) -> anyhow::Result<()>;
+
     // --- Required methods: payments --- //
 
     async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV2>>;

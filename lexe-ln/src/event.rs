@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow};
 use bitcoin::{absolute, consensus::Encodable, secp256k1};
 use lexe_api::{
     types::retries::Retries,
-    vfs::{self, Vfs, VfsFile, VfsFileId},
+    vfs::{self, Vfs, VfsFileId},
 };
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
@@ -30,7 +30,7 @@ use lightning::{
 use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::{
@@ -686,7 +686,6 @@ pub async fn handle_spendable_outputs<CM, PS>(
     test_event_tx: &TestEventSender,
     tx_broadcaster: &TxBroadcaster,
     wallet: &OnchainWallet,
-    gdrive_persister_tx: Option<&mpsc::Sender<VfsFile>>,
     event_id: &EventId,
     outputs: Vec<SpendableOutputDescriptor>,
     channel_id: ChannelId,
@@ -775,12 +774,11 @@ where
     // unbroadcastable txs.
     //
     // Instead, we persist the `SpendableOutputs` event and unbroadcastable tx
-    // to separate VFS namespaces (and GDrive, if enabled) to be handled
-    // inspected and handled later.
+    // to separate VFS namespaces and configured backups for later inspection.
 
     let short_event_id = event_id.short();
 
-    // Persist the `SpendableOutputs` event to the VFS (and GDrive):
+    // Persist the `SpendableOutputs` event to VFS and queue its backup:
     // `unswept_outputs-events/<timestamp>-<nonce>`
     {
         let event = Event::SpendableOutputs {
@@ -793,15 +791,10 @@ where
             VfsFileId::new(vfs::UNSWEPT_OUTPUTS_EVENTS, short_event_id.clone());
         let file = persister.encrypt_ldk_writeable(file_id, &event);
 
-        // Persist event to GDrive.
-        if let Some(gdrive_tx) = gdrive_persister_tx {
-            gdrive_tx
-                .try_send(file.clone())
-                .context("GDrive persister queue full")
-                .map_err(EventHandleError::Replay)?;
-        }
+        persister
+            .queue_backup(&file)
+            .map_err(EventHandleError::Replay)?;
 
-        // Persist event to VFS.
         let retries = Retries::from_count(1);
         persister
             .persist_file(file, retries)
@@ -816,7 +809,7 @@ where
     let tx_display = TxDisplay(&sweep_tx);
     let tx_context = format!("channel_id={channel_id}, {tx_display}");
 
-    // Persist the unbroadcastable tx to the VFS (and GDrive):
+    // Persist the unbroadcastable tx to VFS and queue its backup:
     // `unswept_outputs-txs/<timestamp>-<nonce>-<txid>`
     {
         let raw_tx = {
@@ -837,15 +830,10 @@ where
 
         let file = persister.encrypt_bytes(file_id, &raw_tx);
 
-        // Backup unbroadcastable tx to GDrive.
-        if let Some(gdrive_tx) = gdrive_persister_tx {
-            gdrive_tx
-                .try_send(file.clone())
-                .context("GDrive persister queue full")
-                .map_err(EventHandleError::Replay)?;
-        }
+        persister
+            .queue_backup(&file)
+            .map_err(EventHandleError::Replay)?;
 
-        // Persist unbroadcastable tx to VFS.
         let retries = Retries::from_count(1);
         persister
             .persist_file(file, retries)

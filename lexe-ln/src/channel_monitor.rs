@@ -56,14 +56,15 @@ use crate::{
 ///
 /// <https://discord.com/channels/915026692102316113/1367736643100086374/1367952226269663262>
 ///
-/// Since the user node's GDrive persister task must live at least as long as
-/// this task, we trigger it only once the monitor persister task has shut down.
+/// Since the user node's backup persister tasks must live at least as long as
+/// this task, we trigger them only once the monitor persister task has shut
+/// down.
 ///
 /// To summarize, the *typical* (not always!) trigger order of shutdowns is:
 ///
 /// 1) `shutdown`
 /// 2) `monitor_persister_shutdown`
-/// 3) `gdrive_persister_shutdown`
+/// 3) `backup_persister_shutdown`
 pub struct ChannelMonitorPersister<CM, PS>
 where
     CM: LexeChannelManager<PS>,
@@ -77,7 +78,7 @@ where
     rx_is_closed: bool,
     shutdown: NotifyOnce,
     monitor_persister_shutdown: NotifyOnce,
-    gdrive_persister_shutdown: Option<NotifyOnce>,
+    backup_persister_shutdown: Option<NotifyOnce>,
 
     /// Used to receive a batch of commands from
     /// `channel_monitor_persister_rx`.
@@ -251,7 +252,7 @@ where
         >,
         shutdown: NotifyOnce,
         monitor_persister_shutdown: NotifyOnce,
-        gdrive_persister_shutdown: Option<NotifyOnce>,
+        backup_persister_shutdown: Option<NotifyOnce>,
         max_active_persists: u32,
     ) -> Self {
         assert!(max_active_persists > 0);
@@ -264,7 +265,7 @@ where
             rx_is_closed: false,
             shutdown,
             monitor_persister_shutdown,
-            gdrive_persister_shutdown,
+            backup_persister_shutdown,
             commands_buf: Vec::with_capacity(max_active_persists as usize),
             updates_buf: Vec::with_capacity(max_active_persists as usize),
             flush_state: FlushState::new(),
@@ -528,10 +529,10 @@ where
     fn shutdown(&self) {
         self.shutdown.send();
 
-        // For user nodes, trigger the GDrive persister shutdown now that the
+        // For user nodes, trigger the backup persisters' shutdown now that the
         // monitor persister is completely done.
         // TODO(phlip9): OwnedLxTask.into_shutdown().await when that exists
-        if let Some(shutdown) = &self.gdrive_persister_shutdown {
+        if let Some(shutdown) = &self.backup_persister_shutdown {
             shutdown.send();
         }
     }

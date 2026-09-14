@@ -27,12 +27,13 @@
 //!
 //! Channel manager:
 //! - Read: Read from Lexe DB.
-//! - Write: Write to Lexe DB and trigger an asynchronous GDrive backup.
+//! - Write: Write to Lexe DB and queue configured backups.
 //!
 //! Channel monitors:
 //! - Read: Read from Lexe DB.
-//! - Write: Write to Lexe DB and trigger an asynchronous GDrive backup.
-//! - Archive: Write to and delete from both Lexe's DB and GDrive synchronously.
+//! - Write: Write to Lexe DB and queue configured backups.
+//! - Archive: Copy the primary monitor to the archive namespace, queue backups,
+//!   then delete the primary live monitor.
 
 use std::{
     collections::HashMap, io::Cursor, str::FromStr, sync::Arc, time::SystemTime,
@@ -95,11 +96,10 @@ use lexe_ln::{
         manager::{CheckedPayment, PersistedPayment},
         v1::PaymentV1,
     },
-    persister::{self, LexePersisterMethods},
+    persister::{self, BackupCommand, LexePersisterMethods},
     traits::LexePersister,
     wallet::ChangeSet,
 };
-use lexe_std::backoff;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{
@@ -113,7 +113,7 @@ use lightning::{
         ser::{ReadableArgs, Writeable},
     },
 };
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, warn};
@@ -124,11 +124,6 @@ use crate::{
     client::NodeBackendClient,
     nwc::NwcClient,
 };
-
-/// Data discrepancy evaluation and resolution.
-mod discrepancy;
-/// Logic to conduct operations on multiple data backends at the same time.
-mod multi;
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
 const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
@@ -141,9 +136,8 @@ pub struct NodePersister {
     backend_api: Arc<NodeBackendClient>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
-    google_vfs: Option<Arc<GoogleVfs>>,
     channel_monitor_persister_tx: mpsc::Sender<ChannelMonitorPersisterCommand>,
-    gdrive_persister_tx: mpsc::Sender<VfsFile>,
+    backup_txs: Vec<mpsc::Sender<BackupCommand>>,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
     shutdown: NotifyOnce,
 }
@@ -363,16 +357,14 @@ pub(crate) async fn persist_approved_versions(
 
 impl NodePersister {
     /// Initialize a [`NodePersister`].
-    /// `google_vfs` MUST be [`Some`] if we are running in staging or prod.
     pub(crate) fn new(
         backend_api: Arc<NodeBackendClient>,
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<AesMasterKey>,
-        google_vfs: Option<Arc<GoogleVfs>>,
         channel_monitor_persister_tx: mpsc::Sender<
             ChannelMonitorPersisterCommand,
         >,
-        gdrive_persister_tx: mpsc::Sender<VfsFile>,
+        backup_txs: Vec<mpsc::Sender<BackupCommand>>,
         eph_tasks_tx: mpsc::Sender<LxTask<()>>,
         shutdown: NotifyOnce,
     ) -> Self {
@@ -380,9 +372,8 @@ impl NodePersister {
             backend_api,
             authenticator,
             vfs_master_key,
-            google_vfs,
             channel_monitor_persister_tx,
-            gdrive_persister_tx,
+            backup_txs,
             eph_tasks_tx,
             shutdown,
         }
@@ -421,41 +412,6 @@ impl NodePersister {
     /// Get a reference to the underlying [`AesMasterKey`].
     pub(crate) fn vfs_master_key(&self) -> &AesMasterKey {
         self.vfs_master_key.as_ref()
-    }
-
-    /// Upserts a file to GDrive with the given # of `retries` if this
-    /// [`NodePersister`] contains a [`GoogleVfs`], otherwise does nothing.
-    // TODO(max): This fn should be reused in more places.
-    pub(crate) async fn upsert_gdrive_if_available(
-        &self,
-        file_id: &VfsFileId,
-        data: bytes::Bytes,
-        retries: usize,
-    ) -> anyhow::Result<()> {
-        let gvfs = match self.google_vfs.as_ref() {
-            Some(gvfs) => gvfs,
-            None => return Ok(()),
-        };
-
-        let mut upsert_result = gvfs.upsert_file(file_id, data.clone()).await;
-
-        let mut backoff_iter = backoff::get_backoff_iter();
-        for i in 0..retries {
-            if upsert_result.is_ok() {
-                break;
-            }
-
-            tokio::time::sleep(backoff_iter.next().unwrap()).await;
-
-            upsert_result = gvfs
-                .upsert_file(file_id, data.clone())
-                .await
-                .with_context(|| format!("Retry #{i}"));
-        }
-
-        upsert_result
-            .context("Failed to upsert to GDrive")
-            .with_context(|| file_id.clone())
     }
 
     pub(crate) async fn read_scids(&self) -> anyhow::Result<Vec<Scid>> {
@@ -893,10 +849,7 @@ impl LexePersisterMethods for NodePersister {
 
         let file = self.encrypt_ldk_writeable(file_id, channel_manager);
 
-        // Trigger async persistence to GDrive
-        self.gdrive_persister_tx
-            .try_send(file.clone())
-            .context("GDrive persister channel full (from manager)")?;
+        self.queue_backup(&file)?;
 
         // Persist to Lexe VFS
         // XXX(max): Channel manager should be persisted to multiple VSS stores.
@@ -920,13 +873,13 @@ impl LexePersisterMethods for NodePersister {
                 })?;
             let filename = monitor_name.to_string();
             let file_id = VfsFileId::new(vfs::CHANNEL_MONITORS_DIR, filename);
-            self.encrypt_ldk_writeable(file_id, &*locked_monitor)
-        };
+            let file = self.encrypt_ldk_writeable(file_id, &*locked_monitor);
 
-        // Trigger async persistence to GDrive
-        self.gdrive_persister_tx
-            .try_send(file.clone())
-            .context("GDrive persister channel full (from monitor)")?;
+            // LDK takes the monitor-set write lock during archival, so queue
+            // this backup before releasing our read lock.
+            self.queue_backup(&file)?;
+            file
+        };
 
         // Persist to Lexe VFS
         // XXX(max): Channel monitor should be persisted to multiple VSS stores.
@@ -934,6 +887,14 @@ impl LexePersisterMethods for NodePersister {
         self.persist_file(file, retries)
             .await
             .context("Failed to persist channel monitor")
+    }
+
+    fn queue_backup(&self, file: &VfsFile) -> anyhow::Result<()> {
+        for tx in &self.backup_txs {
+            tx.try_send(BackupCommand::Persist(file.clone()))
+                .context("Could not queue backup")?;
+        }
+        Ok(())
     }
 
     async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV2>> {
@@ -1329,7 +1290,22 @@ impl Persist<SignerType> for NodePersister {
         let backend_api = self.backend_api.clone();
         let authenticator = self.authenticator.clone();
         let vfs_master_key = self.vfs_master_key.clone();
-        let maybe_google_vfs = self.google_vfs.clone();
+
+        // Reserve before spawning so backup shutdown waits for this archive
+        // while its primary reads/writes are still in flight.
+        let archive_permits = match self
+            .backup_txs
+            .iter()
+            .map(|tx| tx.clone().try_reserve_owned())
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(permits) => permits,
+            Err(e) => {
+                error!("Could not queue archive, shutting down: {e}");
+                self.shutdown.send();
+                return;
+            }
+        };
 
         // LDK suggests that instead of deleting the monitor,
         // we should archive the monitor to hedge against data loss.
@@ -1345,16 +1321,23 @@ impl Persist<SignerType> for NodePersister {
             // 1) Read and decrypt the monitor from the regular monitors dir.
             // We need to decrypt since the ciphertext is bound to its path,
             // but we can avoid a needless deserialization + reserialization.
-            let source_plaintext = multi::read(
-                &backend_api,
-                &authenticator,
-                &vfs_master_key,
-                maybe_google_vfs.as_deref(),
-                &source_file_id,
-            )
-            .await
-            .context("Couldn't read source monitor")?
-            .context("No source monitor exists")?;
+            let token = authenticator
+                .get_token(&*backend_api, SystemTime::now(), LexeScope::All)
+                .await
+                .context("Could not get auth token")?;
+            let data = backend_api
+                .get_file(&source_file_id, token.clone())
+                .await
+                .context("Couldn't read source monitor")?;
+            let source_file = VfsFile::from_parts(source_file_id.clone(), data);
+            let source_plaintext = Secret::new(
+                persister::decrypt_file(
+                    &vfs_master_key,
+                    &source_file_id,
+                    source_file,
+                )
+                .context("Couldn't decrypt source monitor")?,
+            );
 
             // 2) Reencrypt the monitor for the monitor archive namespace.
             let mut rng = SysRng::new();
@@ -1365,25 +1348,33 @@ impl Persist<SignerType> for NodePersister {
                 source_plaintext.expose_secret(),
             );
 
-            // 3) Persist the monitor at the monitor archive namespace.
-            multi::upsert(
-                &backend_api,
-                &authenticator,
-                maybe_google_vfs.as_deref(),
-                archive_file,
-            )
-            .await
-            .context("Failed to upsert archive file")?;
+            // 3) Persist the primary archive, then queue backups.
+            backend_api
+                .upsert_file_with_retries(
+                    &archive_file.id,
+                    archive_file.data.clone().into(),
+                    token.clone(),
+                    Retries::IMPORTANT_PERSISTS,
+                )
+                .await
+                .context("Failed to upsert archive file")?;
+
+            for permit in archive_permits {
+                permit.send(BackupCommand::Archive {
+                    source_file_id: source_file_id.clone(),
+                    archive_file: archive_file.clone(),
+                });
+            }
 
             // 4) Finally, delete the monitor at the regular namespace.
-            multi::delete(
-                &backend_api,
-                &authenticator,
-                maybe_google_vfs.as_deref(),
-                &source_file_id,
-            )
-            .await
-            .context("Couldn't delete archived channel monitor")?;
+            let token = authenticator
+                .get_token(&*backend_api, SystemTime::now(), LexeScope::All)
+                .await
+                .context("Could not get auth token")?;
+            backend_api
+                .delete_file(&source_file_id, token)
+                .await
+                .context("Couldn't delete archived channel monitor")?;
 
             anyhow::Ok(())
         };

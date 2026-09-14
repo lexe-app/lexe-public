@@ -11,7 +11,6 @@ mod anonymize_path;
 /// Version approval and revocation.
 mod approved_versions;
 /// Asynchronous backup worker.
-#[cfg(test)]
 mod backup_persister;
 /// `NodeChannelManager` and related configs.
 mod channel_manager;
@@ -21,7 +20,7 @@ mod client;
 mod context;
 /// `NodeEventHandler`.
 mod event_handler;
-/// GDrive persister task.
+/// GDrive backup writes.
 mod gdrive_persister;
 /// GDrive-specific setup logic.
 mod gdrive_setup;
