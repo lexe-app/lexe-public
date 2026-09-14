@@ -39,6 +39,22 @@ use crate::{
     traits::{LexeChannelManager, LexePersister},
 };
 
+/// A request to an asynchronous write-back backup store. Currently supports
+/// GDrive and VSS.
+#[derive(Debug)]
+pub enum BackupCommand {
+    /// Write the file.
+    Persist(VfsFile),
+    /// Used to archive a channel monitor.
+    //
+    // NOTE(phlip9): We rely on LDK not persisting a channel after it's
+    // archived. Otherwise we would need more internal coordination.
+    Archive {
+        source_file_id: VfsFileId,
+        archive_file: VfsFile,
+    },
+}
+
 // --- VFS encryption / decryption helpers --- //
 
 /// Serializes a LDK [`Writeable`] to bytes, encrypts the serialized bytes, and

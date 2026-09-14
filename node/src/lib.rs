@@ -10,6 +10,9 @@ mod alias;
 mod anonymize_path;
 /// Version approval and revocation.
 mod approved_versions;
+/// Asynchronous backup worker.
+#[cfg(test)]
+mod backup_persister;
 /// `NodeChannelManager` and related configs.
 mod channel_manager;
 /// API clients.
