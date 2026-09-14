@@ -26,6 +26,7 @@ ${PODS_TARGET_SRCROOT}/../../lexe-tls-attest-server/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tls-core/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tls/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe-tokio/Cargo.toml
+${PODS_TARGET_SRCROOT}/../../lexe-vss-client/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../lexe/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../node/Cargo.toml
 ${PODS_TARGET_SRCROOT}/../../petname/Cargo.toml

@@ -27,6 +27,7 @@ members = [
     "lexe-tls-attest-server",
     "lexe-tls-core",
     "lexe-tokio",
+    "lexe-vss-client",
     "node",
     "petname",
     "run-sgx",
@@ -315,6 +316,8 @@ sgxs = "0.8"
 sgxs-loaders = "0.5"
 # Asynchronous runtime
 tokio = { version = "1", default-features = false }
+# VSS client
+vss-client-ng = { version = "0.6.0", default-features = false, features = ["sigs-auth"] }
 
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the root Cargo.toml.
@@ -427,7 +430,16 @@ ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.14-2026_
 # * fortanix: SGX port
 # * test: fix testing script
 # * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio` TODO(phlip9): Remove
-tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-2024_10_11" }
+tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-v1.36.0-2024_10_11" }
+
+# * license: Add dual license information
+# * refactor: separate VSS response decoding from HTTP client
+# * refactor: isolate LNURL-auth HTTP request handling to `send_get`
+# * http: replace bitreq -> reqwest 0.12
+# * perf: reuse response chunks and requests with `Bytes`
+# * http: use caller-provided client timeouts
+vss-client-ng = { git = "https://github.com/lexe-app/vss-client", branch = "lexe-v0.6.0-2026_09_13" }
+# vss-client-ng = { path = "/home/phlip9/dev/ldk-vss-client" }
 
 [profile.release]
 # Enable "thin" LTO (link-time optimization) for better perf+binary size. "fat"

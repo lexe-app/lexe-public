@@ -1,0 +1,25 @@
+[package]
+name = "lexe-vss-client"
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
+publish = false
+
+[lints]
+workspace = true
+
+# Default config for testing in SGX
+[package.metadata.fortanix-sgx]
+
+[dependencies]
+
+# --- WORKSPACE --- #
+
+reqwest = { workspace = true }
+rustls = { workspace = true }
+secp256k1 = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
+vss-client-ng = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
