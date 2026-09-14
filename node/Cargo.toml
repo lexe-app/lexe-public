@@ -80,6 +80,7 @@ lexe-std = { workspace = true }
 lexe-tls = { workspace = true }
 lexe-tls-attest-server = { path = "../lexe-tls-attest-server" }
 lexe-tokio = { workspace = true }
+lexe-vss-client = { path = "../lexe-vss-client" }
 
 # --- WORKSPACE --- #
 
@@ -118,6 +119,7 @@ lexe-ln = { path = "../lexe-ln", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive = { workspace = true }
+reqwest = { workspace = true }
 # Tokio features used when testing
 tokio = { workspace = true, features = [
     "io-util",

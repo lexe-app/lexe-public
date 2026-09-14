@@ -16,7 +16,7 @@
 //! Writes: When persisting the channel manager or channel monitor, we consider
 //! Lexe's DB to be the 'primary' data store, so we return to the caller once
 //! persistence in Lexe's DB is complete. However, we also trigger a task to
-//! backup the channel state to GDrive asynchronously. This sacrifices some
+//! backup the channel state to GDrive/VSS asynchronously. This sacrifices some
 //! rollback-resistance for significantly improved latency.
 //!
 //! In the future, we will persist all critical channel state onto multiple

@@ -10,7 +10,7 @@ use lexe_tokio::{DEFAULT_CHANNEL_SIZE, notify_once::NotifyOnce, task::LxTask};
 use tokio::{sync::mpsc, time};
 use tracing::{debug, error, info_span};
 
-use crate::gdrive_persister;
+use crate::{gdrive_persister, vss_persister::VssPersister};
 
 #[cfg(test)]
 mod tests;
@@ -25,6 +25,7 @@ pub(crate) struct BackupPersister {
 
 pub(crate) enum BackupStore {
     GDrive(Box<GoogleVfs>),
+    Vss(VssPersister),
     #[cfg(test)]
     Test(tests::TestStore),
 }
@@ -154,6 +155,7 @@ impl BackupStore {
     fn name(&self) -> &'static str {
         match self {
             Self::GDrive(_) => "GDrive",
+            Self::Vss(_) => "VSS",
             #[cfg(test)]
             Self::Test(_) => "Test",
         }
@@ -168,6 +170,7 @@ impl BackupStore {
         match self {
             Self::GDrive(gvfs) =>
                 gdrive_persister::persist(gvfs, files, shutdown).await,
+            Self::Vss(vss) => vss.persist(files).await,
             #[cfg(test)]
             Self::Test(store) => store.persist(files).await,
         }

@@ -328,6 +328,13 @@ impl RootSeed {
         AesMasterKey::new(secret.expose_secret())
     }
 
+    /// Derive the signing key used to authenticate VSS persists.
+    pub fn derive_vss_auth_key(&self) -> secp256k1::SecretKey {
+        let secret = self.derive(&[b"vss auth key"]);
+        secp256k1::SecretKey::from_slice(secret.expose_secret())
+            .expect("HKDF output should be a valid secp256k1 secret key")
+    }
+
     /// Derive the key used to authenticate "continuations": server-issued
     /// opaque blobs that a client echoes back to us (e.g. a signed
     /// LDK route).
@@ -991,6 +998,12 @@ mod test {
         assert_eq!(
             node_pk.to_string(),
             "035a70d45eec7efb270319f116a9684250acb4ef282a26d21874878e7c5088f73b",
+        );
+
+        // VSS authentication key
+        assert_eq!(
+            hex::encode(&seed.derive_vss_auth_key().secret_bytes()),
+            "bfe7c1979ba87f59064afd83f173901e41888c906b3a2162ce856e686393d784",
         );
 
         // LDK seed (used to initialize KeysManager)

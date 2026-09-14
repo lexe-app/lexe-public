@@ -16,6 +16,7 @@ use vss_client_ng::{
 // Reexport vss-client-ng request/response types
 pub use vss_client_ng::{
     error::VssError,
+    prost,
     types::{
         DeleteObjectRequest, DeleteObjectResponse, GetObjectRequest,
         GetObjectResponse, KeyValue, ListKeyVersionsRequest,

@@ -44,6 +44,8 @@ mod runner;
 mod server;
 /// Caches whether users exist.
 mod user_cache;
+/// VSS backup persister.
+mod vss_persister;
 
 /// Return the node semver version.
 ///

@@ -102,6 +102,7 @@ use crate::{
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
     server::{self, RouterState},
+    vss_persister::VssPersister,
 };
 
 /// The minimum # of intercept scids we want (for inserting into invoices).
@@ -333,6 +334,20 @@ impl UserNode {
         if let Some(gvfs) = maybe_google_vfs {
             let (worker, tx) =
                 BackupPersister::new(BackupStore::GDrive(Box::new(gvfs)));
+            backup_persisters.push(worker);
+            backup_txs.push(tx);
+        }
+
+        // TODO(phlip9): enable everywhere once we have a real third-party VSS
+        // provider.
+        if !deploy_env.is_prod() {
+            let vss = VssPersister::new_lexe(
+                rng,
+                &root_seed,
+                &args.backend_url,
+                deploy_env,
+            )?;
+            let (worker, tx) = BackupPersister::new(BackupStore::Vss(vss));
             backup_persisters.push(worker);
             backup_txs.push(tx);
         }
