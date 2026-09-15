@@ -3146,6 +3146,12 @@ pub struct Payment {
     /// (Invoice payments only) The BOLT 11 invoice used in this payment.
     pub invoice: Option<Invoice>,
 
+    /// Hex-encoded public key of the Lexe SDK client which created this
+    /// payment. (Inbound offer payments aren't tracked yet.) `None` means
+    /// either root seed authentication was used, or the client was never
+    /// recorded.
+    pub client_pk: Option<String>,
+
     /// (Offer payments only) The payer's self-reported human-readable name.
     pub payer_name: Option<String>,
 
@@ -3201,6 +3207,7 @@ impl From<SdkPayment> for Payment {
             address,
             invoice,
             tx: _,
+            client_pk,
             payer_name,
             message,
             personal_note,
@@ -3231,6 +3238,7 @@ impl From<SdkPayment> for Payment {
                 .as_ref()
                 .map(|a| a.assume_checked_ref().to_string()),
             invoice: invoice.map(|arc| Invoice::from(&*arc)),
+            client_pk: client_pk.map(|pk| pk.to_string()),
             payer_name,
             message,
             personal_note,

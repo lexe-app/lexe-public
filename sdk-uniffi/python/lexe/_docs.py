@@ -2650,6 +2650,10 @@ Attributes:
         (e.g. "invoice generated", "timed out").
     address: (Onchain send only) The address we're sending to.
     invoice: (Invoice payments only) The BOLT 11 invoice.
+    client_pk: Hex-encoded public key of the Lexe SDK client which created
+        this payment. (Inbound offer payments aren't tracked yet.) ``None``
+        means either root seed authentication was used, or the client was
+        never recorded.
     payer_name: (Offer payments only) Payer's self-reported name.
     message: (Offer/LNURL-pay payments) Payer-provided message.
     personal_note: Optional personal note attached to this payment. Can always

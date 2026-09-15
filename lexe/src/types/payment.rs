@@ -11,7 +11,7 @@ use lexe_common::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::types::auth::UserPk;
+use crate::{types::auth::UserPk, util::ed25519};
 
 /// Re-exports that are part of the SDK's public API.
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
@@ -104,6 +104,11 @@ pub struct Payment {
     /// The on-chain transaction, if there is one.
     /// Always [`Some`] for on-chain sends and receives.
     pub tx: Option<Arc<bitcoin::Transaction>>,
+
+    /// The public key of the Lexe SDK client which created this payment.
+    /// (Inbound offer payments aren't tracked yet.) [`None`] means either root
+    /// seed authentication was used, or the client was never recorded.
+    pub client_pk: Option<ed25519::PublicKey>,
 
     /// (Offer payments only) The payer's self-reported human-readable name.
     pub payer_name: Option<String>,
@@ -204,8 +209,7 @@ impl From<BasicPaymentV2> for Payment {
             invoice,
             offer: _,
             tx,
-            // TODO(nicole): expose
-            client_pk: _,
+            client_pk,
             payer_name,
             message,
             personal_note,
@@ -239,6 +243,7 @@ impl From<BasicPaymentV2> for Payment {
             address,
             invoice,
             tx,
+            client_pk,
             payer_name,
             message,
             personal_note,
