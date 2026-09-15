@@ -22,7 +22,10 @@ use lexe_common::{
     ppm::Ppm,
     time::TimestampMs,
 };
-use lexe_crypto::rng::{RngCore, ThreadFastRng};
+use lexe_crypto::{
+    ed25519,
+    rng::{RngCore, ThreadFastRng},
+};
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use lexe_std::const_assert_mem_size;
 #[cfg(any(test, feature = "test-utils"))]
@@ -189,6 +192,13 @@ pub struct BasicPaymentV2 {
 
     // --- Notes and sender/receiver identifiers --- //
     ///
+    /// The Lexe SDK client which created this payment. (Inbound offer payments
+    /// aren't tracked yet.) [`None`] means either root seed authentication was
+    /// used, or the client was never recorded.
+    // Added in `node-v0.10.5`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_pk: Option<ed25519::PublicKey>,
+
     /// (Offer payments only) The payer's self-reported human-readable name.
     #[cfg_attr(
         any(test, feature = "test-utils"),
@@ -276,7 +286,7 @@ pub struct BasicPaymentV2 {
 }
 
 // Debug the size_of `BasicPaymentV2`
-const_assert_mem_size!(BasicPaymentV2, 560);
+const_assert_mem_size!(BasicPaymentV2, 592);
 
 /// An upgradeable version of [`Option<BasicPaymentV2>`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -825,6 +835,7 @@ impl BasicPaymentV2 {
             invoice: v1.invoice,
             offer: v1.offer,
             tx: None,
+            client_pk: None,
             payer_name: None,
             message: None,
             personal_note: v1.note,

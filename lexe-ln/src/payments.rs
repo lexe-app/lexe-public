@@ -394,6 +394,7 @@ impl PaymentWithMetadata<PaymentV2> {
         let address = self.metadata.address;
         let invoice = self.metadata.invoice;
         let offer = self.metadata.offer;
+        let client_pk = self.metadata.client_pk;
         let payer_name = self.metadata.payer_name;
         let message = self.metadata.message;
         let personal_note = self.metadata.personal_note;
@@ -423,6 +424,7 @@ impl PaymentWithMetadata<PaymentV2> {
             invoice,
             offer,
             tx,
+            client_pk,
             payer_name,
             message,
             personal_note,

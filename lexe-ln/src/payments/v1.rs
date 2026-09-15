@@ -338,6 +338,7 @@ impl PaymentV1 {
             invoice: self.invoice(),
             offer: self.offer(),
             tx: self.tx(),
+            client_pk: None,
             payer_name: self.payer_name().map(|s| s.to_owned()),
             message: self.payer_note().map(|s| s.to_owned()),
             personal_note: self.personal_note().map(|s| s.to_owned()),

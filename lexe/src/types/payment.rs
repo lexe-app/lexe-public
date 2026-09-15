@@ -204,6 +204,8 @@ impl From<BasicPaymentV2> for Payment {
             invoice,
             offer: _,
             tx,
+            // TODO(nicole): expose
+            client_pk: _,
             payer_name,
             message,
             personal_note,
