@@ -27,8 +27,8 @@ use crate::{
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayLnurlRequest, PayOfferRequest, PayRequest, PaymentSyncSummary,
-            RevokeClientRequest, UpdateClientRequest,
+            PayLnurlRequest, PayOfferRequest, PayOnchainRequest, PayRequest,
+            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
             WaitForNextPaymentResponse, WithdrawLnurlRequest,
         },
@@ -395,6 +395,18 @@ impl BlockingLexeWallet {
         &self,
     ) -> anyhow::Result<GetNextUnusedAddressResponse> {
         block_on(self.inner.get_next_unused_address())
+    }
+
+    /// Send Bitcoin on-chain to the given address.
+    ///
+    /// Returns the resulting [`Payment`] as soon as the transaction is
+    /// broadcast, while it is still pending; an on-chain send payment only
+    /// finalizes its status after 6 confirmations (~1 hour).
+    pub fn pay_onchain(
+        &self,
+        req: PayOnchainRequest,
+    ) -> anyhow::Result<Payment> {
+        block_on(self.inner.pay_onchain(req))
     }
 
     /// Pay an LNURL or Lightning Address via the `payRequest` flow.

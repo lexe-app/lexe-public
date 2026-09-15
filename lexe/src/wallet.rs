@@ -23,10 +23,7 @@ use lexe_common::{
         user::NodePkProof,
     },
     constants,
-    ln::{
-        amount::Amount, channel::UserChannelId, network::Network,
-        priority::ConfirmationPriority,
-    },
+    ln::{amount::Amount, channel::UserChannelId, network::Network},
 };
 use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
@@ -60,10 +57,11 @@ use crate::{
             GetUpdatedPaymentsResponse, ListChannelsResponse,
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayLnurlRequest, PayOfferRequest, PayRequest, PayableDetails,
-            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
-            WaitForNextPaymentResponse, WithdrawLnurlRequest,
+            PayLnurlRequest, PayOfferRequest, PayOnchainRequest, PayRequest,
+            PayableDetails, PaymentSyncSummary, RevokeClientRequest,
+            UpdateClientRequest, UpdatePersonalNoteRequest,
+            WaitForNextPaymentRequest, WaitForNextPaymentResponse,
+            WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentFilter, PaymentUpdatedIndex},
     },
@@ -958,10 +956,7 @@ impl LexeWallet {
             .await
             .context(uri_err_context)?;
 
-        // Lightning payments wait via `wait_for_payment` until they reach a
-        // terminal state. Onchain sends take 6 confirmations (~1 hour) to
-        // finalize, so we don't wait; we fetch the just-created (pending)
-        // payment.
+        // Return the onchain payment with a pending status instead of waiting.
         match index.id {
             PaymentId::OnchainSend(_) => self
                 .get_payment(GetPaymentRequest { index })
@@ -1185,21 +1180,20 @@ impl LexeWallet {
                              methods that don't suggest an amount"
                         )),
                 };
-                let cid = ClientPaymentId::generate();
-                let pay_req = command::PayOnchainRequest {
-                    cid,
+                let pay_req = PayOnchainRequest {
                     address: address.into_unchecked(),
                     amount,
-                    priority: ConfirmationPriority::Normal,
-                    personal_note,
+                    priority: None,
+                    client_payment_id: None,
+                    personal_note: personal_note.map(BoundedString::into_inner),
                 };
+                let req = command::PayOnchainRequest::try_from(pay_req)?;
+                let id = PaymentId::OnchainSend(req.cid);
                 let resp = self
                     .node_client
-                    .pay_onchain(pay_req)
+                    .pay_onchain(req)
                     .await
                     .context("Failed to pay on-chain")?;
-
-                let id = PaymentId::OnchainSend(cid);
                 Ok(PaymentCreatedIndex {
                     created_at: resp.created_at,
                     id,
@@ -1316,6 +1310,34 @@ impl LexeWallet {
             .await
             .context("Failed to get next unused address")?;
         Ok(GetNextUnusedAddressResponse::from(resp))
+    }
+
+    /// Send Bitcoin on-chain to the given address.
+    ///
+    /// Returns the resulting [`Payment`] as soon as the transaction is
+    /// broadcast, while it is still pending; an on-chain send payment only
+    /// finalizes its status after 6 confirmations (~1 hour).
+    #[instrument(skip_all, name = "(pay-onchain)")]
+    pub async fn pay_onchain(
+        &self,
+        req: PayOnchainRequest,
+    ) -> anyhow::Result<Payment> {
+        let req = command::PayOnchainRequest::try_from(req)?;
+        let id = PaymentId::OnchainSend(req.cid);
+        let resp = self
+            .node_client
+            .pay_onchain(req)
+            .await
+            .context("Failed to pay on-chain")?;
+
+        let index = PaymentCreatedIndex {
+            created_at: resp.created_at,
+            id,
+        };
+        self.get_payment(GetPaymentRequest { index })
+            .await?
+            .payment
+            .context("Onchain payment missing right after creation")
     }
 
     /// Pay an LNURL or Lightning Address via the `payRequest` flow.

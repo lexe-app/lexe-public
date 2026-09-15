@@ -35,7 +35,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         auth::{ClientCredentials, Measurement, NodePk, Scope, UserPk},
-        bitcoin::{ChannelId, Offer, OutPoint, PayerProof, UserChannelId},
+        bitcoin::{
+            ChannelId, ConfirmationPriority, Offer, OutPoint, PayerProof,
+            UserChannelId,
+        },
         payment::Payment,
     },
     util::ed25519,
@@ -527,6 +530,50 @@ impl From<command::GetNextUnusedAddressResponse>
 {
     fn from(resp: command::GetNextUnusedAddressResponse) -> Self {
         Self { address: resp.addr }
+    }
+}
+
+/// A request to send Bitcoin on-chain.
+pub struct PayOnchainRequest {
+    /// The Bitcoin address to send to.
+    /// Must be valid for the network this wallet is configured for.
+    pub address: bitcoin::Address<NetworkUnchecked>,
+    /// The amount we will send.
+    pub amount: Amount,
+    /// How quickly the transaction should confirm. A higher priority pays a
+    /// higher on-chain fee. Defaults to `"normal"`.
+    pub priority: Option<ConfirmationPriority>,
+    /// A client-generated id for this payment, used for idempotency.
+    /// Retrying a request with the same `client_payment_id` won't send the
+    /// payment twice.
+    ///
+    /// If `None`, a random id is generated, which provides no idempotency
+    /// across separate `pay_onchain` calls.
+    pub client_payment_id: Option<ClientPaymentId>,
+    /// An optional personal note for this payment.
+    /// The receiver will not see this note.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub personal_note: Option<String>,
+}
+
+impl TryFrom<PayOnchainRequest> for command::PayOnchainRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(req: PayOnchainRequest) -> anyhow::Result<Self> {
+        Ok(Self {
+            cid: req
+                .client_payment_id
+                .unwrap_or_else(ClientPaymentId::generate),
+            address: req.address,
+            amount: req.amount,
+            priority: req.priority.unwrap_or(ConfirmationPriority::Normal),
+            personal_note: req
+                .personal_note
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid personal note")?,
+        })
     }
 }
 
