@@ -485,9 +485,15 @@ pub(super) async fn pay_onchain_preflight(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<PayOnchainPreflightRequest>,
 ) -> Result<LxJson<PayOnchainPreflightResponse>, NodeApiError> {
-    lexe_ln::command::pay_onchain_preflight(req, &state.wallet, state.network)
-        .map(LxJson)
-        .map_err(NodeApiError::command)
+    lexe_ln::command::pay_onchain_preflight(
+        req,
+        &state.wallet,
+        state.network,
+        &state.payments_manager,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn get_next_unused_address(

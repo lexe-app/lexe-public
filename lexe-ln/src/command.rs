@@ -1357,7 +1357,24 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
 {
-    // TODO(phlip9): idempotency: check if payment already exists.
+    // Idempotency: return existing payment if already attempted.
+    let payment_id = PaymentId::OnchainSend(req.client_payment_id);
+    let maybe_existing_payment = payments_manager
+        .get_payment(&payment_id)
+        .await
+        .context("Couldn't check for existing payment")?;
+    if let Some(pwm) = maybe_existing_payment {
+        match pwm.payment {
+            PaymentV2::OnchainSend(os) => {
+                let created_at = os.created_at.context("Missing created_at")?;
+                return Ok(PayOnchainResponse {
+                    created_at,
+                    txid: os.txid,
+                });
+            }
+            _ => bail!("Expected onchain send, found: {}", pwm.payment.rail()),
+        }
+    }
 
     // Create and sign the onchain send tx.
     let oswm = wallet
@@ -1410,12 +1427,30 @@ where
     Ok(PayOnchainResponse { created_at, txid })
 }
 
-#[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
-pub fn pay_onchain_preflight(
+#[instrument(skip_all, name = "(pay-onchain-preflight)")]
+pub async fn pay_onchain_preflight<CM, PS>(
     req: PayOnchainPreflightRequest,
     wallet: &OnchainWallet,
     network: Network,
-) -> anyhow::Result<PayOnchainPreflightResponse> {
+    payments_manager: &PaymentsManager<CM, PS>,
+) -> anyhow::Result<PayOnchainPreflightResponse>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+{
+    // Reject if the onchain payment was already attempted.
+    if let Some(client_payment_id) = req.client_payment_id {
+        let payment_id = PaymentId::OnchainSend(client_payment_id);
+        let maybe_existing_payment = payments_manager
+            .get_payment(&payment_id)
+            .await
+            .context("Couldn't check for existing payment")?;
+        ensure!(
+            maybe_existing_payment.is_none(),
+            "This onchain payment was already made"
+        );
+    }
+
     wallet.pay_onchain_preflight(req, network)
 }
 
