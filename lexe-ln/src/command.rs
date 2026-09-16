@@ -1180,11 +1180,7 @@ where
     let offer = req.offer.clone();
 
     // Pre-flight the offer payment (verify and partially route).
-    let PreflightedPayOffer {
-        oopwm,
-        route: _,
-        routing_context,
-    } = pay_offer_preflight_inner(
+    let preflighted = pay_offer_preflight_inner(
         req,
         router,
         channel_manager,
@@ -1195,6 +1191,19 @@ where
         lsp_node_pk,
     )
     .await?;
+
+    let (oopwm, _route, routing_context) = match preflighted {
+        PreflightedPayOffer::Exists { oopwm } => {
+            let created_at =
+                oopwm.payment.created_at.context("Missing created_at")?;
+            return Ok(PayOfferResponse { created_at });
+        }
+        PreflightedPayOffer::Ready {
+            oopwm,
+            route,
+            routing_context,
+        } => (oopwm, route, routing_context),
+    };
 
     // TODO(max): We should call chan_man.pay_for_offer_from_human_readable_name
     // below if the offer was resolved via BIP353.
@@ -1288,11 +1297,8 @@ where
         personal_note: None,
         kind: PaymentKind::Offer,
     };
-    let PreflightedPayOffer {
-        oopwm,
-        route,
-        routing_context: _,
-    } = pay_offer_preflight_inner(
+
+    let preflighted = pay_offer_preflight_inner(
         req,
         router,
         channel_manager,
@@ -1303,11 +1309,20 @@ where
         lsp_node_pk,
     )
     .await?;
-    Ok(PayOfferPreflightResponse {
-        amount: oopwm.payment.amount,
-        fees: oopwm.payment.routing_fee,
-        route,
-    })
+
+    match preflighted {
+        PreflightedPayOffer::Exists { .. } =>
+            Err(anyhow!("This offer payment was already made")),
+        PreflightedPayOffer::Ready {
+            oopwm,
+            route,
+            routing_context: _,
+        } => Ok(PayOfferPreflightResponse {
+            amount: oopwm.payment.amount,
+            fees: oopwm.payment.routing_fee,
+            route,
+        }),
+    }
 }
 
 #[instrument(skip_all, name = "(pay-onchain)")]
@@ -1491,14 +1506,23 @@ where
     })
 }
 
-/// An outbound offer payment that we preflighted (validated and routed) but
-/// haven't paid yet.
-struct PreflightedPayOffer {
-    oopwm: PaymentWithMetadata<OutboundOfferPaymentV2>,
-    route: LxRoute,
-    // TODO(phlip9): remove this when we route and retry BOLT12 offer payments
-    // ourselves.
-    routing_context: RoutingContext,
+/// An outbound offer payment that we have preflighted.
+//
+// clippy: `Exists` is rare and not worth optimizing the enum size for.
+#[allow(clippy::large_enum_variant)]
+enum PreflightedPayOffer {
+    /// This offer payment attempt is ready to send (validated and routed).
+    Ready {
+        oopwm: PaymentWithMetadata<OutboundOfferPaymentV2>,
+        route: LxRoute,
+        // TODO(phlip9): remove this when we route and retry BOLT12 offer
+        // payments ourselves.
+        routing_context: RoutingContext,
+    },
+    /// This offer payment attempt already exists (possibly paid).
+    Exists {
+        oopwm: PaymentWithMetadata<OutboundOfferPaymentV2>,
+    },
 }
 
 async fn pay_offer_preflight_inner<CM, PS>(
@@ -1517,6 +1541,30 @@ where
 {
     let offer = req.offer;
 
+    // Return early if we already tried paying with this client payment ID.
+    let payment_id = PaymentId::OfferSend(req.client_payment_id);
+    let maybe_existing_payment = payments_manager
+        .get_payment(&payment_id)
+        .await
+        .context("Couldn't check for existing payment")?;
+    if let Some(pwm) = maybe_existing_payment {
+        match pwm.payment {
+            PaymentV2::OutboundOffer(oop) => {
+                return Ok(PreflightedPayOffer::Exists {
+                    oopwm: PaymentWithMetadata {
+                        payment: oop,
+                        metadata: pwm.metadata,
+                    },
+                });
+            }
+            _ =>
+                return Err(anyhow!(
+                    "PaymentsManager corruption: expected Offer, found: {}",
+                    pwm.payment.rail()
+                )),
+        }
+    }
+
     // Fail early if offer is expired.
     ensure!(!offer.is_expired(), "Offer has expired");
 
@@ -1524,18 +1572,6 @@ where
     ensure!(
         !offer.is_fiat_denominated(),
         "Fiat-denominated offers are not supported yet"
-    );
-
-    // Fail early if we already tried paying with this client ID.
-    let payment_id = PaymentId::OfferSend(req.client_payment_id);
-    let maybe_existing_payment = payments_manager
-        .get_payment(&payment_id)
-        .await
-        .context("Couldn't check for existing payment")?;
-    ensure!(
-        maybe_existing_payment.is_none(),
-        "Detected duplicate attempt trying to pay this offer. \
-         Please refresh and try again."
     );
 
     // TODO(phlip9): support user choosing quantity. For now just assume
@@ -1627,7 +1663,7 @@ where
     )
     .context("Failed to create payment")?;
 
-    Ok(PreflightedPayOffer {
+    Ok(PreflightedPayOffer::Ready {
         oopwm,
         route: lx_route,
         routing_context,
