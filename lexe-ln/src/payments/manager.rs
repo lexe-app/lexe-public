@@ -173,6 +173,24 @@ pub(crate) struct InFlightRetryState {
     pub amount: Amount,
 }
 
+/// The result from [`PaymentsManager::new_payment`]. Returns whether the
+/// payment in the `new_payment` registration attempt is actually new or
+/// already exists.
+pub struct NewPaymentResult {
+    pub index: PaymentCreatedIndex,
+    pub state: NewPaymentState,
+}
+
+/// Whether a newly registered payment is actually new or already exists.
+pub enum NewPaymentState {
+    New,
+    Exists {
+        // HACK: this exists because `pay_onchain` currently needs to return
+        // the actual `txid`. At some point we should probably remove that.
+        txid: Option<Box<Txid>>,
+    },
+}
+
 /// Data required for a single payment send retry attempt.
 struct RetryInfo {
     id: PaymentId,
@@ -436,9 +454,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
 
     /// Register a new, globally-unique payment.
     ///
-    /// Errors if the payment already exists.
-    ///
-    /// Returns the newly-assigned [`PaymentCreatedIndex`] for convenience.
+    /// If the payment already exists, the returned [`NewPaymentResult::state`]
+    /// will be [`NewPaymentState::Exists`]. This is used for payment
+    /// idempotency.
     //
     // TODO(phlip9): might be clearer semantics if we assign the
     // new payment's `created_at` _inside_ the lock... this would make
@@ -447,7 +465,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
     pub async fn new_payment(
         &self,
         payment: PaymentWithMetadata,
-    ) -> anyhow::Result<PaymentCreatedIndex> {
+    ) -> anyhow::Result<NewPaymentResult> {
         let mut locked_data = self.data.lock().await;
         self.new_payment_inner(&mut locked_data, payment).await
     }
@@ -457,7 +475,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         &self,
         locked_data: &mut MutexGuard<'_, PaymentsData>,
         payment: PaymentWithMetadata,
-    ) -> anyhow::Result<PaymentCreatedIndex> {
+    ) -> anyhow::Result<NewPaymentResult> {
         let id = payment.payment.id();
         info!(%id, "Registering new payment");
 
@@ -465,9 +483,19 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             .get_cow_payment(locked_data, &id)
             .await
             .context("Could not get existing payment")?;
-        if let Some(existing_payment) = existing_payment {
-            let status = existing_payment.payment.status();
-            return Err(anyhow!("Payment already exists: {status}"));
+
+        // Idempotency: return payment if already exists.
+        if let Some(pwm) = existing_payment {
+            let created_at = pwm
+                .payment
+                .created_at()
+                .expect("All persisted payments must have a created_at set");
+            return Ok(NewPaymentResult {
+                index: PaymentCreatedIndex { created_at, id },
+                state: NewPaymentState::Exists {
+                    txid: pwm.payment.txid().map(Box::new),
+                },
+            });
         }
 
         let checked = CheckedPayment(payment);
@@ -481,7 +509,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
 
         locked_data.commit(persisted);
 
-        Ok(PaymentCreatedIndex { id, created_at })
+        Ok(NewPaymentResult {
+            index: PaymentCreatedIndex { created_at, id },
+            state: NewPaymentState::New,
+        })
     }
 
     /// Start tracking in-flight retry state for an outbound invoice payment.

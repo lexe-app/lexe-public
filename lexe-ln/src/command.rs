@@ -108,7 +108,7 @@ use crate::{
     payments::{
         PaymentV2, PaymentWithMetadata,
         inbound::InboundInvoicePaymentV2,
-        manager::PaymentsManager,
+        manager::{NewPaymentState, PaymentsManager},
         outbound::{
             self, DEFAULT_MAX_RETRY_ATTEMPTS, LxOutboundPaymentFailure,
             OUTBOUND_PAYMENT_RETRY_STRATEGY, OutboundInvoicePaymentV2,
@@ -837,10 +837,15 @@ where
     )
     .context("Failed to create payment")?;
     let pwm = iipwm.into_enum();
-    let created_index = payments_manager
+    let new = payments_manager
         .new_payment(pwm)
         .await
         .context("Could not register new payment")?;
+    let created_index = match new.state {
+        NewPaymentState::New => new.index,
+        NewPaymentState::Exists { .. } =>
+            return Err(anyhow!("Invoice already exists somehow??"))?,
+    };
 
     info!("Success: Generated invoice {invoice}");
 
@@ -945,11 +950,16 @@ where
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
     let pwm = oipwm.into_enum();
-    let created_index = payments_manager
-        .new_payment(pwm)
-        .await
-        .context("Already tried to pay this invoice")?;
-    let created_at = created_index.created_at;
+    let new = payments_manager.new_payment(pwm).await?;
+
+    // Idempotency: return existing payment if already paid.
+    let created_at = match new.state {
+        NewPaymentState::New => new.index.created_at,
+        NewPaymentState::Exists { .. } =>
+            return Ok(PayInvoiceResponse {
+                created_at: new.index.created_at,
+            }),
+    };
 
     // TODO(phlip9): handle the case where we crash here before the channel
     // manager persists. We'll be left with a payment that gets stuck `Pending`
@@ -1214,11 +1224,18 @@ where
 
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
-    let created_index = payments_manager
+    let new = payments_manager
         .new_payment(oopwm.clone().into_enum())
-        .await
-        .context("Already tried to pay this offer")?;
-    let created_at = created_index.created_at;
+        .await?;
+
+    // Idempotency: return existing payment if already paid.
+    let created_at = match new.state {
+        NewPaymentState::Exists { .. } =>
+            return Ok(PayOfferResponse {
+                created_at: new.index.created_at,
+            }),
+        NewPaymentState::New => new.index.created_at,
+    };
 
     // Instruct the LDK channel manager to pay this offer, letting LDK handle
     // fetching the BOLT12 Invoice, routing, and retrying.
@@ -1337,6 +1354,8 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
 {
+    // TODO(phlip9): idempotency: check if payment already exists.
+
     // Create and sign the onchain send tx.
     let oswm = wallet
         .create_onchain_send(req, network)
@@ -1347,11 +1366,23 @@ where
     let pwm = oswm.into_enum();
 
     // Register the transaction.
-    let created_index = payments_manager
+    let new = payments_manager
         .new_payment(pwm)
         .await
         .context("Could not register new onchain send")?;
-    let created_at = created_index.created_at;
+
+    // Idempotency: return existing payment if already paid.
+    let created_at = match new.state {
+        NewPaymentState::Exists { txid } => {
+            let txid =
+                txid.context("Existing onchain payment is missing txid")?;
+            return Ok(PayOnchainResponse {
+                created_at: new.index.created_at,
+                txid: *txid,
+            });
+        }
+        NewPaymentState::New => new.index.created_at,
+    };
 
     // Broadcast.
     tx_broadcaster
