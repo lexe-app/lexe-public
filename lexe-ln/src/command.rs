@@ -642,6 +642,7 @@ pub async fn create_invoice<CM, PS>(
     payments_manager: &PaymentsManager<CM, PS>,
     caller: CreateInvoiceCaller<'_>,
     network: Network,
+    client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<CreateInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
@@ -834,6 +835,7 @@ where
         req.message,
         req.personal_note,
         partner_fee,
+        client_pk,
     )
     .context("Failed to create payment")?;
     let pwm = iipwm.into_enum();

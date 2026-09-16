@@ -5,7 +5,7 @@ use axum::extract::State;
 use lexe_api::{
     error::NodeApiError,
     models::{
-        command::ResyncRequest,
+        command::{CreateInvoiceRequest, CreateInvoiceResponse, ResyncRequest},
         nwc::{
             NostrSignedEvent, NwcRequest,
             nip47::{NwcRequestPayload, NwcResponsePayload},
@@ -19,7 +19,7 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_crypto::rng::SysRng;
-use lexe_ln::{background_processor, test_event};
+use lexe_ln::{background_processor, command::CreateInvoiceCaller, test_event};
 use tracing::warn;
 
 use crate::server::RouterState;
@@ -81,6 +81,34 @@ pub(super) async fn shutdown(
     } else {
         Err(NodeApiError::wrong_user_pk(state.user_pk, req.user_pk))
     }
+}
+
+pub(super) async fn create_invoice(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<CreateInvoiceRequest>,
+) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
+    let user_exists_fn = state.user_cache.user_exists_fn();
+    let caller = CreateInvoiceCaller::UserNode {
+        lsp_info: &state.lsp_info,
+        intercept_scids: &state.intercept_scids,
+        user_exists_fn: &user_exists_fn,
+        partners: &state.partners,
+    };
+
+    let client_pk = None;
+    lexe_ln::command::create_invoice(
+        req,
+        &state.user_pk,
+        &state.channel_manager,
+        &state.keys_manager,
+        &state.payments_manager,
+        caller,
+        state.network,
+        client_pk,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
 }
 
 pub(super) async fn nwc_request(

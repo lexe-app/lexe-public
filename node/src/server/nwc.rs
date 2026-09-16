@@ -112,6 +112,9 @@ async fn handle_make_invoice(
         partners: &state.partners,
     };
 
+    // TODO(nicole): Record the NWC client once `PaymentMetadata` has a field
+    // for it; `client_pk` is for SDK clients only.
+    let client_pk = None;
     let response = lexe_ln::command::create_invoice(
         create_inv_req,
         &state.user_pk,
@@ -120,6 +123,7 @@ async fn handle_make_invoice(
         &state.payments_manager,
         caller,
         state.network,
+        client_pk,
     )
     .await?;
 

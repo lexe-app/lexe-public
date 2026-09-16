@@ -11,6 +11,7 @@ use lexe_api::types::{
     },
 };
 use lexe_common::{ln::amount::Amount, time::TimestampMs};
+use lexe_crypto::ed25519;
 use lightning::events::PaymentPurpose;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
@@ -397,6 +398,7 @@ impl InboundInvoicePaymentV2 {
         message: Option<BoundedString>,
         personal_note: Option<BoundedString>,
         partner_fee: Option<PartnerFeeFields>,
+        client_pk: Option<ed25519::PublicKey>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
@@ -430,7 +432,7 @@ impl InboundInvoicePaymentV2 {
             invoice: Some(Arc::new(invoice)),
             offer: None,
             bolt12_invoice: None,
-            client_pk: None,
+            client_pk,
             payer_name: None,
             message,
             personal_note,

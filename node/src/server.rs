@@ -13,23 +13,15 @@ use std::{
 
 use axum::{
     Router,
-    extract::State,
     routing::{get, post},
 };
 use lexe_api::{
     cli::{LspInfo, OAuthConfig},
-    error::NodeApiError,
-    models::command::{
-        CreateInvoiceRequest, CreateInvoiceResponse, GDriveStatus,
-        OnchainDescriptors, UserSettings,
-    },
+    models::command::{GDriveStatus, OnchainDescriptors, UserSettings},
     revocable_clients::{
         ListRevocableClientsHandle, RevocableClientsHandle, scopes::Permission,
     },
-    server::{
-        LxJson,
-        client_authz::{scoped, unscoped},
-    },
+    server::client_authz::{scoped, unscoped},
     types::{partners::PartnersInfo, payments::OfferId},
 };
 use lexe_common::{
@@ -43,7 +35,6 @@ use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     background_processor,
     channel::ChannelEvent,
-    command::CreateInvoiceCaller,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     sync::BdkSyncRequest,
@@ -166,7 +157,7 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         .route("/user/v1/close_channel_preflight",
             scoped::post(CloseChannelPreflight, user::close_channel_preflight))
         .route("/user/v1/create_invoice",
-            scoped::post(CreateInvoice, shared::create_invoice))
+            scoped::post(CreateInvoice, user::create_invoice))
         .route("/user/v1/pay_invoice",
             scoped::post(PayInvoice, user::pay_invoice))
         .route("/user/v1/pay_invoice_preflight",
@@ -245,7 +236,7 @@ pub(crate) fn user_router(state: Arc<RouterState>) -> Router<()> {
         .route("/app/preflight_close_channel",
             scoped::post(CloseChannelPreflight, user::close_channel_preflight))
         .route("/app/create_invoice",
-            scoped::post(CreateInvoice, shared::create_invoice))
+            scoped::post(CreateInvoice, user::create_invoice))
         .route("/app/pay_invoice",
             scoped::post(PayInvoice, user::pay_invoice))
         .route("/app/preflight_pay_invoice",
@@ -327,7 +318,7 @@ pub(crate) fn lexe_router(state: Arc<RouterState>) -> Router<()> {
     // Endpoints which serve user traffic count as user activity;
     // maintenance endpoints must not reset the inactivity timer.
     let substantive_routes = Router::new()
-        .route("/lexe/create_invoice", post(shared::create_invoice))
+        .route("/lexe/create_invoice", post(lexe::create_invoice))
         .route("/lexe/nwc_request", post(lexe::nwc_request))
         .layer(activity_layer(state.user_pk, state.runner_tx.clone()));
     let maintenance_routes = Router::new()
@@ -356,36 +347,4 @@ fn activity_layer(
         let _ = runner_tx.try_send(runner_cmd);
         request
     })
-}
-
-/// Handlers shared by the app (`/app`) and Lexe-operator (`/lexe`) routers.
-/// These handlers may differ in the auth wrapper the router applies to them.
-mod shared {
-    use super::*;
-
-    pub(super) async fn create_invoice(
-        State(state): State<Arc<RouterState>>,
-        LxJson(req): LxJson<CreateInvoiceRequest>,
-    ) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
-        let user_exists_fn = state.user_cache.user_exists_fn();
-        let caller = CreateInvoiceCaller::UserNode {
-            lsp_info: &state.lsp_info,
-            intercept_scids: &state.intercept_scids,
-            user_exists_fn: &user_exists_fn,
-            partners: &state.partners,
-        };
-
-        lexe_ln::command::create_invoice(
-            req,
-            &state.user_pk,
-            &state.channel_manager,
-            &state.keys_manager,
-            &state.payments_manager,
-            caller,
-            state.network,
-        )
-        .await
-        .map(LxJson)
-        .map_err(NodeApiError::command)
-    }
 }

@@ -10,7 +10,8 @@ use lexe_api::{
         command::{
             BackupInfo, CancelPaymentRequest, CloseChannelPreflightRequest,
             CloseChannelPreflightResponse, CloseChannelRequest,
-            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, DebugInfo, GDriveStatus,
             GetFiatRatesRequest, GetHumanBitcoinAddressResponse,
             GetNewPayments, GetNextUnusedAddressResponse, GetUpdatedPayments,
@@ -67,7 +68,9 @@ use lexe_common::{
 };
 use lexe_crypto::rng::SysRng;
 use lexe_ln::{
-    command::{CounterpartyReserve, PayInvoiceRequestInner},
+    command::{
+        CounterpartyReserve, CreateInvoiceCaller, PayInvoiceRequestInner,
+    },
     p2p,
 };
 use lexe_tokio::task::MaybeLxTask;
@@ -337,6 +340,34 @@ pub(super) async fn close_channel_preflight(
         &state.chain_monitor,
         &state.fee_estimates,
         req,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::command)
+}
+
+pub(super) async fn create_invoice(
+    auth: VerifiedClientAuthorization,
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<CreateInvoiceRequest>,
+) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
+    let user_exists_fn = state.user_cache.user_exists_fn();
+    let caller = CreateInvoiceCaller::UserNode {
+        lsp_info: &state.lsp_info,
+        intercept_scids: &state.intercept_scids,
+        user_exists_fn: &user_exists_fn,
+        partners: &state.partners,
+    };
+
+    lexe_ln::command::create_invoice(
+        req,
+        &state.user_pk,
+        &state.channel_manager,
+        &state.keys_manager,
+        &state.payments_manager,
+        caller,
+        state.network,
+        auth.cert_kind().client_pk(),
     )
     .await
     .map(LxJson)
