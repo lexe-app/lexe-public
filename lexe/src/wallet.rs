@@ -1130,6 +1130,9 @@ impl LexeWallet {
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same `invoice.payment_hash` will return
+    /// the existing payment, even if it failed.
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub async fn pay_invoice(
         &self,
@@ -1174,6 +1177,9 @@ impl LexeWallet {
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     #[instrument(skip_all, name = "(pay-offer)")]
     pub async fn pay_offer(
         &self,
@@ -1219,9 +1225,11 @@ impl LexeWallet {
 
     /// Send Bitcoin on-chain to the given address.
     ///
-    /// Returns the resulting [`Payment`] as soon as the transaction is
-    /// broadcast, while it is still pending; an on-chain send payment only
-    /// finalizes its status after 6 confirmations (~1 hour).
+    /// Returns the resulting [`Payment`] without waiting for confirmations.
+    /// On-chain sends finalize after 6 confirmations (~1 hour).
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     #[instrument(skip_all, name = "(pay-onchain)")]
     pub async fn pay_onchain(
         &self,
@@ -1249,6 +1257,9 @@ impl LexeWallet {
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Each call may fetch a different invoice, so retries may create another
+    /// payment.
     #[instrument(skip_all, name = "(pay-lnurl)")]
     pub async fn pay_lnurl(
         &self,

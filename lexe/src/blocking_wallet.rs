@@ -354,6 +354,9 @@ impl BlockingLexeWallet {
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same `invoice.payment_hash` will return
+    /// the existing payment, even if it failed.
     pub fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
@@ -376,6 +379,9 @@ impl BlockingLexeWallet {
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     pub fn pay_offer(&self, req: PayOfferRequest) -> anyhow::Result<Payment> {
         block_on(self.inner.pay_offer(req))
     }
@@ -399,9 +405,11 @@ impl BlockingLexeWallet {
 
     /// Send Bitcoin on-chain to the given address.
     ///
-    /// Returns the resulting [`Payment`] as soon as the transaction is
-    /// broadcast, while it is still pending; an on-chain send payment only
-    /// finalizes its status after 6 confirmations (~1 hour).
+    /// Returns the resulting [`Payment`] without waiting for confirmations.
+    /// On-chain sends finalize after 6 confirmations (~1 hour).
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     pub fn pay_onchain(
         &self,
         req: PayOnchainRequest,
@@ -409,15 +417,18 @@ impl BlockingLexeWallet {
         block_on(self.inner.pay_onchain(req))
     }
 
-    /// Pay an LNURL or Lightning Address via the `payRequest` flow.
+    /// Pay an LNURL or Lightning Address via the LNURL `payRequest` flow.
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// `pay_lnurl` is not currently idempotent. Each call will fetch and pay a
+    /// different invoice.
     pub fn pay_lnurl(&self, req: PayLnurlRequest) -> anyhow::Result<Payment> {
         block_on(self.inner.pay_lnurl(req))
     }
 
-    /// Withdraw an LNURL via the `withdrawRequest` flow.
+    /// Withdraw an LNURL via the LNURL `withdrawRequest` flow.
     ///
     /// Returns the resulting [`Payment`] once the withdrawal reaches a
     /// terminal state (completed or failed).

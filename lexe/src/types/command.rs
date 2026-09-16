@@ -391,7 +391,9 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
 /// A request to pay a BOLT 11 invoice.
 #[derive(Serialize, Deserialize)]
 pub struct PayInvoiceRequest {
-    /// The invoice we want to pay.
+    /// The invoice we want to pay. Retries with the same
+    /// `invoice.payment_hash` are idempotent and will return the existing
+    /// payment, even if it failed.
     pub invoice: Invoice,
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be set if the invoice is amountless.
@@ -482,13 +484,11 @@ pub struct PayOfferRequest {
     /// this value must satisfy that minimum.
     pub amount: Amount,
     /// An optional client-generated ID that also serves as an idempotency key.
-    /// `pay_offer` attempts can only be safely retried by supplying the same
-    /// `client_payment_id`; otherwise, you will make a duplicate payment.
     ///
-    /// If `None`, the SDK generates a random ID for this call, which provides
-    /// no idempotency across separate [`pay_offer`] calls.
+    /// Use a fresh ID for each new payment. Reuse the same ID for retries.
     ///
-    /// [`pay_offer`]: crate::wallet::LexeWallet::pay_offer
+    /// If `None`, each `pay_offer` will generate a random ID. Separate calls
+    /// will not be idempotent.
     pub client_payment_id: Option<ClientPaymentId>,
     /// An optional message (sent as a BOLT 12 `payer_note`) included with the
     /// invoice request and visible to the recipient. If provided, it must be
@@ -564,12 +564,12 @@ pub struct PayOnchainRequest {
     // currently, normal typically confirms in the next block while still
     // overpaying.
     pub priority: Option<ConfirmationPriority>,
-    /// A client-generated id for this payment, used for idempotency.
-    /// Retrying a request with the same `client_payment_id` won't send the
-    /// payment twice.
+    /// An optional client-generated ID that also serves as an idempotency key.
     ///
-    /// If `None`, a random id is generated, which provides no idempotency
-    /// across separate `pay_onchain` calls.
+    /// Use a fresh ID for each new payment. Reuse the same ID for retries.
+    ///
+    /// If `None`, each `pay_onchain` will generate a random ID. Separate calls
+    /// will not be idempotent.
     pub client_payment_id: Option<ClientPaymentId>,
     /// An optional personal note for this payment.
     /// The receiver will not see this note.

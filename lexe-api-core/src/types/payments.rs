@@ -673,13 +673,14 @@ pub enum PaymentId {
     OnchainSend(ClientPaymentId), // "os"
 }
 
-/// A unique, client-generated ID used by `pay_offer` and `pay_onchain`.
+/// A unique, client-generated ID used by `pay_offer` and `pay_onchain` for
+/// idempotency.
 ///
-/// Its primary purpose is to prevent accidental double payments. Never reuse
-/// the same ID for different payments. Internal structure is opaque to the
-/// node.
+/// Use a fresh ID for each new payment. Reuse the same ID for retries.
 ///
-/// Serialized as a 64-character hex string.
+/// Its primary purpose is to prevent accidental double payments.
+///
+/// Serializes as a 64-character hex string.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(RefCast, Serialize, Deserialize)]
