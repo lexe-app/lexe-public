@@ -29,9 +29,9 @@ use lexe::{
             ListClientsResponse, ListPaymentsResponse, NodeInfo,
             OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
             PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
-            PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
-            PaymentSyncSummary, RevokeClientRequest,
-            UpdateClientRequest as SdkUpdateClientRequest,
+            PayOnchainRequest, PayRequest as SdkPayRequest,
+            PayableDetails as SdkPayableDetails, PaymentSyncSummary,
+            RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
             WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
             WaitForNextPaymentResponse,
@@ -104,6 +104,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             "/v2/node/get_next_unused_address",
             post(node::get_next_unused_address),
         )
+        .route("/v2/node/pay_onchain", post(node::pay_onchain))
         .route("/v2/node/pay_lnurl", post(node::pay_lnurl))
         .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
         .route("/v2/node/buy_with_cash_app", post(node::buy_with_cash_app))
@@ -498,6 +499,25 @@ mod node {
             .get_next_unused_address()
             .await
             .map_err(SdkApiError::command)?;
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(pay-onchain)")]
+    pub(crate) async fn pay_onchain(
+        State(state): State<Arc<RouterState>>,
+        WalletAndCredentialsExtractor {
+            wallet,
+            credentials,
+        }: WalletAndCredentialsExtractor,
+        LxJson(req): LxJson<PayOnchainRequest>,
+    ) -> Result<LxJson<Payment>, SdkApiError> {
+        let resp = wallet
+            .pay_onchain(req)
+            .await
+            .map_err(SdkApiError::command)?;
+
+        helpers::try_track_payment(&state, credentials, resp.index);
 
         Ok(LxJson(resp))
     }

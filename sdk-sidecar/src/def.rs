@@ -19,8 +19,9 @@ use lexe::types::{
         GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
         ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
         NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
+        PayOfferRequest, PayOnchainRequest, PaymentSyncSummary,
+        RevokeClientRequest, UpdatePersonalNoteRequest,
+        WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -150,6 +151,18 @@ pub trait UserSidecarApi {
     async fn get_next_unused_address(
         &self,
     ) -> Result<GetNextUnusedAddressResponse, SdkApiError>;
+
+    /// POST /v2/node/pay_onchain [`PayOnchainRequest`] -> [`Payment`]
+    ///
+    /// Send Bitcoin on-chain to an address.
+    ///
+    /// Returns the resulting [`Payment`] as soon as the transaction is
+    /// broadcast, while it is still pending; an on-chain send payment only
+    /// finalizes its status after 6 confirmations (~1 hour).
+    async fn pay_onchain(
+        &self,
+        req: &PayOnchainRequest,
+    ) -> Result<Payment, SdkApiError>;
 
     /// POST /v2/node/pay_lnurl [`PayLnurlRequest`] -> [`Payment`]
     ///

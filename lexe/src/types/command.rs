@@ -534,6 +534,7 @@ impl From<command::GetNextUnusedAddressResponse>
 }
 
 /// A request to send Bitcoin on-chain.
+#[derive(Serialize, Deserialize)]
 pub struct PayOnchainRequest {
     /// The Bitcoin address to send to.
     /// Must be valid for the network this wallet is configured for.

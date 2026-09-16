@@ -12,8 +12,9 @@ use lexe::types::{
         GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
         ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
         NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayOfferRequest, PaymentSyncSummary, RevokeClientRequest,
-        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
+        PayOfferRequest, PayOnchainRequest, PaymentSyncSummary,
+        RevokeClientRequest, UpdatePersonalNoteRequest,
+        WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -147,6 +148,16 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/get_next_unused_address");
         let http_req = self.rest.post(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn pay_onchain(
+        &self,
+        req: &PayOnchainRequest,
+    ) -> Result<Payment, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/pay_onchain");
+        let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 
