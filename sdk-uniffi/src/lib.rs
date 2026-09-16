@@ -19,6 +19,7 @@ use std::{
 use anyhow::{Context, anyhow};
 use lexe::{
     bip39::Mnemonic,
+    bitcoin::address::Address as SdkAddress,
     blocking_wallet::BlockingLexeWallet as SdkBlockingLexeWallet,
     config::{
         DeployEnv as SdkDeployEnv, Network as SdkNetwork,
@@ -70,8 +71,9 @@ use lexe::{
             OpenChannelResponse as SdkOpenChannelResponse,
             PayInvoiceRequest as SdkPayInvoiceRequest,
             PayLnurlRequest as SdkPayLnurlRequest,
-            PayOfferRequest as SdkPayOfferRequest, PayRequest as SdkPayRequest,
-            PayableDetails as SdkPayableDetails,
+            PayOfferRequest as SdkPayOfferRequest,
+            PayOnchainRequest as SdkPayOnchainRequest,
+            PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
             PayerProofDisclosures as SdkPayerProofDisclosures,
             RevokeClientRequest as SdkRevokeClientRequest,
             UpdateClientRequest as SdkUpdateClientRequest,
@@ -1157,6 +1159,55 @@ impl AsyncLexeWallet {
         Ok(GetNextUnusedAddressResponse::from(resp))
     }
 
+    /// Send Bitcoin on-chain to the given address.
+    ///
+    /// `address` is the Bitcoin address to send to.
+    /// `amount_sats` is the amount to send in satoshis.
+    /// `priority` is how quickly the transaction should confirm; a higher
+    /// priority pays a higher on-chain fee. Defaults to `Normal`.
+    /// `client_payment_id` is an optional idempotency key, serialized as a
+    /// 64-character hex string (32 bytes); retrying with the same id won't
+    /// send the payment twice. A random id is generated if `None`.
+    /// `personal_note` is a private note that the receiver does not see. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
+    /// bytes.
+    ///
+    /// Returns the resulting `Payment` as soon as the transaction is
+    /// broadcast, while it is still pending; an on-chain send payment only
+    /// finalizes its status after 6 confirmations (~1 hour).
+    #[uniffi::method(default(
+        priority = None,
+        client_payment_id = None,
+        personal_note = None,
+    ))]
+    pub async fn pay_onchain(
+        &self,
+        address: String,
+        amount_sats: u64,
+        priority: Option<ConfirmationPriority>,
+        client_payment_id: Option<String>,
+        personal_note: Option<String>,
+    ) -> Result<Payment, FfiError> {
+        let address =
+            SdkAddress::from_str(&address).context("Invalid address")?;
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+        let client_payment_id = client_payment_id
+            .map(|s| SdkClientPaymentId::from_str(&s))
+            .transpose()
+            .context("Invalid client_payment_id")?;
+
+        let req = SdkPayOnchainRequest {
+            address,
+            amount,
+            priority: priority.map(SdkConfirmationPriority::from),
+            client_payment_id,
+            personal_note,
+        };
+        let resp = self.inner.pay_onchain(req).await?;
+        Ok(Payment::from(resp))
+    }
+
     /// Pay an LNURL via the `payRequest` flow.
     ///
     /// Use `analyze` to get the associated LNURL pay request, which contains
@@ -2144,6 +2195,55 @@ impl BlockingLexeWallet {
     ) -> Result<GetNextUnusedAddressResponse, FfiError> {
         let resp = self.inner.get_next_unused_address()?;
         Ok(GetNextUnusedAddressResponse::from(resp))
+    }
+
+    /// Send Bitcoin on-chain to the given address.
+    ///
+    /// `address` is the Bitcoin address to send to.
+    /// `amount_sats` is the amount to send in satoshis.
+    /// `priority` is how quickly the transaction should confirm; a higher
+    /// priority pays a higher on-chain fee. Defaults to `Normal`.
+    /// `client_payment_id` is an optional idempotency key, serialized as a
+    /// 64-character hex string (32 bytes); retrying with the same id won't
+    /// send the payment twice. A random id is generated if `None`.
+    /// `personal_note` is a private note that the receiver does not see. If
+    /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
+    /// bytes.
+    ///
+    /// Returns the resulting `Payment` as soon as the transaction is
+    /// broadcast, while it is still pending; an on-chain send payment only
+    /// finalizes its status after 6 confirmations (~1 hour).
+    #[uniffi::method(default(
+        priority = None,
+        client_payment_id = None,
+        personal_note = None,
+    ))]
+    pub fn pay_onchain(
+        &self,
+        address: String,
+        amount_sats: u64,
+        priority: Option<ConfirmationPriority>,
+        client_payment_id: Option<String>,
+        personal_note: Option<String>,
+    ) -> Result<Payment, FfiError> {
+        let address =
+            SdkAddress::from_str(&address).context("Invalid address")?;
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+        let client_payment_id = client_payment_id
+            .map(|s| SdkClientPaymentId::from_str(&s))
+            .transpose()
+            .context("Invalid client_payment_id")?;
+
+        let req = SdkPayOnchainRequest {
+            address,
+            amount,
+            priority: priority.map(SdkConfirmationPriority::from),
+            client_payment_id,
+            personal_note,
+        };
+        let resp = self.inner.pay_onchain(req)?;
+        Ok(Payment::from(resp))
     }
 
     /// Pay an LNURL via the `payRequest` flow.

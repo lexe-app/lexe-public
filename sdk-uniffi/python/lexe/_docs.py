@@ -891,6 +891,38 @@ Example::
     print(f"Deposit address: {resp.address}")
 """)
 
+_set_method_doc(LexeWallet, "pay_onchain", """\
+Send Bitcoin on-chain to the given address.
+
+Args:
+    address: Bitcoin address to send to.
+    amount_sats: Amount to send in satoshis.
+    priority: Optional :class:`ConfirmationPriority` controlling how quickly
+        the transaction should confirm. A higher priority pays a higher
+        on-chain fee. Defaults to ``NORMAL``.
+    client_payment_id: Optional idempotency key, as a 64-character hex
+        string (32 bytes).
+        Retrying with the same id won't send the payment twice. A random id
+        is generated if omitted.
+    personal_note: Optional personal note (not visible to the receiver).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    The resulting :class:`Payment`, returned as soon as the transaction is
+    broadcast, while it is still pending. An on-chain send payment only
+    finalizes its status after 6 confirmations (~1 hour); use
+    :meth:`wait_for_payment` to await it.
+
+Raises:
+    FfiError: If the address is invalid or payment initiation fails.
+
+Example::
+
+    payment = wallet.pay_onchain("bc1q...", 10_000)
+    print(f"Broadcast {payment.txid}")
+""")
+
 _set_method_doc(LexeWallet, "pay_lnurl", """\
 Pay an LNURL via the ``payRequest`` flow.
 
@@ -1823,6 +1855,38 @@ Example::
 
     resp = await wallet.get_next_unused_address()
     print(f"Deposit address: {resp.address}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "pay_onchain", """\
+Send Bitcoin on-chain to the given address.
+
+Args:
+    address: Bitcoin address to send to.
+    amount_sats: Amount to send in satoshis.
+    priority: Optional :class:`ConfirmationPriority` controlling how quickly
+        the transaction should confirm. A higher priority pays a higher
+        on-chain fee. Defaults to ``NORMAL``.
+    client_payment_id: Optional idempotency key, as a 64-character hex
+        string (32 bytes).
+        Retrying with the same id won't send the payment twice. A random id
+        is generated if omitted.
+    personal_note: Optional personal note (not visible to the receiver).
+        If provided, it must be non-empty and no longer than 200 chars /
+        512 UTF-8 bytes.
+
+Returns:
+    The resulting :class:`Payment`, returned as soon as the transaction is
+    broadcast, while it is still pending. An on-chain send payment only
+    finalizes its status after 6 confirmations (~1 hour); use
+    :meth:`wait_for_payment` to await it.
+
+Raises:
+    FfiError: If the address is invalid or payment initiation fails.
+
+Example::
+
+    payment = await wallet.pay_onchain("bc1q...", 10_000)
+    print(f"Broadcast {payment.txid}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "pay_lnurl", """\
