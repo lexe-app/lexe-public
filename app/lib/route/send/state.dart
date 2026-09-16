@@ -119,6 +119,7 @@ class SendState_NeedAmount implements SendState {
         final onchain = field0;
 
         final req = PayOnchainPreflightRequest(
+          clientPaymentId: this.clientPaymentId,
           address: onchain.address,
           amountSats: amountSats,
         );

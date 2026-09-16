@@ -378,6 +378,7 @@ impl PayOnchainResponse {
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOnchainPreflightRequest {
+    pub client_payment_id: ClientPaymentId,
     pub address: String,
     pub amount_sats: u64,
 }
@@ -390,7 +391,13 @@ impl TryFrom<PayOnchainPreflightRequest> for PayOnchainPreflightRequestRs {
             .map_err(|_| anyhow!("The bitcoin address isn't valid."))?;
         let amount = Amount::try_from_sats_u64(req.amount_sats)?;
 
-        Ok(Self { address, amount })
+        Ok(Self {
+            client_payment_id: Some(ClientPaymentIdRs::from(
+                req.client_payment_id,
+            )),
+            address,
+            amount,
+        })
     }
 }
 

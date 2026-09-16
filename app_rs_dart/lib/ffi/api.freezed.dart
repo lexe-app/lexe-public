@@ -1751,22 +1751,22 @@ String toString() {
 /// @nodoc
 mixin _$PayOnchainPreflightRequest {
 
- String get address; int get amountSats;
+ ClientPaymentId get clientPaymentId; String get address; int get amountSats;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainPreflightRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainPreflightRequest&&(identical(other.clientPaymentId, clientPaymentId) || other.clientPaymentId == clientPaymentId)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,address,amountSats);
+int get hashCode => Object.hash(runtimeType,clientPaymentId,address,amountSats);
 
 @override
 String toString() {
-  return 'PayOnchainPreflightRequest(address: $address, amountSats: $amountSats)';
+  return 'PayOnchainPreflightRequest(clientPaymentId: $clientPaymentId, address: $address, amountSats: $amountSats)';
 }
 
 
@@ -1780,9 +1780,10 @@ String toString() {
 
 
 class _PayOnchainPreflightRequest implements PayOnchainPreflightRequest {
-  const _PayOnchainPreflightRequest({required this.address, required this.amountSats});
+  const _PayOnchainPreflightRequest({required this.clientPaymentId, required this.address, required this.amountSats});
   
 
+@override final  ClientPaymentId clientPaymentId;
 @override final  String address;
 @override final  int amountSats;
 
@@ -1791,16 +1792,16 @@ class _PayOnchainPreflightRequest implements PayOnchainPreflightRequest {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainPreflightRequest&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainPreflightRequest&&(identical(other.clientPaymentId, clientPaymentId) || other.clientPaymentId == clientPaymentId)&&(identical(other.address, address) || other.address == address)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,address,amountSats);
+int get hashCode => Object.hash(runtimeType,clientPaymentId,address,amountSats);
 
 @override
 String toString() {
-  return 'PayOnchainPreflightRequest(address: $address, amountSats: $amountSats)';
+  return 'PayOnchainPreflightRequest(clientPaymentId: $clientPaymentId, address: $address, amountSats: $amountSats)';
 }
 
 

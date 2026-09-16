@@ -2910,9 +2910,12 @@ impl SseDecode for crate::ffi::api::PayOnchainPreflightRequest {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
+        let mut var_clientPaymentId =
+            <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
         let mut var_address = <String>::sse_decode(deserializer);
         let mut var_amountSats = <u64>::sse_decode(deserializer);
         return crate::ffi::api::PayOnchainPreflightRequest {
+            client_payment_id: var_clientPaymentId,
             address: var_address,
             amount_sats: var_amountSats,
         };
@@ -4843,6 +4846,7 @@ impl flutter_rust_bridge::IntoDart
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.client_payment_id.into_into_dart().into_dart(),
             self.address.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
         ]
@@ -6724,6 +6728,10 @@ impl SseEncode for crate::ffi::api::PayOnchainPreflightRequest {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
+        <crate::ffi::types::ClientPaymentId>::sse_encode(
+            self.client_payment_id,
+            serializer,
+        );
         <String>::sse_encode(self.address, serializer);
         <u64>::sse_encode(self.amount_sats, serializer);
     }

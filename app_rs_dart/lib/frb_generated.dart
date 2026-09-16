@@ -4834,11 +4834,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return PayOnchainPreflightRequest(
-      address: dco_decode_String(arr[0]),
-      amountSats: dco_decode_CastedPrimitive_u_64(arr[1]),
+      clientPaymentId: dco_decode_client_payment_id(arr[0]),
+      address: dco_decode_String(arr[1]),
+      amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
     );
   }
 
@@ -6817,9 +6818,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_clientPaymentId = sse_decode_client_payment_id(deserializer);
     var var_address = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
     return PayOnchainPreflightRequest(
+      clientPaymentId: var_clientPaymentId,
       address: var_address,
       amountSats: var_amountSats,
     );
@@ -8731,6 +8734,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_client_payment_id(self.clientPaymentId, serializer);
     sse_encode_String(self.address, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
   }

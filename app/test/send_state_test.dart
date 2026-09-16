@@ -244,23 +244,24 @@ void main() {
     });
 
     test('preflight succeeds for onchain payment', () async {
+      final clientPaymentId = testClientPaymentId();
       const onchain = Onchain(
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       );
-      mockApp.mock(
-        payOnchainPreflight,
-        (_) async => const PayOnchainPreflightResponse(
+      mockApp.mock(payOnchainPreflight, (req) async {
+        expect(req.clientPaymentId, clientPaymentId);
+        return const PayOnchainPreflightResponse(
           high: FeeEstimate(amountSats: 500),
           normal: FeeEstimate(amountSats: 300),
           background: FeeEstimate(amountSats: 100),
-        ),
-      );
+        );
+      });
 
       final state = SendState_NeedAmount(
         app: mockApp,
         configNetwork: Network.mainnet,
         balance: testBalance(),
-        clientPaymentId: testClientPaymentId(),
+        clientPaymentId: clientPaymentId,
         fiatRate: fiatRate,
         paymentMethod: const PaymentMethod.onchain(onchain),
       );

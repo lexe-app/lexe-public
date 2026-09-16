@@ -313,6 +313,7 @@ sealed class PayOfferResponse with _$PayOfferResponse {
 @freezed
 sealed class PayOnchainPreflightRequest with _$PayOnchainPreflightRequest {
   const factory PayOnchainPreflightRequest({
+    required ClientPaymentId clientPaymentId,
     required String address,
     required int amountSats,
   }) = _PayOnchainPreflightRequest;

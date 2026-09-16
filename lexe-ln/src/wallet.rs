@@ -2340,6 +2340,7 @@ mod test {
         };
         h.assert_no_persists_in(|h| {
             let req = PayOnchainPreflightRequest {
+                client_payment_id: None,
                 address: address.clone(),
                 amount: sat!(12_345),
             };
@@ -2366,6 +2367,7 @@ mod test {
         // pay_onchain_preflight
         h.assert_no_persists_in(|h| {
             let req = PayOnchainPreflightRequest {
+                client_payment_id: None,
                 address: address.clone(),
                 amount: sat!(12_345),
             };

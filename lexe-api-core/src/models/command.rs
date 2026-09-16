@@ -832,6 +832,10 @@ pub struct PayOnchainResponse {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct PayOnchainPreflightRequest {
+    /// The identifier to use for this payment.
+    // compat: Added in node-v0.10.5. New clients always send `Some`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_payment_id: Option<ClientPaymentId>,
     /// The address we want to send funds to.
     pub address: bitcoin::Address<NetworkUnchecked>,
     /// How much Bitcoin we want to send.
@@ -1010,8 +1014,16 @@ mod arbitrary_impl {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (arbitrary::any_mainnet_addr_unchecked(), any::<Amount>())
-                .prop_map(|(address, amount)| Self { address, amount })
+            (
+                any::<Option<ClientPaymentId>>(),
+                arbitrary::any_mainnet_addr_unchecked(),
+                any::<Amount>(),
+            )
+                .prop_map(|(client_payment_id, address, amount)| Self {
+                    client_payment_id,
+                    address,
+                    amount,
+                })
                 .boxed()
         }
     }
@@ -1066,7 +1078,7 @@ mod test {
 
     #[test]
     fn pay_onchain_preflight_roundtrip() {
-        roundtrip::query_string_roundtrip_proptest::<PayOnchainPreflightRequest>(
+        roundtrip::json_value_roundtrip_proptest::<PayOnchainPreflightRequest>(
         );
     }
 
