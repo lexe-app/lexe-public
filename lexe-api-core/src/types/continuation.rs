@@ -32,7 +32,7 @@ use crate::types::payments::PaymentHash;
 ///
 /// [`PayInvoicePreflightResponse`]: crate::models::command::PayInvoicePreflightResponse
 /// [`PayInvoiceRequest`]: crate::models::command::PayInvoiceRequest
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct LdkRouteContinuation(#[serde(with = "base64_or_bytes")] pub Vec<u8>);
 
 impl LdkRouteContinuation {

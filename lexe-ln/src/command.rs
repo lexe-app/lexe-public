@@ -889,7 +889,7 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
 pub async fn pay_invoice<CM, PS>(
     req: PayInvoiceRequestInner,
     // TODO(nicole): Either<Route, RouterType>?
-    route: Option<Route>,
+    ldk_route: Option<Route>,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -902,39 +902,30 @@ where
     PS: LexePaymentsPersister,
 {
     // Preflight the invoice payment (verify and route).
-    // Compute an `ldk_route` if the caller didn't supply one.
-    let preflight = match route {
-        Some(ldk_route) => {
-            let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
-            req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
-            let oipwm = OutboundInvoicePaymentV2::new(
-                req.invoice,
-                req.kind,
-                lx_route.amount(),
-                lx_route.fees(),
-                req.message,
-                req.personal_note,
-            )
-            .context("Failed to create payment")?;
-            PreflightedPayInvoice {
-                oipwm,
-                ldk_route,
-                lx_route,
-            }
+    let preflighted = pay_invoice_preflight_inner(
+        req,
+        ldk_route,
+        router,
+        channel_manager,
+        payments_manager,
+        network_graph,
+        chain_monitor,
+        lsp_fees,
+    )
+    .await?;
+
+    let (oipwm, ldk_route) = match preflighted {
+        PreflightedPayInvoice::Exists { oipwm } => {
+            let created_at =
+                oipwm.payment.created_at.context("Missing created_at")?;
+            return Ok(PayInvoiceResponse { created_at });
         }
-        None =>
-            pay_invoice_preflight_inner(
-                req,
-                router,
-                channel_manager,
-                payments_manager,
-                network_graph,
-                chain_monitor,
-                lsp_fees,
-            )
-            .await?,
+        PreflightedPayInvoice::Ready {
+            oipwm,
+            ldk_route,
+            lx_route: _,
+        } => (oipwm, ldk_route),
     };
-    let oipwm = preflight.oipwm;
     let hash = oipwm.payment.hash;
     let id = oipwm.payment.id();
     let amount = oipwm.payment.amount;
@@ -980,7 +971,7 @@ where
     // Send the payment using send_payment_with_route (Lexe manages retries).
     let recipient_fields = outbound::recipient_onion_fields(&invoice, amount);
     match channel_manager.send_payment_with_route(
-        preflight.ldk_route,
+        ldk_route,
         lightning::types::payment::PaymentHash::from(hash),
         recipient_fields,
         ldk_payment_id,
@@ -1073,8 +1064,10 @@ where
         personal_note: None,
         kind: req.kind,
     };
-    let preflight = pay_invoice_preflight_inner(
+    let ldk_route = None;
+    let preflighted = pay_invoice_preflight_inner(
         req,
+        ldk_route,
         router,
         channel_manager,
         payments_manager,
@@ -1083,12 +1076,22 @@ where
         lsp_fees,
     )
     .await?;
-    Ok(PayInvoicePreflightResponseInner {
-        amount: preflight.oipwm.payment.amount,
-        fees: preflight.oipwm.payment.routing_fee,
-        route: preflight.lx_route,
-        ldk_route: preflight.ldk_route,
-    })
+
+    match preflighted {
+        PreflightedPayInvoice::Exists { .. } => Err(anyhow!(
+            "You already paid this invoice. Invoices can only be paid once."
+        )),
+        PreflightedPayInvoice::Ready {
+            oipwm,
+            ldk_route,
+            lx_route,
+        } => Ok(PayInvoicePreflightResponseInner {
+            amount: oipwm.payment.amount,
+            fees: oipwm.payment.routing_fee,
+            route: lx_route,
+            ldk_route,
+        }),
+    }
 }
 
 /// Creates a [`CreateOfferRequest`] for an HBA (Human Bitcoin Address).
@@ -1416,20 +1419,30 @@ pub fn pay_onchain_preflight(
     wallet.pay_onchain_preflight(req, network)
 }
 
-// A preflighted BOLT11 invoice payment. That is, this is the outcome of
-// validating and routing a BOLT11 invoice, without actually paying yet.
-struct PreflightedPayInvoice {
-    oipwm: PaymentWithMetadata<OutboundInvoicePaymentV2>,
-    /// The raw LDK route, needed for `send_payment_with_route`.
-    ldk_route: Route,
-    /// The Lexe route wrapper with node alias annotations.
-    lx_route: LxRoute,
+/// An outbound invoice payment that we have preflighted.
+//
+// clippy: `Exists` is rare and not worth optimizing the enum size for.
+#[allow(clippy::large_enum_variant)]
+enum PreflightedPayInvoice {
+    /// This invoice payment attempt is ready to send (validated and routed).
+    Ready {
+        oipwm: PaymentWithMetadata<OutboundInvoicePaymentV2>,
+        /// The raw LDK route, needed for `send_payment_with_route`.
+        ldk_route: Route,
+        /// The Lexe route for client consumption.
+        lx_route: LxRoute,
+    },
+    /// This invoice payment attempt already exists (possibly paid).
+    Exists {
+        oipwm: PaymentWithMetadata<OutboundInvoicePaymentV2>,
+    },
 }
 
 // Preflight (validate and route) a new potential BOLT11 invoice that we might
 // pay.
 async fn pay_invoice_preflight_inner<CM, PS>(
     req: PayInvoiceRequestInner,
+    ldk_route: Option<Route>,
     router: &RouterType,
     channel_manager: &CM,
     payments_manager: &PaymentsManager<CM, PS>,
@@ -1443,25 +1456,52 @@ where
 {
     let invoice = req.invoice;
 
-    // Fail early if invoice is expired.
-    ensure!(!invoice.is_expired(), "Invoice has expired");
-
-    // Fail early if we already tried paying this invoice,
-    // or we are trying to pay ourselves (yes, users actually do this).
+    // Return the existing payment if already attempted.
     let payment_id = PaymentId::Lightning(invoice.payment_hash());
     let maybe_existing_payment = payments_manager
         .get_payment(&payment_id)
         .await
         .context("Couldn't check for existing payment")?;
-    if let Some(existing_payment) = maybe_existing_payment {
-        match existing_payment.payment.direction() {
-            PaymentDirection::Outbound =>
-                return Err(anyhow!("We've already tried paying this invoice")),
-            // Yes, users actually hit this case...
-            PaymentDirection::Inbound => bail!("We cannot pay ourselves"),
-            PaymentDirection::Info =>
-                bail!("Unexpected Info direction for invoice payment"),
+    if let Some(pwm) = maybe_existing_payment {
+        match pwm.payment {
+            PaymentV2::OutboundInvoice(oip) => {
+                return Ok(PreflightedPayInvoice::Exists {
+                    oipwm: PaymentWithMetadata {
+                        payment: oip,
+                        metadata: pwm.metadata,
+                    },
+                });
+            }
+            _ if pwm.payment.direction() == PaymentDirection::Inbound =>
+                bail!("We cannot pay ourselves"),
+            _ => bail!(
+                "Expected outbound invoice payment, found: {}",
+                pwm.payment.rail()
+            ),
         }
+    }
+
+    // Fail early if invoice is expired.
+    ensure!(!invoice.is_expired(), "Invoice has expired");
+
+    // Reuse the caller's precomputed route if supplied.
+    if let Some(ldk_route) = ldk_route {
+        let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
+        req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
+        let oipwm = OutboundInvoicePaymentV2::new(
+            invoice,
+            req.kind,
+            lx_route.amount(),
+            lx_route.fees(),
+            req.message,
+            req.personal_note,
+        )
+        .context("Failed to create payment")?;
+        return Ok(PreflightedPayInvoice::Ready {
+            oipwm,
+            ldk_route,
+            lx_route,
+        });
     }
 
     // If `invoiced_amount` is set, `fallback_amount` shouldn't be set.
@@ -1530,7 +1570,7 @@ where
     )
     .context("Failed to create payment")?;
 
-    Ok(PreflightedPayInvoice {
+    Ok(PreflightedPayInvoice::Ready {
         oipwm,
         ldk_route,
         lx_route,

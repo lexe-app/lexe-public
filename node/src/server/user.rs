@@ -348,7 +348,7 @@ pub(super) async fn pay_invoice(
     LxJson(req): LxJson<PayInvoiceRequest>,
 ) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
     let payment_hash = req.invoice.payment_hash();
-    let route = req
+    let ldk_route = req
         .ldk_route
         .as_ref()
         .map(|continuation| {
@@ -361,7 +361,7 @@ pub(super) async fn pay_invoice(
         .map_err(NodeApiError::command)?;
     lexe_ln::command::pay_invoice(
         PayInvoiceRequestInner::from(req),
-        route,
+        ldk_route,
         &state.router,
         &state.channel_manager,
         &state.payments_manager,
