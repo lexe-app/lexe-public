@@ -9,6 +9,7 @@ use std::{
 use anyhow::{Context, anyhow, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
 use lexe::{
+    bitcoin::address::Address,
     config::{Network, WalletEnvConfig},
     types::{
         auth::{
@@ -16,8 +17,8 @@ use lexe::{
             UserPk,
         },
         bitcoin::{
-            Amount, ChannelId, ClaimMethod, Invoice, Offer, PaymentMethod,
-            UserChannelId,
+            Amount, ChannelId, ClaimMethod, ConfirmationPriority, Invoice,
+            Offer, PaymentMethod, UserChannelId,
         },
         command::{
             AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
@@ -25,14 +26,14 @@ use lexe::{
             CreateClientRequest, CreateInvoiceRequest, CreateOfferRequest,
             CreatePayerProofRequest, CredentialKind, GetPaymentRequest,
             GetUpdatedPaymentsRequest, OpenChannelRequest, PayInvoiceRequest,
-            PayLnurlRequest, PayOfferRequest, PayRequest,
+            PayLnurlRequest, PayOfferRequest, PayOnchainRequest, PayRequest,
             PayerProofDisclosures, PaymentSyncSummary, RevokeClientRequest,
             UpdateClientRequest, UpdatePersonalNoteRequest,
             WaitForNextPaymentRequest, WithdrawLnurlRequest,
         },
         payment::{
-            Order, Payment, PaymentCreatedIndex, PaymentFilter, PaymentStatus,
-            PaymentUpdatedIndex,
+            ClientPaymentId, Order, Payment, PaymentCreatedIndex,
+            PaymentFilter, PaymentStatus, PaymentUpdatedIndex,
         },
         util::{Ppm, TimestampMs},
     },
@@ -154,6 +155,28 @@ impl From<ClapNetwork> for Network {
     }
 }
 
+/// Confirmation priority enum for clap's ValueEnum derive.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum ClapConfirmationPriority {
+    /// Confirm within ~1 block
+    High,
+    /// Confirm within ~3 blocks
+    Normal,
+    /// Confirm within ~72 blocks
+    Background,
+}
+
+impl From<ClapConfirmationPriority> for ConfirmationPriority {
+    fn from(p: ClapConfirmationPriority) -> Self {
+        match p {
+            ClapConfirmationPriority::High => ConfirmationPriority::High,
+            ClapConfirmationPriority::Normal => ConfirmationPriority::Normal,
+            ClapConfirmationPriority::Background =>
+                ConfirmationPriority::Background,
+        }
+    }
+}
+
 /// Scope enum for clap's ValueEnum derive.
 #[derive(Clone, Copy, Debug, ValueEnum)]
 #[value(rename_all = "snake_case")]
@@ -216,6 +239,7 @@ pub enum LexeCommand {
     CreateOffer(CreateOfferArgs),
     PayOffer(PayOfferArgs),
     GetNextUnusedAddress(GetNextUnusedAddressArgs),
+    PayOnchain(PayOnchainArgs),
     PayLnurl(PayLnurlArgs),
     WithdrawLnurl(WithdrawLnurlArgs),
     BuyWithCashApp(BuyWithCashAppArgs),
@@ -364,6 +388,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::CreateOffer(a) => a.run(&wallet).await,
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::GetNextUnusedAddress(a) => a.run(&wallet).await,
+        LexeCommand::PayOnchain(a) => a.run(&wallet).await,
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
         LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
         LexeCommand::BuyWithCashApp(a) => a.run(&wallet).await,
@@ -1340,6 +1365,77 @@ impl GetNextUnusedAddressArgs {
 
         println!("{}", resp.address.assume_checked_ref());
         Ok(())
+    }
+}
+
+// --- `pay-onchain` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Send Bitcoin on-chain to an address",
+    help_template = HELP_TEMPLATE,
+    // We must set this otherwise help text width exceeds 80 chars
+    next_line_help = true,
+)]
+pub struct PayOnchainArgs {
+    #[arg(help = "The Bitcoin address to send to.\n\
+            Must be valid for the network this wallet is configured for.")]
+    address: String,
+
+    #[arg(long, help = "The amount to send in satoshis.")]
+    amount_sats: Amount,
+
+    #[arg(
+        long,
+        help = "How quickly the transaction should confirm.\n\
+            A higher priority pays a higher on-chain fee.\n\
+            Defaults to `normal`."
+    )]
+    priority: Option<ClapConfirmationPriority>,
+
+    #[arg(
+        long,
+        help = "An optional client-generated payment id for idempotency,\n\
+            serialized as a 64-character hex string (32 bytes).\n\
+            Retrying with the same id won't send a duplicate payment.\n\
+            A random id is generated if not provided."
+    )]
+    client_payment_id: Option<ClientPaymentId>,
+
+    #[arg(
+        long,
+        help = "Personal note stored locally, not visible to receiver.\n\
+            Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    personal_note: Option<String>,
+}
+
+impl PayOnchainArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let address =
+            Address::from_str(&self.address).context("Invalid address")?;
+
+        let req = PayOnchainRequest {
+            address,
+            amount: self.amount_sats,
+            priority: self.priority.map(ConfirmationPriority::from),
+            client_payment_id: self.client_payment_id,
+            personal_note: self.personal_note,
+        };
+        let payment = wallet
+            .pay_onchain(req)
+            .await
+            .context("Failed to pay on-chain")?;
+
+        // Sync payments to persist the new payment locally.
+        if wallet.persistence_enabled() {
+            wallet
+                .sync_payments()
+                .await
+                .context("Payment sync failed")?;
+        }
+
+        helpers::print_payment(&payment)
     }
 }
 
