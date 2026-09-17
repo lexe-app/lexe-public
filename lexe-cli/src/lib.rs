@@ -1140,7 +1140,14 @@ impl CreateInvoiceArgs {
 // --- `pay-invoice` --- //
 
 #[derive(Parser)]
-#[command(about = "Pay a BOLT 11 invoice over Lightning", help_template = HELP_TEMPLATE)]
+#[command(
+    about = "Pay a BOLT 11 invoice over Lightning",
+    long_about = "Pay a BOLT 11 invoice over Lightning.\n\
+        \n\
+        Idempotency: retries with the same invoice payment hash will return\n\
+        the existing payment, even if it failed.",
+    help_template = HELP_TEMPLATE,
+)]
 pub struct PayInvoiceArgs {
     /// The BOLT 11 invoice to pay
     invoice: String,
@@ -1271,6 +1278,10 @@ impl CreateOfferArgs {
 #[derive(Parser)]
 #[command(
     about = "Pay a BOLT 12 offer over Lightning",
+    long_about = "Pay a BOLT 12 offer over Lightning.\n\
+        \n\
+        Idempotency: retries with the same --client-payment-id will return\n\
+        the existing payment, even if it failed.",
     help_template = HELP_TEMPLATE,
     // We must set this otherwise help text width exceeds 80 chars
     next_line_help = true,
@@ -1285,6 +1296,18 @@ pub struct PayOfferArgs {
             Must satisfy the offer's minimum amount if set."
     )]
     amount_sats: Amount,
+
+    #[arg(
+        long,
+        help = "An optional client-generated ID that also serves as an\n\
+            idempotency key. Format is a 64-character hex string.\n\
+            \n\
+            Use a fresh ID for each new payment. Reuse the same ID for retries.\n\
+            \n\
+            If omitted, each pay-offer will generate a random ID.\n\
+            Separate calls will not be idempotent."
+    )]
+    client_payment_id: Option<ClientPaymentId>,
 
     #[arg(
         long,
@@ -1309,7 +1332,7 @@ impl PayOfferArgs {
         let req = PayOfferRequest {
             offer,
             amount: self.amount_sats,
-            client_payment_id: None,
+            client_payment_id: self.client_payment_id,
             message: self.message,
             personal_note: self.personal_note,
         };
@@ -1374,6 +1397,10 @@ impl GetNextUnusedAddressArgs {
 #[derive(Parser)]
 #[command(
     about = "Send Bitcoin on-chain to an address",
+    long_about = "Send Bitcoin on-chain to an address.\n\
+        \n\
+        Idempotency: retries with the same --client-payment-id will return\n\
+        the existing payment, even if it failed.",
     help_template = HELP_TEMPLATE,
     // We must set this otherwise help text width exceeds 80 chars
     next_line_help = true,
@@ -1396,10 +1423,13 @@ pub struct PayOnchainArgs {
 
     #[arg(
         long,
-        help = "An optional client-generated payment id for idempotency,\n\
-            serialized as a 64-character hex string (32 bytes).\n\
-            Retrying with the same id won't send a duplicate payment.\n\
-            A random id is generated if not provided."
+        help = "An optional client-generated ID that also serves as an\n\
+            idempotency key. Format is a 64-character hex string.\n\
+            \n\
+            Use a fresh ID for each new payment. Reuse the same ID for retries.\n\
+            \n\
+            If omitted, each pay-onchain will generate a random ID.\n\
+            Separate calls will not be idempotent."
     )]
     client_payment_id: Option<ClientPaymentId>,
 
@@ -1447,6 +1477,9 @@ impl PayOnchainArgs {
     about = "Pay to an LNURL-pay endpoint",
     long_about = r#"
 Pay to an LNURL-pay endpoint.
+
+pay-lnurl is not currently idempotent. Each call will fetch and pay a
+different invoice.
 
 Use `lexe analyze` to get information on amount constraints,
 message length limits, and other details of the LNURL-pay endpoint.

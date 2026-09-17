@@ -1046,6 +1046,9 @@ impl AsyncLexeWallet {
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same invoice payment hash will return
+    /// the existing payment, even if it failed.
     #[uniffi::method(default(
         fallback_amount_sats = None,
         personal_note = None,
@@ -1119,22 +1122,38 @@ impl AsyncLexeWallet {
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
-    #[uniffi::method(default(message = None, personal_note = None))]
+    ///
+    /// `client_payment_id` is an optional client-generated ID that also serves
+    /// as an idempotency key.
+    /// Use a fresh ID for each new payment. Reuse the same ID for retries.
+    /// If `None`, each `pay_offer` will generate a random ID. Separate calls
+    /// will not be idempotent.
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
+    #[uniffi::method(default(
+        message = None,
+        personal_note = None,
+        client_payment_id = None,
+    ))]
     pub async fn pay_offer(
         &self,
         offer: String,
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
+        client_payment_id: Option<Arc<ClientPaymentId>>,
     ) -> Result<Payment, FfiError> {
         let offer = SdkOffer::from_str(&offer).context("Invalid offer")?;
         let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
+        let client_payment_id = client_payment_id.map(|id| id.inner);
+
         let req = SdkPayOfferRequest {
             offer,
             amount,
-            client_payment_id: None,
+            client_payment_id,
             message,
             personal_note,
         };
@@ -1166,16 +1185,21 @@ impl AsyncLexeWallet {
     /// `amount_sats` is the amount to send in satoshis.
     /// `priority` is how quickly the transaction should confirm; a higher
     /// priority pays a higher on-chain fee. Defaults to `Normal`.
-    /// `client_payment_id` is an optional idempotency key, serialized as a
-    /// 64-character hex string (32 bytes); retrying with the same id won't
-    /// send the payment twice. A random id is generated if `None`.
     /// `personal_note` is a private note that the receiver does not see. If
     /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
     /// bytes.
     ///
-    /// Returns the resulting `Payment` as soon as the transaction is
-    /// broadcast, while it is still pending; an on-chain send payment only
-    /// finalizes its status after 6 confirmations (~1 hour).
+    /// Returns the resulting `Payment` without waiting for confirmations.
+    /// On-chain sends finalize after 6 confirmations (~1 hour).
+    ///
+    /// `client_payment_id` is an optional client-generated ID that also serves
+    /// as an idempotency key.
+    /// Use a fresh ID for each new payment. Reuse the same ID for retries.
+    /// If `None`, each `pay_onchain` will generate a random ID. Separate calls
+    /// will not be idempotent.
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     #[uniffi::method(default(
         priority = None,
         client_payment_id = None,
@@ -1186,17 +1210,15 @@ impl AsyncLexeWallet {
         address: String,
         amount_sats: u64,
         priority: Option<ConfirmationPriority>,
-        client_payment_id: Option<String>,
+        client_payment_id: Option<Arc<ClientPaymentId>>,
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let address =
             SdkAddress::from_str(&address).context("Invalid address")?;
         let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
-        let client_payment_id = client_payment_id
-            .map(|s| SdkClientPaymentId::from_str(&s))
-            .transpose()
-            .context("Invalid client_payment_id")?;
+
+        let client_payment_id = client_payment_id.map(|id| id.inner);
 
         let req = SdkPayOnchainRequest {
             address,
@@ -1227,6 +1249,9 @@ impl AsyncLexeWallet {
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// `pay_lnurl` is not currently idempotent. Each call will fetch and pay a
+    /// different invoice.
     #[uniffi::method(default(message = None, personal_note = None))]
     pub async fn pay_lnurl(
         &self,
@@ -2085,6 +2110,9 @@ impl BlockingLexeWallet {
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same invoice payment hash will return
+    /// the existing payment, even if it failed.
     #[uniffi::method(default(
         fallback_amount_sats = None,
         personal_note = None,
@@ -2158,22 +2186,32 @@ impl BlockingLexeWallet {
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
-    #[uniffi::method(default(message = None, personal_note = None))]
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
+    #[uniffi::method(default(
+        message = None,
+        personal_note = None,
+        client_payment_id = None,
+    ))]
     pub fn pay_offer(
         &self,
         offer: String,
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
+        client_payment_id: Option<Arc<ClientPaymentId>>,
     ) -> Result<Payment, FfiError> {
         let offer = SdkOffer::from_str(&offer).context("Invalid offer")?;
         let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
 
+        let client_payment_id = client_payment_id.map(|id| id.inner);
+
         let req = SdkPayOfferRequest {
             offer,
             amount,
-            client_payment_id: None,
+            client_payment_id,
             message,
             personal_note,
         };
@@ -2205,16 +2243,21 @@ impl BlockingLexeWallet {
     /// `amount_sats` is the amount to send in satoshis.
     /// `priority` is how quickly the transaction should confirm; a higher
     /// priority pays a higher on-chain fee. Defaults to `Normal`.
-    /// `client_payment_id` is an optional idempotency key, serialized as a
-    /// 64-character hex string (32 bytes); retrying with the same id won't
-    /// send the payment twice. A random id is generated if `None`.
     /// `personal_note` is a private note that the receiver does not see. If
     /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
     /// bytes.
     ///
-    /// Returns the resulting `Payment` as soon as the transaction is
-    /// broadcast, while it is still pending; an on-chain send payment only
-    /// finalizes its status after 6 confirmations (~1 hour).
+    /// Returns the resulting `Payment` without waiting for confirmations.
+    /// On-chain sends finalize after 6 confirmations (~1 hour).
+    ///
+    /// `client_payment_id` is an optional client-generated ID that also serves
+    /// as an idempotency key.
+    /// Use a fresh ID for each new payment. Reuse the same ID for retries.
+    /// If `None`, each `pay_onchain` will generate a random ID. Separate calls
+    /// will not be idempotent.
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     #[uniffi::method(default(
         priority = None,
         client_payment_id = None,
@@ -2225,17 +2268,15 @@ impl BlockingLexeWallet {
         address: String,
         amount_sats: u64,
         priority: Option<ConfirmationPriority>,
-        client_payment_id: Option<String>,
+        client_payment_id: Option<Arc<ClientPaymentId>>,
         personal_note: Option<String>,
     ) -> Result<Payment, FfiError> {
         let address =
             SdkAddress::from_str(&address).context("Invalid address")?;
         let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
-        let client_payment_id = client_payment_id
-            .map(|s| SdkClientPaymentId::from_str(&s))
-            .transpose()
-            .context("Invalid client_payment_id")?;
+
+        let client_payment_id = client_payment_id.map(|id| id.inner);
 
         let req = SdkPayOnchainRequest {
             address,
@@ -2266,6 +2307,9 @@ impl BlockingLexeWallet {
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// `pay_lnurl` is not currently idempotent. Each call will fetch and pay a
+    /// different invoice.
     #[uniffi::method(default(message = None, personal_note = None))]
     pub fn pay_lnurl(
         &self,
@@ -2791,8 +2835,10 @@ impl BlockingLexeWallet {
 // --- Payments --- //
 // ================ //
 
-/// A unique, client-generated id for payment types (onchain send,
-/// ln spontaneous send) that need an extra id for idempotency.
+/// A unique, client-generated ID used by `pay_offer` and `pay_onchain` for
+/// idempotency.
+///
+/// Use a fresh ID for each new payment. Reuse the same ID for retries.
 ///
 /// Its primary purpose is to prevent accidental double payments.
 #[derive(uniffi::Object)]

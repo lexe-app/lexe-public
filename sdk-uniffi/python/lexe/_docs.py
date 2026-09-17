@@ -800,6 +800,9 @@ Example::
 _set_method_doc(LexeWallet, "pay_invoice", """\
 Pay a BOLT 11 Lightning invoice.
 
+Idempotency: retries with the same invoice payment hash will return
+the existing payment, even if it failed.
+
 Args:
     invoice: BOLT 11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
@@ -847,6 +850,9 @@ Example::
 _set_method_doc(LexeWallet, "pay_offer", """\
 Pay a BOLT 12 offer over Lightning.
 
+Idempotency: retries with the same ``client_payment_id`` will return the
+existing payment, even if it failed.
+
 Args:
     offer: BOLT 12 offer string to pay.
     amount_sats: Amount to pay in satoshis.
@@ -856,6 +862,11 @@ Args:
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
+    client_payment_id: An optional client-generated ID that also serves as an
+        idempotency key (see :class:`ClientPaymentId`).
+        Use a fresh ID for each new payment. Reuse the same ID for retries.
+        If ``None``, each ``pay_offer`` will generate a random ID. Separate
+        calls will not be idempotent.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal
@@ -866,7 +877,10 @@ Raises:
 
 Example::
 
-    payment = wallet.pay_offer(bolt12_offer, 1000)
+    client_payment_id = ClientPaymentId.generate()
+    payment = wallet.pay_offer(
+        bolt12_offer, 1000, client_payment_id=client_payment_id,
+    )
     print(f"Payment {payment.status}")
 """)
 
@@ -894,24 +908,27 @@ Example::
 _set_method_doc(LexeWallet, "pay_onchain", """\
 Send Bitcoin on-chain to the given address.
 
+Idempotency: retries with the same ``client_payment_id`` will return the
+existing payment, even if it failed.
+
 Args:
     address: Bitcoin address to send to.
     amount_sats: Amount to send in satoshis.
     priority: Optional :class:`ConfirmationPriority` controlling how quickly
         the transaction should confirm. A higher priority pays a higher
         on-chain fee. Defaults to ``NORMAL``.
-    client_payment_id: Optional idempotency key, as a 64-character hex
-        string (32 bytes).
-        Retrying with the same id won't send the payment twice. A random id
-        is generated if omitted.
+    client_payment_id: An optional client-generated ID that also serves as an
+        idempotency key (see :class:`ClientPaymentId`).
+        Use a fresh ID for each new payment. Reuse the same ID for retries.
+        If ``None``, each ``pay_onchain`` will generate a random ID. Separate
+        calls will not be idempotent.
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
 
 Returns:
-    The resulting :class:`Payment`, returned as soon as the transaction is
-    broadcast, while it is still pending. An on-chain send payment only
-    finalizes its status after 6 confirmations (~1 hour); use
+    The resulting :class:`Payment`, returned without waiting for confirmations.
+    On-chain sends finalize after 6 confirmations (~1 hour); use
     :meth:`wait_for_payment` to await it.
 
 Raises:
@@ -919,7 +936,10 @@ Raises:
 
 Example::
 
-    payment = wallet.pay_onchain("bc1q...", 10_000)
+    client_payment_id = ClientPaymentId.generate()
+    payment = wallet.pay_onchain(
+        "bc1q...", 10_000, client_payment_id=client_payment_id,
+    )
     print(f"Broadcast {payment.txid}")
 """)
 
@@ -928,6 +948,9 @@ Pay an LNURL via the ``payRequest`` flow.
 
 Use :meth:`analyze` to get the associated :class:`LnurlPayRequest`, which
 contains information on amount constraints, message length limits, and more.
+
+``pay_lnurl`` is not currently idempotent. Each call will fetch and pay a
+different invoice.
 
 Args:
     lnurl: LNURL string to pay to.
@@ -1766,6 +1789,9 @@ Example::
 _set_method_doc(AsyncLexeWallet, "pay_invoice", """\
 Pay a BOLT 11 Lightning invoice.
 
+Idempotency: retries with the same invoice payment hash will return
+the existing payment, even if it failed.
+
 Args:
     invoice: BOLT 11 invoice string to pay.
     fallback_amount_sats: Required if the invoice has no amount encoded.
@@ -1813,6 +1839,9 @@ Example::
 _set_method_doc(AsyncLexeWallet, "pay_offer", """\
 Pay a BOLT 12 offer over Lightning.
 
+Idempotency: retries with the same ``client_payment_id`` will return the
+existing payment, even if it failed.
+
 Args:
     offer: BOLT 12 offer string to pay.
     amount_sats: Amount to pay in satoshis.
@@ -1822,6 +1851,11 @@ Args:
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
+    client_payment_id: An optional client-generated ID that also serves as an
+        idempotency key (see :class:`ClientPaymentId`).
+        Use a fresh ID for each new payment. Reuse the same ID for retries.
+        If ``None``, each ``pay_offer`` will generate a random ID. Separate
+        calls will not be idempotent.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal
@@ -1832,7 +1866,10 @@ Raises:
 
 Example::
 
-    payment = await wallet.pay_offer(bolt12_offer, 1000)
+    client_payment_id = ClientPaymentId.generate()
+    payment = await wallet.pay_offer(
+        bolt12_offer, 1000, client_payment_id=client_payment_id,
+    )
     print(f"Payment {payment.status}")
 """)
 
@@ -1860,24 +1897,27 @@ Example::
 _set_method_doc(AsyncLexeWallet, "pay_onchain", """\
 Send Bitcoin on-chain to the given address.
 
+Idempotency: retries with the same ``client_payment_id`` will return the
+existing payment, even if it failed.
+
 Args:
     address: Bitcoin address to send to.
     amount_sats: Amount to send in satoshis.
     priority: Optional :class:`ConfirmationPriority` controlling how quickly
         the transaction should confirm. A higher priority pays a higher
         on-chain fee. Defaults to ``NORMAL``.
-    client_payment_id: Optional idempotency key, as a 64-character hex
-        string (32 bytes).
-        Retrying with the same id won't send the payment twice. A random id
-        is generated if omitted.
+    client_payment_id: An optional client-generated ID that also serves as an
+        idempotency key (see :class:`ClientPaymentId`).
+        Use a fresh ID for each new payment. Reuse the same ID for retries.
+        If ``None``, each ``pay_onchain`` will generate a random ID. Separate
+        calls will not be idempotent.
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
 
 Returns:
-    The resulting :class:`Payment`, returned as soon as the transaction is
-    broadcast, while it is still pending. An on-chain send payment only
-    finalizes its status after 6 confirmations (~1 hour); use
+    The resulting :class:`Payment`, returned without waiting for confirmations.
+    On-chain sends finalize after 6 confirmations (~1 hour); use
     :meth:`wait_for_payment` to await it.
 
 Raises:
@@ -1885,7 +1925,10 @@ Raises:
 
 Example::
 
-    payment = await wallet.pay_onchain("bc1q...", 10_000)
+    client_payment_id = ClientPaymentId.generate()
+    payment = await wallet.pay_onchain(
+        "bc1q...", 10_000, client_payment_id=client_payment_id,
+    )
     print(f"Broadcast {payment.txid}")
 """)
 
@@ -1894,6 +1937,9 @@ Pay an LNURL via the ``payRequest`` flow.
 
 Use :meth:`analyze` to get the associated :class:`LnurlPayRequest`, which
 contains information on amount constraints, message length limits, and more.
+
+``pay_lnurl`` is not currently idempotent. Each call will fetch and pay a
+different invoice.
 
 Args:
     lnurl: LNURL string to pay to.
@@ -2618,8 +2664,11 @@ Attributes:
 """
 
 lexe.ClientPaymentId.__doc__ = """\
-A unique, client-generated id for payment types (onchain send,
-spontaneous send) that need an extra id for idempotency.
+A unique, client-generated ID used by ``pay_offer`` and ``pay_onchain`` for
+idempotency.
+
+Use a fresh ID for each new payment. Reuse the same ID for retries.
+
 Its primary purpose is to prevent accidental double payments.
 
 Methods:

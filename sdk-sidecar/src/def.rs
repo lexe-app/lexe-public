@@ -109,6 +109,9 @@ pub trait UserSidecarApi {
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same `invoice.payment_hash` will return
+    /// the existing payment, even if it failed.
     async fn pay_invoice(
         &self,
         req: &PayInvoiceRequest,
@@ -129,6 +132,9 @@ pub trait UserSidecarApi {
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     async fn pay_offer(
         &self,
         req: &PayOfferRequest,
@@ -156,9 +162,11 @@ pub trait UserSidecarApi {
     ///
     /// Send Bitcoin on-chain to an address.
     ///
-    /// Returns the resulting [`Payment`] as soon as the transaction is
-    /// broadcast, while it is still pending; an on-chain send payment only
-    /// finalizes its status after 6 confirmations (~1 hour).
+    /// Returns the resulting [`Payment`] without waiting for confirmations.
+    /// On-chain sends finalize after 6 confirmations (~1 hour).
+    ///
+    /// Idempotency: retries with the same `client_payment_id` will return the
+    /// existing payment, even if it failed.
     async fn pay_onchain(
         &self,
         req: &PayOnchainRequest,
@@ -167,6 +175,9 @@ pub trait UserSidecarApi {
     /// POST /v2/node/pay_lnurl [`PayLnurlRequest`] -> [`Payment`]
     ///
     /// Pay to a Lightning address or LNURL-pay endpoint.
+    ///
+    /// `pay_lnurl` is not currently idempotent. Each call will fetch and pay a
+    /// different invoice.
     async fn pay_lnurl(
         &self,
         req: &PayLnurlRequest,

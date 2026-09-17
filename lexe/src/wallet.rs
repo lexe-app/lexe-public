@@ -1253,13 +1253,13 @@ impl LexeWallet {
             .context("Onchain payment missing right after creation")
     }
 
-    /// Pay an LNURL or Lightning Address via the `payRequest` flow.
+    /// Pay an LNURL or Lightning Address via the LNURL `payRequest` flow.
     ///
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
     ///
-    /// Each call may fetch a different invoice, so retries may create another
-    /// payment.
+    /// `pay_lnurl` is not currently idempotent. Each call will fetch and pay a
+    /// different invoice.
     #[instrument(skip_all, name = "(pay-lnurl)")]
     pub async fn pay_lnurl(
         &self,

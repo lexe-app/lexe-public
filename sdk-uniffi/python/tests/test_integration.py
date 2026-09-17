@@ -339,7 +339,8 @@ def test_create_and_pay_invoice(prefunded_wallets):
     )
 
 @pytest.mark.integration
-def test_create_and_pay_offer(prefunded_wallets):
+@pytest.mark.asyncio
+async def test_create_and_pay_offer(prefunded_wallets):
     """Test creating and paying offers between two pre-funded wallets."""
     # Test constants
     poll_timeout_secs = 120
@@ -385,12 +386,14 @@ def test_create_and_pay_offer(prefunded_wallets):
     assert create_resp.offer != ""
 
     # Pay offer from wallet1
+    client_payment_id = lexe.ClientPaymentId.generate()
     pay_resp = wallet1.pay_offer(
         create_resp.offer,
         amount_sats=test_pay_amount_sats,
         message="Paying test offer from Python SDK",
+        client_payment_id=client_payment_id,
     )
-    assert pay_resp.index != ""
+    assert pay_resp.index.endswith(f"-fs_{client_payment_id.to_hex()}")
     assert pay_resp.created_at_ms > 0
 
     # Wait for payment to complete using SDK polling method
@@ -405,6 +408,84 @@ def test_create_and_pay_offer(prefunded_wallets):
         "Payment amount is "
         f"{payer_payment.amount_sats}, expected {test_pay_amount_sats}"
     )
+
+    # Both wrappers return the existing payment when reusing the key.
+    retry = wallet1.pay_offer(
+        create_resp.offer,
+        test_pay_amount_sats,
+        client_payment_id=client_payment_id,
+    )
+    assert retry.index == pay_resp.index
+    assert retry.created_at_ms == pay_resp.created_at_ms
+
+    seed = lexe.RootSeed.from_hex(prefunded_wallets["wallets"][0]["seed_hex"])
+    async_wallet = lexe.AsyncLexeWallet.without_db(
+        lexe.WalletConfig.regtest(gateway_url=gateway_url),
+        lexe.Credentials.from_root_seed(seed),
+    )
+    retry = await async_wallet.pay_offer(
+        create_resp.offer,
+        test_pay_amount_sats,
+        client_payment_id=client_payment_id,
+    )
+    assert retry.index == pay_resp.index
+    assert retry.created_at_ms == pay_resp.created_at_ms
+
+    # Existing positional calls still create a new payment without a key.
+    payment = wallet1.pay_offer(
+        create_resp.offer, test_pay_amount_sats, "A message", "A personal note",
+    )
+    assert payment.index != pay_resp.index
+    assert payment.message == "A message"
+    assert payment.personal_note == "A personal note"
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_pay_onchain_idempotency(prefunded_wallets):
+    if prefunded_wallets is None:
+        pytest.skip("Requires pre-funded wallets from Rust smoketest")
+
+    gateway_url = prefunded_wallets["gateway_url"]
+    wallet_info = prefunded_wallets["wallets"][0]
+    wallet = load_prefunded_wallet(wallet_info, gateway_url)
+    receiver = load_prefunded_wallet(
+        prefunded_wallets["wallets"][1], gateway_url,
+    )
+    address = receiver.get_next_unused_address().address
+    amount_sats = 10_000
+    client_payment_id = lexe.ClientPaymentId.generate()
+
+    payment = wallet.pay_onchain(
+        address, amount_sats, client_payment_id=client_payment_id,
+    )
+    assert payment.index.endswith(f"-os_{client_payment_id.to_hex()}")
+    assert payment.txid is not None
+    assert payment.status == lexe.PaymentStatus.PENDING
+
+    retry = wallet.pay_onchain(
+        address, amount_sats, client_payment_id=client_payment_id,
+    )
+    assert retry.index == payment.index
+    assert retry.created_at_ms == payment.created_at_ms
+    assert retry.txid == payment.txid
+
+    seed = lexe.RootSeed.from_hex(wallet_info["seed_hex"])
+    async_wallet = lexe.AsyncLexeWallet.without_db(
+        lexe.WalletConfig.regtest(gateway_url=gateway_url),
+        lexe.Credentials.from_root_seed(seed),
+    )
+    retry = await async_wallet.pay_onchain(
+        address, amount_sats, client_payment_id=client_payment_id,
+    )
+    assert retry.index == payment.index
+    assert retry.created_at_ms == payment.created_at_ms
+    assert retry.txid == payment.txid
+
+    # Omitting the key creates a new payment.
+    new_payment = await async_wallet.pay_onchain(address, amount_sats)
+    assert new_payment.index != payment.index
+    assert new_payment.txid != payment.txid
+
 
 @pytest.mark.integration
 def test_pay(prefunded_wallets):
