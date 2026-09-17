@@ -557,6 +557,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   final ValueNotifier<bool> isSending = ValueNotifier(false);
 
   // TODO(phlip9): save/load this from/to user preferences?
+  // TODO(max): Default to high (when the preflighted high fee is affordable)
+  // once our fee estimation stops overpaying; currently, "Normal" typically
+  // confirms in the next block while still overpaying.
   final ValueNotifier<ConfirmationPriority> confPriority = ValueNotifier(
     ConfirmationPriority.normal,
   );

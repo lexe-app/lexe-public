@@ -543,6 +543,10 @@ pub struct PayOnchainRequest {
     pub amount: Amount,
     /// How quickly the transaction should confirm. A higher priority pays a
     /// higher on-chain fee. Defaults to `"normal"`.
+    // TODO(max): An unset priority should preflight and default to high when
+    // the high fee is affordable, once our fee estimation stops overpaying;
+    // currently, normal typically confirms in the next block while still
+    // overpaying.
     pub priority: Option<ConfirmationPriority>,
     /// A client-generated id for this payment, used for idempotency.
     /// Retrying a request with the same `client_payment_id` won't send the
