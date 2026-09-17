@@ -100,22 +100,36 @@ pub mod legacy_sweep;
 /// because it has no more pending spends.
 const CONFS_TO_FINALIZE: u32 = 6;
 
-/// "`stop_gap` is the maximum number of consecutive unused addresses. For
-/// example, with a `stop_gap` of  3, `full_scan` will keep scanning until it
-/// encounters 3 consecutive script pubkeys with no associated transactions."
-///
-/// From: [`EsploraAsyncExt::full_scan`]
-const BDK_FULL_SCAN_STOP_GAP: usize = 2;
-
 /// Number of parallel requests BDK is permitted to use.
 const BDK_CONCURRENCY: usize = 24;
 
-/// "The lookahead defines a number of script pubkeys to derive over and above
-/// the last revealed index."
-// We only reveal unused addresses; however, our write back persistence scheme
-// means we may sometimes forget that we revealed an index, due to a crash prior
-// to persisting the update. Thus, a lookahead of 1 should be sufficient for us.
-const BDK_LOOKAHEAD: u32 = 1;
+/// How many script pubkeys BDK derives and scans beyond those known to be used.
+#[derive(Copy, Clone)]
+pub struct AddressScanParams {
+    /// "`stop_gap` is the maximum number of consecutive unused addresses. For
+    /// example, with a `stop_gap` of  3, `full_scan` will keep scanning until
+    /// it encounters 3 consecutive script pubkeys with no associated
+    /// transactions."
+    ///
+    /// From: [`EsploraAsyncExt::full_scan`]
+    pub full_scan_stop_gap: usize,
+    /// "The lookahead defines a number of script pubkeys to derive over and
+    /// above the last revealed index."
+    pub lookahead: u32,
+}
+
+impl Default for AddressScanParams {
+    fn default() -> Self {
+        Self {
+            full_scan_stop_gap: 2,
+            // We only reveal unused addresses. However, with write-back
+            // persistence, a crash before the update persists can make us
+            // forget that we revealed an index. Thus, a lookahead of 1
+            // should be sufficient.
+            lookahead: 1,
+        }
+    }
+}
 
 /// The [`ConfirmationPriority`] for new open_channel funding transactions.
 ///
@@ -130,6 +144,7 @@ pub struct OnchainWallet {
     inner: Arc<std::sync::RwLock<Wallet>>,
     fee_estimates: Arc<FeeEstimates>,
     coin_selector: LexeCoinSelector,
+    scan_params: AddressScanParams,
     /// NOTE: This is the full, *aggregated* changeset, not an intermediate
     /// state diff, contrary to what the name of "[`ChangeSet`]" might suggest.
     changeset: Arc<std::sync::Mutex<ChangeSet>>,
@@ -252,6 +267,7 @@ impl OnchainWallet {
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
+        scan_params: AddressScanParams,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<Self> {
         let (lexe_wallet, wallet_created) = Self::new(
@@ -260,6 +276,7 @@ impl OnchainWallet {
             fee_estimates,
             coin_selector,
             maybe_changeset,
+            scan_params,
             wallet_persister_tx,
         )?;
 
@@ -279,6 +296,7 @@ impl OnchainWallet {
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
+        scan_params: AddressScanParams,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
@@ -296,7 +314,7 @@ impl OnchainWallet {
                     .network(network)
                     // TODO(max): Wire through specific testnet3/testnet4 hash
                     // .genesis_hash(genesis_hash)
-                    .lookahead(BDK_LOOKAHEAD);
+                    .lookahead(scan_params.lookahead);
             // NOTE: This call stages a non-empty `ChangeSet`.
             let wallet = Wallet::create_with_params(create_params)
                 .context("Wallet::create_with_params failed")?;
@@ -318,7 +336,7 @@ impl OnchainWallet {
                 // TODO(max): Might want to check testnet3/testnet4 hash
                 // .check_genesis_hash(genesis_hash)
                 .check_network(network)
-                .lookahead(BDK_LOOKAHEAD);
+                .lookahead(scan_params.lookahead);
             let maybe_wallet = Wallet::load_with_params(changeset, load_params)
                 .context("Wallet::load_with_params failed")?;
             if maybe_wallet.is_none() {
@@ -380,6 +398,7 @@ impl OnchainWallet {
                 inner: Arc::new(std::sync::RwLock::new(wallet)),
                 fee_estimates,
                 coin_selector,
+                scan_params,
                 changeset: Arc::new(std::sync::Mutex::new(initial_changeset)),
                 wallet_persister_tx,
             },
@@ -403,6 +422,7 @@ impl OnchainWallet {
             fee_estimates,
             coin_selector,
             maybe_changeset,
+            AddressScanParams::default(),
             persist_tx,
         )
         .unwrap();
@@ -712,7 +732,7 @@ impl OnchainWallet {
             .client()
             .full_scan::<KeychainKind, _>(
                 full_scan_request,
-                BDK_FULL_SCAN_STOP_GAP,
+                self.scan_params.full_scan_stop_gap,
                 BDK_CONCURRENCY,
             )
             .await

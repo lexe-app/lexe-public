@@ -35,7 +35,7 @@ use crate::{
     persister::PaymentsPersisterMethods,
     traits::{LexeChannelManager, LexePaymentsPersister},
     tx_broadcaster::TxBroadcaster,
-    wallet::{LexeCoinSelector, OnchainWallet},
+    wallet::{AddressScanParams, LexeCoinSelector, OnchainWallet},
 };
 
 /// The legacy wallet changeset filename (for wallets created <= node-v0.9.1).
@@ -100,6 +100,7 @@ async fn do_legacy_sweep<
         ctx.fee_estimates.clone(),
         ctx.coin_selector,
         maybe_legacy_changeset,
+        AddressScanParams::default(),
         wallet_persister_tx,
     )
     .await

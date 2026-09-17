@@ -65,7 +65,9 @@ use lexe_ln::{
     sync::{self, BdkSyncRequest},
     test_event,
     tx_broadcaster::TxBroadcaster,
-    wallet::{self, LexeCoinSelector, OnchainWallet, legacy_sweep},
+    wallet::{
+        self, AddressScanParams, LexeCoinSelector, OnchainWallet, legacy_sweep,
+    },
 };
 use lexe_std::{Apply, const_assert};
 use lexe_tls::shared_seed::certs::{
@@ -503,6 +505,7 @@ impl UserNode {
             fee_estimates.clone(),
             coin_selector,
             maybe_changeset,
+            AddressScanParams::default(),
             wallet_persister_tx,
         )
         .await
