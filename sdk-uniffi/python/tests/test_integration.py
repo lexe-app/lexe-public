@@ -413,7 +413,9 @@ async def test_create_and_pay_offer(prefunded_wallets):
     retry = wallet1.pay_offer(
         create_resp.offer,
         test_pay_amount_sats,
-        client_payment_id=client_payment_id,
+        client_payment_id=lexe.ClientPaymentId.from_hex(
+            client_payment_id.to_hex(),
+        ),
     )
     assert retry.index == pay_resp.index
     assert retry.created_at_ms == pay_resp.created_at_ms
@@ -426,7 +428,9 @@ async def test_create_and_pay_offer(prefunded_wallets):
     retry = await async_wallet.pay_offer(
         create_resp.offer,
         test_pay_amount_sats,
-        client_payment_id=client_payment_id,
+        client_payment_id=lexe.ClientPaymentId.from_bytes(
+            client_payment_id.to_bytes(),
+        ),
     )
     assert retry.index == pay_resp.index
     assert retry.created_at_ms == pay_resp.created_at_ms
@@ -463,7 +467,11 @@ async def test_pay_onchain_idempotency(prefunded_wallets):
     assert payment.status == lexe.PaymentStatus.PENDING
 
     retry = wallet.pay_onchain(
-        address, amount_sats, client_payment_id=client_payment_id,
+        address,
+        amount_sats,
+        client_payment_id=lexe.ClientPaymentId.from_hex(
+            client_payment_id.to_hex(),
+        ),
     )
     assert retry.index == payment.index
     assert retry.created_at_ms == payment.created_at_ms
@@ -475,7 +483,11 @@ async def test_pay_onchain_idempotency(prefunded_wallets):
         lexe.Credentials.from_root_seed(seed),
     )
     retry = await async_wallet.pay_onchain(
-        address, amount_sats, client_payment_id=client_payment_id,
+        address,
+        amount_sats,
+        client_payment_id=lexe.ClientPaymentId.from_bytes(
+            client_payment_id.to_bytes(),
+        ),
     )
     assert retry.index == payment.index
     assert retry.created_at_ms == payment.created_at_ms

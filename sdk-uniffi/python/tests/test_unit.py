@@ -83,6 +83,32 @@ def test_root_seed_invalid_length():
     assert "32 bytes" in exc_info.value.message().lower()
 
 
+def test_client_payment_id_roundtrip():
+    id_bytes = bytes(range(32))
+    id_hex = id_bytes.hex()
+    ids = [
+        lexe.ClientPaymentId.from_bytes(id_bytes),
+        lexe.ClientPaymentId.from_hex(id_hex),
+    ]
+    for payment_id in ids:
+        assert payment_id.to_bytes() == id_bytes
+        assert payment_id.to_hex() == id_hex
+
+
+@pytest.mark.parametrize(
+    "id_hex", ["", "00" * 31, "00" * 33, "gg" * 32, "AB" * 32],
+)
+def test_client_payment_id_invalid_hex(id_hex):
+    with pytest.raises(lexe.FfiError, match="Invalid client payment ID"):
+        lexe.ClientPaymentId.from_hex(id_hex)
+
+
+@pytest.mark.parametrize("length", [0, 31, 33])
+def test_client_payment_id_invalid_bytes(length):
+    with pytest.raises(lexe.FfiError, match="32 bytes"):
+        lexe.ClientPaymentId.from_bytes(bytes(length))
+
+
 def test_wallet_config():
     """Test WalletConfig can be created."""
     config = create_dev_config()

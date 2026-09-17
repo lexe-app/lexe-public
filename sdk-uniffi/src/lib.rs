@@ -2856,6 +2856,23 @@ impl ClientPaymentId {
         })
     }
 
+    /// Construct a [`ClientPaymentId`] from a 64-character lowercase hex
+    /// string.
+    #[uniffi::constructor]
+    pub fn from_hex(hex_string: String) -> Result<Arc<Self>, FfiError> {
+        let inner = SdkClientPaymentId::from_hex(&hex_string)
+            .context("Invalid client payment ID")?;
+        Ok(Arc::new(Self { inner }))
+    }
+
+    /// Construct a [`ClientPaymentId`] from exactly 32 bytes.
+    #[uniffi::constructor]
+    pub fn from_bytes(id_bytes: Vec<u8>) -> Result<Arc<Self>, FfiError> {
+        let inner = SdkClientPaymentId::try_from_slice(&id_bytes)
+            .context("Client payment ID must be 32 bytes")?;
+        Ok(Arc::new(Self { inner }))
+    }
+
     /// Return the 32-byte id.
     pub fn to_bytes(&self) -> Vec<u8> {
         self.inner.0.to_vec()

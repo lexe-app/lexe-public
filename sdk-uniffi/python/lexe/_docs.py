@@ -2671,11 +2671,6 @@ Use a fresh ID for each new payment. Reuse the same ID for retries.
 
 Its primary purpose is to prevent accidental double payments.
 
-Methods:
-    generate(): Generate a random ``ClientPaymentId``.
-    to_bytes(): Return the 32-byte id.
-    to_hex(): Encode the id as a 64-character hex string.
-
 Example::
 
     payment_id = ClientPaymentId.generate()
@@ -2687,6 +2682,20 @@ Generate a random ``ClientPaymentId``.
 
 Returns:
     A new random ClientPaymentId.
+""")
+
+_set_method_doc(lexe.ClientPaymentId, "from_hex", """\
+Construct a ``ClientPaymentId`` from a 64-character lowercase hex string.
+
+Raises:
+    FfiError: If the string is not exactly 64 lowercase hex characters.
+""")
+
+_set_method_doc(lexe.ClientPaymentId, "from_bytes", """\
+Construct a ``ClientPaymentId`` from exactly 32 bytes.
+
+Raises:
+    FfiError: If the input is not exactly 32 bytes.
 """)
 
 _set_method_doc(lexe.ClientPaymentId, "to_bytes", """\
