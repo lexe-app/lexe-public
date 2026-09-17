@@ -1114,7 +1114,7 @@ class ChooseFeeDialogOption extends StatelessWidget {
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Text(this.priority.name, style: Fonts.fontUI),
+          Text(this.priority.label, style: Fonts.fontUI),
           const Expanded(child: SizedBox()),
           Text("≈ $feeSatsStr", style: Fonts.fontUI),
         ],
@@ -1140,6 +1140,13 @@ class ChooseFeeDialogOption extends StatelessWidget {
 }
 
 extension on ConfirmationPriority {
+  /// The user-facing label, e.g. "Normal".
+  String get label => switch (this) {
+    ConfirmationPriority.high => "High",
+    ConfirmationPriority.normal => "Normal",
+    ConfirmationPriority.background => "Background",
+  };
+
   /// The estimated time for a tx at this priority to confirm.
   // TODO(phlip9): extract common rust definition from `lexe_ln::esplora`
   Duration estConfDuration() {
