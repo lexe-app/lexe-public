@@ -820,17 +820,32 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text("Network Fee", style: textStyleSecondary),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: Space.s200,
-                            ),
-                            child: Icon(
-                              LxIcons.edit,
-                              size: Fonts.size300,
-                              color: LxColors.grey625,
+
+                          // Estimated confirmation time for the selected fee
+                          // priority, e.g. "≈ 30 minutes".
+                          ValueListenableBuilder(
+                            valueListenable: this.confPriority,
+                            builder: (context, confPriority, child) => Row(
+                              children: [
+                                Text(
+                                  "≈ ${date_format.formatDurationCompact(confPriority.estConfDuration(), abbreviated: false, addAgo: false)}",
+                                  style: textStyleFiat,
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: Space.s200,
+                                  ),
+                                  child: Icon(
+                                    LxIcons.edit,
+                                    size: Fonts.size300,
+                                    color: LxColors.grey625,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -1083,17 +1098,8 @@ class ChooseFeeDialogOption extends StatelessWidget {
       this.feeEstimate.amountSats,
     );
 
-    // TODO(phlip9): extract common rust definition from `lexe_ln::esplora`
-    // The target block height (offset from the current chain tip) that we want
-    // our txn confirmed.
-    final confBlockTarget = switch (this.priority) {
-      ConfirmationPriority.high => 1,
-      ConfirmationPriority.normal => 3,
-      ConfirmationPriority.background => 72,
-    };
-    final confDuration = Duration(minutes: 10 * confBlockTarget);
     final confDurationStr = date_format.formatDurationCompact(
-      confDuration,
+      this.priority.estConfDuration(),
       abbreviated: false,
       addAgo: false,
     );
@@ -1130,5 +1136,20 @@ class ChooseFeeDialogOption extends StatelessWidget {
       ),
       onTap: () => Navigator.of(context).pop(this.priority),
     );
+  }
+}
+
+extension on ConfirmationPriority {
+  /// The estimated time for a tx at this priority to confirm.
+  // TODO(phlip9): extract common rust definition from `lexe_ln::esplora`
+  Duration estConfDuration() {
+    // The target block height (offset from the current chain tip) that we
+    // want our txn confirmed.
+    final confBlockTarget = switch (this) {
+      ConfirmationPriority.high => 1,
+      ConfirmationPriority.normal => 3,
+      ConfirmationPriority.background => 72,
+    };
+    return Duration(minutes: 10 * confBlockTarget);
   }
 }
