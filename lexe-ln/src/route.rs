@@ -12,6 +12,7 @@ use either::Either;
 use lexe_api::{cli::LspInfo, types::invoice::Invoice};
 use lexe_common::{
     api::user::{NodePk, Scid},
+    constants::{ROUTING_FEE_LIMIT_BASE_MSAT, ROUTING_FEE_LIMIT_PROP},
     debug_panic_release_log, dec,
     ln::amount::Amount,
     ppm::Ppm,
@@ -47,11 +48,6 @@ use crate::{
     logger::LexeTracingLogger,
     traits::{LexeChannelManager, LexePersister},
 };
-
-// TODO(max): We may want to set a fee limit at some point
-// TODO(phlip9): If we enable this, we'll likely need to re-tune the scoring fee
-// penalties below.
-const MAX_TOTAL_ROUTING_FEE_MSAT: Option<u64> = None;
 
 /// The default LDK [`Router`] impl with concrete Lexe types filled in.
 type DefaultRouterType = DefaultRouter<
@@ -627,10 +623,11 @@ impl RoutingContext {
         first_hop_base_fee: Amount,
     ) -> anyhow::Result<RoutingResult> {
         let amount_msat = amount.msat();
+        let routing_fee_limit_msat = helpers::routing_fee_limit(amount).msat();
         let route_params = RouteParameters {
             payment_params: self.payment_params.clone(),
             final_value_msat: amount_msat,
-            max_total_routing_fee_msat: MAX_TOTAL_ROUTING_FEE_MSAT,
+            max_total_routing_fee_msat: Some(routing_fee_limit_msat),
         };
 
         let first_hop_fee_msat = (first_hop_prop_fee * amount)
@@ -684,6 +681,14 @@ impl RoutingContext {
         let first_hop_fee_msat =
             helpers::assign_first_hop_fees(&mut route, first_hop_fee_msat)?;
 
+        // LDK re-checks the route's total fees against this limit when we
+        // send, and we add our first-hop fee on top of the routing fees it
+        // found, so raise the limit by exactly that fee.
+        if let Some(params) = route.route_params.as_mut() {
+            params.max_total_routing_fee_msat =
+                Some(routing_fee_limit_msat + first_hop_fee_msat);
+        }
+
         Ok(RoutingResult {
             route,
             route_params,
@@ -695,9 +700,14 @@ impl RoutingContext {
     /// APIs require a [`RouteParametersConfig`]. Until we fully migrate all
     /// payment paths off these APIs, add this helper so LDK-managed routing
     /// will at least use somewhat consistent routing configs.
-    pub fn route_params_config(&self) -> RouteParametersConfig {
+    pub fn route_params_config(
+        &self,
+        payment_amount: Amount,
+    ) -> RouteParametersConfig {
         RouteParametersConfig {
-            max_total_routing_fee_msat: MAX_TOTAL_ROUTING_FEE_MSAT,
+            max_total_routing_fee_msat: Some(
+                helpers::routing_fee_limit(payment_amount).msat(),
+            ),
             max_total_cltv_expiry_delta: self
                 .payment_params
                 .max_total_cltv_expiry_delta,
@@ -910,6 +920,16 @@ pub async fn compute_max_flow_to_recipient(
 
 mod helpers {
     use super::*;
+
+    /// The routing fee limit for a payment of `amount`.
+    //
+    // NOTE: Only real routing fees count toward the limit. LDK's scorer
+    // penalties affect which path gets picked, but not whether a path is
+    // eligible.
+    pub fn routing_fee_limit(amount: Amount) -> Amount {
+        let base = Amount::from_msat(u64::from(ROUTING_FEE_LIMIT_BASE_MSAT));
+        base + ROUTING_FEE_LIMIT_PROP * amount
+    }
 
     /// Assigns a first hop fee to each path in `route`, proportional to the
     /// path's value. Returns the total fee (in msat) actually assigned, which

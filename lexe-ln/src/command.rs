@@ -1394,7 +1394,8 @@ where
     // fetching the BOLT12 Invoice, routing, and retrying.
 
     let params = OptionalOfferPaymentParams {
-        route_params_config: routing_context.route_params_config(),
+        route_params_config: routing_context
+            .route_params_config(oopwm.payment.amount),
         payer_note: message,
         retry_strategy: OUTBOUND_PAYMENT_RETRY_STRATEGY,
     };

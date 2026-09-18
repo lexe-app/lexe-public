@@ -63,6 +63,19 @@ pub const DEFAULT_USERNODE_FIRST_HOP_BASE_FEE: Amount = Amount::ZERO;
 /// routing fees.
 pub const DEFAULT_USERNODE_FIRST_HOP_PROP_FEE: Ppm = ppm!(0.5%);
 
+/// A routing fee limit proportional to the principal paid, in addition to
+/// [`ROUTING_FEE_LIMIT_BASE_MSAT`]. Helps prevent a payer from paying
+/// astronomical routing fees.
+///
+/// Limit does not apply to the first hop fee.
+pub const ROUTING_FEE_LIMIT_PROP: Ppm = ppm!(1%);
+
+/// A base routing fee limit, in addition to [`ROUTING_FEE_LIMIT_PROP`]. Helps
+/// prevent a payer from paying astronomical routing fees.
+///
+/// Limit does not apply to the first hop fee.
+pub const ROUTING_FEE_LIMIT_BASE_MSAT: u32 = 1000 * 100;
+
 // --- Channels and liquidity --- //
 
 /// Our dust limit for e.g. our channel close txo's. If our channel balance,
