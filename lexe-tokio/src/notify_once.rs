@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use tokio::sync::Semaphore;
 
@@ -28,6 +31,15 @@ pub struct NotifyOnce {
     inner: Arc<Semaphore>,
     have_recved: bool,
 }
+
+/// A [`NotifyOnce`] which also sends its signal when dropped.
+///
+/// `clone` yields a plain [`NotifyOnce`] which does not send on drop.
+///
+/// Useful for ensuring a signal is sent in the case of panics or early
+/// returns.
+#[derive(Debug)]
+pub struct NotifyOnceWithDrop(NotifyOnce);
 
 impl NotifyOnce {
     /// Construct a new [`NotifyOnce`].
@@ -92,6 +104,32 @@ impl Clone for NotifyOnce {
             // has already seen it.
             have_recved: false,
         }
+    }
+}
+
+impl NotifyOnceWithDrop {
+    /// Construct a new [`NotifyOnceWithDrop`].
+    pub fn new() -> Self {
+        Self(NotifyOnce::new())
+    }
+}
+
+impl Deref for NotifyOnceWithDrop {
+    type Target = NotifyOnce;
+    fn deref(&self) -> &NotifyOnce {
+        &self.0
+    }
+}
+
+impl DerefMut for NotifyOnceWithDrop {
+    fn deref_mut(&mut self) -> &mut NotifyOnce {
+        &mut self.0
+    }
+}
+
+impl Drop for NotifyOnceWithDrop {
+    fn drop(&mut self) {
+        self.0.send();
     }
 }
 
@@ -163,5 +201,16 @@ mod test {
         time::timeout(Duration::from_nanos(1), shutdown3.recv())
             .await
             .expect("Did not finish immediately");
+    }
+
+    #[tokio::test]
+    async fn with_drop_sends_on_drop() {
+        let shutdown = NotifyOnceWithDrop::new();
+        let mut rx = shutdown.clone();
+        assert!(!rx.try_recv());
+
+        drop(shutdown);
+        assert!(rx.try_recv());
+        rx.recv().await;
     }
 }
