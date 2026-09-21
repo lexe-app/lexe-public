@@ -4,7 +4,6 @@ use futures::future;
 use gdrive::GoogleVfs;
 use lexe_api::vfs::VfsFileId;
 use lexe_std::backoff;
-use lexe_tokio::notify_once::NotifyOnce;
 use tokio::sync::Semaphore;
 use tracing::error;
 
@@ -14,11 +13,9 @@ use crate::backup_persister::BackupBatch;
 pub(crate) async fn persist(
     gvfs: &GoogleVfs,
     files: &mut BackupBatch,
-    shutdown: &NotifyOnce,
 ) -> anyhow::Result<()> {
     const MAX_CONCURRENT_WRITES: usize = 16;
 
-    let _ = shutdown; // TODO(ai): Remove
     let semaphore = &Semaphore::const_new(MAX_CONCURRENT_WRITES);
     let mut writes = Vec::new();
     let mut deletes = Vec::new();

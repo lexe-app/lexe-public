@@ -21,6 +21,7 @@ pub(crate) struct BackupPersister {
     store: BackupStore,
     rx: mpsc::Receiver<BackupCommand>,
     pending: BackupBatch,
+    shutdown: NotifyOnce,
 }
 
 pub(crate) enum BackupStore {
@@ -36,42 +37,30 @@ pub(crate) type BackupBatch = HashMap<VfsFileId, Option<Vec<u8>>>;
 impl BackupPersister {
     const PERSIST_DELAY: Duration = Duration::from_secs(60);
 
+    /// The channel monitor persister triggers `shutdown` after flushing and
+    /// enqueuing all monitor persists.
     pub(crate) fn new(
         store: BackupStore,
+        shutdown: NotifyOnce,
     ) -> (Self, mpsc::Sender<BackupCommand>) {
         let (tx, rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let persister = Self {
             store,
             rx,
             pending: HashMap::new(),
+            shutdown,
         };
         (persister, tx)
     }
 
     /// Spawn the `BackupPersister` task.
-    ///
-    /// - `backup_persister_shutdown`: `ChannelMonitorPersister` triggers
-    ///   `BackupPersister` shutdown only after it's done shutting down and all
-    ///   monitor persists are flushed+enqueued.
-    pub(crate) fn spawn(
-        self,
-        backup_persister_shutdown: NotifyOnce,
-        shutdown: NotifyOnce,
-    ) -> LxTask<()> {
+    pub(crate) fn spawn(self) -> LxTask<()> {
         const SPAN_NAME: &str = "(backup-persister)";
         let span = info_span!(SPAN_NAME, store = self.store.name());
-        LxTask::spawn_with_span(
-            SPAN_NAME,
-            span,
-            self.run(backup_persister_shutdown, shutdown),
-        )
+        LxTask::spawn_with_span(SPAN_NAME, span, self.run())
     }
 
-    async fn run(
-        mut self,
-        mut backup_persister_shutdown: NotifyOnce,
-        shutdown: NotifyOnce,
-    ) {
+    async fn run(mut self) {
         let mut commands = Vec::with_capacity(DEFAULT_CHANNEL_SIZE);
         let delay_timer = time::sleep(Self::PERSIST_DELAY);
         tokio::pin!(delay_timer);
@@ -98,10 +87,10 @@ impl BackupPersister {
 
                 // Delay timer triggered -> flush pending batch
                 () = &mut delay_timer, if !self.pending.is_empty() => {
-                    self.flush(&shutdown).await;
+                    self.flush().await;
                 }
 
-                () = backup_persister_shutdown.recv() => break,
+                () = self.shutdown.recv() => break,
             }
         }
 
@@ -110,7 +99,7 @@ impl BackupPersister {
         while self.rx.recv_many(&mut commands, DEFAULT_CHANNEL_SIZE).await > 0 {
             self.handle_commands(&mut commands);
         }
-        self.flush(&shutdown).await;
+        self.flush().await;
     }
 
     /// Accumulate writes into `self.pending` batch.
@@ -133,13 +122,13 @@ impl BackupPersister {
     }
 
     /// Flush full pending write batch to remote backup store.
-    async fn flush(&mut self, shutdown: &NotifyOnce) {
+    async fn flush(&mut self) {
         if self.pending.is_empty() {
             return;
         }
 
         let count = self.pending.len();
-        match self.store.persist(&mut self.pending, shutdown).await {
+        match self.store.persist(&mut self.pending).await {
             Ok(()) => debug!(count, "Successful backup"),
             Err(e) => error!("Backup failed: {e:#}"),
         }
@@ -157,14 +146,9 @@ impl BackupStore {
     }
 
     /// Drains `files`, retaining its allocation even on failure.
-    async fn persist(
-        &self,
-        files: &mut BackupBatch,
-        shutdown: &NotifyOnce,
-    ) -> anyhow::Result<()> {
+    async fn persist(&self, files: &mut BackupBatch) -> anyhow::Result<()> {
         match self {
-            Self::GDrive(gvfs) =>
-                gdrive_persister::persist(gvfs, files, shutdown).await,
+            Self::GDrive(gvfs) => gdrive_persister::persist(gvfs, files).await,
             Self::Vss(vss) => vss.persist(files).await,
             #[cfg(test)]
             Self::Test(store) => store.persist(files).await,

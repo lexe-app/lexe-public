@@ -325,11 +325,14 @@ impl UserNode {
             };
 
         // Initialize the configured backup stores.
+        let backup_persister_shutdown = NotifyOnce::new();
         let mut backup_persisters = Vec::new();
         let mut backup_txs = Vec::new();
         if let Some(gvfs) = maybe_google_vfs {
-            let (worker, tx) =
-                BackupPersister::new(BackupStore::GDrive(Box::new(gvfs)));
+            let (worker, tx) = BackupPersister::new(
+                BackupStore::GDrive(Box::new(gvfs)),
+                backup_persister_shutdown.clone(),
+            );
             backup_persisters.push(worker);
             backup_txs.push(tx);
         }
@@ -343,7 +346,10 @@ impl UserNode {
                 &args.backend_url,
                 deploy_env,
             )?;
-            let (worker, tx) = BackupPersister::new(BackupStore::Vss(vss));
+            let (worker, tx) = BackupPersister::new(
+                BackupStore::Vss(vss),
+                backup_persister_shutdown.clone(),
+            );
             backup_persisters.push(worker);
             backup_txs.push(tx);
         }
@@ -765,7 +771,6 @@ impl UserNode {
 
         // Set up the channel monitor persistence task
         let monitor_persister_shutdown = NotifyOnce::new();
-        let backup_persister_shutdown = NotifyOnce::new();
         let max_active_persists = 4;
         let task = ChannelMonitorPersister::new(
             persister.clone(),
@@ -774,17 +779,14 @@ impl UserNode {
             channel_monitor_persister_rx,
             shutdown.clone(),
             monitor_persister_shutdown.clone(),
-            Some(backup_persister_shutdown.clone()),
+            Some(backup_persister_shutdown),
             max_active_persists,
         )
         .spawn();
         static_tasks.push(task);
 
         for worker in backup_persisters {
-            static_tasks.push(
-                worker
-                    .spawn(backup_persister_shutdown.clone(), shutdown.clone()),
-            );
+            static_tasks.push(worker.spawn());
         }
 
         // Start the user API server.

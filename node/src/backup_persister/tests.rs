@@ -46,7 +46,6 @@ async fn batch_delay_starts_with_first_update() {
     drop(test.commands);
     assert!(poll!(&mut worker).is_ready());
     assert!(test.requests.try_recv().is_err());
-    assert!(!test.shutdown.try_recv());
 }
 
 #[tokio::test(start_paused = true)]
@@ -74,7 +73,7 @@ async fn shutdown_drains_updates_and_reserved_archive() {
     let permit = test.commands.clone().try_reserve_owned().unwrap();
 
     // Shutdown is ready before the worker has read any commands.
-    test.backup_shutdown.send();
+    test.shutdown.send();
     assert!(poll!(&mut worker).is_pending());
     assert!(test.commands.is_closed());
     assert!(test.requests.try_recv().is_err());
@@ -97,7 +96,6 @@ async fn shutdown_drains_updates_and_reserved_archive() {
     request.response.send(Ok(())).unwrap();
     assert!(poll!(&mut worker).is_ready());
     assert!(test.requests.try_recv().is_err());
-    assert!(!test.shutdown.try_recv());
 }
 
 #[tokio::test(start_paused = true)]
@@ -172,10 +170,9 @@ async fn archives_share_batch_and_next_batch_gets_full_delay() {
     request.response.send(Ok(())).unwrap();
     assert!(poll!(&mut worker).is_pending());
 
-    test.backup_shutdown.send();
+    test.shutdown.send();
     assert!(poll!(&mut worker).is_ready());
     assert!(test.requests.try_recv().is_err());
-    assert!(!test.shutdown.try_recv());
 }
 
 #[tokio::test(start_paused = true)]
@@ -204,7 +201,6 @@ async fn failed_backup_allows_next_batch() {
         .send(Err(anyhow::anyhow!("failed")))
         .unwrap();
     assert!(poll!(&mut worker).is_pending());
-    assert!(!test.shutdown.try_recv());
     assert!(test.requests.try_recv().is_err());
 
     let file = VfsFile::new(
@@ -226,15 +222,13 @@ async fn failed_backup_allows_next_batch() {
     );
     request.response.send(Ok(())).unwrap();
     assert!(poll!(&mut worker).is_pending());
-    assert!(!test.shutdown.try_recv());
 
-    test.backup_shutdown.send();
+    test.shutdown.send();
     assert!(poll!(&mut worker).is_ready());
     assert!(test.requests.try_recv().is_err());
 }
 
 struct TestContext {
-    backup_shutdown: NotifyOnce,
     commands: mpsc::Sender<BackupCommand>,
     requests: mpsc::UnboundedReceiver<TestRequest>,
     shutdown: NotifyOnce,
@@ -242,17 +236,17 @@ struct TestContext {
 
 fn test_persister() -> (impl Future<Output = ()>, TestContext) {
     let (requests_tx, requests) = mpsc::unbounded_channel();
-    let (persister, commands) =
-        BackupPersister::new(BackupStore::Test(TestStore(requests_tx)));
+    let shutdown = NotifyOnce::new();
+    let (persister, commands) = BackupPersister::new(
+        BackupStore::Test(TestStore(requests_tx)),
+        shutdown.clone(),
+    );
     let test = TestContext {
-        backup_shutdown: NotifyOnce::new(),
         commands,
         requests,
-        shutdown: NotifyOnce::new(),
+        shutdown,
     };
-    let worker =
-        persister.run(test.backup_shutdown.clone(), test.shutdown.clone());
-    (worker, test)
+    (persister.run(), test)
 }
 
 pub(crate) struct TestStore(mpsc::UnboundedSender<TestRequest>);
