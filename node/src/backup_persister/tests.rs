@@ -179,7 +179,7 @@ async fn archives_share_batch_and_next_batch_gets_full_delay() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn failed_backup_triggers_shutdown() {
+async fn failed_backup_allows_next_batch() {
     let (worker, mut test) = test_persister();
     tokio::pin!(worker);
     test.commands
@@ -204,7 +204,29 @@ async fn failed_backup_triggers_shutdown() {
         .send(Err(anyhow::anyhow!("failed")))
         .unwrap();
     assert!(poll!(&mut worker).is_pending());
-    assert!(test.shutdown.try_recv());
+    assert!(!test.shutdown.try_recv());
+    assert!(test.requests.try_recv().is_err());
+
+    let file = VfsFile::new(
+        vfs::SINGLETON_DIRECTORY,
+        vfs::CHANNEL_MANAGER_FILENAME,
+        vec![2],
+    );
+    test.commands
+        .try_send(BackupCommand::Persist(file.clone()))
+        .unwrap();
+    assert!(poll!(&mut worker).is_pending());
+    assert!(test.requests.try_recv().is_err());
+    time::sleep(BackupPersister::PERSIST_DELAY).await;
+    assert!(poll!(&mut worker).is_pending());
+    let request = test.requests.try_recv().unwrap();
+    assert_eq!(
+        request.files,
+        BackupBatch::from([(file.id, Some(file.data))])
+    );
+    request.response.send(Ok(())).unwrap();
+    assert!(poll!(&mut worker).is_pending());
+    assert!(!test.shutdown.try_recv());
 
     test.backup_shutdown.send();
     assert!(poll!(&mut worker).is_ready());

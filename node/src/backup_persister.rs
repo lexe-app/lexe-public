@@ -53,7 +53,6 @@ impl BackupPersister {
     /// - `backup_persister_shutdown`: `ChannelMonitorPersister` triggers
     ///   `BackupPersister` shutdown only after it's done shutting down and all
     ///   monitor persists are flushed+enqueued.
-    /// - `shutdown`: Used to trigger a node shutdown if backup fails.
     pub(crate) fn spawn(
         self,
         backup_persister_shutdown: NotifyOnce,
@@ -133,8 +132,7 @@ impl BackupPersister {
         }
     }
 
-    /// Flush full pending write batch to remote backup store. If backup fails,
-    /// trigger node shutdown.
+    /// Flush full pending write batch to remote backup store.
     async fn flush(&mut self, shutdown: &NotifyOnce) {
         if self.pending.is_empty() {
             return;
@@ -143,10 +141,7 @@ impl BackupPersister {
         let count = self.pending.len();
         match self.store.persist(&mut self.pending, shutdown).await {
             Ok(()) => debug!(count, "Successful backup"),
-            Err(e) => {
-                error!("FATAL: Backup failed, shutting down: {e:#}");
-                shutdown.send();
-            }
+            Err(e) => error!("Backup failed: {e:#}"),
         }
     }
 }

@@ -18,6 +18,7 @@ pub(crate) async fn persist(
 ) -> anyhow::Result<()> {
     const MAX_CONCURRENT_WRITES: usize = 16;
 
+    let _ = shutdown; // TODO(ai): Remove
     let semaphore = &Semaphore::const_new(MAX_CONCURRENT_WRITES);
     let mut writes = Vec::new();
     let mut deletes = Vec::new();
@@ -31,9 +32,7 @@ pub(crate) async fn persist(
 
                 let result = helpers::upsert(gvfs, id, data.into()).await;
                 if let Err(e) = &result {
-                    // Signal now, even while other writes are still running.
-                    error!("GDrive write failed, shutting down: {e:#}");
-                    shutdown.send();
+                    error!("GDrive write failed: {e:#}");
                 }
                 result
             }),
