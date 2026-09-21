@@ -355,7 +355,6 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct PayOnchainResponse {
     pub index: PaymentCreatedIndex,
-    pub txid: String,
 }
 
 impl PayOnchainResponse {
@@ -369,7 +368,6 @@ impl PayOnchainResponse {
         };
         Self {
             index: PaymentCreatedIndex::from(index),
-            txid: resp.txid.to_string(),
         }
     }
 }

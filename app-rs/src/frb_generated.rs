@@ -2970,11 +2970,7 @@ impl SseDecode for crate::ffi::api::PayOnchainResponse {
     ) -> Self {
         let mut var_index =
             <crate::ffi::types::PaymentCreatedIndex>::sse_decode(deserializer);
-        let mut var_txid = <String>::sse_decode(deserializer);
-        return crate::ffi::api::PayOnchainResponse {
-            index: var_index,
-            txid: var_txid,
-        };
+        return crate::ffi::api::PayOnchainResponse { index: var_index };
     }
 }
 
@@ -4919,11 +4915,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::PayOnchainRequest>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOnchainResponse {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.index.into_into_dart().into_dart(),
-            self.txid.into_into_dart().into_dart(),
-        ]
-        .into_dart()
+        [self.index.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -6780,7 +6772,6 @@ impl SseEncode for crate::ffi::api::PayOnchainResponse {
         <crate::ffi::types::PaymentCreatedIndex>::sse_encode(
             self.index, serializer,
         );
-        <String>::sse_encode(self.txid, serializer);
     }
 }
 

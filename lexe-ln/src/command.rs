@@ -1367,10 +1367,10 @@ where
         match pwm.payment {
             PaymentV2::OnchainSend(os) => {
                 let created_at = os.created_at.context("Missing created_at")?;
-                return Ok(PayOnchainResponse {
-                    created_at,
-                    txid: os.txid,
-                });
+                let txid =
+                    lexe_api::models::command::helpers::some_txid_compat();
+                #[allow(deprecated)]
+                return Ok(PayOnchainResponse { created_at, txid });
             }
             _ => bail!("Expected onchain send, found: {}", pwm.payment.rail()),
         }
@@ -1393,13 +1393,11 @@ where
 
     // Idempotency: return existing payment if already paid.
     let created_at = match new.state {
-        NewPaymentState::Exists { txid } => {
-            let txid =
-                txid.context("Existing onchain payment is missing txid")?;
-            return Ok(PayOnchainResponse {
-                created_at: new.index.created_at,
-                txid: *txid,
-            });
+        NewPaymentState::Exists { txid: _ } => {
+            let created_at = new.index.created_at;
+            let txid = lexe_api::models::command::helpers::some_txid_compat();
+            #[allow(deprecated)]
+            return Ok(PayOnchainResponse { created_at, txid });
         }
         NewPaymentState::New => new.index.created_at,
     };
@@ -1424,6 +1422,8 @@ where
     // ensures that the txid is unique before we broadcast in case there is a
     // txid collision for some reason (e.g. duplicate requests)
 
+    let txid = lexe_api::models::command::helpers::some_txid_compat();
+    #[allow(deprecated)]
     Ok(PayOnchainResponse { created_at, txid })
 }
 

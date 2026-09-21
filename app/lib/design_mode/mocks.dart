@@ -239,7 +239,6 @@ class MockAppHandle extends AppHandle {
         field0:
             "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
       ),
-      txid: "f5f119aca79fa3ff1c95793c87ecf7bcd84fa326dfedde3d3c2181a6c733e689",
     ),
   );
 

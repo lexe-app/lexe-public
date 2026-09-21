@@ -1939,22 +1939,22 @@ String toString() {
 /// @nodoc
 mixin _$PayOnchainResponse {
 
- PaymentCreatedIndex get index; String get txid;
+ PaymentCreatedIndex get index;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainResponse&&(identical(other.index, index) || other.index == index)&&(identical(other.txid, txid) || other.txid == txid));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOnchainResponse&&(identical(other.index, index) || other.index == index));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,txid);
+int get hashCode => Object.hash(runtimeType,index);
 
 @override
 String toString() {
-  return 'PayOnchainResponse(index: $index, txid: $txid)';
+  return 'PayOnchainResponse(index: $index)';
 }
 
 
@@ -1968,27 +1968,26 @@ String toString() {
 
 
 class _PayOnchainResponse implements PayOnchainResponse {
-  const _PayOnchainResponse({required this.index, required this.txid});
+  const _PayOnchainResponse({required this.index});
   
 
 @override final  PaymentCreatedIndex index;
-@override final  String txid;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainResponse&&(identical(other.index, index) || other.index == index)&&(identical(other.txid, txid) || other.txid == txid));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOnchainResponse&&(identical(other.index, index) || other.index == index));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,index,txid);
+int get hashCode => Object.hash(runtimeType,index);
 
 @override
 String toString() {
-  return 'PayOnchainResponse(index: $index, txid: $txid)';
+  return 'PayOnchainResponse(index: $index)';
 }
 
 

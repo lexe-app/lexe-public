@@ -827,7 +827,18 @@ pub struct PayOnchainResponse {
     /// [`PaymentCreatedIndex`].
     pub created_at: TimestampMs,
     /// The Bitcoin txid for the transaction we just submitted to the mempool.
-    pub txid: Txid,
+    //
+    // compat: deprecated in node-v0.10.5. No clients are actually using this
+    // field. They still require the field to deserialize, so return an all-zero
+    // dummy value.
+    //
+    // TODO(phlip9): remove this field
+    #[deprecated(note = "since node-v0.10.5 this is now a dummy field")]
+    #[serde(
+        default = "helpers::some_txid_compat",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub txid: Option<Txid>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -997,6 +1008,19 @@ impl From<ActiveHumanBitcoinAddress> for HumanBitcoinAddressV1 {
             updated_at: Some(active.hba.updated_at),
             updatable: active.updatable,
         }
+    }
+}
+
+pub mod helpers {
+    use bitcoin::hashes::Hash as _;
+
+    use super::*;
+
+    /// Return an all-zero Txid. Used to prevent old clients from failing to
+    /// deserialize [`PayOnchainResponse`], even though they don't use the
+    /// field.
+    pub fn some_txid_compat() -> Option<Txid> {
+        Some(Txid(bitcoin::Txid::from_byte_array([0u8; 32])))
     }
 }
 

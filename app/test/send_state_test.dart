@@ -360,7 +360,6 @@ void main() {
         payOnchain,
         (_) async => PayOnchainResponse(
           index: PaymentCreatedIndex(field0: 'test-index'),
-          txid: 'abc123',
         ),
       );
 
@@ -441,7 +440,6 @@ void main() {
           payOnchain,
           (req) async => PayOnchainResponse(
             index: PaymentCreatedIndex(field0: 'test-index'),
-            txid: 'abc123',
           ),
         );
 

@@ -4877,12 +4877,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   PayOnchainResponse dco_decode_pay_onchain_response(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return PayOnchainResponse(
-      index: dco_decode_payment_created_index(arr[0]),
-      txid: dco_decode_String(arr[1]),
-    );
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return PayOnchainResponse(index: dco_decode_payment_created_index(arr[0]));
   }
 
   @protected
@@ -6868,8 +6865,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_payment_created_index(deserializer);
-    var var_txid = sse_decode_String(deserializer);
-    return PayOnchainResponse(index: var_index, txid: var_txid);
+    return PayOnchainResponse(index: var_index);
   }
 
   @protected
@@ -8770,7 +8766,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_created_index(self.index, serializer);
-    sse_encode_String(self.txid, serializer);
   }
 
   @protected

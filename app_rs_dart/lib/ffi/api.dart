@@ -350,10 +350,8 @@ sealed class PayOnchainRequest with _$PayOnchainRequest {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class PayOnchainResponse with _$PayOnchainResponse {
-  const factory PayOnchainResponse({
-    required PaymentCreatedIndex index,
-    required String txid,
-  }) = _PayOnchainResponse;
+  const factory PayOnchainResponse({required PaymentCreatedIndex index}) =
+      _PayOnchainResponse;
 }
 
 /// See `lexe::types::command::RevokeClientRequest`.
