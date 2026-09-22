@@ -96,6 +96,7 @@ lru = { workspace = true }
 nostr = { workspace = true }
 quick_cache = { workspace = true }
 ref-cast = { workspace = true }
+reqwest = { workspace = true }
 secrecy = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
@@ -119,7 +120,6 @@ lexe-ln = { path = "../lexe-ln", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive = { workspace = true }
-reqwest = { workspace = true }
 # Tokio features used when testing
 tokio = { workspace = true, features = [
     "io-util",

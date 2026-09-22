@@ -1,50 +1,57 @@
-use anyhow::Context;
-use lexe_api::rest::RestClient;
+use std::net::IpAddr;
+
+use anyhow::{Context, ensure};
+use lexe_api::{cli::node::VssProviderConfig, rest::RestClient};
 use lexe_common::{constants::timeout, env::DeployEnv, root_seed::RootSeed};
 use lexe_crypto::rng::Crng;
+use lexe_tls::rustls;
 use lexe_tls_attest_server::{self as tls_attest, NodeMode};
 use lexe_vss_client::{
     KeyValue, NO_VERSION_CHECK, PutObjectRequest, VssClient,
 };
+use reqwest::{
+    Url,
+    header::{self, HeaderMap, HeaderName, HeaderValue},
+    redirect,
+};
 use tokio::time;
 
-use crate::backup_persister::BackupBatch;
+use crate::{backup_persister::BackupBatch, client::USER_AGENT_EXTERNAL};
 
 #[cfg(test)]
 mod tests;
 
 pub(crate) struct VssPersister {
+    provider_name: String,
     client: VssClient,
+}
+
+/// A provider's HTTP client, shared across usernodes.
+pub(crate) struct VssProvider {
+    name: String,
+    base_url: String,
+    http_client: reqwest::Client,
 }
 
 impl VssPersister {
     const STORE_ID: &str = "lexe";
 
-    /// Create a new `VssPersister` that uses a Lexe VSS server.
-    pub(crate) fn new_lexe(
-        rng: &mut impl Crng,
-        root_seed: &RootSeed,
-        backend_url: &str,
-        deploy_env: DeployEnv,
-    ) -> anyhow::Result<Self> {
-        let tls_config =
-            tls_attest::node_lexe_client_config(rng, deploy_env, NodeMode::Run)
-                .context("Failed to build VSS client TLS config")?;
-
-        let http_client = RestClient::client_builder("node")
-            .use_preconfigured_tls(tls_config)
-            .build()
-            .context("Failed to build VSS HTTP client")?;
-
-        let backend_url = backend_url.trim_end_matches('/');
-        let base_url = format!("{backend_url}/vss");
+    /// Create a persister authenticated with the user's VSS key.
+    pub(crate) fn new(root_seed: &RootSeed, provider: &VssProvider) -> Self {
         let client = VssClient::from_client(
-            &base_url,
-            http_client,
+            &provider.base_url,
+            provider.http_client.clone(),
             root_seed.derive_vss_auth_key(),
         );
+        Self {
+            provider_name: provider.name.clone(),
+            client,
+        }
+    }
 
-        Ok(Self { client })
+    /// The configured provider name.
+    pub(crate) fn provider_name(&self) -> &str {
+        &self.provider_name
     }
 
     /// Persist a [`BackupBatch`] to the remote VSS server (writes+deletes).
@@ -52,6 +59,18 @@ impl VssPersister {
         &self,
         files: &mut BackupBatch,
     ) -> anyhow::Result<()> {
+        let request = Self::build_request(files);
+        time::timeout(
+            timeout::TRANSIENT_ERROR_TOLERANCE,
+            self.client.put_object(&request),
+        )
+        .await
+        .context("VSS backup timed out")?
+        .context("VSS backup failed")?;
+        Ok(())
+    }
+
+    fn build_request(files: &mut BackupBatch) -> PutObjectRequest {
         let mut request = PutObjectRequest {
             store_id: Self::STORE_ID.to_owned(),
             global_version: None,
@@ -71,13 +90,108 @@ impl VssPersister {
                 value,
             });
         }
-        time::timeout(
-            timeout::TRANSIENT_ERROR_TOLERANCE,
-            self.client.put_object(&request),
+        request
+    }
+}
+
+impl VssProvider {
+    /// Validate the config and build the provider's shared HTTP client.
+    pub(crate) fn new(
+        rng: &mut impl Crng,
+        config: &VssProviderConfig,
+        deploy_env: DeployEnv,
+    ) -> anyhow::Result<Self> {
+        let url = Self::parse_url(&config.url)?;
+        let tls_config = Self::tls_config(rng, &url, deploy_env)?;
+        let http_client = Self::client_builder(config)?
+            .use_preconfigured_tls(tls_config)
+            .build()
+            .context("Failed to build VSS HTTP client")?;
+        Ok(Self {
+            name: config.name.clone(),
+            base_url: url.into(),
+            http_client,
+        })
+    }
+
+    fn parse_url(url: &str) -> anyhow::Result<Url> {
+        let url = Url::parse(url).context("Invalid VSS URL")?;
+        ensure!(
+            url.scheme() == "https" && url.host_str().is_some(),
+            "VSS URL must use HTTPS and have a host"
+        );
+        ensure!(
+            url.username().is_empty() && url.password().is_none(),
+            "VSS URL must not contain credentials"
+        );
+        ensure!(
+            url.query().is_none() && url.fragment().is_none(),
+            "VSS URL must not contain a query or fragment"
+        );
+        Ok(url)
+    }
+
+    fn client_builder(
+        config: &VssProviderConfig,
+    ) -> anyhow::Result<reqwest::ClientBuilder> {
+        let mut headers = HeaderMap::new();
+        for (name, value) in &config.headers {
+            let name = HeaderName::from_bytes(name.as_bytes())
+                .with_context(|| format!("Invalid VSS header name {name:?}"))?;
+            ensure!(
+                name != header::AUTHORIZATION,
+                "VSS Authorization header is reserved for user signatures"
+            );
+            let mut value =
+                HeaderValue::from_str(value).with_context(|| {
+                    format!("Invalid VSS header value for {name}")
+                })?;
+            value.set_sensitive(true);
+            headers.insert(name, value);
+        }
+        let client = RestClient::client_builder(USER_AGENT_EXTERNAL)
+            .default_headers(headers)
+            // Custom credentials must not follow redirects to other hosts.
+            .redirect(redirect::Policy::none());
+        Ok(client)
+    }
+
+    fn tls_config(
+        rng: &mut impl Crng,
+        url: &Url,
+        deploy_env: DeployEnv,
+    ) -> anyhow::Result<rustls::ClientConfig> {
+        let host = url.host_str().context("Missing VSS host")?;
+        if Self::uses_lexe_tls(host, deploy_env) {
+            return tls_attest::node_lexe_client_config(
+                rng,
+                deploy_env,
+                NodeMode::Run,
+            )
+            .context("Failed to build VSS client TLS config");
+        }
+
+        // External providers need WebPKI and general-purpose algorithms.
+        #[allow(clippy::disallowed_methods)]
+        let mut config = rustls::ClientConfig::builder_with_protocol_versions(
+            lexe_tls::LEXE_TLS_PROTOCOL_VERSIONS,
         )
-        .await
-        .context("VSS backup timed out")?
-        .context("VSS backup failed")?;
-        Ok(())
+        .with_root_certificates(lexe_tls::WEBPKI_ROOT_CERTS.clone())
+        .with_no_client_auth();
+        config.alpn_protocols = lexe_tls::LEXE_ALPN_PROTOCOLS.clone();
+        Ok(config)
+    }
+
+    fn uses_lexe_tls(host: &str, deploy_env: DeployEnv) -> bool {
+        let host = host.strip_suffix('.').unwrap_or(host);
+        let is_loopback = host == "localhost"
+            || host
+                .trim_matches(['[', ']'])
+                .parse::<IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback());
+        host == "lexe.app"
+            || host.ends_with(".lexe.app")
+            || host.ends_with(".lx")
+            || (deploy_env.is_dev() && is_loopback)
     }
 }

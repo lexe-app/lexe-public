@@ -234,6 +234,7 @@ impl UserNode {
             untrusted_deploy_env,
             untrusted_network,
             version,
+            vss_providers,
             partners,
         } = mega_ctxt.clone();
 
@@ -337,15 +338,8 @@ impl UserNode {
             backup_txs.push(tx);
         }
 
-        // TODO(phlip9): enable everywhere once we have a real third-party VSS
-        // provider.
-        if !deploy_env.is_prod() {
-            let vss = VssPersister::new_lexe(
-                rng,
-                &root_seed,
-                &args.backend_url,
-                deploy_env,
-            )?;
+        for provider in vss_providers.iter() {
+            let vss = VssPersister::new(&root_seed, provider);
             let (worker, tx) = BackupPersister::new(
                 BackupStore::Vss(vss),
                 backup_persister_shutdown.clone(),

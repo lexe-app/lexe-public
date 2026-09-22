@@ -35,6 +35,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         args.untrusted_deploy_env,
         args.untrusted_esplora_urls.clone(),
         args.untrusted_network,
+        args.vss_providers.clone(),
         runner_tx.clone(),
         mega_shutdown.clone(),
     )

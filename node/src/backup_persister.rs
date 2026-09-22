@@ -56,7 +56,14 @@ impl BackupPersister {
     /// Spawn the `BackupPersister` task.
     pub(crate) fn spawn(self) -> LxTask<()> {
         const SPAN_NAME: &str = "(backup-persister)";
-        let span = info_span!(SPAN_NAME, store = self.store.name());
+        let span = info_span!(
+            SPAN_NAME,
+            store = self.store.name(),
+            provider = tracing::field::Empty,
+        );
+        if let BackupStore::Vss(vss) = &self.store {
+            span.record("provider", vss.provider_name());
+        }
         LxTask::spawn_with_span(SPAN_NAME, span, self.run())
     }
 

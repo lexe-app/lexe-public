@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
-    cli::OAuthConfig,
+    cli::{OAuthConfig, node::VssProviderConfig},
     def::NodeLspApi,
     types::{UserLeaseId, partners::PartnersInfo},
 };
@@ -29,6 +29,7 @@ use crate::{
     client::{NodeBackendClient, NodeLspClient, RunnerClient},
     runner::UserRunnerCommand,
     user_cache::UserCache,
+    vss_persister::VssProvider,
 };
 
 /// Usernode-specific context initialized by the meganode.
@@ -87,6 +88,8 @@ pub(crate) struct MegaContext {
     pub untrusted_network: Network,
     /// The semantic version of the node.
     pub version: semver::Version,
+    /// Shared HTTP clients for VSS backups.
+    pub vss_providers: Arc<[VssProvider]>,
 }
 
 impl MegaContext {
@@ -107,6 +110,7 @@ impl MegaContext {
         untrusted_deploy_env: DeployEnv,
         untrusted_esplora_urls: Vec<String>,
         untrusted_network: Network,
+        vss_providers: Vec<VssProviderConfig>,
         runner_tx: mpsc::Sender<UserRunnerCommand>,
         mega_shutdown: NotifyOnce,
     ) -> anyhow::Result<(Self, Vec<LxTask<()>>)> {
@@ -147,6 +151,16 @@ impl MegaContext {
         )
         .map(Arc::new)
         .context("Failed to init LspClient")?;
+
+        let vss_providers = vss_providers
+            .into_iter()
+            .map(|config| {
+                VssProvider::new(rng, &config, untrusted_deploy_env)
+                    .with_context(|| {
+                        format!("Failed to init VSS provider {:?}", config.name)
+                    })
+            })
+            .collect::<anyhow::Result<Arc<[_]>>>()?;
 
         let mut static_tasks = Vec::with_capacity(20);
 
@@ -244,6 +258,7 @@ impl MegaContext {
             untrusted_deploy_env,
             untrusted_network,
             version,
+            vss_providers,
         };
 
         Ok((context, static_tasks))
@@ -349,6 +364,7 @@ impl MegaContext {
             untrusted_deploy_env: deploy_env,
             untrusted_network: network,
             version,
+            vss_providers: Arc::default(),
         }
     }
 }
