@@ -173,22 +173,12 @@ pub(crate) struct InFlightRetryState {
     pub amount: Amount,
 }
 
-/// The result from [`PaymentsManager::new_payment`]. Returns whether the
+/// The outcome of [`PaymentsManager::new_payment`]. Communicates whether the
 /// payment in the `new_payment` registration attempt is actually new or
 /// already exists.
-pub struct NewPaymentResult {
-    pub index: PaymentCreatedIndex,
-    pub state: NewPaymentState,
-}
-
-/// Whether a newly registered payment is actually new or already exists.
-pub enum NewPaymentState {
-    New,
-    Exists {
-        // HACK: this exists because `pay_onchain` currently needs to return
-        // the actual `txid`. At some point we should probably remove that.
-        txid: Option<Box<Txid>>,
-    },
+pub enum NewPaymentResult {
+    New(PaymentCreatedIndex),
+    Exists(PaymentCreatedIndex),
 }
 
 /// Data required for a single payment send retry attempt.
@@ -454,9 +444,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
 
     /// Register a new, globally-unique payment.
     ///
-    /// If the payment already exists, the returned [`NewPaymentResult::state`]
-    /// will be [`NewPaymentState::Exists`]. This is used for payment
-    /// idempotency.
+    /// Returns [`NewPaymentResult::Exists`] with the existing index if already
+    /// registered. Used for payment idempotency.
     //
     // TODO(phlip9): might be clearer semantics if we assign the
     // new payment's `created_at` _inside_ the lock... this would make
@@ -490,12 +479,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                 .payment
                 .created_at()
                 .expect("All persisted payments must have a created_at set");
-            return Ok(NewPaymentResult {
-                index: PaymentCreatedIndex { created_at, id },
-                state: NewPaymentState::Exists {
-                    txid: pwm.payment.txid().map(Box::new),
-                },
-            });
+            let index = PaymentCreatedIndex { created_at, id };
+            return Ok(NewPaymentResult::Exists(index));
         }
 
         let checked = CheckedPayment(payment);
@@ -509,10 +494,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
 
         locked_data.commit(persisted);
 
-        Ok(NewPaymentResult {
-            index: PaymentCreatedIndex { created_at, id },
-            state: NewPaymentState::New,
-        })
+        let index = PaymentCreatedIndex { created_at, id };
+        Ok(NewPaymentResult::New(index))
     }
 
     /// Start tracking in-flight retry state for an outbound invoice payment.

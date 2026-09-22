@@ -108,7 +108,7 @@ use crate::{
     payments::{
         PaymentV2, PaymentWithMetadata,
         inbound::InboundInvoicePaymentV2,
-        manager::{NewPaymentState, PaymentsManager},
+        manager::{NewPaymentResult, PaymentsManager},
         outbound::{
             self, DEFAULT_MAX_RETRY_ATTEMPTS, LxOutboundPaymentFailure,
             OUTBOUND_PAYMENT_RETRY_STRATEGY, OutboundInvoicePaymentV2,
@@ -841,9 +841,9 @@ where
         .new_payment(pwm)
         .await
         .context("Could not register new payment")?;
-    let created_index = match new.state {
-        NewPaymentState::New => new.index,
-        NewPaymentState::Exists { .. } =>
+    let created_index = match new {
+        NewPaymentResult::New(index) => index,
+        NewPaymentResult::Exists(_) =>
             return Err(anyhow!("Invoice already exists somehow??"))?,
     };
 
@@ -944,11 +944,11 @@ where
     let new = payments_manager.new_payment(pwm).await?;
 
     // Idempotency: return existing payment if already paid.
-    let created_at = match new.state {
-        NewPaymentState::New => new.index.created_at,
-        NewPaymentState::Exists { .. } =>
+    let created_at = match new {
+        NewPaymentResult::New(index) => index.created_at,
+        NewPaymentResult::Exists(index) =>
             return Ok(PayInvoiceResponse {
-                created_at: new.index.created_at,
+                created_at: index.created_at,
             }),
     };
 
@@ -1232,12 +1232,12 @@ where
         .await?;
 
     // Idempotency: return existing payment if already paid.
-    let created_at = match new.state {
-        NewPaymentState::Exists { .. } =>
+    let created_at = match new {
+        NewPaymentResult::New(index) => index.created_at,
+        NewPaymentResult::Exists(index) =>
             return Ok(PayOfferResponse {
-                created_at: new.index.created_at,
+                created_at: index.created_at,
             }),
-        NewPaymentState::New => new.index.created_at,
     };
 
     // Instruct the LDK channel manager to pay this offer, letting LDK handle
@@ -1392,14 +1392,14 @@ where
         .context("Could not register new onchain send")?;
 
     // Idempotency: return existing payment if already paid.
-    let created_at = match new.state {
-        NewPaymentState::Exists { txid: _ } => {
-            let created_at = new.index.created_at;
+    let created_at = match new {
+        NewPaymentResult::New(index) => index.created_at,
+        NewPaymentResult::Exists(index) => {
+            let created_at = index.created_at;
             let txid = lexe_api::models::command::helpers::some_txid_compat();
             #[allow(deprecated)]
             return Ok(PayOnchainResponse { created_at, txid });
         }
-        NewPaymentState::New => new.index.created_at,
     };
 
     // Broadcast.
