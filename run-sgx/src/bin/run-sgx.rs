@@ -1,5 +1,5 @@
 use std::{
-    fmt,
+    env, fmt,
     io::Write,
     path::PathBuf,
     str::{self, FromStr},
@@ -25,7 +25,8 @@ pub struct Args {
 /// Pass args to the enclave like `run-sgx foo.sgxs -- arg-1
 /// arg-2 ..`.
 ///
-/// NOTE: secrets must not be passed to the enclave via cli args.
+/// Use `--env-arg NAME` to pass secrets through the host environment.
+/// Command-line arguments are visible to other users on the host.
 #[derive(Debug, FromArgs)]
 pub struct Options {
     /// path to the ".sgxs" enclave binary
@@ -56,14 +57,42 @@ pub struct Options {
     /// If the file doesn't exist, backtraces just won't be symbolized.
     #[argh(option)]
     pub elf: Option<PathBuf>,
+
+    /// append the env as one enclave arg. Repeat for multiple args.
+    #[argh(option, long = "env-arg", arg_name = "NAME")]
+    pub env_args: Vec<String>,
 }
 
 // -- impl Args -- //
 
 impl Args {
+    pub fn run(self) -> Result<()> {
+        let Self {
+            opts,
+            mut enclave_args,
+        } = self;
+        for name in &opts.env_args {
+            // Manually rewrap `env::VarError`, since `NotUnicode` contains the
+            // value, which may contain a secret.
+            let value = env::var(name).map_err(|err| match err {
+                env::VarError::NotPresent => format_err!(
+                    "--env-arg {name}: environment variable is missing"
+                ),
+                env::VarError::NotUnicode(_) =>
+                    format_err!("--env-arg {name}: value is not UTF-8"),
+            })?;
+            enclave_args.push(value);
+        }
+        opts.run(enclave_args)
+    }
+}
+
+// -- impl Options -- //
+
+impl Options {
     // Can only load real enclaves on x86_64-unknown-linux
     #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-    pub fn run(self) -> Result<()> {
+    fn run(self, enclave_args: Vec<String>) -> Result<()> {
         use std::path::Path;
 
         use anyhow::Context;
@@ -82,8 +111,8 @@ impl Args {
 
         // use the passed ELF binary arg or look for an adjacent ELF binary
         // ("<bin>.sgxs" -> "<bin>") that contains symbols for backtraces.
-        let bin_path: &Path = &self.opts.bin;
-        let maybe_elf_bin_path = self.opts.elf.clone().or_else(|| {
+        let bin_path: &Path = &self.bin;
+        let maybe_elf_bin_path = self.elf.clone().or_else(|| {
             let elf = bin_path.with_extension("");
             if elf.exists() { Some(elf) } else { None }
         });
@@ -101,10 +130,9 @@ impl Args {
         enclave.usercall_extension(AesmProxy);
 
         // load enclave sigstruct
-        if !self.opts.debug {
+        if !self.debug {
             // Load sigstruct from arg path or adjacent .sigstruct file
             let sigstruct_path = self
-                .opts
                 .sigstruct
                 .clone()
                 .unwrap_or_else(|| bin_path.with_extension("sigstruct"));
@@ -131,7 +159,7 @@ impl Args {
         }
 
         // attach the enclave's args
-        enclave.args(self.enclave_args);
+        enclave.args(enclave_args);
 
         // // TODO(phlip9): for some reason, this causes the runner to hang if
         // // the enclave ever panics...
@@ -184,7 +212,7 @@ impl Args {
     }
 
     #[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
-    pub fn run(self) -> Result<()> {
+    fn run(self, _enclave_args: Vec<String>) -> Result<()> {
         Err(format_err!(
             "unsupported platform: can only run SGX enclaves on x86_64-linux"
         ))
