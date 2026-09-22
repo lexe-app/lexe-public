@@ -274,6 +274,7 @@ mod helpers {
             usernode_buffer_slots: 1,
             // 4 MiB DEFAULT_USERNODE_MEMORY_ESTIMATE
             usernode_memory: 4 * (1 << 20),
+            vss_providers: vec![],
         };
 
         let mega_ctxt = MegaContext::dummy();

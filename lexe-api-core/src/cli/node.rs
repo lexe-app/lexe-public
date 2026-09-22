@@ -1,6 +1,10 @@
+use std::{collections::BTreeMap, fmt};
+
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{api::MegaId, env::DeployEnv, ln::network::Network};
+#[cfg(test)]
+use proptest::{arbitrary::any, collection};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -116,16 +120,61 @@ pub struct MegaArgs {
 
     /// An estimate of the amount of enclave heap consumed by each usernode.
     pub usernode_memory: u64,
+
+    /// VSS providers that receive each usernode's backup updates.
+    // compat: Added in node-v0.10.5.
+    #[serde(default)]
+    #[cfg_attr(
+        test,
+        proptest(
+            strategy = "collection::vec(any::<VssProviderConfig>(), 0..=4)"
+        )
+    )]
+    pub vss_providers: Vec<VssProviderConfig>,
+}
+
+/// Resolved configuration for a VSS backup provider.
+#[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Eq, PartialEq, Arbitrary))]
+pub struct VssProviderConfig {
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub name: String,
+
+    /// Complete VSS base URL, including any path prefix.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub url: String,
+
+    /// Additional provider headers. Values may contain secrets.
+    #[serde(default)]
+    #[cfg_attr(
+        test,
+        proptest(strategy = "collection::btree_map(
+            arbitrary::any_simple_string(),
+            arbitrary::any_string(),
+            0..=4,
+        )")
+    )]
+    pub headers: BTreeMap<String, String>,
 }
 
 impl EnclaveArgs for MegaArgs {
     const NAME: &str = "mega";
 }
 
+// Manual impl to avoid logging secrets in `headers`.
+impl fmt::Debug for VssProviderConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("VssProviderConfig")
+            .field("name", &self.name)
+            .field("url", &self.url)
+            .finish_non_exhaustive()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use lexe_common::test_utils::roundtrip;
-    use proptest::{arbitrary::any, test_runner::Config};
+    use proptest::test_runner::Config;
 
     use super::*;
 

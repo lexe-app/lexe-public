@@ -980,6 +980,7 @@ mod helpers {
             usernode_buffer_slots: _,
             usernode_memory: _,
             partners: _,
+            vss_providers: _,
         } = mega_args;
 
         RunArgs {
