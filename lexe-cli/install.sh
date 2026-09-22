@@ -30,23 +30,27 @@ has_local 2> /dev/null || alias local=typeset
 set -u
 
 APP_NAME="lexe-cli"
-APP_VERSION="latest"
+# Replaced at release time. The install script installs a specific version by
+# default, with no latest version/tag resolution, so users don't hit GitHub API
+# rate limits.
+CURRENT_APP_VERSION=""
+APP_VERSION="${APP_VERSION:-$CURRENT_APP_VERSION}"
 # Look for GitHub Enterprise-style base URL first
 if [ -n "${LEXE_CLI_INSTALLER_GHE_BASE_URL:-}" ]; then
   INSTALLER_BASE_URL="$LEXE_CLI_INSTALLER_GHE_BASE_URL"
 else
   INSTALLER_BASE_URL="${LEXE_CLI_INSTALLER_GITHUB_BASE_URL:-https://github.com}"
 fi
-# The artifact download URL can be overridden. If not set, it will be resolved
-# dynamically by querying the GitHub API for the latest lexe-cli release.
+RELEASES_BASE_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-public/releases"
 if [ -n "${LEXE_CLI_DOWNLOAD_URL:-}" ]; then
   ARTIFACT_DOWNLOAD_URL="$LEXE_CLI_DOWNLOAD_URL"
 elif [ -n "${INSTALLER_DOWNLOAD_URL:-}" ]; then
   ARTIFACT_DOWNLOAD_URL="$INSTALLER_DOWNLOAD_URL"
+elif [ -n "$APP_VERSION" ]; then
+  ARTIFACT_DOWNLOAD_URL="${RELEASES_BASE_URL}/download/lexe-cli-v${APP_VERSION}"
 else
   ARTIFACT_DOWNLOAD_URL=""
 fi
-RELEASES_BASE_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-public/releases"
 if [ -n "${LEXE_CLI_PRINT_VERBOSE:-}" ]; then
   PRINT_VERBOSE="$LEXE_CLI_PRINT_VERBOSE"
 else
@@ -69,7 +73,7 @@ fi
 AUTH_TOKEN="${LEXE_CLI_GITHUB_TOKEN:-}"
 
 read -r RECEIPT << EORECEIPT
-{"binaries":["CARGO_DIST_BINS"],"binary_aliases":{},"cdylibs":["CARGO_DIST_DYLIBS"],"cstaticlibs":["CARGO_DIST_STATICLIBS"],"install_layout":"unspecified","install_prefix":"AXO_INSTALL_PREFIX","modify_path":true,"provider":{"source":"cargo-dist","version":"0.30.2"},"source":{"app_name":"lexe-cli","name":"lexe-cli","owner":"lexe-app","release_type":"github"},"version":"latest"}
+{"binaries":["CARGO_DIST_BINS"],"binary_aliases":{},"cdylibs":["CARGO_DIST_DYLIBS"],"cstaticlibs":["CARGO_DIST_STATICLIBS"],"install_layout":"unspecified","install_prefix":"AXO_INSTALL_PREFIX","modify_path":true,"provider":{"source":"cargo-dist","version":"0.30.2"},"source":{"app_name":"lexe-cli","name":"lexe-cli","owner":"lexe-app","release_type":"github"},"version":"$APP_VERSION"}
 EORECEIPT
 
 # Some Linux distributions don't set HOME
@@ -128,6 +132,9 @@ OPTIONS:
             Print help information
 
 ENVIRONMENT VARIABLES:
+    APP_VERSION
+            Override the version to install (e.g. 0.1.23)
+
     LEXE_CLI_INSTALL_DIR
             Override the installation directory
 
@@ -190,8 +197,9 @@ download_binary_and_run_installer() {
     esac
   done
 
-  # Resolve the download URL for the latest lexe-cli release
-  resolve_latest_lexe_cli_tag || return 1
+  if [ -z "$ARTIFACT_DOWNLOAD_URL" ]; then
+    err "No release version set. Set APP_VERSION to a version (e.g. 0.1.23)."
+  fi
 
   get_architecture || return 1
   local _true_arch="$RETVAL"
@@ -1417,117 +1425,6 @@ downloader() {
   else
     err "Unknown downloader" # should not reach here
   fi
-}
-
-# Resolves the latest lexe-cli release tag by querying the GitHub API.
-# Sets ARTIFACT_DOWNLOAD_URL to the download URL for that release.
-# This is necessary because lexe-public hosts multiple products, so
-# "latest" might point to a different product's release.
-resolve_latest_lexe_cli_tag() {
-  if [ -n "$ARTIFACT_DOWNLOAD_URL" ]; then
-    # Already set via environment variable override
-    return 0
-  fi
-
-  say_verbose "Resolving latest lexe-cli release..."
-
-  local _tmpfile
-  _tmpfile="$(mktemp)" || return 1
-
-  # Find the first non-draft, non-prerelease "lexe-cli-v*" release. The API
-  # returns releases in reverse chronological order, but the result is
-  # paginated, so keep fetching pages until we find the tag or run out of
-  # releases.
-  local _api_url
-  local _page=1
-  local _tag
-  _tag=""
-  while [ -z "$_tag" ]; do
-    if [ "$_page" -gt 50 ]; then
-      rm -f "$_tmpfile"
-      err "Could not find any lexe-cli releases in the first 50 pages"
-    fi
-
-    _api_url="https://api.github.com/repos/lexe-app/lexe-public/releases?per_page=30&page=${_page}"
-
-    # Fetch a single page of releases from the API.
-    if ! downloader "$_api_url" "$_tmpfile"; then
-      rm -f "$_tmpfile"
-      err "Failed to fetch releases from GitHub API"
-    fi
-
-    # Horrible, awful HACK to parse json w/o jq
-    _tag=$(
-      awk '
-        function flush_release() {
-          saw_release = 1
-          tag_match = match(release, /"tag_name"[[:space:]]*:[[:space:]]*"lexe-cli-v[^"]*"/)
-          if (!tag_match) { release = ""; return }
-          if (release !~ /"draft"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
-          if (release !~ /"prerelease"[[:space:]]*:[[:space:]]*false/) { release = ""; return }
-
-          tag = substr(release, RSTART, RLENGTH)
-          sub(/^.*"lexe-cli-v/, "lexe-cli-v", tag)
-          sub(/"$/, "", tag)
-          found = 1
-          print tag
-          exit
-        }
-
-        {
-          for (i = 1; i <= length($0); i++) {
-            c = substr($0, i, 1)
-
-            if (in_string) {
-              if (escape) {
-                escape = 0
-              } else if (c == "\\") {
-                escape = 1
-              } else if (c == "\"") {
-                in_string = 0
-              }
-            } else if (c == "\"") {
-              in_string = 1
-            } else if (c == "{") {
-              if (depth == 0) release = ""
-              depth++
-            }
-
-            if (depth > 0) release = release c
-
-            if (!in_string && c == "}") {
-              depth--
-              if (depth == 0) flush_release()
-            }
-          }
-          if (depth > 0) release = release "\n"
-        }
-
-        END {
-          if (found) exit 0
-          if (saw_release) print "__LEXE_CLI_NEXT_PAGE__"
-          else print "__LEXE_CLI_NO_RELEASES__"
-        }
-      ' "$_tmpfile"
-    )
-
-    if [ "$_tag" = "__LEXE_CLI_NEXT_PAGE__" ]; then
-      _tag=""
-      _page=$((_page + 1))
-    elif [ "$_tag" = "__LEXE_CLI_NO_RELEASES__" ]; then
-      _tag=""
-      break
-    fi
-  done
-
-  rm -f "$_tmpfile"
-
-  if [ -z "$_tag" ]; then
-    err "Could not find any lexe-cli releases"
-  fi
-
-  say_verbose "  found: $_tag"
-  ARTIFACT_DOWNLOAD_URL="${RELEASES_BASE_URL}/download/${_tag}"
 }
 
 verify_checksum() {
