@@ -85,7 +85,7 @@ pub(crate) struct RouterState {
     pub continuation_mac_key: hmac::Key,
     pub intercept_scids: Vec<Scid>,
     pub gdrive_status: Arc<tokio::sync::Mutex<GDriveStatus>>,
-    pub gdrive_oauth_config: Arc<Option<OAuthConfig>>,
+    pub gdrive_oauth_config: Option<Arc<OAuthConfig>>,
     pub deploy_env: DeployEnv,
     pub node_pk: NodePk,
     pub descriptors: OnchainDescriptors,

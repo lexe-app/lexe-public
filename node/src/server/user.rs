@@ -743,10 +743,9 @@ pub(super) async fn setup_gdrive(
         return Ok(LxJson(Empty {}));
     }
 
-    let oauth =
-        state.gdrive_oauth_config.as_ref().as_ref().ok_or_else(|| {
-            NodeApiError::command("OAuthConfig required in staging/prod")
-        })?;
+    let oauth = state.gdrive_oauth_config.as_deref().ok_or_else(|| {
+        NodeApiError::command("OAuthConfig required in staging/prod")
+    })?;
 
     let mut rng = SysRng::new();
     let gdrive_client = gdrive::ReqwestClient::new();
