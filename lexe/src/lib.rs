@@ -89,13 +89,8 @@ mod unstable {
     /// Example: `lexe/0.1.0 node/0.8.11`
     pub static SDK_USER_AGENT: std::sync::LazyLock<&'static str> =
         std::sync::LazyLock::new(|| {
-            // Get the latest node version.
-            let releases = provision::releases_json();
-            let node_releases =
-                releases.0.get("node").expect("No 'node' in releases.json");
-            let (latest_node_version, _release) =
-                node_releases.last_key_value().expect("No node releases");
-
+            let (latest_node_version, _) =
+                provision::latest_trusted_node_release();
             let sdk_with_version = user_agent_to_lexe!();
             let user_agent =
                 format!("{sdk_with_version} node/{latest_node_version}");

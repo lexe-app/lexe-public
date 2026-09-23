@@ -52,6 +52,13 @@ pub fn trusted_node_releases() -> BTreeMap<semver::Version, Release> {
     releases_json().0.remove("node").unwrap_or_default()
 }
 
+/// The latest trusted node release and its version.
+pub fn latest_trusted_node_release() -> (semver::Version, Release) {
+    trusted_node_releases()
+        .pop_last()
+        .expect("No node releases")
+}
+
 /// Parses [`RELEASES_JSON`] into a [`ReleasesJson`].
 pub fn releases_json() -> ReleasesJson {
     serde_json::from_str(RELEASES_JSON).expect("Invalid releases.json")

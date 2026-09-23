@@ -3,14 +3,15 @@
 
 use std::{
     borrow::Cow, collections::BTreeSet, path::PathBuf, str::FromStr,
-    time::Duration,
+    sync::LazyLock, time::Duration,
 };
 
 use anyhow::{Context, anyhow, ensure};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use lexe::{
     bitcoin::address::Address,
     config::{Network, WalletEnvConfig},
+    provision,
     types::{
         auth::{
             ClientCredentials, Credentials, CredentialsRef, RootSeed, Scope,
@@ -54,9 +55,21 @@ const HELP_TEMPLATE: &str = "\
 
 {all-args}{after-help}";
 
+/// Version string; `lexe --version` prints
+/// `lexe-cli v0.1.24 (node-v0.10.4, released: 2026-09-11)`.
+static VERSION: LazyLock<String> = LazyLock::new(|| {
+    let cli_version = env!("CARGO_PKG_VERSION");
+    let (node_version, node_release) = provision::latest_trusted_node_release();
+    let node_date = node_release.release_date;
+    format!("v{cli_version} (node-v{node_version}, released: {node_date})")
+});
+
 #[derive(Parser)]
 #[command(
     name = "lexe",
+    display_name = env!("CARGO_PKG_NAME"),
+    version = VERSION.as_str(),
+    disable_version_flag = true,
     about = "Lexe CLI - create and control 24/7 online Lightning wallets \
     from the command line.",
     long_about = "\
@@ -135,6 +148,10 @@ pub struct LexeArgs {
     /// Use wallet without local payments persistence
     #[arg(long)]
     without_db: bool,
+
+    /// Print version
+    #[arg(short = 'v', short_alias = 'V', long, action = ArgAction::Version)]
+    version: (),
 }
 
 /// Network enum for clap's ValueEnum derive.
