@@ -30,19 +30,26 @@ has_local 2> /dev/null || alias local=typeset
 set -u
 
 APP_NAME="lexe-sidecar"
-APP_VERSION="latest"
+# Replaced at release time. The install script installs a specific version by
+# default, with no latest version/tag resolution, so users don't hit GitHub API
+# rate limits.
+CURRENT_APP_VERSION=""
+APP_VERSION="${APP_VERSION:-$CURRENT_APP_VERSION}"
 # Look for GitHub Enterprise-style base URL first
 if [ -n "${LEXE_SIDECAR_INSTALLER_GHE_BASE_URL:-}" ]; then
   INSTALLER_BASE_URL="$LEXE_SIDECAR_INSTALLER_GHE_BASE_URL"
 else
   INSTALLER_BASE_URL="${LEXE_SIDECAR_INSTALLER_GITHUB_BASE_URL:-https://github.com}"
 fi
+RELEASES_BASE_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-sidecar-sdk/releases"
 if [ -n "${LEXE_SIDECAR_DOWNLOAD_URL:-}" ]; then
   ARTIFACT_DOWNLOAD_URL="$LEXE_SIDECAR_DOWNLOAD_URL"
 elif [ -n "${INSTALLER_DOWNLOAD_URL:-}" ]; then
   ARTIFACT_DOWNLOAD_URL="$INSTALLER_DOWNLOAD_URL"
+elif [ -n "$APP_VERSION" ]; then
+  ARTIFACT_DOWNLOAD_URL="${RELEASES_BASE_URL}/download/lexe-sidecar-v${APP_VERSION}"
 else
-  ARTIFACT_DOWNLOAD_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-sidecar-sdk/releases/latest/download"
+  ARTIFACT_DOWNLOAD_URL=""
 fi
 if [ -n "${LEXE_SIDECAR_PRINT_VERBOSE:-}" ]; then
   PRINT_VERBOSE="$LEXE_SIDECAR_PRINT_VERBOSE"
@@ -66,7 +73,7 @@ fi
 AUTH_TOKEN="${LEXE_SIDECAR_GITHUB_TOKEN:-}"
 
 read -r RECEIPT << EORECEIPT
-{"binaries":["CARGO_DIST_BINS"],"binary_aliases":{},"cdylibs":["CARGO_DIST_DYLIBS"],"cstaticlibs":["CARGO_DIST_STATICLIBS"],"install_layout":"unspecified","install_prefix":"AXO_INSTALL_PREFIX","modify_path":true,"provider":{"source":"cargo-dist","version":"0.30.2"},"source":{"app_name":"lexe-sidecar","name":"lexe-sidecar","owner":"lexe-app","release_type":"github"},"version":"latest"}
+{"binaries":["CARGO_DIST_BINS"],"binary_aliases":{},"cdylibs":["CARGO_DIST_DYLIBS"],"cstaticlibs":["CARGO_DIST_STATICLIBS"],"install_layout":"unspecified","install_prefix":"AXO_INSTALL_PREFIX","modify_path":true,"provider":{"source":"cargo-dist","version":"0.30.2"},"source":{"app_name":"lexe-sidecar","name":"lexe-sidecar","owner":"lexe-app","release_type":"github"},"version":"$APP_VERSION"}
 EORECEIPT
 
 # Some Linux distributions don't set HOME
@@ -102,7 +109,7 @@ lexe-sidecar-installer.sh
 The installer for lexe-sidecar
 
 This script detects what platform you're on and fetches an appropriate archive from
-https://github.com/lexe-app/lexe-sidecar-sdk/releases/latest/download
+https://github.com/lexe-app/lexe-sidecar-sdk/releases
 then unpacks the binaries and installs them to the first of the following locations
 
     \$XDG_BIN_HOME
@@ -125,6 +132,9 @@ OPTIONS:
             Print help information
 
 ENVIRONMENT VARIABLES:
+    APP_VERSION
+            Override the version to install (e.g. 0.4.20)
+
     LEXE_SIDECAR_INSTALL_DIR
             Override the installation directory
 
@@ -185,6 +195,10 @@ download_binary_and_run_installer() {
       ;;
     esac
   done
+
+  if [ -z "$ARTIFACT_DOWNLOAD_URL" ]; then
+    err "No release version set. Set APP_VERSION to a version (e.g. 0.4.20)."
+  fi
 
   get_architecture || return 1
   local _true_arch="$RETVAL"
