@@ -328,9 +328,13 @@ impl RootSeed {
         AesMasterKey::new(secret.expose_secret())
     }
 
-    /// Derive the signing key used to authenticate VSS persists.
-    pub fn derive_vss_auth_key(&self) -> secp256k1::SecretKey {
-        let secret = self.derive(&[b"vss auth key"]);
+    /// Derive the VSS auth signing key for a particulr provider by hostname.
+    ///
+    /// If we just use one VSS auth key for all providers, then one provider
+    /// can reuse the same token to read/write/delete files at another
+    /// provider.
+    pub fn derive_vss_auth_key(&self, hostname: &str) -> secp256k1::SecretKey {
+        let secret = self.derive(&[b"vss auth key\0", hostname.as_bytes()]);
         secp256k1::SecretKey::from_slice(secret.expose_secret())
             .expect("HKDF output should be a valid secp256k1 secret key")
     }
@@ -1000,10 +1004,16 @@ mod test {
             "035a70d45eec7efb270319f116a9684250acb4ef282a26d21874878e7c5088f73b",
         );
 
-        // VSS authentication key
+        // VSS authentication keys
+        let lexe_vss_key = seed.derive_vss_auth_key("vss.lexe.app");
         assert_eq!(
-            hex::encode(&seed.derive_vss_auth_key().secret_bytes()),
-            "bfe7c1979ba87f59064afd83f173901e41888c906b3a2162ce856e686393d784",
+            hex::encode(&lexe_vss_key.secret_bytes()),
+            "29646f43becb6541b08dcc018911fc268826d13808080870739be43c9acac923",
+        );
+        let external_vss_key = seed.derive_vss_auth_key("vss.example");
+        assert_eq!(
+            hex::encode(&external_vss_key.secret_bytes()),
+            "a10dd5d440f79f87d64526402772b2fcc97687f110cf79e224eca16605c7386f",
         );
 
         // LDK seed (used to initialize KeysManager)

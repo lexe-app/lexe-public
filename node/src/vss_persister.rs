@@ -21,6 +21,16 @@ use crate::{backup_persister::BackupBatch, client::USER_AGENT_EXTERNAL};
 #[cfg(test)]
 mod tests;
 
+/// A backup persister authenticated to a specific user for use at a single VSS
+/// provider.
+///
+/// ### Authentication
+///
+/// Users derive separate VSS auth keys per provider, so backups stored at one
+/// provider are not easily transferable to another provider. Instead, they
+/// must be re-persisted by the user.
+///
+/// See: [`RootSeed::derive_vss_auth_key`] for more details.
 pub(crate) struct VssPersister {
     provider_name: String,
     client: VssClient,
@@ -29,19 +39,21 @@ pub(crate) struct VssPersister {
 /// A provider's HTTP client, shared across usernodes.
 pub(crate) struct VssProvider {
     name: String,
-    base_url: String,
+    base_url: Url,
     http_client: reqwest::Client,
 }
 
 impl VssPersister {
     const STORE_ID: &str = "lexe";
 
-    /// Create a persister authenticated with the user's VSS key.
+    /// Create a persister authenticated for this user and VSS provider.
     pub(crate) fn new(root_seed: &RootSeed, provider: &VssProvider) -> Self {
+        let hostname =
+            provider.base_url.host_str().expect("VSS URL has a host");
         let client = VssClient::from_client(
-            &provider.base_url,
+            provider.base_url.as_str(),
             provider.http_client.clone(),
-            root_seed.derive_vss_auth_key(),
+            root_seed.derive_vss_auth_key(hostname),
         );
         Self {
             provider_name: provider.name.clone(),
@@ -109,7 +121,7 @@ impl VssProvider {
             .context("Failed to build VSS HTTP client")?;
         Ok(Self {
             name: config.name.clone(),
-            base_url: url.into(),
+            base_url: url,
             http_client,
         })
     }
