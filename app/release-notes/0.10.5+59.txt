@@ -1,0 +1,1 @@
+- When sending on-chain, the confirm page now shows the estimated confirmation time for your chosen network fee, and makes it clearer that you can tap to change the fee.
