@@ -53,15 +53,15 @@ use crate::{
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListChannelsResponse,
-            ListClientsResponse, ListPaymentsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayLnurlRequest, PayOfferRequest, PayOnchainRequest, PayRequest,
-            PayableDetails, PaymentSyncSummary, RevokeClientRequest,
-            UpdateClientRequest, UpdatePersonalNoteRequest,
-            WaitForNextPaymentRequest, WaitForNextPaymentResponse,
-            WithdrawLnurlRequest,
+            GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest,
+            PayOnchainRequest, PayRequest, PayableDetails, PaymentSyncSummary,
+            RevokeClientRequest, UpdateClientRequest,
+            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
+            WaitForNextPaymentResponse, WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentFilter, PaymentUpdatedIndex},
     },
@@ -1829,17 +1829,27 @@ impl LexeWallet {
         &self,
         req: GetPaymentRequest,
     ) -> anyhow::Result<GetPaymentResponse> {
+        let req = GetPaymentByIdRequest { id: req.index.id };
+        self.get_payment_by_id(req).await
+    }
+
+    /// Get information about a payment by its id.
+    #[instrument(skip_all, name = "(get-payment-by-id)")]
+    pub async fn get_payment_by_id(
+        &self,
+        req: GetPaymentByIdRequest,
+    ) -> anyhow::Result<GetPaymentResponse> {
         let payment = match &self.store {
             WalletStore::Db(db) => {
                 self.sync_payments().await?;
                 db.payments_db()
-                    .get_payment_by_created_index(&req.index)
+                    .get_payment_by_id(&req.id)
                     .map(Payment::from)
             }
             WalletStore::Cache(cache) => cache
                 .write()
                 .await
-                .get_with_fallback(req.index.id, &self.node_client)
+                .get_with_fallback(req.id, &self.node_client)
                 .await?
                 .cloned(),
         };

@@ -341,14 +341,6 @@ impl<F: Ffs> PaymentsDb<F> {
         self.state.read().unwrap().last_synced_at
     }
 
-    /// Get a payment by its `PaymentCreatedIndex`.
-    pub fn get_payment_by_created_index(
-        &self,
-        created_index: &PaymentCreatedIndex,
-    ) -> Option<BasicPaymentV2> {
-        self.get_payment_by_id(&created_index.id)
-    }
-
     /// Get a payment by its [`PaymentId`].
     pub fn get_payment_by_id(&self, id: &PaymentId) -> Option<BasicPaymentV2> {
         self.state.read().unwrap().get_payment_by_id(id).cloned()

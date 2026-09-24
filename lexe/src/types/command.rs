@@ -17,8 +17,8 @@ use lexe_api::{
         invoice::Invoice,
         lnurl::LnurlPayRequest,
         payments::{
-            ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentKind,
-            PaymentSecret, PaymentUpdatedIndex,
+            ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentId,
+            PaymentKind, PaymentSecret, PaymentUpdatedIndex,
         },
     },
 };
@@ -821,7 +821,16 @@ pub struct GetPaymentRequest {
     pub index: PaymentCreatedIndex,
 }
 
-/// A response to a request to get information about a payment by its index.
+/// A request to get information about a payment by its id.
+#[derive(Serialize, Deserialize)]
+pub struct GetPaymentByIdRequest {
+    /// The payment's id. Can be obtained from the payment's
+    /// [`PaymentCreatedIndex`] or [`PaymentUpdatedIndex`]. For a BOLT 11
+    /// invoice payment, this is [`PaymentId::Lightning`] of its payment hash.
+    pub id: PaymentId,
+}
+
+/// A response to a [`GetPaymentRequest`] or [`GetPaymentByIdRequest`].
 #[derive(Serialize, Deserialize)]
 pub struct GetPaymentResponse {
     /// Information about this payment, if it exists.

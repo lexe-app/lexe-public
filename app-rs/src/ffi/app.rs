@@ -459,7 +459,7 @@ impl AppHandle {
         let created_idx = PaymentCreatedIndexRs::try_from(created_idx).ok()?;
         self.inner
             .payments_db()
-            .get_payment_by_created_index(&created_idx)
+            .get_payment_by_id(&created_idx.id)
             .map(|p| Payment::from(&p))
     }
 
