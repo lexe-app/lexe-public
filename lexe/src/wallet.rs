@@ -33,8 +33,7 @@ use lexe_payment_uri::{
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
 };
-use lexe_std::backoff::Backoff;
-use tokio::time::Instant;
+use tokio::sync::OnceCell;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
@@ -42,6 +41,7 @@ use crate::{
         WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
         WalletUserDbConfig,
     },
+    payments_bus::{PaymentsBus, WalletUpdatesApi},
     types::{
         auth::{ClientCredentials, CredentialsRef, RootSeed, UserPk},
         command::{
@@ -79,10 +79,8 @@ const DEFAULT_LIST_LIMIT: usize = 100;
 pub struct LexeWallet {
     user_config: WalletUserConfig,
 
-    /// Locally stored information.
-    ///
-    /// A local DB if persistence is enabled, and a cache if not.
     store: WalletStore,
+    payments_bus: OnceCell<PaymentsBus>,
 
     gateway_client: GatewayClient,
     node_client: NodeClient,
@@ -141,6 +139,7 @@ impl LexeWallet {
         Ok(Self {
             user_config,
             store: WalletStore::Db(Box::new(db)),
+            payments_bus: OnceCell::new(),
             gateway_client,
             node_client,
             bip353_client,
@@ -195,6 +194,7 @@ impl LexeWallet {
         Ok(Some(Self {
             user_config,
             store: WalletStore::Db(Box::new(db)),
+            payments_bus: OnceCell::new(),
             gateway_client,
             node_client,
             bip353_client,
@@ -238,6 +238,7 @@ impl LexeWallet {
         Ok(Self {
             user_config,
             store: WalletStore::Db(Box::new(db)),
+            payments_bus: OnceCell::new(),
             gateway_client,
             node_client,
             bip353_client,
@@ -275,6 +276,7 @@ impl LexeWallet {
             store: WalletStore::Cache(tokio::sync::RwLock::new(
                 PaymentCache::new(),
             )),
+            payments_bus: OnceCell::new(),
             gateway_client,
             node_client,
             bip353_client,
@@ -335,7 +337,7 @@ impl LexeWallet {
         ))
     }
 
-    // --- DB helpers --- //
+    // --- Store helpers --- //
 
     /// Returns a reference to the [`WalletDb`], or an error if local
     /// persistence is disabled for this wallet.
@@ -351,6 +353,25 @@ impl LexeWallet {
     /// persistence is disabled for this wallet.
     fn require_payments_db(&self) -> anyhow::Result<&PaymentsDb<DiskFs>> {
         self.require_db().map(WalletDb::payments_db)
+    }
+
+    async fn payments_bus(&self) -> anyhow::Result<&PaymentsBus> {
+        self.payments_bus
+            .get_or_try_init(|| async {
+                let latest_update = self.latest_payment_update().await?;
+                Ok(PaymentsBus::new(latest_update))
+            })
+            .await
+    }
+
+    /// From the local db if we have one, otherwise from the gateway.
+    async fn latest_payment_update(
+        &self,
+    ) -> anyhow::Result<Option<PaymentUpdatedIndex>> {
+        match self.payments_db() {
+            Some(payments_db) => Ok(payments_db.latest_updated_index()),
+            None => self.node_client.latest_payment_update().await,
+        }
     }
 
     // --- DB accessors (unstable) --- //
@@ -1722,37 +1743,15 @@ impl LexeWallet {
         index: PaymentCreatedIndex,
         timeout: Option<Duration>,
     ) -> anyhow::Result<Payment> {
-        const INITIAL_WAIT_MS: u64 = 250;
-        const MAX_WAIT_MS: u64 = 4_000;
-        let mut backoff = Backoff::new(INITIAL_WAIT_MS, MAX_WAIT_MS);
-        let deadline = timeout.map(|timeout| Instant::now() + timeout);
-
-        loop {
-            let payment =
-                self.get_payment(GetPaymentRequest { index }).await?.payment;
-
-            if let Some(payment) = payment {
-                match payment.status {
-                    PaymentStatus::Completed | PaymentStatus::Failed =>
-                        return Ok(payment),
-                    PaymentStatus::Pending => (), // Continue polling
-                }
-            }
-
-            // Sleep until the next poll, or bail if the deadline would pass.
-            let sleep_duration = backoff.next().unwrap();
-            match deadline {
-                Some(deadline)
-                    if Instant::now() + sleep_duration >= deadline =>
-                {
-                    let t_secs = timeout.unwrap_or_default().as_secs();
-                    return Err(anyhow!(
-                        "Payment did not complete within {t_secs}s timeout"
-                    ));
-                }
-                _ => tokio::time::sleep(sleep_duration).await,
-            }
-        }
+        helpers::with_timeout(timeout, "Payment did not complete", async {
+            self.payments_bus()
+                .await?
+                .wait_for_payment_condition(self, index.id, |payment| {
+                    payment.status.is_finalized()
+                })
+                .await
+        })
+        .await
     }
 
     /// Waits until we observe a payment updated later than `start_index`, then
@@ -1770,106 +1769,38 @@ impl LexeWallet {
         &self,
         req: WaitForNextPaymentRequest,
     ) -> anyhow::Result<WaitForNextPaymentResponse> {
-        let deadline = req.timeout.map(|timeout| Instant::now() + timeout);
-
-        // Default the start index to the last `updated_at` from db or node.
-        let start_index = match req.start_index {
-            Some(start_index) => Some(start_index),
-            None => match self.payments_db() {
-                Some(payments_db) => payments_db.latest_updated_index(),
-                None => self.node_client.latest_payment_update().await?,
-            },
-        };
-
-        self.wait_for_next_update(start_index, deadline)
-            .await
-            .with_context(|| {
-                let timeout_secs = req.timeout.unwrap_or_default().as_secs();
-                format!("No payment update within {timeout_secs}s timeout")
-            })?;
-
-        let maybe_payment = match self.payments_db() {
-            Some(payments_db) => payments_db
-                .get_updated_payments(start_index, 1)
-                .into_iter()
-                .next(),
-            None => {
-                let req = command::GetUpdatedPayments {
-                    start_index,
-                    limit: Some(1),
-                };
-                self.node_client
-                    .get_updated_payments(req)
-                    .await
-                    .context("Failed to get updated payments")?
-                    .payments
-                    .into_iter()
-                    .next()
-            }
-        };
-        let payment = maybe_payment.map(Payment::from).context(
-            "Internal error: Expected a payment update but found none.",
-        )?;
-
-        Ok(WaitForNextPaymentResponse {
-            next_start_index: payment.updated_index(),
-            payment,
-        })
-    }
-
-    /// Wait until a payment update lands past `start_index`, and return the
-    /// latest `updated_at` index once one has (can be used for tailing).
-    ///
-    /// A `None` `start_index` waits until *any* payment exists.
-    /// If `deadline` exists and is reached, errors.
-    ///
-    /// If persistence is enabled, this syncs the db with the latest update,
-    /// unless the db already contains an update past `start_index`.
-    //
-    // TODO(nicole): Add a locking/waiters scheme to ensure only one concurrent
-    // poller; reduce interval -> 2s; ensure that new callers are able to
-    // trigger a fresh burst via `Backoff::reset`
-    async fn wait_for_next_update(
-        &self,
-        start_index: Option<PaymentUpdatedIndex>,
-        deadline: Option<Instant>,
-    ) -> anyhow::Result<Option<PaymentUpdatedIndex>> {
-        const INITIAL_WAIT_MS: u64 = 250;
-        const MAX_WAIT_MS: u64 = 4_000;
-        let mut backoff = Backoff::new(INITIAL_WAIT_MS, MAX_WAIT_MS);
-
-        loop {
-            let latest_index = match self.payments_db() {
-                Some(payments_db) => {
-                    // Skip the sync if the db already has a newer update.
-                    let local_latest = payments_db.latest_updated_index();
-                    if local_latest > start_index {
-                        local_latest
-                    } else {
-                        // Only wakes the node if there are updates to fetch.
-                        self.sync_payments()
-                            .await
-                            .context("Failed to sync payments")?;
-                        payments_db.latest_updated_index()
-                    }
-                }
-                None => self.node_client.latest_payment_update().await?,
+        helpers::with_timeout(req.timeout, "No payment update", async {
+            let start_index = match req.start_index {
+                Some(start_index) => Some(start_index),
+                None => self.latest_payment_update().await?,
             };
 
-            // Some > None
-            if latest_index > start_index {
-                return Ok(latest_index);
-            }
+            self.payments_bus()
+                .await?
+                .wait_for_next_update(self, start_index)
+                .await?;
 
-            // Sleep until the next poll, or bail if the deadline would pass.
-            let sleep_duration = backoff.next().unwrap();
-            match deadline {
-                Some(deadline)
-                    if Instant::now() + sleep_duration >= deadline =>
-                    return Err(anyhow!("Deadline reached")),
-                _ => tokio::time::sleep(sleep_duration).await,
-            }
-        }
+            // This syncs the local db, if any.
+            let req = GetUpdatedPaymentsRequest {
+                start_index,
+                limit: Some(1),
+            };
+            let payment = self
+                .get_updated_payments(req)
+                .await?
+                .payments
+                .into_iter()
+                .next()
+                .context(
+                    "Internal error: Expected a payment update but found none.",
+                )?;
+
+            Ok(WaitForNextPaymentResponse {
+                next_start_index: payment.updated_index(),
+                payment,
+            })
+        })
+        .await
     }
 
     /// Get information about a payment by its index.
@@ -2225,6 +2156,22 @@ impl LexeWallet {
     }
 }
 
+impl WalletUpdatesApi for LexeWallet {
+    async fn get_updated_payments(
+        &self,
+        req: GetUpdatedPaymentsRequest,
+    ) -> anyhow::Result<GetUpdatedPaymentsResponse> {
+        LexeWallet::get_updated_payments(self, req).await
+    }
+
+    async fn get_payment_by_id(
+        &self,
+        req: GetPaymentByIdRequest,
+    ) -> anyhow::Result<GetPaymentResponse> {
+        LexeWallet::get_payment_by_id(self, req).await
+    }
+}
+
 mod payment_cache {
     use std::collections::hash_map::Entry;
 
@@ -2298,5 +2245,25 @@ mod payment_cache {
 
             Ok(payment.as_ref())
         }
+    }
+}
+
+mod helpers {
+    use super::*;
+
+    /// Await `fut`, or fail with "{what} within {timeout}s timeout" once the
+    /// timeout (if any) elapses.
+    pub(super) async fn with_timeout<T>(
+        timeout: Option<Duration>,
+        what: &str,
+        fut: impl Future<Output = anyhow::Result<T>>,
+    ) -> anyhow::Result<T> {
+        let Some(timeout) = timeout else {
+            return fut.await;
+        };
+        let timeout_secs = timeout.as_secs();
+        tokio::time::timeout(timeout, fut)
+            .await
+            .map_err(|_| anyhow!("{what} within {timeout_secs}s timeout"))?
     }
 }

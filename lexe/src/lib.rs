@@ -24,6 +24,9 @@ pub mod types;
 /// `LexeWallet`: the top-level handle to a Lexe wallet.
 pub mod wallet;
 
+/// Publishes payment updates to all of a wallet's waiters.
+mod payments_bus;
+
 /// Returns the default Lexe data directory (`~/.lexe`).
 pub use lexe_common::default_lexe_data_dir;
 
