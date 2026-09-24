@@ -721,7 +721,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
                         )
                       : null;
 
-                  // Label should be kept in sync with "lexe_api::types::payments::LxPaymentId"
+                  // Label should be kept in sync with "lexe_api::types::payments::PaymentId"
                   final InfoRow? paymentIdRow = switch ((rail, direction)) {
                     // Onchain receive -> we'll use the txid field
                     (PaymentRail_Onchain(), PaymentDirection.inbound) => null,
