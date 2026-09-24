@@ -45,7 +45,7 @@
 mod docs {}
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     io,
     ops::Bound,
     str::FromStr,
@@ -60,7 +60,7 @@ use lexe_api::{
     error::{GatewayApiError, NodeApiError},
     models::command::{self, LatestPaymentUpdateResponse},
     types::payments::{
-        BasicPaymentV2, PaymentCreatedIndex, PaymentStatus,
+        BasicPaymentV2, PaymentCreatedIndex, PaymentId, PaymentStatus,
         PaymentUpdatedIndex, VecBasicPaymentV2,
     },
 };
@@ -92,10 +92,10 @@ struct PaymentsDbState {
 
     /// An index of currently pending payments, sorted by `created_at` index.
     //
-    // For now, we only have a `pending` index, because it is sparse - there's
+    // For now, we only have a `pending_index`, because it is sparse - there's
     // no point in indexing `finalized` as most payments are finalized. If we
     // later want filters for "offers only" or similar, we can add more.
-    pending: BTreeSet<PaymentCreatedIndex>,
+    pending_index: BTreeSet<PaymentCreatedIndex>,
 
     /// An index of every payment, sorted by `updated_at` index.
     ///
@@ -107,6 +107,16 @@ struct PaymentsDbState {
     ///     .collect()
     /// ```
     updates_index: BTreeMap<PaymentUpdatedIndex, PaymentCreatedIndex>,
+
+    /// An index of every payment's [`PaymentCreatedIndex`] by [`PaymentId`].
+    ///
+    /// Invariants:
+    ///
+    /// ```ignore
+    /// id_index == payments.keys().map(|idx| (idx.id, *idx)).collect()
+    /// id_index.len() == payments.len() // Ids are unique
+    /// ```
+    id_index: HashMap<PaymentId, PaymentCreatedIndex>,
 
     /// The time we last successfully synced, or `None` if we've never synced.
     ///
@@ -336,11 +346,12 @@ impl<F: Ffs> PaymentsDb<F> {
         &self,
         created_index: &PaymentCreatedIndex,
     ) -> Option<BasicPaymentV2> {
-        self.state
-            .read()
-            .unwrap()
-            .get_payment_by_created_index(created_index)
-            .cloned()
+        self.get_payment_by_id(&created_index.id)
+    }
+
+    /// Get a payment by its [`PaymentId`].
+    pub fn get_payment_by_id(&self, id: &PaymentId) -> Option<BasicPaymentV2> {
+        self.state.read().unwrap().get_payment_by_id(id).cloned()
     }
 
     /// Get a payment by scroll index in UI order (newest to oldest).
@@ -492,19 +503,19 @@ impl<F: Ffs> PaymentsDb<F> {
 
         // --- 'Commit' by updating our in-memory state --- //
 
-        // Update pending index
+        // Update our indexes
         if payment.is_pending() {
-            state.pending.insert(created_index);
+            state.pending_index.insert(created_index);
         } else {
-            state.pending.remove(&created_index);
+            state.pending_index.remove(&created_index);
         }
-        // Update updated_at index
         if let Some(old_index) = maybe_existing.map(|p| p.updated_index()) {
             state.updates_index.remove(&old_index);
         }
         state
             .updates_index
             .insert(payment.updated_index(), created_index);
+        state.id_index.insert(payment.id, created_index);
 
         // Update main payments map at the end to avoid a clone
         state.payments.insert(created_index, payment);
@@ -568,8 +579,9 @@ impl PaymentsDbState {
     fn empty() -> Self {
         Self {
             payments: BTreeMap::new(),
-            pending: BTreeSet::new(),
+            pending_index: BTreeSet::new(),
             updates_index: BTreeMap::new(),
+            id_index: HashMap::new(),
             last_synced_at: None,
         }
     }
@@ -644,13 +656,15 @@ impl PaymentsDbState {
             .map(|p| (p.created_index(), p))
             .collect();
 
-        let pending = build_index::pending(&payments);
+        let pending_index = build_index::pending_index(&payments);
         let updates_index = build_index::updates_index(&payments);
+        let id_index = build_index::id_index(&payments);
 
         Self {
             payments,
-            pending,
+            pending_index,
             updates_index,
+            id_index,
             last_synced_at,
         }
     }
@@ -660,17 +674,17 @@ impl PaymentsDbState {
     }
 
     fn num_pending(&self) -> usize {
-        self.pending.len()
+        self.pending_index.len()
     }
 
     #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn num_finalized(&self) -> usize {
-        self.payments.len() - self.pending.len()
+        self.payments.len() - self.pending_index.len()
     }
 
     #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
     fn num_pending_not_junk(&self) -> usize {
-        self.pending
+        self.pending_index
             .iter()
             .filter_map(|created_idx| self.payments.get(created_idx))
             .filter(|p| p.is_pending_not_junk())
@@ -690,11 +704,8 @@ impl PaymentsDbState {
         self.updates_index.last_key_value().map(|(idx, _)| *idx)
     }
 
-    fn get_payment_by_created_index(
-        &self,
-        created_index: &PaymentCreatedIndex,
-    ) -> Option<&BasicPaymentV2> {
-        self.payments.get(created_index)
+    fn get_payment_by_id(&self, id: &PaymentId) -> Option<&BasicPaymentV2> {
+        self.payments.get(self.id_index.get(id)?)
     }
 
     #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
@@ -710,7 +721,7 @@ impl PaymentsDbState {
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPaymentV2> {
-        self.pending
+        self.pending_index
             .iter()
             .nth_back(scroll_idx)
             .and_then(|created_idx| self.payments.get(created_idx))
@@ -721,7 +732,7 @@ impl PaymentsDbState {
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPaymentV2> {
-        self.pending
+        self.pending_index
             .iter()
             .rev()
             .filter_map(|created_idx| self.payments.get(created_idx))
@@ -866,18 +877,20 @@ impl PaymentsDbState {
             assert_eq!(*idx, payment.created_index());
         }
 
-        // --- `pending` index invariants: --- //
+        // --- `pending_index` invariants: --- //
 
         // Rebuilding the index recreates the same index exactly
-        let rebuilt_pending_index = build_index::pending(&self.payments);
-        assert_eq!(rebuilt_pending_index, self.pending);
+        let rebuilt_pending_index = build_index::pending_index(&self.payments);
+        assert_eq!(rebuilt_pending_index, self.pending_index);
 
         // All pending payments are in the index
-        // (in case there is a bug in `index::build_pending`)
-        self.payments
-            .values()
-            .filter(|p| p.is_pending())
-            .all(|p| self.pending.contains(&p.created_index()));
+        // (in case there is a bug in `build_index::pending_index`)
+        assert!(
+            self.payments
+                .values()
+                .filter(|p| p.is_pending())
+                .all(|p| self.pending_index.contains(&p.created_index()))
+        );
 
         // --- `updates_index` invariants: --- //
 
@@ -887,14 +900,23 @@ impl PaymentsDbState {
 
         // Every payment is indexed
         assert_eq!(self.updates_index.len(), self.payments.len());
+
+        // --- `id_index` invariants: --- //
+
+        // Rebuilding the index recreates the same index exactly
+        let rebuilt_id_index = build_index::id_index(&self.payments);
+        assert_eq!(rebuilt_id_index, self.id_index);
+
+        // Every payment is indexed (i.e. no two payments share an id)
+        assert_eq!(self.id_index.len(), self.payments.len());
     }
 }
 
 mod build_index {
     use super::*;
 
-    /// Build the `pending` index from the given payments.
-    pub(super) fn pending(
+    /// Build the `pending_index` from the given payments.
+    pub(super) fn pending_index(
         payments: &BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
     ) -> BTreeSet<PaymentCreatedIndex> {
         payments
@@ -912,6 +934,13 @@ mod build_index {
             .iter()
             .map(|(created_idx, p)| (p.updated_index(), *created_idx))
             .collect()
+    }
+
+    /// Build the `id_index` from the given payments.
+    pub(super) fn id_index(
+        payments: &BTreeMap<PaymentCreatedIndex, BasicPaymentV2>,
+    ) -> HashMap<PaymentId, PaymentCreatedIndex> {
+        payments.keys().map(|idx| (idx.id, *idx)).collect()
     }
 }
 
@@ -1190,6 +1219,31 @@ mod test {
                 start_index = Some(expected_payment.updated_index());
             }
             assert!(db.get_updated_payments(start_index, 1).is_empty());
+        });
+    }
+
+    /// Every payment can be looked up by its id, both after upserts and after
+    /// a reload from disk; unknown ids miss.
+    #[test]
+    fn test_get_payment_by_id() {
+        proptest!(Config::with_cases(16), |(mut payments in test_utils::any_payments(1..20))| {
+            // Hold one payment back so we can look up an unknown id.
+            let (_, unknown) = payments.pop_last().unwrap();
+
+            let assert_lookups = |db: &PaymentsDb<InMemoryFfs>| {
+                for payment in payments.values() {
+                    let found = db.get_payment_by_id(&payment.id);
+                    assert_eq!(found.as_ref(), Some(payment));
+                }
+                assert_eq!(db.get_payment_by_id(&unknown.id), None);
+            };
+
+            let db = PaymentsDb::empty(InMemoryFfs::new());
+            db.upsert_payments(payments.clone().into_values()).unwrap();
+            assert_lookups(&db);
+
+            let db = PaymentsDb::read(db.ffs).unwrap();
+            assert_lookups(&db);
         });
     }
 

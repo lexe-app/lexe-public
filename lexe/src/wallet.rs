@@ -94,7 +94,7 @@ pub struct LexeWallet {
 enum WalletStore {
     /// A persisted local DB. Used by wallets created via `fresh`, `load`, or
     /// `load_or_fresh`.
-    Db(WalletDb<DiskFs>),
+    Db(Box<WalletDb<DiskFs>>),
     /// An in-memory cache. Used by wallets created via `without_db`.
     Cache(tokio::sync::RwLock<PaymentCache>),
 }
@@ -139,7 +139,7 @@ impl LexeWallet {
 
         Ok(Self {
             user_config,
-            store: WalletStore::Db(db),
+            store: WalletStore::Db(Box::new(db)),
             gateway_client,
             node_client,
             bip353_client,
@@ -193,7 +193,7 @@ impl LexeWallet {
 
         Ok(Some(Self {
             user_config,
-            store: WalletStore::Db(db),
+            store: WalletStore::Db(Box::new(db)),
             gateway_client,
             node_client,
             bip353_client,
@@ -236,7 +236,7 @@ impl LexeWallet {
 
         Ok(Self {
             user_config,
-            store: WalletStore::Db(db),
+            store: WalletStore::Db(Box::new(db)),
             gateway_client,
             node_client,
             bip353_client,
