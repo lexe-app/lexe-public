@@ -63,6 +63,7 @@ use lexe::{
             GetClientInfoResponse as SdkGetClientInfoResponse,
             GetHumanBitcoinAddressResponse as SdkGetHumanBitcoinAddressResponse,
             GetNextUnusedAddressResponse as SdkGetNextUnusedAddressResponse,
+            GetPaymentByIdRequest as SdkGetPaymentByIdRequest,
             GetPaymentRequest as SdkGetPaymentRequest,
             GetUpdatedPaymentsRequest as SdkGetUpdatedPaymentsRequest,
             GetUpdatedPaymentsResponse as SdkGetUpdatedPaymentsResponse,
@@ -85,7 +86,7 @@ use lexe::{
         payment::{
             ClientPaymentId as SdkClientPaymentId, Payment as SdkPayment,
             PaymentCreatedIndex as SdkPaymentCreatedIndex,
-            PaymentDirection as SdkPaymentDirection,
+            PaymentDirection as SdkPaymentDirection, PaymentId as SdkPaymentId,
             PaymentKind as SdkPaymentKind, PaymentRail as SdkPaymentRail,
             PaymentStatus as SdkPaymentStatus,
             PaymentUpdatedIndex as SdkPaymentUpdatedIndex,
@@ -1532,6 +1533,21 @@ impl AsyncLexeWallet {
         Ok(resp.payment.map(Payment::from))
     }
 
+    /// Get a payment by its `id` string.
+    ///
+    /// The id is the part of the payment's `index` (or updated index) after
+    /// the `-`, e.g. `ln_<payment_hash>` for a BOLT 11 invoice payment or
+    /// `fs_<client_payment_id>` for a BOLT 12 offer send.
+    pub async fn get_payment_by_id(
+        &self,
+        id: String,
+    ) -> Result<Option<Payment>, FfiError> {
+        let id = SdkPaymentId::from_str(&id)?;
+        let req = SdkGetPaymentByIdRequest { id };
+        let resp = self.inner.get_payment_by_id(req).await?;
+        Ok(resp.payment.map(Payment::from))
+    }
+
     /// Get a batch of payments in ascending `updated_at` order, starting
     /// from a given `updated_at` index.
     ///
@@ -2587,6 +2603,21 @@ impl BlockingLexeWallet {
         let index = SdkPaymentCreatedIndex::from_str(&index)?;
         let req = SdkGetPaymentRequest { index };
         let resp = self.inner.get_payment(req)?;
+        Ok(resp.payment.map(Payment::from))
+    }
+
+    /// Get a payment by its `id` string.
+    ///
+    /// The id is the part of the payment's `index` (or updated index) after
+    /// the `-`, e.g. `ln_<payment_hash>` for a BOLT 11 invoice payment or
+    /// `fs_<client_payment_id>` for a BOLT 12 offer send.
+    pub fn get_payment_by_id(
+        &self,
+        id: String,
+    ) -> Result<Option<Payment>, FfiError> {
+        let id = SdkPaymentId::from_str(&id)?;
+        let req = SdkGetPaymentByIdRequest { id };
+        let resp = self.inner.get_payment_by_id(req)?;
         Ok(resp.payment.map(Payment::from))
     }
 

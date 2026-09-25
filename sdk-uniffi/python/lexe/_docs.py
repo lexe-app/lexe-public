@@ -1261,6 +1261,21 @@ Raises:
     FfiError: If the index is malformed or the request fails.
 """)
 
+_set_method_doc(LexeWallet, "get_payment_by_id", """\
+Get a specific payment by its id.
+
+Args:
+    id: The part of the payment's ``index`` (or updated index) after the
+        ``-``, e.g. ``ln_<payment_hash>`` for a BOLT 11 invoice payment or
+        ``fs_<client_payment_id>`` for a BOLT 12 offer send.
+
+Returns:
+    The :class:`Payment`, or ``None`` if not found locally.
+
+Raises:
+    FfiError: If the id is malformed or the request fails.
+""")
+
 _set_method_doc(LexeWallet, "get_updated_payments", """\
 Get a batch of payments in ascending ``updated_at`` order, starting from
 a given ``updated_at`` index.
@@ -2248,6 +2263,21 @@ Returns:
 
 Raises:
     FfiError: If the index is malformed or the request fails.
+""")
+
+_set_method_doc(AsyncLexeWallet, "get_payment_by_id", """\
+Get a specific payment by its id.
+
+Args:
+    id: The part of the payment's ``index`` (or updated index) after the
+        ``-``, e.g. ``ln_<payment_hash>`` for a BOLT 11 invoice payment or
+        ``fs_<client_payment_id>`` for a BOLT 12 offer send.
+
+Returns:
+    The :class:`Payment`, or ``None`` if not found locally.
+
+Raises:
+    FfiError: If the id is malformed or the request fails.
 """)
 
 _set_method_doc(AsyncLexeWallet, "get_updated_payments", """\

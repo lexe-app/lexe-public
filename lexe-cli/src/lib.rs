@@ -25,16 +25,17 @@ use lexe::{
             AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
             CashAppBuyRequest, ChannelDetails, ClientInfo, CloseChannelRequest,
             CreateClientRequest, CreateInvoiceRequest, CreateOfferRequest,
-            CreatePayerProofRequest, CredentialKind, GetPaymentRequest,
-            GetUpdatedPaymentsRequest, OpenChannelRequest, PayInvoiceRequest,
-            PayLnurlRequest, PayOfferRequest, PayOnchainRequest, PayRequest,
-            PayerProofDisclosures, PaymentSyncSummary, RevokeClientRequest,
-            UpdateClientRequest, UpdatePersonalNoteRequest,
-            WaitForNextPaymentRequest, WithdrawLnurlRequest,
+            CreatePayerProofRequest, CredentialKind, GetPaymentByIdRequest,
+            GetPaymentRequest, GetUpdatedPaymentsRequest, OpenChannelRequest,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest,
+            PayOnchainRequest, PayRequest, PayerProofDisclosures,
+            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
+            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
+            WithdrawLnurlRequest,
         },
         payment::{
             ClientPaymentId, Order, Payment, PaymentCreatedIndex,
-            PaymentFilter, PaymentStatus, PaymentUpdatedIndex,
+            PaymentFilter, PaymentId, PaymentStatus, PaymentUpdatedIndex,
         },
         util::{Ppm, TimestampMs},
     },
@@ -269,6 +270,7 @@ pub enum LexeCommand {
     WaitForPayment(WaitForPaymentArgs),
     WaitForNextPayment(WaitForNextPaymentArgs),
     GetPayment(GetPaymentArgs),
+    GetPaymentById(GetPaymentByIdArgs),
     GetUpdatedPayments(GetUpdatedPaymentsArgs),
     UpdatePersonalNote(UpdatePersonalNoteArgs),
     CancelPayment(CancelPaymentArgs),
@@ -418,6 +420,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::WaitForPayment(a) => a.run(&wallet).await,
         LexeCommand::WaitForNextPayment(a) => a.run(&wallet).await,
         LexeCommand::GetPayment(a) => a.run(&wallet).await,
+        LexeCommand::GetPaymentById(a) => a.run(&wallet).await,
         LexeCommand::GetUpdatedPayments(a) => a.run(&wallet).await,
         LexeCommand::UpdatePersonalNote(a) => a.run(&wallet).await,
         LexeCommand::CancelPayment(a) => a.run(&wallet).await,
@@ -2180,6 +2183,33 @@ impl GetPaymentArgs {
     async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
         let resp = wallet
             .get_payment(GetPaymentRequest { index: self.index })
+            .await
+            .context("Failed to get payment")?;
+        helpers::print_json_pretty(&resp)
+    }
+}
+
+// --- `get-payment-by-id` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Get a payment by its id",
+    long_about = "Get a payment by its id.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetPaymentByIdArgs {
+    #[arg(
+        help = "The payment's id, i.e. the part of its `index` (or updated index)\n\
+        after the `-`, e.g. `ln_<payment_hash>` for a BOLT 11 invoice payment\n\
+        or `fs_<client_payment_id>` for a BOLT 12 offer send."
+    )]
+    id: PaymentId,
+}
+
+impl GetPaymentByIdArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .get_payment_by_id(GetPaymentByIdRequest { id: self.id })
             .await
             .context("Failed to get payment")?;
         helpers::print_json_pretty(&resp)

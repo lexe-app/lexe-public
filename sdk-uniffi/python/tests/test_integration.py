@@ -636,3 +636,37 @@ def test_get_payment_valid_format_nonexistent(prefunded_wallets):
     # Should return None for nonexistent but valid format
     payment = wallet.get_payment(valid_format_payment_index)
     assert payment is None
+
+
+@pytest.mark.integration
+def test_get_payment_by_id_invalid_format(prefunded_wallets):
+    """Test that getting a payment by a malformed id raises FfiError."""
+    if prefunded_wallets is None:
+        pytest.skip("Requires pre-funded wallets from Rust smoketest")
+
+    gateway_url = prefunded_wallets["gateway_url"]
+    wallet = load_prefunded_wallet(prefunded_wallets["wallets"][0], gateway_url)
+
+    # Invalid format payment id (not "<prefix>_<hex>" format)
+    invalid_payment_id = "fake_payment_id"
+
+    # Should raise FfiError for invalid format
+    with pytest.raises(lexe.FfiError):
+        wallet.get_payment_by_id(invalid_payment_id)
+
+
+@pytest.mark.integration
+def test_get_payment_by_id_valid_format_nonexistent(prefunded_wallets):
+    """Test that getting a nonexistent payment by id returns None."""
+    if prefunded_wallets is None:
+        pytest.skip("Requires pre-funded wallets from Rust smoketest")
+
+    gateway_url = prefunded_wallets["gateway_url"]
+    wallet = load_prefunded_wallet(prefunded_wallets["wallets"][0], gateway_url)
+
+    # Valid format: ln_<hex32> (32-byte hex payment hash)
+    valid_format_payment_id = f"ln_{'0' * 64}"
+
+    # Should return None for nonexistent but valid format
+    payment = wallet.get_payment_by_id(valid_format_payment_id)
+    assert payment is None

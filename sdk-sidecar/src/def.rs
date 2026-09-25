@@ -15,13 +15,13 @@ use lexe::types::{
         CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
         CreatePayerProofRequest, CreatePayerProofResponse,
         GetClientInfoResponse, GetHumanBitcoinAddressResponse,
-        GetNextUnusedAddressResponse, GetPaymentRequest, GetPaymentResponse,
-        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
-        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayOfferRequest, PayOnchainRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdatePersonalNoteRequest,
-        WaitForNextPaymentResponse,
+        GetNextUnusedAddressResponse, GetPaymentByIdRequest, GetPaymentRequest,
+        GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
+        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PayOnchainRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -319,6 +319,15 @@ pub trait UserSidecarApi {
     async fn get_payment(
         &self,
         req: &GetPaymentRequest,
+    ) -> Result<GetPaymentResponse, SdkApiError>;
+
+    /// GET /v2/node/payment_by_id [`GetPaymentByIdRequest`]
+    ///                         -> [`GetPaymentResponse`]
+    ///
+    /// Get information about a payment by its id.
+    async fn get_payment_by_id(
+        &self,
+        req: &GetPaymentByIdRequest,
     ) -> Result<GetPaymentResponse, SdkApiError>;
 
     /// GET /v2/node/updated_payments [`GetUpdatedPaymentsRequest`]

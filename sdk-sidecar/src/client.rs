@@ -8,13 +8,13 @@ use lexe::types::{
         CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
         CreatePayerProofRequest, CreatePayerProofResponse,
         GetClientInfoResponse, GetHumanBitcoinAddressResponse,
-        GetNextUnusedAddressResponse, GetPaymentRequest, GetPaymentResponse,
-        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
-        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
-        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-        PayOfferRequest, PayOnchainRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdatePersonalNoteRequest,
-        WaitForNextPaymentResponse,
+        GetNextUnusedAddressResponse, GetPaymentByIdRequest, GetPaymentRequest,
+        GetPaymentResponse, GetUpdatedPaymentsRequest,
+        GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
+        ListPaymentsResponse, NodeInfo, OpenChannelRequest,
+        OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PayOnchainRequest, PaymentSyncSummary, RevokeClientRequest,
+        UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
     payment::Payment,
 };
@@ -274,6 +274,30 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<GetPaymentResponse, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/payment");
+        let http_req = self.rest.get(url, req);
+
+        self.rest
+            .send::<Payment, SdkApiError>(http_req)
+            .await
+            .map(|payment| GetPaymentResponse {
+                payment: Some(payment),
+            })
+            .or_else(|error| match error.kind {
+                SdkErrorKind::NotFound =>
+                    Ok(GetPaymentResponse { payment: None }),
+                _ => Err(error),
+            })
+    }
+
+    /// Like [`get_payment`](Self::get_payment), the server returns
+    /// [`Payment`] directly with HTTP 404 for not-found, which we wrap back
+    /// into [`GetPaymentResponse`].
+    async fn get_payment_by_id(
+        &self,
+        req: &GetPaymentByIdRequest,
+    ) -> Result<GetPaymentResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/payment_by_id");
         let http_req = self.rest.get(url, req);
 
         self.rest

@@ -24,12 +24,12 @@ use lexe::{
             CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListChannelsResponse,
-            ListClientsResponse, ListPaymentsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
-            PayOnchainRequest, PayRequest as SdkPayRequest,
+            GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayLnurlRequest as SdkPayLnurlRequest,
+            PayOfferRequest, PayOnchainRequest, PayRequest as SdkPayRequest,
             PayableDetails as SdkPayableDetails, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
@@ -126,6 +126,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             get(node::wait_for_next_payment),
         )
         .route("/v2/node/payment", get(node::get_payment))
+        .route("/v2/node/payment_by_id", get(node::get_payment_by_id))
         .route("/v2/node/updated_payments", get(node::get_updated_payments))
         .route(
             "/v2/node/update_personal_note",
@@ -744,6 +745,24 @@ mod node {
     ) -> Result<LxJson<Payment>, SdkApiError> {
         let resp = wallet
             .get_payment(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        let payment = resp
+            .payment
+            .ok_or_else(|| SdkApiError::not_found("Payment not found"))?;
+        Ok(LxJson(payment))
+    }
+
+    /// Returns the [`Payment`] directly, with HTTP 404 if missing, for the
+    /// same reasons as [`get_payment`].
+    #[instrument(skip_all, name = "(get-payment-by-id)")]
+    pub(crate) async fn get_payment_by_id(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxQuery(req): LxQuery<GetPaymentByIdRequest>,
+    ) -> Result<LxJson<Payment>, SdkApiError> {
+        let resp = wallet
+            .get_payment_by_id(req)
             .await
             .map_err(SdkApiError::command)?;
         let payment = resp

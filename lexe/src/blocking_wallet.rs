@@ -23,12 +23,13 @@ use crate::{
             CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListChannelsResponse,
-            ListClientsResponse, ListPaymentsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayLnurlRequest, PayOfferRequest, PayOnchainRequest, PayRequest,
-            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
+            GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
+            GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+            ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+            NodeInfo, OpenChannelRequest, OpenChannelResponse,
+            PayInvoiceRequest, PayLnurlRequest, PayOfferRequest,
+            PayOnchainRequest, PayRequest, PaymentSyncSummary,
+            RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
             WaitForNextPaymentResponse, WithdrawLnurlRequest,
         },
@@ -572,6 +573,14 @@ impl BlockingLexeWallet {
         req: GetPaymentRequest,
     ) -> anyhow::Result<GetPaymentResponse> {
         block_on(self.inner.get_payment(req))
+    }
+
+    /// Get information about a payment by its id.
+    pub fn get_payment_by_id(
+        &self,
+        req: GetPaymentByIdRequest,
+    ) -> anyhow::Result<GetPaymentResponse> {
+        block_on(self.inner.get_payment_by_id(req))
     }
 
     /// Get a batch of payments in ascending `updated_at` order, starting from
