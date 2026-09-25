@@ -82,25 +82,31 @@ pub fn all_channel_balances<PS: LexePersister>(
     let prop_fee_multiplier = num_usable_channels;
 
     // Account for the estimated total proportional fee.
-    total_balance.sendable = ldk_max_final_value(
-        total_balance.sendable,
-        EST_OUTBOUND_TOTAL_PROP_FEE,
-        prop_fee_multiplier,
-    );
+    total_balance.sendable = {
+        let amount_without_base_fees = total_balance.sendable;
+        ldk_max_final_value(
+            amount_without_base_fees,
+            EST_OUTBOUND_TOTAL_PROP_FEE,
+            prop_fee_multiplier,
+        )
+    };
 
     // Account for the minimum LSP proportional fee in a two-hop payment:
     // Sender -> LSP -> Receiver.
-    total_balance.max_sendable = ldk_max_final_value(
-        total_balance.max_sendable,
-        min_lsp_prop_fee,
-        prop_fee_multiplier,
-    );
+    total_balance.max_sendable = {
+        let amount_without_base_fees = total_balance.max_sendable;
+        ldk_max_final_value(
+            amount_without_base_fees,
+            min_lsp_prop_fee,
+            prop_fee_multiplier,
+        )
+    };
 
     (total_balance, num_usable_channels)
 }
 
 /// Mirrors LDK's integer calculation of a path's maximum final value after
-/// proportional fees. Base fees must already be subtracted from `amount`.
+/// proportional fees.
 ///
 /// For effective proportional fee `p` ppm, LDK computes:
 ///
@@ -113,7 +119,7 @@ pub fn all_channel_balances<PS: LexePersister>(
 /// <https://github.com/lightningdevkit/rust-lightning/pull/3755>
 /// <https://github.com/lexe-app/rust-lightning/blob/2db1963bcc7bb29a8de3a49f60ec41b7b805cd03/lightning/src/routing/router.rs#L2427-L2460>
 fn ldk_max_final_value(
-    amount: Amount,
+    amount_without_base_fees: Amount,
     prop_fee: Ppm,
     prop_fee_multiplier: usize,
 ) -> Amount {
@@ -122,7 +128,8 @@ fn ldk_max_final_value(
     let prop_fee_multiplier = prop_fee_multiplier as u128;
     let effective_prop_fee =
         u128::from(prop_fee.to_u32()) * prop_fee_multiplier;
-    let numerator = u128::from(amount.msat()) * MILLION + effective_prop_fee;
+    let numerator = u128::from(amount_without_base_fees.msat()) * MILLION
+        + effective_prop_fee;
     let max_msat = numerator / (MILLION + effective_prop_fee);
     let max_msat = u64::try_from(max_msat)
         .expect("Fee-adjusted amount cannot exceed its input");
