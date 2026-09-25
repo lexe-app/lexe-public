@@ -894,6 +894,25 @@ pub struct WaitForNextPaymentResponse {
     pub next_start_index: PaymentUpdatedIndex,
 }
 
+/// A request to wait for an update on a specific payment.
+#[derive(Serialize, Deserialize)]
+pub struct WaitForPaymentUpdateRequest {
+    /// The payment's id.
+    pub id: PaymentId,
+    /// If `Some`: Returns the payment's latest state once
+    /// `updated_index() > after`. Intermediate states may be skipped. To
+    /// follow a payment's updates, pass each returned state's
+    /// [`Payment::updated_index`] here.
+    ///
+    /// If `None`: Returns the payment's current state, waiting for the payment
+    /// to exist if it doesn't yet.
+    pub after: Option<PaymentUpdatedIndex>,
+    /// If given, this method will stop waiting after `timeout` duration has
+    /// passed and return an error. If `None`, this method will wait
+    /// indefinitely.
+    pub timeout: Option<Duration>,
+}
+
 /// A request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
 pub struct GetPaymentRequest {

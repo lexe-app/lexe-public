@@ -62,7 +62,8 @@ use crate::{
             PayOnchainRequest, PayRequest, PayableDetails, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
-            WaitForNextPaymentResponse, WithdrawLnurlRequest,
+            WaitForNextPaymentResponse, WaitForPaymentUpdateRequest,
+            WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentFilter, PaymentUpdatedIndex},
     },
@@ -1175,8 +1176,8 @@ impl LexeWallet {
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
     ///
-    /// Idempotency: retries with the same `invoice.payment_hash` will return
-    /// the existing payment, even if it failed.
+    /// Idempotent: Safe to retry using the same `invoice.payment_hash`.
+    /// If the payment already exists, it is returned.
     #[instrument(skip_all, name = "(pay-invoice)")]
     pub async fn pay_invoice(
         &self,
@@ -1222,8 +1223,8 @@ impl LexeWallet {
     /// Returns the resulting [`Payment`] once it reaches a terminal state
     /// (completed or failed).
     ///
-    /// Idempotency: retries with the same `client_payment_id` will return the
-    /// existing payment, even if it failed.
+    /// Idempotent: Safe to retry using the same `client_payment_id`.
+    /// If the payment already exists, it is returned.
     #[instrument(skip_all, name = "(pay-offer)")]
     pub async fn pay_offer(
         &self,
@@ -1272,8 +1273,8 @@ impl LexeWallet {
     /// Returns the resulting [`Payment`] without waiting for confirmations.
     /// On-chain sends finalize after 6 confirmations (~1 hour).
     ///
-    /// Idempotency: retries with the same `client_payment_id` will return the
-    /// existing payment, even if it failed.
+    /// Idempotent: Safe to retry using the same `client_payment_id`.
+    /// If the payment already exists, it is returned.
     #[instrument(skip_all, name = "(pay-onchain)")]
     pub async fn pay_onchain(
         &self,
@@ -1743,11 +1744,45 @@ impl LexeWallet {
         index: PaymentCreatedIndex,
         timeout: Option<Duration>,
     ) -> anyhow::Result<Payment> {
+        self.wait_for_payment_by_id(index.id, timeout).await
+    }
+
+    /// Like [`wait_for_payment`](Self::wait_for_payment), but takes the
+    /// payment's id.
+    #[instrument(skip_all, name = "(wait-for-payment-by-id)")]
+    pub async fn wait_for_payment_by_id(
+        &self,
+        id: PaymentId,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Payment> {
         helpers::with_timeout(timeout, "Payment did not complete", async {
             self.payments_bus()
                 .await?
-                .wait_for_payment_condition(self, index.id, |payment| {
+                .wait_for_payment_condition(self, id, |payment| {
                     payment.status.is_finalized()
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Wait for an update on a specific payment, and return its latest state.
+    ///
+    /// To wait until a payment reaches some state, call this in a loop until
+    /// the returned state matches. Concurrent waiters share one poll loop.
+    #[instrument(skip_all, name = "(wait-for-payment-update)")]
+    pub async fn wait_for_payment_update(
+        &self,
+        req: WaitForPaymentUpdateRequest,
+    ) -> anyhow::Result<Payment> {
+        let WaitForPaymentUpdateRequest { id, after, timeout } = req;
+        helpers::with_timeout(timeout, "No payment update", async {
+            self.payments_bus()
+                .await?
+                .wait_for_payment_condition(self, id, |payment| {
+                    // `Some(_) > None`, so `after: None` matches the
+                    // current state.
+                    Some(payment.updated_index()) > after
                 })
                 .await
         })
