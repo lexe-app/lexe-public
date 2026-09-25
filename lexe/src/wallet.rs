@@ -1832,7 +1832,7 @@ impl LexeWallet {
         }
     }
 
-    /// Get information about a payment by its created index.
+    /// Get information about a payment by its index.
     #[instrument(skip_all, name = "(get-payment)")]
     pub async fn get_payment(
         &self,

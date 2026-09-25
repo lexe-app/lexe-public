@@ -612,16 +612,24 @@ pub enum PaymentStatus {
 
 /// A unique, ordered payment identifier: `(created_at, payment_id)`.
 ///
-/// Suitable as a key in `BTreeMap<PaymentCreatedIndex, Payment>` or for
-/// cursor-based pagination. Serialized as `"<created_at>-<id>"`, e.g.
-/// `"0002683862736062841-ln_3ddc..."`.
-//
-// Essentially a [`(TimestampMs, PaymentId)`] which:
-// 1) retains uniqueness per payment
-// 2) is ordered first by `created_at` timestamp and then by [`PaymentId`].
+/// Essentially a `(TimestampMs, PaymentId)` which:
+/// 1) retains uniqueness per payment, and
+/// 2) is ordered first by `created_at` timestamp and then by [`PaymentId`].
+///
+/// String-serialized as `<created_at>-<id>`, e.g.:
+///     "0002683862736062841-ln_003dd23aec576e7d0d85aa991ff9c2dc471fd7c863ff31b93bfbb02836eb56b5".
+///
+/// The string's lexicographic order matches the struct's [`Ord`].
+///
+/// Recommendation to SDK users: Prefer this as the primary identifier for a
+/// payment, as you can degenerate it into a `String` while retaining
+/// timestamp-based lexicographic sorting for free, e.g. `BTreeMap<String,
+/// Payment>` or `BTreeMap<PaymentCreatedIndex, Payment>`. Fall back to the
+/// inner [`PaymentId`] only if that's all you have, e.g. a BOLT 11 invoice's
+/// payment hash.
 //
 // String-serialized ordering is equivalent to the unserialized ordering,
-// since created_at is zero-padded to 19 digits.
+// since `created_at` is zero-padded to 19 digits.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -632,8 +640,12 @@ pub struct PaymentCreatedIndex {
 
 /// A unique, ordered payment identifier: `(updated_at, payment_id)`.
 ///
-/// Like [`PaymentCreatedIndex`], but ordered by `updated_at` instead of
-/// `created_at`. Serialized as `"u<updated_at>-<id>"`.
+/// Like [`PaymentCreatedIndex`], but ordered by `updated_at`, which changes
+/// on every update, so it serves as a cursor over updates rather than as a
+/// key.
+///
+/// String-serialized as `u<updated_at>-<id>`, e.g.:
+///     "u0002683862736062841-ln_003dd23aec576e7d0d85aa991ff9c2dc471fd7c863ff31b93bfbb02836eb56b5".
 //
 // String-serialized ordering is equivalent to the unserialized ordering.
 // The 'u' prefix prevents confusing a PaymentUpdatedIndex with a
@@ -651,6 +663,9 @@ pub struct PaymentUpdatedIndex {
 ///
 /// Prefixes: `ln` (Lightning), `or` (on-chain receive), `os` (on-chain send),
 /// `fr` (offer receive), `fs` (offer send).
+///
+/// Most SDK APIs take a [`PaymentCreatedIndex`], which embeds this id and
+/// should be preferred where available.
 //
 // - Lightning inbound+outbound invoice+spontaneous payments use their
 //   [`PaymentHash`] as their id. TODO(phlip9): inbound spontaneous payments

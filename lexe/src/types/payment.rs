@@ -27,10 +27,14 @@ pub use reexports::*;
 /// Information about a payment.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Payment {
-    /// Unique payment identifier, ordered by `created_at`.
+    /// The payment's index: its id prefixed with `created_at`.
     ///
-    /// This implements [`Ord`] and is generally the thing you want to key your
-    /// payments by, e.g. `BTreeMap<PaymentCreatedIndex, Payment>`.
+    /// Prefer to use this as the primary identifier for the payment, as you
+    /// can degenerate it into a `String` while retaining timestamp-based
+    /// lexicographic sorting for free. e.g. use `BTreeMap<String, Payment>` or
+    /// `BTreeMap<PaymentCreatedIndex, Payment>`.
+    ///
+    /// See [`PaymentCreatedIndex`] for more details.
     pub index: PaymentCreatedIndex,
 
     /// The technical 'rail' used to fulfill a payment:

@@ -318,7 +318,7 @@ pub struct CreateInvoiceRequest {
 /// The response to a BOLT 11 invoice request.
 #[derive(Serialize, Deserialize)]
 pub struct CreateInvoiceResponse {
-    /// Identifier for this inbound invoice payment.
+    /// The index of this inbound invoice payment.
     pub index: PaymentCreatedIndex,
     /// The BOLT 11 invoice.
     pub invoice: Invoice,
@@ -725,7 +725,7 @@ pub struct CashAppBuyResponse {
     /// smoothest experience, have them open it on a device where Cash App is
     /// already set up. The bought Bitcoin lands directly into Lexe wallet.
     pub redirect_url: String,
-    /// Identifier for the inbound payment funding this buy. Use it to look up
+    /// The index of the inbound payment funding this buy. Use it to look up
     /// the payment (e.g. `get_payment`) once Cash App has funded it.
     pub index: PaymentCreatedIndex,
 }
@@ -859,16 +859,17 @@ pub struct WaitForNextPaymentResponse {
 /// A request to get information about a payment by its index.
 #[derive(Serialize, Deserialize)]
 pub struct GetPaymentRequest {
-    /// Identifier for this payment.
+    /// The payment's index.
     pub index: PaymentCreatedIndex,
 }
 
 /// A request to get information about a payment by its id.
 #[derive(Serialize, Deserialize)]
 pub struct GetPaymentByIdRequest {
-    /// The payment's id. Can be obtained from the payment's
-    /// [`PaymentCreatedIndex`] or [`PaymentUpdatedIndex`]. For a BOLT 11
-    /// invoice payment, this is [`PaymentId::Lightning`] of its payment hash.
+    /// The payment's id, i.e. its [`PaymentCreatedIndex`] or
+    /// [`PaymentUpdatedIndex`] without the timestamp. For a BOLT 11 invoice
+    /// payment, this is [`PaymentId::Lightning`] of its payment hash; for a
+    /// BOLT 12 offer send, [`PaymentId::OfferSend`] of its client payment id.
     pub id: PaymentId,
 }
 
@@ -921,7 +922,7 @@ pub struct GetUpdatedPaymentsResponse {
 /// Pass `None` to clear the note.
 #[derive(Serialize, Deserialize)]
 pub struct UpdatePersonalNoteRequest {
-    /// Identifier for the payment to be updated.
+    /// The index of the payment to update.
     pub index: PaymentCreatedIndex,
     /// The updated note, or `None` to clear.
     /// If provided, it must be non-empty and no longer than 200 chars /

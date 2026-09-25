@@ -567,7 +567,7 @@ impl BlockingLexeWallet {
         block_on(self.inner.wait_for_next_payment(req))
     }
 
-    /// Get information about a payment by its created index.
+    /// Get information about a payment by its index.
     pub fn get_payment(
         &self,
         req: GetPaymentRequest,
