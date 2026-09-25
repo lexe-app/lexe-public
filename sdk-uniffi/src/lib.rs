@@ -989,6 +989,8 @@ impl AsyncLexeWallet {
     /// set if `partner_pk` is set.
     /// `partner_base_fee_sats` is the partner base fee in satoshis. If this is
     /// set, the invoice `amount_sats` must also be set.
+    /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
+    /// (500,000 ppm) of the payment amount.
     #[uniffi::method(default(
         expiration_secs = None,
         amount_sats = None,
@@ -1044,6 +1046,12 @@ impl AsyncLexeWallet {
     /// `personal_note` is a private note that the receiver does not see.
     /// If provided, `personal_note` must be non-empty and at most 200 chars /
     /// 512 UTF-8 bytes.
+    /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
+    /// in order for the other partner fee fields to take effect.
+    /// `partner_prop_fee_ppm` is the partner proportional fee in ppm.
+    /// `partner_base_fee_sats` is the partner base fee in satoshis.
+    /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
+    /// (500,000 ppm) of the payment amount.
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
@@ -1053,12 +1061,18 @@ impl AsyncLexeWallet {
     #[uniffi::method(default(
         fallback_amount_sats = None,
         personal_note = None,
+        partner_pk = None,
+        partner_prop_fee_ppm = None,
+        partner_base_fee_sats = None,
     ))]
     pub async fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
         personal_note: Option<String>,
+        partner_pk: Option<String>,
+        partner_prop_fee_ppm: Option<i32>,
+        partner_base_fee_sats: Option<u64>,
     ) -> Result<Payment, FfiError> {
         let invoice =
             SdkInvoice::from_str(&invoice).context("Invalid invoice")?;
@@ -1067,14 +1081,26 @@ impl AsyncLexeWallet {
             .transpose()
             .context("Invalid fallback amount")?;
 
+        let partner_pk = partner_pk
+            .as_deref()
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner_pk")?;
+
+        let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
+
+        let partner_base_fee = partner_base_fee_sats
+            .map(SdkAmount::try_from_sats_u64)
+            .transpose()
+            .context("Invalid partner_base_fee")?;
+
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
             personal_note,
-            // TODO(nicole): propagate partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         };
         let resp = self.inner.pay_invoice(req).await?;
         Ok(Payment::from(resp))
@@ -1251,22 +1277,50 @@ impl AsyncLexeWallet {
     /// `personal_note` is a private note that the receiver does not see. If
     /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
     /// bytes.
+    /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
+    /// in order for the other partner fee fields to take effect.
+    /// `partner_prop_fee_ppm` is the partner proportional fee in ppm.
+    /// `partner_base_fee_sats` is the partner base fee in satoshis.
+    /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
+    /// (500,000 ppm) of the payment amount.
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
     ///
     /// `pay_lnurl` is not currently idempotent. Each call will fetch and pay a
     /// different invoice.
-    #[uniffi::method(default(message = None, personal_note = None))]
+    #[uniffi::method(default(
+        message = None,
+        personal_note = None,
+        partner_pk = None,
+        partner_prop_fee_ppm = None,
+        partner_base_fee_sats = None,
+    ))]
     pub async fn pay_lnurl(
         &self,
         lnurl: String,
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
+        partner_pk: Option<String>,
+        partner_prop_fee_ppm: Option<i32>,
+        partner_base_fee_sats: Option<u64>,
     ) -> Result<Payment, FfiError> {
         let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
+
+        let partner_pk = partner_pk
+            .as_deref()
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner_pk")?;
+
+        let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
+
+        let partner_base_fee = partner_base_fee_sats
+            .map(SdkAmount::try_from_sats_u64)
+            .transpose()
+            .context("Invalid partner_base_fee")?;
 
         let req = SdkPayLnurlRequest {
             lnurl: Some(lnurl),
@@ -1274,10 +1328,9 @@ impl AsyncLexeWallet {
             amount,
             message,
             personal_note,
-            // TODO(nicole): propagate partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         };
         let resp = self.inner.pay_lnurl(req).await?;
         Ok(Payment::from(resp))
@@ -2076,6 +2129,8 @@ impl BlockingLexeWallet {
     /// set if `partner_pk` is set.
     /// `partner_base_fee_sats` is the partner base fee in satoshis. If this is
     /// set, the invoice `amount_sats` must also be set.
+    /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
+    /// (500,000 ppm) of the payment amount.
     #[uniffi::method(default(
         expiration_secs = None,
         amount_sats = None,
@@ -2131,6 +2186,12 @@ impl BlockingLexeWallet {
     /// `personal_note` is a private note that the receiver does not see.
     /// If provided, `personal_note` must be non-empty and at most 200 chars /
     /// 512 UTF-8 bytes.
+    /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
+    /// in order for the other partner fee fields to take effect.
+    /// `partner_prop_fee_ppm` is the partner proportional fee in ppm.
+    /// `partner_base_fee_sats` is the partner base fee in satoshis.
+    /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
+    /// (500,000 ppm) of the payment amount.
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
@@ -2140,12 +2201,18 @@ impl BlockingLexeWallet {
     #[uniffi::method(default(
         fallback_amount_sats = None,
         personal_note = None,
+        partner_pk = None,
+        partner_prop_fee_ppm = None,
+        partner_base_fee_sats = None,
     ))]
     pub fn pay_invoice(
         &self,
         invoice: String,
         fallback_amount_sats: Option<u64>,
         personal_note: Option<String>,
+        partner_pk: Option<String>,
+        partner_prop_fee_ppm: Option<i32>,
+        partner_base_fee_sats: Option<u64>,
     ) -> Result<Payment, FfiError> {
         let invoice =
             SdkInvoice::from_str(&invoice).context("Invalid invoice")?;
@@ -2154,14 +2221,26 @@ impl BlockingLexeWallet {
             .transpose()
             .context("Invalid fallback amount")?;
 
+        let partner_pk = partner_pk
+            .as_deref()
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner_pk")?;
+
+        let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
+
+        let partner_base_fee = partner_base_fee_sats
+            .map(SdkAmount::try_from_sats_u64)
+            .transpose()
+            .context("Invalid partner_base_fee")?;
+
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
             personal_note,
-            // TODO(nicole): propagate partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         };
         let resp = self.inner.pay_invoice(req)?;
         Ok(Payment::from(resp))
@@ -2332,22 +2411,50 @@ impl BlockingLexeWallet {
     /// `personal_note` is a private note that the receiver does not see. If
     /// provided, it must be non-empty and no longer than 200 chars / 512 UTF-8
     /// bytes.
+    /// `partner_pk` is the partner's user_pk for partner-set fees; must be set
+    /// in order for the other partner fee fields to take effect.
+    /// `partner_prop_fee_ppm` is the partner proportional fee in ppm.
+    /// `partner_base_fee_sats` is the partner base fee in satoshis.
+    /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
+    /// (500,000 ppm) of the payment amount.
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
     ///
     /// `pay_lnurl` is not currently idempotent. Each call will fetch and pay a
     /// different invoice.
-    #[uniffi::method(default(message = None, personal_note = None))]
+    #[uniffi::method(default(
+        message = None,
+        personal_note = None,
+        partner_pk = None,
+        partner_prop_fee_ppm = None,
+        partner_base_fee_sats = None,
+    ))]
     pub fn pay_lnurl(
         &self,
         lnurl: String,
         amount_sats: u64,
         message: Option<String>,
         personal_note: Option<String>,
+        partner_pk: Option<String>,
+        partner_prop_fee_ppm: Option<i32>,
+        partner_base_fee_sats: Option<u64>,
     ) -> Result<Payment, FfiError> {
         let amount = SdkAmount::try_from_sats_u64(amount_sats)
             .context("Invalid amount")?;
+
+        let partner_pk = partner_pk
+            .as_deref()
+            .map(UserPk::from_str)
+            .transpose()
+            .context("Invalid partner_pk")?;
+
+        let partner_prop_fee = partner_prop_fee_ppm.map(Ppm::new);
+
+        let partner_base_fee = partner_base_fee_sats
+            .map(SdkAmount::try_from_sats_u64)
+            .transpose()
+            .context("Invalid partner_base_fee")?;
 
         let req = SdkPayLnurlRequest {
             lnurl: Some(lnurl),
@@ -2355,10 +2462,9 @@ impl BlockingLexeWallet {
             amount,
             message,
             personal_note,
-            // TODO(nicole): propagate partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk,
+            partner_prop_fee,
+            partner_base_fee,
         };
         let resp = self.inner.pay_lnurl(req)?;
         Ok(Payment::from(resp))

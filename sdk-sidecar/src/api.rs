@@ -17,6 +17,7 @@ use lexe::{
         payment::{
             Order, PaymentCreatedIndex, PaymentFilter, PaymentUpdatedIndex,
         },
+        util::Ppm,
     },
     util::ed25519,
 };
@@ -144,6 +145,9 @@ pub struct PayLnurlRequest {
     pub amount: Amount,
     pub message: Option<String>,
     pub personal_note: Option<String>,
+    pub partner_pk: Option<UserPk>,
+    pub partner_prop_fee: Option<Ppm>,
+    pub partner_base_fee: Option<Amount>,
 }
 
 impl From<PayLnurlRequest> for SdkPayLnurlRequest {
@@ -154,10 +158,9 @@ impl From<PayLnurlRequest> for SdkPayLnurlRequest {
             amount: req.amount,
             message: req.message,
             personal_note: req.personal_note,
-            // TODO(nicole): propagate partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk: req.partner_pk,
+            partner_prop_fee: req.partner_prop_fee,
+            partner_base_fee: req.partner_base_fee,
         }
     }
 }

@@ -1077,15 +1077,15 @@ pub struct CreateInvoiceArgs {
     #[arg(
         long,
         help = "Partner user_pk for partner-set fees. Required for\n\
-        partner_prop_fee and partner_base_fee_sats to take effect."
+        partner_prop_fee and partner_base_fee_sats to take effect.\n\
+        The total partner fee must be at least 0.5% (5000 ppm) and\n\
+        less than 50% (500,000 ppm) of the payment amount."
     )]
     partner_pk: Option<UserPk>,
 
     #[arg(
         long,
-        help = "Partner proportional fee in ppm. Required if partner_pk is set.\n\
-        Min: 5000 (0.5%),\n\
-        Max: 500000 (50%)"
+        help = "Partner proportional fee in ppm. Required if partner_pk is set."
     )]
     partner_prop_fee: Option<Ppm>,
 
@@ -1185,6 +1185,27 @@ pub struct PayInvoiceArgs {
         Maximum length: 200 chars / 512 UTF-8 bytes."
     )]
     personal_note: Option<String>,
+
+    #[arg(
+        long,
+        help = "Partner user_pk for partner-set fees. Required for\n\
+        partner_prop_fee and partner_base_fee_sats to take effect.\n\
+        The total partner fee must be at least 0.5% (5000 ppm) and\n\
+        less than 50% (500,000 ppm) of the payment amount."
+    )]
+    partner_pk: Option<UserPk>,
+
+    #[arg(
+        long,
+        help = "Partner proportional fee in ppm, paid on top of routing fees."
+    )]
+    partner_prop_fee: Option<Ppm>,
+
+    #[arg(
+        long,
+        help = "Partner base fee in satoshis, paid on top of routing fees."
+    )]
+    partner_base_fee_sats: Option<Amount>,
 }
 
 impl PayInvoiceArgs {
@@ -1196,10 +1217,9 @@ impl PayInvoiceArgs {
             invoice,
             fallback_amount: self.fallback_amount_sats,
             personal_note: self.personal_note,
-            // TODO(nicole): propagate partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk: self.partner_pk,
+            partner_prop_fee: self.partner_prop_fee,
+            partner_base_fee: self.partner_base_fee_sats,
         };
         let payment = wallet
             .pay_invoice(req)
@@ -1541,6 +1561,27 @@ pub struct PayLnurlArgs {
             Maximum length: 200 chars / 512 UTF-8 bytes."
     )]
     personal_note: Option<String>,
+
+    #[arg(
+        long,
+        help = "Partner user_pk for partner-set fees. Required for\n\
+        partner_prop_fee and partner_base_fee_sats to take effect.\n\
+        The total partner fee must be at least 0.5% (5000 ppm) and\n\
+        less than 50% (500,000 ppm) of the payment amount."
+    )]
+    partner_pk: Option<UserPk>,
+
+    #[arg(
+        long,
+        help = "Partner proportional fee in ppm, paid on top of routing fees."
+    )]
+    partner_prop_fee: Option<Ppm>,
+
+    #[arg(
+        long,
+        help = "Partner base fee in satoshis, paid on top of routing fees."
+    )]
+    partner_base_fee_sats: Option<Amount>,
 }
 
 impl PayLnurlArgs {
@@ -1551,10 +1592,9 @@ impl PayLnurlArgs {
             amount: self.amount_sats,
             message: self.message,
             personal_note: self.personal_note,
-            // TODO(nicole): propagate partner fees
-            partner_pk: None,
-            partner_prop_fee: None,
-            partner_base_fee: None,
+            partner_pk: self.partner_pk,
+            partner_prop_fee: self.partner_prop_fee,
+            partner_base_fee: self.partner_base_fee_sats,
         };
         let payment =
             wallet.pay_lnurl(req).await.context("Failed to pay LNURL")?;

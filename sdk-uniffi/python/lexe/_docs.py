@@ -778,9 +778,11 @@ Args:
     personal_note: Optional personal note (not visible to the payer).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
     partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
-        Must be set for partner fee fields to take effect.
+        Must be set for partner fee fields to take effect. The total partner
+        fee must be at least 0.5% (5000 ppm) and less than 50% (500,000 ppm)
+        of the payment amount.
     partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm).
-        Must be set if ``partner_pk`` is set. Min: 5000, Max: 500000 (50%).
+        Must be set if ``partner_pk`` is set.
     partner_base_fee_sats: Partner base fee in satoshis. If set,
         ``amount_sats`` must also be set.
 
@@ -808,6 +810,14 @@ Args:
     fallback_amount_sats: Required if the invoice has no amount encoded.
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
+    partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
+        Must be set for partner fee fields to take effect. The total partner
+        fee must be at least 0.5% (5000 ppm) and less than 50% (500,000 ppm)
+        of the payment amount.
+    partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm),
+        paid on top of the routing fees.
+    partner_base_fee_sats: Partner base fee in satoshis, paid on top of the
+        routing fees.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal
@@ -962,6 +972,14 @@ Args:
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
+    partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
+        Must be set for partner fee fields to take effect. The total partner
+        fee must be at least 0.5% (5000 ppm) and less than 50% (500,000 ppm)
+        of the payment amount.
+    partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm),
+        paid on top of the routing fees.
+    partner_base_fee_sats: Partner base fee in satoshis, paid on top of the
+        routing fees.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal
@@ -1782,9 +1800,11 @@ Args:
     personal_note: Optional personal note (not visible to the payer).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
     partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
-        Must be set for partner fee fields to take effect.
+        Must be set for partner fee fields to take effect. The total partner
+        fee must be at least 0.5% (5000 ppm) and less than 50% (500,000 ppm)
+        of the payment amount.
     partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm).
-        Must be set if ``partner_pk`` is set. Min: 5000, Max: 500000 (50%).
+        Must be set if ``partner_pk`` is set.
     partner_base_fee_sats: Partner base fee in satoshis. If set,
         ``amount_sats`` must also be set.
 
@@ -1812,6 +1832,14 @@ Args:
     fallback_amount_sats: Required if the invoice has no amount encoded.
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
+    partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
+        Must be set for partner fee fields to take effect. The total partner
+        fee must be at least 0.5% (5000 ppm) and less than 50% (500,000 ppm)
+        of the payment amount.
+    partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm),
+        paid on top of the routing fees.
+    partner_base_fee_sats: Partner base fee in satoshis, paid on top of the
+        routing fees.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal
@@ -1966,6 +1994,14 @@ Args:
     personal_note: Optional personal note (not visible to the receiver).
         If provided, it must be non-empty and no longer than 200 chars /
         512 UTF-8 bytes.
+    partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
+        Must be set for partner fee fields to take effect. The total partner
+        fee must be at least 0.5% (5000 ppm) and less than 50% (500,000 ppm)
+        of the payment amount.
+    partner_prop_fee_ppm: Partner proportional fee in parts per million (ppm),
+        paid on top of the routing fees.
+    partner_base_fee_sats: Partner base fee in satoshis, paid on top of the
+        routing fees.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal
