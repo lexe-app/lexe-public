@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use anyhow::{Context, ensure};
 use lexe_api::{cli::node::VssProviderConfig, rest::RestClient};
-use lexe_common::{constants::timeout, env::DeployEnv, root_seed::RootSeed};
+use lexe_common::{constants, env::DeployEnv, root_seed::RootSeed};
 use lexe_crypto::rng::Crng;
 use lexe_tls::rustls;
 use lexe_tls_attest_server::{self as tls_attest, NodeMode};
@@ -44,8 +44,6 @@ pub(crate) struct VssProvider {
 }
 
 impl VssPersister {
-    const STORE_ID: &str = "lexe";
-
     /// Create a persister authenticated for this user and VSS provider.
     pub(crate) fn new(root_seed: &RootSeed, provider: &VssProvider) -> Self {
         let hostname =
@@ -73,7 +71,7 @@ impl VssPersister {
     ) -> anyhow::Result<()> {
         let request = Self::build_request(files);
         time::timeout(
-            timeout::TRANSIENT_ERROR_TOLERANCE,
+            constants::timeout::TRANSIENT_ERROR_TOLERANCE,
             self.client.put_object(&request),
         )
         .await
@@ -84,7 +82,7 @@ impl VssPersister {
 
     fn build_request(files: &mut BackupBatch) -> PutObjectRequest {
         let mut request = PutObjectRequest {
-            store_id: Self::STORE_ID.to_owned(),
+            store_id: constants::VSS_STORE_ID.to_owned(),
             global_version: None,
             transaction_items: Vec::new(),
             delete_items: Vec::new(),

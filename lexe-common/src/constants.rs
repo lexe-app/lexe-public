@@ -170,6 +170,12 @@ pub const TESTNET3_ESPLORA_WHITELIST: [&str; 5] = [
     TESTNET3_LTBL_ESPLORA,
 ];
 
+// --- VSS --- //
+
+/// VSS store ID for Lightning node state (channel manager, channel monitors,
+/// archived channels, unspendable closed channel outputs).
+pub const VSS_STORE_ID: &str = "lexe-ln";
+
 // --- Root CA certs --- //
 //
 // This section contains DER-encoded TLS certs for the root CAs used by various

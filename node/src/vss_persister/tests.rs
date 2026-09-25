@@ -19,7 +19,7 @@ fn batch_to_request() {
     ]);
     let request = VssPersister::build_request(&mut files);
     assert!(files.is_empty());
-    assert_eq!(request.store_id, "lexe");
+    assert_eq!(request.store_id, constants::VSS_STORE_ID);
     assert_eq!(request.global_version, None);
     let mut puts = request.transaction_items;
     puts.sort_unstable_by(|a, b| a.key.cmp(&b.key));
@@ -129,7 +129,7 @@ async fn provider_roundtrip(
     let persister = VssPersister::new(&root_seed, &provider);
     let id = VfsFileId::new("vss-test", "backup");
     let request = GetObjectRequest {
-        store_id: VssPersister::STORE_ID.to_owned(),
+        store_id: constants::VSS_STORE_ID.to_owned(),
         key: id.to_string(),
     };
 
