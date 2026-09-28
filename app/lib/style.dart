@@ -396,6 +396,11 @@ final class LxTheme {
   }
 }
 
+/// Lexe's color palette.
+///
+/// Mirrored by `www/theme/assets/stylesheets/tokens.css`, which the
+/// websites style themselves from. Keep the two in sync when adding or
+/// changing a color here.
 final class LxColors {
   LxColors._();
 
