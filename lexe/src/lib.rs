@@ -4,7 +4,7 @@
 // NOTE: Docs for all stable APIs (i.e. all public items accessible via this
 // crate) must be written for consumption by external users.
 //
-// Preview the public API rustdoc: `$ just docs-build-rustdoc --open`
+// Preview the public API rustdoc: `$ just www-build-rustdoc --open`
 //
 // - Internal-facing documentation can still be written for public items, but
 //   should be placed in `//` comments, not `///` comments, to avoid being
