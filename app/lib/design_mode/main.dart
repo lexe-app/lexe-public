@@ -92,6 +92,8 @@ import 'package:lexeapp/route/initial_deposit/page.dart'
     show InitialDepositPage, InitialDepositSuccessPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
+import 'package:lexeapp/route/onchain_descriptors.dart'
+    show OnchainDescriptorsPage;
 import 'package:lexeapp/route/open_channel.dart'
     show OpenChannelConfirmPage, OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
@@ -1199,6 +1201,17 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           app: mockApp,
         );
       }),
+      Component(
+        "OnchainDescriptorsPage",
+        (_) => OnchainDescriptorsPage(app: mockApp),
+        sublist: [
+          Component(
+            "OnchainDescriptorsPage",
+            subtitle: "error",
+            (_) => OnchainDescriptorsPage(app: mockAppErr),
+          ),
+        ],
+      ),
       Component(
         "SecurityPage",
         subtitle: "gdrive connected",

@@ -23,6 +23,8 @@ import 'package:app_rs_dart/ffi/api.dart'
         GetHumanBitcoinAddressResponse,
         ListChannelsResponse,
         NodeInfo,
+        OnchainDescriptors,
+        OnchainDescriptorsInfo,
         OpenChannelPreflightRequest,
         OpenChannelPreflightResponse,
         OpenChannelRequest,
@@ -403,6 +405,35 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
+  Future<OnchainDescriptorsInfo> onchainDescriptors() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => const OnchainDescriptorsInfo(
+      current: OnchainDescriptors(
+        multipathDescriptor:
+            "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/<0;1>/*)#c8v4zjyh",
+        externalDescriptor:
+            "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/0/*)#dwvchw0k",
+        internalDescriptor:
+            "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/1/*)#u6fe2mlw",
+        accountXpub:
+            "xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA",
+      ),
+      legacy: null,
+      // // Uncomment to see page also with legacy descriptors.
+      // legacy: OnchainDescriptors(
+      //   multipathDescriptor:
+      //       "wpkh([73c5da0a/84'/0'/0']xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)#hpg6d6w2",
+      //   externalDescriptor:
+      //       "wpkh([73c5da0a/84'/0'/0']xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/0/*)#wc3n3van",
+      //   internalDescriptor:
+      //       "wpkh([73c5da0a/84'/0'/0']xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/1/*)#lv5jvedt",
+      //   accountXpub:
+      //       "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
+      // ),
+    ),
+  );
+
+  @override
   Future<BackupInfo> backupInfo() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => BackupInfo(gdriveStatus: this.gDriveStatus),
@@ -674,6 +705,14 @@ class MockAppHandleErr extends MockAppHandle {
   Future<BackupInfo> backupInfo() => Future.delayed(
     const Duration(milliseconds: 1000),
     () => BackupInfo(gdriveStatus: GDriveStatus.error("")),
+  );
+
+  @override
+  Future<OnchainDescriptorsInfo> onchainDescriptors() => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to get wallet descriptors",
+    ).toFfi(),
   );
 
   @override

@@ -74,11 +74,16 @@ abstract final class LxShare {
   static Future<void> shareHumanBitcoinAddress(
     BuildContext context,
     String address,
-  ) async {
+  ) {
+    return LxShare.sharePlaintext(context, "Pay me at $address");
+  }
+
+  /// Share unstructured plain text. Supported on all platforms.
+  static Future<void> sharePlaintext(BuildContext context, String text) async {
     final box = context.findRenderObject() as RenderBox?;
     final origin = box!.localToGlobal(Offset.zero) & box.size;
 
-    final result = await LxShare._tryShareHbaAsPlaintext(address, origin);
+    final result = await LxShare._trySharePlaintext(text, origin);
     if (!context.mounted) return;
 
     switch (result) {
@@ -150,22 +155,22 @@ abstract final class LxShare {
     }
   }
 
-  static Future<ShareResultStatus> _tryShareHbaAsPlaintext(
-    String address,
+  static Future<ShareResultStatus> _trySharePlaintext(
+    String text,
     Rect origin,
   ) async {
     final result = await Result.tryAsync<ShareResult, Exception>(
       () => SharePlus.instance.share(
-        ShareParams(text: "Pay me at $address", sharePositionOrigin: origin),
+        ShareParams(text: text, sharePositionOrigin: origin),
       ),
     );
 
     switch (result) {
       case Ok(:final ok):
-        info("LxShare: share HBA: ok: $ok");
+        info("LxShare: share: ok: $ok");
         return ok.status;
       case Err(:final err):
-        warn("LxShare: share HBA: err: $err");
+        warn("LxShare: share: err: $err");
         return ShareResultStatus.unavailable;
     }
   }

@@ -16,6 +16,8 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SubheadingText;
 import 'package:lexeapp/result.dart' show Result;
+import 'package:lexeapp/route/onchain_descriptors.dart'
+    show OnchainDescriptorsPage;
 import 'package:lexeapp/route/raw_data.dart' show RawDataPage;
 import 'package:lexeapp/style.dart' show Space;
 
@@ -54,6 +56,15 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
           subtitle: "All on-chain transactions your node has ever broadcast",
           data: this.listBroadcastedTxs(),
         ),
+      ),
+    );
+  }
+
+  /// Called when "Export wallet descriptors" button is pressed.
+  void onDescriptorsTap() {
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => OnchainDescriptorsPage(app: this.widget.app),
       ),
     );
   }
@@ -137,6 +148,16 @@ class _NodeInfoPageState extends State<NodeInfoPage> {
               InfoRow(
                 label: "Proof-of-Possession",
                 value: userInfo.nodePkProof,
+              ),
+            ],
+          ),
+
+          InfoCard(
+            header: const Text("On-chain wallet"),
+            children: [
+              InfoRowButton(
+                label: const Text("Export wallet descriptors"),
+                onTap: this.onDescriptorsTap,
               ),
             ],
           ),
