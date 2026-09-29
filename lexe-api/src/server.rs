@@ -10,6 +10,8 @@
 //! shedding, concurrency limits, server-side timeouts, TLS, and graceful
 //! shutdown:
 //!
+//! - [`build_service`] / [`build_service_unboxed`] for middleware composition
+//! - [`serve_with_listener`] for serving a composed service
 //! - [`build_server_fut`]
 //! - [`build_server_fut_with_listener`]
 //! - [`spawn_server_task`]
@@ -36,6 +38,9 @@
 //! [`LxJson`]: crate::server::LxJson
 //! [`LxQuery`]: crate::server::extract::LxQuery
 //! [`LxRejection`]: crate::server::LxRejection
+//! [`build_service`]: crate::server::build_service
+//! [`build_service_unboxed`]: crate::server::build_service_unboxed
+//! [`serve_with_listener`]: crate::server::serve_with_listener
 //! [`build_server_fut`]: crate::server::build_server_fut
 //! [`build_server_fut_with_listener`]: crate::server::build_server_fut_with_listener
 //! [`spawn_server_task`]: crate::server::spawn_server_task
@@ -55,6 +60,7 @@ use std::{
 use anyhow::Context;
 use axum::{
     Router,
+    body::Body,
     error_handling::HandleErrorLayer,
     extract::{
         DefaultBodyLimit, FromRequest, OptionalFromRequest,
@@ -80,12 +86,12 @@ use lexe_crypto::ed25519;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use serde::{Serialize, de::DeserializeOwned};
 use tower::{
-    Layer,
+    Layer, Service,
     buffer::BufferLayer,
     limit::ConcurrencyLimitLayer,
     load_shed::LoadShedLayer,
     timeout::TimeoutLayer,
-    util::{Either, MapRequestLayer},
+    util::{BoxCloneService, Either, MapRequestLayer},
 };
 use tower_http::add_extension::{AddExtension, AddExtensionLayer};
 use tracing::{Instrument, debug, error, info, warn};
@@ -94,6 +100,10 @@ use crate::{tls_acceptor::CertInjectorAcceptor, trace};
 
 /// Server-side helpers for the enforcement of client auth scopes.
 pub mod client_authz;
+
+/// A composed HTTP service, boxed once before serving.
+pub type HttpService =
+    BoxCloneService<http::Request<Body>, http::Response<Body>, Infallible>;
 
 /// A configuration object for Axum / Tower middleware.
 ///
@@ -274,15 +284,44 @@ pub fn build_server_fut_with_listener(
     server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
-    mut shutdown: NotifyOnce,
+    shutdown: NotifyOnce,
 ) -> anyhow::Result<(impl Future<Output = ()> + use<>, String)> {
-    let (maybe_tls_config, maybe_dns) = maybe_tls_and_dns.unzip();
-    let listener_addr = listener
-        .local_addr()
-        .context("Could not get listener local address")?;
-    let primary_server_url = build_server_url(listener_addr, maybe_dns);
-    info!("Url for {server_span_name}: {primary_server_url}");
+    let inject_client_addr = layer_config.inject_client_addr;
+    let service = build_service(router, layer_config, server_span.clone());
+    serve_with_listener(
+        listener,
+        service,
+        inject_client_addr,
+        maybe_tls_and_dns,
+        server_span_name,
+        server_span,
+        shutdown,
+    )
+}
 
+/// Builds shared middleware and boxes the resulting service once.
+pub fn build_service(
+    router: Router,
+    layer_config: LayerConfig,
+    server_span: tracing::Span,
+) -> HttpService {
+    HttpService::new(build_service_unboxed(router, layer_config, server_span))
+}
+
+/// Builds shared middleware for further composition before boxing.
+/// Clones share the buffer and concurrency limit across all routes.
+pub fn build_service_unboxed(
+    router: Router,
+    layer_config: LayerConfig,
+    server_span: tracing::Span,
+) -> impl Service<
+    http::Request<Body>,
+    Response = http::Response<Body>,
+    Error = Infallible,
+    Future: Send,
+> + Clone
++ Send
++ 'static {
     // Add Lexe's default fallback if it is enabled in the LayerConfig.
     let router = if layer_config.default_fallback {
         router.fallback(default_fallback)
@@ -295,7 +334,6 @@ pub fn build_server_fut_with_listener(
     type AxumService = RouterIntoService<axum::body::Body, ()>;
     type BoxErrAxumService =
         tower::util::MapErr<AxumService, fn(Infallible) -> tower::BoxError>;
-    type HyperReq = http::Request<hyper::body::Incoming>;
     type AxumReq = http::Request<axum::body::Body>;
     type AxumResp = http::Response<axum::body::Body>;
     type TraceResp = http::Response<
@@ -312,11 +350,6 @@ pub fn build_server_fut_with_listener(
     /// Used to match the error types of `option_layer` (`Either`) branches.
     fn infallible_to_box_error(never: Infallible) -> tower::BoxError {
         match never {}
-    }
-
-    /// Convert a hyper request body into an [`axum::body::Body`].
-    fn into_axum_request(request: HyperReq) -> AxumReq {
-        request.map(axum::body::Body::new)
     }
 
     async fn handle_capacity_error(error: tower::BoxError) -> CommonApiError {
@@ -353,9 +386,6 @@ pub fn build_server_fut_with_listener(
             middleware::post_process_response,
         ))
         .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
-        // Adapt Hyper's request body once, before entering the shared service.
-        .layer(MapRequestLayer::new(into_axum_request))
-        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
         // Quickly reject oversized bodies before they consume service capacity.
         // Only rejects requests with a content-length header. Rejecting
         // streamed requests happens below.
@@ -363,35 +393,35 @@ pub fn build_server_fut_with_listener(
             layer_config.body_limit,
             middleware::check_content_length_header,
         ))
-        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
         // Handles errors from the load shed, buffer, and concurrency layers.
         .layer(HandleErrorLayer::new(handle_capacity_error))
-        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<BoxErrAxumService, AxumReq, TraceResp, Infallible>()
         // Returns an `Err` if the inner service returns `Poll::Pending`.
         // Helps prevent OOM when combined with the buffer or concurrency layer.
         .option_layer(layer_config.load_shed.then(LoadShedLayer::new))
-        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<BoxErrAxumService, AxumReq, TraceResp, Infallible>()
         // Returns Poll::Pending when the buffer is full (backpressure).
         // Allows the server to immediately work on more queued requests when a
         // request completes, and prevents a large backlog from building up.
         .option_layer(layer_config.buffer_size.map(BufferLayer::new))
-        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<BoxErrAxumService, AxumReq, TraceResp, Infallible>()
         // Returns `Poll::Pending` when the concurrency limit has been reached.
         // Bounds memory held by in-flight requests, and provides the
         // backpressure which triggers load shedding under overload.
         .option_layer(layer_config.concurrency.map(ConcurrencyLimitLayer::new))
-        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<BoxErrAxumService, AxumReq, TraceResp, Infallible>()
         .map_err(infallible_to_box_error)
-        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
         // Handles errors generated by the timeout layer.
         .layer(HandleErrorLayer::new(handle_timeout_error))
-        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<BoxErrAxumService, AxumReq, TraceResp, Infallible>()
         // Starts after a request leaves the buffer so queue time does not use
         // up the request's handling allowance.
         .option_layer(layer_config.handling_timeout.map(TimeoutLayer::new))
-        .check_service::<BoxErrAxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<BoxErrAxumService, AxumReq, TraceResp, Infallible>()
         .map_err(infallible_to_box_error)
-        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
         // Set the default request body limit for all requests. This adds a
         // `DefaultBodyLimitKind` (private axum type) into the request
         // extensions so that any inner layers or extractors which call
@@ -404,20 +434,48 @@ pub fn build_server_fut_with_listener(
                 .map(DefaultBodyLimit::max)
                 .unwrap_or_else(DefaultBodyLimit::disable),
         )
-        .check_service::<AxumService, HyperReq, TraceResp, Infallible>()
+        .check_service::<AxumService, AxumReq, TraceResp, Infallible>()
         // Here, we explicitly apply the body limit from the request extensions,
         // transforming the request body type into `http_body_util::Limited`.
         .layer(MapRequestLayer::new(axum::RequestExt::with_limited_body))
-        .check_service::<AxumService, HyperReq, TraceResp, Infallible>();
+        .check_service::<AxumService, AxumReq, TraceResp, Infallible>();
 
     // Convert Router into Service
     let router_service = router.into_service::<axum::body::Body>();
     // Apply our middleware
-    let layered_service = Layer::layer(&middleware, router_service);
+    let service = Layer::layer(&middleware, router_service);
+    tower::util::MapResponseLayer::new(|response: TraceResp| {
+        response.map(Body::new)
+    })
+    .layer(service)
+}
+
+/// Serves a composed service with TLS and graceful shutdown.
+pub fn serve_with_listener(
+    listener: TcpListener,
+    service: HttpService,
+    inject_client_addr: bool,
+    maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
+    server_span_name: &str,
+    server_span: tracing::Span,
+    mut shutdown: NotifyOnce,
+) -> anyhow::Result<(impl Future<Output = ()> + use<>, String)> {
+    let (maybe_tls_config, maybe_dns) = maybe_tls_and_dns.unzip();
+    let listener_addr = listener
+        .local_addr()
+        .context("Could not get listener local address")?;
+    let primary_server_url = build_server_url(listener_addr, maybe_dns);
+    info!("Url for {server_span_name}: {primary_server_url}");
+
+    // Adapt Hyper's body before entering the composed service.
+    let service = MapRequestLayer::new(
+        |request: http::Request<hyper::body::Incoming>| request.map(Body::new),
+    )
+    .layer(service);
     // Convert into MakeService
     let make_service = LxMakeService {
-        service: layered_service,
-        inject_client_addr: layer_config.inject_client_addr,
+        service,
+        inject_client_addr,
     };
 
     let handle = axum_server::Handle::new();
