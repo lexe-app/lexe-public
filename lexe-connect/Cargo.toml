@@ -1,0 +1,70 @@
+[package]
+name = "lexe-connect"
+version = "0.1.24"
+license = "MIT"
+description = "LexeConnect: one-tap sharing of Lexe wallet credentials"
+documentation = "https://docs.rs/lexe-connect"
+authors = { workspace = true }
+edition = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+exclude = [
+    "/test_data"
+]
+publish = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["crypto", "http"]
+# Sealing and opening responses: the REQUESTER side and the WALLET's `respond`.
+# Without it, the crate is types only.
+crypto = ["lexe-crypto/hpke"]
+# HTTP delivery for the WALLET and a mailbox client for the REQUESTER.
+http = ["dep:anyhow", "dep:lexe-tls-core", "dep:reqwest", "dep:rustls", "dep:tokio"]
+# Enables various test hooks and utilities. Should be disabled in staging/prod.
+test-utils = [
+    "dep:proptest",
+    "lexe-common/test-utils",
+]
+
+[dependencies]
+
+# --- LEXE --- #
+
+lexe-byte-array = { workspace = true }
+lexe-common = { workspace = true }
+lexe-crypto = { workspace = true }
+lexe-serde = { workspace = true }
+lexe-sha256 = { workspace = true }
+lexe-uri = { workspace = true }
+
+# --- WORKSPACE --- #
+
+base64 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+thiserror = { workspace = true }
+
+# --- OPTIONAL --- #
+
+anyhow = { optional = true, workspace = true }
+lexe-tls-core = { optional = true, workspace = true, features = ["webpki-roots"] }
+proptest = { optional = true, workspace = true, features = ["alloc"] }
+reqwest = { optional = true, workspace = true }
+rustls = { optional = true, workspace = true }
+tokio = { optional = true, workspace = true, features = ["time"] }
+
+[dev-dependencies]
+axum = { workspace = true }
+lexe-api = { workspace = true }
+lexe-common = { workspace = true, features = ["test-utils"] }
+lexe-hex = { workspace = true }
+rand_core = { workspace = true }
+lexe-tokio = { workspace = true }
+proptest = { workspace = true, features = ["alloc"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing = { workspace = true }

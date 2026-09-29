@@ -2885,6 +2885,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "lexe-connect"
+version = "0.1.24"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.21.7",
+ "lexe-api",
+ "lexe-byte-array",
+ "lexe-common",
+ "lexe-crypto",
+ "lexe-hex",
+ "lexe-serde",
+ "lexe-sha256",
+ "lexe-tls-core",
+ "lexe-tokio",
+ "lexe-uri",
+ "proptest",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "lexe-crypto"
 version = "0.1.24"
 dependencies = [
@@ -5192,7 +5220,7 @@ dependencies = [
  "base64 0.21.7",
  "hmac-sha256",
  "http",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "time",
 ]
 

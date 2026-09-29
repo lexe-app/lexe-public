@@ -11,6 +11,7 @@ members = [
     "lexe-byte-array",
     "lexe-cli",
     "lexe-common",
+    "lexe-connect",
     "lexe-crypto",
     "lexe-enclave",
     "lexe-hex",
@@ -86,6 +87,7 @@ lexe-api = { version = "0.1.24", path = "lexe-api" }
 lexe-api-core = { version = "0.1.24", path = "lexe-api-core" }
 lexe-byte-array = { version = "0.1.24", path = "lexe-byte-array" }
 lexe-common = { version = "0.1.24", path = "lexe-common" }
+lexe-connect = { version = "0.1.24", path = "lexe-connect", default-features = false }
 lexe-crypto = { version = "0.1.24", path = "lexe-crypto" }
 lexe-enclave = { version = "0.1.24", path = "lexe-enclave" }
 lexe-hex = { version = "0.1.24", path = "lexe-hex" }
