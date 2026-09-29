@@ -176,6 +176,10 @@ class AppHandle {
   Future<NodeInfo> nodeInfo() =>
       AppRs.instance.api.crateFfiAppAppHandleNodeInfo(that: this);
 
+  /// Get the on-chain wallet's output descriptors.
+  Future<OnchainDescriptorsInfo> onchainDescriptors() =>
+      AppRs.instance.api.crateFfiAppAppHandleOnchainDescriptors(that: this);
+
   Future<OpenChannelResponse> openChannel({required OpenChannelRequest req}) =>
       AppRs.instance.api.crateFfiAppAppHandleOpenChannel(that: this, req: req);
 

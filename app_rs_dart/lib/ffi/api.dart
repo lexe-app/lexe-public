@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_client_payment_id_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -179,6 +179,29 @@ sealed class NodeInfo with _$NodeInfo {
     required String measurement,
     required Balance balance,
   }) = _NodeInfo;
+}
+
+/// BIP84 wpkh output descriptors, with origin info and checksums.
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class OnchainDescriptors with _$OnchainDescriptors {
+  const factory OnchainDescriptors({
+    required String multipathDescriptor,
+    required String externalDescriptor,
+    required String internalDescriptor,
+    required String accountXpub,
+  }) = _OnchainDescriptors;
+}
+
+/// The on-chain wallet's output descriptors, for watch-only import.
+/// `legacy` is set for nodes with a legacy wallet (created <= node-v0.9.2).
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class OnchainDescriptorsInfo with _$OnchainDescriptorsInfo {
+  const factory OnchainDescriptorsInfo({
+    required OnchainDescriptors current,
+    OnchainDescriptors? legacy,
+  }) = _OnchainDescriptorsInfo;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")

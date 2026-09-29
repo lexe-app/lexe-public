@@ -41,14 +41,15 @@ use crate::ffi::{
         CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
         CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
         FiatRates, GetHumanBitcoinAddressResponse, ListChannelsResponse,
-        NodeInfo, OpenChannelPreflightRequest, OpenChannelPreflightResponse,
-        OpenChannelRequest, OpenChannelResponse, PayInvoicePreflightRequest,
-        PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
-        PayOfferPreflightRequest, PayOfferPreflightResponse, PayOfferRequest,
-        PayOfferResponse, PayOnchainPreflightRequest,
-        PayOnchainPreflightResponse, PayOnchainRequest, PayOnchainResponse,
-        RevokeClientRequest, UpdatePersonalNote, UpdateUserSettingsRequest,
-        UserSettings, WithdrawLnurlRequest,
+        NodeInfo, OnchainDescriptorsInfo, OpenChannelPreflightRequest,
+        OpenChannelPreflightResponse, OpenChannelRequest, OpenChannelResponse,
+        PayInvoicePreflightRequest, PayInvoicePreflightResponse,
+        PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
+        PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
+        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+        PayOnchainRequest, PayOnchainResponse, RevokeClientRequest,
+        UpdatePersonalNote, UpdateUserSettingsRequest, UserSettings,
+        WithdrawLnurlRequest,
     },
     app_data::AppDataDb,
     settings::SettingsDb,
@@ -204,6 +205,19 @@ impl AppHandle {
             .node_info()
             .await
             .map(NodeInfo::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    /// Get the on-chain wallet's output descriptors.
+    #[instrument(skip_all, name = "(onchain-descriptors)")]
+    pub async fn onchain_descriptors(
+        &self,
+    ) -> anyhow::Result<OnchainDescriptorsInfo> {
+        self.inner
+            .node_client()?
+            .debug_info()
+            .await
+            .map(OnchainDescriptorsInfo::from)
             .map_err(anyhow::Error::new)
     }
 

@@ -23,9 +23,10 @@ use lexe_api::{
         CreateInvoiceRequest as CreateInvoiceRequestRs,
         CreateInvoiceResponse as CreateInvoiceResponseRs,
         CreateOfferRequest as CreateOfferRequestRs,
-        CreateOfferResponse as CreateOfferResponseRs,
+        CreateOfferResponse as CreateOfferResponseRs, DebugInfo as DebugInfoRs,
         FeeEstimate as FeeEstimateRs,
         ListChannelsResponse as ListChannelsResponseRs, NodeInfo as NodeInfoRs,
+        OnchainDescriptors as OnchainDescriptorsRs,
         OpenChannelPreflightRequest as OpenChannelPreflightRequestRs,
         OpenChannelPreflightResponse as OpenChannelPreflightResponseRs,
         OpenChannelRequest as OpenChannelRequestRs,
@@ -88,6 +89,47 @@ impl From<NodeInfoRs> for NodeInfo {
             version: info.version.to_string(),
             measurement: info.measurement.to_string(),
             balance,
+        }
+    }
+}
+
+/// The on-chain wallet's output descriptors, for watch-only import.
+/// `legacy` is set for nodes with a legacy wallet (created <= node-v0.9.2).
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct OnchainDescriptorsInfo {
+    pub current: OnchainDescriptors,
+    pub legacy: Option<OnchainDescriptors>,
+}
+
+impl From<DebugInfoRs> for OnchainDescriptorsInfo {
+    fn from(info: DebugInfoRs) -> Self {
+        Self {
+            current: OnchainDescriptors::from(info.descriptors),
+            legacy: info.legacy_descriptors.map(OnchainDescriptors::from),
+        }
+    }
+}
+
+/// BIP84 wpkh output descriptors, with origin info and checksums.
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct OnchainDescriptors {
+    /// BIP389 multipath descriptor for both keychains.
+    pub multipath_descriptor: String,
+    /// External (receive) keychain descriptor.
+    pub external_descriptor: String,
+    /// Internal (change) keychain descriptor.
+    pub internal_descriptor: String,
+    /// Account-level xpub at `m/84'/{coin}'/0'`.
+    pub account_xpub: String,
+}
+
+impl From<OnchainDescriptorsRs> for OnchainDescriptors {
+    fn from(descriptors: OnchainDescriptorsRs) -> Self {
+        Self {
+            multipath_descriptor: descriptors.multipath_descriptor,
+            external_descriptor: descriptors.external_descriptor,
+            internal_descriptor: descriptors.internal_descriptor,
+            account_xpub: descriptors.account_xpub.to_string(),
         }
     }
 }

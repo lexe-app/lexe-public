@@ -1011,6 +1011,130 @@ String toString() {
 
 
 /// @nodoc
+mixin _$OnchainDescriptors {
+
+ String get multipathDescriptor; String get externalDescriptor; String get internalDescriptor; String get accountXpub;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnchainDescriptors&&(identical(other.multipathDescriptor, multipathDescriptor) || other.multipathDescriptor == multipathDescriptor)&&(identical(other.externalDescriptor, externalDescriptor) || other.externalDescriptor == externalDescriptor)&&(identical(other.internalDescriptor, internalDescriptor) || other.internalDescriptor == internalDescriptor)&&(identical(other.accountXpub, accountXpub) || other.accountXpub == accountXpub));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,multipathDescriptor,externalDescriptor,internalDescriptor,accountXpub);
+
+@override
+String toString() {
+  return 'OnchainDescriptors(multipathDescriptor: $multipathDescriptor, externalDescriptor: $externalDescriptor, internalDescriptor: $internalDescriptor, accountXpub: $accountXpub)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _OnchainDescriptors implements OnchainDescriptors {
+  const _OnchainDescriptors({required this.multipathDescriptor, required this.externalDescriptor, required this.internalDescriptor, required this.accountXpub});
+  
+
+@override final  String multipathDescriptor;
+@override final  String externalDescriptor;
+@override final  String internalDescriptor;
+@override final  String accountXpub;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnchainDescriptors&&(identical(other.multipathDescriptor, multipathDescriptor) || other.multipathDescriptor == multipathDescriptor)&&(identical(other.externalDescriptor, externalDescriptor) || other.externalDescriptor == externalDescriptor)&&(identical(other.internalDescriptor, internalDescriptor) || other.internalDescriptor == internalDescriptor)&&(identical(other.accountXpub, accountXpub) || other.accountXpub == accountXpub));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,multipathDescriptor,externalDescriptor,internalDescriptor,accountXpub);
+
+@override
+String toString() {
+  return 'OnchainDescriptors(multipathDescriptor: $multipathDescriptor, externalDescriptor: $externalDescriptor, internalDescriptor: $internalDescriptor, accountXpub: $accountXpub)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$OnchainDescriptorsInfo {
+
+ OnchainDescriptors get current; OnchainDescriptors? get legacy;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnchainDescriptorsInfo&&(identical(other.current, current) || other.current == current)&&(identical(other.legacy, legacy) || other.legacy == legacy));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,current,legacy);
+
+@override
+String toString() {
+  return 'OnchainDescriptorsInfo(current: $current, legacy: $legacy)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _OnchainDescriptorsInfo implements OnchainDescriptorsInfo {
+  const _OnchainDescriptorsInfo({required this.current, this.legacy});
+  
+
+@override final  OnchainDescriptors current;
+@override final  OnchainDescriptors? legacy;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnchainDescriptorsInfo&&(identical(other.current, current) || other.current == current)&&(identical(other.legacy, legacy) || other.legacy == legacy));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,current,legacy);
+
+@override
+String toString() {
+  return 'OnchainDescriptorsInfo(current: $current, legacy: $legacy)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$OpenChannelPreflightRequest {
 
  int get valueSats;

@@ -225,6 +225,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Onchain dco_decode_box_autoadd_onchain(dynamic raw);
 
   @protected
+  OnchainDescriptors dco_decode_box_autoadd_onchain_descriptors(dynamic raw);
+
+  @protected
   OpenChannelPreflightRequest
   dco_decode_box_autoadd_open_channel_preflight_request(dynamic raw);
 
@@ -456,6 +459,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Onchain dco_decode_onchain(dynamic raw);
 
   @protected
+  OnchainDescriptors dco_decode_onchain_descriptors(dynamic raw);
+
+  @protected
+  OnchainDescriptorsInfo dco_decode_onchain_descriptors_info(dynamic raw);
+
+  @protected
   OpenChannelPreflightRequest dco_decode_open_channel_preflight_request(
     dynamic raw,
   );
@@ -508,6 +517,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   OnboardingStatus? dco_decode_opt_box_autoadd_onboarding_status(dynamic raw);
+
+  @protected
+  OnchainDescriptors? dco_decode_opt_box_autoadd_onchain_descriptors(
+    dynamic raw,
+  );
 
   @protected
   Payment? dco_decode_opt_box_autoadd_payment(dynamic raw);
@@ -861,6 +875,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Onchain sse_decode_box_autoadd_onchain(SseDeserializer deserializer);
 
   @protected
+  OnchainDescriptors sse_decode_box_autoadd_onchain_descriptors(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   OpenChannelPreflightRequest
   sse_decode_box_autoadd_open_channel_preflight_request(
     SseDeserializer deserializer,
@@ -1154,6 +1173,16 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Onchain sse_decode_onchain(SseDeserializer deserializer);
 
   @protected
+  OnchainDescriptors sse_decode_onchain_descriptors(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OnchainDescriptorsInfo sse_decode_onchain_descriptors_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   OpenChannelPreflightRequest sse_decode_open_channel_preflight_request(
     SseDeserializer deserializer,
   );
@@ -1220,6 +1249,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   OnboardingStatus? sse_decode_opt_box_autoadd_onboarding_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OnchainDescriptors? sse_decode_opt_box_autoadd_onchain_descriptors(
     SseDeserializer deserializer,
   );
 
@@ -1640,6 +1674,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_box_autoadd_onchain(Onchain self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_onchain_descriptors(
+    OnchainDescriptors self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_open_channel_preflight_request(
     OpenChannelPreflightRequest self,
     SseSerializer serializer,
@@ -1994,6 +2034,18 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_onchain(Onchain self, SseSerializer serializer);
 
   @protected
+  void sse_encode_onchain_descriptors(
+    OnchainDescriptors self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_onchain_descriptors_info(
+    OnchainDescriptorsInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_open_channel_preflight_request(
     OpenChannelPreflightRequest self,
     SseSerializer serializer,
@@ -2071,6 +2123,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_onboarding_status(
     OnboardingStatus? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_onchain_descriptors(
+    OnchainDescriptors? self,
     SseSerializer serializer,
   );
 
