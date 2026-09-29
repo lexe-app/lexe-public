@@ -361,24 +361,11 @@ impl WebhookSender {
                 return Ok(());
             }
 
-            // Get the tracking state or create a new one;
-            // From finalization check above, time-wise:
-            //   old_cursor <= now < finalization of new payment
-            // meaning we don't need to update the cursor.
-            let wallet_key = WalletKey::from(&req.creds_or_default);
-            self.tracked_wallets.entry(wallet_key).or_insert_with(|| {
-                WalletState {
-                    creds_or_default: req.creds_or_default,
-                    cursor: PaymentUpdatedIndex {
-                        id: req.payment_created_index.id,
-                        // Set updated_at to current payment created_at
-                        updated_at: req.payment_created_index.created_at,
-                    },
-                    tracked_payments: HashSet::from(
-                        [req.payment_created_index],
-                    ),
-                }
-            });
+            Self::track_payment(
+                &mut self.tracked_wallets,
+                req.creds_or_default,
+                req.payment_created_index,
+            );
 
             Ok(())
         };
@@ -390,6 +377,31 @@ impl WebhookSender {
                  {payment_created_index}: {e:#}"
             );
         }
+    }
+
+    /// Add a not-yet-finalized payment to its wallet's tracking state,
+    /// creating the wallet state if this is the wallet's first tracked payment.
+    ///
+    /// An existing wallet's cursor is left as is: the payment isn't finalized
+    /// yet, so its finalizing update must come after the cursor.
+    fn track_payment(
+        tracked_wallets: &mut HashMap<WalletKey, WalletState>,
+        creds_or_default: CredentialsOrDefault,
+        payment_created_index: PaymentCreatedIndex,
+    ) {
+        let wallet_key = WalletKey::from(&creds_or_default);
+        tracked_wallets
+            .entry(wallet_key)
+            .or_insert_with(|| WalletState {
+                creds_or_default,
+                cursor: PaymentUpdatedIndex {
+                    id: payment_created_index.id,
+                    updated_at: payment_created_index.created_at,
+                },
+                tracked_payments: HashSet::new(),
+            })
+            .tracked_payments
+            .insert(payment_created_index);
     }
 
     /// Poll all tracked wallets for payment updates and send webhooks.
@@ -708,5 +720,34 @@ impl WebhookSender {
             }
         };
         Ok(wallet)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use lexe::types::payment::PaymentId;
+    use lexe_common::ByteArray;
+
+    use super::*;
+
+    /// Tracking a second open payment for an already-tracked wallet must add
+    /// it to the existing state rather than dropping it.
+    #[test]
+    fn track_payment_accumulates_per_wallet() {
+        let user_pk = UserPk::from_array([1; 32]);
+        let creds = || CredentialsOrDefault::Default(user_pk);
+        let index = |secs: u32| PaymentCreatedIndex {
+            created_at: TimestampMs::from_secs_u32(secs),
+            id: PaymentId::MIN,
+        };
+        let mut tracked_wallets = HashMap::new();
+
+        WebhookSender::track_payment(&mut tracked_wallets, creds(), index(1));
+        WebhookSender::track_payment(&mut tracked_wallets, creds(), index(2));
+
+        assert_eq!(tracked_wallets.len(), 1);
+        let state = &tracked_wallets[&WalletKey::Default(user_pk)];
+        assert_eq!(state.cursor.updated_at, TimestampMs::from_secs_u32(1));
+        assert_eq!(state.tracked_payments, HashSet::from([index(1), index(2)]));
     }
 }
