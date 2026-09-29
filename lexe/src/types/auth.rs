@@ -152,43 +152,30 @@ impl RootSeed {
         self.write_to_path(&path)
     }
 
-    /// Read a [`RootSeed`] from a seedphrase file at a specific path.
+    /// Read a [`RootSeed`] from a seed file at a specific path.
+    /// The file may contain either a BIP39 mnemonic or 64 hex characters.
     ///
     /// Returns `Ok(None)` if the file doesn't exist.
     pub fn read_from_path(path: &Path) -> anyhow::Result<Option<Self>> {
-        match std::fs::read_to_string(path) {
-            Ok(contents) => {
-                let mnemonic = bip39::Mnemonic::from_str(contents.trim())
-                    .map_err(|e| anyhow::anyhow!("Invalid mnemonic: {e}"))?;
-                Ok(Some(Self::try_from(mnemonic)?))
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e).context("Failed to read seedphrase file"),
-        }
-    }
-
-    /// Read a root seed from a file containing either hex or mnemonic.
-    #[cfg(feature = "unstable")]
-    pub fn read_from_path_as_seedphrase_or_hex(
-        path: &Path,
-    ) -> anyhow::Result<RootSeed> {
-        use anyhow::anyhow;
-        let contents = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
+        let contents = match std::fs::read_to_string(path) {
+            Ok(contents) => contents,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound =>
+                return Ok(None),
+            Err(e) => return Err(e).context("Failed to read seed file"),
+        };
         let contents = contents.trim();
 
-        // Try hex first (64 hex chars = 32 bytes).
-        if contents.len() == 64
-            && contents.chars().all(|c| c.is_ascii_hexdigit())
-        {
-            return RootSeed::from_hex(contents)
-                .context("Failed to parse root seed hex");
-        }
-
-        // Fall back to mnemonic.
-        let mnemonic = Mnemonic::from_str(contents)
-            .map_err(|e| anyhow!("Invalid mnemonic: {e}"))?;
-        RootSeed::from_mnemonic(mnemonic).context("Failed to parse mnemonic")
+        // 64 hex chars can never be a valid mnemonic, so try hex first.
+        let is_hex = contents.len() == 64
+            && contents.chars().all(|c| c.is_ascii_hexdigit());
+        let seed = if is_hex {
+            Self::from_hex(contents).context("Invalid root seed hex")?
+        } else {
+            let mnemonic = Mnemonic::from_str(contents)
+                .map_err(|e| anyhow::anyhow!("Invalid mnemonic: {e}"))?;
+            Self::from_mnemonic(mnemonic)?
+        };
+        Ok(Some(seed))
     }
 
     /// Write this [`RootSeed`] to a seedphrase file at a specific path.
@@ -803,5 +790,23 @@ mod tests {
         // Reading non-existent file should return None
         let missing = tempdir.path().join("missing.txt");
         assert!(RootSeed::read_from_path(&missing).unwrap().is_none());
+    }
+
+    #[test]
+    fn read_from_path_accepts_mnemonic_or_hex() {
+        let root_seed = RootSeed::generate();
+        let tempdir = tempfile::tempdir().unwrap();
+
+        let mnemonic_path = tempdir.path().join("seedphrase.txt");
+        root_seed.write_to_path(&mnemonic_path).unwrap();
+
+        let hex_path = tempdir.path().join("seed.hex");
+        let hex = root_seed.to_hex();
+        std::fs::write(&hex_path, format!("{hex}\n")).unwrap();
+
+        for path in [mnemonic_path, hex_path] {
+            let read = RootSeed::read_from_path(&path).unwrap().unwrap();
+            assert_eq!(root_seed.as_bytes(), read.as_bytes());
+        }
     }
 }

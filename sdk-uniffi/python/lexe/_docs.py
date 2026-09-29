@@ -93,10 +93,11 @@ Example::
 """)
 
 _set_method_doc(lexe.RootSeed, "read_from_path", """\
-Reads a root seed from a seedphrase file containing a BIP39 mnemonic.
+Reads a root seed from a seed file containing either a BIP39 mnemonic or 64
+hex characters.
 
 Args:
-    path: Absolute path to the seedphrase file.
+    path: Absolute path to the seed file.
 
 Returns:
     The root seed loaded from the file.

@@ -281,8 +281,9 @@ fn resolve_credentials(
     } else if let Some(seed) = root_seed {
         (Some(Credentials::from(seed)), source_if_direct)
     } else if let Some(path) = &root_seed_path {
-        let seed =
-            RootSeed::read_from_path_as_seedphrase_or_hex(path.as_path())?;
+        let seed = RootSeed::read_from_path(path)?.ok_or_else(|| {
+            anyhow!("Root seed file not found: {}", path.display())
+        })?;
         let source = Cow::Owned(path.display().to_string());
         (Some(Credentials::from(seed)), source)
     } else {

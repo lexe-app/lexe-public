@@ -449,8 +449,8 @@ impl RootSeed {
         })
     }
 
-    /// Reads a root seed from a seedphrase file at a specific path,
-    /// containing a BIP39 mnemonic.
+    /// Reads a root seed from a seed file at a specific path, containing
+    /// either a BIP39 mnemonic or 64 hex characters.
     ///
     /// Raises [`SeedFileError::NotFound`] if the file doesn't exist,
     /// or [`SeedFileError::ParseError`] if the file can't be parsed.
