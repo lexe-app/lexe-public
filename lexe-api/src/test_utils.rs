@@ -9,7 +9,7 @@ use tracing::info_span;
 
 use crate::{
     rest::RestClient,
-    server::{self, LayerConfig, LxJson},
+    server::{self, LayerConfig, LxJson, ServerConfig},
 };
 
 /// Spawns a TLS test server serving `router`, runs `client_fn` against its URL,
@@ -33,6 +33,7 @@ where
         net::LOCALHOST_WITH_EPHEMERAL_PORT,
         router,
         LayerConfig::default(),
+        ServerConfig::default(),
         Some((server_config, server_dns)),
         SPAN_NAME.into(),
         info_span!(parent: None, SPAN_NAME),

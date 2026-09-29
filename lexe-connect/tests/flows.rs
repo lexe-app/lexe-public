@@ -16,7 +16,7 @@ use axum::{
     response::IntoResponse,
     routing::post,
 };
-use lexe_api::server::{LayerConfig, extract::LxQuery};
+use lexe_api::server::{LayerConfig, ServerConfig, extract::LxQuery};
 use lexe_byte_array::ByteArray;
 use lexe_common::{env::DeployEnv, net, time::TimestampMs};
 use lexe_connect::{
@@ -111,6 +111,7 @@ impl TestServer {
             net::LOCALHOST_WITH_EPHEMERAL_PORT,
             app,
             LayerConfig::default(),
+            ServerConfig::default(),
             None,
             SPAN_NAME.into(),
             info_span!(parent: None, SPAN_NAME),

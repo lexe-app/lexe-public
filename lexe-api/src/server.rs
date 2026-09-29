@@ -22,7 +22,7 @@
 //! - [`LxJson`] to deserialize from HTTP body JSON
 //! - [`LxQuery`] to deserialize from query strings
 //! - [`ClientAddr`] to read the client's socket address (requires
-//!   `LayerConfig::inject_client_addr`)
+//!   `ServerConfig::inject_client_addr`)
 //!
 //! # [`IntoResponse`] types / impls for building Lexe API-conformant responses:
 //!
@@ -122,7 +122,6 @@ pub type HttpService =
 ///         handling_timeout: Some(Duration::from_secs(25)),
 ///         default_fallback: true,
 ///         log_query_params: false,
-///         inject_client_addr: false,
 ///     }
 /// );
 /// ```
@@ -167,6 +166,11 @@ pub struct LayerConfig {
     /// user data, so this is off by default, but this should be turned on for
     /// all Lexe services. See [`Self::with_query_param_logging`].
     pub log_query_params: bool,
+}
+
+/// Connection handling settings.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ServerConfig {
     /// Whether to inject the client socket address (connection peer address)
     /// into request extensions, making the [`ClientAddr`](extract::ClientAddr)
     /// extractor available to handlers. Off by default.
@@ -201,7 +205,6 @@ impl Default for LayerConfig {
             handling_timeout: Some(timeout::server::DEFAULT_HANDLER_TIMEOUT),
             default_fallback: true,
             log_query_params: false,
-            inject_client_addr: false,
         }
     }
 }
@@ -250,6 +253,7 @@ pub fn build_server_fut(
     bind_addr: SocketAddr,
     router: Router<()>,
     layer_config: LayerConfig,
+    server_config: ServerConfig,
     // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: &str,
@@ -263,6 +267,7 @@ pub fn build_server_fut(
         listener,
         router,
         layer_config,
+        server_config,
         maybe_tls_and_dns,
         server_span_name,
         server_span,
@@ -279,6 +284,7 @@ pub fn build_server_fut_with_listener(
     listener: TcpListener,
     router: Router<()>,
     layer_config: LayerConfig,
+    server_config: ServerConfig,
     // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: &str,
@@ -286,12 +292,11 @@ pub fn build_server_fut_with_listener(
     // Send on this channel to begin a graceful shutdown of the server.
     shutdown: NotifyOnce,
 ) -> anyhow::Result<(impl Future<Output = ()> + use<>, String)> {
-    let inject_client_addr = layer_config.inject_client_addr;
     let service = build_service(router, layer_config, server_span.clone());
     serve_with_listener(
         listener,
         service,
-        inject_client_addr,
+        server_config,
         maybe_tls_and_dns,
         server_span_name,
         server_span,
@@ -454,7 +459,7 @@ pub fn build_service_unboxed(
 pub fn serve_with_listener(
     listener: TcpListener,
     service: HttpService,
-    inject_client_addr: bool,
+    server_config: ServerConfig,
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: &str,
     server_span: tracing::Span,
@@ -475,7 +480,7 @@ pub fn serve_with_listener(
     // Convert into MakeService
     let make_service = LxMakeService {
         service,
-        inject_client_addr,
+        inject_client_addr: server_config.inject_client_addr,
     };
 
     let handle = axum_server::Handle::new();
@@ -548,6 +553,7 @@ pub fn spawn_server_task(
     bind_addr: SocketAddr,
     router: Router<()>,
     layer_config: LayerConfig,
+    server_config: ServerConfig,
     // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: Cow<'static, str>,
@@ -563,6 +569,7 @@ pub fn spawn_server_task(
         listener,
         router,
         layer_config,
+        server_config,
         maybe_tls_and_dns,
         server_span_name,
         server_span,
@@ -578,6 +585,7 @@ pub fn spawn_server_task_with_listener(
     listener: TcpListener,
     router: Router<()>,
     layer_config: LayerConfig,
+    server_config: ServerConfig,
     // TLS config + primary DNS name
     maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
     server_span_name: Cow<'static, str>,
@@ -589,6 +597,7 @@ pub fn spawn_server_task_with_listener(
         listener,
         router,
         layer_config,
+        server_config,
         maybe_tls_and_dns,
         &server_span_name,
         server_span.clone(),
@@ -604,11 +613,11 @@ pub fn spawn_server_task_with_listener(
 
 /// The `MakeService` for Lexe servers. [`axum_server`] calls it once per
 /// connection with the peer [`SocketAddr`], so it can apply connection-level
-/// [`LayerConfig`] options. Currently that means only
-/// [`LayerConfig::inject_client_addr`].
+/// [`ServerConfig`] options. Currently that means only
+/// [`ServerConfig::inject_client_addr`].
 struct LxMakeService<S> {
     service: S,
-    /// [`LayerConfig::inject_client_addr`]
+    /// [`ServerConfig::inject_client_addr`]
     inject_client_addr: bool,
 }
 
@@ -1016,7 +1025,7 @@ pub mod extract {
     /// The client's remote socket address.
     ///
     /// Extractable in any handler whose server was built with
-    /// [`LayerConfig::inject_client_addr`] enabled.
+    /// [`ServerConfig::inject_client_addr`] enabled.
     #[derive(Copy, Clone, Debug)]
     pub struct ClientAddr(pub SocketAddr);
 
@@ -1043,7 +1052,7 @@ pub mod extract {
                 CommonApiError {
                     kind: CommonErrorKind::Server,
                     msg: "ClientAddr extension missing; is \
-                          `LayerConfig::inject_client_addr` enabled?"
+                          `ServerConfig::inject_client_addr` enabled?"
                         .to_owned(),
                 }
             })
@@ -1142,14 +1151,41 @@ pub async fn default_fallback(
 
 #[cfg(test)]
 mod tests {
-    use axum::routing::post;
+    use axum::{extract::Request, routing::post};
     use futures::stream;
-    use http_body_util::StreamBody;
+    use http_body_util::{BodyExt as _, StreamBody};
     use hyper::body::Frame;
     use lexe_common::net;
+    use tower::ServiceExt as _;
     use tracing::info_span;
 
     use super::*;
+
+    #[tokio::test]
+    async fn composed_service_preserves_streaming() {
+        let router = Router::new().route(
+            "/",
+            post(|| async {
+                let frames = stream::iter([Ok::<_, Infallible>(Frame::data(
+                    Bytes::from_static(b"first"),
+                ))]);
+                let frames =
+                    futures::StreamExt::chain(frames, stream::pending());
+                Body::new(StreamBody::new(frames))
+            }),
+        );
+        let service = build_service(
+            router,
+            LayerConfig::default(),
+            tracing::Span::none(),
+        );
+        let request = Request::post("/").body(Body::empty()).unwrap();
+        let response = service.oneshot(request).await.unwrap();
+        let mut body = response.into_body();
+        let frame = body.frame().await.unwrap().unwrap().into_data().unwrap();
+        assert_eq!(frame, "first");
+        assert!(futures::poll!(body.frame()).is_pending());
+    }
 
     #[tokio::test]
     async fn request_body_limit_is_enforced() {
@@ -1169,6 +1205,7 @@ mod tests {
             net::LOCALHOST_WITH_EPHEMERAL_PORT,
             router,
             layer_config,
+            ServerConfig::default(),
             None,
             SPAN_NAME.into(),
             info_span!(parent: None, SPAN_NAME),

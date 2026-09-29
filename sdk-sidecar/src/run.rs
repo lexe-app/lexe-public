@@ -14,7 +14,7 @@ use lexe::{
     types::auth::{ClientCredentials, Credentials, RootSeed},
     wallet::LexeWallet,
 };
-use lexe_api::server::{LayerConfig, build_server_url};
+use lexe_api::server::{LayerConfig, ServerConfig, build_server_url};
 use lexe_common::{env::DeployEnv, ln::network::Network};
 use lexe_tokio::{
     notify_once::NotifyOnce,
@@ -162,13 +162,14 @@ impl Sidecar {
         let layer_config = LayerConfig {
             // `wait_*` endpoints *may* wait indefinitely, so remove timeout
             handling_timeout: None,
-            ..Default::default()
+            ..LayerConfig::default()
         };
         const SERVER_SPAN_NAME: &str = "(server)";
         let (server_task, sidecar_url) = lexe_api::server::spawn_server_task(
             listen_addr,
             server::router(router_state),
             layer_config,
+            ServerConfig::default(),
             maybe_tls_and_dns,
             SERVER_SPAN_NAME.into(),
             info_span!(SERVER_SPAN_NAME),

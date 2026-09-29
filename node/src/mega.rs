@@ -139,7 +139,10 @@ mod mega_server {
         Router,
         routing::{get, post},
     };
-    use lexe_api::{server::LayerConfig, types::ports::Port};
+    use lexe_api::{
+        server::{LayerConfig, ServerConfig},
+        types::ports::Port,
+    };
     use lexe_common::{api::MegaId, net};
     use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
     use tokio::sync::mpsc;
@@ -171,6 +174,7 @@ mod mega_server {
                 lexe_mega_listener,
                 mega_router(state),
                 LayerConfig::default(),
+                ServerConfig::default(),
                 tls_and_dns,
                 Cow::from(SERVER_SPAN_NAME),
                 info_span!(SERVER_SPAN_NAME),

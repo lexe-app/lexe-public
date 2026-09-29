@@ -24,7 +24,7 @@ use lexe_api::{
     cli::{OAuthConfig, node::MegaArgs},
     def::NodeBackendApi,
     error::NodeApiError,
-    server::{self, LayerConfig},
+    server::{self, LayerConfig, ServerConfig},
     types::{Empty, ports::ProvisionPorts, sealed_seed::SealedSeed},
 };
 use lexe_byte_array::ByteArray;
@@ -143,6 +143,7 @@ impl ProvisionInstance {
                 user_listener,
                 user_router(state),
                 LayerConfig::default(),
+                ServerConfig::default(),
                 Some((Arc::new(user_tls_config), &user_dns)),
                 USER_SERVER_SPAN_NAME.into(),
                 info_span!(USER_SERVER_SPAN_NAME),
