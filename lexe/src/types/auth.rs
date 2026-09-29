@@ -163,6 +163,24 @@ impl RootSeed {
                 return Ok(None),
             Err(e) => return Err(e).context("Failed to read seed file"),
         };
+
+        // Log a warning if file permissions aren't restrictive enough.
+        // We always write as 600, but users may have created the file and
+        // inserted a seedphrase on their own.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(metadata) = std::fs::metadata(path)
+                && metadata.permissions().mode() & 0o077 != 0
+            {
+                tracing::warn!(
+                    "Seed file is readable by other users. \
+                     Run `chmod 600 {}`",
+                    path.display()
+                );
+            }
+        }
+
         let contents = contents.trim();
 
         // 64 hex chars can never be a valid mnemonic, so try hex first.
