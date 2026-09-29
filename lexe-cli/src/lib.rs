@@ -356,7 +356,12 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
     // Init is special: it generates/loads seed and handles its own persistence.
     if let LexeCommand::Init(init_args) = lexe_args.command {
         return init_args
-            .run(env_config, lexe_args.lexe_data_dir, lexe_args.without_db)
+            .run(
+                env_config,
+                lexe_args.lexe_data_dir,
+                lexe_args.root_seed_path,
+                lexe_args.without_db,
+            )
             .await;
     }
 
@@ -443,8 +448,12 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
     about = "Create a new Lexe wallet",
     long_about = "Creates a new Lexe wallet.\n\
         \n\
-        Generates a fresh seedphrase, persists it to the Lexe data dir, \n\
+        Generates a fresh seedphrase, persists it to \n\
+        <lexe-data-dir>/seedphrase.txt (default: ~/.lexe/seedphrase.txt), \n\
         registers a wallet with Lexe, and provisions a new user node.\n\
+        \n\
+        --root-seed-path / $LEXE_ROOT_SEED_PATH overrides the seedphrase \n\
+        path, useful for running multiple wallets on one machine.\n\
         \n\
         Idempotent: safe to call multiple times.",
     help_template = HELP_TEMPLATE,
@@ -456,14 +465,22 @@ impl InitArgs {
         self,
         env_config: WalletEnvConfig,
         lexe_data_dir: Option<PathBuf>,
+        root_seed_path: Option<PathBuf>,
         without_db: bool,
     ) -> anyhow::Result<()> {
-        let data_dir = lexe_data_dir
-            .clone()
-            .map_or_else(lexe::default_lexe_data_dir, Ok)?;
-        let seed_path = env_config.seedphrase_path(&data_dir);
+        // Seed file: --root-seed-path if given, else the seedphrase file in
+        // the Lexe data dir.
+        let seed_path = match root_seed_path {
+            Some(path) => path,
+            None => {
+                let data_dir = lexe_data_dir
+                    .clone()
+                    .map_or_else(lexe::default_lexe_data_dir, Ok)?;
+                env_config.seedphrase_path(&data_dir)
+            }
+        };
 
-        // Load existing seedphrase or generate a fresh one.
+        // Load the existing seed or generate and persist a fresh seedphrase.
         let root_seed = match RootSeed::read_from_path(&seed_path)? {
             Some(seed) => seed,
             None => {

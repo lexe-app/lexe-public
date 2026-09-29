@@ -114,7 +114,7 @@ impl WalletEnv {
         }
     }
 
-    /// Returns the path to the seedphrase file for this environment.
+    /// Returns the default path to the seedphrase file for this environment.
     ///
     /// - Mainnet (prod): `<data_dir>/seedphrase.txt`
     /// - Other environments: `<data_dir>/seedphrase.<wallet_env>.txt`
@@ -245,7 +245,7 @@ impl WalletEnvConfig {
         self
     }
 
-    /// Returns the path to the seedphrase file for this environment.
+    /// Returns the default path to the seedphrase file for this environment.
     pub fn seedphrase_path(&self, data_dir: &Path) -> PathBuf {
         self.wallet_env.seedphrase_path(data_dir)
     }
