@@ -1117,4 +1117,11 @@ pub trait PublicGatewayApi {
     ///
     /// GET /public/v1/lnurl_verify/{encoded_params}
     async fn lnurl_verify(&self) -> Result<LnurlVerifyResponse, LnurlError>;
+
+    // The gateway also serves the LexeConnect mailbox here. It speaks raw
+    // blob bytes and bare status codes per the LexeConnect spec, so it has
+    // no methods in this trait; see `lexe_connect::mailbox`.
+    //
+    // - POST /mailbox?address={hex} -> 200 | 409 | 413 | 503
+    // - GET /mailbox?address={hex} -> 200 | 404
 }
