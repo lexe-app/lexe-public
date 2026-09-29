@@ -185,6 +185,12 @@ flutter_rust_bridge = { version = "=2.11.1", default-features = false }
 flutter_rust_bridge_codegen = { version = "=2.11.1", default-features = false, features = [] }
 # Utils for working with futures
 futures = "0.3"
+# Hybrid Public Key Encryption (HPKE), RFC 9180
+hpke = { version = "0.14", default-features = false, features = [
+    "alloc",
+    "chacha",
+    "x25519",
+] }
 # Core HTTP types and utils
 http = "1"
 http-body-util = "0.1"

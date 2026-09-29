@@ -20,6 +20,8 @@ workspace = true
 [features]
 # Explicitly specify that no features should be enabled by default.
 default = []
+# Hybrid Public Key Encryption (HPKE), RFC 9180.
+hpke = ["dep:hpke"]
 # Enables various test hooks and utilities. Should be disabled in staging/prod.
 test-utils = [
     "dep:proptest",
@@ -48,7 +50,8 @@ zeroize = { workspace = true }
 
 # --- OPTIONAL --- #
 
-proptest = { workspace = true, optional = true, features = ["alloc"] }
+hpke = { optional = true, workspace = true }
+proptest = { optional = true, workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }

@@ -8,6 +8,9 @@ pub mod ed25519;
 pub mod entropy;
 /// HMAC-SHA256 message authentication.
 pub mod hmac;
+/// Hybrid Public Key Encryption (HPKE), RFC 9180.
+#[cfg(feature = "hpke")]
+pub mod hpke;
 /// Password-based encryption using PBKDF2-HMAC-SHA256.
 pub mod password;
 /// Random number generation.
