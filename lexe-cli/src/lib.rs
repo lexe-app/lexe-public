@@ -136,9 +136,12 @@ pub struct LexeArgs {
     #[arg(long)]
     root_seed_path: Option<PathBuf>,
 
-    /// Data directory for persisted state. [default: ~/.lexe]
-    /// [env: LEXE_DATA_DIR]
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Data directory for persisted state. All state is namespaced\n\
+        internally, so it is safe to share across wallets.\n\
+        [default: ~/.lexe] [env: LEXE_DATA_DIR]"
+    )]
     lexe_data_dir: Option<PathBuf>,
 
     /// Log level: error, warn, info, debug, trace. [default: info]
