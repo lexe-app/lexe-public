@@ -107,6 +107,12 @@
       <data android:mimeType="text/plain"/>
       </intent>
 
+    <!-- Required for `url_launcher.canLaunchUrl` to see https handlers. -->
+    <intent>
+      <action android:name="android.intent.action.VIEW"/>
+      <data android:scheme="https"/>
+      </intent>
+
     <!-- Required for `url_launcher` to query for other apps that can open
          "bitcoin:" and "lightning:" payment URIs.
          See: <app/lib/share.dart> -->
