@@ -53,12 +53,13 @@ use std::{borrow::Cow, collections::HashMap, fmt, str::FromStr};
 use anyhow::{Context, anyhow, ensure};
 use bech32::{Bech32, Hrp};
 use lexe_common::ln::amount::Amount;
+use lexe_uri::Uri;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::Deserialize;
 use tracing::error;
 
-use crate::{Error, uri::Uri};
+use crate::Error;
 
 // --- LNURL URI --- //
 

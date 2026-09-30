@@ -5,6 +5,7 @@ use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 use lexe_common::ln::network::Network;
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
+use lexe_uri::Uri;
 #[cfg(test)]
 use proptest::strategy::Strategy;
 #[cfg(test)]
@@ -17,7 +18,6 @@ use crate::{
     helpers::{self, AddressExt},
     lightning_uri::LightningUri,
     lnurl::Lnurl,
-    uri::Uri,
 };
 
 /// Refuse to parse any input longer than this many KiB.

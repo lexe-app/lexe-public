@@ -67,8 +67,6 @@ mod lnurl;
 mod payment_method;
 /// Top level `PaymentUri` representing a parsed payment URI or address.
 mod payment_uri;
-/// Low level URI building blocks: `Uri`, `UriParam`, `UriParamKey`
-mod uri;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
@@ -78,8 +76,7 @@ pub enum Error {
     InvalidBip321Uri(Cow<'static, str>),
     /// [`LightningUri`] parsing errors.
     InvalidLightningUri(Cow<'static, str>),
-    // `uri::Uri`
-    InvalidUri(Cow<'static, str>),
+    InvalidUri(lexe_uri::ParseError),
     /// [`EmailLikeAddress`] parsing errors.
     InvalidEmailLike(Cow<'static, str>),
     InvalidLnurl(Cow<'static, str>),
@@ -90,10 +87,16 @@ pub enum Error {
 
 impl std::error::Error for Error {}
 
+impl From<lexe_uri::ParseError> for Error {
+    fn from(err: lexe_uri::ParseError) -> Self {
+        Self::InvalidUri(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidUri(msg) => write!(f, "Invalid URI: {msg}"),
+            Self::InvalidUri(err) => err.fmt(f),
             Self::InvalidPaymentUri(msg) =>
                 write!(f, "Invalid payment URI: {msg}"),
             Self::InvalidBip321Uri(msg) =>

@@ -3049,6 +3049,7 @@ dependencies = [
  "lexe-api-core",
  "lexe-common",
  "lexe-crypto",
+ "lexe-uri",
  "percent-encoding",
  "proptest",
  "proptest-derive",
@@ -3176,6 +3177,14 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
+]
+
+[[package]]
+name = "lexe-uri"
+version = "0.1.24"
+dependencies = [
+ "percent-encoding",
+ "proptest",
 ]
 
 [[package]]

@@ -27,6 +27,7 @@ members = [
     "lexe-tls-attest-server",
     "lexe-tls-core",
     "lexe-tokio",
+    "lexe-uri",
     "lexe-vss-client",
     "node",
     "petname",
@@ -99,6 +100,7 @@ lexe-std = { version = "0.1.24", path = "lexe-std" }
 lexe-tls = { version = "0.1.24", path = "lexe-tls" }
 lexe-tls-core = { version = "0.1.24", path = "lexe-tls-core" }
 lexe-tokio = { version = "0.1.24", path = "lexe-tokio" }
+lexe-uri = { version = "0.1.24", path = "lexe-uri" }
 sdk-uniffi = { version = "0.1.1", path = "sdk-uniffi" }
 
 # --- EXTERNAL DEPENDENCIES --- #

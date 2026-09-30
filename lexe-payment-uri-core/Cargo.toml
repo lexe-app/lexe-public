@@ -32,6 +32,7 @@ test-utils = [
 lexe-api-core = { workspace = true }
 lexe-common = { workspace = true }
 lexe-crypto = { workspace = true }
+lexe-uri = { workspace = true }
 
 # --- WORKSPACE --- #
 

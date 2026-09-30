@@ -10,6 +10,7 @@ use std::{borrow::Cow, fmt, str::FromStr};
 use bitcoin::address::NetworkUnchecked;
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 use lexe_common::ln::{amount::Amount, network::Network};
+use lexe_uri::{Uri, UriParam};
 use rust_decimal::Decimal;
 
 use crate::{
@@ -17,7 +18,6 @@ use crate::{
     email_like::EmailLikeAddress,
     helpers::AddressExt,
     payment_method::{PaymentMethod, Resolvable},
-    uri::{Uri, UriParam},
 };
 
 /// A [BIP321](https://github.com/bitcoin/bips/pull/1555/files) /
@@ -489,10 +489,10 @@ mod test {
     use lexe_common::{
         ln::amount::Amount, test_utils::arbitrary::any_mainnet_addr_unchecked,
     };
+    use lexe_uri::UriParam;
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
-    use crate::uri::UriParam;
 
     #[test]
     fn test_bip321_uri_manual() {

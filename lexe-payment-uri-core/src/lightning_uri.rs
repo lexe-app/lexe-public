@@ -1,6 +1,7 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
+use lexe_uri::Uri;
 
 use crate::{
     Error,
@@ -8,7 +9,6 @@ use crate::{
     helpers,
     lnurl::Lnurl,
     payment_method::{PaymentMethod, Resolvable},
-    uri::Uri,
 };
 
 /// A "lightning:" URI carrying exactly one piece of payment data in its body:
