@@ -41,7 +41,7 @@ if [ -n "${LEXE_SIDECAR_INSTALLER_GHE_BASE_URL:-}" ]; then
 else
   INSTALLER_BASE_URL="${LEXE_SIDECAR_INSTALLER_GITHUB_BASE_URL:-https://github.com}"
 fi
-RELEASES_BASE_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-sidecar-sdk/releases"
+RELEASES_BASE_URL="${INSTALLER_BASE_URL}/lexe-app/lexe-public/releases"
 if [ -n "${LEXE_SIDECAR_DOWNLOAD_URL:-}" ]; then
   ARTIFACT_DOWNLOAD_URL="$LEXE_SIDECAR_DOWNLOAD_URL"
 elif [ -n "${INSTALLER_DOWNLOAD_URL:-}" ]; then
@@ -109,7 +109,7 @@ lexe-sidecar-installer.sh
 The installer for lexe-sidecar
 
 This script detects what platform you're on and fetches an appropriate archive from
-https://github.com/lexe-app/lexe-sidecar-sdk/releases
+https://github.com/lexe-app/lexe-public/releases
 then unpacks the binaries and installs them to the first of the following locations
 
     \$XDG_BIN_HOME
