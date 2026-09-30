@@ -1,7 +1,7 @@
 //! # Lexe Sidecar SDK
 //!
 //! This crate contains the library code for the Lexe Sidecar SDK:
-//! <https://github.com/lexe-app/lexe-sidecar-sdk>
+//! <https://docs.lexe.tech/sidecar/>
 //!
 //! ## Overview
 //!

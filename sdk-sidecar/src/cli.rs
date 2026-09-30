@@ -35,8 +35,6 @@ $ curl http://127.0.0.1:5393/v1/health
 {{"status":"ok"}}
 ```
 "#)]
-// NOTE: Any changes or doc updates here should be duplicated to `.env.example`
-// in the Sidecar SDK repo, which is a lot more discoverable for end users.
 pub struct SidecarArgs {
     /// client credentials exported from the Lexe app.
     /// (env=`LEXE_CLIENT_CREDENTIALS`)
