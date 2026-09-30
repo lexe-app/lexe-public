@@ -120,7 +120,7 @@ dependencies:
   url_launcher: ^6.3.0
 
 dev_dependencies:
-  # Used to embed the `public-master` git revision as an asset in the app.
+  # Used to embed the `subrepo/lexe-public` git revision as an asset in the app.
   app_embed_git_rev:
     path: ../app_embed_git_rev
 

@@ -9,8 +9,11 @@ Future<String> getGitRevision() async {
       return 'dirty';
     }
 
-    // Try to get the revision of public-master branch
-    final revResult = await Process.run('git', ['rev-parse', 'public-master']);
+    // Try to get the revision of the subrepo/lexe-public branch
+    final revResult = await Process.run('git', [
+      'rev-parse',
+      'subrepo/lexe-public',
+    ]);
     if (revResult.exitCode != 0) {
       return 'dirty';
     }
