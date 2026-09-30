@@ -722,17 +722,22 @@ impl From<lexe_payment_uri::ClaimMethod> for ClaimMethod {
 /// A scanned/pasted request for the wallet to vouch for the user without
 /// moving money.
 pub enum AuthMethod {
+    LnurlAuth(LnurlAuthRequest),
     LexeConnect(CredentialRequest),
 }
 
-impl From<lexe_payment_uri::AuthMethod> for AuthMethod {
-    fn from(value: lexe_payment_uri::AuthMethod) -> Self {
+impl TryFrom<lexe_payment_uri::AuthMethod> for AuthMethod {
+    type Error = anyhow::Error;
+
+    fn try_from(value: lexe_payment_uri::AuthMethod) -> anyhow::Result<Self> {
         match value {
+            lexe_payment_uri::AuthMethod::LnurlAuth(request) =>
+                LnurlAuthRequest::try_from(request).map(Self::LnurlAuth),
             lexe_payment_uri::AuthMethod::LexeConnect(request) => {
                 let connection_string = request.to_string();
                 let requester = RequesterDisplay::new(&request);
                 let params = request.params;
-                Self::LexeConnect(CredentialRequest {
+                Ok(Self::LexeConnect(CredentialRequest {
                     connection_string,
                     requester,
                     account: params.account,
@@ -740,8 +745,73 @@ impl From<lexe_payment_uri::AuthMethod> for AuthMethod {
                     permissions: params.permissions.into_iter().collect(),
                     label: params.label,
                     expires_at: params.expires_at.map(TimestampMs::to_i64),
-                })
+                }))
             }
+        }
+    }
+}
+
+/// A LUD-04 LNURL-auth request, for the user's approval.
+pub struct LnurlAuthRequest {
+    pub base_url: String,
+    /// The service's domain, derived from `base_url`, for display purposes.
+    pub domain: String,
+    pub k1: [u8; 32],
+    pub action: Option<LnurlAuthAction>,
+}
+
+impl TryFrom<lexe_payment_uri::LnurlAuthRequest> for LnurlAuthRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(
+        request: lexe_payment_uri::LnurlAuthRequest,
+    ) -> anyhow::Result<Self> {
+        let domain = request.domain()?;
+        Ok(Self {
+            base_url: request.base_url,
+            domain,
+            k1: request.k1,
+            action: request.action.map(LnurlAuthAction::from),
+        })
+    }
+}
+
+impl From<LnurlAuthRequest> for lexe_payment_uri::LnurlAuthRequest {
+    fn from(request: LnurlAuthRequest) -> Self {
+        Self {
+            base_url: request.base_url,
+            k1: request.k1,
+            action: request.action.map(lexe_payment_uri::LnurlAuthAction::from),
+        }
+    }
+}
+
+/// An [`LnurlAuthRequest`]'s stated intent, for display purposes.
+pub enum LnurlAuthAction {
+    Register,
+    Login,
+    Link,
+    Auth,
+}
+
+impl From<lexe_payment_uri::LnurlAuthAction> for LnurlAuthAction {
+    fn from(action: lexe_payment_uri::LnurlAuthAction) -> Self {
+        match action {
+            lexe_payment_uri::LnurlAuthAction::Register => Self::Register,
+            lexe_payment_uri::LnurlAuthAction::Login => Self::Login,
+            lexe_payment_uri::LnurlAuthAction::Link => Self::Link,
+            lexe_payment_uri::LnurlAuthAction::Auth => Self::Auth,
+        }
+    }
+}
+
+impl From<LnurlAuthAction> for lexe_payment_uri::LnurlAuthAction {
+    fn from(action: LnurlAuthAction) -> Self {
+        match action {
+            LnurlAuthAction::Register => Self::Register,
+            LnurlAuthAction::Login => Self::Login,
+            LnurlAuthAction::Link => Self::Link,
+            LnurlAuthAction::Auth => Self::Auth,
         }
     }
 }

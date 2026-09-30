@@ -656,7 +656,10 @@ impl AppHandle {
         Ok(BestPaymentUriMethods {
             payment_method: best.payment_method.map(PaymentMethod::from),
             claim_method: best.claim_method.map(ClaimMethod::from),
-            auth_method: best.auth_method.map(AuthMethod::from),
+            auth_method: best
+                .auth_method
+                .map(AuthMethod::try_from)
+                .transpose()?,
         })
     }
 

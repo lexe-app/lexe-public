@@ -1694,6 +1694,13 @@ impl SseDecode for crate::ffi::types::AuthMethod {
         match tag_ {
             0 => {
                 let mut var_field0 =
+                    <crate::ffi::types::LnurlAuthRequest>::sse_decode(
+                        deserializer,
+                    );
+                return crate::ffi::types::AuthMethod::LnurlAuth(var_field0);
+            }
+            1 => {
+                let mut var_field0 =
                     <crate::ffi::types::CredentialRequest>::sse_decode(
                         deserializer,
                     );
@@ -2363,6 +2370,43 @@ impl SseDecode for Vec<crate::ffi::types::Scope> {
     }
 }
 
+impl SseDecode for crate::ffi::types::LnurlAuthAction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ffi::types::LnurlAuthAction::Register,
+            1 => crate::ffi::types::LnurlAuthAction::Login,
+            2 => crate::ffi::types::LnurlAuthAction::Link,
+            3 => crate::ffi::types::LnurlAuthAction::Auth,
+            _ => unreachable!("Invalid variant for LnurlAuthAction: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::LnurlAuthRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_baseUrl = <String>::sse_decode(deserializer);
+        let mut var_domain = <String>::sse_decode(deserializer);
+        let mut var_k1 = <[u8; 32]>::sse_decode(deserializer);
+        let mut var_action =
+            <Option<crate::ffi::types::LnurlAuthAction>>::sse_decode(
+                deserializer,
+            );
+        return crate::ffi::types::LnurlAuthRequest {
+            base_url: var_baseUrl,
+            domain: var_domain,
+            k1: var_k1,
+            action: var_action,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::LnurlPay {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2823,6 +2867,21 @@ impl SseDecode for Option<crate::ffi::types::Invoice> {
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::ffi::types::Invoice>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::LnurlAuthAction> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::LnurlAuthAction>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -4053,8 +4112,10 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::AppUserInfo>
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::AuthMethod {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::ffi::types::AuthMethod::LexeConnect(field0) =>
+            crate::ffi::types::AuthMethod::LnurlAuth(field0) =>
                 [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::ffi::types::AuthMethod::LexeConnect(field0) =>
+                [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -4748,6 +4809,52 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::ListChannelsResponse>
     for crate::ffi::api::ListChannelsResponse
 {
     fn into_into_dart(self) -> crate::ffi::api::ListChannelsResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlAuthAction {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Register => 0.into_dart(),
+            Self::Login => 1.into_dart(),
+            Self::Link => 2.into_dart(),
+            Self::Auth => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LnurlAuthAction
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LnurlAuthAction>
+    for crate::ffi::types::LnurlAuthAction
+{
+    fn into_into_dart(self) -> crate::ffi::types::LnurlAuthAction {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlAuthRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.base_url.into_into_dart().into_dart(),
+            self.domain.into_into_dart().into_dart(),
+            self.k1.into_into_dart().into_dart(),
+            self.action.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LnurlAuthRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LnurlAuthRequest>
+    for crate::ffi::types::LnurlAuthRequest
+{
+    fn into_into_dart(self) -> crate::ffi::types::LnurlAuthRequest {
         self
     }
 }
@@ -6203,8 +6310,14 @@ impl SseEncode for crate::ffi::types::AuthMethod {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         match self {
-            crate::ffi::types::AuthMethod::LexeConnect(field0) => {
+            crate::ffi::types::AuthMethod::LnurlAuth(field0) => {
                 <i32>::sse_encode(0, serializer);
+                <crate::ffi::types::LnurlAuthRequest>::sse_encode(
+                    field0, serializer,
+                );
+            }
+            crate::ffi::types::AuthMethod::LexeConnect(field0) => {
+                <i32>::sse_encode(1, serializer);
                 <crate::ffi::types::CredentialRequest>::sse_encode(
                     field0, serializer,
                 );
@@ -6790,6 +6903,43 @@ impl SseEncode for Vec<crate::ffi::types::Scope> {
     }
 }
 
+impl SseEncode for crate::ffi::types::LnurlAuthAction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(
+            match self {
+                crate::ffi::types::LnurlAuthAction::Register => 0,
+                crate::ffi::types::LnurlAuthAction::Login => 1,
+                crate::ffi::types::LnurlAuthAction::Link => 2,
+                crate::ffi::types::LnurlAuthAction::Auth => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::ffi::types::LnurlAuthRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.base_url, serializer);
+        <String>::sse_encode(self.domain, serializer);
+        <[u8; 32]>::sse_encode(self.k1, serializer);
+        <Option<crate::ffi::types::LnurlAuthAction>>::sse_encode(
+            self.action,
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::ffi::types::LnurlPay {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -7168,6 +7318,19 @@ impl SseEncode for Option<crate::ffi::types::Invoice> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::types::Invoice>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::LnurlAuthAction> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::LnurlAuthAction>::sse_encode(value, serializer);
         }
     }
 }

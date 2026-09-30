@@ -8,7 +8,7 @@ use crate::{
     email_like::EmailLikeAddress,
     helpers,
     lnurl::Lnurl,
-    payment_method::{PaymentMethod, Resolvable},
+    payment_method::{PaymentMethod, PaymentUriMethods, Resolvable},
 };
 
 /// A "lightning:" URI carrying exactly one piece of payment data in its body:
@@ -110,23 +110,25 @@ impl LightningUri {
     }
 
     /// "Flatten" the [`LightningUri`] into its directly-known
-    /// [`PaymentMethod`]s and at most one [`Resolvable`] requiring further
+    /// [`PaymentUriMethods`] and at most one [`Resolvable`] requiring further
     /// resolution.
-    pub fn flatten(self) -> (Vec<PaymentMethod>, Option<Resolvable>) {
+    pub fn flatten(self) -> (PaymentUriMethods, Option<Resolvable>) {
+        let mut methods = PaymentUriMethods::default();
+        let mut resolvable = None;
         match self {
-            Self::Invoice(invoice) => (helpers::flatten_invoice(invoice), None),
-            Self::Offer(offer) => (
-                vec![PaymentMethod::Offer {
+            Self::Invoice(invoice) =>
+                methods.payment_methods = helpers::flatten_invoice(invoice),
+            Self::Offer(offer) =>
+                methods.payment_methods.push(PaymentMethod::Offer {
                     offer,
                     bip321_amount: None,
                     human_bitcoin_address: None,
-                }],
-                None,
-            ),
-            Self::Lnurl(lnurl) => (Vec::new(), Some(Resolvable::Lnurl(lnurl))),
+                }),
+            Self::Lnurl(lnurl) => (methods, resolvable) = lnurl.flatten(),
             Self::EmailLike(addr) =>
-                (Vec::new(), Some(Resolvable::EmailLike(addr))),
+                resolvable = Some(Resolvable::EmailLike(addr)),
         }
+        (methods, resolvable)
     }
 }
 

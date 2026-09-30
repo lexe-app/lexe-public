@@ -46,8 +46,9 @@ pub use crate::{
     lexe_link::{LexePayUrl, LexeUri},
     lightning_uri::LightningUri,
     lnurl::{
-        Lnurl, LnurlScheme, LnurlTag, LnurlWithdrawRequest,
-        LnurlWithdrawRequestTag, LnurlWithdrawRequestWire,
+        Lnurl, LnurlAuthAction, LnurlAuthRequest, LnurlScheme, LnurlTag,
+        LnurlWithdrawRequest, LnurlWithdrawRequestTag,
+        LnurlWithdrawRequestWire,
     },
     payment_method::{
         AuthMethod, BestPaymentUriMethods, ClaimMethod, PaymentMethod,

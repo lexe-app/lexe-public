@@ -17,6 +17,11 @@
 //!   - [`fetch_withdraw_request`](crate::lnurl::LnurlClient::fetch_withdraw_request)
 //!   - [`resolve_withdraw_request`](crate::lnurl::LnurlClient::resolve_withdraw_request)
 //!
+//! Auth
+//! - LUD-04: LNURL-auth
+//! - LUD-05: `linkingKey` derivation
+//!   - [`resolve_auth_request`](crate::lnurl::LnurlClient::resolve_auth_request)
+//!
 //! General resolution of LNURLs
 //! - [`get_lnurl_intermediate`](crate::lnurl::LnurlClient::get_lnurl_intermediate)
 //! - [`resolve_lnurl`](crate::lnurl::LnurlClient::resolve_lnurl)
@@ -24,6 +29,7 @@
 //! Some steps in the LNURL flows require only parsing, and are implemented as
 //! methods on [`Lnurl`] rather than in this module. These include:
 //!   - [`to_fast_withdraw_request`](Lnurl::to_fast_withdraw_request)
+//!   - [`to_auth_request`](Lnurl::to_auth_request)
 //!
 //! Terminology:
 //! - LNURL ([`Lnurl`]): The decoded URI used as the starting point for LNURL
@@ -119,10 +125,13 @@ use lexe_api_core::types::{
         LnurlPayRequestMetadata, LnurlPayRequestWire, LnurlVerifyResponse,
     },
 };
-use lexe_common::{constants, env::DeployEnv, ln::amount::Amount};
+use lexe_common::{
+    constants, env::DeployEnv, ln::amount::Amount, root_seed::RootSeed,
+};
+use lexe_hex::hex;
 use lexe_payment_uri_core::{
-    ClaimMethod, Lnurl, LnurlScheme, LnurlTag, LnurlWithdrawRequest,
-    LnurlWithdrawRequestWire, PaymentMethod,
+    ClaimMethod, Lnurl, LnurlAuthRequest, LnurlScheme, LnurlTag,
+    LnurlWithdrawRequest, LnurlWithdrawRequestWire, PaymentMethod,
 };
 use lexe_std::Apply;
 use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
@@ -588,6 +597,31 @@ impl LnurlClient {
         self.send_and_check_status("LNURL-withdraw", request).await
     }
 
+    /// Completes an LNURL-auth request (LUD-04) by sending a GET request to
+    /// the callback URL with `k1` signed by the domain's linking key (LUD-05).
+    ///
+    /// The caller must first obtain the user's approval.
+    pub async fn resolve_auth_request(
+        &self,
+        auth_req: &LnurlAuthRequest,
+        root_seed: &RootSeed,
+    ) -> anyhow::Result<()> {
+        let domain = auth_req.domain()?;
+        let linking_key_pair = root_seed.derive_lnurl_auth_key_pair(&domain);
+        let sig = auth_req.sign(&linking_key_pair);
+        let key = linking_key_pair.public_key();
+        let mut request = self.0.get(&auth_req.base_url).query(&[
+            ("k1", hex::encode(&auth_req.k1)),
+            ("sig", sig.to_string()),
+            ("key", key.to_string()),
+        ]);
+        if let Some(action) = auth_req.action {
+            request = request.query(&[("action", action.to_string())]);
+        }
+
+        self.send_and_check_status("LNURL-auth", request).await
+    }
+
     /// Sends `request` and checks its response, expecting `{"status":"OK"}` on
     /// success or `{"status":"ERROR","reason":"..."}` on failure.
     async fn send_and_check_status(
@@ -696,7 +730,6 @@ mod test {
 
     use lexe_common::{env::DeployEnv, ln::amount::Amount};
     use lexe_crypto::rng::{RngExt, ThreadFastRng};
-    use lexe_hex::hex;
     use tracing::info;
 
     use super::*;

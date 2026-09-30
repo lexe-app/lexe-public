@@ -3807,6 +3807,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
+        return AuthMethod_LnurlAuth(
+          dco_decode_box_autoadd_lnurl_auth_request(raw[1]),
+        );
+      case 1:
         return AuthMethod_LexeConnect(
           dco_decode_box_autoadd_credential_request(raw[1]),
         );
@@ -4003,6 +4007,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice dco_decode_box_autoadd_invoice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_invoice(raw);
+  }
+
+  @protected
+  LnurlAuthAction dco_decode_box_autoadd_lnurl_auth_action(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_lnurl_auth_action(raw);
+  }
+
+  @protected
+  LnurlAuthRequest dco_decode_box_autoadd_lnurl_auth_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_lnurl_auth_request(raw);
   }
 
   @protected
@@ -4644,6 +4660,26 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlAuthAction dco_decode_lnurl_auth_action(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LnurlAuthAction.values[raw as int];
+  }
+
+  @protected
+  LnurlAuthRequest dco_decode_lnurl_auth_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LnurlAuthRequest(
+      baseUrl: dco_decode_String(arr[0]),
+      domain: dco_decode_String(arr[1]),
+      k1: dco_decode_u_8_array_32(arr[2]),
+      action: dco_decode_opt_box_autoadd_lnurl_auth_action(arr[3]),
+    );
+  }
+
+  @protected
   LnurlPay dco_decode_lnurl_pay(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4934,6 +4970,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice? dco_decode_opt_box_autoadd_invoice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_invoice(raw);
+  }
+
+  @protected
+  LnurlAuthAction? dco_decode_opt_box_autoadd_lnurl_auth_action(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_lnurl_auth_action(raw);
   }
 
   @protected
@@ -5758,6 +5800,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
+        var var_field0 = sse_decode_box_autoadd_lnurl_auth_request(
+          deserializer,
+        );
+        return AuthMethod_LnurlAuth(var_field0);
+      case 1:
         var var_field0 = sse_decode_box_autoadd_credential_request(
           deserializer,
         );
@@ -5977,6 +6024,22 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_invoice(deserializer));
+  }
+
+  @protected
+  LnurlAuthAction sse_decode_box_autoadd_lnurl_auth_action(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_lnurl_auth_action(deserializer));
+  }
+
+  @protected
+  LnurlAuthRequest sse_decode_box_autoadd_lnurl_auth_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_lnurl_auth_request(deserializer));
   }
 
   @protected
@@ -6714,6 +6777,28 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LnurlAuthAction sse_decode_lnurl_auth_action(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LnurlAuthAction.values[inner];
+  }
+
+  @protected
+  LnurlAuthRequest sse_decode_lnurl_auth_request(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_baseUrl = sse_decode_String(deserializer);
+    var var_domain = sse_decode_String(deserializer);
+    var var_k1 = sse_decode_u_8_array_32(deserializer);
+    var var_action = sse_decode_opt_box_autoadd_lnurl_auth_action(deserializer);
+    return LnurlAuthRequest(
+      baseUrl: var_baseUrl,
+      domain: var_domain,
+      k1: var_k1,
+      action: var_action,
+    );
+  }
+
+  @protected
   LnurlPay sse_decode_lnurl_pay(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_payRequest = sse_decode_lnurl_pay_request(deserializer);
@@ -7097,6 +7182,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_invoice(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  LnurlAuthAction? sse_decode_opt_box_autoadd_lnurl_auth_action(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_lnurl_auth_action(deserializer));
     } else {
       return null;
     }
@@ -8057,8 +8155,11 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_auth_method(AuthMethod self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case AuthMethod_LexeConnect(field0: final field0):
+      case AuthMethod_LnurlAuth(field0: final field0):
         sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_lnurl_auth_request(field0, serializer);
+      case AuthMethod_LexeConnect(field0: final field0):
+        sse_encode_i_32(1, serializer);
         sse_encode_box_autoadd_credential_request(field0, serializer);
     }
   }
@@ -8280,6 +8381,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_invoice(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_lnurl_auth_action(
+    LnurlAuthAction self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lnurl_auth_action(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_lnurl_auth_request(
+    LnurlAuthRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lnurl_auth_request(self, serializer);
   }
 
   @protected
@@ -8977,6 +9096,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_lnurl_auth_action(
+    LnurlAuthAction self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_lnurl_auth_request(
+    LnurlAuthRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.baseUrl, serializer);
+    sse_encode_String(self.domain, serializer);
+    sse_encode_u_8_array_32(self.k1, serializer);
+    sse_encode_opt_box_autoadd_lnurl_auth_action(self.action, serializer);
+  }
+
+  @protected
   void sse_encode_lnurl_pay(LnurlPay self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_lnurl_pay_request(self.payRequest, serializer);
@@ -9291,6 +9431,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_invoice(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_lnurl_auth_action(
+    LnurlAuthAction? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_lnurl_auth_action(self, serializer);
     }
   }
 

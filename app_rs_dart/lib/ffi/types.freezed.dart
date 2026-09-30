@@ -76,18 +76,18 @@ String toString() {
 /// @nodoc
 mixin _$AuthMethod {
 
- CredentialRequest get field0;
+ Object get field0;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthMethod&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthMethod&&const DeepCollectionEquality().equals(other.field0, field0));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,field0);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(field0));
 
 @override
 String toString() {
@@ -97,6 +97,38 @@ String toString() {
 
 }
 
+
+
+
+
+/// @nodoc
+
+
+class AuthMethod_LnurlAuth extends AuthMethod {
+  const AuthMethod_LnurlAuth(this.field0): super._();
+  
+
+@override final  LnurlAuthRequest field0;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthMethod_LnurlAuth&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'AuthMethod.lnurlAuth(field0: $field0)';
+}
+
+
+}
 
 
 

@@ -48,18 +48,20 @@
 //! - `lightning-address/DIY.md`
 //! ```
 
-use std::{borrow::Cow, collections::HashMap, fmt, str::FromStr};
+use std::{borrow::Cow, collections::HashMap, fmt, net::IpAddr, str::FromStr};
 
 use anyhow::{Context, anyhow, ensure};
 use bech32::{Bech32, Hrp};
-use lexe_common::ln::amount::Amount;
+use bitcoin::secp256k1;
+use lexe_common::{ln::amount::Amount, secp256k1_ctx::SECP256K1};
+use lexe_hex::hex::FromHex;
 use lexe_uri::Uri;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::Deserialize;
 use tracing::error;
 
-use crate::Error;
+use crate::{AuthMethod, Error, PaymentUriMethods, Resolvable};
 
 // --- LNURL URI --- //
 
@@ -128,6 +130,64 @@ pub enum LnurlScheme {
     Channel,
     /// `keyauth://` (LUD-04 `login`, LNURL-auth)
     Auth,
+}
+
+// --- LNURL-auth request --- //
+
+/// LUD-04 LNURL-auth request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LnurlAuthRequest {
+    /// The callback URL, without its `k1` and `action` params. Must add `k1`,
+    /// `action`, `sig`, and `key` query parameters before sending the GET
+    /// request.
+    pub base_url: String,
+    /// The challenge the wallet signs with its linking key.
+    pub k1: [u8; 32],
+    /// The request's stated intent, for display purposes.
+    pub action: Option<LnurlAuthAction>,
+}
+
+/// LUD-04 `action` values.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(strum::Display, strum::EnumString)]
+#[strum(serialize_all = "lowercase")]
+pub enum LnurlAuthAction {
+    /// Create a new account linked to the linking key.
+    Register,
+    /// Log in to the account linked to the linking key.
+    Login,
+    /// Link the linking key to an existing account.
+    Link,
+    /// Authorize a stateless action, without logging in.
+    Auth,
+}
+
+impl LnurlAuthRequest {
+    /// The service's domain per LUD-05: the FQDN with its trailing dot
+    /// omitted. Shown to the user and used to derive the linking key.
+    pub fn domain(&self) -> anyhow::Result<String> {
+        let uri = Uri::parse(&self.base_url).context("Invalid base URL")?;
+        // Different spellings of a domain would derive different linking
+        // keys. `host()` prevents this by returning one canonical spelling.
+        let domain = uri.host().context("Missing or unsupported domain")?;
+        // Reject IPs, e.g. `127.0.0.1` and `[::1]`.
+        let maybe_ip = domain.trim_matches(['[', ']']);
+        ensure!(
+            maybe_ip.parse::<IpAddr>().is_err(),
+            "IP addresses aren't supported"
+        );
+        Ok(domain.into_owned())
+    }
+
+    /// Sign `k1` with the linking key pair for [`Self::domain`], yielding the
+    /// callback's `sig` param. `k1` is signed as-is, not hashed first.
+    pub fn sign(
+        &self,
+        linking_key_pair: &secp256k1::Keypair,
+    ) -> secp256k1::ecdsa::Signature {
+        let msg = secp256k1::Message::from_digest(self.k1);
+        SECP256K1.sign_ecdsa(&msg, &linking_key_pair.secret_key())
+    }
 }
 
 // --- LNURL-withdraw request --- //
@@ -430,6 +490,9 @@ impl<'a> Lnurl<'a> {
         uri.authority = true;
         debug_assert!(uri.is_https());
         Self::validate_http_uri(&uri)?;
+        // TODO(nicole): LUD-04 requires sending the original query params
+        // back, but `Uri`'s roundtrip drops valueless and non-UTF-8 params and
+        // re-encodes a bare `+` as `%2B`, which servers decode differently.
         let http_url = uri.to_string();
 
         // Extract query parameters
@@ -532,6 +595,67 @@ impl<'a> Lnurl<'a> {
         }
 
         Ok(LnurlScheme::Https)
+    }
+
+    /// "Flatten" the [`Lnurl`] into an [`AuthMethod`] or a [`Resolvable`].
+    ///
+    /// Filters out invalid LNURL-auth LNURLs.
+    pub fn flatten(self) -> (PaymentUriMethods, Option<Resolvable>) {
+        let mut methods = PaymentUriMethods::default();
+        match (self.scheme, self.tag) {
+            (LnurlScheme::Auth, _) | (_, Some(LnurlTag::Login)) => {
+                if let Ok(request) = self.to_auth_request() {
+                    methods.auth_methods.push(AuthMethod::LnurlAuth(request));
+                }
+                (methods, None)
+            }
+            _ => (methods, Some(Resolvable::Lnurl(self.into_owned()))),
+        }
+    }
+
+    /// Parse an LNURL-auth (LUD-04) LNURL into an [`LnurlAuthRequest`].
+    /// Does not make any HTTP requests.
+    ///
+    /// Doesn't verify expected LNURL flow type.
+    pub fn to_auth_request(&self) -> anyhow::Result<LnurlAuthRequest> {
+        let k1_hex = self
+            .params
+            .get("k1")
+            .ok_or_else(|| anyhow!("Missing 'k1' parameter"))?;
+        let k1 =
+            <[u8; 32]>::from_hex(k1_hex).context("Invalid 'k1' parameter")?;
+        let action = self
+            .params
+            .get("action")
+            .map(|s| s.parse::<LnurlAuthAction>())
+            .transpose()
+            .context("Invalid 'action' parameter")?;
+
+        // Extract `k1` and `action` from the callback and store the remaining
+        // base URL verbatim.
+        let (path, query) = self
+            .http_url
+            .split_once('?')
+            .expect("k1 is a query param, so there's a query");
+        let mut base_url = path.to_owned();
+        let mut sep = '?';
+        for param in query.split('&') {
+            let key = param.split_once('=').map_or(param, |x| x.0);
+            if key != "k1" && key != "action" {
+                base_url.push(sep);
+                base_url.push_str(param);
+                sep = '&';
+            }
+        }
+
+        let request = LnurlAuthRequest {
+            base_url,
+            k1,
+            action,
+        };
+        // Validate the domain up front.
+        request.domain()?;
+        Ok(request)
     }
 
     /// Parse a fast withdraw (LUD-08) LNURL-withdraw LNURL into an
@@ -737,6 +861,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use lexe_hex::hex;
     use proptest::prelude::*;
 
     use super::*;
@@ -873,6 +998,103 @@ mod test {
         let long_url = format!("https://example.com/{}", "x".repeat(8200));
         assert!(Uri::parse(&long_url[..8192]).is_ok());
         assert!(Uri::parse(&long_url[..8193]).is_err());
+    }
+
+    /// Signing `k1` per LUD-04, checked against LUD-13's example.
+    #[test]
+    fn auth_request_sign_lud13_vector() {
+        let linking_key_pair = secp256k1::Keypair::from_seckey_str(
+            &SECP256K1,
+            "9628eaef95f5c72fc4bcbfc1d3fe46805484aa1ee0d9cc219d342ef1ee926b47",
+        )
+        .unwrap();
+        assert_eq!(
+            linking_key_pair.public_key().to_string(),
+            "026c29c00976a94dc59f8ee33b12709d549e9d6ddc58744cdfcf7eda5af18da853",
+        );
+
+        let request = LnurlAuthRequest {
+            base_url: "https://lightninglogin.live/login".to_owned(),
+            k1: hex::decode_const(
+                b"a7830ce0d70e447ff888a72253cb3b564d52362a0aba25c9bd74c36f54d5431e",
+            ),
+            action: None,
+        };
+        assert_eq!(
+            request.sign(&linking_key_pair).to_string(),
+            "3045022100bf7eda76a3d2028a377f9f39197f715052053c17262d8f58cb1617\
+             aeacf414e6022003934d6e89937a82bf93ad20d3d16d94555ff87fae07ef5dba\
+             c2da3d6eaf3375",
+        );
+    }
+
+    #[test]
+    fn test_to_auth_request_strips_only_k1_and_action() {
+        let k1_hex = "ab".repeat(32);
+
+        let query = format!("tag=login&k1={k1_hex}&action=login&session=xyz");
+        let lud17 = format!("keyauth://site.com/login?{query}");
+        let bech32 =
+            Lnurl::from_http_url(&format!("https://site.com/login?{query}"))
+                .unwrap()
+                .to_bech32()
+                .unwrap();
+        for lnurl in [lud17, bech32] {
+            let request =
+                Lnurl::parse(&lnurl).unwrap().to_auth_request().unwrap();
+            assert_eq!(
+                request.base_url,
+                "https://site.com/login?tag=login&session=xyz"
+            );
+        }
+    }
+
+    /// Check that `domain()` follows LUD-05.
+    #[test]
+    fn test_auth_request_domain() {
+        let domain = |base_url: &str| {
+            let request = LnurlAuthRequest {
+                base_url: base_url.to_owned(),
+                k1: [0; 32],
+                action: None,
+            };
+            request.domain()
+        };
+
+        assert_eq!(
+            domain("https://auth.site.com/login").unwrap(),
+            "auth.site.com"
+        );
+
+        // Other spellings of `site.com` canonicalize to it.
+        for base_url in [
+            "https://site.com:8443/login",
+            "https://site.com./login",
+            "https://Site.COM/login",
+            "https://user@site.com/login",
+        ] {
+            assert_eq!(domain(base_url).unwrap(), "site.com", "{base_url}");
+        }
+
+        // IPs are rejected.
+        for base_url in [
+            "https://127.0.0.1/login",
+            "https://[::1]/login",
+            "https://2130706433/login",
+            "https://[::ffff:127.0.0.1]/login",
+        ] {
+            assert!(domain(base_url).is_err(), "{base_url}");
+        }
+
+        // Spellings `reqwest` would send to `site.com` are rejected, rather
+        // than deriving another linking key for it.
+        for base_url in [
+            "https://xn--site-.com/login",
+            "https://sit%65.com/login",
+            "https://ｓite.com/login",
+        ] {
+            assert!(domain(base_url).is_err(), "{base_url}");
+        }
     }
 
     #[test]

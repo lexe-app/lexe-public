@@ -251,8 +251,8 @@ impl PaymentUri {
                 (methods.payment_methods, resolvables) =
                     (*bip321).flatten(network),
             Self::LightningUri(lnuri) => {
-                let (payment_methods, resolvable) = lnuri.flatten();
-                methods.payment_methods = payment_methods;
+                let (lnuri_methods, resolvable) = lnuri.flatten();
+                methods = lnuri_methods;
                 resolvables.extend(resolvable);
             }
             Self::Invoice(invoice) =>
@@ -275,7 +275,11 @@ impl PaymentUri {
                 },
             Self::EmailLikeAddress(addr) =>
                 resolvables.push(Resolvable::EmailLike(addr)),
-            Self::Lnurl(lnurl) => resolvables.push(Resolvable::Lnurl(lnurl)),
+            Self::Lnurl(lnurl) => {
+                let (lnurl_methods, resolvable) = lnurl.flatten();
+                methods = lnurl_methods;
+                resolvables.extend(resolvable);
+            }
             Self::LexeConnect(request) =>
                 methods.auth_methods.push(AuthMethod::LexeConnect(request)),
             Self::LexePayUrl(LexePayUrl { payment_uri })

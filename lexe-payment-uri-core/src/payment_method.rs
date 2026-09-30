@@ -8,7 +8,7 @@ use lexe_connect::request::CredentialRequest;
 
 use crate::{
     email_like::EmailLikeAddress,
-    lnurl::{Lnurl, LnurlWithdrawRequest},
+    lnurl::{Lnurl, LnurlAuthRequest, LnurlWithdrawRequest},
 };
 
 /// A method a [`PaymentUri`] resolves to.
@@ -115,6 +115,9 @@ pub enum ClaimMethod {
 /// Compare with [`PaymentMethod`] (outbound) and [`ClaimMethod`] (inbound).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AuthMethod {
+    /// (LUD-04) Authenticate to a service, e.g. to log in, as a per-service
+    /// pubkey deterministically derived from the wallet seed.
+    LnurlAuth(LnurlAuthRequest),
     /// Grant a Lexe client credential to an app or service.
     LexeConnect(Box<CredentialRequest>),
 }
@@ -269,19 +272,20 @@ impl PaymentUriMethod for ClaimMethod {
 impl PaymentUriMethod for AuthMethod {
     fn kind(&self) -> &'static str {
         match self {
+            AuthMethod::LnurlAuth(_) => "lnurl-auth",
             AuthMethod::LexeConnect(_) => "lexe-connect",
         }
     }
 
     fn supports_network(&self, _network: Network) -> bool {
         match self {
-            AuthMethod::LexeConnect(_) => true,
+            AuthMethod::LnurlAuth(_) | AuthMethod::LexeConnect(_) => true,
         }
     }
 
     fn priority(&self) -> usize {
         match self {
-            AuthMethod::LexeConnect(_) => 0,
+            AuthMethod::LnurlAuth(_) | AuthMethod::LexeConnect(_) => 0,
         }
     }
 }

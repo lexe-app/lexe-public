@@ -3080,6 +3080,7 @@ dependencies = [
  "lexe-common",
  "lexe-connect",
  "lexe-crypto",
+ "lexe-hex",
  "lexe-uri",
  "percent-encoding",
  "proptest",

@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`, `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 int get hbaClaimMinBalanceSats =>
@@ -39,6 +39,8 @@ sealed class AppUserInfo with _$AppUserInfo {
 sealed class AuthMethod with _$AuthMethod {
   const AuthMethod._();
 
+  const factory AuthMethod.lnurlAuth(LnurlAuthRequest field0) =
+      AuthMethod_LnurlAuth;
   const factory AuthMethod.lexeConnect(CredentialRequest field0) =
       AuthMethod_LexeConnect;
 }
@@ -272,6 +274,40 @@ sealed class Invoice with _$Invoice {
     int? amountSats,
     required String payeePubkey,
   }) = _Invoice;
+}
+
+/// An [`LnurlAuthRequest`]'s stated intent, for display purposes.
+enum LnurlAuthAction { register, login, link, auth }
+
+/// A LUD-04 LNURL-auth request, for the user's approval.
+class LnurlAuthRequest {
+  final String baseUrl;
+
+  /// The service's domain, derived from `base_url`, for display purposes.
+  final String domain;
+  final U8Array32 k1;
+  final LnurlAuthAction? action;
+
+  const LnurlAuthRequest({
+    required this.baseUrl,
+    required this.domain,
+    required this.k1,
+    this.action,
+  });
+
+  @override
+  int get hashCode =>
+      baseUrl.hashCode ^ domain.hashCode ^ k1.hashCode ^ action.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LnurlAuthRequest &&
+          runtimeType == other.runtimeType &&
+          baseUrl == other.baseUrl &&
+          domain == other.domain &&
+          k1 == other.k1 &&
+          action == other.action;
 }
 
 /// A resolved LNURL-pay payment method.
