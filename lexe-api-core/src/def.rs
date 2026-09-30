@@ -115,7 +115,7 @@ use crate::{
         Empty,
         lnurl::{
             LnurlCallbackRequest, LnurlCallbackResponse, LnurlError,
-            LnurlPayRequestWire,
+            LnurlPayRequestWire, LnurlVerifyResponse,
         },
         payments::{
             DbPaymentMetadata, DbPaymentV2, DbPaymentWithMetadata,
@@ -1112,4 +1112,9 @@ pub trait PublicGatewayApi {
         &self,
         req: LnurlCallbackRequest,
     ) -> Result<LnurlCallbackResponse, LnurlError>;
+
+    /// Whether the invoice from a previous callback has been paid (LUD-21).
+    ///
+    /// GET /public/v1/lnurl_verify/{encoded_params}
+    async fn lnurl_verify(&self) -> Result<LnurlVerifyResponse, LnurlError>;
 }
