@@ -580,40 +580,41 @@ impl LnurlClient {
         invoice: Invoice,
     ) -> anyhow::Result<()> {
         let callback = &withdraw_req.callback;
-
-        /// The raw LNURL-withdraw callback response. LNURL doesn't use a
-        /// consistent response scheme, so an untagged enum is needed.
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum RawResponse {
-            // TODO(nicole): this is a repeated success/error response pattern
-            // across lnurl flows; consider pulling this out eventually?
-            Success { status: SuccessStatus },
-            Error(LnurlErrorWire),
-        }
-        #[derive(Deserialize)]
-        enum SuccessStatus {
-            #[serde(rename = "OK")]
-            Ok,
-        }
-
-        let resp = self
+        let request = self
             .0
             .get(callback)
-            .query(&[("k1", &withdraw_req.k1), ("pr", &invoice.to_string())])
+            .query(&[("k1", &withdraw_req.k1), ("pr", &invoice.to_string())]);
+
+        self.send_and_check_status("LNURL-withdraw", request).await
+    }
+
+    /// Sends `request` and checks its response, expecting `{"status":"OK"}` on
+    /// success or `{"status":"ERROR","reason":"..."}` on failure.
+    async fn send_and_check_status(
+        &self,
+        flow: &str,
+        request: reqwest::RequestBuilder,
+    ) -> anyhow::Result<()> {
+        /// The raw response.
+        #[derive(Deserialize)]
+        #[serde(tag = "status", rename_all = "UPPERCASE")]
+        enum RawResponse {
+            Ok,
+            Error { reason: String },
+        }
+
+        let resp = request
             .send()
             .await
-            .context("Failed to send LNURL-withdraw callback request")?
+            .with_context(|| format!("Failed to send {flow} request"))?
             .json::<RawResponse>()
             .await
-            .context("Failed to parse LNURL-withdraw callback response")?;
+            .with_context(|| format!("Failed to parse {flow} response"))?;
 
         match resp {
-            RawResponse::Success {
-                status: SuccessStatus::Ok,
-            } => Ok(()),
-            RawResponse::Error(LnurlErrorWire { reason, .. }) =>
-                Err(anyhow!("LNURL-withdraw callback failed: {reason}")),
+            RawResponse::Ok => Ok(()),
+            RawResponse::Error { reason } =>
+                Err(anyhow!("{flow} failed: {reason}")),
         }
     }
 
