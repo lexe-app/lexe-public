@@ -4474,10 +4474,10 @@ name = "sdk-sidecar"
 version = "0.4.23"
 dependencies = [
  "anyhow",
- "argh",
  "axum",
  "bytes",
  "chrono",
+ "clap",
  "dotenvy",
  "futures",
  "http",

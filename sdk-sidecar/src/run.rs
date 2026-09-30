@@ -240,7 +240,7 @@ fn resolve_credentials(
     data_dir: &Path,
     client_credentials: Option<ClientCredentials>,
     client_credentials_path: Option<PathBuf>,
-    root_seed: Option<RootSeed>,
+    root_seed: Option<String>,
     root_seed_path: Option<PathBuf>,
 ) -> anyhow::Result<Option<Credentials>> {
     // Count how many credential sources were provided.
@@ -278,7 +278,8 @@ fn resolve_credentials(
         )?;
         let source = Cow::Owned(path.display().to_string());
         (Some(Credentials::from(cc)), source)
-    } else if let Some(seed) = root_seed {
+    } else if let Some(s) = root_seed {
+        let seed = RootSeed::from_str(&s).context("Invalid root seed")?;
         (Some(Credentials::from(seed)), source_if_direct)
     } else if let Some(path) = &root_seed_path {
         let seed = RootSeed::read_from_path(path)?.ok_or_else(|| {

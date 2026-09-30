@@ -2,12 +2,16 @@
 
 use std::{net::SocketAddr, path::PathBuf};
 
-use lexe::types::auth::{ClientCredentials, RootSeed};
+use clap::Parser;
+use lexe::types::auth::ClientCredentials;
 use lexe_common::{ln::network::Network, or_env::OrEnvExt as _};
 
 /// Lexe sidecar SDK CLI args
-#[derive(Default, argh::FromArgs)]
-#[argh(description = r#"
+#[derive(Default, Parser)]
+#[command(
+    name = "lexe-sidecar",
+    about = "Lexe SDK sidecar service",
+    long_about = r#"
 Lexe SDK sidecar service
 
 The sidecar runs a local webserver that exposes a simple HTTP API for
@@ -31,65 +35,65 @@ Example:
 $ lexe-sidecar
 INFO (sdk): lexe_api::server: Url for (server): http://127.0.0.1:5393
 
-$ curl http://127.0.0.1:5393/v1/health
-{{"status":"ok"}}
-```
-"#)]
+$ curl http://127.0.0.1:5393/v2/health
+{"status":"ok"}
+```"#,
+)]
 pub struct SidecarArgs {
-    /// client credentials exported from the Lexe app.
-    /// (env=`LEXE_CLIENT_CREDENTIALS`)
-    #[argh(option)]
+    /// Client credentials exported from the Lexe app.
+    /// [env: LEXE_CLIENT_CREDENTIALS]
+    #[arg(long)]
     pub client_credentials: Option<ClientCredentials>,
 
-    /// path to file containing client credentials exported from the Lexe app.
-    /// (env=`LEXE_CLIENT_CREDENTIALS_PATH`)
-    #[argh(option)]
+    /// Path to a file containing client credentials exported from the Lexe
+    /// app.
+    /// [env: LEXE_CLIENT_CREDENTIALS_PATH]
+    #[arg(long)]
     pub client_credentials_path: Option<PathBuf>,
 
-    /// lexe user root seed, as a 64-character hex string.
-    /// (env=`LEXE_ROOT_SEED`)
-    #[argh(option)]
-    pub root_seed: Option<RootSeed>,
+    /// Root seed as a 64-character hex string.
+    /// [env: LEXE_ROOT_SEED]
+    #[arg(long)]
+    pub root_seed: Option<String>,
 
-    /// path to a file containing the root seed (hex or mnemonic).
-    /// (env=`LEXE_ROOT_SEED_PATH`)
-    #[argh(option)]
+    /// Path to a file containing the root seed (hex or mnemonic).
+    /// [env: LEXE_ROOT_SEED_PATH]
+    #[arg(long)]
     pub root_seed_path: Option<PathBuf>,
 
-    /// the `<ip-address>:<port>` to listen on.
-    /// (default=`127.0.0.1:5393`, env=`LISTEN_ADDR`)
-    #[argh(option)]
+    /// The `<ip-address>:<port>` to listen on. [default: 127.0.0.1:5393]
+    /// [env: LISTEN_ADDR]
+    #[arg(long)]
     pub listen_addr: Option<SocketAddr>,
 
-    /// the URL that clients use to connect to the sidecar;
-    /// used to construct the callback in `/analyze`
-    /// (default=http://<listen_addr>, env=`LEXE_SIDECAR_URL`)
-    #[argh(option)]
+    /// The URL that clients use to connect to the sidecar; used to construct
+    /// the callback in `/analyze`. [default: http://<listen_addr>]
+    /// [env: LEXE_SIDECAR_URL]
+    #[arg(long)]
     pub sidecar_url: Option<String>,
 
-    /// the Bitcoin network to use. One of `mainnet`, `testnet3`, `regtest`.
-    /// (default=`mainnet`, env=`LEXE_NETWORK`)
-    #[argh(option, hidden_help)] // hide option until we support staging
+    /// The Bitcoin network to use: mainnet, testnet3, regtest.
+    /// [default: mainnet] [env: LEXE_NETWORK]
+    #[arg(long, hide = true)] // hide option until we support staging
     pub network: Option<Network>,
 
-    /// webhook URL for payment notifications. When a payment is finalized
-    /// (completed or failed), the sidecar will POST a JSON payload to this
-    /// URL. (env=`LEXE_WEBHOOK_URL`)
-    #[argh(option)]
+    /// Webhook URL for payment notifications. When a payment is finalized
+    /// (completed or failed), the sidecar POSTs a JSON payload to this URL.
+    /// [env: LEXE_WEBHOOK_URL]
+    #[arg(long)]
     pub webhook_url: Option<String>,
 
-    /// shared secret for signing webhook payloads using the "Standard
+    /// Shared secret for signing webhook payloads using the "Standard
     /// Webhooks" HMAC-SHA256 scheme. Recommended if the webhook receiver is
     /// publicly reachable. Typically a `whsec_`-prefixed base64 string.
-    /// (env=`LEXE_WEBHOOK_SECRET`)
-    #[argh(option)]
+    /// [env: LEXE_WEBHOOK_SECRET]
+    #[arg(long)]
     pub webhook_secret: Option<String>,
 
-    /// data directory for local persistence. Also used by the webhook sender
-    /// to store tracked payments.
-    ///
-    /// (default=`$HOME/.lexe`, env=`LEXE_DATA_DIR`)
-    #[argh(option)]
+    /// Data directory for local persistence. Also used by the webhook sender
+    /// to store tracked payments. [default: $HOME/.lexe]
+    /// [env: LEXE_DATA_DIR]
+    #[arg(long)]
     pub data_dir: Option<PathBuf>,
 }
 
@@ -97,7 +101,7 @@ impl SidecarArgs {
     /// Reads [`SidecarArgs`] from CLI args passed to the current program.
     /// NOTE: Exits the program with an error if the CLI args failed to parse.
     pub fn from_cli() -> Self {
-        argh::from_env::<Self>()
+        Self::parse()
     }
 
     /// Populates any unset args from env, if available.
