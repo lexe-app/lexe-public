@@ -1651,7 +1651,9 @@ impl SseDecode for crate::ffi::types::AuthMethod {
         match tag_ {
             0 => {
                 let mut var_field0 =
-                    <crate::ffi::types::LexeConnect>::sse_decode(deserializer);
+                    <crate::ffi::types::CredentialRequest>::sse_decode(
+                        deserializer,
+                    );
                 return crate::ffi::types::AuthMethod::LexeConnect(var_field0);
             }
             _ => {
@@ -1930,6 +1932,31 @@ impl SseDecode for crate::ffi::api::CreateOfferResponse {
     }
 }
 
+impl SseDecode for crate::ffi::types::CredentialRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_connectionString = <String>::sse_decode(deserializer);
+        let mut var_requester =
+            <crate::ffi::types::RequesterDisplay>::sse_decode(deserializer);
+        let mut var_account = <Option<String>>::sse_decode(deserializer);
+        let mut var_scopes = <Vec<String>>::sse_decode(deserializer);
+        let mut var_permissions = <Vec<String>>::sse_decode(deserializer);
+        let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
+        return crate::ffi::types::CredentialRequest {
+            connection_string: var_connectionString,
+            requester: var_requester,
+            account: var_account,
+            scopes: var_scopes,
+            permissions: var_permissions,
+            label: var_label,
+            expires_at: var_expiresAt,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::DeployEnv {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -2141,31 +2168,6 @@ impl SseDecode for crate::ffi::types::Invoice {
             expires_at: var_expiresAt,
             amount_sats: var_amountSats,
             payee_pubkey: var_payeePubkey,
-        };
-    }
-}
-
-impl SseDecode for crate::ffi::types::LexeConnect {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_connectionString = <String>::sse_decode(deserializer);
-        let mut var_requester =
-            <crate::ffi::types::RequesterDisplay>::sse_decode(deserializer);
-        let mut var_account = <Option<String>>::sse_decode(deserializer);
-        let mut var_scopes = <Vec<String>>::sse_decode(deserializer);
-        let mut var_permissions = <Vec<String>>::sse_decode(deserializer);
-        let mut var_label = <Option<String>>::sse_decode(deserializer);
-        let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
-        return crate::ffi::types::LexeConnect {
-            connection_string: var_connectionString,
-            requester: var_requester,
-            account: var_account,
-            scopes: var_scopes,
-            permissions: var_permissions,
-            label: var_label,
-            expires_at: var_expiresAt,
         };
     }
 }
@@ -4244,6 +4246,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::CreateOfferResponse>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::CredentialRequest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.connection_string.into_into_dart().into_dart(),
+            self.requester.into_into_dart().into_dart(),
+            self.account.into_into_dart().into_dart(),
+            self.scopes.into_into_dart().into_dart(),
+            self.permissions.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.expires_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::CredentialRequest
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::CredentialRequest>
+    for crate::ffi::types::CredentialRequest
+{
+    fn into_into_dart(self) -> crate::ffi::types::CredentialRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::DeployEnv {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -4503,32 +4531,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Invoice>
     for crate::ffi::types::Invoice
 {
     fn into_into_dart(self) -> crate::ffi::types::Invoice {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::ffi::types::LexeConnect {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.connection_string.into_into_dart().into_dart(),
-            self.requester.into_into_dart().into_dart(),
-            self.account.into_into_dart().into_dart(),
-            self.scopes.into_into_dart().into_dart(),
-            self.permissions.into_into_dart().into_dart(),
-            self.label.into_into_dart().into_dart(),
-            self.expires_at.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::ffi::types::LexeConnect
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LexeConnect>
-    for crate::ffi::types::LexeConnect
-{
-    fn into_into_dart(self) -> crate::ffi::types::LexeConnect {
         self
     }
 }
@@ -5934,7 +5936,7 @@ impl SseEncode for crate::ffi::types::AuthMethod {
         match self {
             crate::ffi::types::AuthMethod::LexeConnect(field0) => {
                 <i32>::sse_encode(0, serializer);
-                <crate::ffi::types::LexeConnect>::sse_encode(
+                <crate::ffi::types::CredentialRequest>::sse_encode(
                     field0, serializer,
                 );
             }
@@ -6175,6 +6177,25 @@ impl SseEncode for crate::ffi::api::CreateOfferResponse {
     }
 }
 
+impl SseEncode for crate::ffi::types::CredentialRequest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.connection_string, serializer);
+        <crate::ffi::types::RequesterDisplay>::sse_encode(
+            self.requester,
+            serializer,
+        );
+        <Option<String>>::sse_encode(self.account, serializer);
+        <Vec<String>>::sse_encode(self.scopes, serializer);
+        <Vec<String>>::sse_encode(self.permissions, serializer);
+        <Option<String>>::sse_encode(self.label, serializer);
+        <Option<i64>>::sse_encode(self.expires_at, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::DeployEnv {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -6365,25 +6386,6 @@ impl SseEncode for crate::ffi::types::Invoice {
         <i64>::sse_encode(self.expires_at, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <String>::sse_encode(self.payee_pubkey, serializer);
-    }
-}
-
-impl SseEncode for crate::ffi::types::LexeConnect {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <String>::sse_encode(self.connection_string, serializer);
-        <crate::ffi::types::RequesterDisplay>::sse_encode(
-            self.requester,
-            serializer,
-        );
-        <Option<String>>::sse_encode(self.account, serializer);
-        <Vec<String>>::sse_encode(self.scopes, serializer);
-        <Vec<String>>::sse_encode(self.permissions, serializer);
-        <Option<String>>::sse_encode(self.label, serializer);
-        <Option<i64>>::sse_encode(self.expires_at, serializer);
     }
 }
 

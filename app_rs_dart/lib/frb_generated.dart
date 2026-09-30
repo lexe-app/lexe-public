@@ -3702,7 +3702,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     switch (raw[0]) {
       case 0:
         return AuthMethod_LexeConnect(
-          dco_decode_box_autoadd_lexe_connect(raw[1]),
+          dco_decode_box_autoadd_credential_request(raw[1]),
         );
       default:
         throw Exception("unreachable");
@@ -3833,6 +3833,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  CredentialRequest dco_decode_box_autoadd_credential_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_credential_request(raw);
+  }
+
+  @protected
   FeeEstimate dco_decode_box_autoadd_fee_estimate(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_fee_estimate(raw);
@@ -3885,12 +3891,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice dco_decode_box_autoadd_invoice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_invoice(raw);
-  }
-
-  @protected
-  LexeConnect dco_decode_box_autoadd_lexe_connect(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_lexe_connect(raw);
   }
 
   @protected
@@ -4253,6 +4253,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  CredentialRequest dco_decode_credential_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return CredentialRequest(
+      connectionString: dco_decode_String(arr[0]),
+      requester: dco_decode_requester_display(arr[1]),
+      account: dco_decode_opt_String(arr[2]),
+      scopes: dco_decode_list_String(arr[3]),
+      permissions: dco_decode_list_String(arr[4]),
+      label: dco_decode_opt_String(arr[5]),
+      expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[6]),
+    );
+  }
+
+  @protected
   DeployEnv dco_decode_deploy_env(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DeployEnv.values[raw as int];
@@ -4411,23 +4428,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       expiresAt: dco_decode_CastedPrimitive_i_64(arr[3]),
       amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
       payeePubkey: dco_decode_String(arr[5]),
-    );
-  }
-
-  @protected
-  LexeConnect dco_decode_lexe_connect(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
-    return LexeConnect(
-      connectionString: dco_decode_String(arr[0]),
-      requester: dco_decode_requester_display(arr[1]),
-      account: dco_decode_opt_String(arr[2]),
-      scopes: dco_decode_list_String(arr[3]),
-      permissions: dco_decode_list_String(arr[4]),
-      label: dco_decode_opt_String(arr[5]),
-      expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[6]),
     );
   }
 
@@ -5544,7 +5544,9 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        var var_field0 = sse_decode_box_autoadd_lexe_connect(deserializer);
+        var var_field0 = sse_decode_box_autoadd_credential_request(
+          deserializer,
+        );
         return AuthMethod_LexeConnect(var_field0);
       default:
         throw UnimplementedError('');
@@ -5685,6 +5687,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  CredentialRequest sse_decode_box_autoadd_credential_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_credential_request(deserializer));
+  }
+
+  @protected
   FeeEstimate sse_decode_box_autoadd_fee_estimate(
     SseDeserializer deserializer,
   ) {
@@ -5745,14 +5755,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_invoice(deserializer));
-  }
-
-  @protected
-  LexeConnect sse_decode_box_autoadd_lexe_connect(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_lexe_connect(deserializer));
   }
 
   @protected
@@ -6156,6 +6158,29 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  CredentialRequest sse_decode_credential_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_connectionString = sse_decode_String(deserializer);
+    var var_requester = sse_decode_requester_display(deserializer);
+    var var_account = sse_decode_opt_String(deserializer);
+    var var_scopes = sse_decode_list_String(deserializer);
+    var var_permissions = sse_decode_list_String(deserializer);
+    var var_label = sse_decode_opt_String(deserializer);
+    var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    return CredentialRequest(
+      connectionString: var_connectionString,
+      requester: var_requester,
+      account: var_account,
+      scopes: var_scopes,
+      permissions: var_permissions,
+      label: var_label,
+      expiresAt: var_expiresAt,
+    );
+  }
+
+  @protected
   DeployEnv sse_decode_deploy_env(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
@@ -6313,27 +6338,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       expiresAt: var_expiresAt,
       amountSats: var_amountSats,
       payeePubkey: var_payeePubkey,
-    );
-  }
-
-  @protected
-  LexeConnect sse_decode_lexe_connect(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_connectionString = sse_decode_String(deserializer);
-    var var_requester = sse_decode_requester_display(deserializer);
-    var var_account = sse_decode_opt_String(deserializer);
-    var var_scopes = sse_decode_list_String(deserializer);
-    var var_permissions = sse_decode_list_String(deserializer);
-    var var_label = sse_decode_opt_String(deserializer);
-    var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
-    return LexeConnect(
-      connectionString: var_connectionString,
-      requester: var_requester,
-      account: var_account,
-      scopes: var_scopes,
-      permissions: var_permissions,
-      label: var_label,
-      expiresAt: var_expiresAt,
     );
   }
 
@@ -7702,7 +7706,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     switch (self) {
       case AuthMethod_LexeConnect(field0: final field0):
         sse_encode_i_32(0, serializer);
-        sse_encode_box_autoadd_lexe_connect(field0, serializer);
+        sse_encode_box_autoadd_credential_request(field0, serializer);
     }
   }
 
@@ -7839,6 +7843,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_credential_request(
+    CredentialRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_credential_request(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_fee_estimate(
     FeeEstimate self,
     SseSerializer serializer,
@@ -7905,15 +7918,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_invoice(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_lexe_connect(
-    LexeConnect self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_lexe_connect(self, serializer);
   }
 
   @protected
@@ -8327,6 +8331,21 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_credential_request(
+    CredentialRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.connectionString, serializer);
+    sse_encode_requester_display(self.requester, serializer);
+    sse_encode_opt_String(self.account, serializer);
+    sse_encode_list_String(self.scopes, serializer);
+    sse_encode_list_String(self.permissions, serializer);
+    sse_encode_opt_String(self.label, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
+  }
+
+  @protected
   void sse_encode_deploy_env(DeployEnv self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
@@ -8452,18 +8471,6 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_String(self.payeePubkey, serializer);
-  }
-
-  @protected
-  void sse_encode_lexe_connect(LexeConnect self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.connectionString, serializer);
-    sse_encode_requester_display(self.requester, serializer);
-    sse_encode_opt_String(self.account, serializer);
-    sse_encode_list_String(self.scopes, serializer);
-    sse_encode_list_String(self.permissions, serializer);
-    sse_encode_opt_String(self.label, serializer);
-    sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
   }
 
   @protected

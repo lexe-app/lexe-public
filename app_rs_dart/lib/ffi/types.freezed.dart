@@ -76,7 +76,7 @@ String toString() {
 /// @nodoc
 mixin _$AuthMethod {
 
- LexeConnect get field0;
+ CredentialRequest get field0;
 
 
 
@@ -108,7 +108,7 @@ class AuthMethod_LexeConnect extends AuthMethod {
   const AuthMethod_LexeConnect(this.field0): super._();
   
 
-@override final  LexeConnect field0;
+@override final  CredentialRequest field0;
 
 
 

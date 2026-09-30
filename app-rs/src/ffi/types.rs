@@ -681,7 +681,7 @@ impl From<lexe_payment_uri::ClaimMethod> for ClaimMethod {
 /// A scanned/pasted request for the wallet to vouch for the user without
 /// moving money.
 pub enum AuthMethod {
-    LexeConnect(LexeConnect),
+    LexeConnect(CredentialRequest),
 }
 
 impl From<lexe_payment_uri::AuthMethod> for AuthMethod {
@@ -692,7 +692,7 @@ impl From<lexe_payment_uri::AuthMethod> for AuthMethod {
                 let requester =
                     RequesterDisplay::from(request.requester_display());
                 let params = request.params;
-                Self::LexeConnect(LexeConnect {
+                Self::LexeConnect(CredentialRequest {
                     connection_string,
                     requester,
                     account: params.account,
@@ -706,8 +706,8 @@ impl From<lexe_payment_uri::AuthMethod> for AuthMethod {
     }
 }
 
-/// A LexeConnect credential request.
-pub struct LexeConnect {
+/// A LexeConnect credential request, for the user's approval.
+pub struct CredentialRequest {
     /// The connection string, re-parsed once the user decides.
     pub connection_string: String,
     /// How the approval screen identifies the requester.
@@ -722,7 +722,7 @@ pub struct LexeConnect {
     pub expires_at: Option<i64>,
 }
 
-/// How the approval screen identifies a LexeConnect requester.
+/// How the approval screen identifies the LexeConnect REQUESTER.
 pub enum RequesterDisplay {
     /// The response goes to this domain, or to an app verified for it.
     Verified { domain: String },

@@ -183,6 +183,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   CreateOfferRequest dco_decode_box_autoadd_create_offer_request(dynamic raw);
 
   @protected
+  CredentialRequest dco_decode_box_autoadd_credential_request(dynamic raw);
+
+  @protected
   FeeEstimate dco_decode_box_autoadd_fee_estimate(dynamic raw);
 
   @protected
@@ -212,9 +215,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
-
-  @protected
-  LexeConnect dco_decode_box_autoadd_lexe_connect(dynamic raw);
 
   @protected
   LnurlPay dco_decode_box_autoadd_lnurl_pay(dynamic raw);
@@ -365,6 +365,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   CreateOfferResponse dco_decode_create_offer_response(dynamic raw);
 
   @protected
+  CredentialRequest dco_decode_credential_request(dynamic raw);
+
+  @protected
   DeployEnv dco_decode_deploy_env(dynamic raw);
 
   @protected
@@ -410,9 +413,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice dco_decode_invoice(dynamic raw);
-
-  @protected
-  LexeConnect dco_decode_lexe_connect(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -840,6 +840,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  CredentialRequest sse_decode_box_autoadd_credential_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   FeeEstimate sse_decode_box_autoadd_fee_estimate(SseDeserializer deserializer);
 
   @protected
@@ -875,9 +880,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
-
-  @protected
-  LexeConnect sse_decode_box_autoadd_lexe_connect(SseDeserializer deserializer);
 
   @protected
   LnurlPay sse_decode_box_autoadd_lnurl_pay(SseDeserializer deserializer);
@@ -1078,6 +1080,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  CredentialRequest sse_decode_credential_request(SseDeserializer deserializer);
+
+  @protected
   DeployEnv sse_decode_deploy_env(SseDeserializer deserializer);
 
   @protected
@@ -1131,9 +1136,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice sse_decode_invoice(SseDeserializer deserializer);
-
-  @protected
-  LexeConnect sse_decode_lexe_connect(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -1648,6 +1650,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_credential_request(
+    CredentialRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_fee_estimate(
     FeeEstimate self,
     SseSerializer serializer,
@@ -1691,12 +1699,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_lexe_connect(
-    LexeConnect self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_box_autoadd_lnurl_pay(
@@ -1942,6 +1944,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_credential_request(
+    CredentialRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_deploy_env(DeployEnv self, SseSerializer serializer);
 
   @protected
@@ -2000,9 +2008,6 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_invoice(Invoice self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_lexe_connect(LexeConnect self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);

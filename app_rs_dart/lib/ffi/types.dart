@@ -39,7 +39,7 @@ sealed class AppUserInfo with _$AppUserInfo {
 sealed class AuthMethod with _$AuthMethod {
   const AuthMethod._();
 
-  const factory AuthMethod.lexeConnect(LexeConnect field0) =
+  const factory AuthMethod.lexeConnect(CredentialRequest field0) =
       AuthMethod_LexeConnect;
 }
 
@@ -133,6 +133,59 @@ sealed class Config with _$Config {
 
 enum ConfirmationPriority { high, normal, background }
 
+/// A LexeConnect credential request, for the user's approval.
+class CredentialRequest {
+  /// The connection string, re-parsed once the user decides.
+  final String connectionString;
+
+  /// How the approval screen identifies the requester.
+  final RequesterDisplay requester;
+
+  /// The requester account being connected, e.g. `@janedoe`.
+  final String? account;
+  final List<String> scopes;
+  final List<String> permissions;
+
+  /// Prefills the credential label.
+  final String? label;
+
+  /// Prefills the credential expiration, in ms since the UNIX epoch.
+  final int? expiresAt;
+
+  const CredentialRequest({
+    required this.connectionString,
+    required this.requester,
+    this.account,
+    required this.scopes,
+    required this.permissions,
+    this.label,
+    this.expiresAt,
+  });
+
+  @override
+  int get hashCode =>
+      connectionString.hashCode ^
+      requester.hashCode ^
+      account.hashCode ^
+      scopes.hashCode ^
+      permissions.hashCode ^
+      label.hashCode ^
+      expiresAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CredentialRequest &&
+          runtimeType == other.runtimeType &&
+          connectionString == other.connectionString &&
+          requester == other.requester &&
+          account == other.account &&
+          scopes == other.scopes &&
+          permissions == other.permissions &&
+          label == other.label &&
+          expiresAt == other.expiresAt;
+}
+
 /// See [`lexe_common::env::DeployEnv`]
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -205,59 +258,6 @@ sealed class Invoice with _$Invoice {
     int? amountSats,
     required String payeePubkey,
   }) = _Invoice;
-}
-
-/// A LexeConnect credential request.
-class LexeConnect {
-  /// The connection string, re-parsed once the user decides.
-  final String connectionString;
-
-  /// How the approval screen identifies the requester.
-  final RequesterDisplay requester;
-
-  /// The requester account being connected, e.g. `@janedoe`.
-  final String? account;
-  final List<String> scopes;
-  final List<String> permissions;
-
-  /// Prefills the credential label.
-  final String? label;
-
-  /// Prefills the credential expiration, in ms since the UNIX epoch.
-  final int? expiresAt;
-
-  const LexeConnect({
-    required this.connectionString,
-    required this.requester,
-    this.account,
-    required this.scopes,
-    required this.permissions,
-    this.label,
-    this.expiresAt,
-  });
-
-  @override
-  int get hashCode =>
-      connectionString.hashCode ^
-      requester.hashCode ^
-      account.hashCode ^
-      scopes.hashCode ^
-      permissions.hashCode ^
-      label.hashCode ^
-      expiresAt.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LexeConnect &&
-          runtimeType == other.runtimeType &&
-          connectionString == other.connectionString &&
-          requester == other.requester &&
-          account == other.account &&
-          scopes == other.scopes &&
-          permissions == other.permissions &&
-          label == other.label &&
-          expiresAt == other.expiresAt;
 }
 
 /// A resolved LNURL-pay payment method.
