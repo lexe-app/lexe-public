@@ -1,4 +1,6 @@
-platform :ios, '13.0'
+# Xcode 27+ rejects iOS deployment targets below 15.0.
+ios_deployment_target = '15.0'
+platform :ios, ios_deployment_target
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -54,7 +56,16 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  min_version = Gem::Version.new(ios_deployment_target)
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # Raise pods that still declare an older macOS deployment target. Xcode 27+
+    # now hard errors if there are any targets that are too old.
+    target.build_configurations.each do |config|
+      version = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      next unless version && Gem::Version.new(version) < min_version
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = ios_deployment_target
+    end
   end
 end
