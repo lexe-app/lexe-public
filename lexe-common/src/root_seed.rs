@@ -306,6 +306,59 @@ impl RootSeed {
         sk.secret_bytes()
     }
 
+    /// Derive the LNURL-auth `linkingKey` pair for a service `domain`
+    /// (LUD-05). Uses the BIP39-compatible master xprv, so a wallet restored
+    /// from the same mnemonic elsewhere derives the same identity.
+    ///
+    /// `domain` is hashed verbatim, so callers must canonicalize it.
+    pub fn derive_lnurl_auth_key_pair(
+        &self,
+        domain: &str,
+    ) -> secp256k1::Keypair {
+        // The network only affects the xprv's serialization, not derived keys.
+        let master_xprv = self.derive_bip32_master_xprv(Network::Mainnet);
+
+        let m_138h =
+            ChildNumber::from_hardened_idx(138).expect("Is within [0, 2^31-1]");
+        let lnurl_auth_xprv = master_xprv
+            .derive_priv(&SECP256K1, &m_138h)
+            .expect("Should always succeed");
+
+        // hashingKey = m/138'/0
+        let m_0 =
+            ChildNumber::from_normal_idx(0).expect("Is within [0, 2^31-1]");
+        let hashing_key = lnurl_auth_xprv
+            .derive_priv(&SECP256K1, &m_0)
+            .expect("Should always succeed")
+            .private_key;
+
+        // linkingKey = m/138'/<long1>/<long2>/<long3>/<long4>
+        let path_suffix = Self::lnurl_auth_path_suffix(&hashing_key, domain);
+        let linking_key = lnurl_auth_xprv
+            .derive_priv(&SECP256K1, &path_suffix)
+            .expect("Should always succeed")
+            .private_key;
+
+        secp256k1::Keypair::from_secret_key(&SECP256K1, &linking_key)
+    }
+
+    /// The LUD-05 `pathSuffix`: the first 16 bytes of
+    /// `HMAC-SHA256(hashingKey, domain)` as big-endian `u32`s. A `u32` with
+    /// its high bit set is a hardened index.
+    fn lnurl_auth_path_suffix(
+        hashing_key: &secp256k1::SecretKey,
+        domain: &str,
+    ) -> [ChildNumber; 4] {
+        let hmac_key = ring::hmac::Key::new(
+            ring::hmac::HMAC_SHA256,
+            &hashing_key.secret_bytes(),
+        );
+        let tag = ring::hmac::sign(&hmac_key, domain.as_bytes());
+        let (longs, _) = tag.as_ref().as_chunks::<4>();
+
+        std::array::from_fn(|i| ChildNumber::from(u32::from_be_bytes(longs[i])))
+    }
+
     pub fn derive_vfs_master_key(&self) -> AesMasterKey {
         let secret = self.derive(&[b"vfs master key"]);
         AesMasterKey::new(secret.expose_secret())
@@ -973,6 +1026,19 @@ mod test {
         assert_eq!(str3, seed3.to_mnemonic().to_string());
     }
 
+    /// LUD-05's `pathSuffix` test vector.
+    #[test]
+    fn lnurl_auth_path_suffix_lud05_vector() {
+        let hashing_key = secp256k1::SecretKey::from_str(
+            "7d417a6a5e9a6a4a879aeaba11a11838764c8fa2b959c242d43dea682b3e409b",
+        )
+        .unwrap();
+        let actual = RootSeed::lnurl_auth_path_suffix(&hashing_key, "site.com");
+        let expected = [1588488367u32, 2659270754, 38110259, 4136336762]
+            .map(ChildNumber::from);
+        assert_eq!(actual, expected);
+    }
+
     /// Snapshot tests to ensure key derivations don't change.
     /// These protect backwards compatibility for existing wallets.
     #[test]
@@ -1010,6 +1076,14 @@ mod test {
         assert_eq!(
             hex::encode(nwc_master_secret.expose_secret()),
             "a7e9ea1fbbc9cc973c9d1dd03772fe642a5ce0498c27d981e657408643d54520",
+        );
+
+        // LNURL-auth linking pubkey
+        let lnurl_auth_pk =
+            seed.derive_lnurl_auth_key_pair("site.com").public_key();
+        assert_eq!(
+            lnurl_auth_pk.to_string(),
+            "024980db97746439e7960af7f388609a6dfbccac23d5550af8494344f06bfa49b3",
         );
 
         // LDK seed (used to initialize KeysManager)
