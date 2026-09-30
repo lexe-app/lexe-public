@@ -48,7 +48,9 @@ pub use crate::{
         Lnurl, LnurlScheme, LnurlTag, LnurlWithdrawRequest,
         LnurlWithdrawRequestTag, LnurlWithdrawRequestWire,
     },
-    payment_method::{ClaimMethod, PaymentMethod, Resolvable},
+    payment_method::{
+        ClaimMethod, PaymentMethod, PaymentUriMethod, Resolvable,
+    },
     payment_uri::PaymentUri,
 };
 

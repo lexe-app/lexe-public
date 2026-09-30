@@ -8,6 +8,20 @@ use crate::{
     lnurl::{Lnurl, LnurlWithdrawRequest},
 };
 
+/// A method a [`PaymentUri`] resolves to.
+///
+/// [`PaymentUri`]: crate::PaymentUri
+pub trait PaymentUriMethod {
+    /// The method's kind as a stable string, e.g. "invoice", "lnurl-withdraw".
+    fn kind(&self) -> &'static str;
+
+    /// Whether the method is valid for `network`.
+    fn supports_network(&self, network: Network) -> bool;
+
+    /// Higher priority methods are preferred. For `sort_by_key` and friends.
+    fn priority(&self) -> usize;
+}
+
 /// A single "payment method" -- each kind here should correspond with a single
 /// linear (outbound) payment flow for a user, where there are no other
 /// alternate methods.
@@ -109,7 +123,6 @@ pub enum Resolvable {
 
 // --- impl PaymentMethod --- //
 
-// Keep the impls for `PaymentMethod` and `ClaimMethod` synced
 impl PaymentMethod {
     /// Check if the payment method is an onchain address.
     pub fn is_onchain(&self) -> bool {
@@ -130,10 +143,10 @@ impl PaymentMethod {
     pub fn is_lnurl_pay(&self) -> bool {
         matches!(self, Self::LnurlPay { .. })
     }
+}
 
-    /// Get the "kind" of the payment method as a string:
-    /// "onchain", "invoice", "offer", or "lnurl-pay".
-    pub fn kind(&self) -> &'static str {
+impl PaymentUriMethod for PaymentMethod {
+    fn kind(&self) -> &'static str {
         match self {
             PaymentMethod::Onchain { .. } => "onchain",
             PaymentMethod::Invoice { .. } => "invoice",
@@ -142,8 +155,7 @@ impl PaymentMethod {
         }
     }
 
-    /// Check if the payment method is valid for the given [`Network`].
-    pub fn supports_network(&self, network: Network) -> bool {
+    fn supports_network(&self, network: Network) -> bool {
         match self {
             Self::Onchain { address, .. } => address
                 .as_unchecked()
@@ -154,9 +166,7 @@ impl PaymentMethod {
         }
     }
 
-    /// For use with `sort_by_key`, `max_by_key`, etc.
-    /// Payment methods with a higher priority should be preferred over others.
-    pub fn priority(&self) -> usize {
+    fn priority(&self) -> usize {
         match self {
             PaymentMethod::Invoice { .. } => 40,
             PaymentMethod::Offer { .. } => 30,
@@ -192,32 +202,28 @@ impl PaymentMethod {
 
 // --- impl ClaimMethod --- //
 
-// Keep the impls for `PaymentMethod` and `ClaimMethod` synced
 impl ClaimMethod {
     // TODO(nicole): Introduce when more variants added
     // /// Check if the claim method is an LNURL-withdraw endpoint.
     // pub fn is_lnurl_withdraw(&self) -> bool {
     //     matches!(self, Self::LnurlWithdraw { .. })
     // }
+}
 
-    /// Get the "kind" of the claim method as a string.
-    /// Currently there is only one variant: "lnurl-withdraw".
-    pub fn kind(&self) -> &'static str {
+impl PaymentUriMethod for ClaimMethod {
+    fn kind(&self) -> &'static str {
         match self {
             ClaimMethod::LnurlWithdraw { .. } => "lnurl-withdraw",
         }
     }
 
-    /// Check if the claim method is valid for the given [`Network`].
-    pub fn supports_network(&self, _network: Network) -> bool {
+    fn supports_network(&self, _network: Network) -> bool {
         match self {
             ClaimMethod::LnurlWithdraw { .. } => true,
         }
     }
 
-    /// For use with `sort_by_key`, `max_by_key`, etc.
-    /// Claim methods with a higher priority should be preferred over others.
-    pub fn priority(&self) -> usize {
+    fn priority(&self) -> usize {
         match self {
             ClaimMethod::LnurlWithdraw { .. } => 0,
         }

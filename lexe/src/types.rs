@@ -46,7 +46,7 @@ pub mod bitcoin {
         priority::ConfirmationPriority,
     };
     pub use lexe_payment_uri::{
-        ClaimMethod, LnurlWithdrawRequest, PaymentMethod,
+        ClaimMethod, LnurlWithdrawRequest, PaymentMethod, PaymentUriMethod,
     };
 }
 

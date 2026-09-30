@@ -15,7 +15,7 @@ use lexe::{
     config::WalletEnvConfig,
     types::{
         auth::Credentials,
-        bitcoin::{ClaimMethod, PaymentMethod},
+        bitcoin::{ClaimMethod, PaymentMethod, PaymentUriMethod},
         command::{
             AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
             CashAppBuyResponse, ClaimableDetails as SdkClaimableDetails,

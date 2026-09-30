@@ -19,7 +19,7 @@ use lexe::{
         },
         bitcoin::{
             Amount, ChannelId, ClaimMethod, ConfirmationPriority, Invoice,
-            Offer, PaymentMethod, UserChannelId,
+            Offer, PaymentMethod, PaymentUriMethod, UserChannelId,
         },
         command::{
             AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,

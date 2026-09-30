@@ -375,6 +375,7 @@ mod test {
     use std::time::Duration;
 
     use lexe_common::ln::network::Network;
+    use lexe_payment_uri_core::PaymentUriMethod;
     use tracing::info;
 
     use super::*;
