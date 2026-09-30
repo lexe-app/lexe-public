@@ -1768,8 +1768,9 @@ impl LexeWallet {
 
     /// Wait for an update on a specific payment, and return its latest state.
     ///
-    /// To wait until a payment reaches some state, call this in a loop until
-    /// the returned state matches. Concurrent waiters share one poll loop.
+    /// To wait until a payment reaches some state, use
+    /// [`wait_for_payment_condition`](Self::wait_for_payment_condition).
+    /// Concurrent waiters share one poll loop.
     #[instrument(skip_all, name = "(wait-for-payment-update)")]
     pub async fn wait_for_payment_update(
         &self,
@@ -1784,6 +1785,26 @@ impl LexeWallet {
                     // current state.
                     Some(payment.updated_index()) > after
                 })
+                .await
+        })
+        .await
+    }
+
+    /// Wait until a payment satisfies `condition`, and return it.
+    ///
+    /// Intermediate states may be skipped. Concurrent waiters share one poll
+    /// loop. A `None` timeout waits indefinitely.
+    #[instrument(skip_all, name = "(wait-for-payment-condition)")]
+    pub async fn wait_for_payment_condition(
+        &self,
+        id: PaymentId,
+        timeout: Option<Duration>,
+        condition: impl FnMut(&Payment) -> bool,
+    ) -> anyhow::Result<Payment> {
+        helpers::with_timeout(timeout, "Payment condition not met", async {
+            self.payments_bus()
+                .await?
+                .wait_for_payment_condition(self, id, condition)
                 .await
         })
         .await
