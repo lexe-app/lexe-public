@@ -1,15 +1,26 @@
 //! SDK sidecar CLI
 
-use std::{net::SocketAddr, path::PathBuf};
+use std::{net::SocketAddr, path::PathBuf, sync::LazyLock};
 
-use clap::Parser;
-use lexe::types::auth::ClientCredentials;
+use clap::{ArgAction, Parser};
+use lexe::{provision, types::auth::ClientCredentials};
 use lexe_common::{ln::network::Network, or_env::OrEnvExt as _};
+
+/// Version string; `lexe-sidecar --version` prints
+/// `lexe-sidecar v0.4.23 (node-v0.10.4, released: 2026-09-11)`.
+static VERSION: LazyLock<String> = LazyLock::new(|| {
+    let sidecar_version = env!("CARGO_PKG_VERSION");
+    let (node_version, node_release) = provision::latest_trusted_node_release();
+    let node_date = node_release.release_date;
+    format!("v{sidecar_version} (node-v{node_version}, released: {node_date})")
+});
 
 /// Lexe sidecar SDK CLI args
 #[derive(Default, Parser)]
 #[command(
     name = "lexe-sidecar",
+    version = VERSION.as_str(),
+    disable_version_flag = true,
     about = "Lexe SDK sidecar service",
     long_about = r#"
 Lexe SDK sidecar service
@@ -37,7 +48,7 @@ INFO (sdk): lexe_api::server: Url for (server): http://127.0.0.1:5393
 
 $ curl http://127.0.0.1:5393/v2/health
 {"status":"ok"}
-```"#,
+```"#
 )]
 pub struct SidecarArgs {
     /// Client credentials exported from the Lexe app.
@@ -95,6 +106,10 @@ pub struct SidecarArgs {
     /// [env: LEXE_DATA_DIR]
     #[arg(long)]
     pub data_dir: Option<PathBuf>,
+
+    /// Print version
+    #[arg(short = 'v', short_alias = 'V', long, action = ArgAction::Version)]
+    pub version: (),
 }
 
 impl SidecarArgs {
