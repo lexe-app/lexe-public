@@ -106,7 +106,7 @@ dependencies:
   package_info_plus: ^8.2.1
 
   # Platform-specific paths (used to find app data directory).
-  path_provider: ^2.1.1
+  path_provider: ^2.1.6
 
   # Reactive primitives for asynchronous programming
   rxdart: ^0.28.0
