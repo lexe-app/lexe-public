@@ -5,6 +5,7 @@ use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 use lexe_common::ln::network::Network;
 #[cfg(test)]
 use lexe_common::test_utils::arbitrary;
+use lexe_connect::request::CredentialRequest;
 use lexe_uri::Uri;
 #[cfg(test)]
 use proptest::strategy::Strategy;
@@ -12,7 +13,7 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 
 use crate::{
-    Error, PaymentMethod, Resolvable,
+    AuthMethod, Error, PaymentMethod, PaymentUriMethods, Resolvable,
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
@@ -76,6 +77,11 @@ pub enum PaymentUri {
     ///
     /// ex: "lnurl1dp68g..." (LUD-01) or "lnurlp://domain.com/path" (LUD-17)
     Lnurl(Lnurl<'static>),
+
+    /// A LexeConnect credential request.
+    ///
+    /// ex: `https://lexe.app/connect?v=1&redirect_uri=...`
+    LexeConnect(Box<CredentialRequest>),
     //
     //
     // NOTE: adding support for a new URI scheme? Remember to add it in these
@@ -124,6 +130,13 @@ impl PaymentUri {
                 return Lnurl::parse_lud17_uri(uri)
                     .map(Lnurl::into_owned)
                     .map(Self::Lnurl);
+            }
+
+            // LexeConnect: "https://lexe.app/connect?v=1&..."
+            if s.starts_with(CredentialRequest::LEXE_BASE_URL) {
+                return CredentialRequest::parse(s)
+                    .map(|request| Self::LexeConnect(Box::new(request)))
+                    .map_err(Error::InvalidLexeConnect);
             }
 
             // LNURL as HTTP query param:
@@ -183,48 +196,51 @@ impl PaymentUri {
         )))
     }
 
-    /// "Flatten" the [`PaymentUri`] into its directly-known [`PaymentMethod`]s
-    /// and any [`Resolvable`]s requiring further resolution.
+    /// "Flatten" the [`PaymentUri`] into its directly-known
+    /// [`PaymentUriMethods`] and any [`Resolvable`]s requiring further
+    /// resolution.
     ///
     /// Filters out onchain addresses that aren't valid for `network`.
     pub fn flatten(
         self,
         network: Network,
-    ) -> (Vec<PaymentMethod>, Vec<Resolvable>) {
+    ) -> (PaymentUriMethods, Vec<Resolvable>) {
+        let mut methods = PaymentUriMethods::default();
+        let mut resolvables = Vec::new();
         match self {
-            Self::Bip321Uri(bip321) => (*bip321).flatten(network),
+            Self::Bip321Uri(bip321) =>
+                (methods.payment_methods, resolvables) =
+                    (*bip321).flatten(network),
             Self::LightningUri(lnuri) => {
-                let (methods, resolvable) = lnuri.flatten();
-                (methods, resolvable.into_iter().collect())
+                let (payment_methods, resolvable) = lnuri.flatten();
+                methods.payment_methods = payment_methods;
+                resolvables.extend(resolvable);
             }
             Self::Invoice(invoice) =>
-                (helpers::flatten_invoice(invoice), Vec::new()),
-            Self::Offer(offer) => (
-                vec![PaymentMethod::Offer {
+                methods.payment_methods = helpers::flatten_invoice(invoice),
+            Self::Offer(offer) =>
+                methods.payment_methods.push(PaymentMethod::Offer {
                     offer,
                     bip321_amount: None,
                     human_bitcoin_address: None,
-                }],
-                Vec::new(),
-            ),
-            Self::Address(address) => {
-                match address.require_network(network.to_bitcoin()) {
-                    Ok(addr) => (
-                        vec![PaymentMethod::Onchain {
-                            address: addr,
-                            amount: None,
-                            label: None,
-                            message: None,
-                        }],
-                        Vec::new(),
-                    ),
-                    Err(_) => (Vec::new(), Vec::new()),
-                }
-            }
+                }),
+            Self::Address(address) =>
+                if let Ok(addr) = address.require_network(network.to_bitcoin())
+                {
+                    methods.payment_methods.push(PaymentMethod::Onchain {
+                        address: addr,
+                        amount: None,
+                        label: None,
+                        message: None,
+                    });
+                },
             Self::EmailLikeAddress(addr) =>
-                (Vec::new(), vec![Resolvable::EmailLike(addr)]),
-            Self::Lnurl(lnurl) => (Vec::new(), vec![Resolvable::Lnurl(lnurl)]),
+                resolvables.push(Resolvable::EmailLike(addr)),
+            Self::Lnurl(lnurl) => resolvables.push(Resolvable::Lnurl(lnurl)),
+            Self::LexeConnect(request) =>
+                methods.auth_methods.push(AuthMethod::LexeConnect(request)),
         }
+        (methods, resolvables)
     }
 }
 
@@ -240,6 +256,7 @@ impl fmt::Display for PaymentUri {
             Self::Bip321Uri(bip321_uri) => Display::fmt(bip321_uri, f),
             Self::EmailLikeAddress(email_like) => Display::fmt(email_like, f),
             Self::Lnurl(lnurl) => Display::fmt(lnurl, f),
+            Self::LexeConnect(request) => Display::fmt(request, f),
         }
     }
 }
@@ -251,6 +268,7 @@ mod test {
     use proptest::{arbitrary::any, prop_assert_eq, prop_assume, proptest};
 
     use super::*;
+    use crate::PaymentUriMethod;
 
     #[test]
     fn test_payment_uri_roundtrip() {
@@ -266,6 +284,30 @@ mod test {
             let uri2 = PaymentUri::parse(&uri1.to_string());
             prop_assert_eq!(Ok(&uri1), uri2.as_ref());
         });
+    }
+
+    #[test]
+    fn test_lexe_connect() {
+        let s = "https://lexe.app/connect?v=1\
+            &post_url=https%3A%2F%2Fpaygate.com%2Flexe\
+            &one_time_secret=000102030405060708090a0b0c0d0e0f\
+            &scopes=receive";
+        let uri = PaymentUri::parse(s).unwrap();
+        assert!(matches!(uri, PaymentUri::LexeConnect(_)));
+        assert_eq!(uri.to_string(), s);
+
+        let (methods, resolvables) = uri.flatten(Network::Mainnet);
+        assert!(resolvables.is_empty());
+        assert!(
+            methods.payment_methods.is_empty()
+                && methods.claim_methods.is_empty()
+        );
+        assert_eq!(methods.auth_methods.len(), 1);
+        assert_eq!(methods.auth_methods[0].kind(), "lexe-connect");
+
+        let err =
+            PaymentUri::parse("https://lexe.app/connect?v=2").unwrap_err();
+        assert!(matches!(err, Error::InvalidLexeConnect(_)));
     }
 
     #[test]

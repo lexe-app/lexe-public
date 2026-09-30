@@ -3076,6 +3076,7 @@ dependencies = [
  "cfg-if 1.0.4",
  "lexe-api-core",
  "lexe-common",
+ "lexe-connect",
  "lexe-crypto",
  "lexe-uri",
  "percent-encoding",

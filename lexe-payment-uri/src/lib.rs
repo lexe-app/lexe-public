@@ -14,38 +14,25 @@ use futures::future;
 use lexe_common::ln::network::Network;
 pub use lexe_payment_uri_core::*;
 
-/// Resolve a `PaymentUri` into a "best" [`PaymentMethod`] or [`ClaimMethod`].
-/// Returns at least one valid pay or claim method.
+/// Resolve a [`PaymentUri`] into the highest priority method of each kind.
+/// Returns at least one method.
 //
-// phlip9: this impl is currently pretty dumb and just unconditionally
-// returns the first (valid) BOLT11 invoice it finds, o/w onchain. It's not
-// hard to imagine a better strategy, like using our current
-// liquidity/balance to decide onchain vs LN, or returning all methods and
-// giving the user a choice. This'll also need to be async in the future, as
-// we'll need to fetch invoices from any LNURL endpoints we come across.
+// phlip9: picking by static priority is pretty dumb. It's not hard to imagine
+// a better strategy, like using our current liquidity/balance to decide
+// onchain vs LN, or returning all methods and giving the user a choice.
 pub async fn resolve_best(
     bip353_client: &bip353::Bip353Client,
     lnurl_client: &lnurl::LnurlClient,
     network: Network,
     payment_uri: PaymentUri,
-) -> anyhow::Result<(Option<PaymentMethod>, Option<ClaimMethod>)> {
-    // A single scanned/opened PaymentUri can contain multiple different payment
-    // methods (e.g., a LN BOLT11 invoice + an onchain fallback address).
-    let (pay_methods, claim_methods) =
+) -> anyhow::Result<BestPaymentUriMethods> {
+    // `resolve` sorts each kind by priority, so the first of each is the best.
+    let methods =
         resolve(bip353_client, lnurl_client, network, payment_uri).await?;
-
-    // Pick the highest priority payment method.
-    let best_payment = pay_methods.into_iter().next();
-    let best_claim = claim_methods.into_iter().next();
-
-    if best_claim.is_none() && best_payment.is_none() {
-        return Err(anyhow!("No valid payment or claim methods found"));
-    }
-
-    Ok((best_payment, best_claim))
+    Ok(methods.into_best())
 }
 
-/// Resolve the [`PaymentUri`] into its component [`PaymentMethod`]s.
+/// Resolve the [`PaymentUri`] into its component [`PaymentUriMethods`].
 /// Filter by network validity and sort by highest priority method first.
 /// Ensures at least one method result.
 pub async fn resolve(
@@ -53,14 +40,14 @@ pub async fn resolve(
     lnurl_client: &lnurl::LnurlClient,
     network: Network,
     payment_uri: PaymentUri,
-) -> anyhow::Result<(Vec<PaymentMethod>, Vec<ClaimMethod>)> {
+) -> anyhow::Result<PaymentUriMethods> {
     // Split the URI into its directly-known methods and any pieces that
     // require further resolution.
-    let (mut payment_methods, resolvables) = payment_uri.flatten(network);
+    let (mut methods, resolvables) = payment_uri.flatten(network);
 
     ensure!(
-        !payment_methods.is_empty() || !resolvables.is_empty(),
-        "No valid payment/claim methods found in URI"
+        !methods.is_empty() || !resolvables.is_empty(),
+        "No valid payment, claim, or auth methods found in URI"
     );
 
     // Resolve all `Resolvable`s and merge their methods in.
@@ -86,13 +73,12 @@ pub async fn resolve(
     });
     let resolve_results = future::join_all(resolve_futs).await;
 
-    let mut claim_methods = Vec::new();
     let mut resolve_errors = Vec::new();
     for result in resolve_results {
         match result {
-            Ok((payments, claims)) => {
-                payment_methods.extend(payments);
-                claim_methods.extend(claims);
+            Ok((payment_methods, claim_methods)) => {
+                methods.payment_methods.extend(payment_methods);
+                methods.claim_methods.extend(claim_methods);
             }
             Err(e) => {
                 resolve_errors.push(format!("{e:#}"));
@@ -101,17 +87,16 @@ pub async fn resolve(
     }
 
     ensure!(
-        !payment_methods.is_empty() || !claim_methods.is_empty(),
+        !methods.is_empty(),
         "Failed to resolve methods: {}",
         resolve_errors.join("; "),
     );
 
     // Filter out all methods that aren't valid for our current network
     // (e.g., ignore all testnet addresses when we're cfg'd for mainnet).
-    payment_methods.retain(|method| method.supports_network(network));
-    claim_methods.retain(|method| method.supports_network(network));
+    methods.retain_network(network);
     ensure!(
-        !payment_methods.is_empty() || !claim_methods.is_empty(),
+        !methods.is_empty(),
         "Payment code is not valid for {network}"
     );
 
@@ -119,7 +104,7 @@ pub async fn resolve(
     // Even though there might be a valid other payment method (e.g. on-chain),
     // the offer is most likely the only off-chain method and thus the one that
     // our user actually cares about.
-    for method in &payment_methods {
+    for method in &methods.payment_methods {
         if let PaymentMethod::Offer {
             offer,
             bip321_amount,
@@ -138,10 +123,10 @@ pub async fn resolve(
         }
     }
 
-    // Sort payment methods by relative priority; highest priority first
-    payment_methods.sort_unstable_by_key(|m| cmp::Reverse(m.priority()));
+    // Sort by relative priority; highest priority first
+    methods.sort_by_priority();
 
-    Ok((payment_methods, claim_methods))
+    Ok(methods)
 }
 
 /// Helpers to resolve every [`Resolvable`] variant.
@@ -257,7 +242,7 @@ mod test {
             bip353::Bip353Client::new(bip353::GOOGLE_DOH_ENDPOINT).unwrap();
         let lnurl_client = lnurl::LnurlClient::new(DeployEnv::Prod).unwrap();
 
-        let (maybe_pay_method, _) = resolve_best(
+        let best = resolve_best(
             &bip353_client,
             &lnurl_client,
             Network::Mainnet,
@@ -267,7 +252,8 @@ mod test {
         .await
         .expect("Timed out")
         .unwrap();
-        let payment_method = maybe_pay_method.expect("No payment method found");
+        let payment_method =
+            best.payment_method.expect("No payment method found");
 
         // Payment methods are Offer and Onchain, but Offer is higher priority.
         assert!(payment_method.is_offer());

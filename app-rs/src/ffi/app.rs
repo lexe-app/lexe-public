@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{Context, ensure};
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     types::{
@@ -642,17 +642,24 @@ impl AppHandle {
         let payment_uri = lexe_payment_uri::PaymentUri::parse(&uri_str)
             .context("Unrecognized payment code")?;
 
-        let (maybe_pay_method, maybe_claim_method) =
-            lexe_payment_uri::resolve_best(
-                self.inner.bip353_client(),
-                self.inner.lnurl_client(),
-                network.into(),
-                payment_uri,
-            )
-            .await?;
-        let best_pay_method = maybe_pay_method.map(PaymentMethod::from);
-        let best_claim_method = maybe_claim_method.map(ClaimMethod::from);
-        Ok((best_pay_method, best_claim_method))
+        let lexe_payment_uri::BestPaymentUriMethods {
+            payment_method,
+            claim_method,
+            auth_method: _,
+        } = lexe_payment_uri::resolve_best(
+            self.inner.bip353_client(),
+            self.inner.lnurl_client(),
+            network.into(),
+            payment_uri,
+        )
+        .await?;
+        ensure!(
+            payment_method.is_some() || claim_method.is_some(),
+            "LexeConnect requests are not supported yet"
+        );
+        let best_payment_method = payment_method.map(PaymentMethod::from);
+        let best_claim_method = claim_method.map(ClaimMethod::from);
+        Ok((best_payment_method, best_claim_method))
     }
 
     /// Resolve a [`LnurlPayRequest`] that we just received + the amount in

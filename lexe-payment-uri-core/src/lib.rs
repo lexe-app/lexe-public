@@ -49,7 +49,8 @@ pub use crate::{
         LnurlWithdrawRequestTag, LnurlWithdrawRequestWire,
     },
     payment_method::{
-        ClaimMethod, PaymentMethod, PaymentUriMethod, Resolvable,
+        AuthMethod, BestPaymentUriMethods, ClaimMethod, PaymentMethod,
+        PaymentUriMethod, PaymentUriMethods, Resolvable,
     },
     payment_uri::PaymentUri,
 };
@@ -82,6 +83,7 @@ pub enum Error {
     /// [`EmailLikeAddress`] parsing errors.
     InvalidEmailLike(Cow<'static, str>),
     InvalidLnurl(Cow<'static, str>),
+    InvalidLexeConnect(lexe_connect::request::RequestError),
     InvalidInvoice(invoice::ParseError),
     InvalidOffer(offer::ParseError),
     InvalidBtcAddress(bitcoin::address::ParseError),
@@ -108,6 +110,8 @@ impl fmt::Display for Error {
             Self::InvalidEmailLike(msg) =>
                 write!(f, "Invalid BIP353 / Lightning Address: {msg}"),
             Self::InvalidLnurl(msg) => write!(f, "Invalid LNURL: {msg}"),
+            Self::InvalidLexeConnect(err) =>
+                write!(f, "Invalid LexeConnect request: {err}"),
             Self::InvalidInvoice(err) => Display::fmt(err, f),
             Self::InvalidOffer(err) => Display::fmt(err, f),
             Self::InvalidBtcAddress(err) =>

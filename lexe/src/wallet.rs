@@ -29,7 +29,7 @@ use lexe_crypto::rng::SysRng;
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{
     self, Bip321Uri, ClaimMethod, EmailLikeAddress, Lnurl, PaymentMethod,
-    PaymentUri,
+    PaymentUri, PaymentUriMethod, PaymentUriMethods,
     bip353::{self, Bip353Client},
     lnurl::LnurlClient,
 };
@@ -705,7 +705,11 @@ impl LexeWallet {
         let network = self.user_config().env_config.wallet_env.network;
         let payment_uri = PaymentUri::parse(&req.payment_string)?;
 
-        let (payment_methods, claim_methods) = lexe_payment_uri::resolve(
+        let PaymentUriMethods {
+            payment_methods,
+            claim_methods,
+            auth_methods,
+        } = lexe_payment_uri::resolve(
             &self.bip353_client,
             &self.lnurl_client,
             network,
@@ -713,6 +717,15 @@ impl LexeWallet {
         )
         .await
         .context("Failed to resolve payment methods.")?;
+        if payment_methods.is_empty() && claim_methods.is_empty() {
+            let kind = auth_methods
+                .first()
+                .expect("resolve() ensures at least one method")
+                .kind();
+            return Err(anyhow!(
+                "Not a payment string: it is a {kind} request"
+            ));
+        }
 
         let payables = payment_methods
             .into_iter()
@@ -933,25 +946,26 @@ impl LexeWallet {
             PaymentUri::EmailLikeAddress(_) =>
                 "Failed to pay HBA or Lightning Address",
             PaymentUri::Lnurl(_) => "Failed to pay LNURL",
+            PaymentUri::LexeConnect(_) =>
+                return Err(anyhow!("A LexeConnect request is not payable")),
         };
 
         // Resolve into best payment method
         let bip353_client = &self.bip353_client;
         let lnurl_client = &self.lnurl_client;
         let network = self.user_config().env_config.wallet_env.network;
-        let (maybe_pay_method, _maybe_claim_method) =
-            lexe_payment_uri::resolve_best(
-                bip353_client,
-                lnurl_client,
-                network,
-                payment_uri,
-            )
-            .await?;
-        let best_pay_method =
-            maybe_pay_method.context("No payment method found")?;
+        let best_payment_method = lexe_payment_uri::resolve_best(
+            bip353_client,
+            lnurl_client,
+            network,
+            payment_uri,
+        )
+        .await?
+        .payment_method
+        .context("No payment method found")?;
 
         // Validate and pay via the method-specific `pay_*` function
-        self.pay_inner(best_pay_method, amount, message, personal_note)
+        self.pay_inner(best_payment_method, amount, message, personal_note)
             .await
             .context(uri_err_context)
     }

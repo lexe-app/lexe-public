@@ -1,7 +1,10 @@
+use std::cmp::Reverse;
+
 use lexe_api_core::types::{
     invoice::Invoice, lnurl::LnurlPayRequest, offer::Offer,
 };
 use lexe_common::ln::{amount::Amount, network::Network};
+use lexe_connect::request::CredentialRequest;
 
 use crate::{
     email_like::EmailLikeAddress,
@@ -106,6 +109,29 @@ pub enum ClaimMethod {
         withdraw_request: LnurlWithdrawRequest,
     },
     // TODO(nicole): Support BOLT12 refunds
+}
+
+/// A single "auth method": a general auth mechanism which moves no money.
+/// Compare with [`PaymentMethod`] (outbound) and [`ClaimMethod`] (inbound).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AuthMethod {
+    /// Grant a Lexe client credential to an app or service.
+    LexeConnect(Box<CredentialRequest>),
+}
+
+/// Every method a payment code resolves to, by kind.
+#[derive(Default)]
+pub struct PaymentUriMethods {
+    pub payment_methods: Vec<PaymentMethod>,
+    pub claim_methods: Vec<ClaimMethod>,
+    pub auth_methods: Vec<AuthMethod>,
+}
+
+/// The highest priority method of each kind, if any.
+pub struct BestPaymentUriMethods {
+    pub payment_method: Option<PaymentMethod>,
+    pub claim_method: Option<ClaimMethod>,
+    pub auth_method: Option<AuthMethod>,
 }
 
 /// "Almost" a payment/claim method: a piece of payment data that requires
@@ -226,6 +252,68 @@ impl PaymentUriMethod for ClaimMethod {
     fn priority(&self) -> usize {
         match self {
             ClaimMethod::LnurlWithdraw { .. } => 0,
+        }
+    }
+}
+
+// --- impl AuthMethod --- //
+
+impl PaymentUriMethod for AuthMethod {
+    fn kind(&self) -> &'static str {
+        match self {
+            AuthMethod::LexeConnect(_) => "lexe-connect",
+        }
+    }
+
+    fn supports_network(&self, _network: Network) -> bool {
+        match self {
+            AuthMethod::LexeConnect(_) => true,
+        }
+    }
+
+    fn priority(&self) -> usize {
+        match self {
+            AuthMethod::LexeConnect(_) => 0,
+        }
+    }
+}
+
+// --- impl PaymentUriMethods --- //
+
+impl PaymentUriMethods {
+    pub fn is_empty(&self) -> bool {
+        self.payment_methods.is_empty()
+            && self.claim_methods.is_empty()
+            && self.auth_methods.is_empty()
+    }
+
+    /// Drop the methods that aren't valid for `network`.
+    pub fn retain_network(&mut self, network: Network) {
+        fn retain<M: PaymentUriMethod>(methods: &mut Vec<M>, network: Network) {
+            methods.retain(|m| m.supports_network(network));
+        }
+        retain(&mut self.payment_methods, network);
+        retain(&mut self.claim_methods, network);
+        retain(&mut self.auth_methods, network);
+    }
+
+    /// Sort each kind by priority, highest first.
+    pub fn sort_by_priority(&mut self) {
+        fn sort<M: PaymentUriMethod>(methods: &mut [M]) {
+            methods.sort_unstable_by_key(|m| Reverse(m.priority()));
+        }
+        sort(&mut self.payment_methods);
+        sort(&mut self.claim_methods);
+        sort(&mut self.auth_methods);
+    }
+
+    /// The first method of each kind, which is the best after
+    /// [`Self::sort_by_priority`].
+    pub fn into_best(self) -> BestPaymentUriMethods {
+        BestPaymentUriMethods {
+            payment_method: self.payment_methods.into_iter().next(),
+            claim_method: self.claim_methods.into_iter().next(),
+            auth_method: self.auth_methods.into_iter().next(),
         }
     }
 }
