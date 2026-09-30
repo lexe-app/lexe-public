@@ -2,6 +2,14 @@
 set -euo pipefail
 
 # Run Flutter integration tests in a fresh headless Android emulator.
+#
+# Runs the full suite unless specific test files are given. Other args are
+# passed through to `flutter test`.
+#
+# ```bash
+# $ just app integration-android
+# $ just app integration-android integration_test/cfg_test.dart
+# ```
 
 # A unique AVD name lets us find this run's device on the shared ADB server.
 readonly AVD_NAME="lexe-integration-$$"
@@ -180,8 +188,18 @@ main() {
   "$adb" -s "$serial" shell settings put global transition_animation_scale 0
   "$adb" -s "$serial" shell settings put global animator_duration_scale 0
 
+  # Run the full suite unless specific test files are given
+  local targets=(integration_test)
+  local arg
+  for arg in "$@"; do
+    if [[ $arg == *.dart ]]; then
+      targets=()
+      break
+    fi
+  done
+
   echo "Running integration tests on $serial"
-  flutter test integration_test -d "$serial" "$@"
+  flutter test "${targets[@]}" -d "$serial" "$@"
 }
 
 trap cleanup EXIT
