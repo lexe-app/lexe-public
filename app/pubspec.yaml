@@ -49,7 +49,7 @@ dependencies:
   collection: ^1.18.0
 
   # Get current device info. Used to determine current Android OS SDK version.
-  device_info_plus: ^11.3.0
+  device_info_plus: ^13.2.0
 
   # Pretty duration formatting.
   duration: ^3.0.13
@@ -103,7 +103,7 @@ dependencies:
   material_symbols_icons: ^4.2815.1
 
   # Query app name and version.
-  package_info_plus: ^8.2.1
+  package_info_plus: ^10.2.1
 
   # Platform-specific paths (used to find app data directory).
   path_provider: ^2.1.6
@@ -114,7 +114,7 @@ dependencies:
   rxdart_ext: ^0.3.0
 
   # Share button functionality.
-  share_plus: ^10.0.0
+  share_plus: ^13.3.0
 
   # Open URLs and custom URIs (e.g., "bitcoin:" and "lightning:" URIs)
   url_launcher: ^6.3.0

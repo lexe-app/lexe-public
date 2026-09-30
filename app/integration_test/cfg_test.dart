@@ -2,7 +2,7 @@ import 'dart:io' show Directory, Platform;
 
 import 'package:app_rs_dart/app_rs_dart.dart' as app_rs_dart;
 import 'package:flutter_test/flutter_test.dart'
-    show endsWith, expect, fail, isTrue, test;
+    show endsWith, expect, fail, isNot, isNotEmpty, isTrue, matches, test;
 import 'package:integration_test/integration_test.dart'
     show IntegrationTestWidgetsFlutterBinding;
 import 'package:lexeapp/cfg.dart' as cfg;
@@ -34,5 +34,17 @@ void main() async {
       final os => fail("unexpected platform: $os"),
     };
     expect(lexeDataDir, endsWith(expectedSuffix));
+  });
+
+  // `fromPlatform` silently falls back to the dummy on error.
+  test("UserAgent.fromPlatform reads package info", () async {
+    final userAgent = await cfg.UserAgent.fromPlatform();
+    expect(userAgent.appName, isNotEmpty);
+    expect(userAgent.version, isNot(cfg.UserAgent.dummy().version));
+    // ex: "0.10.5+59", "0.10.5-design+59"
+    expect(
+      userAgent.version,
+      matches(RegExp(r"^\d+\.\d+\.\d+(-[a-z]+)?\+\d+$")),
+    );
   });
 }

@@ -1,12 +1,10 @@
 /// Platform interface for native "share" functionality.
 library;
 
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:lexeapp/prelude.dart';
 import 'package:share_plus/share_plus.dart'
-    show Share, ShareResult, ShareResultStatus;
+    show ShareParams, SharePlus, ShareResult, ShareResultStatus;
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 abstract final class LxShare {
@@ -135,16 +133,12 @@ abstract final class LxShare {
     Uri uri,
     Rect origin,
   ) async {
-    final result = await Result.tryAsync<ShareResult, Exception>(() async {
-      if (Platform.isIOS || Platform.isAndroid) {
-        return Share.shareUri(uri, sharePositionOrigin: origin);
-      } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-        // `Share.shareUri` is only supported on mobile...
-        return Share.share(uri.toString(), sharePositionOrigin: origin);
-      } else {
-        return const ShareResult("", ShareResultStatus.unavailable);
-      }
-    });
+    // Non-mobile platforms share the URI as text.
+    final result = await Result.tryAsync<ShareResult, Exception>(
+      () => SharePlus.instance.share(
+        ShareParams(uri: uri, sharePositionOrigin: origin),
+      ),
+    );
 
     switch (result) {
       case Ok(:final ok):
@@ -160,18 +154,11 @@ abstract final class LxShare {
     String address,
     Rect origin,
   ) async {
-    final result = await Result.tryAsync<ShareResult, Exception>(() async {
-      final shareMessage = "Pay me at $address";
-      if (Platform.isIOS ||
-          Platform.isAndroid ||
-          Platform.isMacOS ||
-          Platform.isWindows ||
-          Platform.isLinux) {
-        return Share.share(shareMessage, sharePositionOrigin: origin);
-      } else {
-        return const ShareResult("", ShareResultStatus.unavailable);
-      }
-    });
+    final result = await Result.tryAsync<ShareResult, Exception>(
+      () => SharePlus.instance.share(
+        ShareParams(text: "Pay me at $address", sharePositionOrigin: origin),
+      ),
+    );
 
     switch (result) {
       case Ok(:final ok):
