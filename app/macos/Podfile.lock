@@ -76,7 +76,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   app_links: 86a57d95d4dec830373b8c85c21d1c59a4a5dc21
-  app_rs_dart: ca6cae2fa1f07e4e259b171ee5ebf30418dd05e2
+  app_rs_dart: f1e93a80231da794ec8721257817004dd8d3013c
   desktop_webview_window: d4365e71bcd4e1aa0c14cf0377aa24db0c16a7e2
   device_info_plus: 1b14eed9bf95428983aed283a8d51cce3d8c4215
   file_selector_macos: cc3858c981fe6889f364731200d6232dac1d812d
@@ -90,6 +90,6 @@ SPEC CHECKSUMS:
   url_launcher_macos: 5f437abeda8c85500ceb03f5c1938a8c5a705399
   window_to_front: 4cdc24ddd8461ad1a55fa06286d6a79d8b29e8d8
 
-PODFILE CHECKSUM: 6ebda695f6af1e3049f338253ead44c575d40a14
+PODFILE CHECKSUM: 497cbdd3a303b87372995968b62eef92012531a3
 
 COCOAPODS: 1.16.2

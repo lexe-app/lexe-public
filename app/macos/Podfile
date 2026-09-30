@@ -1,5 +1,6 @@
-# `app_rs_dart` requires macOS 11.0.
-platform :osx, '11.0'
+# Xcode 27+ rejects macOS deployment targets below 12.0.
+macos_deployment_target = '12.0'
+platform :osx, macos_deployment_target
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -55,12 +56,21 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  min_version = Gem::Version.new(macos_deployment_target)
   # `pods_project` refers to the `Pods` auto-generated project (I believe).
   installer.pods_project.targets.each do |target|
     # `target` is each Podfile dependency, which includes those injected via
     # flutter native plugins.
 
     flutter_additional_macos_build_settings(target)
+
+    # Raise pods that still declare an older macOS deployment target. Xcode 27+
+    # now hard errors if there are any targets that are too old.
+    target.build_configurations.each do |config|
+      version = config.build_settings['MACOSX_DEPLOYMENT_TARGET']
+      next unless version && Gem::Version.new(version) < min_version
+      config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = macos_deployment_target
+    end
 
     if target.name == "flutter_zxing"
       target.build_configurations.each do |config|
