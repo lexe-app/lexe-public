@@ -48,6 +48,7 @@ use lexe_common::{
     },
     time::TimestampMs,
 };
+use lexe_connect::wallet::RequesterDisplay as RequesterDisplayRs;
 use lexe_crypto::rng::SysRng;
 
 /// See [`lexe_common::constants::HBA_CLAIM_MIN_BALANCE_SATS`]
@@ -675,6 +676,77 @@ impl From<lexe_payment_uri::ClaimMethod> for ClaimMethod {
             }
         }
     }
+}
+
+/// A scanned/pasted request for the wallet to vouch for the user without
+/// moving money.
+pub enum AuthMethod {
+    LexeConnect(LexeConnect),
+}
+
+impl From<lexe_payment_uri::AuthMethod> for AuthMethod {
+    fn from(value: lexe_payment_uri::AuthMethod) -> Self {
+        match value {
+            lexe_payment_uri::AuthMethod::LexeConnect(request) => {
+                let connection_string = request.to_string();
+                let requester =
+                    RequesterDisplay::from(request.requester_display());
+                let params = request.params;
+                Self::LexeConnect(LexeConnect {
+                    connection_string,
+                    requester,
+                    account: params.account,
+                    scopes: params.scopes.into_iter().collect(),
+                    permissions: params.permissions.into_iter().collect(),
+                    label: params.label,
+                    expires_at: params.expires_at.map(TimestampMs::to_i64),
+                })
+            }
+        }
+    }
+}
+
+/// A LexeConnect credential request.
+pub struct LexeConnect {
+    /// The connection string, re-parsed once the user decides.
+    pub connection_string: String,
+    /// How the approval screen identifies the requester.
+    pub requester: RequesterDisplay,
+    /// The requester account being connected, e.g. `@janedoe`.
+    pub account: Option<String>,
+    pub scopes: Vec<String>,
+    pub permissions: Vec<String>,
+    /// Prefills the credential label.
+    pub label: Option<String>,
+    /// Prefills the credential expiration, in ms since the UNIX epoch.
+    pub expires_at: Option<i64>,
+}
+
+/// How the approval screen identifies a LexeConnect requester.
+pub enum RequesterDisplay {
+    /// The response goes to this domain, or to an app verified for it.
+    Verified { domain: String },
+    /// No receiving domain is known. `scheme_host` is the redirect uri's
+    /// scheme and host, e.g. `myprotocol://`, if set.
+    Unverified { scheme_host: Option<String> },
+}
+
+impl From<RequesterDisplayRs> for RequesterDisplay {
+    fn from(value: RequesterDisplayRs) -> Self {
+        match value {
+            RequesterDisplayRs::Verified { domain } =>
+                Self::Verified { domain },
+            RequesterDisplayRs::Unverified { scheme_host } =>
+                Self::Unverified { scheme_host },
+        }
+    }
+}
+
+/// The highest priority method of each kind, if any.
+pub struct BestPaymentUriMethods {
+    pub payment_method: Option<PaymentMethod>,
+    pub claim_method: Option<ClaimMethod>,
+    pub auth_method: Option<AuthMethod>,
 }
 
 /// A potential onchain Bitcoin payment.

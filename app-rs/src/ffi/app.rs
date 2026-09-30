@@ -1,4 +1,4 @@
-use anyhow::{Context, ensure};
+use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     types::{
@@ -54,9 +54,10 @@ use crate::ffi::{
     app_data::AppDataDb,
     settings::SettingsDb,
     types::{
-        AppUserInfo, BackupInfo, ClaimMethod, Config, GDriveSignupCredentials,
-        Invoice, LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
-        PaymentMethod, RevocableClient, RootSeed, ShortPayment, Username,
+        AppUserInfo, AuthMethod, BackupInfo, BestPaymentUriMethods,
+        ClaimMethod, Config, GDriveSignupCredentials, Invoice, LnurlPayRequest,
+        Network, Payment, PaymentCreatedIndex, PaymentMethod, RevocableClient,
+        RootSeed, ShortPayment, Username,
     },
 };
 pub(crate) use crate::{
@@ -628,9 +629,8 @@ impl AppHandle {
         Ok(backup_info)
     }
 
-    /// Resolve a (possible) [`PaymentUri`] string that we just
-    /// scanned/pasted into a best [`PaymentMethod`] or [`ClaimMethod`]
-    /// for us to pay/claim.
+    /// Resolve a (possible) [`PaymentUri`] string that we just scanned/pasted
+    /// into the best method of each kind, for us to pay, claim, or approve.
     ///
     /// [`PaymentUri`]: lexe_payment_uri::PaymentUri
     #[instrument(skip_all, name = "(resolve-best)")]
@@ -638,28 +638,22 @@ impl AppHandle {
         &self,
         network: Network,
         uri_str: String,
-    ) -> anyhow::Result<(Option<PaymentMethod>, Option<ClaimMethod>)> {
+    ) -> anyhow::Result<BestPaymentUriMethods> {
         let payment_uri = lexe_payment_uri::PaymentUri::parse(&uri_str)
             .context("Unrecognized payment code")?;
 
-        let lexe_payment_uri::BestPaymentUriMethods {
-            payment_method,
-            claim_method,
-            auth_method: _,
-        } = lexe_payment_uri::resolve_best(
+        let best = lexe_payment_uri::resolve_best(
             self.inner.bip353_client(),
             self.inner.lnurl_client(),
             network.into(),
             payment_uri,
         )
         .await?;
-        ensure!(
-            payment_method.is_some() || claim_method.is_some(),
-            "LexeConnect requests are not supported yet"
-        );
-        let best_payment_method = payment_method.map(PaymentMethod::from);
-        let best_claim_method = claim_method.map(ClaimMethod::from);
-        Ok((best_payment_method, best_claim_method))
+        Ok(BestPaymentUriMethods {
+            payment_method: best.payment_method.map(PaymentMethod::from),
+            claim_method: best.claim_method.map(ClaimMethod::from),
+            auth_method: best.auth_method.map(AuthMethod::from),
+        })
     }
 
     /// Resolve a [`LnurlPayRequest`] that we just received + the amount in

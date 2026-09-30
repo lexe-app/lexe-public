@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_string_id`, `into_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 int get hbaClaimMinBalanceSats =>
@@ -35,6 +35,14 @@ sealed class AppUserInfo with _$AppUserInfo {
   }) = _AppUserInfo;
 }
 
+@freezed
+sealed class AuthMethod with _$AuthMethod {
+  const AuthMethod._();
+
+  const factory AuthMethod.lexeConnect(LexeConnect field0) =
+      AuthMethod_LexeConnect;
+}
+
 class BackupInfo {
   final GDriveStatus gdriveStatus;
 
@@ -49,6 +57,32 @@ class BackupInfo {
       other is BackupInfo &&
           runtimeType == other.runtimeType &&
           gdriveStatus == other.gdriveStatus;
+}
+
+/// The highest priority method of each kind, if any.
+class BestPaymentUriMethods {
+  final PaymentMethod? paymentMethod;
+  final ClaimMethod? claimMethod;
+  final AuthMethod? authMethod;
+
+  const BestPaymentUriMethods({
+    this.paymentMethod,
+    this.claimMethod,
+    this.authMethod,
+  });
+
+  @override
+  int get hashCode =>
+      paymentMethod.hashCode ^ claimMethod.hashCode ^ authMethod.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BestPaymentUriMethods &&
+          runtimeType == other.runtimeType &&
+          paymentMethod == other.paymentMethod &&
+          claimMethod == other.claimMethod &&
+          authMethod == other.authMethod;
 }
 
 @freezed
@@ -171,6 +205,59 @@ sealed class Invoice with _$Invoice {
     int? amountSats,
     required String payeePubkey,
   }) = _Invoice;
+}
+
+/// A LexeConnect credential request.
+class LexeConnect {
+  /// The connection string, re-parsed once the user decides.
+  final String connectionString;
+
+  /// How the approval screen identifies the requester.
+  final RequesterDisplay requester;
+
+  /// The requester account being connected, e.g. `@janedoe`.
+  final String? account;
+  final List<String> scopes;
+  final List<String> permissions;
+
+  /// Prefills the credential label.
+  final String? label;
+
+  /// Prefills the credential expiration, in ms since the UNIX epoch.
+  final int? expiresAt;
+
+  const LexeConnect({
+    required this.connectionString,
+    required this.requester,
+    this.account,
+    required this.scopes,
+    required this.permissions,
+    this.label,
+    this.expiresAt,
+  });
+
+  @override
+  int get hashCode =>
+      connectionString.hashCode ^
+      requester.hashCode ^
+      account.hashCode ^
+      scopes.hashCode ^
+      permissions.hashCode ^
+      label.hashCode ^
+      expiresAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LexeConnect &&
+          runtimeType == other.runtimeType &&
+          connectionString == other.connectionString &&
+          requester == other.requester &&
+          account == other.account &&
+          scopes == other.scopes &&
+          permissions == other.permissions &&
+          label == other.label &&
+          expiresAt == other.expiresAt;
 }
 
 /// A resolved LNURL-pay payment method.
@@ -513,6 +600,20 @@ sealed class PaymentRail with _$PaymentRail {
 }
 
 enum PaymentStatus { pending, completed, failed }
+
+@freezed
+sealed class RequesterDisplay with _$RequesterDisplay {
+  const RequesterDisplay._();
+
+  /// The response goes to this domain, or to an app verified for it.
+  const factory RequesterDisplay.verified({required String domain}) =
+      RequesterDisplay_Verified;
+
+  /// No receiving domain is known. `scheme_host` is the redirect uri's
+  /// scheme and host, e.g. `myprotocol://`, if set.
+  const factory RequesterDisplay.unverified({String? schemeHost}) =
+      RequesterDisplay_Unverified;
+}
 
 /// See `lexe::types::command::ClientInfo`.
 class RevocableClient {

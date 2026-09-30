@@ -10,6 +10,8 @@ import 'package:app_rs_dart/ffi/settings.dart'
     show Settings, WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
+        AuthMethod,
+        BestPaymentUriMethods,
         ClaimMethod,
         ClientPaymentId,
         Config,
@@ -410,12 +412,10 @@ class WalletPageState extends State<WalletPage> {
       // User canceled
       if (!this.mounted || resolveResult == null) return;
 
-      final PaymentMethod? paymentMethod;
-      final ClaimMethod? claimMethod;
+      final BestPaymentUriMethods best;
       switch (resolveResult) {
         case Ok(:final ok):
-          paymentMethod = ok.$1;
-          claimMethod = ok.$2;
+          best = ok;
         case Err(:final err):
           error("WalletPage: Failed to resolve URI: $err");
           return;
@@ -423,8 +423,8 @@ class WalletPageState extends State<WalletPage> {
 
       // Branch accordingly, entering either the send or claim flow
       final UriFlowResult? flowResult;
-      switch ((paymentMethod, claimMethod)) {
-        case (final paymentMethod?, final claimMethod?):
+      switch ((best.paymentMethod, best.claimMethod, best.authMethod)) {
+        case (final paymentMethod?, final claimMethod?, _):
           final UriChoice? userChoice = await SendOrClaimChoiceSheet.show(
             context: this.context,
             paymentMethod: paymentMethod,
@@ -441,13 +441,17 @@ class WalletPageState extends State<WalletPage> {
               claimMethod,
             ),
           };
-        case (final paymentMethod?, _):
+        case (final paymentMethod?, _, _):
           flowResult = await this._handlePaymentMethod(
             uriFlowCtx,
             paymentMethod,
           );
-        case (_, final claimMethod?):
+        case (_, final claimMethod?, _):
           flowResult = await this._handleClaimMethod(uriFlowCtx, claimMethod);
+          return;
+        // TODO(max): Login and connect approval flows.
+        case (_, _, AuthMethod()):
+          error("WalletPage: Login and connect requests are not supported yet");
           return;
         case _:
           error(

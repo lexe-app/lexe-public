@@ -128,10 +128,16 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   AppUserInfo dco_decode_app_user_info(dynamic raw);
 
   @protected
+  AuthMethod dco_decode_auth_method(dynamic raw);
+
+  @protected
   BackupInfo dco_decode_backup_info(dynamic raw);
 
   @protected
   Balance dco_decode_balance(dynamic raw);
+
+  @protected
+  BestPaymentUriMethods dco_decode_best_payment_uri_methods(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
@@ -144,6 +150,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   AppHandle dco_decode_box_autoadd_app_handle(dynamic raw);
+
+  @protected
+  AuthMethod dco_decode_box_autoadd_auth_method(dynamic raw);
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
@@ -203,6 +212,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice dco_decode_box_autoadd_invoice(dynamic raw);
+
+  @protected
+  LexeConnect dco_decode_box_autoadd_lexe_connect(dynamic raw);
 
   @protected
   LnurlPay dco_decode_box_autoadd_lnurl_pay(dynamic raw);
@@ -400,6 +412,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice dco_decode_invoice(dynamic raw);
 
   @protected
+  LexeConnect dco_decode_lexe_connect(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -491,6 +506,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   AppHandle? dco_decode_opt_box_autoadd_app_handle(dynamic raw);
+
+  @protected
+  AuthMethod? dco_decode_opt_box_autoadd_auth_method(dynamic raw);
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
@@ -617,10 +635,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentStatus dco_decode_payment_status(dynamic raw);
 
   @protected
-  (PaymentMethod?, ClaimMethod?)
-  dco_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
-    dynamic raw,
-  );
+  RequesterDisplay dco_decode_requester_display(dynamic raw);
 
   @protected
   RevocableClient dco_decode_revocable_client(dynamic raw);
@@ -762,10 +777,18 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   AppUserInfo sse_decode_app_user_info(SseDeserializer deserializer);
 
   @protected
+  AuthMethod sse_decode_auth_method(SseDeserializer deserializer);
+
+  @protected
   BackupInfo sse_decode_backup_info(SseDeserializer deserializer);
 
   @protected
   Balance sse_decode_balance(SseDeserializer deserializer);
+
+  @protected
+  BestPaymentUriMethods sse_decode_best_payment_uri_methods(
+    SseDeserializer deserializer,
+  );
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -778,6 +801,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   AppHandle sse_decode_box_autoadd_app_handle(SseDeserializer deserializer);
+
+  @protected
+  AuthMethod sse_decode_box_autoadd_auth_method(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
@@ -849,6 +875,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer);
+
+  @protected
+  LexeConnect sse_decode_box_autoadd_lexe_connect(SseDeserializer deserializer);
 
   @protected
   LnurlPay sse_decode_box_autoadd_lnurl_pay(SseDeserializer deserializer);
@@ -1104,6 +1133,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   Invoice sse_decode_invoice(SseDeserializer deserializer);
 
   @protected
+  LexeConnect sse_decode_lexe_connect(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -1213,6 +1245,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   AppHandle? sse_decode_opt_box_autoadd_app_handle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AuthMethod? sse_decode_opt_box_autoadd_auth_method(
     SseDeserializer deserializer,
   );
 
@@ -1367,10 +1404,7 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentStatus sse_decode_payment_status(SseDeserializer deserializer);
 
   @protected
-  (PaymentMethod?, ClaimMethod?)
-  sse_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
-    SseDeserializer deserializer,
-  );
+  RequesterDisplay sse_decode_requester_display(SseDeserializer deserializer);
 
   @protected
   RevocableClient sse_decode_revocable_client(SseDeserializer deserializer);
@@ -1533,10 +1567,19 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_app_user_info(AppUserInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_auth_method(AuthMethod self, SseSerializer serializer);
+
+  @protected
   void sse_encode_backup_info(BackupInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_balance(Balance self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_best_payment_uri_methods(
+    BestPaymentUriMethods self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -1553,6 +1596,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_app_handle(
     AppHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_auth_method(
+    AuthMethod self,
     SseSerializer serializer,
   );
 
@@ -1642,6 +1691,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_lexe_connect(
+    LexeConnect self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_lnurl_pay(
@@ -1947,6 +2002,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_invoice(Invoice self, SseSerializer serializer);
 
   @protected
+  void sse_encode_lexe_connect(LexeConnect self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -2081,6 +2139,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_opt_box_autoadd_app_handle(
     AppHandle? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_auth_method(
+    AuthMethod? self,
     SseSerializer serializer,
   );
 
@@ -2274,9 +2338,8 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_payment_status(PaymentStatus self, SseSerializer serializer);
 
   @protected
-  void
-  sse_encode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
-    (PaymentMethod?, ClaimMethod?) self,
+  void sse_encode_requester_display(
+    RequesterDisplay self,
     SseSerializer serializer,
   );
 

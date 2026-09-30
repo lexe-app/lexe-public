@@ -56,7 +56,7 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
         BackupInfo,
-        ClaimMethod,
+        BestPaymentUriMethods,
         ClaimMethod_LnurlWithdraw,
         Config,
         GDriveSignupCredentials,
@@ -81,7 +81,6 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_Onchain,
         PaymentKind_Spontaneous,
         PaymentKind_WaivedChannelFee,
-        PaymentMethod,
         PaymentMethod_Invoice,
         PaymentMethod_LnurlPay,
         PaymentMethod_Offer,
@@ -571,29 +570,32 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1000), () => {});
 
   @override
-  Future<(PaymentMethod?, ClaimMethod?)> resolveBest({
+  Future<BestPaymentUriMethods> resolveBest({
     required Network network,
     required String uriStr,
   }) => Future.delayed(const Duration(milliseconds: 1000), () {
     if (uriStr == "bip353@lexe.app") {
-      return (PaymentMethod_Offer(defaultOffer), null);
+      return BestPaymentUriMethods(
+        paymentMethod: PaymentMethod_Offer(defaultOffer),
+        claimMethod: null,
+      );
     }
 
     if (uriStr == "lnurl@lexe.app") {
-      return (
-        PaymentMethod_LnurlPay(
+      return BestPaymentUriMethods(
+        paymentMethod: PaymentMethod_LnurlPay(
           LnurlPay(payRequest: defaultLnurlPayRequest, lnurl: defaultLnurl),
         ),
-        null,
+        claimMethod: null,
       );
     }
 
     if (uriStr.startsWith("lnurlw")) {
-      return (
-        PaymentMethod_LnurlPay(
+      return BestPaymentUriMethods(
+        paymentMethod: PaymentMethod_LnurlPay(
           LnurlPay(payRequest: defaultLnurlPayRequest, lnurl: defaultLnurl),
         ),
-        ClaimMethod_LnurlWithdraw(
+        claimMethod: ClaimMethod_LnurlWithdraw(
           httpUrl:
               "https://send.laisee.org/withdraw/api/v1/lnurl/5AXKHMxBFNqFseJFFNSTye",
           withdrawRequest: defaultLnurlWithdrawRequest,
@@ -602,16 +604,19 @@ class MockAppHandle extends AppHandle {
     }
 
     if (uriStr.startsWith("lnurl")) {
-      return (
-        PaymentMethod_LnurlPay(
+      return BestPaymentUriMethods(
+        paymentMethod: PaymentMethod_LnurlPay(
           LnurlPay(payRequest: defaultLnurlPayRequest, lnurl: defaultLnurl),
         ),
-        null,
+        claimMethod: null,
       );
     }
 
     if (uriStr.startsWith("lno")) {
-      return (PaymentMethod_Offer(defaultOffer), null);
+      return BestPaymentUriMethods(
+        paymentMethod: PaymentMethod_Offer(defaultOffer),
+        claimMethod: null,
+      );
     }
 
     if (uriStr.startsWith("ln")) {
@@ -631,10 +636,16 @@ class MockAppHandle extends AppHandle {
         ),
       );
 
-      return (invoiceMethod, null);
+      return BestPaymentUriMethods(
+        paymentMethod: invoiceMethod,
+        claimMethod: null,
+      );
     }
 
-    return (PaymentMethod_Onchain(defaultOnchainPayment), null);
+    return BestPaymentUriMethods(
+      paymentMethod: PaymentMethod_Onchain(defaultOnchainPayment),
+      claimMethod: null,
+    );
   });
 
   @override
@@ -821,7 +832,7 @@ class MockAppHandleErr extends MockAppHandle {
       );
 
   @override
-  Future<(PaymentMethod?, ClaimMethod?)> resolveBest({
+  Future<BestPaymentUriMethods> resolveBest({
     required Network network,
     required String uriStr,
   }) => Future.delayed(

@@ -1640,6 +1640,25 @@ impl SseDecode for crate::ffi::types::AppUserInfo {
     }
 }
 
+impl SseDecode for crate::ffi::types::AuthMethod {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_field0 =
+                    <crate::ffi::types::LexeConnect>::sse_decode(deserializer);
+                return crate::ffi::types::AuthMethod::LexeConnect(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::ffi::types::BackupInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1669,6 +1688,27 @@ impl SseDecode for crate::ffi::api::Balance {
             lightning_sats: var_lightningSats,
             lightning_usable_sats: var_lightningUsableSats,
             lightning_max_sendable_sats: var_lightningMaxSendableSats,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::BestPaymentUriMethods {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_paymentMethod =
+            <Option<crate::ffi::types::PaymentMethod>>::sse_decode(
+                deserializer,
+            );
+        let mut var_claimMethod =
+            <Option<crate::ffi::types::ClaimMethod>>::sse_decode(deserializer);
+        let mut var_authMethod =
+            <Option<crate::ffi::types::AuthMethod>>::sse_decode(deserializer);
+        return crate::ffi::types::BestPaymentUriMethods {
+            payment_method: var_paymentMethod,
+            claim_method: var_claimMethod,
+            auth_method: var_authMethod,
         };
     }
 }
@@ -2099,6 +2139,31 @@ impl SseDecode for crate::ffi::types::Invoice {
             expires_at: var_expiresAt,
             amount_sats: var_amountSats,
             payee_pubkey: var_payeePubkey,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::LexeConnect {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_connectionString = <String>::sse_decode(deserializer);
+        let mut var_requester =
+            <crate::ffi::types::RequesterDisplay>::sse_decode(deserializer);
+        let mut var_account = <Option<String>>::sse_decode(deserializer);
+        let mut var_scopes = <Vec<String>>::sse_decode(deserializer);
+        let mut var_permissions = <Vec<String>>::sse_decode(deserializer);
+        let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
+        return crate::ffi::types::LexeConnect {
+            connection_string: var_connectionString,
+            requester: var_requester,
+            account: var_account,
+            scopes: var_scopes,
+            permissions: var_permissions,
+            label: var_label,
+            expires_at: var_expiresAt,
         };
     }
 }
@@ -2577,6 +2642,21 @@ impl SseDecode for Option<crate::ffi::app::AppHandle> {
     ) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::ffi::app::AppHandle>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::AuthMethod> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::AuthMethod>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -3253,23 +3333,30 @@ impl SseDecode for crate::ffi::types::PaymentStatus {
     }
 }
 
-impl SseDecode
-    for (
-        Option<crate::ffi::types::PaymentMethod>,
-        Option<crate::ffi::types::ClaimMethod>,
-    )
-{
+impl SseDecode for crate::ffi::types::RequesterDisplay {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut var_field0 =
-            <Option<crate::ffi::types::PaymentMethod>>::sse_decode(
-                deserializer,
-            );
-        let mut var_field1 =
-            <Option<crate::ffi::types::ClaimMethod>>::sse_decode(deserializer);
-        return (var_field0, var_field1);
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_domain = <String>::sse_decode(deserializer);
+                return crate::ffi::types::RequesterDisplay::Verified {
+                    domain: var_domain,
+                };
+            }
+            1 => {
+                let mut var_schemeHost =
+                    <Option<String>>::sse_decode(deserializer);
+                return crate::ffi::types::RequesterDisplay::Unverified {
+                    scheme_host: var_schemeHost,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -3792,6 +3879,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::AppUserInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::AuthMethod {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::ffi::types::AuthMethod::LexeConnect(field0) =>
+                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::AuthMethod
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::AuthMethod>
+    for crate::ffi::types::AuthMethod
+{
+    fn into_into_dart(self) -> crate::ffi::types::AuthMethod {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::BackupInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.gdrive_status.into_into_dart().into_dart()].into_dart()
@@ -3831,6 +3941,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::Balance>
     for crate::ffi::api::Balance
 {
     fn into_into_dart(self) -> crate::ffi::api::Balance {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::ffi::types::BestPaymentUriMethods
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.payment_method.into_into_dart().into_dart(),
+            self.claim_method.into_into_dart().into_dart(),
+            self.auth_method.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::BestPaymentUriMethods
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::BestPaymentUriMethods>
+    for crate::ffi::types::BestPaymentUriMethods
+{
+    fn into_into_dart(self) -> crate::ffi::types::BestPaymentUriMethods {
         self
     }
 }
@@ -4367,6 +4501,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Invoice>
     for crate::ffi::types::Invoice
 {
     fn into_into_dart(self) -> crate::ffi::types::Invoice {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::LexeConnect {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.connection_string.into_into_dart().into_dart(),
+            self.requester.into_into_dart().into_dart(),
+            self.account.into_into_dart().into_dart(),
+            self.scopes.into_into_dart().into_dart(),
+            self.permissions.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.expires_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::LexeConnect
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LexeConnect>
+    for crate::ffi::types::LexeConnect
+{
+    fn into_into_dart(self) -> crate::ffi::types::LexeConnect {
         self
     }
 }
@@ -5246,6 +5406,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentStatus>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::RequesterDisplay {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::ffi::types::RequesterDisplay::Verified { domain } =>
+                [0.into_dart(), domain.into_into_dart().into_dart()].into_dart(),
+            crate::ffi::types::RequesterDisplay::Unverified { scheme_host } =>
+                [1.into_dart(), scheme_host.into_into_dart().into_dart()]
+                    .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::RequesterDisplay
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::RequesterDisplay>
+    for crate::ffi::types::RequesterDisplay
+{
+    fn into_into_dart(self) -> crate::ffi::types::RequesterDisplay {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::RevocableClient {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5737,6 +5923,26 @@ impl SseEncode for crate::ffi::types::AppUserInfo {
     }
 }
 
+impl SseEncode for crate::ffi::types::AuthMethod {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        match self {
+            crate::ffi::types::AuthMethod::LexeConnect(field0) => {
+                <i32>::sse_encode(0, serializer);
+                <crate::ffi::types::LexeConnect>::sse_encode(
+                    field0, serializer,
+                );
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::ffi::types::BackupInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -5761,6 +5967,27 @@ impl SseEncode for crate::ffi::api::Balance {
         <u64>::sse_encode(self.lightning_sats, serializer);
         <u64>::sse_encode(self.lightning_usable_sats, serializer);
         <u64>::sse_encode(self.lightning_max_sendable_sats, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::types::BestPaymentUriMethods {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <Option<crate::ffi::types::PaymentMethod>>::sse_encode(
+            self.payment_method,
+            serializer,
+        );
+        <Option<crate::ffi::types::ClaimMethod>>::sse_encode(
+            self.claim_method,
+            serializer,
+        );
+        <Option<crate::ffi::types::AuthMethod>>::sse_encode(
+            self.auth_method,
+            serializer,
+        );
     }
 }
 
@@ -6136,6 +6363,25 @@ impl SseEncode for crate::ffi::types::Invoice {
         <i64>::sse_encode(self.expires_at, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <String>::sse_encode(self.payee_pubkey, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::types::LexeConnect {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.connection_string, serializer);
+        <crate::ffi::types::RequesterDisplay>::sse_encode(
+            self.requester,
+            serializer,
+        );
+        <Option<String>>::sse_encode(self.account, serializer);
+        <Vec<String>>::sse_encode(self.scopes, serializer);
+        <Vec<String>>::sse_encode(self.permissions, serializer);
+        <Option<String>>::sse_encode(self.label, serializer);
+        <Option<i64>>::sse_encode(self.expires_at, serializer);
     }
 }
 
@@ -6528,6 +6774,19 @@ impl SseEncode for Option<crate::ffi::app::AppHandle> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::app::AppHandle>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::AuthMethod> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::AuthMethod>::sse_encode(value, serializer);
         }
     }
 }
@@ -7128,23 +7387,25 @@ impl SseEncode for crate::ffi::types::PaymentStatus {
     }
 }
 
-impl SseEncode
-    for (
-        Option<crate::ffi::types::PaymentMethod>,
-        Option<crate::ffi::types::ClaimMethod>,
-    )
-{
+impl SseEncode for crate::ffi::types::RequesterDisplay {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <Option<crate::ffi::types::PaymentMethod>>::sse_encode(
-            self.0, serializer,
-        );
-        <Option<crate::ffi::types::ClaimMethod>>::sse_encode(
-            self.1, serializer,
-        );
+        match self {
+            crate::ffi::types::RequesterDisplay::Verified { domain } => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(domain, serializer);
+            }
+            crate::ffi::types::RequesterDisplay::Unverified { scheme_host } => {
+                <i32>::sse_encode(1, serializer);
+                <Option<String>>::sse_encode(scheme_host, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 

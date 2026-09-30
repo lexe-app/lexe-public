@@ -1,5 +1,7 @@
 import 'package:app_rs_dart/ffi/types.dart'
     show
+        AuthMethod,
+        BestPaymentUriMethods,
         ClaimMethod,
         ClaimMethod_LnurlWithdraw,
         PaymentMethod,
@@ -180,12 +182,10 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     if (!this.mounted) return;
 
     // Check the results
-    final PaymentMethod? paymentMethod;
-    final ClaimMethod? claimMethod;
+    final BestPaymentUriMethods best;
     switch (result) {
       case Ok(:final ok):
-        paymentMethod = ok.$1;
-        claimMethod = ok.$2;
+        best = ok;
       case Err(:final err):
         this.isPending.value = false;
         this.errorMessage.value = ErrorMessage(message: err);
@@ -194,8 +194,8 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
 
     // Branch accordingly
     final UriFlowResult? flowResult;
-    switch ((paymentMethod, claimMethod)) {
-      case (final paymentMethod?, final claimMethod?):
+    switch ((best.paymentMethod, best.claimMethod, best.authMethod)) {
+      case (final paymentMethod?, final claimMethod?, _):
         final UriChoice? userChoice = await SendOrClaimChoiceSheet.show(
           context: this.context,
           paymentMethod: paymentMethod,
@@ -210,11 +210,19 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
           UriChoice.claim => await this._handleClaimMethod(claimMethod),
         };
 
-      case (final paymentMethod?, _):
+      case (final paymentMethod?, _, _):
         flowResult = await this._handlePaymentMethod(paymentMethod);
 
-      case (_, final claimMethod?):
+      case (_, final claimMethod?, _):
         flowResult = await this._handleClaimMethod(claimMethod);
+
+      // TODO(max): Login and connect approval flows.
+      case (_, _, AuthMethod()):
+        this.isPending.value = false;
+        this.errorMessage.value = const ErrorMessage(
+          message: "Login and connect requests are not supported yet.",
+        );
+        return;
 
       case _:
         this.isPending.value = false;

@@ -265,7 +265,7 @@ abstract class AppRsApi extends BaseApi {
 
   Future<void> crateFfiAppAppHandleProvision({required AppHandle that});
 
-  Future<(PaymentMethod?, ClaimMethod?)> crateFfiAppAppHandleResolveBest({
+  Future<BestPaymentUriMethods> crateFfiAppAppHandleResolveBest({
     required AppHandle that,
     required Network network,
     required String uriStr,
@@ -1927,7 +1927,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       );
 
   @override
-  Future<(PaymentMethod?, ClaimMethod?)> crateFfiAppAppHandleResolveBest({
+  Future<BestPaymentUriMethods> crateFfiAppAppHandleResolveBest({
     required AppHandle that,
     required Network network,
     required String uriStr,
@@ -1947,8 +1947,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method,
+          decodeSuccessData: sse_decode_best_payment_uri_methods,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateFfiAppAppHandleResolveBestConstMeta,
@@ -3697,6 +3696,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  AuthMethod dco_decode_auth_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return AuthMethod_LexeConnect(
+          dco_decode_box_autoadd_lexe_connect(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   BackupInfo dco_decode_backup_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3717,6 +3729,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       lightningSats: dco_decode_CastedPrimitive_u_64(arr[2]),
       lightningUsableSats: dco_decode_CastedPrimitive_u_64(arr[3]),
       lightningMaxSendableSats: dco_decode_CastedPrimitive_u_64(arr[4]),
+    );
+  }
+
+  @protected
+  BestPaymentUriMethods dco_decode_best_payment_uri_methods(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BestPaymentUriMethods(
+      paymentMethod: dco_decode_opt_box_autoadd_payment_method(arr[0]),
+      claimMethod: dco_decode_opt_box_autoadd_claim_method(arr[1]),
+      authMethod: dco_decode_opt_box_autoadd_auth_method(arr[2]),
     );
   }
 
@@ -3742,6 +3767,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   AppHandle dco_decode_box_autoadd_app_handle(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_app_handle(raw);
+  }
+
+  @protected
+  AuthMethod dco_decode_box_autoadd_auth_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_auth_method(raw);
   }
 
   @protected
@@ -3853,6 +3884,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice dco_decode_box_autoadd_invoice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_invoice(raw);
+  }
+
+  @protected
+  LexeConnect dco_decode_box_autoadd_lexe_connect(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_lexe_connect(raw);
   }
 
   @protected
@@ -4377,6 +4414,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LexeConnect dco_decode_lexe_connect(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return LexeConnect(
+      connectionString: dco_decode_String(arr[0]),
+      requester: dco_decode_requester_display(arr[1]),
+      account: dco_decode_opt_String(arr[2]),
+      scopes: dco_decode_list_String(arr[3]),
+      permissions: dco_decode_list_String(arr[4]),
+      label: dco_decode_opt_String(arr[5]),
+      expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[6]),
+    );
+  }
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
@@ -4682,6 +4736,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   AppHandle? dco_decode_opt_box_autoadd_app_handle(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_app_handle(raw);
+  }
+
+  @protected
+  AuthMethod? dco_decode_opt_box_autoadd_auth_method(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_auth_method(raw);
   }
 
   @protected
@@ -5080,19 +5140,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  (PaymentMethod?, ClaimMethod?)
-  dco_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
-    dynamic raw,
-  ) {
+  RequesterDisplay dco_decode_requester_display(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2) {
-      throw Exception('Expected 2 elements, got ${arr.length}');
+    switch (raw[0]) {
+      case 0:
+        return RequesterDisplay_Verified(domain: dco_decode_String(raw[1]));
+      case 1:
+        return RequesterDisplay_Unverified(
+          schemeHost: dco_decode_opt_String(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
     }
-    return (
-      dco_decode_opt_box_autoadd_payment_method(arr[0]),
-      dco_decode_opt_box_autoadd_claim_method(arr[1]),
-    );
   }
 
   @protected
@@ -5478,6 +5537,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  AuthMethod sse_decode_auth_method(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_box_autoadd_lexe_connect(deserializer);
+        return AuthMethod_LexeConnect(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   BackupInfo sse_decode_backup_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_gdriveStatus = sse_decode_g_drive_status(deserializer);
@@ -5504,6 +5577,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  BestPaymentUriMethods sse_decode_best_payment_uri_methods(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_paymentMethod = sse_decode_opt_box_autoadd_payment_method(
+      deserializer,
+    );
+    var var_claimMethod = sse_decode_opt_box_autoadd_claim_method(deserializer);
+    var var_authMethod = sse_decode_opt_box_autoadd_auth_method(deserializer);
+    return BestPaymentUriMethods(
+      paymentMethod: var_paymentMethod,
+      claimMethod: var_claimMethod,
+      authMethod: var_authMethod,
+    );
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -5525,6 +5615,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   AppHandle sse_decode_box_autoadd_app_handle(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_app_handle(deserializer));
+  }
+
+  @protected
+  AuthMethod sse_decode_box_autoadd_auth_method(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_auth_method(deserializer));
   }
 
   @protected
@@ -5648,6 +5744,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice sse_decode_box_autoadd_invoice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_invoice(deserializer));
+  }
+
+  @protected
+  LexeConnect sse_decode_box_autoadd_lexe_connect(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_lexe_connect(deserializer));
   }
 
   @protected
@@ -6212,6 +6316,27 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  LexeConnect sse_decode_lexe_connect(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_connectionString = sse_decode_String(deserializer);
+    var var_requester = sse_decode_requester_display(deserializer);
+    var var_account = sse_decode_opt_String(deserializer);
+    var var_scopes = sse_decode_list_String(deserializer);
+    var var_permissions = sse_decode_list_String(deserializer);
+    var var_label = sse_decode_opt_String(deserializer);
+    var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    return LexeConnect(
+      connectionString: var_connectionString,
+      requester: var_requester,
+      account: var_account,
+      scopes: var_scopes,
+      permissions: var_permissions,
+      label: var_label,
+      expiresAt: var_expiresAt,
+    );
+  }
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -6605,6 +6730,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_app_handle(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  AuthMethod? sse_decode_opt_box_autoadd_auth_method(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_auth_method(deserializer));
     } else {
       return null;
     }
@@ -7149,14 +7287,20 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  (PaymentMethod?, ClaimMethod?)
-  sse_decode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
-    SseDeserializer deserializer,
-  ) {
+  RequesterDisplay sse_decode_requester_display(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_field0 = sse_decode_opt_box_autoadd_payment_method(deserializer);
-    var var_field1 = sse_decode_opt_box_autoadd_claim_method(deserializer);
-    return (var_field0, var_field1);
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_domain = sse_decode_String(deserializer);
+        return RequesterDisplay_Verified(domain: var_domain);
+      case 1:
+        var var_schemeHost = sse_decode_opt_String(deserializer);
+        return RequesterDisplay_Unverified(schemeHost: var_schemeHost);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -7552,6 +7696,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_auth_method(AuthMethod self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case AuthMethod_LexeConnect(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_lexe_connect(field0, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_backup_info(BackupInfo self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_g_drive_status(self.gdriveStatus, serializer);
@@ -7565,6 +7719,17 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_u_64(self.lightningSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.lightningUsableSats, serializer);
     sse_encode_CastedPrimitive_u_64(self.lightningMaxSendableSats, serializer);
+  }
+
+  @protected
+  void sse_encode_best_payment_uri_methods(
+    BestPaymentUriMethods self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_payment_method(self.paymentMethod, serializer);
+    sse_encode_opt_box_autoadd_claim_method(self.claimMethod, serializer);
+    sse_encode_opt_box_autoadd_auth_method(self.authMethod, serializer);
   }
 
   @protected
@@ -7595,6 +7760,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_app_handle(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_auth_method(
+    AuthMethod self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_auth_method(self, serializer);
   }
 
   @protected
@@ -7730,6 +7904,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_box_autoadd_invoice(Invoice self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_invoice(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_lexe_connect(
+    LexeConnect self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lexe_connect(self, serializer);
   }
 
   @protected
@@ -8271,6 +8454,18 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_lexe_connect(LexeConnect self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.connectionString, serializer);
+    sse_encode_requester_display(self.requester, serializer);
+    sse_encode_opt_String(self.account, serializer);
+    sse_encode_list_String(self.scopes, serializer);
+    sse_encode_list_String(self.permissions, serializer);
+    sse_encode_opt_String(self.label, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
+  }
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
@@ -8591,6 +8786,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_app_handle(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_auth_method(
+    AuthMethod? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_auth_method(self, serializer);
     }
   }
 
@@ -9058,14 +9266,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
-  void
-  sse_encode_record_opt_box_autoadd_payment_method_opt_box_autoadd_claim_method(
-    (PaymentMethod?, ClaimMethod?) self,
+  void sse_encode_requester_display(
+    RequesterDisplay self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_payment_method(self.$1, serializer);
-    sse_encode_opt_box_autoadd_claim_method(self.$2, serializer);
+    switch (self) {
+      case RequesterDisplay_Verified(domain: final domain):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(domain, serializer);
+      case RequesterDisplay_Unverified(schemeHost: final schemeHost):
+        sse_encode_i_32(1, serializer);
+        sse_encode_opt_String(schemeHost, serializer);
+    }
   }
 
   @protected

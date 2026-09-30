@@ -74,6 +74,66 @@ String toString() {
 
 
 /// @nodoc
+mixin _$AuthMethod {
+
+ LexeConnect get field0;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthMethod&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'AuthMethod(field0: $field0)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class AuthMethod_LexeConnect extends AuthMethod {
+  const AuthMethod_LexeConnect(this.field0): super._();
+  
+
+@override final  LexeConnect field0;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthMethod_LexeConnect&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'AuthMethod.lexeConnect(field0: $field0)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$ClaimMethod {
 
 /// The HTTP endpoint, for display purposes
@@ -1438,6 +1498,98 @@ int get hashCode => Object.hash(runtimeType,field0);
 @override
 String toString() {
   return 'PaymentRail.unknown(field0: $field0)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+mixin _$RequesterDisplay {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RequesterDisplay);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'RequesterDisplay()';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class RequesterDisplay_Verified extends RequesterDisplay {
+  const RequesterDisplay_Verified({required this.domain}): super._();
+  
+
+ final  String domain;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RequesterDisplay_Verified&&(identical(other.domain, domain) || other.domain == domain));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,domain);
+
+@override
+String toString() {
+  return 'RequesterDisplay.verified(domain: $domain)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class RequesterDisplay_Unverified extends RequesterDisplay {
+  const RequesterDisplay_Unverified({this.schemeHost}): super._();
+  
+
+ final  String? schemeHost;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RequesterDisplay_Unverified&&(identical(other.schemeHost, schemeHost) || other.schemeHost == schemeHost));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,schemeHost);
+
+@override
+String toString() {
+  return 'RequesterDisplay.unverified(schemeHost: $schemeHost)';
 }
 
 

@@ -5,7 +5,12 @@
 import 'package:app_rs_dart/ffi/api.dart';
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
-    show ClaimMethod, ClientPaymentId, Network, PaymentMethod;
+    show
+        BestPaymentUriMethods,
+        ClaimMethod,
+        ClientPaymentId,
+        Network,
+        PaymentMethod;
 import 'package:app_rs_dart/ffi/types.ext.dart' show ClaimMethodExt;
 import 'package:flutter/foundation.dart';
 import 'package:lexeapp/address_format.dart'
@@ -49,9 +54,7 @@ class NeedUriState {
   final ClientPaymentId clientPaymentId;
   final ValueListenable<FiatRate?> fiatRate;
 
-  Future<Result<(PaymentMethod?, ClaimMethod?), String>> resolve(
-    String uriStr,
-  ) async {
+  Future<Result<BestPaymentUriMethods, String>> resolve(String uriStr) async {
     // Parse and resolve the URI
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
@@ -60,12 +63,10 @@ class NeedUriState {
     );
 
     // Check if resolving was successful.
-    final PaymentMethod? paymentMethod;
-    final ClaimMethod? claimMethod;
+    final BestPaymentUriMethods best;
     switch (result) {
       case Ok(:final ok):
-        paymentMethod = ok.$1;
-        claimMethod = ok.$2;
+        best = ok;
       case Err(:final err):
         error("Error resolving URI: $err");
         return Err(err.message);
@@ -73,10 +74,11 @@ class NeedUriState {
 
     final uriStrShort = address_format.ellipsizeBtcAddress(uriStr);
     info(
-      "Resolved input '$uriStrShort' to payment method: $paymentMethod and claim method: $claimMethod",
+      "Resolved input '$uriStrShort' to payment method: ${best.paymentMethod}, "
+      "claim method: ${best.claimMethod}, auth method: ${best.authMethod}",
     );
 
-    return Ok((paymentMethod, claimMethod));
+    return Ok(best);
   }
 
   /// Preflight the payment if possible and return the next [SendState]
