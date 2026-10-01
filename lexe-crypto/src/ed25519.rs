@@ -90,7 +90,7 @@ pub struct PublicKey([u8; 32]);
 impl_serde_hexstr_or_bytes!(PublicKey);
 
 /// An ed25519 signature.
-#[derive(Copy, Clone, Eq, PartialEq, RefCast)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
 #[repr(transparent)]
 pub struct Signature([u8; 64]);
 
@@ -491,6 +491,10 @@ impl TryFrom<&[u8]> for PublicKey {
 
 // -- impl Signature -- //
 
+lexe_byte_array::impl_byte_array!(Signature, 64);
+lexe_byte_array::impl_fromstr_fromhex!(Signature, 64);
+lexe_byte_array::impl_debug_display_as_hex!(Signature);
+
 impl Signature {
     pub const fn new(sig: [u8; 64]) -> Self {
         Self(sig)
@@ -498,30 +502,6 @@ impl Signature {
 
     pub const fn from_ref(sig: &[u8; 64]) -> &Self {
         const_utils::const_ref_cast(sig)
-    }
-
-    pub const fn as_slice(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-
-    pub const fn into_inner(self) -> [u8; 64] {
-        self.0
-    }
-
-    pub const fn as_inner(&self) -> &[u8; 64] {
-        &self.0
-    }
-}
-
-impl AsRef<[u8]> for Signature {
-    fn as_ref(&self) -> &[u8] {
-        self.as_slice()
-    }
-}
-
-impl AsRef<[u8; 64]> for Signature {
-    fn as_ref(&self) -> &[u8; 64] {
-        self.as_inner()
     }
 }
 
@@ -531,34 +511,6 @@ impl TryFrom<&[u8]> for Signature {
         <[u8; 64]>::try_from(value)
             .map(Signature)
             .map_err(|_| Error::InvalidSignature)
-    }
-}
-
-impl FromHex for Signature {
-    fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
-        <[u8; 64]>::from_hex(s).map(Self::new)
-    }
-}
-
-impl FromStr for Signature {
-    type Err = hex::DecodeError;
-    #[inline]
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_hex(s)
-    }
-}
-
-impl fmt::Display for Signature {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(self.as_slice()))
-    }
-}
-
-impl fmt::Debug for Signature {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ed25519::Signature")
-            .field(&hex::display(self.as_slice()))
-            .finish()
     }
 }
 
@@ -889,7 +841,7 @@ mod test {
         assert_eq!(pubkey.as_array(), &pk);
 
         let sig2 = key_pair.sign_raw(&msg);
-        assert_eq!(&sig, sig2.as_inner());
+        assert_eq!(&sig, sig2.as_array());
 
         verify::signed_bytes_by_signer(pubkey, &msg, &sig2).unwrap();
     }
