@@ -323,6 +323,100 @@ String toString() {
 
 
 /// @nodoc
+mixin _$CredentialDecision {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CredentialDecision);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'CredentialDecision()';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class CredentialDecision_Approve extends CredentialDecision {
+  const CredentialDecision_Approve({this.label, this.expiresAt}): super._();
+  
+
+ final  String? label;
+/// In ms since the UNIX epoch. [`None`] never expires.
+ final  int? expiresAt;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CredentialDecision_Approve&&(identical(other.label, label) || other.label == label)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,label,expiresAt);
+
+@override
+String toString() {
+  return 'CredentialDecision.approve(label: $label, expiresAt: $expiresAt)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class CredentialDecision_Reject extends CredentialDecision {
+  const CredentialDecision_Reject(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CredentialDecision_Reject);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'CredentialDecision.reject()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$GDriveStatus {
 
 

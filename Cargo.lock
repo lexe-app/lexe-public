@@ -2904,7 +2904,6 @@ dependencies = [
  "lexe-tokio",
  "lexe-uri",
  "proptest",
- "rand_core 0.6.4",
  "reqwest",
  "rustls",
  "serde",

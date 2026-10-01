@@ -25,7 +25,7 @@ gdrive = { path = "../gdrive" }
 lexe = { workspace = true, features = ["unstable"] }
 lexe-api = { workspace = true }
 lexe-common = { workspace = true }
-lexe-connect = { workspace = true }
+lexe-connect = { workspace = true, features = ["crypto", "http"] }
 lexe-crypto = { workspace = true }
 lexe-hex = { workspace = true }
 lexe-node-client = { workspace = true }

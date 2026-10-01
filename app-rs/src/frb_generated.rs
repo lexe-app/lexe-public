@@ -49,7 +49,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 205081862;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -113882408;
 
 // Section: executor
 
@@ -742,6 +742,23 @@ let api_comment = <Option<String>>::sse_decode(&mut deserializer);deserializer.e
                     })().await)
                 } })
 }
+fn wire__crate__ffi__app__app_handle_respond_credential_request_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "app_handle_respond_credential_request", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::app::AppHandle>::sse_decode(&mut deserializer);
+let api_connection_string = <String>::sse_decode(&mut deserializer);
+let api_decision = <crate::ffi::types::CredentialDecision>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || async move {
+                         let output_ok = crate::ffi::app::AppHandle::respond_credential_request(&api_that, api_connection_string, api_decision).await?;   std::result::Result::Ok(output_ok)
+                    })().await)
+                } })
+}
 fn wire__crate__ffi__app__app_handle_restore_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1294,6 +1311,19 @@ fn wire__crate__ffi__types__scope_children_impl(
             let api_that = <crate::ffi::types::Scope>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, ()>((move || {
                      let output_ok = Ok::<_, ()>(crate::ffi::types::Scope::children(&api_that))?;   std::result::Result::Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__types__scope_from_string_id_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "scope_from_string_id", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_s = <String>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Ok::<_, ()>(crate::ffi::types::Scope::from_string_id(api_s))?;   std::result::Result::Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__types__scope_recommended_impl(
@@ -1929,6 +1959,31 @@ impl SseDecode for crate::ffi::api::CreateOfferResponse {
         let mut var_offer =
             <crate::ffi::types::Offer>::sse_decode(deserializer);
         return crate::ffi::api::CreateOfferResponse { offer: var_offer };
+    }
+}
+
+impl SseDecode for crate::ffi::types::CredentialDecision {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_label = <Option<String>>::sse_decode(deserializer);
+                let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
+                return crate::ffi::types::CredentialDecision::Approve {
+                    label: var_label,
+                    expires_at: var_expiresAt,
+                };
+            }
+            1 => {
+                return crate::ffi::types::CredentialDecision::Reject;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -2849,6 +2904,19 @@ impl SseDecode for Option<crate::ffi::types::RootSeed> {
     }
 }
 
+impl SseDecode for Option<crate::ffi::types::Scope> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::Scope>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ffi::types::ShortPayment> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -3720,24 +3788,25 @@ fn pde_ffi_dispatcher_primary_impl(
 44 => wire__crate__ffi__app__app_handle_provision_impl(port, ptr, rust_vec_len, data_len),
 45 => wire__crate__ffi__app__app_handle_resolve_best_impl(port, ptr, rust_vec_len, data_len),
 46 => wire__crate__ffi__app__app_handle_resolve_lnurl_pay_request_impl(port, ptr, rust_vec_len, data_len),
-47 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
-48 => wire__crate__ffi__app__app_handle_revoke_client_impl(port, ptr, rust_vec_len, data_len),
-50 => wire__crate__ffi__app__app_handle_setup_gdrive_impl(port, ptr, rust_vec_len, data_len),
-51 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
-52 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
-53 => wire__crate__ffi__app__app_handle_update_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
-54 => wire__crate__ffi__app__app_handle_update_personal_note_impl(port, ptr, rust_vec_len, data_len),
-55 => wire__crate__ffi__app__app_handle_update_user_settings_impl(port, ptr, rust_vec_len, data_len),
-57 => wire__crate__ffi__app__app_handle_withdraw_lnurl_impl(port, ptr, rust_vec_len, data_len),
-59 => wire__crate__ffi__types__config_validate_impl(port, ptr, rust_vec_len, data_len),
-64 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
-66 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
-69 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
-73 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
-74 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
-75 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-93 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-94 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+47 => wire__crate__ffi__app__app_handle_respond_credential_request_impl(port, ptr, rust_vec_len, data_len),
+48 => wire__crate__ffi__app__app_handle_restore_impl(port, ptr, rust_vec_len, data_len),
+49 => wire__crate__ffi__app__app_handle_revoke_client_impl(port, ptr, rust_vec_len, data_len),
+51 => wire__crate__ffi__app__app_handle_setup_gdrive_impl(port, ptr, rust_vec_len, data_len),
+52 => wire__crate__ffi__app__app_handle_signup_impl(port, ptr, rust_vec_len, data_len),
+53 => wire__crate__ffi__app__app_handle_sync_payments_impl(port, ptr, rust_vec_len, data_len),
+54 => wire__crate__ffi__app__app_handle_update_human_bitcoin_address_impl(port, ptr, rust_vec_len, data_len),
+55 => wire__crate__ffi__app__app_handle_update_personal_note_impl(port, ptr, rust_vec_len, data_len),
+56 => wire__crate__ffi__app__app_handle_update_user_settings_impl(port, ptr, rust_vec_len, data_len),
+58 => wire__crate__ffi__app__app_handle_withdraw_lnurl_impl(port, ptr, rust_vec_len, data_len),
+60 => wire__crate__ffi__types__config_validate_impl(port, ptr, rust_vec_len, data_len),
+65 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
+67 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
+70 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
+74 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
+75 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
+76 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
+95 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+96 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -3766,39 +3835,40 @@ fn pde_ffi_dispatcher_sync_impl(
 26 => wire__crate__ffi__app__app_handle_get_pending_not_junk_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
 27 => wire__crate__ffi__app__app_handle_get_pending_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
 28 => wire__crate__ffi__app__app_handle_get_short_payment_by_scroll_index_impl(ptr, rust_vec_len, data_len),
-49 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
-56 => wire__crate__ffi__app__app_handle_wallet_user_impl(ptr, rust_vec_len, data_len),
-58 => wire__crate__ffi__types__client_payment_id_generate_impl(ptr, rust_vec_len, data_len),
-60 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
-61 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
-62 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
-63 => wire__crate__ffi__types__deploy_env_gateway_url_impl(ptr, rust_vec_len, data_len),
-65 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
-67 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
-68 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
-70 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
-71 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
-72 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
-76 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
-77 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-78 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
-79 => wire__crate__ffi__types__payment_kind_rail_impl(ptr, rust_vec_len, data_len),
-80 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
-81 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
-82 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
-83 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-84 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
-85 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
-86 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
-87 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-88 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-89 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-90 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-91 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-92 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
-95 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-96 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-97 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+50 => wire__crate__ffi__app__app_handle_settings_db_impl(ptr, rust_vec_len, data_len),
+57 => wire__crate__ffi__app__app_handle_wallet_user_impl(ptr, rust_vec_len, data_len),
+59 => wire__crate__ffi__types__client_payment_id_generate_impl(ptr, rust_vec_len, data_len),
+61 => wire__crate__ffi__debug__delete_latest_provisioned_impl(ptr, rust_vec_len, data_len),
+62 => wire__crate__ffi__debug__delete_secret_store_impl(ptr, rust_vec_len, data_len),
+63 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
+64 => wire__crate__ffi__types__deploy_env_gateway_url_impl(ptr, rust_vec_len, data_len),
+66 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
+68 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
+69 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
+71 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+72 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
+73 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
+77 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
+78 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+79 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
+80 => wire__crate__ffi__types__payment_kind_rail_impl(ptr, rust_vec_len, data_len),
+81 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
+82 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
+83 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
+84 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
+85 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
+86 => wire__crate__ffi__types__scope_from_string_id_impl(ptr, rust_vec_len, data_len),
+87 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
+88 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
+89 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+90 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+91 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+92 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+93 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+94 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
+97 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+98 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+99 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -4242,6 +4312,38 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::api::CreateOfferResponse>
     for crate::ffi::api::CreateOfferResponse
 {
     fn into_into_dart(self) -> crate::ffi::api::CreateOfferResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::CredentialDecision {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::ffi::types::CredentialDecision::Approve {
+                label,
+                expires_at,
+            } => [
+                0.into_dart(),
+                label.into_into_dart().into_dart(),
+                expires_at.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::ffi::types::CredentialDecision::Reject =>
+                [1.into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::CredentialDecision
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::CredentialDecision>
+    for crate::ffi::types::CredentialDecision
+{
+    fn into_into_dart(self) -> crate::ffi::types::CredentialDecision {
         self
     }
 }
@@ -6177,6 +6279,31 @@ impl SseEncode for crate::ffi::api::CreateOfferResponse {
     }
 }
 
+impl SseEncode for crate::ffi::types::CredentialDecision {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        match self {
+            crate::ffi::types::CredentialDecision::Approve {
+                label,
+                expires_at,
+            } => {
+                <i32>::sse_encode(0, serializer);
+                <Option<String>>::sse_encode(label, serializer);
+                <Option<i64>>::sse_encode(expires_at, serializer);
+            }
+            crate::ffi::types::CredentialDecision::Reject => {
+                <i32>::sse_encode(1, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::ffi::types::CredentialRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -6955,6 +7082,19 @@ impl SseEncode for Option<crate::ffi::types::RootSeed> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ffi::types::RootSeed>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::Scope> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::Scope>::sse_encode(value, serializer);
         }
     }
 }

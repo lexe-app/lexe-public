@@ -722,6 +722,17 @@ pub struct CredentialRequest {
     pub expires_at: Option<i64>,
 }
 
+/// The user's decision on a [`CredentialRequest`].
+pub enum CredentialDecision {
+    /// Create a credential with the requested scopes and permissions.
+    Approve {
+        label: Option<String>,
+        /// In ms since the UNIX epoch. [`None`] never expires.
+        expires_at: Option<i64>,
+    },
+    Reject,
+}
+
 /// How the approval screen identifies the LexeConnect REQUESTER.
 pub enum RequesterDisplay {
     /// The response goes to this domain, or to an app verified for it.
@@ -1155,10 +1166,12 @@ impl Scope {
             .to_owned()
     }
 
-    /// Parse a canonical scope id for display in the app. Returns [`None`]
-    /// for ids meaningless to a user node, e.g. LSP-specific scopes.
-    fn from_string_id(s: &str) -> Option<Self> {
-        match s {
+    /// Parse a canonical scope id. Returns [`None`] for ids meaningless to a
+    /// user node, e.g. LSP-specific scopes.
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn from_string_id(s: String) -> Option<Self> {
+        match s.as_str() {
             "read_info" => Some(Self::ReadInfo),
             "read_payments" => Some(Self::ReadPayments),
             "read" => Some(Self::Read),
@@ -1194,8 +1207,8 @@ impl From<ClientInfoRs> for RevocableClient {
             label: value.label,
             scopes: value
                 .scopes
-                .iter()
-                .filter_map(|s| Scope::from_string_id(s))
+                .into_iter()
+                .filter_map(Scope::from_string_id)
                 .collect(),
             permissions: value.permissions,
             effective_permissions: value.effective_permissions,

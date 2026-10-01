@@ -183,6 +183,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   CreateOfferRequest dco_decode_box_autoadd_create_offer_request(dynamic raw);
 
   @protected
+  CredentialDecision dco_decode_box_autoadd_credential_decision(dynamic raw);
+
+  @protected
   CredentialRequest dco_decode_box_autoadd_credential_request(dynamic raw);
 
   @protected
@@ -287,6 +290,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   RootSeed dco_decode_box_autoadd_root_seed(dynamic raw);
 
   @protected
+  Scope dco_decode_box_autoadd_scope(dynamic raw);
+
+  @protected
   SecretStore dco_decode_box_autoadd_secret_store(dynamic raw);
 
   @protected
@@ -363,6 +369,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   CreateOfferResponse dco_decode_create_offer_response(dynamic raw);
+
+  @protected
+  CredentialDecision dco_decode_credential_decision(dynamic raw);
 
   @protected
   CredentialRequest dco_decode_credential_request(dynamic raw);
@@ -549,6 +558,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw);
+
+  @protected
+  Scope? dco_decode_opt_box_autoadd_scope(dynamic raw);
 
   @protected
   ShortPayment? dco_decode_opt_box_autoadd_short_payment(dynamic raw);
@@ -840,6 +852,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  CredentialDecision sse_decode_box_autoadd_credential_decision(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   CredentialRequest sse_decode_box_autoadd_credential_request(
     SseDeserializer deserializer,
   );
@@ -978,6 +995,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   RootSeed sse_decode_box_autoadd_root_seed(SseDeserializer deserializer);
 
   @protected
+  Scope sse_decode_box_autoadd_scope(SseDeserializer deserializer);
+
+  @protected
   SecretStore sse_decode_box_autoadd_secret_store(SseDeserializer deserializer);
 
   @protected
@@ -1076,6 +1096,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   CreateOfferResponse sse_decode_create_offer_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CredentialDecision sse_decode_credential_decision(
     SseDeserializer deserializer,
   );
 
@@ -1306,6 +1331,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer);
+
+  @protected
+  Scope? sse_decode_opt_box_autoadd_scope(SseDeserializer deserializer);
 
   @protected
   ShortPayment? sse_decode_opt_box_autoadd_short_payment(
@@ -1650,6 +1678,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_credential_decision(
+    CredentialDecision self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_credential_request(
     CredentialRequest self,
     SseSerializer serializer,
@@ -1818,6 +1852,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_scope(Scope self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_secret_store(
     SecretStore self,
     SseSerializer serializer,
@@ -1940,6 +1977,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_create_offer_response(
     CreateOfferResponse self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_credential_decision(
+    CredentialDecision self,
     SseSerializer serializer,
   );
 
@@ -2218,6 +2261,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
     RootSeed? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_scope(Scope? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_short_payment(

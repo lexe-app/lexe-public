@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_string_id`, `into_inner`
+// These functions are ignored because they are not marked as `pub`: `into_inner`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
@@ -132,6 +132,20 @@ sealed class Config with _$Config {
 }
 
 enum ConfirmationPriority { high, normal, background }
+
+@freezed
+sealed class CredentialDecision with _$CredentialDecision {
+  const CredentialDecision._();
+
+  /// Create a credential with the requested scopes and permissions.
+  const factory CredentialDecision.approve({
+    String? label,
+
+    /// In ms since the UNIX epoch. [`None`] never expires.
+    int? expiresAt,
+  }) = CredentialDecision_Approve;
+  const factory CredentialDecision.reject() = CredentialDecision_Reject;
+}
 
 /// A LexeConnect credential request, for the user's approval.
 class CredentialRequest {
@@ -717,6 +731,13 @@ enum Scope {
   /// flutter_rust_bridge:sync
   List<Scope> children() =>
       AppRs.instance.api.crateFfiTypesScopeChildren(that: this);
+
+  /// Parse a canonical scope id. Returns [`None`] for ids meaningless to a
+  /// user node, e.g. LSP-specific scopes.
+  ///
+  /// flutter_rust_bridge:sync
+  static Scope? fromStringId({required String s}) =>
+      AppRs.instance.api.crateFfiTypesScopeFromStringId(s: s);
 
   /// Scopes recommended to be granted alongside this one, but not implied
   /// by it; see `Scope::recommended` in the `lexe` SDK. The UI uses this

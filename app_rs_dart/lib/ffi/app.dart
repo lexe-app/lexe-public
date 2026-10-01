@@ -17,7 +17,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'settings.dart';
 import 'types.dart';
 
-// These functions are ignored because they are not marked as `pub`: `new`
+// These functions are ignored because they are not marked as `pub`: `create_lexe_connect_credential`, `new`
 
 // Rust type: RustOpaqueNom<App>
 abstract class App implements RustOpaqueInterface {}
@@ -248,6 +248,17 @@ class AppHandle {
     req: req,
     amountMsats: amountMsats,
     comment: comment,
+  );
+
+  /// Respond to a LexeConnect credential request and deliver the response.
+  /// Returns the `redirect_uri` to open, if the request uses one.
+  Future<String?> respondCredentialRequest({
+    required String connectionString,
+    required CredentialDecision decision,
+  }) => AppRs.instance.api.crateFfiAppAppHandleRespondCredentialRequest(
+    that: this,
+    connectionString: connectionString,
+    decision: decision,
   );
 
   static Future<AppHandle> restore({

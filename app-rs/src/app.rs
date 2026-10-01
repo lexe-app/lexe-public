@@ -28,7 +28,7 @@ use lexe::{
 use lexe_api::{
     def::UserNodeRunApi, models::command::SetupGDrive, types::Empty,
 };
-use lexe_common::api::user::NodePkProof;
+use lexe_common::{api::user::NodePkProof, env::DeployEnv};
 use lexe_node_client::client::{GatewayClient, NodeClient};
 use lexe_payment_uri::{bip353, lnurl};
 use tracing::{info, instrument, warn};
@@ -375,6 +375,10 @@ impl App {
 
     fn wallet_env(&self) -> WalletEnv {
         self.user_config.env_config.wallet_env
+    }
+
+    pub fn deploy_env(&self) -> DeployEnv {
+        self.wallet_env().deploy_env
     }
 
     pub fn db(&self) -> &WalletDb<DiskFs> {

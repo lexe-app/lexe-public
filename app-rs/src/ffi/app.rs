@@ -2,7 +2,7 @@ use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     types::{
-        auth::UserPk,
+        auth::{Scope as ScopeRs, UserPk},
         command::{
             CancelPaymentRequest as CancelPaymentRequestRs,
             CashAppBuyRequest as CashAppBuyRequestRs,
@@ -30,7 +30,13 @@ use lexe_api::{
         payments::{PaymentCreatedIndex as PaymentCreatedIndexRs, PaymentId},
     },
 };
-use lexe_common::{env::DeployEnv, ln::amount::Amount};
+use lexe_common::{env::DeployEnv, ln::amount::Amount, time::TimestampMs};
+use lexe_connect::{
+    http::LexeConnectClient,
+    request::CredentialRequest,
+    wallet::{DeliveryAction, Outcome},
+};
+use lexe_crypto::rng::SysRng;
 use lexe_std::Apply;
 use tracing::instrument;
 
@@ -55,9 +61,10 @@ use crate::ffi::{
     settings::SettingsDb,
     types::{
         AppUserInfo, AuthMethod, BackupInfo, BestPaymentUriMethods,
-        ClaimMethod, Config, GDriveSignupCredentials, Invoice, LnurlPayRequest,
-        Network, Payment, PaymentCreatedIndex, PaymentMethod, RevocableClient,
-        RootSeed, ShortPayment, Username,
+        ClaimMethod, Config, CredentialDecision, GDriveSignupCredentials,
+        Invoice, LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
+        PaymentMethod, RevocableClient, RootSeed, Scope, ShortPayment,
+        Username,
     },
 };
 pub(crate) use crate::{
@@ -653,6 +660,84 @@ impl AppHandle {
             payment_method: best.payment_method.map(PaymentMethod::from),
             claim_method: best.claim_method.map(ClaimMethod::from),
             auth_method: best.auth_method.map(AuthMethod::from),
+        })
+    }
+
+    /// Respond to a LexeConnect credential request and deliver the response.
+    /// Returns the `redirect_uri` to open, if the request uses one.
+    #[instrument(skip_all, name = "(respond-credential-request)")]
+    pub async fn respond_credential_request(
+        &self,
+        connection_string: String,
+        decision: CredentialDecision,
+    ) -> anyhow::Result<Option<String>> {
+        let request = CredentialRequest::parse(&connection_string)
+            .context("Invalid connection string")?;
+
+        // Create the credential if approved. A failure is still delivered,
+        // so the requester doesn't wait on a response that never comes.
+        let (outcome, create_err) = match decision {
+            CredentialDecision::Reject => (Outcome::Rejected, None),
+            CredentialDecision::Approve { label, expires_at } => match self
+                .create_lexe_connect_credential(&request, label, expires_at)
+                .await
+            {
+                Ok(outcome) => (outcome, None),
+                Err(err) => (Outcome::Failed(format!("{err:#}")), Some(err)),
+            },
+        };
+
+        let action = request
+            .respond(&mut SysRng::new(), outcome)
+            .context("Failed to build response")?;
+        let redirect_uri = match action {
+            DeliveryAction::Redirect(uri) => Some(uri),
+            DeliveryAction::Http(delivery) => {
+                let client = LexeConnectClient::new(self.inner.deploy_env())?;
+                client.deliver(&delivery).await?;
+                None
+            }
+        };
+
+        match create_err {
+            Some(err) => Err(err.context("Failed to create credential")),
+            None => Ok(redirect_uri),
+        }
+    }
+
+    /// Create the credential a LexeConnect `request` asks for.
+    async fn create_lexe_connect_credential(
+        &self,
+        request: &CredentialRequest,
+        label: Option<String>,
+        expires_at: Option<i64>,
+    ) -> anyhow::Result<Outcome> {
+        let params = &request.params;
+        let scopes = params
+            .scopes
+            .iter()
+            .map(|s| {
+                Scope::from_string_id(s.clone())
+                    .map(ScopeRs::from)
+                    .with_context(|| format!("Unknown scope: {s}"))
+            })
+            .collect::<anyhow::Result<_>>()?;
+        let expires_at = expires_at
+            .map(TimestampMs::try_from)
+            .transpose()
+            .context("Invalid expiration")?;
+
+        let req = CreateClientRequestRs {
+            expires_at,
+            label,
+            scopes,
+            permissions: params.permissions.iter().cloned().collect(),
+        };
+        let resp = self.inner.wallet()?.create_client(req).await?;
+
+        Ok(Outcome::Approved {
+            credential: resp.client_credentials.export_string(),
+            expires_at,
         })
     }
 
