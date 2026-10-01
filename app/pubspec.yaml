@@ -46,7 +46,7 @@ dependencies:
     path: ../app_rs_dart
 
   # Some useful List/Map/Set combinators
-  collection: ^1.18.0
+  collection: ^1.19.1
 
   # Get current device info. Used to determine current Android OS SDK version.
   device_info_plus: ^13.2.0
