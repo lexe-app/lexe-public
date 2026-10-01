@@ -54,13 +54,11 @@ use serde_core::{de::Deserialize, ser::Serialize};
 use crate::ed25519;
 use crate::rng::{Crng, RngExt};
 
-pub const SECRET_KEY_LEN: usize = 32;
-pub const PUBLIC_KEY_LEN: usize = 32;
-pub const SIGNATURE_LEN: usize = 64;
+const SECRET_KEY_LEN: usize = 32;
 
 /// 96 B. The added overhead for a signed struct, on top of the serialized
 /// struct size.
-pub const SIGNED_STRUCT_OVERHEAD: usize = PUBLIC_KEY_LEN + SIGNATURE_LEN;
+pub const SIGNED_STRUCT_OVERHEAD: usize = PublicKey::LEN + Signature::LEN;
 
 // --- Types --- //
 
@@ -196,13 +194,13 @@ pub mod verify {
 
             // deserialize signer public key
             let (signer, serialized) = serialized
-                .split_first_chunk::<PUBLIC_KEY_LEN>()
+                .split_first_chunk::<{ PublicKey::LEN }>()
                 .expect("serialized.len() checked above");
             let signer = PublicKey::from_ref(signer);
 
             // deserialize signature
             let (sig, ser_struct) = serialized
-                .split_first_chunk::<SIGNATURE_LEN>()
+                .split_first_chunk::<{ Signature::LEN }>()
                 .expect("serialized.len() checked above");
             let sig = Signature::from_ref(sig);
 
@@ -413,7 +411,7 @@ impl KeyPair {
             &out[SIGNED_STRUCT_OVERHEAD..],
             &T::DOMAIN_SEPARATOR,
         );
-        out[PUBLIC_KEY_LEN..SIGNED_STRUCT_OVERHEAD]
+        out[PublicKey::LEN..SIGNED_STRUCT_OVERHEAD]
             .copy_from_slice(sig.as_slice());
 
         Ok((
@@ -683,11 +681,11 @@ const PKCS_TEMPLATE_KEY_IDX: usize = 16;
 const PKCS_LEN: usize = PKCS_TEMPLATE_PREFIX.len()
     + SECRET_KEY_LEN
     + PKCS_TEMPLATE_MIDDLE.len()
-    + PUBLIC_KEY_LEN;
+    + PublicKey::LEN;
 const PKCS_LEN_BAD: usize = PKCS_TEMPLATE_PREFIX_BAD.len()
     + SECRET_KEY_LEN
     + PKCS_TEMPLATE_MIDDLE_BAD.len()
-    + PUBLIC_KEY_LEN;
+    + PublicKey::LEN;
 
 // Ensure these don't accidentally change.
 lexe_std::const_assert_usize_eq!(PKCS_LEN, 83);

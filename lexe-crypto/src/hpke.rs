@@ -21,13 +21,12 @@ use zeroize::Zeroize;
 
 use crate::rng::{Crng, RngExt};
 
-const PUBLIC_KEY_LEN: usize = 32;
 /// The length in bytes of a ChaCha20-Poly1305 tag.
 const TAG_LEN: usize = 16;
 
 /// 48 B. The added overhead for a sealed message, on top of the plaintext
 /// size: the encapsulated key plus the AEAD tag.
-pub const SEAL_OVERHEAD: usize = PUBLIC_KEY_LEN + TAG_LEN;
+pub const SEAL_OVERHEAD: usize = PublicKey::LEN + TAG_LEN;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -41,10 +40,10 @@ pub enum Error {
 
 /// An X25519 KEM public key.
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
-pub struct PublicKey([u8; PUBLIC_KEY_LEN]);
+pub struct PublicKey([u8; 32]);
 
-lexe_byte_array::impl_byte_array!(PublicKey, PUBLIC_KEY_LEN);
-lexe_byte_array::impl_fromstr_fromhex!(PublicKey, PUBLIC_KEY_LEN);
+lexe_byte_array::impl_byte_array!(PublicKey, 32);
+lexe_byte_array::impl_fromstr_fromhex!(PublicKey, 32);
 lexe_byte_array::impl_debug_display_as_hex!(PublicKey);
 lexe_serde::impl_serde_hexstr_or_bytes!(PublicKey);
 
@@ -69,12 +68,12 @@ impl PublicKey {
         plaintext: &[u8],
     ) -> Result<Vec<u8>, Error> {
         let mut sealed = Vec::with_capacity(plaintext.len() + SEAL_OVERHEAD);
-        sealed.resize(PUBLIC_KEY_LEN, 0);
+        sealed.resize(Self::LEN, 0);
         sealed.extend_from_slice(plaintext);
 
         // sealed := [enc placeholder] || [plaintext]
 
-        let buffer = InOutBuf::from(&mut sealed[PUBLIC_KEY_LEN..]);
+        let buffer = InOutBuf::from(&mut sealed[Self::LEN..]);
         let (enc, tag) =
             hpke::single_shot_seal_inout_detached_with_rng::<Aead, Kdf, Kem>(
                 &OpModeS::Base,
@@ -85,7 +84,7 @@ impl PublicKey {
                 &mut RngAdapter(rng),
             )
             .map_err(|_| Error::Seal)?;
-        enc.write_exact(&mut sealed[..PUBLIC_KEY_LEN]);
+        enc.write_exact(&mut sealed[..Self::LEN]);
         sealed.extend_from_slice(&tag.to_bytes());
 
         // sealed := [enc] || [ciphertext] || [tag]
@@ -94,7 +93,7 @@ impl PublicKey {
     }
 
     fn from_hpke(pk: &<Kem as hpke::Kem>::PublicKey) -> Self {
-        let mut array = [0u8; PUBLIC_KEY_LEN];
+        let mut array = [0u8; Self::LEN];
         pk.write_exact(&mut array);
         Self(array)
     }
@@ -137,7 +136,7 @@ impl KeyPair {
         // sealed := [enc] || [ciphertext] || [tag]
 
         let (enc, rest) = sealed
-            .split_at_checked(PUBLIC_KEY_LEN)
+            .split_at_checked(PublicKey::LEN)
             .ok_or(Error::TooShort)?;
         let tag_offset =
             rest.len().checked_sub(TAG_LEN).ok_or(Error::TooShort)?;
@@ -349,7 +348,7 @@ mod test {
     #[test]
     fn reject_low_order_recipient() {
         let mut rng = FastRng::from_u64(1);
-        let low_order = PublicKey::from_array([0; PUBLIC_KEY_LEN]);
+        let low_order = PublicKey::from_array([0; PublicKey::LEN]);
         assert_eq!(low_order.seal(&mut rng, b"", b"", b""), Err(Error::Seal));
     }
 }
