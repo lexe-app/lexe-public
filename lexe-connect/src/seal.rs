@@ -124,40 +124,13 @@ mod test {
     use std::collections::BTreeSet;
 
     use lexe_common::time::TimestampMs;
+    use lexe_crypto::rng::FixedRng;
     use lexe_hex::hex;
-    use rand_core::{CryptoRng, RngCore};
 
     use super::*;
     use crate::response::{
         CredentialError, CredentialResult, ErrorCode, Grant,
     };
-
-    /// Hands out a fixed byte string, so the sealer's ephemeral key comes
-    /// from the test vector's `ikmE`.
-    struct FixedRng(Vec<u8>);
-
-    impl RngCore for FixedRng {
-        fn next_u32(&mut self) -> u32 {
-            rand_core::impls::next_u32_via_fill(self)
-        }
-        fn next_u64(&mut self) -> u64 {
-            rand_core::impls::next_u64_via_fill(self)
-        }
-        fn fill_bytes(&mut self, dst: &mut [u8]) {
-            let rest = self.0.split_off(dst.len());
-            dst.copy_from_slice(&self.0);
-            self.0 = rest;
-        }
-        fn try_fill_bytes(
-            &mut self,
-            dst: &mut [u8],
-        ) -> Result<(), rand_core::Error> {
-            self.fill_bytes(dst);
-            Ok(())
-        }
-    }
-
-    impl CryptoRng for FixedRng {}
 
     /// The spec's "Test vectors" section; keep the two in sync.
     #[test]

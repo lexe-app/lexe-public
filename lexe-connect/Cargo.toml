@@ -62,8 +62,8 @@ tokio = { optional = true, workspace = true, features = ["time"] }
 axum = { workspace = true }
 lexe-api = { workspace = true }
 lexe-common = { workspace = true, features = ["test-utils"] }
+lexe-crypto = { workspace = true, features = ["test-utils"] }
 lexe-hex = { workspace = true }
-rand_core = { workspace = true }
 lexe-tokio = { workspace = true }
 proptest = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

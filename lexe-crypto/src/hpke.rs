@@ -234,39 +234,9 @@ mod test {
     use proptest::{
         arbitrary::any, collection::vec, prop_assert, prop_assert_eq, proptest,
     };
-    use rand_core::{CryptoRng, RngCore};
 
     use super::*;
-    use crate::rng::FastRng;
-
-    /// The `hpke` crate draws the sender's ephemeral IKM from the RNG, so
-    /// reproducing an RFC vector's `enc` requires feeding it the vector's
-    /// exact `ikmE`. A seeded RNG can't emit chosen bytes, so this one hands
-    /// out a fixed byte string instead.
-    struct FixedRng(Vec<u8>);
-
-    impl RngCore for FixedRng {
-        fn next_u32(&mut self) -> u32 {
-            rand_core::impls::next_u32_via_fill(self)
-        }
-        fn next_u64(&mut self) -> u64 {
-            rand_core::impls::next_u64_via_fill(self)
-        }
-        fn fill_bytes(&mut self, dst: &mut [u8]) {
-            let rest = self.0.split_off(dst.len());
-            dst.copy_from_slice(&self.0);
-            self.0 = rest;
-        }
-        fn try_fill_bytes(
-            &mut self,
-            dst: &mut [u8],
-        ) -> Result<(), rand_core::Error> {
-            self.fill_bytes(dst);
-            Ok(())
-        }
-    }
-
-    impl CryptoRng for FixedRng {}
+    use crate::rng::{FastRng, FixedRng};
 
     /// RFC 9180 Appendix A.2.1: our suite in base mode.
     #[test]

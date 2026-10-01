@@ -307,6 +307,36 @@ impl Default for FastRng {
 #[cfg(any(test, feature = "test-utils"))]
 impl CryptoRng for FastRng {}
 
+/// Hands out a fixed byte string, so a test vector's exact `ikmE` can be fed
+/// to HPKE sealing. Panics once the bytes run out.
+#[cfg(any(test, feature = "test-utils"))]
+pub struct FixedRng(pub Vec<u8>);
+
+#[cfg(any(test, feature = "test-utils"))]
+impl RngCore for FixedRng {
+    fn next_u32(&mut self) -> u32 {
+        rand_core::impls::next_u32_via_fill(self)
+    }
+    fn next_u64(&mut self) -> u64 {
+        rand_core::impls::next_u64_via_fill(self)
+    }
+    fn fill_bytes(&mut self, dst: &mut [u8]) {
+        let rest = self.0.split_off(dst.len());
+        dst.copy_from_slice(&self.0);
+        self.0 = rest;
+    }
+    fn try_fill_bytes(
+        &mut self,
+        dst: &mut [u8],
+    ) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dst);
+        Ok(())
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+impl CryptoRng for FixedRng {}
+
 impl RngCore for FastRng {
     #[inline]
     fn next_u32(&mut self) -> u32 {
