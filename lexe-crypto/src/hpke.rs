@@ -1,8 +1,9 @@
 //! Hybrid Public Key Encryption ([RFC 9180]), single-shot base mode.
 //!
-//! Suite: DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305.
-//! `PublicKey::seal` outputs `enc || ciphertext || tag`; `KeyPair::open`
-//! takes the same bytes back.
+//! - Suite: DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305.
+//! - Sealed bytes: `enc || ct`, as in the RFC.
+//! - The `hpke` crate's AEAD API returns the tag separately, so internally `ct`
+//!   is `ciphertext || tag`.
 //!
 //! [RFC 9180]: https://www.rfc-editor.org/rfc/rfc9180.html
 
@@ -59,7 +60,7 @@ type Aead = ChaCha20Poly1305;
 type EncappedKey = <Kem as hpke::Kem>::EncappedKey;
 
 impl PublicKey {
-    /// Seal `plaintext` to this key, returning `enc || ciphertext || tag`.
+    /// Seal `plaintext` to this key, returning `enc || ct`.
     pub fn seal(
         &self,
         rng: &mut impl Crng,
@@ -126,7 +127,7 @@ impl KeyPair {
         &self.pk
     }
 
-    /// Open `enc || ciphertext || tag` sealed to this key pair's public key.
+    /// Open `enc || ct` sealed to this key pair's public key.
     pub fn open(
         &self,
         info: &[u8],
