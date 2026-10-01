@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Universal links: `https://lexe.app/connect` opens in the app. The
+       app IDs are listed in lexe.app/.well-known/apple-app-site-association
+       (nix/nixosConfigs/well-known).
+
+       `mode=developer` only affects development-signed builds on devices
+       with Settings > Developer > Associated Domains Development enabled:
+       they fetch the file directly from lexe.app instead of Apple's caching
+       CDN and log verification failures under `swcd`. TestFlight and App
+       Store builds ignore it. -->
+  <key>com.apple.developer.associated-domains</key>
+  <array>
+    <string>applinks:lexe.app?mode=developer</string>
+  </array>
+</dict>
+</plist>

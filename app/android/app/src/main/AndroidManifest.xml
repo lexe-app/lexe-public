@@ -58,6 +58,20 @@
         <!-- <data android:scheme="keyauth" /> -->
       </intent-filter>
 
+      <!-- Register Lexe as the verified handler for "https://lexe.app/connect"
+           (LexeConnect credential requests). Verification is against
+           lexe.app/.well-known/assetlinks.json (nix/nixosConfigs/well-known),
+           which lists only the prod signing key. -->
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+
+        <data android:scheme="https" />
+        <data android:host="lexe.app" />
+        <data android:path="/connect" />
+      </intent-filter>
+
       <!-- While we're using app_links to handle deep links (e.g. "bitcoin:" and
           "lightning:" URIs), we need to opt out of flutter deep linking
 
