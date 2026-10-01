@@ -1,6 +1,7 @@
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AuthMethod,
+        AuthMethod_LexeConnect,
         BestPaymentUriMethods,
         ClaimMethod,
         ClaimMethod_LnurlWithdraw,
@@ -27,6 +28,8 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/claim/page.dart' show ClaimPaymentPage;
 import 'package:lexeapp/route/claim/state.dart' show ClaimFlowResult;
+import 'package:lexeapp/route/lexe_connect.dart'
+    show LexeConnectFlowResult, LexeConnectPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
@@ -161,6 +164,27 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     return UriFlowResult_Claim(flowResult);
   }
 
+  Future<UriFlowResult?> _handleAuthMethod(AuthMethod authMethod) async {
+    final request = switch (authMethod) {
+      AuthMethod_LexeConnect(:final field0) => field0,
+    };
+    final LexeConnectFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => LexeConnectPage(
+              app: this.widget.uriFlowCtx.app,
+              request: request,
+            ),
+          ),
+        );
+    info(
+      "NeedUriPage (auth): flowResult: $flowResult, mounted: ${this.mounted}",
+    );
+    if (!this.mounted || flowResult == null) return null;
+
+    return const UriFlowResult_Auth();
+  }
+
   Future<void> onNext() async {
     // Hide error message
     this.errorMessage.value = null;
@@ -216,13 +240,8 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
       case (_, final claimMethod?, _):
         flowResult = await this._handleClaimMethod(claimMethod);
 
-      // TODO(max): Login and connect approval flows.
-      case (_, _, AuthMethod()):
-        this.isPending.value = false;
-        this.errorMessage.value = const ErrorMessage(
-          message: "Login and connect requests are not supported yet.",
-        );
-        return;
+      case (_, _, final authMethod?):
+        flowResult = await this._handleAuthMethod(authMethod);
 
       case _:
         this.isPending.value = false;

@@ -55,10 +55,13 @@ import 'package:app_rs_dart/ffi/settings.dart'
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
+        AuthMethod_LexeConnect,
         BackupInfo,
         BestPaymentUriMethods,
         ClaimMethod_LnurlWithdraw,
         Config,
+        CredentialDecision,
+        CredentialRequest,
         GDriveSignupCredentials,
         GDriveStatus,
         Invoice,
@@ -86,6 +89,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus,
+        RequesterDisplay,
         RevocableClient,
         RootSeed,
         Scope,
@@ -572,10 +576,22 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1000), () => {});
 
   @override
+  Future<String?> respondCredentialRequest({
+    required String connectionString,
+    required CredentialDecision decision,
+  }) => Future.delayed(const Duration(milliseconds: 1000), () => null);
+
+  @override
   Future<BestPaymentUriMethods> resolveBest({
     required Network network,
     required String uriStr,
   }) => Future.delayed(const Duration(milliseconds: 1000), () {
+    if (uriStr.startsWith("https://lexe.app/connect")) {
+      return BestPaymentUriMethods(
+        authMethod: AuthMethod_LexeConnect(defaultCredentialRequest),
+      );
+    }
+
     if (uriStr == "bip353@lexe.app") {
       return BestPaymentUriMethods(
         paymentMethod: PaymentMethod_Offer(defaultOffer),
@@ -815,6 +831,17 @@ class MockAppHandleErr extends MockAppHandle {
     const Duration(milliseconds: 1000),
     () => throw const FfiError(
       "[106=Command] Failed to create client: label is too long",
+    ).toFfi(),
+  );
+
+  @override
+  Future<String?> respondCredentialRequest({
+    required String connectionString,
+    required CredentialDecision decision,
+  }) => Future.delayed(
+    const Duration(milliseconds: 1000),
+    () => throw const FfiError(
+      "[106=Command] Failed to create credential: Unknown scope: fly",
     ).toFfi(),
   );
 
@@ -2037,6 +2064,17 @@ final LnurlWithdrawRequest defaultLnurlWithdrawRequest = LnurlWithdrawRequest(
   defaultDescription: "Withdraw from Laisee.org",
   minWithdrawableMsat: 2000,
   maxWithdrawableMsat: 10000,
+);
+
+const CredentialRequest defaultCredentialRequest = CredentialRequest(
+  connectionString:
+      "https://lexe.app/connect?v=1&redirect_uri=https%3A%2F%2Fbillsplit.com%2Flexe&ephemeral_hpke_pubkey=0000&one_time_secret=00000000000000000000000000000000&scopes=read_info,receive,spend&account=%40janedoe&label=BillSplit%20App",
+  requester: RequesterDisplay.verified(domain: "billsplit.com"),
+  account: "@janedoe",
+  scopes: ["read_info", "receive", "spend"],
+  permissions: [],
+  label: "BillSplit App",
+  expiresAt: 1821484800000,
 );
 
 final Onchain defaultOnchainPayment = Onchain(

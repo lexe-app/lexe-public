@@ -23,6 +23,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ClaimMethod_LnurlWithdraw,
         ClientPaymentId,
         Config,
+        CredentialRequest,
         GDriveStatus,
         Invoice,
         LnurlPay,
@@ -35,6 +36,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_Invoice,
         PaymentMethod,
         PaymentStatus,
+        RequesterDisplay,
         RootSeed,
         UserChannelId;
 import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentExt;
@@ -91,6 +93,7 @@ import 'package:lexeapp/route/close_channel.dart'
 import 'package:lexeapp/route/initial_deposit/page.dart'
     show InitialDepositPage, InitialDepositSuccessPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
+import 'package:lexeapp/route/lexe_connect.dart' show LexeConnectPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/onchain_descriptors.dart'
     show OnchainDescriptorsPage;
@@ -1312,6 +1315,81 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           expiresAtMs: null,
           label: "my-server",
         ),
+      ),
+      Component(
+        "LexeConnectPage",
+        subtitle: "verified requester",
+        (_) => LexeConnectPage(
+          app: mockApp,
+          request: mocks.defaultCredentialRequest,
+        ),
+        sublist: [
+          Component(
+            "LexeConnectPage",
+            subtitle: "unverified requester, read-only",
+            (_) => LexeConnectPage(
+              app: mockApp,
+              request: const CredentialRequest(
+                connectionString: "https://lexe.app/connect",
+                requester: RequesterDisplay.unverified(
+                  schemeHost: "billsplit://",
+                ),
+                account: null,
+                scopes: ["read"],
+                permissions: [],
+                label: null,
+                expiresAt: null,
+              ),
+            ),
+          ),
+          Component(
+            "LexeConnectPage",
+            subtitle: "many scopes, no label",
+            (_) => LexeConnectPage(
+              app: mockApp,
+              request: const CredentialRequest(
+                connectionString: "https://lexe.app/connect",
+                requester: RequesterDisplay.verified(domain: "billsplit.com"),
+                account: "@janedoe",
+                scopes: [
+                  "read_info",
+                  "read_payments",
+                  "read",
+                  "receive",
+                  "manage_channels",
+                  "spend",
+                ],
+                permissions: [],
+                label: null,
+                expiresAt: null,
+              ),
+            ),
+          ),
+          Component(
+            "LexeConnectPage",
+            subtitle: "mailbox, unknown scope + permissions",
+            (_) => LexeConnectPage(
+              app: mockApp,
+              request: const CredentialRequest(
+                connectionString: "https://lexe.app/connect",
+                requester: RequesterDisplay.unverified(schemeHost: null),
+                account: "janedoe@gmail.com",
+                scopes: ["read_info", "fly"],
+                permissions: ["create_invoice", "get_payments"],
+                label: "BillSplit App",
+                expiresAt: null,
+              ),
+            ),
+          ),
+          Component(
+            "LexeConnectPage",
+            subtitle: "error",
+            (_) => LexeConnectPage(
+              app: mockAppErr,
+              request: mocks.defaultCredentialRequest,
+            ),
+          ),
+        ],
       ),
 
       // --- App Store Screenshots ---

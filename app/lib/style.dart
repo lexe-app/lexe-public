@@ -1046,6 +1046,12 @@ final class LxIcons {
   /// Code symbol (client credentials)
   static const IconData sdk = Symbols.code_rounded;
 
+  /// Eye icon (read-only access)
+  static const IconData view = Symbols.visibility_rounded;
+
+  /// Key icon (full access)
+  static const IconData key = Symbols.key_rounded;
+
   static const IconData warning = Symbols.warning_rounded;
 
   // Custom brand icons (Material Icons/Symbols don't have any brand logos)

@@ -2089,13 +2089,21 @@ final class ErrorMessage {
 // TODO(phlip9): handle structured errors
 // TODO(phlip9): slide up/down animation
 class ErrorMessageSection extends StatefulWidget {
-  const ErrorMessageSection(this.errorMessage, {super.key, this.other});
+  const ErrorMessageSection(
+    this.errorMessage, {
+    super.key,
+    this.other,
+    this.bodyPadding = Space.s300,
+  });
 
   /// The error message to display, or `null` if there's no error.
   final ErrorMessage? errorMessage;
 
   /// An optional widget to display when there's no error.
   final Widget? other;
+
+  /// Horizontal padding between the text and the card edge.
+  final double bodyPadding;
 
   @override
   State<ErrorMessageSection> createState() => _ErrorMessageSectionState();
@@ -2223,7 +2231,7 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
 
   @override
   Widget build(BuildContext context) {
-    const double horizPad = Space.s300;
+    final double horizPad = this.widget.bodyPadding;
     const double vertPad = Space.s300;
 
     final errorMessage = this.widget.errorMessage;
@@ -2263,13 +2271,13 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                     child: Padding(
                       // account for v caret icon in bottom padding
                       padding: needsExpandable
-                          ? const EdgeInsets.fromLTRB(
+                          ? EdgeInsets.fromLTRB(
                               horizPad,
                               vertPad,
                               horizPad,
                               Space.s100,
                             )
-                          : const EdgeInsets.symmetric(
+                          : EdgeInsets.symmetric(
                               horizontal: horizPad,
                               vertical: vertPad,
                             ),

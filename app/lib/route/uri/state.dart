@@ -21,7 +21,7 @@ import 'package:lexeapp/route/claim/state.dart'
     show ClaimFlowResult, ClaimState, ClaimState_NeedAmount;
 import 'package:lexeapp/route/send/state.dart';
 
-/// The outcome of a successful URI payment flow.
+/// The outcome of a successful URI flow.
 @immutable
 sealed class UriFlowResult {
   const UriFlowResult();
@@ -35,6 +35,11 @@ class UriFlowResult_Send implements UriFlowResult {
 class UriFlowResult_Claim implements UriFlowResult {
   const UriFlowResult_Claim(this.claimFlowResult);
   final ClaimFlowResult claimFlowResult;
+}
+
+/// An answered auth request, which has no payment to show.
+class UriFlowResult_Auth implements UriFlowResult {
+  const UriFlowResult_Auth();
 }
 
 /// Initial state if we're beginning a URI-based flow with no extra user input.

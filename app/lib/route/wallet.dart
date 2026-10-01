@@ -11,6 +11,7 @@ import 'package:app_rs_dart/ffi/settings.dart'
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AuthMethod,
+        AuthMethod_LexeConnect,
         BestPaymentUriMethods,
         ClaimMethod,
         ClientPaymentId,
@@ -76,6 +77,8 @@ import 'package:lexeapp/route/clients.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/initial_deposit/page.dart'
     show InitialDepositPage;
+import 'package:lexeapp/route/lexe_connect.dart'
+    show LexeConnectFlowResult, LexeConnectPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart' show OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart'
@@ -90,7 +93,12 @@ import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
 import 'package:lexeapp/route/uri/page.dart'
     show NeedUriPage, SendOrClaimChoiceSheet, UriChoice;
 import 'package:lexeapp/route/uri/state.dart'
-    show NeedUriState, UriFlowResult, UriFlowResult_Claim, UriFlowResult_Send;
+    show
+        NeedUriState,
+        UriFlowResult,
+        UriFlowResult_Auth,
+        UriFlowResult_Claim,
+        UriFlowResult_Send;
 import 'package:lexeapp/service/background_error.dart'
     show BackgroundError, BackgroundErrorKind, BackgroundErrorService;
 import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
@@ -370,6 +378,24 @@ class WalletPageState extends State<WalletPage> {
     return UriFlowResult_Claim(flowResult);
   }
 
+  /// Handle an auth method; null on error or cancel
+  Future<UriFlowResult?> _handleAuthMethod(AuthMethod authMethod) async {
+    final request = switch (authMethod) {
+      AuthMethod_LexeConnect(:final field0) => field0,
+    };
+    final LexeConnectFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) =>
+                LexeConnectPage(app: this.widget.app, request: request),
+          ),
+        );
+    info("WalletPage: uriEvent: auth-flowResult: $flowResult");
+    if (!this.mounted || flowResult == null) return null;
+
+    return const UriFlowResult_Auth();
+  }
+
   /// When a user taps a payment URI (ex: "lightning:") in another app/browser,
   /// and chooses Lexe to handle it, we'll try to open a new send flow to handle
   /// it.
@@ -392,7 +418,7 @@ class WalletPageState extends State<WalletPage> {
       if (!this.mounted || uriFlowCtxResult.isErr) return;
       final uriFlowCtx = uriFlowCtxResult.unwrap();
 
-      // Resolve the URI to a payment/claim method, with a spinner for the wait
+      // Resolve the URI to a payment/claim/auth method, with a spinner
       // TODO(nicole): 2x showModalAsyncFlow causes a flicker effect; need to fix
       final resolveResult = await showModalAsyncFlow(
         context: this.context,
@@ -421,7 +447,7 @@ class WalletPageState extends State<WalletPage> {
           return;
       }
 
-      // Branch accordingly, entering either the send or claim flow
+      // Branch accordingly, entering the send, claim, or auth flow
       final UriFlowResult? flowResult;
       switch ((best.paymentMethod, best.claimMethod, best.authMethod)) {
         case (final paymentMethod?, final claimMethod?, _):
@@ -448,14 +474,12 @@ class WalletPageState extends State<WalletPage> {
           );
         case (_, final claimMethod?, _):
           flowResult = await this._handleClaimMethod(uriFlowCtx, claimMethod);
-        // TODO(max): Login and connect approval flows.
-        case (_, _, AuthMethod()):
-          error("WalletPage: Login and connect requests are not supported yet");
-          return;
+        case (_, _, final authMethod?):
+          flowResult = await this._handleAuthMethod(authMethod);
         case _:
           error(
-            "WalletPage: unreachable: Resolve didn't return a payment or claim "
-            "method for URI",
+            "WalletPage: unreachable: Resolve didn't return a payment, claim, "
+            "or auth method for URI",
           );
           return;
       }
@@ -692,7 +716,9 @@ class WalletPageState extends State<WalletPage> {
     final payment = switch (flowResult) {
       UriFlowResult_Send(:final sendFlowResult) => sendFlowResult.payment,
       UriFlowResult_Claim(:final claimFlowResult) => claimFlowResult.payment,
+      UriFlowResult_Auth() => null,
     };
+    if (payment == null) return;
 
     // Lightning payments actually have a chance to finalize in the next few
     // seconds, so start a burst refresh.
