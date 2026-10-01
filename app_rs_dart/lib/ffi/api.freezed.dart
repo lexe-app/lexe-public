@@ -1013,22 +1013,22 @@ String toString() {
 /// @nodoc
 mixin _$OnchainDescriptors {
 
- String get multipathDescriptor; String get externalDescriptor; String get internalDescriptor; String get accountXpub;
+ String get multipathDescriptor; String get externalDescriptor; String get internalDescriptor; String get accountZpub;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnchainDescriptors&&(identical(other.multipathDescriptor, multipathDescriptor) || other.multipathDescriptor == multipathDescriptor)&&(identical(other.externalDescriptor, externalDescriptor) || other.externalDescriptor == externalDescriptor)&&(identical(other.internalDescriptor, internalDescriptor) || other.internalDescriptor == internalDescriptor)&&(identical(other.accountXpub, accountXpub) || other.accountXpub == accountXpub));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnchainDescriptors&&(identical(other.multipathDescriptor, multipathDescriptor) || other.multipathDescriptor == multipathDescriptor)&&(identical(other.externalDescriptor, externalDescriptor) || other.externalDescriptor == externalDescriptor)&&(identical(other.internalDescriptor, internalDescriptor) || other.internalDescriptor == internalDescriptor)&&(identical(other.accountZpub, accountZpub) || other.accountZpub == accountZpub));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,multipathDescriptor,externalDescriptor,internalDescriptor,accountXpub);
+int get hashCode => Object.hash(runtimeType,multipathDescriptor,externalDescriptor,internalDescriptor,accountZpub);
 
 @override
 String toString() {
-  return 'OnchainDescriptors(multipathDescriptor: $multipathDescriptor, externalDescriptor: $externalDescriptor, internalDescriptor: $internalDescriptor, accountXpub: $accountXpub)';
+  return 'OnchainDescriptors(multipathDescriptor: $multipathDescriptor, externalDescriptor: $externalDescriptor, internalDescriptor: $internalDescriptor, accountZpub: $accountZpub)';
 }
 
 
@@ -1042,29 +1042,29 @@ String toString() {
 
 
 class _OnchainDescriptors implements OnchainDescriptors {
-  const _OnchainDescriptors({required this.multipathDescriptor, required this.externalDescriptor, required this.internalDescriptor, required this.accountXpub});
+  const _OnchainDescriptors({required this.multipathDescriptor, required this.externalDescriptor, required this.internalDescriptor, required this.accountZpub});
   
 
 @override final  String multipathDescriptor;
 @override final  String externalDescriptor;
 @override final  String internalDescriptor;
-@override final  String accountXpub;
+@override final  String accountZpub;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnchainDescriptors&&(identical(other.multipathDescriptor, multipathDescriptor) || other.multipathDescriptor == multipathDescriptor)&&(identical(other.externalDescriptor, externalDescriptor) || other.externalDescriptor == externalDescriptor)&&(identical(other.internalDescriptor, internalDescriptor) || other.internalDescriptor == internalDescriptor)&&(identical(other.accountXpub, accountXpub) || other.accountXpub == accountXpub));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnchainDescriptors&&(identical(other.multipathDescriptor, multipathDescriptor) || other.multipathDescriptor == multipathDescriptor)&&(identical(other.externalDescriptor, externalDescriptor) || other.externalDescriptor == externalDescriptor)&&(identical(other.internalDescriptor, internalDescriptor) || other.internalDescriptor == internalDescriptor)&&(identical(other.accountZpub, accountZpub) || other.accountZpub == accountZpub));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,multipathDescriptor,externalDescriptor,internalDescriptor,accountXpub);
+int get hashCode => Object.hash(runtimeType,multipathDescriptor,externalDescriptor,internalDescriptor,accountZpub);
 
 @override
 String toString() {
-  return 'OnchainDescriptors(multipathDescriptor: $multipathDescriptor, externalDescriptor: $externalDescriptor, internalDescriptor: $internalDescriptor, accountXpub: $accountXpub)';
+  return 'OnchainDescriptors(multipathDescriptor: $multipathDescriptor, externalDescriptor: $externalDescriptor, internalDescriptor: $internalDescriptor, accountZpub: $accountZpub)';
 }
 
 

@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use bitcoin::{address::NetworkUnchecked, bip32::Xpub};
+use bitcoin::{NetworkKind, address::NetworkUnchecked, base58, bip32::Xpub};
 #[cfg(doc)]
 use lexe_common::api::fiat_rates::FiatRates;
 #[cfg(doc)]
@@ -115,6 +115,28 @@ pub struct OnchainDescriptors {
 
     /// Account-level xpub at `m/84'/{coin}'/0'` for legacy tools.
     pub account_xpub: Xpub,
+}
+
+impl OnchainDescriptors {
+    /// [`Self::account_xpub`] in [SLIP-132] encoding: `zpub` on mainnet,
+    /// `vpub` otherwise. Tools which import bare extended keys infer the
+    /// script type from this prefix, and often treat `xpub` as P2PKH.
+    ///
+    /// [SLIP-132]: https://github.com/satoshilabs/slips/blob/master/slip-0132.md
+    pub fn account_zpub(&self) -> String {
+        // Version bytes, which base58check-encode to the `zpub`/`vpub` prefix.
+        // NOTE: Not the ASCII bytes of the prefix!
+        const ZPUB_VERSION: u32 = 0x04b2_4746;
+        const VPUB_VERSION: u32 = 0x045f_1cf6;
+
+        let version = match self.account_xpub.network {
+            NetworkKind::Main => ZPUB_VERSION,
+            NetworkKind::Test => VPUB_VERSION,
+        };
+        let mut bytes = self.account_xpub.encode();
+        bytes[..4].copy_from_slice(&version.to_be_bytes());
+        base58::encode_check(&bytes)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -1217,6 +1239,26 @@ mod test {
     #[test]
     fn create_payer_proof_request_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<CreatePayerProofRequest>();
+    }
+
+    /// Check `account_zpub` against the BIP84 account 0 test vector.
+    #[test]
+    fn account_zpub_bip84_vector() {
+        let zpub = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
+
+        // Swap in the BIP32 mainnet xpub version to get the plain xpub.
+        const XPUB_VERSION: u32 = 0x0488_b21e;
+        let mut bytes = base58::decode_check(zpub).unwrap();
+        bytes[..4].copy_from_slice(&XPUB_VERSION.to_be_bytes());
+        let account_xpub = Xpub::decode(&bytes).unwrap();
+
+        let descriptors = OnchainDescriptors {
+            multipath_descriptor: String::new(),
+            external_descriptor: String::new(),
+            internal_descriptor: String::new(),
+            account_xpub,
+        };
+        assert_eq!(descriptors.account_zpub(), zpub);
     }
 
     /// Sanity check the `DebugInfo` serialization against a hard-coded string.

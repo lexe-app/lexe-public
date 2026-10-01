@@ -119,17 +119,17 @@ pub struct OnchainDescriptors {
     pub external_descriptor: String,
     /// Internal (change) keychain descriptor.
     pub internal_descriptor: String,
-    /// Account-level xpub at `m/84'/{coin}'/0'`.
-    pub account_xpub: String,
+    /// SLIP-132 `zpub`/`vpub` of the account at `m/84'/{coin}'/0'`.
+    pub account_zpub: String,
 }
 
 impl From<OnchainDescriptorsRs> for OnchainDescriptors {
     fn from(descriptors: OnchainDescriptorsRs) -> Self {
         Self {
+            account_zpub: descriptors.account_zpub(),
             multipath_descriptor: descriptors.multipath_descriptor,
             external_descriptor: descriptors.external_descriptor,
             internal_descriptor: descriptors.internal_descriptor,
-            account_xpub: descriptors.account_xpub.to_string(),
         }
     }
 }

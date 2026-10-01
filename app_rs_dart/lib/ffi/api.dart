@@ -189,7 +189,7 @@ sealed class OnchainDescriptors with _$OnchainDescriptors {
     required String multipathDescriptor,
     required String externalDescriptor,
     required String internalDescriptor,
-    required String accountXpub,
+    required String accountZpub,
   }) = _OnchainDescriptors;
 }
 

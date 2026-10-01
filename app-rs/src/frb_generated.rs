@@ -2452,12 +2452,12 @@ impl SseDecode for crate::ffi::api::OnchainDescriptors {
         let mut var_multipathDescriptor = <String>::sse_decode(deserializer);
         let mut var_externalDescriptor = <String>::sse_decode(deserializer);
         let mut var_internalDescriptor = <String>::sse_decode(deserializer);
-        let mut var_accountXpub = <String>::sse_decode(deserializer);
+        let mut var_accountZpub = <String>::sse_decode(deserializer);
         return crate::ffi::api::OnchainDescriptors {
             multipath_descriptor: var_multipathDescriptor,
             external_descriptor: var_externalDescriptor,
             internal_descriptor: var_internalDescriptor,
-            account_xpub: var_accountXpub,
+            account_zpub: var_accountZpub,
         };
     }
 }
@@ -4644,7 +4644,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::OnchainDescriptors {
             self.multipath_descriptor.into_into_dart().into_dart(),
             self.external_descriptor.into_into_dart().into_dart(),
             self.internal_descriptor.into_into_dart().into_dart(),
-            self.account_xpub.into_into_dart().into_dart(),
+            self.account_zpub.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6415,7 +6415,7 @@ impl SseEncode for crate::ffi::api::OnchainDescriptors {
         <String>::sse_encode(self.multipath_descriptor, serializer);
         <String>::sse_encode(self.external_descriptor, serializer);
         <String>::sse_encode(self.internal_descriptor, serializer);
-        <String>::sse_encode(self.account_xpub, serializer);
+        <String>::sse_encode(self.account_zpub, serializer);
     }
 }
 

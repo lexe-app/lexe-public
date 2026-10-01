@@ -4597,7 +4597,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       multipathDescriptor: dco_decode_String(arr[0]),
       externalDescriptor: dco_decode_String(arr[1]),
       internalDescriptor: dco_decode_String(arr[2]),
-      accountXpub: dco_decode_String(arr[3]),
+      accountZpub: dco_decode_String(arr[3]),
     );
   }
 
@@ -6503,12 +6503,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_multipathDescriptor = sse_decode_String(deserializer);
     var var_externalDescriptor = sse_decode_String(deserializer);
     var var_internalDescriptor = sse_decode_String(deserializer);
-    var var_accountXpub = sse_decode_String(deserializer);
+    var var_accountZpub = sse_decode_String(deserializer);
     return OnchainDescriptors(
       multipathDescriptor: var_multipathDescriptor,
       externalDescriptor: var_externalDescriptor,
       internalDescriptor: var_internalDescriptor,
-      accountXpub: var_accountXpub,
+      accountZpub: var_accountZpub,
     );
   }
 
@@ -8495,7 +8495,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_String(self.multipathDescriptor, serializer);
     sse_encode_String(self.externalDescriptor, serializer);
     sse_encode_String(self.internalDescriptor, serializer);
-    sse_encode_String(self.accountXpub, serializer);
+    sse_encode_String(self.accountZpub, serializer);
   }
 
   @protected

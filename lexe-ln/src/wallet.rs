@@ -1858,7 +1858,9 @@ mod test {
     };
     use lexe_crypto::rng::FastRng;
     use lightning::util::wallet_utils::WalletSource as _;
-    use proptest::{prop_assert_eq, proptest, test_runner::Config};
+    use proptest::{
+        prop_assert, prop_assert_eq, proptest, test_runner::Config,
+    };
     use tracing::trace;
 
     use super::*;
@@ -2941,12 +2943,14 @@ mod test {
             let master_xprv = seed.derive_bip32_master_xprv(network);
 
             // Our implementation
+            let descriptors = derive_bip84_descriptors(network, master_xprv);
+            let account_zpub = descriptors.account_zpub();
             let OnchainDescriptors {
                 multipath_descriptor: our_multi_desc,
                 external_descriptor: our_ext_desc,
                 internal_descriptor: our_int_desc,
                 account_xpub,
-            } = derive_bip84_descriptors(network, master_xprv);
+            } = descriptors;
 
             // BDK's implementation.
             // This is also how we use `Bip84` in `OnchainWallet::new`
@@ -3017,6 +3021,16 @@ mod test {
 
             prop_assert_eq!(our_ext_addr, bdk_ext_addr);
             prop_assert_eq!(our_int_addr, bdk_int_addr);
+
+            // Verify account_zpub is account_xpub with a SLIP-132 prefix
+            let zpub_prefix = match network {
+                Network::Mainnet => "zpub",
+                _ => "vpub",
+            };
+            prop_assert!(account_zpub.starts_with(zpub_prefix));
+            let zpub_bytes = bitcoin::base58::decode_check(&account_zpub)
+                .unwrap();
+            prop_assert_eq!(&zpub_bytes[4..], &account_xpub.encode()[4..]);
         });
     }
 }

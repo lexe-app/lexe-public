@@ -251,8 +251,8 @@ class DescriptorsCard extends StatelessWidget {
           header: Text("Other formats"),
           children: [
             InfoRow(
-              label: "Account xpub (native SegWit)",
-              value: descriptors.accountXpub,
+              label: "Account zpub (native SegWit)",
+              value: descriptors.accountZpub,
             ),
             InfoRow(
               label: "Receive descriptor",
