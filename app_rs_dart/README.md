@@ -68,13 +68,6 @@ The native build systems that are invoked by FFI (and method channel) plugins ar
   * See the documentation in linux/CMakeLists.txt.
   * See the documentation in windows/CMakeLists.txt.
 
-## Binding to native code
-
-To use the native code, bindings in Dart are needed.
-To avoid writing these by hand, they are generated from the header file
-(`src/app_rs_dart.h`) by `package:ffigen`.
-Regenerate the bindings by running `dart run ffigen --config ffigen.yaml`.
-
 ## Invoking native code
 
 Very short-running native functions can be directly invoked from any isolate.

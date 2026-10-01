@@ -32,9 +32,6 @@ dev_dependencies:
   # flutter_rust_bridge bindings.
   build_runner: ^2.15.1
 
-  # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
-  ffigen: ^19.1.0
-
   flutter_lints: ^6.0.0
 
   flutter_test:

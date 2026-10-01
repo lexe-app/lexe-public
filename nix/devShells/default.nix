@@ -12,7 +12,6 @@ rec {
   # app flutter_rust_bridge codegen
   app-rs-codegen = pkgs.mkShell {
     name = "app-rs-codegen";
-    # TODO(phlip9): also `llvm` for dart `ffigen`
     packages = [
       lexePubPkgs.flutter
       lexePubPkgs.rustLexeToolchain

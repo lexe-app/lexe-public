@@ -89,6 +89,9 @@ impl Args {
 
             // Setting this to `true` appears to make frb generate code similar
             // to v1? It works better with static linking, so I'll keep this set
+            //
+            // `full_dep=true` runs `ffigen`, which needs `ffigen` in
+            // `app_rs_dart/pubspec.yaml` and `libclang` (dev shell + CI).
             full_dep: Some(false),
             // When `false`, appears to box u64, i64 and usize, as they're not
             // representable in dart.
