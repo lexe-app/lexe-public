@@ -299,17 +299,24 @@ $ pod --version
 1.16.2
 ```
 
-#### Ensure the iOS Simulator app works
+#### Ensure the iOS Simulator works
 
-Download the latest iOS platform (~7.5 GiB)
+Download the latest iOS platform (~8 GiB)
 
 ```bash
 $ xcodebuild -downloadPlatform iOS
 ```
 
-Search for "Simulator" in Spotlight and then open it. If Spotlight doesn't work,
-you can open it with `open -a Simulator`. An emulated iPhone should pop up after
-a minute or so.
+Simulators are managed from **Device Hub**
+(`Xcode.app/Contents/Applications/DeviceHub.app`), a single window listing
+every simulator and physical device. `flutter run` boots the device
+headlessly, so if Device Hub isn't open, the app runs with no window.
+
+```bash
+$ open -a "Device Hub"
+# Or show the booted device's window directly:
+$ open "devices://device/open?id=$(xcrun simctl list devices booted -j | jq -r '[.devices[][]][0].udid')"
+```
 
 Flutter should then pick up the simulated iPhone as an available target:
 
@@ -317,21 +324,16 @@ Flutter should then pick up the simulated iPhone as an available target:
 $ just flutter devices
 Found 3 connected devices:
 
-  iPhone 15 Pro Max (mobile) • D8810737-2E02-4EF5-83DA-72934A34398B • ios          •
-  com.apple.CoreSimulator.SimRuntime.iOS-17-0 (simulator)
+  iPhone 17 Pro (mobile) • CD3B7539-B78E-4460-AE10-4BC2B6EA2A70 • ios          •
+  com.apple.CoreSimulator.SimRuntime.iOS-26-5 (simulator)
 
   ...
 ```
 
-If this doesn't work (no iPhone shows up), try running a random sample iOS app
-in Xcode -- this seems to force Xcode to actually install everything.
-
-A quick way to do this is to create a new project based on the "App" template.
-Set the "Product Name" to whatever, set the "Organization Identifier" to
-whatever, then run the app by pressing the "Play" button near the top of the
-screen. The app should build and the simulated iPhone should pop up on the
-screen. The temporary project can then be deleted from wherever it was created
-(defaults to Desktop).
+If no iPhone shows up, open Device Hub, boot a device from the sidebar, and
+run `just flutter devices` again. If there's still nothing, build and run any
+throwaway "App"-template project from Xcode itself, which forces Xcode to
+finish installing its simulator components.
 
 ### (Pop\_OS! only?) install `libstdc++-12-dev`
 
