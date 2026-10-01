@@ -1033,6 +1033,7 @@ where
 
     let (
         oipwm,
+        intended_amount,
         ldk_route,
         first_hop_fee,
         first_hop_prop_fee,
@@ -1045,6 +1046,7 @@ where
         }
         PreflightedPayInvoice::Ready {
             oipwm,
+            intended_amount,
             ldk_route,
             lx_route: _,
             first_hop_fee,
@@ -1052,6 +1054,7 @@ where
             first_hop_base_fee,
         } => (
             oipwm,
+            intended_amount,
             ldk_route,
             first_hop_fee,
             first_hop_prop_fee,
@@ -1060,7 +1063,6 @@ where
     };
     let hash = oipwm.payment.hash;
     let id = oipwm.payment.id();
-    let amount = oipwm.payment.amount;
 
     // Extract invoice for retry state. For outbound invoice payments, the
     // invoice should always be present in metadata.
@@ -1101,7 +1103,8 @@ where
     let ldk_payment_id = lightning::ln::channelmanager::PaymentId::from(hash);
 
     // Send the payment using send_payment_with_route (Lexe manages retries).
-    let recipient_fields = outbound::recipient_onion_fields(&invoice, amount);
+    let recipient_fields =
+        outbound::recipient_onion_fields(&invoice, &ldk_route);
     match channel_manager.send_payment_with_route(
         ldk_route,
         lightning::types::payment::PaymentHash::from(hash),
@@ -1114,7 +1117,7 @@ where
                     id,
                     DEFAULT_MAX_RETRY_ATTEMPTS,
                     invoice,
-                    amount,
+                    intended_amount,
                     first_hop_prop_fee,
                     first_hop_base_fee,
                     first_hop_fee,
@@ -1618,6 +1621,9 @@ enum PreflightedPayInvoice {
     /// This invoice payment attempt is ready to send (validated and routed).
     Ready {
         oipwm: PaymentWithMetadata<OutboundInvoicePaymentV2>,
+        /// The amount the payee should receive, excluding fees. Routes may
+        /// deliver more to satisfy `htlc_minimum_msat`.
+        intended_amount: Amount,
         /// The raw LDK route, needed for `send_payment_with_route`.
         ldk_route: Route,
         /// The Lexe route for client consumption.
@@ -1691,7 +1697,7 @@ where
     }
 
     // Resolve the amount.
-    let amount = invoice
+    let intended_amount = invoice
         .amount()
         .or(req.fallback_amount)
         .context("Missing fallback amount for amountless invoice")?;
@@ -1701,7 +1707,7 @@ where
             req.partner_pk.as_ref(),
             req.partner_prop_fee,
             req.partner_base_fee,
-            amount,
+            intended_amount,
             invoice.payee_node_pk(),
         )
         .await?;
@@ -1715,13 +1721,13 @@ where
         let lx_route = LxRoute::from_ldk(ldk_route.clone(), network_graph);
         req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
 
-        // `lx_route.fees()` contains the `first_hop_fee`, so split that out
+        // `route::fees` contains the `first_hop_fee`, so split that out
         // to compute the routing fee
-        let routing_fee = lx_route.fees().saturating_sub(first_hop_fee);
+        let routing_fee = route::fees(&ldk_route).saturating_sub(first_hop_fee);
         let oipwm = OutboundInvoicePaymentV2::new(
             invoice,
             req.kind,
-            lx_route.amount(),
+            route::amount(&ldk_route),
             routing_fee,
             first_hop_fee,
             partner_fee,
@@ -1732,6 +1738,7 @@ where
         .context("Failed to create payment")?;
         return Ok(PreflightedPayInvoice::Ready {
             oipwm,
+            intended_amount,
             ldk_route,
             lx_route,
             first_hop_fee,
@@ -1778,7 +1785,7 @@ where
     validate::outbound_lightning_amount(
         router,
         &routing_context,
-        amount,
+        intended_amount,
         first_hop_prop_fee,
         first_hop_base_fee,
         &lightning_balance,
@@ -1795,21 +1802,20 @@ where
         router,
         network_graph,
         &routing_context,
-        amount,
+        intended_amount,
         first_hop_prop_fee,
         first_hop_base_fee,
     )
     .await?;
 
     req.kind.expect_rail_or_unknown(PaymentRail::Invoice)?;
-    // `lx_route.fees()` contains the `first_hop_fee`, so split that out
+    // `route::fees` contains the `first_hop_fee`, so split that out
     // to compute the routing fee
-    let routing_fee = lx_route.fees().saturating_sub(first_hop_fee);
-    let amount = lx_route.amount();
+    let routing_fee = route::fees(&ldk_route).saturating_sub(first_hop_fee);
     let oipwm = OutboundInvoicePaymentV2::new(
         invoice,
         req.kind,
-        amount,
+        route::amount(&ldk_route),
         routing_fee,
         first_hop_fee,
         partner_fee,
@@ -1821,6 +1827,7 @@ where
 
     Ok(PreflightedPayInvoice::Ready {
         oipwm,
+        intended_amount,
         ldk_route,
         lx_route,
         first_hop_fee,
@@ -1974,7 +1981,11 @@ where
     // Try to find a Route with the full intended amount (well, to the first
     // publicly routable node so this will underestimate the route cost by
     // whatever the blinded hops charge).
-    let validate::ValidatedRoute { lx_route, .. } = validate::can_route_amount(
+    let validate::ValidatedRoute {
+        ldk_route,
+        lx_route,
+        ..
+    } = validate::can_route_amount(
         router,
         network_graph,
         &routing_context,
@@ -1984,8 +1995,8 @@ where
     )
     .await?;
 
-    let amount = lx_route.amount();
-    let routing_fee = lx_route.fees();
+    let amount = route::amount(&ldk_route);
+    let routing_fee = route::fees(&ldk_route);
     req.kind.expect_rail_or_unknown(PaymentRail::Offer)?;
 
     // TODO(max): Include `payer_name` in `PayOfferRequest`

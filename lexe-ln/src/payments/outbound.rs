@@ -17,11 +17,11 @@ use lightning::{
     events::Event::{PaymentFailed, PaymentSent},
     events::PaymentPurpose,
     ln::channelmanager::ChannelManager,
-    routing::router::Route,
 };
 use lightning::{
     events::PaymentFailureReason,
     ln::outbound_payment::{RecipientOnionFields, Retry},
+    routing::router::Route,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -50,15 +50,17 @@ pub enum ExpireError {
     IgnoreAndAbandon,
 }
 
-/// Build [`RecipientOnionFields`] from an invoice and the total amount being
-/// sent, which tells the recipient how much to expect across all MPP parts.
+/// Build [`RecipientOnionFields`] for paying an invoice along a [`Route`],
+/// telling the recipient to expect the route's total across all MPP parts.
 pub(crate) fn recipient_onion_fields(
     invoice: &Invoice,
-    amount: Amount,
+    route: &Route,
 ) -> RecipientOnionFields {
     let payment_secret = invoice.payment_secret().into();
-    let mut fields =
-        RecipientOnionFields::secret_only(payment_secret, amount.msat());
+    let mut fields = RecipientOnionFields::secret_only(
+        payment_secret,
+        route.get_total_amount(),
+    );
     fields.payment_metadata = invoice.0.payment_metadata().map(|m| m.to_vec());
     fields
 }

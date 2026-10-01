@@ -719,6 +719,19 @@ impl RoutingContext {
     }
 }
 
+/// The amount `route` delivers to the payee, excluding fees. May exceed the
+/// requested amount to reach `htlc_minimum_msat` limits.
+pub fn amount(route: &Route) -> Amount {
+    Amount::from_msat(route.get_total_amount())
+}
+
+/// The fees paid along `route`, excluding any overpay to the payee.
+// Unlike `Route::get_total_fees`, which also counts the overpay that
+// `amount` already includes.
+pub fn fees(route: &Route) -> Amount {
+    Amount::from_msat(route.paths.iter().map(Path::fee_msat).sum())
+}
+
 /// Get a [`PaymentParameters`] from a payee or invoice in Lexe's default way.
 /// Payment parameters are amount-agnostic.
 // LDK's builder API is unergonomic and hides a lot of details, so we

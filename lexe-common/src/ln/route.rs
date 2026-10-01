@@ -57,16 +57,6 @@ impl LxRoute {
 
         Self { paths }
     }
-
-    /// Return the total amount paid on this [`LxRoute`], excluding the fees.
-    pub fn amount(&self) -> Amount {
-        self.paths.iter().map(LxPath::amount).sum()
-    }
-
-    /// Return the total fees on this [`LxRoute`].
-    pub fn fees(&self) -> Amount {
-        self.paths.iter().map(LxPath::fees).sum()
-    }
 }
 
 impl fmt::Display for LxRoute {

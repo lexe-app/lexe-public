@@ -170,7 +170,8 @@ pub(crate) struct InFlightRetryState {
     pub failed_channel_scids: HashSet<u64>,
     /// The invoice being paid (contains hash and secret).
     pub invoice: Arc<Invoice>,
-    /// The amount being sent (excluding fees).
+    /// The amount the payee should receive, excluding fees. Routes may
+    /// deliver more to satisfy `htlc_minimum_msat`.
     pub amount: Amount,
     /// The proportional rate of the extra fee we pay our first hop.
     pub first_hop_prop_fee: Ppm,
@@ -421,7 +422,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
 
         // Build recipient onion fields (includes payment_metadata if present).
         let recipient_fields =
-            outbound::recipient_onion_fields(&retry.invoice, retry.amount);
+            outbound::recipient_onion_fields(&retry.invoice, &route);
 
         let (payment_id, payment_hash) = match retry.id {
             PaymentId::Lightning(hash) => (
