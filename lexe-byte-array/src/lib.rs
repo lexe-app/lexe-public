@@ -14,6 +14,9 @@ use lexe_hex::hex::{self, FromHex, HexDisplay};
 /// A trait for types represented in memory as a byte array. Should NOT be
 /// implemented for types that require validation of the byte array contents.
 pub trait ByteArray<const N: usize>: Copy + Debug + Eq + Hash + Sized {
+    /// The array length in bytes.
+    const LEN: usize = N;
+
     // --- Required: array --- //
 
     fn from_array(array: [u8; N]) -> Self;
