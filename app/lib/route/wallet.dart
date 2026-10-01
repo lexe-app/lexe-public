@@ -448,7 +448,6 @@ class WalletPageState extends State<WalletPage> {
           );
         case (_, final claimMethod?, _):
           flowResult = await this._handleClaimMethod(uriFlowCtx, claimMethod);
-          return;
         // TODO(max): Login and connect approval flows.
         case (_, _, AuthMethod()):
           error("WalletPage: Login and connect requests are not supported yet");
