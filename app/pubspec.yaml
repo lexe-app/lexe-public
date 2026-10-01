@@ -39,7 +39,7 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   # Register Lexe to handle payment URIs ("bitcoin:", "lightning:", ...)
-  app_links: ^6.1.1
+  app_links: ^7.0.0
 
   # Lexe `app_rs` Rust<->dart ffi bindings.
   app_rs_dart:
