@@ -2597,17 +2597,7 @@ where
     PS: LexePaymentsPersister,
     FRA: LexeFiatRatesApi,
 {
-    // TODO(max): Implement budget attenuation: If the credential calling this
-    // endpoint has a budget, it cannot create another client with no budget.
-    // Furthermore, any budget assigned to the new credential must match the
-    // schedule of the calling credential, and any non-zero budget limit on the
-    // new credential must "come from" the calling credentials budget; e.g. if a
-    // $20/month credential wishes to assign $5/month to a child credential, its
-    // own budget must first be reduced to $15/month, then the child credential
-    // increased from $0/month to $5/month (to prevent crash + persist races).
-    //
-    // Probably easiest to just disallow credentials with budgets from creating
-    // or updating other credentials until someone has a need for this.
+    authz.require_unlimited_budget(payments_manager).await?;
 
     let mut rng = SysRng::new();
 
@@ -2795,38 +2785,29 @@ where
     PS: LexePaymentsPersister,
     FRA: LexeFiatRatesApi,
 {
-    // TODO(max): Implement budget attenuation: If the credential calling this
-    // endpoint has a budget, it cannot create another client with no budget.
-    // Furthermore, any budget assigned to the new credential must match the
-    // schedule of the calling credential, and any non-zero budget limit on the
-    // new credential must "come from" the calling credentials budget; e.g. if a
-    // $20/month credential wishes to assign $5/month to a child credential, its
-    // own budget must first be reduced to $15/month, then the child credential
-    // increased from $0/month to $5/month (to prevent crash + persist races).
-    //
-    // Probably easiest to just disallow credentials with budgets from creating
-    // or updating other credentials until someone has a need for this.
-
-    let UpdateClientWithBudgetRequest {
-        client: client_update,
-        budget: budget_update,
-    } = req;
+    if req.changes_grant() {
+        authz.require_unlimited_budget(payments_manager).await?;
+    }
 
     // Validate the budget update before updating the client, so that an
     // invalid budget update leaves the client untouched.
-    let client_pk = ClientPk::Revocable(client_update.pubkey);
-    let budget_has_update = !budget_update.is_noop();
+    let client_pk = ClientPk::Revocable(req.client.pubkey);
+    let budget_has_update = !req.budget.is_noop();
     if budget_has_update {
         payments_manager
-            .check_reconfigure_budget(&client_pk, budget_update.clone())
+            .check_reconfigure_budget(&client_pk, req.budget.clone())
             .await
             .map_err(CommonApiError::general)?;
     }
 
-    let (clients_file, updated_client) = {
+    let (clients_file, updated_client, budget_update) = {
         let mut revocable_clients = revocable_clients.0.write().unwrap();
 
-        authz.require_update_covered(&client_update, &revocable_clients)?;
+        authz.require_update_covered(&req, &revocable_clients)?;
+        let UpdateClientWithBudgetRequest {
+            client: client_update,
+            budget: budget_update,
+        } = req;
 
         // Get the client
         let pubkey = client_update.pubkey;
@@ -2849,7 +2830,7 @@ where
             &revocable_clients,
         );
 
-        (clients_file, updated_client)
+        (clients_file, updated_client, budget_update)
     };
 
     // NOTE: If persist fails, the persisted state will be out of sync until the

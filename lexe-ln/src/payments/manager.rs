@@ -10,7 +10,8 @@ use anyhow::{Context, anyhow, bail, ensure};
 use either::Either;
 use lexe_api::{
     budget::{
-        Budget, BudgetPaymentStatus, ClientBudgets, ClientPk, PersistedBudget,
+        Budget, BudgetPaymentStatus, BudgetPolicy, ClientBudgets, ClientPk,
+        GetClientBudgetPolicy, PersistedBudget,
         models::{BudgetInfo, UpdateBudgetParams},
     },
     def::FiatRatesBackendApi,
@@ -1916,6 +1917,25 @@ where
             locked_data.budgets.commit(persisted_budget);
         }
         Ok(())
+    }
+}
+
+impl<CM, PS, FRA> GetClientBudgetPolicy for PaymentsManager<CM, PS, FRA>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
+{
+    async fn budget_policy(
+        &self,
+        client_pk: &ClientPk,
+    ) -> anyhow::Result<Option<BudgetPolicy>> {
+        let locked_data = self.data.lock().await;
+        let budget = locked_data
+            .budgets
+            .get(client_pk)
+            .with_context(|| format!("No budget for client {client_pk}"))?;
+        Ok(budget.policy())
     }
 }
 

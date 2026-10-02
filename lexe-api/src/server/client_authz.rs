@@ -12,10 +12,11 @@ use axum::{
     routing::{self, MethodRouter},
 };
 use lexe_api_core::{
+    budget::{ClientPk, GetClientBudgetPolicy},
     error::{CommonApiError, CommonErrorKind},
     revocable_clients::{
         ListRevocableClientsHandle, RevocableClient, RevocableClients,
-        models::UpdateClientRequest,
+        models::UpdateClientWithBudgetRequest,
         scopes::{ClientPermissions, Permission, PermissionSet, Scope},
     },
 };
@@ -31,7 +32,8 @@ use crate::tls_acceptor::VerifiedTlsClientCert;
 /// Route gates use [`require`] on this request's authorization snapshot.
 /// Credential mutations must use [`require_create_covered`] or
 /// [`require_update_covered`] under the store's write lock. These revalidate
-/// the caller and enforce endpoint permission and grant attenuation.
+/// the caller and enforce endpoint permission and grant attenuation. Handlers
+/// enforce budget attenuation with [`require_unlimited_budget`] beforehand.
 ///
 /// The resolved [`PermissionSet`] depends on the cert's issuing CA:
 ///
@@ -43,6 +45,7 @@ use crate::tls_acceptor::VerifiedTlsClientCert;
 /// [`require`]: Self::require
 /// [`require_create_covered`]: Self::require_create_covered
 /// [`require_update_covered`]: Self::require_update_covered
+/// [`require_unlimited_budget`]: Self::require_unlimited_budget
 /// [`ClientPermissions`]: lexe_api_core::revocable_clients::scopes::ClientPermissions
 /// [`RevocableClientsHandle`]: lexe_api_core::revocable_clients::RevocableClientsHandle
 #[derive(Clone)]
@@ -79,6 +82,44 @@ impl VerifiedClientAuthorization {
         }
     }
 
+    /// Require the client to have no spending limit.
+    ///
+    /// Used to enforce budget attenuation: a client with a budget may not
+    /// create credentials or change their expiration, permissions, or budget,
+    /// or it could escape its budget through a credential with a larger budget
+    /// or none at all.
+    //
+    // TODO(max): Improve budget attenuation: If the caller has a budget, it
+    // cannot create another client with no budget. Furthermore, any budget
+    // assigned to the new credential must match the schedule of the calling
+    // credential, and any non-zero budget limit on the new credential must
+    // "come from" the calling credentials budget; e.g. if a $20/month
+    // credential wishes to assign $5/month to a child credential, its own
+    // budget must first be reduced to $15/month, then the child credential
+    // increased from $0/month to $5/month (to prevent crash + persist races).
+    pub async fn require_unlimited_budget(
+        &self,
+        budgets: &impl GetClientBudgetPolicy,
+    ) -> Result<(), CommonApiError> {
+        let Some(client_pk) = self.cert_kind.client_pk() else {
+            return Ok(());
+        };
+        let client_pk = ClientPk::Revocable(client_pk);
+        let policy = budgets
+            .budget_policy(&client_pk)
+            .await
+            .map_err(CommonApiError::general)?;
+        match policy {
+            None => Ok(()),
+            Some(_) => Err(CommonApiError::new(
+                CommonErrorKind::InsufficientScope,
+                "Credentials with a budget cannot create credentials or \
+                 change their expiration, permissions, or budget"
+                    .to_owned(),
+            )),
+        }
+    }
+
     /// Authorize client creation against the current store.
     /// Keep the store write-locked through authorization and insertion.
     pub fn require_create_covered(
@@ -95,8 +136,9 @@ impl VerifiedClientAuthorization {
     /// Authorize a client update against the current store.
     /// Keep the store write-locked through authorization and mutation.
     ///
-    /// If either the expiration or permissions are updated, our own credential
-    /// must cover the target's resulting expiration and permissions.
+    /// If the expiration, permissions, or budget are updated, our own
+    /// credential must cover the target's resulting expiration and
+    /// permissions.
     //
     // The principle here is that a credential should never be able to cause
     // another credential to be more powerful than itself.
@@ -106,17 +148,18 @@ impl VerifiedClientAuthorization {
     // client. Either would create a credential the caller could not mint.
     pub fn require_update_covered(
         &self,
-        req: &UpdateClientRequest,
+        req: &UpdateClientWithBudgetRequest,
         clients: &RevocableClients,
     ) -> Result<(), CommonApiError> {
         let current = Self::resolve(self.cert_kind, clients)?;
         current.require(Permission::UpdateRevocableClient)?;
 
-        if req.expires_at.is_none() && req.permissions.is_none() {
+        if !req.changes_grant() {
             return Ok(());
         }
 
-        let pubkey = req.pubkey;
+        let client_update = &req.client;
+        let pubkey = client_update.pubkey;
         let target = clients.clients.get(&pubkey).ok_or_else(|| {
             CommonApiError::new(
                 CommonErrorKind::Rejection,
@@ -124,9 +167,11 @@ impl VerifiedClientAuthorization {
             )
         })?;
 
-        let expires_at = req.expires_at.unwrap_or(target.expires_at);
-        let permissions =
-            req.permissions.as_ref().unwrap_or(&target.permissions);
+        let expires_at = client_update.expires_at.unwrap_or(target.expires_at);
+        let permissions = client_update
+            .permissions
+            .as_ref()
+            .unwrap_or(&target.permissions);
 
         current.require_permissions_covered(permissions)?;
         current.require_expiration_covered(expires_at)
@@ -409,15 +454,33 @@ pub mod unscoped {
 
 #[cfg(test)]
 mod test {
+    use lexe_api_core::{
+        budget::{BudgetAmount, BudgetPolicy, models::UpdateBudgetParams},
+        revocable_clients::models::UpdateClientRequest,
+    };
+    use lexe_common::sat;
     use lexe_crypto::ed25519;
 
     use super::*;
+
+    /// A test [`GetClientBudgetPolicy`] which returns the policy it wraps for
+    /// every client.
+    struct UniformBudgetPolicy(Option<BudgetPolicy>);
+
+    impl GetClientBudgetPolicy for UniformBudgetPolicy {
+        async fn budget_policy(
+            &self,
+            _client_pk: &ClientPk,
+        ) -> anyhow::Result<Option<BudgetPolicy>> {
+            Ok(self.0)
+        }
+    }
 
     #[test]
     fn mutations_recheck_attenuation() {
         let (authz, caller) = caller();
         let mut clients = store([caller.clone()]);
-        let req = update(&caller);
+        let req = UpdateClientWithBudgetRequest::from(update(&caller));
         let check = |clients: &RevocableClients| {
             [
                 authz.require_create_covered(&caller, clients).is_ok(),
@@ -452,12 +515,12 @@ mod test {
             expires_at: Some(TimestampMs::MIN),
             ..client(2)
         };
-        let req = UpdateClientRequest {
+        let req = UpdateClientWithBudgetRequest::from(UpdateClientRequest {
             expires_at: None,
             permissions: None,
             label: Some(Some("label".to_owned())),
             ..update(&caller)
-        };
+        });
         let check = |clients: &RevocableClients| {
             [
                 authz.require_create_covered(&child, clients).is_ok(),
@@ -497,22 +560,58 @@ mod test {
         let clients = store([caller.clone(), target.clone()]);
 
         // A permissions-only update must cover the target's stored expiration.
-        let req = UpdateClientRequest {
+        let req = UpdateClientWithBudgetRequest::from(UpdateClientRequest {
             expires_at: None,
             permissions: Some(caller.permissions.clone()),
             ..update(&target)
-        };
+        });
         let err = authz.require_update_covered(&req, &clients).unwrap_err();
         assert!(matches!(err.kind, CommonErrorKind::InsufficientScope));
 
         // An expiration-only update must cover the target's stored permissions.
-        let req = UpdateClientRequest {
+        let req = UpdateClientWithBudgetRequest::from(UpdateClientRequest {
             expires_at: Some(caller.expires_at),
             permissions: None,
-            ..req
+            ..update(&target)
+        });
+        let err = authz.require_update_covered(&req, &clients).unwrap_err();
+        assert!(matches!(err.kind, CommonErrorKind::InsufficientScope));
+
+        // A budget-only update must cover both of the target's stored fields.
+        let req = UpdateClientWithBudgetRequest {
+            client: UpdateClientRequest {
+                expires_at: None,
+                permissions: None,
+                ..update(&target)
+            },
+            budget: UpdateBudgetParams::CLEAR_BUDGET,
         };
         let err = authz.require_update_covered(&req, &clients).unwrap_err();
         assert!(matches!(err.kind, CommonErrorKind::InsufficientScope));
+    }
+
+    #[tokio::test]
+    async fn budgeted_callers_are_rejected() {
+        let (authz, _caller) = caller();
+        let unlimited = UniformBudgetPolicy(None);
+        let budgeted = UniformBudgetPolicy(Some(BudgetPolicy::Total {
+            limit: BudgetAmount::Bitcoin(sat!(1_000)),
+        }));
+
+        authz
+            .require_unlimited_budget(&unlimited)
+            .await
+            .map_err(|e| e.msg)
+            .unwrap();
+        let err = authz.require_unlimited_budget(&budgeted).await.unwrap_err();
+        assert!(matches!(err.kind, CommonErrorKind::InsufficientScope));
+
+        // Root seed callers have no budget to look up.
+        let root = VerifiedClientAuthorization::root_seed();
+        root.require_unlimited_budget(&budgeted)
+            .await
+            .map_err(|e| e.msg)
+            .unwrap();
     }
 
     fn client(seed: u64) -> RevocableClient {

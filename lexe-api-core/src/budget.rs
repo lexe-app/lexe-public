@@ -193,6 +193,18 @@ pub struct PersistedBudget {
     pub client_pk: ClientPk,
 }
 
+/// Look up a client's [`BudgetPolicy`].
+//
+// Required only to decouple the shared `VerifiedClientAuthorization` from the
+// `PaymentsManager` which owns client budgets.
+pub trait GetClientBudgetPolicy {
+    /// The client's budget policy. [`None`] means no spending limit.
+    fn budget_policy(
+        &self,
+        client_pk: &ClientPk,
+    ) -> impl Future<Output = anyhow::Result<Option<BudgetPolicy>>> + Send;
+}
+
 impl ClientBudgets {
     #[cfg(any(test, feature = "test-utils"))]
     pub fn empty() -> Self {

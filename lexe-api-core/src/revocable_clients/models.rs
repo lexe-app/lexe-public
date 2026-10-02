@@ -207,6 +207,16 @@ pub struct UpdateClientResponse {
     pub client: RevocableClientWithBudget,
 }
 
+impl UpdateClientWithBudgetRequest {
+    /// Whether this update changes the client's grant: its expiration,
+    /// permissions, or budget. Relabeling and revoking don't.
+    pub fn changes_grant(&self) -> bool {
+        self.client.expires_at.is_some()
+            || self.client.permissions.is_some()
+            || !self.budget.is_noop()
+    }
+}
+
 impl From<UpdateClientRequest> for UpdateClientWithBudgetRequest {
     fn from(client: UpdateClientRequest) -> Self {
         Self {

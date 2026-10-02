@@ -1006,9 +1006,15 @@ pub(super) async fn list_nwc_clients(
 ///
 /// Generates keys and returns the connection string.
 pub(super) async fn create_nwc_client(
+    permissions: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<CreateNwcClientRequest>,
 ) -> Result<LxJson<CreateNwcClientResponse>, NodeApiError> {
+    permissions
+        .require_unlimited_budget(&state.payments_manager)
+        .await
+        .map_err(NodeApiError::from)?;
+
     let mut rng = SysRng::new();
     let now = TimestampMs::now();
     let (nwc_client, connection_string) = NwcClient::new(
