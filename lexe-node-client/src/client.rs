@@ -49,11 +49,12 @@ use lexe_api::{
     },
     rest::{POST, RequestBuilderExt, RestClient},
     revocable_clients::{
-        RevocableClient, RevocableClients,
+        RevocableClient,
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetClientInfoResponse, ListRevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
+            GetClientInfoResponse, ListRevocableClients,
+            ListRevocableClientsResponse, UpdateClientResponse,
+            UpdateClientWithBudgetRequest,
         },
     },
     types::{
@@ -851,7 +852,7 @@ impl UserNodeRunApi for NodeClient {
     async fn list_revocable_clients(
         &self,
         req: ListRevocableClients,
-    ) -> Result<RevocableClients, NodeApiError> {
+    ) -> Result<ListRevocableClientsResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;
         let url = format!("{run_url}/user/v1/clients");
@@ -872,7 +873,7 @@ impl UserNodeRunApi for NodeClient {
 
     async fn update_revocable_client(
         &self,
-        req: UpdateClientRequest,
+        req: UpdateClientWithBudgetRequest,
     ) -> Result<UpdateClientResponse, NodeApiError> {
         let run_rest = &self.authed_run_rest().await?.client;
         let run_url = &self.inner.run_url;

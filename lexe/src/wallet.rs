@@ -2181,6 +2181,9 @@ impl LexeWallet {
         }
         let req =
             revocable_clients::models::UpdateClientRequest::try_from(req)?;
+        // TODO(nicole): wire budgets through the SDK
+        let req =
+            revocable_clients::models::UpdateClientWithBudgetRequest::from(req);
         let client =
             self.node_client.update_revocable_client(req).await?.client;
         Ok(ClientInfoResponse {
@@ -2202,6 +2205,8 @@ impl LexeWallet {
             expires_at: None,
             permissions: None,
         };
+        let req =
+            revocable_clients::models::UpdateClientWithBudgetRequest::from(req);
         let client =
             self.node_client.update_revocable_client(req).await?.client;
         Ok(ClientInfoResponse {

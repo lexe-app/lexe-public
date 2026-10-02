@@ -1,6 +1,6 @@
 //! Request and response types for the revocable client endpoints.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use lexe_common::{
     api::{auth::BearerAuthToken, user::UserPk},
@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     RevocableClient, grandfathered_permissions, scopes::ClientPermissions,
 };
+use crate::budget::models::{BudgetInfo, BudgetParams, UpdateBudgetParams};
 
 /// The response to a `client_info` request: the caller's own authentication
 /// kind and granted authorization.
@@ -50,6 +51,10 @@ pub struct GetClientInfoResponse {
     // we compute this for them server-side.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effective_permissions: Vec<Cow<'static, str>>,
+
+    /// The caller's budget. [`None`] means no spending limit.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub budget: Option<BudgetInfo>,
 }
 
 /// How a client authenticated: root seed or client credentials.
@@ -68,6 +73,12 @@ pub struct ListRevocableClients {
     pub valid_only: bool,
 }
 
+/// The response to [`ListRevocableClients`].
+#[derive(Serialize, Deserialize)]
+pub struct ListRevocableClientsResponse {
+    pub clients: HashMap<ed25519::PublicKey, RevocableClientWithBudget>,
+}
+
 /// A request to create a new revocable client.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateRevocableClientRequest {
@@ -76,6 +87,11 @@ pub struct CreateRevocableClientRequest {
     pub expires_at: Option<TimestampMs>,
     /// Optional user-provided label for this client.
     pub label: Option<String>,
+    /// The spending budget to enforce for this client.
+    //
+    // compat: Added in node-v0.10.9.
+    #[serde(default)]
+    pub budget: BudgetParams,
     /// The authorization to grant this client.
     //
     // NOTE: This is safe to `default` to `full` because an omission can only
@@ -110,6 +126,9 @@ pub struct CreateRevocableClientResponse {
     // effective permissions immediately upon creation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effective_permissions: Vec<Cow<'static, str>>,
+
+    /// The created client's budget. [`None`] means no spending limit.
+    pub budget: Option<BudgetInfo>,
 
     /// The DER-encoded ephemeral issuing CA cert that the client should trust.
     ///
@@ -168,10 +187,48 @@ pub struct UpdateClientRequest {
     pub is_revoked: Option<bool>,
 }
 
+/// A request to update a single [`RevocableClient`] and its budget.
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug, Eq, PartialEq, Arbitrary))]
+pub struct UpdateClientWithBudgetRequest {
+    // Flattening keeps this readable from older apps (<node-v0.10.9), which
+    // send an `UpdateClientRequest`.
+    #[serde(flatten)]
+    pub client: UpdateClientRequest,
+    /// Update the client's spending budget.
+    // compat: Added in node-v0.10.9.
+    #[serde(default)]
+    pub budget: UpdateBudgetParams,
+}
+
 /// The updated [`RevocableClient`] after a successful update.
 #[derive(Serialize, Deserialize)]
 pub struct UpdateClientResponse {
+    pub client: RevocableClientWithBudget,
+}
+
+impl From<UpdateClientRequest> for UpdateClientWithBudgetRequest {
+    fn from(client: UpdateClientRequest) -> Self {
+        Self {
+            client,
+            budget: UpdateBudgetParams::default(),
+        }
+    }
+}
+
+/// A [`RevocableClient`] with its [`BudgetInfo`].
+//
+// A budget describes its client, so responses return them together. However,
+// clients and budgets are stored separately, so the budget can't be a field of
+// `RevocableClient`. Instead, this struct pairs them.
+#[derive(Serialize, Deserialize)]
+pub struct RevocableClientWithBudget {
+    // Flattening keeps this readable by older apps (<node-v0.10.9), which
+    // expect a `RevocableClient`.
+    #[serde(flatten)]
     pub client: RevocableClient,
+    /// The client's budget. [`None`] means no spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
 #[cfg(test)]
@@ -186,10 +243,14 @@ mod arb {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::test_utils::roundtrip;
+    use std::collections::HashMap;
+
+    use lexe_common::test_utils::{arbitrary, roundtrip};
+    use lexe_crypto::rng::FastRng;
+    use proptest::prelude::any;
 
     use super::*;
-    use crate::revocable_clients::scopes::Scope;
+    use crate::revocable_clients::{RevocableClients, scopes::Scope};
 
     // --- Ser/de roundtrips --- //
 
@@ -201,9 +262,92 @@ mod test {
     #[test]
     fn test_update_request_serde() {
         roundtrip::json_string_roundtrip_proptest::<UpdateClientRequest>();
+        roundtrip::json_string_roundtrip_proptest::<
+            UpdateClientWithBudgetRequest,
+        >();
     }
 
     // --- Compat --- //
+
+    /// Ensure that `RevocableClient`, read by old clients, can be deserialized
+    /// from `RevocableClientWithBudget`, sent by new nodes.
+    //
+    //   Old client            New node
+    //   `RevocableClient` <-- `RevocableClientWithBudget`
+    //
+    // In node-v0.10.9, responses replaced `RevocableClient` with
+    // `RevocableClientWithBudget` to add budgets, e.g. in
+    // `UpdateClientResponse::client`.
+    #[test]
+    fn old_client_reads_revocable_client_with_budget() {
+        let mut rng = FastRng::from_u64(202607211148);
+        let generated = arbitrary::gen_values(
+            &mut rng,
+            (any::<RevocableClient>(), any::<Option<BudgetInfo>>()),
+            8,
+        );
+
+        for (client, budget) in generated {
+            let new_resp_struct = RevocableClientWithBudget { client, budget };
+
+            // Serialize `RevocableClientWithBudget`, sent by new nodes, to JSON
+            let new_resp_json =
+                serde_json::to_string(&new_resp_struct).unwrap();
+
+            // Deserialize JSON into `RevocableClient`, read by old clients
+            let old_resp_struct: RevocableClient =
+                serde_json::from_str(&new_resp_json).unwrap();
+
+            assert_eq!(old_resp_struct, new_resp_struct.client);
+        }
+    }
+
+    /// Ensure that `RevocableClients`, read by old clients, can be deserialized
+    /// from `ListRevocableClientsResponse`, sent by new nodes.
+    //
+    //   Old client             New node
+    //   `RevocableClients` <-- `ListRevocableClientsResponse`
+    //
+    // Each response is a `HashMap` of client entries: `RevocableClient`s in
+    // `RevocableClients`, and `RevocableClientWithBudget`s in
+    // `ListRevocableClientsResponse`. The entries on their own are already
+    // tested by `old_client_reads_revocable_client_with_budget`. However, the
+    // entries stay compatible through `#[serde(flatten)]`, which can behave
+    // differently inside a `HashMap`, so they need testing as `HashMap` values
+    // too.
+    #[test]
+    fn old_client_reads_list_revocable_clients_response() {
+        let mut rng = FastRng::from_u64(202607201611);
+        let generated = arbitrary::gen_values(
+            &mut rng,
+            (any::<RevocableClient>(), any::<Option<BudgetInfo>>()),
+            8,
+        );
+        let clients = generated
+            .into_iter()
+            .map(|(client, budget)| {
+                (client.pubkey, RevocableClientWithBudget { client, budget })
+            })
+            .collect::<HashMap<_, _>>();
+        let new_resp_struct = ListRevocableClientsResponse { clients };
+
+        // Serialize `ListRevocableClientsResponse`, sent by new nodes, to JSON
+        let new_resp_json = serde_json::to_string(&new_resp_struct).unwrap();
+
+        // Deserialize JSON into `RevocableClients`, read by old clients
+        let old_resp_struct: RevocableClients =
+            serde_json::from_str(&new_resp_json).unwrap();
+
+        // Every client survives unchanged, and none are dropped
+        assert_eq!(
+            old_resp_struct.clients.len(),
+            new_resp_struct.clients.len()
+        );
+        for (pk, old_resp_client) in &old_resp_struct.clients {
+            let new_resp_client = &new_resp_struct.clients[pk].client;
+            assert_eq!(old_resp_client, new_resp_client);
+        }
+    }
 
     /// Create requests from old clients predate the `permissions` key and
     /// instead carry a legacy `scope` field. They must still deserialize

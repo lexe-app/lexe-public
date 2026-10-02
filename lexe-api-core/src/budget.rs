@@ -18,7 +18,10 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use chrono::{Datelike, FixedOffset, Months, NaiveDate, TimeDelta, Utc};
+use chrono::{
+    Datelike, FixedOffset, Months, NaiveDate, NaiveTime, TimeDelta, TimeZone,
+    Utc,
+};
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{
@@ -34,11 +37,17 @@ use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use tracing::warn;
 
+use self::models::{
+    BudgetCurrency, BudgetInfo, BudgetParams, BudgetResetInterval,
+};
 use crate::{
     models::nwc::NostrPk,
     types::{payments::PaymentCreatedIndex, retries::Retries},
     vfs::{BUDGETS_DIR, Vfs, VfsDirectory, VfsFile, VfsFileId},
 };
+
+/// Request and response types for client budgets.
+pub mod models;
 
 /// A collection of client budgets, keyed by client public key.
 ///
@@ -278,6 +287,47 @@ impl Budget {
             policy,
             fiat_currency,
             payments: BTreeMap::new(),
+        })
+    }
+
+    /// A snapshot of this budget as of `at`. [`None`] means no spending
+    /// limit.
+    pub fn info(&self, at: TimestampMs) -> Option<BudgetInfo> {
+        let policy = self.policy?;
+
+        // `BudgetInfo` reports the policy using `BudgetParams`'s fields.
+        // Destructure to get a compile error when a new param is added,
+        // so we can add it to `BudgetInfo`.
+        let BudgetParams {
+            limit,
+            currency,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+        } = policy.params(self.fiat_currency);
+        let (spendable, _) = helpers::flatten_budget_amount(
+            self.spendable(at)?,
+            self.fiat_currency,
+        );
+        let next_reset = match policy {
+            BudgetPolicy::Total { .. } => None,
+            BudgetPolicy::Windowed {
+                unit,
+                n,
+                reset_anchor,
+                ..
+            } => helpers::window_containing(at, unit, n, reset_anchor).1,
+        };
+
+        // A policy always has a limit and currency.
+        Some(BudgetInfo {
+            limit: limit?,
+            currency: currency?,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+            spendable,
+            next_reset,
         })
     }
 
@@ -531,9 +581,55 @@ impl BudgetPolicy {
         );
         Ok(())
     }
+
+    /// This policy as [`BudgetParams`], given the budget's `fiat_currency`.
+    /// Inverse of [`BudgetParams::policy`].
+    fn params(self, fiat_currency: IsoCurrencyCode) -> BudgetParams {
+        match self {
+            Self::Total { limit } => {
+                let (limit, currency) =
+                    helpers::flatten_budget_amount(limit, fiat_currency);
+                BudgetParams {
+                    limit: Some(limit),
+                    currency: Some(currency),
+                    reset_interval: None,
+                    interval_count: None,
+                    utc_offset_mins: None,
+                }
+            }
+            Self::Windowed {
+                limit,
+                unit,
+                n,
+                reset_anchor,
+            } => {
+                let (limit, currency) =
+                    helpers::flatten_budget_amount(limit, fiat_currency);
+                BudgetParams {
+                    limit: Some(limit),
+                    currency: Some(currency),
+                    reset_interval: Some(BudgetResetInterval::from(unit)),
+                    interval_count: Some(n),
+                    utc_offset_mins: Some(
+                        reset_anchor.offset().local_minus_utc() / 60,
+                    ),
+                }
+            }
+        }
+    }
 }
 
 impl CalendarUnit {
+    /// The next unit start after `at`, in `at`'s UTC offset.
+    fn next_start(
+        self,
+        at: chrono::DateTime<FixedOffset>,
+    ) -> Option<chrono::DateTime<FixedOffset>> {
+        let next_index = self.index(at.date_naive()).checked_add(1)?;
+        let start = self.first_day(next_index)?.and_time(NaiveTime::MIN);
+        at.timezone().from_local_datetime(&start).single()
+    }
+
     /// `at` plus `count` units, which may be negative. A month or year which
     /// lands past the end of a shorter month clamps to its last day, e.g.
     /// Jan 31 plus a month is Feb 28.
@@ -576,6 +672,22 @@ impl CalendarUnit {
             Self::Month => date.year() * 12 + date.month0() as i32,
             // We count year 0 as the year at index 0.
             Self::Year => date.year(),
+        }
+    }
+
+    /// The date of the start of the calendar unit numbered `index`, per
+    /// [`Self::index`].
+    fn first_day(self, index: i32) -> Option<NaiveDate> {
+        match self {
+            Self::Day => NaiveDate::from_num_days_from_ce_opt(index),
+            Self::Week =>
+                NaiveDate::from_num_days_from_ce_opt(index.checked_mul(7)?),
+            Self::Month => {
+                let year = index.div_euclid(12);
+                let month = index.rem_euclid(12) as u32 + 1;
+                NaiveDate::from_ymd_opt(year, month, 1)
+            }
+            Self::Year => NaiveDate::from_ymd_opt(index, 1, 1),
         }
     }
 }
@@ -709,6 +821,22 @@ mod helpers {
             }
         }
     }
+
+    /// Flattens `amount` into its [`models`] representation: a [`Decimal`] with
+    /// a [`BudgetCurrency`].
+    ///
+    /// [`models`]: crate::budget::models
+    pub(super) fn flatten_budget_amount(
+        amount: BudgetAmount,
+        fiat_currency: IsoCurrencyCode,
+    ) -> (Decimal, BudgetCurrency) {
+        match amount {
+            BudgetAmount::Bitcoin(amount) =>
+                (amount.btc(), BudgetCurrency::Bitcoin),
+            BudgetAmount::Fiat(value) =>
+                (value, BudgetCurrency::Fiat(fiat_currency)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -718,6 +846,7 @@ mod test {
         sat,
         test_utils::{roundtrip, snapshot},
     };
+    use proptest::{prop_assert, prop_assert_eq, proptest};
 
     use super::*;
     use crate::types::payments::{ClientPaymentId, PaymentId};
@@ -805,6 +934,39 @@ mod test {
     }
 
     // -- Code correctness tests -- //
+
+    /// Tests [`CalendarUnit::index`] and [`CalendarUnit::first_day`]:
+    /// - Units are numbered consecutively.
+    /// - Every date lies between the start of its unit and of the next.
+    /// - Weeks start on Sunday, months on the 1st, and years on January 1.
+    #[test]
+    fn calendar_unit_index_first_day() {
+        use CalendarUnit::*;
+
+        // Spans about ±2,700 years, including years before the common era.
+        proptest!(|(days in -1_000_000_i32..1_000_000)| {
+            let date = NaiveDate::from_num_days_from_ce_opt(days).unwrap();
+            for unit in [Day, Week, Month, Year] {
+                // `date` lies in the unit starting at `first_day(index)`,
+                // which ends where the next index's unit starts.
+                let index = unit.index(date);
+                let start = unit.first_day(index).unwrap();
+                let next_start = unit.first_day(index + 1).unwrap();
+                prop_assert!(start <= date && date < next_start);
+                prop_assert_eq!(unit.index(start), index);
+                prop_assert_eq!(unit.index(next_start), index + 1);
+
+                // Each unit starts on its calendar boundary.
+                let aligned = match unit {
+                    Day => start == date,
+                    Week => start.weekday() == chrono::Weekday::Sun,
+                    Month => start.day() == 1,
+                    Year => start.ordinal() == 1,
+                };
+                prop_assert!(aligned, "{unit:?} starts on {start}");
+            }
+        });
+    }
 
     /// Tests [`helpers::window_containing`]:
     /// - A window includes its start but not its end.

@@ -34,13 +34,11 @@ use lexe_api::{
             UpdateNwcClientResponse,
         },
     },
-    revocable_clients::{
-        RevocableClients,
-        models::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetClientInfoResponse, ListRevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
-        },
+    revocable_clients::models::{
+        CreateRevocableClientRequest, CreateRevocableClientResponse,
+        GetClientInfoResponse, ListRevocableClients,
+        ListRevocableClientsResponse, UpdateClientResponse,
+        UpdateClientWithBudgetRequest,
     },
     server::{
         LxJson, client_authz::VerifiedClientAuthorization, extract::LxQuery,
@@ -680,19 +678,26 @@ pub(super) async fn client_info(
     permissions: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
 ) -> Result<LxJson<GetClientInfoResponse>, NodeApiError> {
-    lexe_ln::command::client_info(&permissions, &state.revocable_clients.0)
-        .map(LxJson)
-        .map_err(NodeApiError::from)
+    lexe_ln::command::client_info(
+        &permissions,
+        &state.revocable_clients.0,
+        &state.payments_manager,
+    )
+    .await
+    .map(LxJson)
+    .map_err(NodeApiError::from)
 }
 
 pub(super) async fn list_revocable_clients(
     State(state): State<Arc<RouterState>>,
     LxQuery(req): LxQuery<ListRevocableClients>,
-) -> Result<LxJson<RevocableClients>, NodeApiError> {
+) -> Result<LxJson<ListRevocableClientsResponse>, NodeApiError> {
     let revocable_clients = lexe_ln::command::list_revocable_clients(
         req,
         &state.revocable_clients.0,
-    );
+        &state.payments_manager,
+    )
+    .await;
     Ok(LxJson(revocable_clients))
 }
 
@@ -728,11 +733,12 @@ pub(super) async fn create_revocable_client(
 pub(super) async fn update_revocable_client(
     permissions: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<UpdateClientRequest>,
+    LxJson(req): LxJson<UpdateClientWithBudgetRequest>,
 ) -> Result<LxJson<UpdateClientResponse>, NodeApiError> {
     lexe_ln::command::update_revocable_client(
         &permissions,
         &state.persister,
+        &state.payments_manager,
         &state.revocable_clients,
         req,
     )

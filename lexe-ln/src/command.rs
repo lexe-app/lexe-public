@@ -13,7 +13,7 @@ use bitcoin::hashes::{Hash as _, sha256};
 use either::Either;
 use futures::Future;
 use lexe_api::{
-    budget::{Budget, ClientPk},
+    budget::{Budget, ClientPk, models::BudgetCurrency},
     cli::{LspFees, LspInfo},
     error::CommonApiError,
     models::command::{
@@ -34,7 +34,8 @@ use lexe_api::{
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
             CredentialKind, GetClientInfoResponse, ListRevocableClients,
-            UpdateClientRequest, UpdateClientResponse,
+            ListRevocableClientsResponse, RevocableClientWithBudget,
+            UpdateClientResponse, UpdateClientWithBudgetRequest,
         },
         scopes::{ClientPermissions, Scope},
     },
@@ -100,7 +101,7 @@ use lightning::{
 };
 use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     alias::{LexeChainMonitorType, NetworkGraphType, RouterType},
@@ -2480,10 +2481,16 @@ mod validate {
     }
 }
 
-pub fn client_info(
+pub async fn client_info<CM, PS, FRA>(
     authz: &VerifiedClientAuthorization,
     revocable_clients: &RwLock<RevocableClients>,
-) -> Result<GetClientInfoResponse, CommonApiError> {
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
+) -> Result<GetClientInfoResponse, CommonApiError>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
+{
     let effective_permissions = authz
         .permission_set()
         .iter()
@@ -2499,8 +2506,16 @@ pub fn client_info(
             label: None,
             permissions: ClientPermissions::from_single_scope(Scope::Full),
             effective_permissions,
+            budget: None,
         }),
         ClientCertKind::Revocable { client_pk } => {
+            // Get the budget before taking the `clients` lock below. Its guard
+            // is sync, so it mustn't be held across this `.await`.
+            let budget = payments_manager
+                .budget_info(&ClientPk::Revocable(client_pk))
+                .await
+                .map_err(CommonApiError::general)?;
+
             let locked_clients = revocable_clients.read().unwrap();
             let client =
                 locked_clients.clients.get(&client_pk).ok_or_else(|| {
@@ -2516,25 +2531,52 @@ pub fn client_info(
                 label: client.label.clone(),
                 permissions: client.permissions.clone(),
                 effective_permissions,
+                budget,
             })
         }
     }
 }
 
-pub fn list_revocable_clients(
+#[instrument(skip_all, name = "(list-revocable-clients)")]
+pub async fn list_revocable_clients<CM, PS, FRA>(
     req: ListRevocableClients,
     revocable_clients: &RwLock<RevocableClients>,
-) -> RevocableClients {
-    let locked_revocable_clients = revocable_clients.read().unwrap();
-    if req.valid_only {
-        let clients = locked_revocable_clients
-            .iter_valid()
-            .map(|(k, v)| (*k, v.clone()))
-            .collect();
-        RevocableClients { clients }
-    } else {
-        locked_revocable_clients.clone()
-    }
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
+) -> ListRevocableClientsResponse
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
+{
+    let RevocableClients { clients } = {
+        let locked_revocable_clients = revocable_clients.read().unwrap();
+        if req.valid_only {
+            let clients = locked_revocable_clients
+                .iter_valid()
+                .map(|(k, v)| (*k, v.clone()))
+                .collect();
+            RevocableClients { clients }
+        } else {
+            locked_revocable_clients.clone()
+        }
+    };
+
+    // Pair each client with its budget. If somehow we find a client without
+    // a budget, skip it rather than failing the whole list.
+    let mut budget_infos = payments_manager.budget_infos().await;
+    let clients = clients
+        .into_iter()
+        .filter_map(|(pk, client)| {
+            let client_pk = ClientPk::Revocable(pk);
+            let Some(budget) = budget_infos.remove(&client_pk) else {
+                error!("Skipping client {client_pk}, which has no budget");
+                return None;
+            };
+            Some((pk, RevocableClientWithBudget { client, budget }))
+        })
+        .collect();
+
+    ListRevocableClientsResponse { clients }
 }
 
 #[instrument(skip_all, name = "(create-revocable-client)")]
@@ -2604,9 +2646,17 @@ where
 
     // Create the budget before adding the client, so that an invalid budget
     // leaves the clients untouched.
-    let budget_policy = None;
-    let budget = Budget::new(budget_policy, default_fiat_currency)
+    let fiat_currency = match req.budget.currency {
+        Some(BudgetCurrency::Fiat(currency)) => currency,
+        _ => default_fiat_currency,
+    };
+    let current_policy = None;
+    let policy = req
+        .budget
+        .policy(current_policy, now)
         .map_err(CommonApiError::general)?;
+    let budget =
+        Budget::new(policy, fiat_currency).map_err(CommonApiError::general)?;
     // Reject a fiat currency we publish no BTC rate for.
     // TODO(nicole): Hardcode the supported currencies client-side (and in CLI
     // flags), so an unsupported currency is rejected before reaching the node.
@@ -2654,16 +2704,17 @@ where
     // 2. A concurrent create or update persists the clients file, which
     //    includes the new client.
     // 3. This persist fails.
-    // This create then returns an error, so nobody holds the client's
-    // credentials. Only the client's own payments need its budget, so no
-    // endpoint breaks, and the client just takes up a slot until it expires,
-    // if ever. This is rare and its impact limited, so we leave it for now.
-    // Holding a `tokio::sync::Mutex<()>` across each client write would fix
-    // it (see the NOTE in `update_revocable_client`).
+    // This create then returns an error, so the user doesn't know about the
+    // client, and `list_revocable_clients` skips it, keeping it that way. Only
+    // the client's own payments need its budget otherwise, so no endpoint
+    // breaks, and the client just takes up a slot until it expires, if ever.
+    // This is rare and its impact limited, so we leave it for now. Holding a
+    // `tokio::sync::Mutex<()>` across each client write would fix it (see the
+    // NOTE in `update_revocable_client`).
     let client_pk = ClientPk::Revocable(pubkey);
     let upserts = vec![clients_file];
     let deletions = evicted.into_iter().map(ClientPk::Revocable).collect();
-    payments_manager
+    let budget = payments_manager
         .persist_new_budget(client_pk, budget, upserts, deletions)
         .await
         .inspect_err(|_| {
@@ -2679,6 +2730,7 @@ where
         pubkey,
         created_at: now,
         effective_permissions,
+        budget,
         eph_ca_cert_der: eph_ca_cert_der.0,
         rev_client_cert_der: rev_client_cert_der.0,
         rev_client_cert_key_der: rev_client_cert_key_der.0,
@@ -2731,12 +2783,18 @@ fn maybe_evict_revoked_clients(
 
 /// Update an existing [`RevocableClient`] (revoke, set expiration, etc...).
 #[instrument(skip_all, name = "(update-revocable-client)")]
-pub async fn update_revocable_client(
+pub async fn update_revocable_client<CM, PS, FRA>(
     authz: &VerifiedClientAuthorization,
     persister: &impl LexePersister,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     revocable_clients: &RevocableClientsHandle,
-    req: UpdateClientRequest,
-) -> Result<UpdateClientResponse, CommonApiError> {
+    req: UpdateClientWithBudgetRequest,
+) -> Result<UpdateClientResponse, CommonApiError>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
+{
     // TODO(max): Implement budget attenuation: If the credential calling this
     // endpoint has a budget, it cannot create another client with no budget.
     // Furthermore, any budget assigned to the new credential must match the
@@ -2749,13 +2807,29 @@ pub async fn update_revocable_client(
     // Probably easiest to just disallow credentials with budgets from creating
     // or updating other credentials until someone has a need for this.
 
-    let (updated_file, response) = {
+    let UpdateClientWithBudgetRequest {
+        client: client_update,
+        budget: budget_update,
+    } = req;
+
+    // Validate the budget update before updating the client, so that an
+    // invalid budget update leaves the client untouched.
+    let client_pk = ClientPk::Revocable(client_update.pubkey);
+    let budget_has_update = !budget_update.is_noop();
+    if budget_has_update {
+        payments_manager
+            .check_reconfigure_budget(&client_pk, budget_update.clone())
+            .await
+            .map_err(CommonApiError::general)?;
+    }
+
+    let (clients_file, updated_client) = {
         let mut revocable_clients = revocable_clients.0.write().unwrap();
 
-        authz.require_update_covered(&req, &revocable_clients)?;
+        authz.require_update_covered(&client_update, &revocable_clients)?;
 
         // Get the client
-        let pubkey = req.pubkey;
+        let pubkey = client_update.pubkey;
         let client =
             revocable_clients.clients.get_mut(&pubkey).ok_or_else(|| {
                 CommonApiError::general(format!(
@@ -2764,20 +2838,18 @@ pub async fn update_revocable_client(
             })?;
 
         // Update
-        let updated_client =
-            client.update(req).map_err(CommonApiError::general)?;
+        let updated_client = client
+            .update(client_update)
+            .map_err(CommonApiError::general)?;
         *client = updated_client.clone();
-        let response = UpdateClientResponse {
-            client: updated_client,
-        };
 
         // Generate the new file
-        let updated_file = persister.encrypt_json::<RevocableClients>(
+        let clients_file = persister.encrypt_json::<RevocableClients>(
             RevocableClients::VFS_FILE_ID.clone(),
             &revocable_clients,
         );
 
-        (updated_file, response)
+        (clients_file, updated_client)
     };
 
     // NOTE: If persist fails, the persisted state will be out of sync until the
@@ -2788,14 +2860,33 @@ pub async fn update_revocable_client(
     // sufficient to enforce the server's client policies, this is probably OK.
     // Using `Arc<tokio::sync::RwLock<Arc<RwLock<RevocableClients>>>>` or
     // similar doesn't seem worth the minimal consistency benefit.
-    let retries = Retries::from_count(0);
-    persister
-        .persist_file(updated_file, retries)
-        .await
-        .context("Failed to persisted updated RevocableClients")
-        .map_err(CommonApiError::general)?;
+    let budget = if budget_has_update {
+        // Persist the client atomically with its reconfigured budget.
+        let upserts = vec![clients_file];
+        payments_manager
+            .reconfigure_budget(client_pk, budget_update, upserts)
+            .await
+            .context("Failed to persist the client and its budget")
+            .map_err(CommonApiError::general)?
+    } else {
+        let retries = Retries::from_count(0);
+        persister
+            .persist_file(clients_file, retries)
+            .await
+            .context("Failed to persist updated RevocableClients")
+            .map_err(CommonApiError::general)?;
+        payments_manager
+            .budget_info(&client_pk)
+            .await
+            .map_err(CommonApiError::general)?
+    };
 
-    Ok(response)
+    Ok(UpdateClientResponse {
+        client: RevocableClientWithBudget {
+            client: updated_client,
+            budget,
+        },
+    })
 }
 
 #[cfg(test)]

@@ -9,6 +9,7 @@ use std::{
 use anyhow::{Context, ensure};
 use bitcoin::address::NetworkUnchecked;
 use lexe_api::{
+    budget::models::BudgetParams,
     models::command,
     revocable_clients,
     revocable_clients::scopes::{self, ClientPermissions},
@@ -1205,6 +1206,8 @@ impl From<revocable_clients::models::GetClientInfoResponse>
             label,
             permissions,
             effective_permissions,
+            // TODO(nicole): wire budgets through the SDK
+            budget: _,
         } = value;
         let ClientPermissions {
             scopes,
@@ -1285,8 +1288,12 @@ pub struct ClientInfo {
     pub effective_permissions: Vec<String>,
 }
 
-impl From<revocable_clients::RevocableClient> for ClientInfo {
-    fn from(value: revocable_clients::RevocableClient) -> Self {
+impl From<revocable_clients::models::RevocableClientWithBudget> for ClientInfo {
+    fn from(
+        value: revocable_clients::models::RevocableClientWithBudget,
+    ) -> Self {
+        // TODO(nicole): surface the budget in `ClientInfo`
+        let value = value.client;
         let effective_permissions = value
             .permissions
             .resolve()
@@ -1374,6 +1381,8 @@ impl TryFrom<CreateClientRequest>
         Ok(Self {
             expires_at: req.expires_at,
             label: req.label,
+            // TODO(nicole): wire budgets through the SDK
+            budget: BudgetParams::UNLIMITED,
             permissions: ClientPermissions {
                 scopes,
                 permissions,

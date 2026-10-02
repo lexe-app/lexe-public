@@ -107,13 +107,11 @@ use crate::{
             UserLeaseRenewalRequest,
         },
     },
-    revocable_clients::{
-        RevocableClients,
-        models::{
-            CreateRevocableClientRequest, CreateRevocableClientResponse,
-            GetClientInfoResponse, ListRevocableClients, UpdateClientRequest,
-            UpdateClientResponse,
-        },
+    revocable_clients::models::{
+        CreateRevocableClientRequest, CreateRevocableClientResponse,
+        GetClientInfoResponse, ListRevocableClients,
+        ListRevocableClientsResponse, UpdateClientResponse,
+        UpdateClientWithBudgetRequest,
     },
     types::{
         Empty,
@@ -483,12 +481,13 @@ pub trait UserNodeRunApi {
 
     /// Lists all revocable clients.
     ///
-    /// GET /user/v1/clients [`ListRevocableClients`] -> [`RevocableClients`]
+    /// GET /user/v1/clients [`ListRevocableClients`]
+    ///                   -> [`ListRevocableClientsResponse`]
     // Added in `node-0.7.9`
     async fn list_revocable_clients(
         &self,
         req: ListRevocableClients,
-    ) -> Result<RevocableClients, NodeApiError>;
+    ) -> Result<ListRevocableClientsResponse, NodeApiError>;
 
     /// Creates a new revocable client. Returns the newly issued client cert.
     ///
@@ -502,11 +501,12 @@ pub trait UserNodeRunApi {
 
     /// Updates this revocable client. Returns the updated client.
     ///
-    /// PUT /user/v1/clients [`UpdateClientRequest`] -> [`UpdateClientResponse`]
+    /// PUT /user/v1/clients [`UpdateClientWithBudgetRequest`]
+    ///                   -> [`UpdateClientResponse`]
     // Added in `node-0.7.9`
     async fn update_revocable_client(
         &self,
-        req: UpdateClientRequest,
+        req: UpdateClientWithBudgetRequest,
     ) -> Result<UpdateClientResponse, NodeApiError>;
 
     /// List all broadcasted transactions.

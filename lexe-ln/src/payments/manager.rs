@@ -11,6 +11,7 @@ use either::Either;
 use lexe_api::{
     budget::{
         Budget, BudgetPaymentStatus, ClientBudgets, ClientPk, PersistedBudget,
+        models::{BudgetInfo, UpdateBudgetParams},
     },
     def::FiatRatesBackendApi,
     models::command::{GetFiatRatesRequest, UpdatePersonalNote},
@@ -862,6 +863,90 @@ where
 
     // --- Client budgets --- //
 
+    /// Every stored client budget, as of now. [`None`] means no spending
+    /// limit.
+    pub async fn budget_infos(&self) -> HashMap<ClientPk, Option<BudgetInfo>> {
+        let now = TimestampMs::now();
+        self.data
+            .lock()
+            .await
+            .budgets
+            .iter()
+            .map(|(client_pk, budget)| (*client_pk, budget.info(now)))
+            .collect()
+    }
+
+    /// A client's budget, as of now. [`None`] means no spending limit.
+    pub async fn budget_info(
+        &self,
+        client_pk: &ClientPk,
+    ) -> anyhow::Result<Option<BudgetInfo>> {
+        let locked_data = self.data.lock().await;
+        let budget = locked_data
+            .budgets
+            .get(client_pk)
+            .with_context(|| format!("No budget for client {client_pk}"))?;
+        Ok(budget.info(TimestampMs::now()))
+    }
+
+    /// Check that [`Self::reconfigure_budget`] would accept `update`, without
+    /// reconfiguring the budget.
+    pub async fn check_reconfigure_budget(
+        &self,
+        client_pk: &ClientPk,
+        update: UpdateBudgetParams,
+    ) -> anyhow::Result<()> {
+        let locked_data = self.data.lock().await;
+        let current = locked_data
+            .budgets
+            .get(client_pk)
+            .with_context(|| format!("No budget for client {client_pk}"))?;
+        let policy = current.policy();
+        let fiat_currency = current.fiat_currency();
+        update.apply(policy.as_ref(), fiat_currency, TimestampMs::now())?;
+        Ok(())
+    }
+
+    /// Apply `update` to a client's budget, persisting it atomically with
+    /// `upserts`.
+    pub async fn reconfigure_budget(
+        &self,
+        client_pk: ClientPk,
+        update: UpdateBudgetParams,
+        mut upserts: Vec<VfsFile>,
+    ) -> anyhow::Result<Option<BudgetInfo>> {
+        let mut locked_data = self.data.lock().await;
+        let current = locked_data
+            .budgets
+            .get(&client_pk)
+            .with_context(|| format!("No budget for client {client_pk}"))?;
+        let now = TimestampMs::now();
+        let policy = current.policy();
+        let fiat_currency = current.fiat_currency();
+        let new_policy = update.apply(policy.as_ref(), fiat_currency, now)?;
+        let mut budget = current.clone();
+        budget.reconfigure(new_policy)?;
+        let info = budget.info(now);
+
+        upserts.push(ClientBudgets::encrypt(
+            &*self.persister,
+            client_pk,
+            &budget,
+        ));
+        let req = UpsertOrDeleteFileBatchRequest {
+            upserts,
+            deletes: Vec::new(),
+        };
+        self.persister
+            .upsert_or_delete_file_batch(req)
+            .await
+            .context("Could not persist budget")?;
+        locked_data
+            .budgets
+            .commit(PersistedBudget { budget, client_pk });
+        Ok(info)
+    }
+
     /// Persist a new client's budget and delete the budgets of the clients in
     /// `deletions`, atomically with `upserts`.
     pub async fn persist_new_budget(
@@ -870,7 +955,9 @@ where
         budget: Budget,
         mut upserts: Vec<VfsFile>,
         deletions: Vec<ClientPk>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<BudgetInfo>> {
+        let info = budget.info(TimestampMs::now());
+
         let mut locked_data = self.data.lock().await;
         upserts.push(ClientBudgets::encrypt(
             &*self.persister,
@@ -890,7 +977,7 @@ where
         for client_pk in &deletions {
             locked_data.budgets.commit_removal(client_pk);
         }
-        Ok(())
+        Ok(info)
     }
 
     /// Check whether a new payment costing `total`, its amount plus fees,
