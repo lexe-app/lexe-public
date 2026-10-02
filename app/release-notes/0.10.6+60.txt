@@ -1,0 +1,4 @@
+- New: export your on-chain wallet descriptors (with QR code) from Node Info to track your balance in watch-only wallets and accounting tools
+- Lightning payments now cap routing fees at 100 sats + 1%
+- Fixed rare overpayment when retrying a Lightning payment
+- Now requires iOS 15 or later, up from iOS 13
