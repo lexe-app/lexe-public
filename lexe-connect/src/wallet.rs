@@ -15,6 +15,17 @@ use crate::{
     seal::SealError,
 };
 
+/// Receiving domains whose REQUESTERs Lexe has verified out of band, so the
+/// approval screen may show their `requester_name` and `requester_icon`.
+/// Subdomains are included.
+//
+// TODO(max): In the future, we could have a more automated process where
+// REQUESTERs register directly with Lexe. This list could then be fetched from
+// Lexe's infra, and fall back to a hard-coded list (or nothing) if that fails.
+//
+// Spec: User Approval.
+pub const VERIFIED_REQUESTERS: &[&str] = &["zaprite.com", "zaptrain.com"];
+
 #[cfg(feature = "crypto")]
 #[derive(Debug, thiserror::Error)]
 pub enum RespondError {
@@ -34,6 +45,14 @@ pub enum RequesterDisplay {
     /// No receiving domain is known. `scheme_host` is the `redirect_uri`'s
     /// scheme and host, e.g. `myprotocol://`; `None` for mailbox delivery.
     Unverified { scheme_host: Option<String> },
+}
+
+/// A verified REQUESTER's own name and icon.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RequesterBranding {
+    pub name: String,
+    /// An `https://` image url.
+    pub icon_url: Option<String>,
 }
 
 /// The user's decision on a request.
@@ -101,6 +120,32 @@ impl CredentialRequest {
                 }),
             },
         }
+    }
+
+    /// The REQUESTER's `requester_name` and `requester_icon`, if its
+    /// receiving domain is in [`VERIFIED_REQUESTERS`].
+    /// A non-`https://` icon is dropped.
+    pub fn requester_branding(&self) -> Option<RequesterBranding> {
+        let RequesterDisplay::Verified { domain } = self.requester_display()
+        else {
+            return None;
+        };
+        let verified = VERIFIED_REQUESTERS.iter().any(|verified_domain| {
+            domain == *verified_domain
+                || domain
+                    .strip_suffix(verified_domain)
+                    .is_some_and(|prefix| prefix.ends_with('.'))
+        });
+        if !verified {
+            return None;
+        }
+        let name = self.params.requester_name.clone()?;
+        let icon_url = self
+            .params
+            .requester_icon
+            .clone()
+            .filter(|url| Uri::parse(url).is_ok_and(|uri| uri.is_https()));
+        Some(RequesterBranding { name, icon_url })
     }
 
     /// Build the response for `outcome` and package it for delivery.
@@ -196,6 +241,8 @@ mod test {
                 delivery,
                 account: None,
                 metadata: None,
+                requester_name: None,
+                requester_icon: None,
                 scopes: ["read_info".to_owned()].into(),
                 permissions: Default::default(),
                 label: None,
@@ -239,6 +286,45 @@ mod test {
             display(Delivery::Mailbox("https://lexe.app/mailbox".into())),
             unverified(None)
         );
+    }
+
+    #[test]
+    fn requester_branding() {
+        let branded = |delivery: Delivery, icon: &str| {
+            let mut request = request(delivery);
+            request.params.requester_name = Some("Zaprite P2P".into());
+            request.params.requester_icon = Some(icon.into());
+            request.requester_branding()
+        };
+        let zaprite = || Delivery::Redirect("https://zaprite.com/cb".into());
+        let icon = "https://zaprite.com/icon.png";
+        let branding = Some(RequesterBranding {
+            name: "Zaprite P2P".into(),
+            icon_url: Some(icon.into()),
+        });
+
+        assert_eq!(branded(zaprite(), icon), branding);
+        // Subdomains of a listed domain are verified too.
+        let p2p_zaprite =
+            Delivery::Redirect("https://p2p.zaprite.com/cb".into());
+        assert_eq!(branded(p2p_zaprite, icon), branding);
+        // Insecure icons are dropped, not the whole branding.
+        assert_eq!(
+            branded(zaprite(), "http://zaprite.com/icon.png")
+                .and_then(|b| b.icon_url),
+            None
+        );
+        // Unlisted and unverified domains get no branding.
+        for delivery in [
+            Delivery::Redirect("https://evil.com/cb".into()),
+            Delivery::Redirect("https://notzaprite.com/cb".into()),
+            Delivery::Redirect("zaprite://cb".into()),
+            Delivery::Mailbox("https://zaprite.com/mailbox".into()),
+        ] {
+            assert_eq!(branded(delivery, icon), None);
+        }
+        // No name, no branding.
+        assert_eq!(request(zaprite()).requester_branding(), None);
     }
 
     /// `respond` validates, so an unparsed request can't reach the `expect`s.

@@ -47,6 +47,8 @@ fn params(delivery: Delivery) -> CredentialRequestParams {
         delivery,
         account: Some("@janedoe".into()),
         metadata: Some("order-42".into()),
+        requester_name: None,
+        requester_icon: None,
         scopes: ["read_info", "receive"].map(String::from).into(),
         permissions: BTreeSet::new(),
         label: Some("BillSplit".into()),

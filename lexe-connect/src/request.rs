@@ -48,6 +48,11 @@ pub struct CredentialRequestParams {
     pub account: Option<String>,
     /// Echoed back verbatim in the response.
     pub metadata: Option<String>,
+    /// The REQUESTER's own name, shown only for a verified REQUESTER; see
+    /// [`CredentialRequest::requester_branding`].
+    pub requester_name: Option<String>,
+    /// The REQUESTER's icon url, likewise.
+    pub requester_icon: Option<String>,
     /// Granted exactly as requested, or the request is rejected. Scope and
     /// permission names are opaque here; the WALLET validates them when it
     /// creates the credential.
@@ -171,6 +176,8 @@ impl CredentialRequest {
         let mut one_time_secret = None;
         let mut account = None;
         let mut metadata = None;
+        let mut requester_name = None;
+        let mut requester_icon = None;
         let mut scopes = BTreeSet::new();
         let mut permissions = BTreeSet::new();
         let mut label = None;
@@ -193,6 +200,8 @@ impl CredentialRequest {
                         Some(parse_param("one_time_secret", &value)?),
                 "account" => account = Some(value.into_owned()),
                 "metadata" => metadata = Some(value.into_owned()),
+                "requester_name" => requester_name = Some(value.into_owned()),
+                "requester_icon" => requester_icon = Some(value.into_owned()),
                 "scopes" => scopes = parse_list(&value),
                 "permissions" => permissions = parse_list(&value),
                 "label" => label = Some(value.into_owned()),
@@ -238,6 +247,8 @@ impl CredentialRequest {
                 delivery,
                 account,
                 metadata,
+                requester_name,
+                requester_icon,
                 scopes,
                 permissions,
                 label,
@@ -280,6 +291,12 @@ impl CredentialRequest {
         }
         if let Some(metadata) = &p.metadata {
             uri.push_param("metadata", metadata.as_str());
+        }
+        if let Some(name) = &p.requester_name {
+            uri.push_param("requester_name", name.as_str());
+        }
+        if let Some(icon) = &p.requester_icon {
+            uri.push_param("requester_icon", icon.as_str());
         }
         if let Some(scopes) = scopes {
             uri.push_param("scopes", scopes);
@@ -434,6 +451,10 @@ mod arbitrary_impl {
                 option::of(any_bounded_string(
                     CredentialRequestParams::MAX_METADATA_LEN,
                 )),
+                (
+                    option::of(any_bounded_string(64)),
+                    option::of(any_https_url()),
+                ),
                 any_grant,
                 option::of(any_bounded_string(
                     CredentialRequestParams::MAX_LABEL_LEN,
@@ -447,6 +468,7 @@ mod arbitrary_impl {
                         delivery,
                         account,
                         metadata,
+                        (requester_name, requester_icon),
                         (scopes, permissions),
                         label,
                         expires_at,
@@ -464,6 +486,8 @@ mod arbitrary_impl {
                                 delivery,
                                 account,
                                 metadata,
+                                requester_name,
+                                requester_icon,
                                 scopes,
                                 permissions,
                                 label,
@@ -517,6 +541,8 @@ mod test {
             delivery,
             account: Some("@janedoe".into()),
             metadata: Some("{\"k\":\"v&=+\"}".into()),
+            requester_name: None,
+            requester_icon: None,
             scopes: names(["read_info", "receive"]),
             permissions: names(["cancel_payment"]),
             label: Some("BillSplit App".into()),
