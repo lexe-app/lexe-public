@@ -23,6 +23,8 @@ pub enum RequestError {
     Missing(&'static str),
     #[error("Invalid param {0}: {1}")]
     Invalid(&'static str, String),
+    #[error("Unsupported param: {0}")]
+    Unsupported(String),
 }
 
 /// A credential request, as carried by a connection string.
@@ -196,6 +198,11 @@ impl CredentialRequest {
                 "label" => label = Some(value.into_owned()),
                 "expires_at" =>
                     expires_at = Some(parse_param("expires_at", &value)?),
+                // Budgets are planned. Some budget params are exact, so
+                // dropping them would grant a credential the REQUESTER
+                // didn't ask for.
+                key if key.starts_with("budget_") =>
+                    return Err(RequestError::Unsupported(key.to_owned())),
                 _ => (),
             }
         }
@@ -565,7 +572,7 @@ mod test {
             &ephemeral_hpke_pubkey=4310ee97d88cc1f088a5576c77ab0cf5c3ac797f3d95139c6c84b5429c59662a\
             &one_time_secret=000102030405060708090a0b0c0d0e0f\
             &scopes=read_info,read_payments,receive\
-            &budget_limit=20&future_param=x";
+            &future_param=x";
         let request = CredentialRequest::parse(s).unwrap();
         assert_eq!(
             request.params.scopes,
@@ -615,6 +622,10 @@ mod test {
             parse_err(&ok.replace("&expires_at=", "&expires_at=-")),
             RequestError::Invalid("expires_at", _)
         ));
+        assert_eq!(
+            parse_err(&format!("{ok}&budget_limit=20")),
+            RequestError::Unsupported("budget_limit".into())
+        );
 
         let with = |delivery: Delivery, pubkey: bool| {
             let mut request = sample_request(delivery);
