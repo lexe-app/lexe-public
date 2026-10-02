@@ -546,6 +546,7 @@ class MockAppHandle extends AppHandle {
     () => <RevocableClient>[
       const RevocableClient(
         createdAt: 1777939200000,
+        expiresAt: null,
         label: "bitcoinrouter.ai",
         pubkey:
             "d6f34a82bf64b68a28b2f0934d715271580afebc29a4b37bfd355999705f43ff",
@@ -555,6 +556,7 @@ class MockAppHandle extends AppHandle {
       ),
       const RevocableClient(
         createdAt: 1775952000000,
+        expiresAt: 1807488000000,
         label: null,
         pubkey:
             "90cdb0fa319acd1b5cbf79c027fbadeafbaed593c3b0d81c88e0746fe0dc2016",

@@ -1875,10 +1875,12 @@ impl SseDecode for crate::ffi::api::CreateClientRequest {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
+        let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_scopes =
             <Vec<crate::ffi::types::Scope>>::sse_decode(deserializer);
         return crate::ffi::api::CreateClientRequest {
+            expires_at: var_expiresAt,
             label: var_label,
             scopes: var_scopes,
         };
@@ -3439,6 +3441,7 @@ impl SseDecode for crate::ffi::types::RevocableClient {
     ) -> Self {
         let mut var_pubkey = <String>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
+        let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_scopes =
             <Vec<crate::ffi::types::Scope>>::sse_decode(deserializer);
@@ -3448,6 +3451,7 @@ impl SseDecode for crate::ffi::types::RevocableClient {
         return crate::ffi::types::RevocableClient {
             pubkey: var_pubkey,
             created_at: var_createdAt,
+            expires_at: var_expiresAt,
             label: var_label,
             scopes: var_scopes,
             permissions: var_permissions,
@@ -4196,6 +4200,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::ConfirmationPriority>
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateClientRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.expires_at.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
             self.scopes.into_into_dart().into_dart(),
         ]
@@ -5543,6 +5548,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::RevocableClient {
         [
             self.pubkey.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
+            self.expires_at.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
             self.scopes.into_into_dart().into_dart(),
             self.permissions.into_into_dart().into_dart(),
@@ -6216,6 +6222,7 @@ impl SseEncode for crate::ffi::api::CreateClientRequest {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
+        <Option<i64>>::sse_encode(self.expires_at, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
         <Vec<crate::ffi::types::Scope>>::sse_encode(self.scopes, serializer);
     }
@@ -7561,6 +7568,7 @@ impl SseEncode for crate::ffi::types::RevocableClient {
     ) {
         <String>::sse_encode(self.pubkey, serializer);
         <i64>::sse_encode(self.created_at, serializer);
+        <Option<i64>>::sse_encode(self.expires_at, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
         <Vec<crate::ffi::types::Scope>>::sse_encode(self.scopes, serializer);
         <Vec<String>>::sse_encode(self.permissions, serializer);

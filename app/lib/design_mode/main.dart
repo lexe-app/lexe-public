@@ -1307,7 +1307,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       Component("SdkCreateClientPage", (_) => CreateClientPage(app: mockApp)),
       Component(
         "SdkCreateClientScopesPage",
-        (_) => CreateClientScopesPage(app: mockApp, label: "my-server"),
+        (_) => CreateClientScopesPage(
+          app: mockApp,
+          expiresAtMs: null,
+          label: "my-server",
+        ),
       ),
 
       // --- App Store Screenshots ---

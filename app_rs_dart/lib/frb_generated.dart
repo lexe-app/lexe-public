@@ -4265,11 +4265,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   CreateClientRequest dco_decode_create_client_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return CreateClientRequest(
-      label: dco_decode_opt_String(arr[0]),
-      scopes: dco_decode_list_scope(arr[1]),
+      expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[0]),
+      label: dco_decode_opt_String(arr[1]),
+      scopes: dco_decode_list_scope(arr[2]),
     );
   }
 
@@ -5261,15 +5262,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RevocableClient dco_decode_revocable_client(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return RevocableClient(
       pubkey: dco_decode_String(arr[0]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[1]),
-      label: dco_decode_opt_String(arr[2]),
-      scopes: dco_decode_list_scope(arr[3]),
-      permissions: dco_decode_list_String(arr[4]),
-      effectivePermissions: dco_decode_list_String(arr[5]),
+      expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[2]),
+      label: dco_decode_opt_String(arr[3]),
+      scopes: dco_decode_list_scope(arr[4]),
+      permissions: dco_decode_list_String(arr[5]),
+      effectivePermissions: dco_decode_list_String(arr[6]),
     );
   }
 
@@ -6201,9 +6203,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
     var var_scopes = sse_decode_list_scope(deserializer);
-    return CreateClientRequest(label: var_label, scopes: var_scopes);
+    return CreateClientRequest(
+      expiresAt: var_expiresAt,
+      label: var_label,
+      scopes: var_scopes,
+    );
   }
 
   @protected
@@ -7462,6 +7469,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_pubkey = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_CastedPrimitive_i_64(deserializer);
+    var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
     var var_scopes = sse_decode_list_scope(deserializer);
     var var_permissions = sse_decode_list_String(deserializer);
@@ -7469,6 +7477,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return RevocableClient(
       pubkey: var_pubkey,
       createdAt: var_createdAt,
+      expiresAt: var_expiresAt,
       label: var_label,
       scopes: var_scopes,
       permissions: var_permissions,
@@ -8437,6 +8446,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_String(self.label, serializer);
     sse_encode_list_scope(self.scopes, serializer);
   }
@@ -9490,6 +9500,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.pubkey, serializer);
     sse_encode_CastedPrimitive_i_64(self.createdAt, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_String(self.label, serializer);
     sse_encode_list_scope(self.scopes, serializer);
     sse_encode_list_String(self.permissions, serializer);

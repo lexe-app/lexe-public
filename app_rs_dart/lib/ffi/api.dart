@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_client_payment_id_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -61,6 +61,7 @@ sealed class CloseChannelRequest with _$CloseChannelRequest {
 @freezed
 sealed class CreateClientRequest with _$CreateClientRequest {
   const factory CreateClientRequest({
+    int? expiresAt,
     String? label,
     required List<Scope> scopes,
   }) = _CreateClientRequest;

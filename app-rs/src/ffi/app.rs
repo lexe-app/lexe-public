@@ -2,7 +2,7 @@ use anyhow::Context;
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     types::{
-        auth::{Scope as ScopeRs, UserPk},
+        auth::UserPk,
         command::{
             CancelPaymentRequest as CancelPaymentRequestRs,
             CashAppBuyRequest as CashAppBuyRequestRs,
@@ -30,7 +30,7 @@ use lexe_api::{
         payments::{PaymentCreatedIndex as PaymentCreatedIndexRs, PaymentId},
     },
 };
-use lexe_common::{env::DeployEnv, ln::amount::Amount, time::TimestampMs};
+use lexe_common::{env::DeployEnv, ln::amount::Amount};
 use lexe_connect::{
     http::LexeConnectClient,
     request::CredentialRequest,
@@ -588,7 +588,7 @@ impl AppHandle {
         &self,
         req: CreateClientRequest,
     ) -> anyhow::Result<CreateClientResponse> {
-        let req = CreateClientRequestRs::from(req);
+        let req = CreateClientRequestRs::try_from(req)?;
         self.inner
             .wallet()?
             .create_client(req)
@@ -718,21 +718,19 @@ impl AppHandle {
             .iter()
             .map(|s| {
                 Scope::from_string_id(s.clone())
-                    .map(ScopeRs::from)
                     .with_context(|| format!("Unknown scope: {s}"))
             })
             .collect::<anyhow::Result<_>>()?;
-        let expires_at = expires_at
-            .map(TimestampMs::try_from)
-            .transpose()
-            .context("Invalid expiration")?;
-
-        let req = CreateClientRequestRs {
+        let req = CreateClientRequest {
             expires_at,
             label,
             scopes,
-            permissions: params.permissions.iter().cloned().collect(),
         };
+        let req = CreateClientRequestRs {
+            permissions: params.permissions.iter().cloned().collect(),
+            ..CreateClientRequestRs::try_from(req)?
+        };
+        let expires_at = req.expires_at;
         let resp = self.inner.wallet()?.create_client(req).await?;
 
         Ok(Outcome::Approved {

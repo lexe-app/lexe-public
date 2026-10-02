@@ -2615,15 +2615,22 @@ class InfoRow extends StatelessWidget {
   /// Horizontal padding between the row and the card edge.
   final double bodyPadding;
 
+  static const TextStyle labelStyle = TextStyle(
+    color: LxColors.grey550,
+    fontSize: Fonts.size200,
+    height: 1.2,
+  );
+
+  static const TextStyle valueStyle = TextStyle(
+    color: LxColors.fgSecondary,
+    fontSize: Fonts.size200,
+    height: 1.2,
+    fontFeatures: [Fonts.featDisambugation],
+    decorationColor: LxColors.grey500,
+  );
+
   @override
   Widget build(BuildContext context) {
-    const valueStyle = TextStyle(
-      color: LxColors.fgSecondary,
-      fontSize: Fonts.size200,
-      height: 1.2,
-      fontFeatures: [Fonts.featDisambugation],
-      decorationColor: LxColors.grey500,
-    );
     final isMobile = Platform.isAndroid || Platform.isIOS;
 
     // Mobile: we'll make the text copy-on-tap
@@ -2651,14 +2658,7 @@ class InfoRow extends StatelessWidget {
           // Label
           ConstrainedBox(
             constraints: const BoxConstraints.tightFor(width: Space.s925),
-            child: Text(
-              this.label,
-              style: const TextStyle(
-                color: LxColors.grey550,
-                fontSize: Fonts.size200,
-                height: 1.2,
-              ),
-            ),
+            child: Text(this.label, style: labelStyle),
           ),
           const SizedBox(width: Space.s400),
 
@@ -2707,6 +2707,55 @@ class InfoRow extends StatelessWidget {
 
     return maybeCopyOnTapRow;
   }
+}
+
+/// An [InfoRow] with an edit icon, whose value can be any widget.
+class EditableInfoRow extends StatelessWidget {
+  const EditableInfoRow({
+    super.key,
+    required this.label,
+    required this.child,
+    this.onTap,
+    this.bodyPadding = Space.s300,
+  });
+
+  final String label;
+  final Widget child;
+  final VoidCallback? onTap;
+
+  /// Horizontal padding between the row and the card edge.
+  final double bodyPadding;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: this.onTap,
+    child: Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: this.bodyPadding,
+        vertical: Space.s300 / 2,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: Space.s925,
+            child: Text(this.label, style: InfoRow.labelStyle),
+          ),
+          const SizedBox(width: Space.s400),
+          Expanded(
+            child: DefaultTextStyle.merge(
+              style: InfoRow.valueStyle,
+              child: this.child,
+            ),
+          ),
+          const Icon(
+            LxIcons.edit,
+            size: Fonts.size300,
+            color: LxColors.grey650,
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class MultiTapDetector extends StatefulWidget {

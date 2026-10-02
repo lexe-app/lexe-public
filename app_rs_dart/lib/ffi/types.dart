@@ -633,6 +633,9 @@ sealed class RequesterDisplay with _$RequesterDisplay {
 class RevocableClient {
   final String pubkey;
   final int createdAt;
+
+  /// In ms since the UNIX epoch. [`None`] never expires.
+  final int? expiresAt;
   final String? label;
 
   /// The scope aliases granted to this client.
@@ -649,6 +652,7 @@ class RevocableClient {
   const RevocableClient({
     required this.pubkey,
     required this.createdAt,
+    this.expiresAt,
     this.label,
     required this.scopes,
     required this.permissions,
@@ -659,6 +663,7 @@ class RevocableClient {
   int get hashCode =>
       pubkey.hashCode ^
       createdAt.hashCode ^
+      expiresAt.hashCode ^
       label.hashCode ^
       scopes.hashCode ^
       permissions.hashCode ^
@@ -671,6 +676,7 @@ class RevocableClient {
           runtimeType == other.runtimeType &&
           pubkey == other.pubkey &&
           createdAt == other.createdAt &&
+          expiresAt == other.expiresAt &&
           label == other.label &&
           scopes == other.scopes &&
           permissions == other.permissions &&

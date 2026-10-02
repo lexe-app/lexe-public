@@ -10,6 +10,7 @@ import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
+        EditableInfoRow,
         ErrorMessage,
         ErrorMessageSection,
         HeadingText,
@@ -20,14 +21,16 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         LxRefreshButton,
         ScrollableSinglePageBody,
+        SheetDragHandle,
         SliverPullToRefresh,
         SubheadingText,
         baseInputDecoration,
         showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/date_time_ext.dart';
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/clients.dart' show ClientsService;
-import 'package:lexeapp/style.dart' show Fonts, LxIcons, Space;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// This page lets users add, edit, and revoke client credentials.
 class ClientsPage extends StatefulWidget {
@@ -213,18 +216,18 @@ class ClientListEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = this.client;
     final label = client.label;
-    final createdAtUtc = DateTime.fromMillisecondsSinceEpoch(
-      client.createdAt,
-      isUtc: true,
+    String formatFull(int ms) => date_format.formatDateFull(
+      DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true),
     );
-    final createdAt = date_format.formatDateFull(createdAtUtc);
+    final expiresAtMs = client.expiresAt;
 
     final subtitleLines = [
       if (client.scopes.isNotEmpty)
         "scopes: ${client.scopes.map((scope) => scope.toStringId()).join(" ")}",
       if (client.permissions.isNotEmpty)
         "permissions: ${client.permissions.join(" ")}",
-      "created: $createdAt",
+      "created: ${formatFull(client.createdAt)}",
+      if (expiresAtMs != null) "expires: ${formatFull(expiresAtMs)}",
       "public key: ${client.pubkey.substring(0, 12)}…",
     ];
     return ListTile(
@@ -250,7 +253,8 @@ class ClientListEntry extends StatelessWidget {
   }
 }
 
-/// Create-client flow, page 1: collect an optional label for the new client.
+/// Create-client flow, page 1: collect an optional label and expiration for
+/// the new client.
 class CreateClientPage extends StatefulWidget {
   const CreateClientPage({super.key, required this.app});
 
@@ -263,6 +267,18 @@ class CreateClientPage extends StatefulWidget {
 class _CreateClientPageState extends State<CreateClientPage> {
   final GlobalKey<FormFieldState<String>> labelFieldKey = GlobalKey();
 
+  /// In ms since the UNIX epoch, or null to never expire. Defaults to one
+  /// year out.
+  final ValueNotifier<int?> expiresAtMs = ValueNotifier(
+    DateTime.now().addMonths(12).millisecondsSinceEpoch,
+  );
+
+  @override
+  void dispose() {
+    this.expiresAtMs.dispose();
+    super.dispose();
+  }
+
   Future<void> onNext() async {
     final labelField = this.labelFieldKey.currentState!;
     if (!labelField.validate()) return;
@@ -273,6 +289,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
           MaterialPageRoute(
             builder: (context) => CreateClientScopesPage(
               app: this.widget.app,
+              expiresAtMs: this.expiresAtMs.value,
               label: (label != null && label.isNotEmpty) ? label : null,
             ),
           ),
@@ -319,6 +336,18 @@ class _CreateClientPageState extends State<CreateClientPage> {
               height: 1.3,
             ),
           ),
+          const SizedBox(height: Space.s400),
+
+          // Expiration
+          InfoCard(
+            bodyPadding: Space.s400,
+            children: [
+              ExpirationRow(
+                expiresAtMs: this.expiresAtMs,
+                bodyPadding: Space.s400,
+              ),
+            ],
+          ),
         ],
         // Next button
         bottom: Padding(
@@ -340,10 +369,15 @@ class CreateClientScopesPage extends StatefulWidget {
   const CreateClientScopesPage({
     super.key,
     required this.app,
+    required this.expiresAtMs,
     required this.label,
   });
 
   final AppHandle app;
+
+  /// In ms since the UNIX epoch, or null to never expire.
+  final int? expiresAtMs;
+
   final String? label;
 
   @override
@@ -381,6 +415,7 @@ class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
     this.isPending.value = true;
 
     final req = CreateClientRequest(
+      expiresAt: this.widget.expiresAtMs,
       label: this.widget.label,
       scopes: this.scopePicker.scopesList(),
     );
@@ -713,3 +748,244 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
     );
   }
 }
+
+/// An [EditableInfoRow] that picks a credential's expiration.
+class ExpirationRow extends StatelessWidget {
+  const ExpirationRow({
+    super.key,
+    required this.expiresAtMs,
+    this.requestedMs,
+    this.enabled = true,
+    this.bodyPadding = Space.s300,
+  });
+
+  /// In ms since the UNIX epoch, or null to never expire.
+  final ValueNotifier<int?> expiresAtMs;
+
+  /// An expiration requested by a third party, if any.
+  final int? requestedMs;
+
+  final bool enabled;
+
+  /// See [EditableInfoRow.bodyPadding].
+  final double bodyPadding;
+
+  Future<void> onTap(BuildContext context) async {
+    final choice = await ExpirationChoiceSheet.show(
+      context: context,
+      requestedMs: this.requestedMs,
+      currentMs: this.expiresAtMs.value,
+    );
+    if (!context.mounted || choice == null) return;
+    this.expiresAtMs.value = choice.expiresAtMs;
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: this.expiresAtMs,
+    builder: (context, expiresAtMs, _) => EditableInfoRow(
+      label: "Expires",
+      onTap: this.enabled ? () => this.onTap(context) : null,
+      bodyPadding: this.bodyPadding,
+      child: Text(formatExpiration(expiresAtMs)),
+    ),
+  );
+}
+
+/// Picks a credential's expiration: the requested time, a preset, a custom
+/// date, or never.
+class ExpirationChoiceSheet extends StatelessWidget {
+  const ExpirationChoiceSheet({
+    super.key,
+    required this.requestedMs,
+    required this.currentMs,
+  });
+
+  /// An expiration requested by a third party, if any.
+  final int? requestedMs;
+
+  /// The currently selected expiration, or null for never.
+  final int? currentMs;
+
+  /// Show the sheet. Returns null if dismissed; otherwise the chosen
+  /// `expiresAtMs`, itself null for never.
+  static Future<({int? expiresAtMs})?> show({
+    required BuildContext context,
+    required int? requestedMs,
+    required int? currentMs,
+  }) => showModalBottomSheet(
+    backgroundColor: LxColors.background,
+    enableDrag: true,
+    isScrollControlled: true,
+    isDismissible: true,
+    context: context,
+    builder: (context) =>
+        ExpirationChoiceSheet(requestedMs: requestedMs, currentMs: currentMs),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final requestedMs = this.requestedMs;
+    final options = <(String, int)>[
+      if (requestedMs != null) ("Requested", requestedMs),
+      ("1 week", now.add(const Duration(days: 7)).millisecondsSinceEpoch),
+      ("1 month", now.addMonths(1).millisecondsSinceEpoch),
+      ("1 year", now.addMonths(12).millisecondsSinceEpoch),
+    ];
+
+    // Presets are relative to now, so match the selection by its display.
+    // Anything else is a custom date.
+    final currentMs = this.currentMs;
+    final currentDisplay = formatExpiration(currentMs);
+    final selected = options.indexWhere(
+      (option) => formatExpiration(option.$2) == currentDisplay,
+    );
+    final int? customDateMs = (selected == -1 && currentMs != null)
+        ? currentMs
+        : null;
+
+    Future<void> onCustomDate() async {
+      final firstDate = DateUtils.dateOnly(now);
+      final lastDate = firstDate.addMonths(12 * 10);
+      final initialDate = DateUtils.dateOnly(
+        (currentMs != null)
+            ? DateTime.fromMillisecondsSinceEpoch(currentMs)
+            : now.addMonths(12),
+      );
+      final picked = await showDatePicker(
+        context: context,
+        // A requested expiration may fall outside the pickable range, which
+        // `showDatePicker` asserts against.
+        initialDate:
+            (initialDate.isBefore(firstDate) || initialDate.isAfter(lastDate))
+            ? null
+            : initialDate,
+        firstDate: firstDate,
+        lastDate: lastDate,
+      );
+      if (!context.mounted || picked == null) return;
+      // Expire at the end of the picked day.
+      final endOfDay = DateTime(
+        picked.year,
+        picked.month,
+        picked.day + 1,
+      ).subtract(const Duration(seconds: 1));
+      Navigator.of(context).pop((expiresAtMs: endOfDay.millisecondsSinceEpoch));
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: Space.s400,
+        right: Space.s400,
+        bottom: Space.s600,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Center(child: SheetDragHandle()),
+          const SizedBox(height: Space.s400),
+          InfoCard(
+            header: const Text("Expires"),
+            bodyPadding: Space.s400,
+            children: [
+              for (final (index, (title, expiresAtMs)) in options.indexed)
+                ExpirationOptionRow(
+                  title: title,
+                  date: formatExpiration(expiresAtMs),
+                  selected: index == selected,
+                  onTap: () =>
+                      Navigator.of(context).pop((expiresAtMs: expiresAtMs)),
+                ),
+              ExpirationOptionRow(
+                title: "Custom date",
+                date: (customDateMs != null)
+                    ? formatExpiration(customDateMs)
+                    : null,
+                selected: customDateMs != null,
+                onTap: onCustomDate,
+              ),
+              ExpirationOptionRow(
+                title: "Never",
+                date: null,
+                selected: currentMs == null,
+                onTap: () => Navigator.of(context).pop((expiresAtMs: null)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One choice in an [ExpirationChoiceSheet].
+class ExpirationOptionRow extends StatelessWidget {
+  const ExpirationOptionRow({
+    super.key,
+    required this.title,
+    required this.date,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String? date;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = this.date;
+    return InkWell(
+      onTap: this.onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.s400,
+          vertical: Space.s300,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                this.title,
+                style: const TextStyle(
+                  fontSize: Fonts.size300,
+                  color: LxColors.foreground,
+                ),
+              ),
+            ),
+            if (date != null)
+              Text(
+                date,
+                style: const TextStyle(
+                  fontSize: Fonts.size200,
+                  color: LxColors.grey550,
+                ),
+              ),
+            const SizedBox(width: Space.s300),
+            SizedBox.square(
+              dimension: Fonts.size400,
+              child: this.selected
+                  ? const Icon(
+                      LxIcons.confirm,
+                      size: Fonts.size400,
+                      color: LxColors.moneyGoUp,
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Format a credential expiration, in ms since the UNIX epoch, or null for
+/// never.
+String formatExpiration(int? expiresAtMs) => (expiresAtMs != null)
+    ? date_format.formatDateDay(
+        DateTime.fromMillisecondsSinceEpoch(expiresAtMs),
+      )
+    : "Never";

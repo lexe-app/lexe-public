@@ -1188,6 +1188,8 @@ impl Scope {
 pub struct RevocableClient {
     pub pubkey: String,
     pub created_at: i64,
+    /// In ms since the UNIX epoch. [`None`] never expires.
+    pub expires_at: Option<i64>,
     pub label: Option<String>,
     /// The scope aliases granted to this client.
     pub scopes: Vec<Scope>,
@@ -1204,6 +1206,7 @@ impl From<ClientInfoRs> for RevocableClient {
         Self {
             pubkey: value.client_pk.to_string(),
             created_at: value.created_at.to_i64(),
+            expires_at: value.expires_at.map(TimestampMs::to_i64),
             label: value.label,
             scopes: value
                 .scopes

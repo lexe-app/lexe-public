@@ -40,6 +40,11 @@ String formatDateFull(DateTime dateTime) =>
     // Use local timezone for display
     formatDateFullInner(dateTime.toLocal());
 
+/// Format a [DateTime] as a locale-dependent calendar date, e.g.
+/// "Sep 21, 2026".
+String formatDateDay(DateTime dateTime, {String? locale}) =>
+    DateFormat.yMMMd(locale).format(dateTime.toLocal());
+
 /// Use [formatDateFull], not this function.
 ///
 /// This function is used for testing without depending on the test runner's

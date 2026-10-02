@@ -64,6 +64,7 @@ use lexe_common::{
         amount::Amount,
         channel::{ChannelId, UserChannelId as UserChannelIdRs},
     },
+    time::TimestampMs,
 };
 use lexe_crypto::ed25519;
 
@@ -860,18 +861,26 @@ impl TryFrom<CancelPaymentRequest> for CancelPaymentRequestRs {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 #[derive(Clone)]
 pub struct CreateClientRequest {
+    /// In ms since the UNIX epoch. [`None`] never expires.
+    pub expires_at: Option<i64>,
     pub label: Option<String>,
     pub scopes: Vec<Scope>,
 }
 
-impl From<CreateClientRequest> for CreateClientRequestRs {
-    fn from(value: CreateClientRequest) -> Self {
-        Self {
-            expires_at: None,
+impl TryFrom<CreateClientRequest> for CreateClientRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: CreateClientRequest) -> Result<Self, Self::Error> {
+        let expires_at = value
+            .expires_at
+            .map(TimestampMs::try_from)
+            .transpose()
+            .context("Invalid expiration")?;
+        Ok(Self {
+            expires_at,
             label: value.label,
             scopes: value.scopes.into_iter().map(ScopeRs::from).collect(),
             permissions: Vec::new(),
-        }
+        })
     }
 }
 

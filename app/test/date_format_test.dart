@@ -13,6 +13,16 @@ void main() {
     );
   });
 
+  test("date_format.formatDateDay", () async {
+    await date_format.initializeDateLocaleData();
+
+    final date = DateTime(2026, 9, 21);
+    expect(date_format.formatDateDay(date, locale: "en_US"), "Sep 21, 2026");
+    expect(date_format.formatDateDay(date, locale: "nb"), "21. sep. 2026");
+    expect(date_format.formatDateDay(date, locale: "fr"), "21 sept. 2026");
+    expect(date_format.formatDateDay(date, locale: "ja"), "2026年9月21日");
+  });
+
   test("date_format.formatDate", () async {
     await date_format.initializeDateLocaleData();
 
