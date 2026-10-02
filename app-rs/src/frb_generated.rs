@@ -2891,6 +2891,21 @@ impl SseDecode for Option<crate::ffi::types::PaymentMethod> {
     }
 }
 
+impl SseDecode for Option<crate::ffi::types::RequesterBranding> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::RequesterBranding>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ffi::types::RootSeed> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -3407,6 +3422,20 @@ impl SseDecode for crate::ffi::types::PaymentStatus {
     }
 }
 
+impl SseDecode for crate::ffi::types::RequesterBranding {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_iconUrl = <Option<String>>::sse_decode(deserializer);
+        return crate::ffi::types::RequesterBranding {
+            name: var_name,
+            icon_url: var_iconUrl,
+        };
+    }
+}
+
 impl SseDecode for crate::ffi::types::RequesterDisplay {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -3416,8 +3445,13 @@ impl SseDecode for crate::ffi::types::RequesterDisplay {
         match tag_ {
             0 => {
                 let mut var_domain = <String>::sse_decode(deserializer);
+                let mut var_branding =
+                    <Option<crate::ffi::types::RequesterBranding>>::sse_decode(
+                        deserializer,
+                    );
                 return crate::ffi::types::RequesterDisplay::Verified {
                     domain: var_domain,
+                    branding: var_branding,
                 };
             }
             1 => {
@@ -5517,11 +5551,39 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::PaymentStatus>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::RequesterBranding {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.icon_url.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::RequesterBranding
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::RequesterBranding>
+    for crate::ffi::types::RequesterBranding
+{
+    fn into_into_dart(self) -> crate::ffi::types::RequesterBranding {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::RequesterDisplay {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::ffi::types::RequesterDisplay::Verified { domain } =>
-                [0.into_dart(), domain.into_into_dart().into_dart()].into_dart(),
+            crate::ffi::types::RequesterDisplay::Verified {
+                domain,
+                branding,
+            } => [
+                0.into_dart(),
+                domain.into_into_dart().into_dart(),
+                branding.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::ffi::types::RequesterDisplay::Unverified { scheme_host } =>
                 [1.into_dart(), scheme_host.into_into_dart().into_dart()]
                     .into_dart(),
@@ -7080,6 +7142,21 @@ impl SseEncode for Option<crate::ffi::types::PaymentMethod> {
     }
 }
 
+impl SseEncode for Option<crate::ffi::types::RequesterBranding> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::RequesterBranding>::sse_encode(
+                value, serializer,
+            );
+        }
+    }
+}
+
 impl SseEncode for Option<crate::ffi::types::RootSeed> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -7538,6 +7615,17 @@ impl SseEncode for crate::ffi::types::PaymentStatus {
     }
 }
 
+impl SseEncode for crate::ffi::types::RequesterBranding {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.name, serializer);
+        <Option<String>>::sse_encode(self.icon_url, serializer);
+    }
+}
+
 impl SseEncode for crate::ffi::types::RequesterDisplay {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -7545,9 +7633,15 @@ impl SseEncode for crate::ffi::types::RequesterDisplay {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         match self {
-            crate::ffi::types::RequesterDisplay::Verified { domain } => {
+            crate::ffi::types::RequesterDisplay::Verified {
+                domain,
+                branding,
+            } => {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(domain, serializer);
+                <Option<crate::ffi::types::RequesterBranding>>::sse_encode(
+                    branding, serializer,
+                );
             }
             crate::ffi::types::RequesterDisplay::Unverified { scheme_host } => {
                 <i32>::sse_encode(1, serializer);

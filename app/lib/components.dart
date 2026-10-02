@@ -696,14 +696,19 @@ class StackedButton extends StatelessWidget {
 
 /// Heading/title text that sits directly beneath the AppBar.
 class HeadingText extends StatelessWidget {
-  const HeadingText({super.key, required this.text});
+  const HeadingText({
+    super.key,
+    required this.text,
+    this.padding = const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
+  });
 
   final String text;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
+      padding: this.padding,
       child: Text(
         this.text,
         style: const TextStyle(

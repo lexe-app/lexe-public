@@ -1318,21 +1318,29 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       ),
       Component(
         "LexeConnectPage",
-        subtitle: "verified requester",
+        subtitle: "branded, can spend",
         (_) => LexeConnectPage(
           app: mockApp,
-          request: mocks.defaultCredentialRequest,
+          request: mocks.zapriteCredentialRequest,
         ),
         sublist: [
           Component(
             "LexeConnectPage",
-            subtitle: "unverified requester, read-only",
+            subtitle: "verified, can spend",
+            (_) => LexeConnectPage(
+              app: mockApp,
+              request: mocks.defaultCredentialRequest,
+            ),
+          ),
+          Component(
+            "LexeConnectPage",
+            subtitle: "unverified (bitcoin-connect:), read-only",
             (_) => LexeConnectPage(
               app: mockApp,
               request: const CredentialRequest(
                 connectionString: "https://lexe.app/connect",
                 requester: RequesterDisplay.unverified(
-                  schemeHost: "billsplit://",
+                  schemeHost: "bitcoin-connect:",
                 ),
                 account: null,
                 scopes: ["read"],
@@ -1344,12 +1352,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           Component(
             "LexeConnectPage",
-            subtitle: "many scopes, no label",
+            subtitle: "verified, many scopes, API permissions, no label",
             (_) => LexeConnectPage(
               app: mockApp,
               request: const CredentialRequest(
                 connectionString: "https://lexe.app/connect",
-                requester: RequesterDisplay.verified(domain: "billsplit.com"),
+                requester: RequesterDisplay.verified(
+                  domain: "billsplit.com",
+                  branding: null,
+                ),
                 account: "@janedoe",
                 scopes: [
                   "read_info",
@@ -1359,7 +1370,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   "manage_channels",
                   "spend",
                 ],
-                permissions: [],
+                permissions: ["pay_invoice", "create_invoice", "get_payments"],
                 label: null,
                 expiresAt: null,
               ),
@@ -1367,26 +1378,26 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           Component(
             "LexeConnectPage",
-            subtitle: "mailbox, unknown scope + permissions",
+            subtitle: "verified, error on approve",
+            (_) => LexeConnectPage(
+              app: mockAppErr,
+              request: mocks.defaultCredentialRequest,
+            ),
+          ),
+          Component(
+            "LexeConnectPage",
+            subtitle: "unverified (mailbox), unrecognized scopes",
             (_) => LexeConnectPage(
               app: mockApp,
               request: const CredentialRequest(
                 connectionString: "https://lexe.app/connect",
                 requester: RequesterDisplay.unverified(schemeHost: null),
                 account: "janedoe@gmail.com",
-                scopes: ["read_info", "fly"],
+                scopes: ["read_info", "fly", "receive", "swim"],
                 permissions: ["create_invoice", "get_payments"],
                 label: "BillSplit App",
                 expiresAt: null,
               ),
-            ),
-          ),
-          Component(
-            "LexeConnectPage",
-            subtitle: "error",
-            (_) => LexeConnectPage(
-              app: mockAppErr,
-              request: mocks.defaultCredentialRequest,
             ),
           ),
         ],

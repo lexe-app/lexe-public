@@ -89,6 +89,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus,
+        RequesterBranding,
         RequesterDisplay,
         RevocableClient,
         RootSeed,
@@ -2069,11 +2070,30 @@ final LnurlWithdrawRequest defaultLnurlWithdrawRequest = LnurlWithdrawRequest(
 const CredentialRequest defaultCredentialRequest = CredentialRequest(
   connectionString:
       "https://lexe.app/connect?v=1&redirect_uri=https%3A%2F%2Fbillsplit.com%2Flexe&ephemeral_hpke_pubkey=0000&one_time_secret=00000000000000000000000000000000&scopes=read_info,receive,spend&account=%40janedoe&label=BillSplit%20App",
-  requester: RequesterDisplay.verified(domain: "billsplit.com"),
+  requester: RequesterDisplay.verified(domain: "billsplit.com", branding: null),
   account: "@janedoe",
   scopes: ["read_info", "receive", "spend"],
   permissions: [],
   label: "BillSplit App",
+  expiresAt: 1821484800000,
+);
+
+/// A verified, branded requester, exercising most of the approval screen.
+const CredentialRequest zapriteCredentialRequest = CredentialRequest(
+  connectionString:
+      "https://lexe.app/connect?v=1&redirect_uri=https%3A%2F%2Fzaprite.com%2Flexe&ephemeral_hpke_pubkey=0000&one_time_secret=00000000000000000000000000000000&scopes=read_info,receive,spend&account=janedoe%40gmail.com&label=Zaprite%20P2P&requester_name=Zaprite%20P2P",
+  requester: RequesterDisplay.verified(
+    domain: "zaprite.com",
+    branding: RequesterBranding(
+      name: "Zaprite P2P",
+      iconUrl:
+          "https://cdn.prod.website-files.com/64c01b910051916b9c45d480/64e02d2e2b86aaaa429bc4e3_app%20icon.png",
+    ),
+  ),
+  account: "janedoe@gmail.com",
+  scopes: ["read_info", "receive", "spend"],
+  permissions: [],
+  label: "Zaprite P2P",
   expiresAt: 1821484800000,
 );
 

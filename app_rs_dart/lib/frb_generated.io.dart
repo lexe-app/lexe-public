@@ -284,6 +284,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentMethod dco_decode_box_autoadd_payment_method(dynamic raw);
 
   @protected
+  RequesterBranding dco_decode_box_autoadd_requester_branding(dynamic raw);
+
+  @protected
   RevokeClientRequest dco_decode_box_autoadd_revoke_client_request(dynamic raw);
 
   @protected
@@ -557,6 +560,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   PaymentMethod? dco_decode_opt_box_autoadd_payment_method(dynamic raw);
 
   @protected
+  RequesterBranding? dco_decode_opt_box_autoadd_requester_branding(dynamic raw);
+
+  @protected
   RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw);
 
   @protected
@@ -645,6 +651,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PaymentStatus dco_decode_payment_status(dynamic raw);
+
+  @protected
+  RequesterBranding dco_decode_requester_branding(dynamic raw);
 
   @protected
   RequesterDisplay dco_decode_requester_display(dynamic raw);
@@ -983,6 +992,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PaymentMethod sse_decode_box_autoadd_payment_method(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RequesterBranding sse_decode_box_autoadd_requester_branding(
     SseDeserializer deserializer,
   );
 
@@ -1330,6 +1344,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  RequesterBranding? sse_decode_opt_box_autoadd_requester_branding(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer);
 
   @protected
@@ -1432,6 +1451,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   PaymentStatus sse_decode_payment_status(SseDeserializer deserializer);
+
+  @protected
+  RequesterBranding sse_decode_requester_branding(SseDeserializer deserializer);
 
   @protected
   RequesterDisplay sse_decode_requester_display(SseDeserializer deserializer);
@@ -1836,6 +1858,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_payment_method(
     PaymentMethod self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_requester_branding(
+    RequesterBranding self,
     SseSerializer serializer,
   );
 
@@ -2257,6 +2285,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_requester_branding(
+    RequesterBranding? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_root_seed(
     RootSeed? self,
     SseSerializer serializer,
@@ -2387,6 +2421,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_payment_status(PaymentStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_requester_branding(
+    RequesterBranding self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_requester_display(

@@ -48,7 +48,13 @@ use lexe_common::{
     },
     time::TimestampMs,
 };
-use lexe_connect::wallet::RequesterDisplay as RequesterDisplayRs;
+use lexe_connect::{
+    request::CredentialRequest as CredentialRequestRs,
+    wallet::{
+        RequesterBranding as RequesterBrandingRs,
+        RequesterDisplay as RequesterDisplayRs,
+    },
+};
 use lexe_crypto::rng::SysRng;
 
 /// See [`lexe_common::constants::HBA_CLAIM_MIN_BALANCE_SATS`]
@@ -689,8 +695,7 @@ impl From<lexe_payment_uri::AuthMethod> for AuthMethod {
         match value {
             lexe_payment_uri::AuthMethod::LexeConnect(request) => {
                 let connection_string = request.to_string();
-                let requester =
-                    RequesterDisplay::from(request.requester_display());
+                let requester = RequesterDisplay::new(&request);
                 let params = request.params;
                 Self::LexeConnect(CredentialRequest {
                     connection_string,
@@ -736,19 +741,43 @@ pub enum CredentialDecision {
 /// How the approval screen identifies the LexeConnect REQUESTER.
 pub enum RequesterDisplay {
     /// The response goes to this domain, or to an app verified for it.
-    Verified { domain: String },
+    Verified {
+        domain: String,
+        /// Set only for REQUESTERs verified out of band, per the spec.
+        branding: Option<RequesterBranding>,
+    },
     /// No receiving domain is known. `scheme_host` is the redirect uri's
     /// scheme and host, e.g. `myprotocol://`, if set.
     Unverified { scheme_host: Option<String> },
 }
 
-impl From<RequesterDisplayRs> for RequesterDisplay {
-    fn from(value: RequesterDisplayRs) -> Self {
-        match value {
-            RequesterDisplayRs::Verified { domain } =>
-                Self::Verified { domain },
+impl RequesterDisplay {
+    fn new(request: &CredentialRequestRs) -> Self {
+        match request.requester_display() {
+            RequesterDisplayRs::Verified { domain } => Self::Verified {
+                domain,
+                branding: request
+                    .requester_branding()
+                    .map(RequesterBranding::from),
+            },
             RequesterDisplayRs::Unverified { scheme_host } =>
                 Self::Unverified { scheme_host },
+        }
+    }
+}
+
+/// A verified REQUESTER's own name and icon, from its `requester_name` and
+/// `requester_icon` params.
+pub struct RequesterBranding {
+    pub name: String,
+    pub icon_url: Option<String>,
+}
+
+impl From<RequesterBrandingRs> for RequesterBranding {
+    fn from(value: RequesterBrandingRs) -> Self {
+        Self {
+            name: value.name,
+            icon_url: value.icon_url,
         }
     }
 }

@@ -4091,6 +4091,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RequesterBranding dco_decode_box_autoadd_requester_branding(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_requester_branding(raw);
+  }
+
+  @protected
   RevokeClientRequest dco_decode_box_autoadd_revoke_client_request(
     dynamic raw,
   ) {
@@ -4917,6 +4923,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RequesterBranding? dco_decode_opt_box_autoadd_requester_branding(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_requester_branding(raw);
+  }
+
+  @protected
   RootSeed? dco_decode_opt_box_autoadd_root_seed(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_root_seed(raw);
@@ -5244,11 +5258,26 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RequesterBranding dco_decode_requester_branding(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return RequesterBranding(
+      name: dco_decode_String(arr[0]),
+      iconUrl: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
   RequesterDisplay dco_decode_requester_display(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return RequesterDisplay_Verified(domain: dco_decode_String(raw[1]));
+        return RequesterDisplay_Verified(
+          domain: dco_decode_String(raw[1]),
+          branding: dco_decode_opt_box_autoadd_requester_branding(raw[2]),
+        );
       case 1:
         return RequesterDisplay_Unverified(
           schemeHost: dco_decode_opt_String(raw[1]),
@@ -6014,6 +6043,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_payment_method(deserializer));
+  }
+
+  @protected
+  RequesterBranding sse_decode_box_autoadd_requester_branding(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_requester_branding(deserializer));
   }
 
   @protected
@@ -7038,6 +7075,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RequesterBranding? sse_decode_opt_box_autoadd_requester_branding(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_requester_branding(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   RootSeed? sse_decode_opt_box_autoadd_root_seed(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7448,6 +7498,16 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  RequesterBranding sse_decode_requester_branding(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_iconUrl = sse_decode_opt_String(deserializer);
+    return RequesterBranding(name: var_name, iconUrl: var_iconUrl);
+  }
+
+  @protected
   RequesterDisplay sse_decode_requester_display(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7455,7 +7515,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     switch (tag_) {
       case 0:
         var var_domain = sse_decode_String(deserializer);
-        return RequesterDisplay_Verified(domain: var_domain);
+        var var_branding = sse_decode_opt_box_autoadd_requester_branding(
+          deserializer,
+        );
+        return RequesterDisplay_Verified(
+          domain: var_domain,
+          branding: var_branding,
+        );
       case 1:
         var var_schemeHost = sse_decode_opt_String(deserializer);
         return RequesterDisplay_Unverified(schemeHost: var_schemeHost);
@@ -8247,6 +8313,15 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_payment_method(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_requester_branding(
+    RequesterBranding self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_requester_branding(self, serializer);
   }
 
   @protected
@@ -9144,6 +9219,19 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_requester_branding(
+    RequesterBranding? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_requester_branding(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_root_seed(
     RootSeed? self,
     SseSerializer serializer,
@@ -9477,15 +9565,29 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_requester_branding(
+    RequesterBranding self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_String(self.iconUrl, serializer);
+  }
+
+  @protected
   void sse_encode_requester_display(
     RequesterDisplay self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case RequesterDisplay_Verified(domain: final domain):
+      case RequesterDisplay_Verified(
+        domain: final domain,
+        branding: final branding,
+      ):
         sse_encode_i_32(0, serializer);
         sse_encode_String(domain, serializer);
+        sse_encode_opt_box_autoadd_requester_branding(branding, serializer);
       case RequesterDisplay_Unverified(schemeHost: final schemeHost):
         sse_encode_i_32(1, serializer);
         sse_encode_opt_String(schemeHost, serializer);

@@ -36,7 +36,8 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/clients.dart'
     show ExpirationRow, ScopeExt, formatExpiration;
 import 'package:lexeapp/string_ext.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:lexeapp/url.dart' as url;
 
 /// The user's delivered decision on a [CredentialRequest].
@@ -99,14 +100,16 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
     super.dispose();
   }
 
-  /// The label prefill for a request without one: the verified receiving
-  /// domain, if it fits in a label.
-  String? defaultLabel() => switch (this.widget.request.requester) {
-    RequesterDisplay_Verified(:final domain)
-        when utf8.encode(domain).length <= 64 =>
-      domain,
-    _ => null,
-  };
+  /// The label prefill when the request sets none. Uses a verified
+  /// requester's name, else its domain, if it fits in a label.
+  String? defaultLabel() {
+    final label = switch (this.widget.request.requester) {
+      RequesterDisplay_Verified(:final branding?) => branding.name,
+      RequesterDisplay_Verified(:final domain) => domain,
+      RequesterDisplay_Unverified() => null,
+    };
+    return (label != null && utf8.encode(label).length <= 64) ? label : null;
+  }
 
   /// The requested scopes the app knows how to display, in canonical order.
   List<Scope> knownScopes() {
@@ -457,34 +460,89 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
 /// Names the requester and where the credentials will be sent.
 ///
 /// Per the spec's phishing guidance, the heading names only a verified
-/// receiving domain. An unverified requester shows at most its uri's scheme
-/// and host, styled apart from a verified domain.
+/// receiving domain, or a requester verified out of band. An unverified
+/// requester shows at most its uri's scheme and host, styled apart from a
+/// verified domain.
 class RequesterHeader extends StatelessWidget {
   const RequesterHeader({super.key, required this.requester});
 
   final RequesterDisplay requester;
 
+  /// About the height of a two-line heading plus the destination.
+  static const double iconSize = Space.s825;
+
   @override
   Widget build(BuildContext context) {
-    final (name, destination) = switch (this.requester) {
+    final (name, iconUrl, destination) = switch (this.requester) {
+      RequesterDisplay_Verified(:final domain, :final branding?) => (
+        branding.name,
+        branding.iconUrl,
+        DestinationRow.verified(domain),
+      ),
       RequesterDisplay_Verified(:final domain) => (
         domain,
+        null,
         DestinationRow.verified(domain),
       ),
       RequesterDisplay_Unverified(:final schemeHost?) => (
         "An unverified app",
+        null,
         DestinationRow.unverified(schemeHost),
       ),
       // Mailbox delivery, which has no receiving domain or uri to show.
-      RequesterDisplay_Unverified() => ("An unverified app", null),
+      RequesterDisplay_Unverified() => ("An unverified app", null, null),
     };
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HeadingText(text: "$name wants to connect to your wallet"),
-        if (destination != null) destination,
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s400),
+      child: Row(
+        children: [
+          if (iconUrl != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(LxRadius.r300),
+              child: Image.network(
+                iconUrl,
+                width: iconSize,
+                height: iconSize,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) => (progress == null)
+                    ? child
+                    : const ColoredBox(
+                        color: LxColors.grey1000,
+                        child: SizedBox.square(
+                          dimension: iconSize,
+                          child: Center(
+                            child: SizedBox.square(
+                              dimension: Fonts.size400,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.0,
+                                color: LxColors.clearB200,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                // A broken icon shouldn't block the approval.
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox.square(dimension: iconSize),
+              ),
+            ),
+            const SizedBox(width: Space.s300),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                HeadingText(
+                  text: "$name wants to connect to your wallet",
+                  padding: const EdgeInsets.only(bottom: Space.s200),
+                ),
+                if (destination != null) destination,
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

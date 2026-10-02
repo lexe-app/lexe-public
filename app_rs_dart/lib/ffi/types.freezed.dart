@@ -1632,26 +1632,28 @@ String toString() {
 
 
 class RequesterDisplay_Verified extends RequesterDisplay {
-  const RequesterDisplay_Verified({required this.domain}): super._();
+  const RequesterDisplay_Verified({required this.domain, this.branding}): super._();
   
 
  final  String domain;
+/// Set only for REQUESTERs verified out of band, per the spec.
+ final  RequesterBranding? branding;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RequesterDisplay_Verified&&(identical(other.domain, domain) || other.domain == domain));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RequesterDisplay_Verified&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.branding, branding) || other.branding == branding));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,domain);
+int get hashCode => Object.hash(runtimeType,domain,branding);
 
 @override
 String toString() {
-  return 'RequesterDisplay.verified(domain: $domain)';
+  return 'RequesterDisplay.verified(domain: $domain, branding: $branding)';
 }
 
 

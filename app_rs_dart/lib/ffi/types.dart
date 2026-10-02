@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `into_inner`
+// These functions are ignored because they are not marked as `pub`: `into_inner`, `new`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
@@ -615,13 +615,37 @@ sealed class PaymentRail with _$PaymentRail {
 
 enum PaymentStatus { pending, completed, failed }
 
+/// A verified REQUESTER's own name and icon, from its `requester_name` and
+/// `requester_icon` params.
+class RequesterBranding {
+  final String name;
+  final String? iconUrl;
+
+  const RequesterBranding({required this.name, this.iconUrl});
+
+  @override
+  int get hashCode => name.hashCode ^ iconUrl.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RequesterBranding &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          iconUrl == other.iconUrl;
+}
+
 @freezed
 sealed class RequesterDisplay with _$RequesterDisplay {
   const RequesterDisplay._();
 
   /// The response goes to this domain, or to an app verified for it.
-  const factory RequesterDisplay.verified({required String domain}) =
-      RequesterDisplay_Verified;
+  const factory RequesterDisplay.verified({
+    required String domain,
+
+    /// Set only for REQUESTERs verified out of band, per the spec.
+    RequesterBranding? branding,
+  }) = RequesterDisplay_Verified;
 
   /// No receiving domain is known. `scheme_host` is the redirect uri's
   /// scheme and host, e.g. `myprotocol://`, if set.
