@@ -97,8 +97,7 @@ pub mod outbound;
 pub enum PaymentV1 {
     OnchainSend(OnchainSendV1),
     OnchainReceive(OnchainReceiveV1),
-    // TODO(max): Implement SpliceIn
-    // TODO(max): Implement SpliceOut
+    // TODO(phlip9): splicing. Implement SpliceIn and SpliceOut.
     InboundInvoice(InboundInvoicePaymentV1),
     // TODO(phlip9): InboundOffer (single-use)
     // Added in `node-v0.7.8`
@@ -922,8 +921,7 @@ mod test {
         let config = Config::with_cases(16);
         json_value_custom(any::<OnchainSendV1>(), config.clone());
         json_value_custom(any::<OnchainReceiveV1>(), config.clone());
-        // TODO(max): Add SpliceIn
-        // TODO(max): Add SpliceOut
+        // TODO(phlip9): splicing. Add SpliceIn and SpliceOut.
         json_value_custom(any::<InboundInvoicePaymentV1>(), config.clone());
         json_value_custom(
             any::<InboundOfferReusablePaymentV1>(),

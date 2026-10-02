@@ -525,6 +525,10 @@ where
         })?;
 
     use lightning::util::errors::APIError;
+
+    // TODO(phlip9): splicing. Drop our tx-sync confirmation-skip patch before
+    // enabling manual funding broadcast; it can skip confirmation replay
+    // needed by a stale monitor after a crash.
     match channel_manager.funding_transaction_generated(
         temporary_channel_id,
         counterparty_node_id,

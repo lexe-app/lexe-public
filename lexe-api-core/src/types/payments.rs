@@ -509,10 +509,10 @@ pub enum PaymentKind {
     /// All v1 spontaneous payments which had no kind are given this kind.
     Spontaneous, // rail: Spontaneous
 
-    // /// A splice into or out of a channel.
+    // TODO(phlip9): splicing. Add a splice payment kind.
     // Splice, // rail: Splice
 
-    // TODO(max): Think about inbound vs outbound channel opens.
+    // TODO(phlip9): splicing. Think about inbound vs outbound channel opens.
     // Post-splicing, it seems we should only worry about inbound channel
     // opens, since the user will never use on-chain funds to open a
     // second channel (they would only splice into an existing channel)?
@@ -551,6 +551,7 @@ pub enum PaymentKind {
     // /// An interest payment on our current amount of inbound liquidity.
     // LiquidityFeePayment, // rail: Spontaneous
 
+    // TODO(phlip9): splicing. Implement liquidity adjustment payments.
     // /// A payment to cover the on-chain costs of changing the size of our
     // /// channel, typically to adjust our amount of inbound liquidity.
     // ///

@@ -191,7 +191,7 @@ async fn do_handle_event(
             params: _,
         } => {
             let handle_open_channel_request = || {
-                // TODO(phlip9): support splicing/dual-funded channels
+                // TODO(phlip9): splicing. Support dual-funded channels.
                 if matches!(
                     channel_negotiation_type,
                     InboundChannelFunds::DualFunded
@@ -304,7 +304,7 @@ async fn do_handle_event(
             counterparty_node_id,
             funding_txo,
             channel_type,
-            // TODO(phlip9): use this to calculate fees spent on splice-in
+            // TODO(phlip9): splicing. Use this to calculate splice-in fees.
             funding_redeem_script: _,
         } => {
             event::log_channel_pending(
@@ -327,8 +327,8 @@ async fn do_handle_event(
             user_channel_id,
             counterparty_node_id,
             channel_type,
-            // TODO(phlip9): after a successful splice-in, the channel's
-            // funding_txo will have changed to this.
+            // TODO(phlip9): splicing. Update the channel's funding_txo after
+            // a successful splice-in.
             funding_txo: _,
         } => {
             event::log_channel_ready(
@@ -668,7 +668,7 @@ async fn do_handle_event(
             // this event is generated.
         }
 
-        // TODO(phlip9): support channel splicing
+        // TODO(phlip9): splicing. Handle these events.
         Event::FundingTransactionReadyForSigning { channel_id, .. } =>
             debug_panic_release_log!(
                 "Unexpected `FundingTransactionReadyForSigning` event: \

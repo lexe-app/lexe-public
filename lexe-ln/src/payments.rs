@@ -144,8 +144,7 @@ pub struct PaymentWithMetadata<P = PaymentV2> {
 pub enum PaymentV2 {
     OnchainSend(OnchainSendV2),
     OnchainReceive(OnchainReceiveV2),
-    // TODO(max): Implement SpliceIn
-    // TODO(max): Implement SpliceOut
+    // TODO(phlip9): splicing. Implement SpliceIn and SpliceOut.
     InboundInvoice(InboundInvoicePaymentV2),
     // TODO(phlip9): InboundOffer (single-use)
     // Added in `node-v0.7.8`
@@ -1375,8 +1374,7 @@ mod test {
         let config = Config::with_cases(16);
         json_value_custom(any::<OnchainSendV2>(), config.clone());
         json_value_custom(any::<OnchainReceiveV2>(), config.clone());
-        // TODO(max): Add SpliceIn
-        // TODO(max): Add SpliceOut
+        // TODO(phlip9): splicing. Add SpliceIn and SpliceOut.
         json_value_custom(any::<InboundInvoicePaymentV2>(), config.clone());
         json_value_custom(
             any::<InboundOfferReusablePaymentV2>(),

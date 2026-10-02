@@ -102,8 +102,8 @@ pub(crate) fn our_close_tx_fees_sats(
     // beneath our dust limit, we'll just consider our remaining
     // channel balance as part of the close fee.
     //
-    // TODO(phlip9): channel.is_outbound will no longer be an accurate proxy
-    // for whether we have to pay the close fees once we move to splices.
+    // TODO(phlip9): splicing. channel.is_outbound will no longer be an
+    // accurate proxy for whether we have to pay the close fees.
     if our_sats == 0 || !channel.is_outbound {
         return our_inbound_dust_loss_sats;
     };
@@ -234,8 +234,8 @@ pub(crate) const CLOSE_TX_WEIGHT: u64 = close_tx_weight(
 /// Calculate the tx weight for a potential channel close.
 ///
 /// Vendored from LDK's `get_closing_transaction_weight` (channel.rs).
-/// Must be kept in sync when LDK changes the close tx format (e.g.,
-/// splicing may add inputs/outputs).
+/// Must be kept in sync when LDK changes the close tx format.
+// TODO(phlip9): splicing. Check for added inputs/outputs.
 const fn close_tx_weight(
     funding_redeemscript_len: u64,
     a_scriptpubkey_len: u64,

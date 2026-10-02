@@ -48,13 +48,14 @@ pub const fn user_config() -> UserConfig {
         // need anyway for zeroconf and to check that the channel was initiated
         // by Lexe's LSP. See Event::OpenChannelRequest in the event handler.
         accept_inbound_channels: true,
-        // TODO(phlip9): splicing needs testing.
+        // TODO(phlip9): splicing. Drop our tx-sync confirmation-skip patch
+        // and fix LDK's splice-signing persistence gap before enabling.
         reject_inbound_splices: true,
         // The node has no need to intercept HTLCs
         htlc_interception_flags: 0,
         // For now, no need to manually pay BOLT 12 invoices when received.
         manually_handle_bolt12_invoices: false,
-        // TODO(phlip9): support splicing/dual-funded channels
+        // TODO(phlip9): splicing. Support dual-funded channels.
         enable_dual_funded_channels: false,
         // This feature enables the node to hold onto HTLCs until its peer is
         // online again. User nodes are not routing nodes, so this is not
