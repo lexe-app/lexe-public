@@ -1,6 +1,6 @@
 [package]
 name = "lexe-qr"
-version = "0.1.24"
+version = "0.1.25"
 license = "MIT"
 description = "QR code generation with .bmp image output"
 documentation = "https://docs.rs/lexe-qr"

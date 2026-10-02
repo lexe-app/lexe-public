@@ -2706,7 +2706,7 @@ dependencies = [
 
 [[package]]
 name = "lexe"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -2737,7 +2737,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-api"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "axum",
@@ -2773,7 +2773,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-api-core"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2813,14 +2813,14 @@ dependencies = [
 
 [[package]]
 name = "lexe-byte-array"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "lexe-hex",
 ]
 
 [[package]]
 name = "lexe-cli"
-version = "0.1.25"
+version = "0.1.26"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2840,7 +2840,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-common"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "asn1-rs",
@@ -2888,7 +2888,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-connect"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "axum",
@@ -2917,7 +2917,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-crypto"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "bcs",
  "hpke",
@@ -2939,7 +2939,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-enclave"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "cfg-if 1.0.5",
  "lexe-byte-array",
@@ -2958,7 +2958,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-hex"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "proptest",
 ]
@@ -3016,7 +3016,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-logger"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "lexe-api",
@@ -3026,7 +3026,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-node-client"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3046,7 +3046,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-payment-uri"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -3071,7 +3071,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-payment-uri-core"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "bech32",
@@ -3093,7 +3093,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-qr"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "fast_qr",
  "proptest",
@@ -3101,7 +3101,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-serde"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "base64 0.21.7",
  "lexe-hex",
@@ -3112,7 +3112,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-sha256"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "lexe-byte-array",
  "lexe-hex",
@@ -3123,7 +3123,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-std"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "proptest",
  "proptest-derive",
@@ -3132,7 +3132,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-tls"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "asn1-rs",
@@ -3193,7 +3193,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-tls-core"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "rustls",
  "rustls-webpki",
@@ -3202,7 +3202,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-tokio"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "futures",
  "thiserror 2.0.17",
@@ -3213,7 +3213,7 @@ dependencies = [
 
 [[package]]
 name = "lexe-uri"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "percent-encoding",
  "proptest",
@@ -4718,7 +4718,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-sidecar"
-version = "0.4.23"
+version = "0.4.24"
 dependencies = [
  "anyhow",
  "axum",
