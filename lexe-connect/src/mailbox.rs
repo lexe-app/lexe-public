@@ -33,7 +33,7 @@ lexe_byte_array::impl_debug_display_as_hex!(Address);
 lexe_serde::impl_serde_hexstr_or_bytes!(Address);
 
 /// An in-memory mailbox: the first blob written to an address wins, and
-/// blobs expire after a TTL. Callers pass `now` so expiry is testable.
+/// blobs expire after a TTL. Callers pass `now` so expiration is testable.
 //
 // Spec: `mailbox_url` delivery.
 pub struct MailboxStore {
