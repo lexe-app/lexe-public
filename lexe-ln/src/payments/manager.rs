@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    iter,
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -18,7 +19,9 @@ use lexe_api::{
             LnClaimId, OfferId, PaymentCreatedIndex, PaymentHash, PaymentId,
             PaymentKind, PaymentPreimage, PaymentStatus,
         },
+        retries::Retries,
     },
+    vfs::Vfs,
 };
 use lexe_common::{
     api::test_event::TestEvent,
@@ -45,10 +48,10 @@ use crate::{
             InboundOfferReusablePaymentV2, InboundSpontaneousPaymentV2,
             LnClaimCtx,
         },
-        onchain::{OnchainReceiveV2, OnchainSendStatus},
+        onchain::{OnchainReceiveStatus, OnchainReceiveV2, OnchainSendStatus},
         outbound::{self, ExpireError, LxOutboundPaymentFailure},
     },
-    persister::PaymentsPersisterMethods,
+    persister::{NodeState, PaymentsPersisterMethods},
     route::{self, LexeRouter, RoutingContext, RoutingResult},
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexePaymentsPersister},
@@ -67,6 +70,9 @@ const ONCHAIN_PAYMENT_CHECK_DELAY: Duration = Duration::from_secs(2);
 /// it before giving up and canceling it.
 const CREATED_SEND_REBROADCAST_TIMEOUT: Duration =
     Duration::from_secs(48 * 60 * 60);
+/// The minimum time between checks of our spendable failed onchain payments.
+const SPENDABLE_FAILED_ONCHAIN_PAYMENTS_CHECK_INTERVAL: Duration =
+    Duration::from_secs(14 * 24 * 60 * 60);
 
 /// Annotates that a given [`PaymentV2`] was returned by a `check_*` method
 /// which successfully validated a proposed state transition.
@@ -359,6 +365,67 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                 }
 
                 info!("Onchain receive checker task shutting down");
+            },
+        )
+    }
+
+    /// Spawns an ephemeral task which runs
+    /// `check_spendable_failed_onchain_payments` if it last ran over
+    /// `SPENDABLE_FAILED_ONCHAIN_PAYMENTS_CHECK_INTERVAL` ago.
+    pub fn spawn_spendable_failed_onchain_payments_checker(
+        &self,
+        esplora: Arc<LexeEsplora>,
+        node_state: Arc<tokio::sync::Mutex<NodeState>>,
+        mut shutdown: NotifyOnce,
+    ) -> LxTask<()> {
+        let payman = self.clone();
+        let check_if_due = async move {
+            // Hold the lock across the check and persist so that concurrent
+            // `NodeState` updates can't clobber each other.
+            let mut locked_state = node_state.lock().await;
+
+            let now = TimestampMs::now();
+            let is_due = locked_state
+                .latest_spendable_failed_onchain_payments_check
+                .is_none_or(|latest_check| {
+                    now.saturating_duration_since(latest_check)
+                        > SPENDABLE_FAILED_ONCHAIN_PAYMENTS_CHECK_INTERVAL
+                });
+            if !is_due {
+                return Ok(());
+            }
+
+            payman
+                .check_spendable_failed_onchain_payments(&esplora)
+                .await?;
+
+            locked_state.latest_spendable_failed_onchain_payments_check =
+                Some(now);
+            let retries = Retries::from_count(1);
+            payman
+                .persister
+                .persist_json(
+                    NodeState::VFS_FILE_ID.clone(),
+                    &*locked_state,
+                    retries,
+                )
+                .await
+                .context("Couldn't persist node state")?;
+
+            anyhow::Ok(())
+        };
+
+        LxTask::spawn_with_span(
+            "spendable failed onchain payments checker",
+            info_span!("(spendable-failed-onchain-payments-checker)"),
+            async move {
+                let result = tokio::select! {
+                    res = check_if_due => res,
+                    () = shutdown.recv() => return,
+                };
+                if let Err(e) = result {
+                    error!("Error checking spendable failed payments: {e:#}");
+                }
             },
         )
     }
@@ -1499,6 +1566,121 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         // The PaymentsData lock is finally dropped here.
         Ok(())
     }
+
+    /// Checks whether any failed onchain payments whose txs are still
+    /// spendable (`Dropped` or `Canceled`) have since been replaced or
+    /// confirmed.
+    #[instrument(skip_all, name = "(check-spendable-failed-onchain-payments)")]
+    async fn check_spendable_failed_onchain_payments(
+        &self,
+        esplora: &LexeEsplora,
+    ) -> anyhow::Result<()> {
+        debug!("Checking spendable failed onchain payments");
+
+        // Construct a `(PaymentId, TxConfQuery)` for every spendable failed
+        // onchain payment.
+        let (ids, queries) = self
+            .persister
+            .get_failed_onchain_payments()
+            .await
+            .context("Couldn't fetch failed onchain payments")?
+            .into_iter()
+            .filter_map(|payment| match payment {
+                PaymentV2::OnchainSend(os)
+                    if matches!(
+                        os.status,
+                        OnchainSendStatus::Dropped
+                            | OnchainSendStatus::Canceled
+                    ) =>
+                    Some(
+                        os.to_tx_conf_query()
+                            .context("OnchainSend::to_tx_conf_query")
+                            .map(|query| (os.id(), query)),
+                    ),
+                PaymentV2::OnchainReceive(or)
+                    if or.status == OnchainReceiveStatus::Dropped =>
+                    Some(
+                        or.to_tx_conf_query()
+                            .context("OnchainReceive::to_tx_conf_query")
+                            .map(|query| (or.id(), query)),
+                    ),
+                _ => None,
+            })
+            .collect::<anyhow::Result<(Vec<_>, Vec<_>)>>()?;
+        if ids.is_empty() {
+            return Ok(());
+        }
+
+        // Determine the conf statuses of all spendable failed payments.
+        let tx_conf_statuses = esplora
+            .get_tx_conf_statuses(queries.iter())
+            .await
+            .context("Error while computing conf statuses")?;
+
+        // Check.
+        //
+        // The conf statuses were fetched without the `PaymentsData` lock, so a
+        // payment's status may have changed since. However, no payment returns
+        // to `Dropped`/`Canceled` after leaving them, so if a payment is still
+        // in one of these statuses, its status predates the fetch.
+        // `check_failed_onchain_conf` bails on every other status, so it only
+        // applies a conf status that is newer than the payment's status.
+        let mut locked_data = self.data.lock().await;
+        let mut all_checked = Vec::new();
+        for (id, conf_status) in iter::zip(ids, tx_conf_statuses) {
+            // TODO(nicole): Batch fetch once we have a payman `get_payments`
+            //               which doesn't also fetch every `PaymentMetadata`.
+            let pwm = self
+                .get_cow_payment(&mut locked_data, &id)
+                .await
+                .context("Could not get payment")?
+                .context("Payment does not exist")?;
+            let (maybe_checked, maybe_update) = match &pwm.payment {
+                PaymentV2::OnchainSend(os) => os
+                    .check_failed_onchain_conf(conf_status)
+                    .map(|(maybe_os, update)| {
+                        (maybe_os.map(PaymentV2::from), update)
+                    }),
+                PaymentV2::OnchainReceive(or) => or
+                    .check_failed_onchain_conf(conf_status)
+                    .map(|(maybe_or, update)| {
+                        (maybe_or.map(PaymentV2::from), update)
+                    }),
+                _ => bail!("Payment was not an onchain payment"),
+            }
+            .context("Invalid tx conf state transition")?;
+            let Some(checked) = maybe_checked else {
+                continue;
+            };
+
+            // TODO(nicole): only fetch and update PaymentMetadata when needed
+            //               once payments and metadata are split
+            let mut metadata = pwm.metadata.clone();
+            if let Some(update) = maybe_update {
+                metadata = metadata.apply_update(update);
+            }
+            let checked_pwm = PaymentWithMetadata {
+                payment: checked,
+                metadata,
+            };
+            all_checked.push(CheckedPayment(checked_pwm));
+        }
+
+        // Persist
+        let all_persisted = self
+            .persister
+            .upsert_payment_batch(all_checked)
+            .await
+            .context("Couldn't persist payment batch")?;
+
+        // Commit
+        for persisted in all_persisted {
+            locked_data.commit(persisted);
+        }
+
+        debug!("Successfully checked spendable failed onchain payments");
+        Ok(())
+    }
 }
 
 impl PaymentsData {
@@ -1516,6 +1698,10 @@ impl PaymentsData {
             }
             PaymentStatus::Completed | PaymentStatus::Failed => {
                 self.pending.remove(&id);
+
+                let soft = true;
+                // Errors if `id` isn't in the cache -- ignore.
+                let _ = self.finalized_payments_cache.replace(id, pwm, soft);
             }
         }
 

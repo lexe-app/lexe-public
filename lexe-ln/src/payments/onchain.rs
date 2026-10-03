@@ -92,21 +92,31 @@ pub enum OnchainSendStatus {
     ///
     /// 14 days is the default `-mempoolexpiry` value in Bitcoin Core. It is
     /// likely that most nodes will have evicted our transaction from their
-    /// mempool by now. There is a small chance that this transaction ends up
-    /// getting confirmed, but we'll mark it as failed in our payments manager
-    /// and move on, since this isn't security-critical; the user will still
-    /// see the successful send reflected in their wallet balance.
+    /// mempool by now. The signed tx can still be confirmed until one of its
+    /// inputs is spent, at which point this becomes `DroppedReplaced`.
     Dropped,
+    /// (Finalized-Failed, 6+ confs) At least one input of a `Dropped` tx has
+    /// been spent by a different tx which has 6 or more confirmations, so the
+    /// tx can no longer be confirmed.
+    // compat: Added in node-v0.10.7.
+    DroppedReplaced,
 
     /// (Finalized-Failed, never broadcast) We failed to broadcast a send within
     /// 48 hours of creation, so we gave up. Unlike `Dropped`, the tx never made
     /// it into a mempool. This may be because the tx is unbroadcastable
     /// (e.g. its inputs were spent by another tx), or due to transient issues
-    /// reaching the broadcast provider.
+    /// reaching the broadcast provider. The signed tx can still be confirmed
+    /// until one of its inputs is spent, at which point this becomes
+    /// `CanceledReplaced`.
     // compat: Renamed from `cancelled` in node-v0.10.4, lsp-v0.10.5.
     // TODO(max): Remove this if we ever explicitly migrate all persisted data.
     #[serde(alias = "cancelled")]
     Canceled,
+    /// (Finalized-Failed, 6+ confs) At least one input of a `Canceled` tx has
+    /// been spent by a different tx which has 6 or more confirmations, so the
+    /// tx can no longer be confirmed.
+    // compat: Added in node-v0.10.7.
+    CanceledReplaced,
 }
 
 impl OnchainSendV2 {
@@ -185,8 +195,8 @@ impl OnchainSendV2 {
             PartiallyConfirmed => bail!("Tx already has confirmations"),
             ReplacementBroadcasted => bail!("Tx was being replaced"),
             PartiallyReplaced => bail!("Tx already partially replaced"),
-            FullyConfirmed | FullyReplaced | Dropped | Canceled =>
-                bail!("Tx was final"),
+            FullyConfirmed | FullyReplaced | Dropped | DroppedReplaced
+            | Canceled | CanceledReplaced => bail!("Tx was final"),
         }
 
         // Everything ok; return a clone with the updated state
@@ -208,8 +218,8 @@ impl OnchainSendV2 {
             | ReplacementBroadcasted
             | PartiallyConfirmed
             | PartiallyReplaced => bail!("Tx was already broadcasted"),
-            FullyConfirmed | FullyReplaced | Dropped | Canceled =>
-                bail!("Tx was final"),
+            FullyConfirmed | FullyReplaced | Dropped | DroppedReplaced
+            | Canceled | CanceledReplaced => bail!("Tx was final"),
         }
 
         let mut clone = self.clone();
@@ -249,7 +259,8 @@ impl OnchainSendV2 {
             | PartiallyConfirmed
             | ReplacementBroadcasted
             | PartiallyReplaced => (),
-            FullyConfirmed | FullyReplaced | Dropped | Canceled => bail!(
+            FullyConfirmed | FullyReplaced | Dropped | DroppedReplaced
+            | Canceled | CanceledReplaced => bail!(
                 "Tx already finalized; shouldn't have checked for conf status"
             ),
         }
@@ -305,6 +316,89 @@ impl OnchainSendV2 {
 
             Ok((Some(clone), maybe_meta_update))
         }
+    }
+
+    /// Checks whether a `Dropped` or `Canceled` send, whose signed tx can
+    /// still be confirmed, has since been replaced or confirmed.
+    // Event sources:
+    // - `PaymentsManager::check_spendable_failed_onchain_payments`
+    pub(crate) fn check_failed_onchain_conf(
+        &self,
+        conf_status: TxConfStatus,
+    ) -> anyhow::Result<(Option<Self>, Option<PaymentMetadataUpdate>)> {
+        use OnchainSendStatus::*;
+
+        match self.status {
+            Dropped | Canceled => (),
+            Created
+            | Broadcasted
+            | ReplacementBroadcasted
+            | PartiallyConfirmed
+            | PartiallyReplaced => bail!("Tx hasn't failed"),
+            FullyConfirmed | FullyReplaced | DroppedReplaced
+            | CanceledReplaced => bail!("Tx can no longer change status"),
+        };
+
+        let (new_status, maybe_replacement_txid) = match conf_status {
+            // Wait for sufficient confirmations before recording the state
+            // transition.
+            TxConfStatus::InBestChain { confs }
+                if confs < ONCHAIN_CONFIRMATION_THRESHOLD =>
+                return Ok((None, None)),
+            // Record the state transition once there are enough confirmations,
+            // logging a warning, because a `PaymentStatus::Failed` tx changed
+            // to `PaymentStatus::Completed`.
+            TxConfStatus::InBestChain { confs } => {
+                let old_status = self.status.as_str();
+                warn!(
+                    txid = %self.txid,
+                    %confs,
+                    "Failed ({old_status}) tx received {} confirmations",
+                    ONCHAIN_CONFIRMATION_THRESHOLD,
+                );
+                (FullyConfirmed, None)
+            }
+            // Wait for sufficient confirmations before recording the state
+            // transition.
+            TxConfStatus::HasReplacement { confs, .. }
+                if confs < ONCHAIN_CONFIRMATION_THRESHOLD =>
+                return Ok((None, None)),
+            // Record the state transition once there are enough confirmations
+            // on the replacement tx.
+            TxConfStatus::HasReplacement { rp_txid, .. } => {
+                let new_status = match self.status {
+                    Dropped => DroppedReplaced,
+                    Canceled => CanceledReplaced,
+                    _ => unreachable!(),
+                };
+                (new_status, Some(rp_txid))
+            }
+            // Every unconfirmed, unreplaced tx past the mempool expiry is
+            // reported as `Dropped`, so this tells us nothing new. Ignore.
+            TxConfStatus::Dropped => return Ok((None, None)),
+            // `ZeroConf` means the tx is unconfirmed, unreplaced, and younger
+            // than the mempool expiry. A `Dropped` send was already past the
+            // expiry when it failed, so `Dropped` with `ZeroConf` is a bug. But
+            // a `Canceled` send can be any age, so ignore it.
+            TxConfStatus::ZeroConf => match self.status {
+                Canceled => return Ok((None, None)),
+                _ => bail!("Dropped tx is younger than the mempool expiry"),
+            },
+        };
+
+        let mut clone = self.clone();
+        clone.status = new_status;
+        if new_status == FullyConfirmed {
+            clone.finalized_at = Some(TimestampMs::now());
+        }
+
+        let maybe_meta_update =
+            maybe_replacement_txid.map(|txid| PaymentMetadataUpdate {
+                replacement_txid: Some(Some(txid)),
+                ..Default::default()
+            });
+
+        Ok((Some(clone), maybe_meta_update))
     }
 
     pub fn to_tx_conf_query(&self) -> anyhow::Result<TxConfQuery> {
@@ -376,11 +470,14 @@ pub enum OnchainReceiveStatus {
     ///
     /// 14 days is the default `-mempoolexpiry` value in Bitcoin Core. It is
     /// likely that most nodes will have evicted our transaction from their
-    /// mempool by now. There is a small chance that this transaction ends up
-    /// getting confirmed, but we'll mark it as failed in our payments manager
-    /// and move on, since this isn't security-critical; the user will still
-    /// see the successful receive reflected in their wallet balance.
+    /// mempool by now. The tx can still be confirmed until one of its inputs
+    /// is spent, at which point this becomes `DroppedReplaced`.
     Dropped,
+    /// (Finalized-Failed, 6+ confs) At least one input of a `Dropped` tx has
+    /// been spent by a different tx which has 6 or more confirmations, so the
+    /// tx can no longer be confirmed.
+    // compat: Added in node-v0.10.7.
+    DroppedReplaced,
 }
 
 impl OnchainReceiveV2 {
@@ -433,9 +530,10 @@ impl OnchainReceiveV2 {
         // We'll update our state if and only if the payment is still pending.
         match self.status {
             Zeroconf | PartiallyConfirmed | PartiallyReplaced => (),
-            FullyConfirmed | FullyReplaced | Dropped => bail!(
-                "Tx already finalized; shouldn't have checked for conf status"
-            ),
+            FullyConfirmed | FullyReplaced | Dropped | DroppedReplaced =>
+                bail!(
+                    "Tx already finalized; shouldn't have checked for conf status"
+                ),
         }
 
         let new_status = match &conf_status {
@@ -482,6 +580,74 @@ impl OnchainReceiveV2 {
         }
     }
 
+    /// Checks whether a `Dropped` receive, whose tx can still be confirmed, has
+    /// since been replaced or confirmed.
+    // Event sources:
+    // - `PaymentsManager::check_spendable_failed_onchain_payments`
+    pub(crate) fn check_failed_onchain_conf(
+        &self,
+        conf_status: TxConfStatus,
+    ) -> anyhow::Result<(Option<Self>, Option<PaymentMetadataUpdate>)> {
+        use OnchainReceiveStatus::*;
+
+        match self.status {
+            Dropped => (),
+            Zeroconf | PartiallyConfirmed | PartiallyReplaced =>
+                bail!("Tx hasn't failed"),
+            FullyConfirmed | FullyReplaced | DroppedReplaced =>
+                bail!("Tx can no longer change status"),
+        };
+
+        let (new_status, maybe_replacement_txid) = match conf_status {
+            // Wait for the tx to finalize before recording its confirmation.
+            TxConfStatus::InBestChain { confs }
+                if confs < ONCHAIN_CONFIRMATION_THRESHOLD =>
+                return Ok((None, None)),
+            // Record the finalized confirmation, logging a warning: a failed
+            // tx was confirmed.
+            TxConfStatus::InBestChain { confs } => {
+                let old_status = self.status.as_str();
+                warn!(
+                    txid = %self.txid,
+                    %confs,
+                    "Failed ({old_status}) tx was confirmed"
+                );
+                (FullyConfirmed, None)
+            }
+            // Wait for the replacement to finalize before recording it.
+            TxConfStatus::HasReplacement { confs, .. }
+                if confs < ONCHAIN_CONFIRMATION_THRESHOLD =>
+                return Ok((None, None)),
+            // Record the finalized replacement.
+            TxConfStatus::HasReplacement { rp_txid, .. } =>
+                (DroppedReplaced, Some(rp_txid)),
+            // Every unconfirmed, unreplaced tx past the mempool expiry is
+            // reported as `Dropped`, so this tells us nothing new. Ignore.
+            TxConfStatus::Dropped => return Ok((None, None)),
+            // `ZeroConf` means the tx is unconfirmed, unreplaced, and younger
+            // than the mempool expiry. A `Dropped` receive was already past
+            // the expiry when it failed, so this is a bug.
+            TxConfStatus::ZeroConf =>
+                bail!("Dropped tx is younger than the mempool expiry"),
+        };
+
+        let mut clone = self.clone();
+        clone.status = new_status;
+        if new_status == FullyConfirmed {
+            clone.finalized_at = Some(TimestampMs::now());
+        }
+
+        let maybe_meta_update =
+            maybe_replacement_txid.map(|txid| PaymentMetadataUpdate {
+                replacement_txid: Some(Some(txid)),
+                ..Default::default()
+            });
+
+        Ok((Some(clone), maybe_meta_update))
+    }
+
+    /// This method is called outside of the payments lock, so the data returned
+    /// by `TxConfQuery` must be constant.
     pub fn to_tx_conf_query(&self) -> anyhow::Result<TxConfQuery> {
         Ok(TxConfQuery {
             txid: self.txid,
@@ -640,7 +806,7 @@ mod test {
 
     #[test]
     fn status_json_backwards_compat() {
-        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped","canceled"]"#;
+        let expected_ser = r#"["created","broadcasted","replacement_broadcasted","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped","dropped_replaced","canceled","canceled_replaced"]"#;
         json_unit_enum_backwards_compat::<OnchainSendStatus>(expected_ser);
 
         // compat: Data persisted before node-v0.10.4 / lsp-v0.10.5 uses the
@@ -650,7 +816,7 @@ mod test {
             serde_json::from_str::<OnchainSendStatus>(old_ser).unwrap();
         assert_eq!(status, OnchainSendStatus::Canceled);
 
-        let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped"]"#;
+        let expected_ser = r#"["zeroconf","partially_confirmed","partially_replaced","fully_confirmed","fully_replaced","dropped","dropped_replaced"]"#;
         json_unit_enum_backwards_compat::<OnchainReceiveStatus>(expected_ser);
     }
 }

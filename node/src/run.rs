@@ -60,7 +60,7 @@ use lexe_ln::{
     message_router::LexeMessageRouter,
     migrations::{self, Migrations},
     payments::manager::PaymentsManager,
-    persister::PaymentsPersisterMethods,
+    persister::{NodeState, PaymentsPersisterMethods},
     route::LexeRouter,
     sync::{self, BdkSyncRequest},
     test_event,
@@ -392,6 +392,7 @@ impl UserNode {
             try_pending_payments,
             try_maybe_revocable_clients,
             try_maybe_settings,
+            try_maybe_node_state,
             try_channel_monitor_bytes,
         ) = tokio::join!(
             initial_migrations_fut,
@@ -401,6 +402,7 @@ impl UserNode {
             pending_payments_fut,
             persister.read_json::<RevocableClients>(RevocableClients::VFS_FILE_ID),
             persister.read_json::<UserSettings>(UserSettings::VFS_FILE_ID),
+            persister.read_json::<NodeState>(NodeState::VFS_FILE_ID),
             lexe_ln::persister::read_channel_monitor_bytes(&persister),
         );
         let initial_migrations = try_initial_migrations?;
@@ -459,6 +461,11 @@ impl UserNode {
         let settings = Arc::new(tokio::sync::RwLock::new(
             try_maybe_settings
                 .context("Could not read user settings")?
+                .unwrap_or_default(),
+        ));
+        let node_state = Arc::new(tokio::sync::Mutex::new(
+            try_maybe_node_state
+                .context("Could not read node state")?
                 .unwrap_or_default(),
         ));
 
@@ -1064,6 +1071,15 @@ impl UserNode {
             let sweep_task = legacy_sweep::spawn_legacy_sweep_task(sweep_ctx);
             let _ = eph_tasks_tx.try_send(sweep_task);
         }
+
+        // Check our spendable failed onchain payments, if the check is due.
+        let failed_payments_task = payments_manager
+            .spawn_spendable_failed_onchain_payments_checker(
+                esplora.clone(),
+                node_state,
+                shutdown.clone(),
+            );
+        let _ = eph_tasks_tx.try_send(failed_payments_task);
 
         let elapsed = init_start.elapsed().as_millis();
         info!("Node initialization complete. <{elapsed}ms>");

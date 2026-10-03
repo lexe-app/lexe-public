@@ -34,7 +34,7 @@ use lightning::{
         ser::{ReadableArgs, Writeable},
     },
 };
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tracing::{debug, info, warn};
 
 use crate::{
@@ -69,6 +69,28 @@ pub enum BackupCommand {
         source_file_id: VfsFileId,
         archive_file: VfsFile,
     },
+}
+
+/// Miscellaneous persisted node state.
+///
+/// Prefer adding a field here over creating another small singleton file.
+/// Every field must have a serde default (an [`Option`] has one implicitly)
+/// so that state persisted by older versions still deserializes.
+///
+/// Loaded once at startup and shared behind an `Arc<tokio::sync::Mutex<_>>`.
+/// Writers must hold the lock across their read-modify-persist so that
+/// concurrent updates can't clobber each other.
+#[derive(Default, Serialize, Deserialize)]
+pub struct NodeState {
+    /// When `PaymentsManager::check_spendable_failed_onchain_payments` last
+    /// completed successfully.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latest_spendable_failed_onchain_payments_check: Option<TimestampMs>,
+}
+
+impl NodeState {
+    pub const VFS_FILE_ID: &'static VfsFileId =
+        &VfsFileId::new_const(vfs::SINGLETON_DIRECTORY, "node_state");
 }
 
 // --- VFS encryption / decryption helpers --- //

@@ -1122,7 +1122,9 @@ impl From<OnchainSendStatus> for PaymentStatus {
             OnchainSendStatus::FullyConfirmed => Self::Completed,
             OnchainSendStatus::FullyReplaced => Self::Failed,
             OnchainSendStatus::Dropped => Self::Failed,
+            OnchainSendStatus::DroppedReplaced => Self::Failed,
             OnchainSendStatus::Canceled => Self::Failed,
+            OnchainSendStatus::CanceledReplaced => Self::Failed,
         }
     }
 }
@@ -1136,6 +1138,7 @@ impl From<OnchainReceiveStatus> for PaymentStatus {
             OnchainReceiveStatus::FullyConfirmed => Self::Completed,
             OnchainReceiveStatus::FullyReplaced => Self::Failed,
             OnchainReceiveStatus::Dropped => Self::Failed,
+            OnchainReceiveStatus::DroppedReplaced => Self::Failed,
         }
     }
 }
@@ -1218,7 +1221,9 @@ impl OnchainSendStatus {
             Self::FullyReplaced =>
                 "fully replaced (replacement has 6+ confirmations)",
             Self::Dropped => "dropped from mempool",
+            Self::DroppedReplaced => "dropped from mempool",
             Self::Canceled => "canceled",
+            Self::CanceledReplaced => "canceled",
         }
     }
 }
@@ -1235,6 +1240,7 @@ impl OnchainReceiveStatus {
             Self::FullyReplaced =>
                 "fully replaced (replacement has 6+ confirmations)",
             Self::Dropped => "dropped from mempool",
+            Self::DroppedReplaced => "dropped from mempool",
         }
     }
 }
