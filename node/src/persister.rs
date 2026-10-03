@@ -814,6 +814,26 @@ impl PaymentsPersisterMethods for NodePersister {
             .collect()
     }
 
+    async fn get_failed_onchain_payments(
+        &self,
+    ) -> anyhow::Result<Vec<PaymentV2>> {
+        let token = self.get_token().await?;
+
+        let db_payments = self
+            .backend_api
+            .get_failed_onchain_payments(token)
+            .await
+            .context("Could not fetch failed onchain payment `DbPaymentV2`s")?
+            .payments;
+
+        db_payments
+            .into_iter()
+            .map(|p| {
+                payments::encryption::decrypt_payment(&self.vfs_master_key, p)
+            })
+            .collect()
+    }
+
     async fn get_payment_by_id(
         &self,
         id: PaymentId,

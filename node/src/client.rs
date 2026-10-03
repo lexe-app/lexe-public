@@ -515,6 +515,17 @@ impl NodeBackendApi for NodeBackendClient {
         self.rest.send(req).await
     }
 
+    async fn get_failed_onchain_payments(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentV2, BackendApiError> {
+        let backend = &self.backend_url;
+        let data = Empty {};
+        let url = format!("{backend}/node/v1/payments/failed_onchain");
+        let req = self.rest.get(url, &data).bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
     async fn upsert_payment_metadata(
         &self,
         metadata: DbPaymentMetadata,

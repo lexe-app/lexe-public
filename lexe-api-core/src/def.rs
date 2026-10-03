@@ -882,6 +882,14 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError>;
 
+    /// GET /node/v1/payments/failed_onchain -> [`VecDbPaymentV2`]
+    ///
+    /// Fetches all failed onchain sends and receives.
+    async fn get_failed_onchain_payments(
+        &self,
+        auth: BearerAuthToken,
+    ) -> Result<VecDbPaymentV2, BackendApiError>;
+
     /// PUT /node/v1/payments/metadata [`DbPaymentMetadata`] -> [`Empty`]
     async fn upsert_payment_metadata(
         &self,

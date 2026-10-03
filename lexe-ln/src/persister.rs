@@ -466,6 +466,10 @@ pub trait PaymentsPersisterMethods: LightningPersisterMethods {
 
     async fn get_pending_payments(&self) -> anyhow::Result<Vec<PaymentV2>>;
 
+    async fn get_failed_onchain_payments(
+        &self,
+    ) -> anyhow::Result<Vec<PaymentV2>>;
+
     async fn get_payment_by_id(
         &self,
         id: PaymentId,
