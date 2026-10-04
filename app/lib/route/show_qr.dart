@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show LxCloseButton, ScrollableSinglePageBody;
-import 'package:lexeapp/style.dart' show LxColors, Space;
+import 'package:lexeapp/style.dart' show LxColors, Space, LxTheme;
 
 /// Encode `value` as a QR image and then display it in `dimension` pixels
 /// width and height.
@@ -86,7 +86,7 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
               onLongPress: () =>
                   LxClipboard.copyTextWithFeedback(context, this.widget.value),
               enableFeedback: true,
-              splashColor: LxColors.clearW300,
+              splashColor: LxTheme.resolve(context, LxColors.clearW300),
             ),
           ),
         ],
@@ -106,7 +106,7 @@ class FullscreenQrDialog extends StatelessWidget {
     return Dialog(
       insetPadding: EdgeInsets.zero,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      backgroundColor: LxColors.grey1000,
+      backgroundColor: LxTheme.resolve(context, LxColors.grey1000),
       // Need padding around fullscreen QR image for quiet zone to improve
       // scan-ability.
       child: Padding(

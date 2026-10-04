@@ -120,9 +120,14 @@ class LexeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "Lexe App",
-      color: LxColors.background,
-      themeMode: ThemeMode.light,
+      color:
+          WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+              Brightness.dark
+          ? LxColors.grey100
+          : LxColors.background,
+      themeMode: ThemeMode.system,
       theme: LxTheme.light(),
+      darkTheme: LxTheme.dark(),
       debugShowCheckedModeBanner: false,
       home: this.child,
     );

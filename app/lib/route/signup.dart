@@ -401,7 +401,7 @@ phone, but relies on Lexe to provide your encrypted recovery data.
 
 [Learn more]($lexeDocsUrl)
 ''',
-            styleSheet: LxTheme.markdownStyle,
+            styleSheet: LxTheme.markdownStyleFor(context),
             onTapLink: (_, href, _) => unawaited(url.open(href!)),
           ),
         ],
@@ -556,9 +556,18 @@ class _SignupBackupSeedPageState extends State<SignupBackupSeedPage> {
                           ),
                         ),
                         contentPadding: EdgeInsets.zero,
-                        inactiveTrackColor: LxColors.grey1000,
-                        activeTrackColor: LxColors.moneyGoUp,
-                        inactiveThumbColor: LxColors.grey850,
+                        inactiveTrackColor: LxTheme.resolve(
+                          context,
+                          LxColors.grey1000,
+                        ),
+                        activeTrackColor: LxTheme.resolve(
+                          context,
+                          LxColors.moneyGoUp,
+                        ),
+                        inactiveThumbColor: LxTheme.resolve(
+                          context,
+                          LxColors.grey850,
+                        ),
                         controlAffinity: ListTileControlAffinity.leading,
                       );
                     },
@@ -651,9 +660,9 @@ class SignupButton extends StatelessWidget {
       onTap: this.onTap,
       loading: this.isLoading,
       style: FilledButton.styleFrom(
-        backgroundColor: LxColors.moneyGoUp,
-        foregroundColor: LxColors.grey1000,
-        iconColor: LxColors.grey1000,
+        backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+        foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+        iconColor: LxTheme.resolve(context, LxColors.grey1000),
       ),
     );
   }

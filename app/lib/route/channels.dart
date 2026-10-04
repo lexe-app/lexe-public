@@ -191,7 +191,9 @@ class _ChannelsPageState extends State<ChannelsPage> {
   Widget build(BuildContext context) {
     // Android: set the bottom nav bar to white bg so it matches the bottom sheet.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: LxTheme.systemOverlayStyleLightWhiteBg,
+      value: Theme.of(context).brightness == Brightness.dark
+          ? LxTheme.systemOverlayStyleDark
+          : LxTheme.systemOverlayStyleLightWhiteBg,
       child: Scaffold(
         appBar: AppBar(
           leading: const LxBackButton(isLeading: true),
@@ -312,8 +314,8 @@ class ChannelsPartyChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-    decoration: const BoxDecoration(
-      color: LxColors.grey850,
+    decoration: BoxDecoration(
+      color: LxTheme.resolve(context, LxColors.grey850),
       borderRadius: BorderRadius.all(Radius.circular(LxRadius.r200)),
     ),
     child: Padding(
@@ -325,7 +327,7 @@ class ChannelsPartyChip extends StatelessWidget {
         this.name,
         style: Fonts.fontUI.copyWith(
           fontSize: Fonts.size200,
-          color: LxColors.fgSecondary,
+          color: LxTheme.resolve(context, LxColors.fgSecondary),
         ),
       ),
     ),
@@ -415,15 +417,15 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
 
     const fontSizeWarning = Fonts.size100;
     const heightWarning = 1.25;
-    const textStyleWarning = TextStyle(
-      color: LxColors.grey550,
+    final textStyleWarning = TextStyle(
+      color: LxTheme.resolve(context, LxColors.grey550),
       fontSize: fontSizeWarning,
       fontVariations: [Fonts.weightNormal],
       height: heightWarning,
       letterSpacing: -0.1,
     );
-    const textStyleWarningSats = TextStyle(
-      color: LxColors.grey550,
+    final textStyleWarningSats = TextStyle(
+      color: LxTheme.resolve(context, LxColors.grey550),
       fontSize: fontSizeWarning,
       fontVariations: [Fonts.weightSemiBold],
       height: heightWarning,
@@ -484,7 +486,7 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
       children: [
         // Send up to sendable balance
         TotalChannelsBalanceRow(
-          color: LxColors.moneyGoUp,
+          color: LxTheme.resolve(context, LxColors.moneyGoUp),
           primaryText: const Text("Send up to"),
           secondaryText: textReserveWarning,
           primaryAmount: SplitFiatAmountTextOrPlaceholder(
@@ -498,7 +500,7 @@ class TotalChannelsBalanceWidget extends StatelessWidget {
 
         // Receive up to ∞
         TotalChannelsBalanceRow(
-          color: LxColors.moneyGoUpSecondary,
+          color: LxTheme.resolve(context, LxColors.moneyGoUpSecondary),
           primaryText: const Text("Receive up to"),
           secondaryText: textInboundLiquidityWarning,
           primaryAmount: const Text.rich(
@@ -553,7 +555,7 @@ class TotalChannelsBalanceRow extends StatelessWidget {
 
     final secondaryStyle = Fonts.fontUI.copyWith(
       fontSize: Fonts.size300,
-      color: LxColors.fgTertiary,
+      color: LxTheme.resolve(context, LxColors.fgTertiary),
       fontVariations: [Fonts.weightMedium],
       // fontFeatures: [Fonts.featTabularNumbers],
       height: 1.25,
@@ -737,7 +739,7 @@ class ChannelsListEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primaryStyle = Fonts.fontUI.copyWith(
-      color: LxColors.foreground,
+      color: LxTheme.resolve(context, LxColors.foreground),
       fontSize: Fonts.size300,
       fontVariations: [Fonts.weightMedium],
       fontFeatures: [Fonts.featTabularNumbers],
@@ -745,7 +747,9 @@ class ChannelsListEntry extends StatelessWidget {
       letterSpacing: -0.5,
     );
 
-    final secondaryStyle = primaryStyle.copyWith(color: LxColors.fgTertiary);
+    final secondaryStyle = primaryStyle.copyWith(
+      color: LxTheme.resolve(context, LxColors.fgTertiary),
+    );
 
     final ourBalanceFiat = ValueListenableBuilder(
       valueListenable: this.fiatRate,
@@ -857,13 +861,13 @@ class ChannelBalanceBarRow extends StatelessWidget {
         // Show a spinner for opening/closing channels.
         // TODO(phlip9): add subdued "pending"/"closing" text here?
         if (!this.isUsable)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(left: Space.s300),
             child: SizedBox.square(
               dimension: 10.0,
               child: CircularProgressIndicator(
                 strokeWidth: 2.0,
-                color: LxColors.grey775,
+                color: LxTheme.resolve(context, LxColors.grey775),
               ),
             ),
           ),
@@ -897,8 +901,8 @@ class OnchainBottomSheet extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: Space.s600),
           child: DecoratedBox(
-            decoration: const BoxDecoration(
-              color: LxColors.grey1000,
+            decoration: BoxDecoration(
+              color: LxTheme.resolve(context, LxColors.grey1000),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(LxRadius.r400),
                 topRight: Radius.circular(LxRadius.r400),
@@ -1038,10 +1042,10 @@ class ChannelButton extends StatelessWidget {
       children: [
         FilledButton(
           onPressed: this.onPressed,
-          style: const ButtonStyle(
+          style: ButtonStyle(
             side: WidgetStatePropertyAll(
               BorderSide(
-                color: LxColors.background,
+                color: LxTheme.resolve(context, LxColors.background),
                 width: 6.0,
                 style: BorderStyle.solid,
                 strokeAlign: BorderSide.strokeAlignOutside,

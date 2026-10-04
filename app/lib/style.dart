@@ -16,6 +16,14 @@ import 'package:material_symbols_icons/symbols.dart';
 final class LxTheme {
   LxTheme._();
 
+  /// Resolve an app palette color for the current system appearance.
+  ///
+  /// Resolving through [Theme.of] also subscribes the calling widget to theme
+  /// changes, so custom-colored widgets rebuild when the system appearance
+  /// changes.
+  static Color resolve(BuildContext context, Color color) =>
+      Theme.of(context).extension<LxPalette>()?.resolve(color) ?? color;
+
   // These [SystemUiOverlayStyle] define the colors for the system top-bar and
   // bottom-bar while our app is open. These are different than e.g. the
   // [AppBar] in that we don't define and render these in the app, only describe
@@ -61,16 +69,16 @@ final class LxTheme {
       );
 
   // theme: dark, icons: light, background: dark
-  static const SystemUiOverlayStyle systemOverlayStyleDark =
+  static final SystemUiOverlayStyle systemOverlayStyleDark =
       SystemUiOverlayStyle(
         // From: SystemUiOverlayStyle.light
         systemNavigationBarIconBrightness: Brightness.light,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
         // Lexe overrides
-        statusBarColor: LxColors.foreground,
-        systemNavigationBarColor: LxColors.foreground,
-        systemNavigationBarDividerColor: LxColors.foreground,
+        statusBarColor: LxColors.grey100,
+        systemNavigationBarColor: LxColors.grey100,
+        systemNavigationBarDividerColor: LxColors.grey100,
       );
 
   // theme: dark, icons: light, background: clear
@@ -87,15 +95,24 @@ final class LxTheme {
       );
 
   /// The global, Lexe-specific light theme.
-  static ThemeData light() {
+  static ThemeData light() => _build(Brightness.light);
+
+  /// The global, Lexe-specific dark theme.
+  static ThemeData dark() => _build(Brightness.dark);
+
+  static ThemeData _build(Brightness brightness) {
+    final palette = LxPalette(
+      darkProgress: brightness == Brightness.dark ? 1.0 : 0.0,
+    );
+
     // Derive a basic colorscheme from our grey colors.
     final colorScheme = ColorScheme.fromSwatch(
       primarySwatch: LxColors.greySwatch,
-      brightness: Brightness.light,
-      accentColor: LxColors.moneyGoUp,
-      backgroundColor: LxColors.background,
-      cardColor: LxColors.grey1000,
-      errorColor: LxColors.errorText,
+      brightness: brightness,
+      accentColor: palette.resolve(LxColors.moneyGoUp),
+      backgroundColor: palette.resolve(LxColors.background),
+      cardColor: palette.resolve(LxColors.grey1000),
+      errorColor: palette.resolve(LxColors.errorText),
     );
 
     // Text styling
@@ -107,13 +124,14 @@ final class LxTheme {
     // TODO(phlip9): need to tweak these...
     // https://m3.material.io/styles/typography/type-scale-tokens
 
-    final textTheme = typography.black
-        .apply(
-          fontFamily: "Inter V",
-          displayColor: LxColors.foreground,
-          bodyColor: LxColors.foreground,
-        )
-        .copyWith(headlineSmall: Fonts.fontHeadlineSmall);
+    final textTheme =
+        (brightness == Brightness.dark ? typography.white : typography.black)
+            .apply(
+              fontFamily: "Inter V",
+              displayColor: palette.resolve(LxColors.foreground),
+              bodyColor: palette.resolve(LxColors.foreground),
+            )
+            .copyWith(headlineSmall: Fonts.fontHeadlineSmall);
 
     // Start with a basic theme generated from our greyscale colors. This will
     // provide somewhat reasonable default styling for things that we haven't
@@ -124,24 +142,31 @@ final class LxTheme {
       textTheme: textTheme,
     );
 
-    const appBarIconTheme = IconThemeData(
-      color: LxColors.foreground,
+    final appBarIconTheme = IconThemeData(
+      color: palette.resolve(LxColors.foreground),
       size: Fonts.size700,
     );
 
     return baseTheme.copyWith(
       visualDensity: VisualDensity.comfortable,
-      scaffoldBackgroundColor: LxColors.background,
-      brightness: Brightness.light,
+      scaffoldBackgroundColor: palette.resolve(LxColors.background),
+      brightness: brightness,
+
+      extensions: <ThemeExtension<LxPalette>>[palette],
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: Fonts.fontUI.copyWith(
+          color: palette.resolve(LxColors.grey750),
+        ),
+      ),
 
       iconTheme: baseTheme.iconTheme.copyWith(
-        color: LxColors.foreground,
+        color: palette.resolve(LxColors.foreground),
         weight: LxIcons.weightSemiBold,
         grade: LxIcons.gradeMedium,
         opacity: 1.0,
       ),
       primaryIconTheme: baseTheme.primaryIconTheme.copyWith(
-        color: LxColors.foreground,
+        color: palette.resolve(LxColors.foreground),
         weight: LxIcons.weightSemiBold,
         grade: LxIcons.gradeMedium,
         opacity: 1.0,
@@ -149,8 +174,8 @@ final class LxTheme {
 
       // [AppBar]
       appBarTheme: baseTheme.appBarTheme.copyWith(
-        backgroundColor: LxColors.background,
-        foregroundColor: LxColors.foreground,
+        backgroundColor: palette.resolve(LxColors.background),
+        foregroundColor: palette.resolve(LxColors.foreground),
 
         // Left align the title.
         centerTitle: false,
@@ -162,11 +187,13 @@ final class LxTheme {
         // by default, show line under app bar when content scrolls under
         // still not sure I like how this looks...
         scrolledUnderElevation: 1.0,
-        shadowColor: LxColors.background,
-        surfaceTintColor: LxColors.clearB0,
+        shadowColor: palette.resolve(LxColors.background),
+        surfaceTintColor: palette.resolve(LxColors.clearB0),
 
         // make the system bar use the same background color as the page
-        systemOverlayStyle: LxTheme.systemOverlayStyleLight,
+        systemOverlayStyle: brightness == Brightness.dark
+            ? LxTheme.systemOverlayStyleDark
+            : LxTheme.systemOverlayStyleLight,
 
         iconTheme: appBarIconTheme,
         actionsIconTheme: appBarIconTheme,
@@ -175,23 +202,23 @@ final class LxTheme {
       // [Drawer]
       drawerTheme: baseTheme.drawerTheme.copyWith(
         // make the drawer blend with the system bar
-        backgroundColor: LxColors.background,
+        backgroundColor: palette.resolve(LxColors.background),
         elevation: 0.0,
         // scrim is the transparent overlay that covers the underlying page to
         // the right of the drawer.
-        scrimColor: LxColors.clearB200,
+        scrimColor: palette.resolve(LxColors.clearB200),
       ),
 
       // [OutlinedButton]
       outlinedButtonTheme: OutlinedButtonThemeData(
         style:
             OutlinedButton.styleFrom(
-              foregroundColor: LxColors.foreground,
-              backgroundColor: LxColors.clearB0,
-              iconColor: LxColors.foreground,
-              disabledForegroundColor: LxColors.fgTertiary,
-              disabledBackgroundColor: LxColors.clearB0,
-              disabledIconColor: LxColors.fgTertiary,
+              foregroundColor: palette.resolve(LxColors.foreground),
+              backgroundColor: palette.resolve(LxColors.clearB0),
+              iconColor: palette.resolve(LxColors.foreground),
+              disabledForegroundColor: palette.resolve(LxColors.fgTertiary),
+              disabledBackgroundColor: palette.resolve(LxColors.clearB0),
+              disabledIconColor: palette.resolve(LxColors.fgTertiary),
               padding: const EdgeInsets.all(Space.buttonPadding),
               minimumSize: const Size.square(Space.buttonMinDim),
               maximumSize: const Size.fromHeight(Space.buttonMinDim),
@@ -212,13 +239,16 @@ final class LxTheme {
               side: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
                 // disabled => deemphasized border
                 if (states.contains(WidgetState.disabled)) {
-                  return const BorderSide(
-                    color: LxColors.fgTertiary,
+                  return BorderSide(
+                    color: palette.resolve(LxColors.fgTertiary),
                     width: 2.0,
                   );
                 }
                 // normal
-                return const BorderSide(color: LxColors.foreground, width: 2.0);
+                return BorderSide(
+                  color: palette.resolve(LxColors.foreground),
+                  width: 2.0,
+                );
               }),
             ),
       ),
@@ -226,12 +256,12 @@ final class LxTheme {
       // [FilledButton]
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          foregroundColor: LxColors.foreground,
-          backgroundColor: LxColors.grey1000,
-          iconColor: LxColors.foreground,
-          disabledForegroundColor: LxColors.fgTertiary,
-          disabledBackgroundColor: LxColors.grey850,
-          disabledIconColor: LxColors.fgTertiary,
+          foregroundColor: palette.resolve(LxColors.foreground),
+          backgroundColor: palette.resolve(LxColors.grey1000),
+          iconColor: palette.resolve(LxColors.foreground),
+          disabledForegroundColor: palette.resolve(LxColors.fgTertiary),
+          disabledBackgroundColor: palette.resolve(LxColors.grey850),
+          disabledIconColor: palette.resolve(LxColors.fgTertiary),
           padding: const EdgeInsets.all(Space.buttonPadding),
           minimumSize: const Size.square(Space.buttonMinDim),
           maximumSize: const Size.fromHeight(Space.buttonMinDim),
@@ -241,7 +271,10 @@ final class LxTheme {
           visualDensity: const VisualDensity(horizontal: 0.0, vertical: 0.0),
           textStyle: Fonts.fontButton,
           iconSize: Fonts.size600,
-          side: const BorderSide(color: LxColors.clearB0, width: 0.0),
+          side: BorderSide(
+            color: palette.resolve(LxColors.clearB0),
+            width: 0.0,
+          ),
         ),
       ),
 
@@ -249,8 +282,8 @@ final class LxTheme {
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
           (states) => (states.contains(WidgetState.disabled))
-              ? LxColors.fgTertiary
-              : LxColors.foreground,
+              ? palette.resolve(LxColors.fgTertiary)
+              : palette.resolve(LxColors.foreground),
         ),
       ),
 
@@ -258,19 +291,27 @@ final class LxTheme {
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return LxColors.fgTertiary;
+            return palette.resolve(LxColors.fgTertiary);
           }
           if (states.contains(WidgetState.selected)) {
-            return LxColors.foreground;
+            return palette.resolve(LxColors.foreground);
           }
-          return LxColors.clearB0;
+          return palette.resolve(LxColors.clearB0);
         }),
-        checkColor: WidgetStateProperty.all(LxColors.background),
+        checkColor: WidgetStateProperty.all(
+          palette.resolve(LxColors.background),
+        ),
         side: WidgetStateBorderSide.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return const BorderSide(color: LxColors.fgTertiary, width: 2.0);
+            return BorderSide(
+              color: palette.resolve(LxColors.fgTertiary),
+              width: 2.0,
+            );
           }
-          return const BorderSide(color: LxColors.foreground, width: 2.0);
+          return BorderSide(
+            color: palette.resolve(LxColors.foreground),
+            width: 2.0,
+          );
         }),
       ),
 
@@ -285,7 +326,7 @@ final class LxTheme {
         subtitleTextStyle: Fonts.fontUI.copyWith(
           fontSize: Fonts.size200,
           height: 1.25,
-          color: LxColors.grey450,
+          color: palette.resolve(LxColors.grey450),
         ),
         leadingAndTrailingTextStyle: Fonts.fontUI.copyWith(
           fontSize: Fonts.size300,
@@ -293,15 +334,15 @@ final class LxTheme {
       ),
 
       // [Dialog]
-      dialogTheme: const DialogThemeData(
-        backgroundColor: LxColors.background,
+      dialogTheme: DialogThemeData(
+        backgroundColor: palette.resolve(LxColors.background),
         elevation: 0.0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(
             Radius.elliptical(LxRadius.r400, LxRadius.r400),
           ),
         ),
-        barrierColor: LxColors.clearB300,
+        barrierColor: palette.resolve(LxColors.clearB300),
       ),
 
       // [CircularProgressIndicator] and [LinearProgressIndicator]
@@ -315,14 +356,24 @@ final class LxTheme {
 
   /// The default stylesheet (fonts, typography, margins, etc...) used for
   /// rendering [Markdown] widgets.
-  static final MarkdownStyleSheet markdownStyle = buildMarkdownStyle();
+  static final MarkdownStyleSheet markdownStyle = buildMarkdownStyle(
+    LxPalette.light,
+  );
+
+  /// Build the markdown styles for the current app appearance.
+  static MarkdownStyleSheet markdownStyleFor(BuildContext context) =>
+      buildMarkdownStyle(
+        Theme.of(context).extension<LxPalette>() ?? LxPalette.light,
+      );
 
   /// Build the default stylesheet (fonts, typography, margins, etc...) used for
   /// rendering [Markdown] widgets.
-  static MarkdownStyleSheet buildMarkdownStyle() {
-    const pStyle = TextStyle(
+  static MarkdownStyleSheet buildMarkdownStyle([
+    LxPalette palette = LxPalette.light,
+  ]) {
+    final pStyle = TextStyle(
       fontSize: Fonts.size300,
-      color: LxColors.foreground,
+      color: palette.resolve(LxColors.foreground),
       height: 1.45,
       letterSpacing: -0.3,
     );
@@ -340,10 +391,10 @@ final class LxTheme {
       blockSpacing: 0,
 
       // <a/>
-      a: const TextStyle(
+      a: TextStyle(
         decoration: TextDecoration.underline,
-        color: LxColors.linkText,
-        decorationColor: LxColors.linkText,
+        color: palette.resolve(LxColors.linkText),
+        decorationColor: palette.resolve(LxColors.linkText),
       ),
 
       // <strong>
@@ -394,6 +445,96 @@ final class LxTheme {
       listBullet: pStyle,
     );
   }
+}
+
+/// Resolves Lexe's light-mode palette tokens for the selected app theme.
+@immutable
+final class LxPalette extends ThemeExtension<LxPalette> {
+  const LxPalette({required this.darkProgress});
+
+  static const LxPalette light = LxPalette(darkProgress: 0.0);
+  static const LxPalette dark = LxPalette(darkProgress: 1.0);
+
+  /// Interpolation from the light palette (0) to the dark palette (1).
+  final double darkProgress;
+
+  static const List<Color> _greyScale = <Color>[
+    LxColors.grey0,
+    LxColors.grey25,
+    LxColors.grey50,
+    LxColors.grey75,
+    LxColors.grey100,
+    LxColors.grey125,
+    LxColors.grey150,
+    LxColors.grey175,
+    LxColors.grey200,
+    LxColors.grey225,
+    LxColors.grey250,
+    LxColors.grey275,
+    LxColors.grey300,
+    LxColors.grey325,
+    LxColors.grey350,
+    LxColors.grey375,
+    LxColors.grey400,
+    LxColors.grey425,
+    LxColors.grey450,
+    LxColors.grey475,
+    LxColors.grey500,
+    LxColors.grey525,
+    LxColors.grey550,
+    LxColors.grey575,
+    LxColors.grey600,
+    LxColors.grey625,
+    LxColors.grey650,
+    LxColors.grey675,
+    LxColors.grey700,
+    LxColors.grey725,
+    LxColors.grey750,
+    LxColors.grey775,
+    LxColors.grey800,
+    LxColors.grey825,
+    LxColors.grey850,
+    LxColors.grey875,
+    LxColors.grey900,
+    LxColors.grey925,
+    LxColors.grey950,
+    LxColors.grey975,
+    LxColors.grey1000,
+  ];
+
+  static final Map<int, Color> _darkGreyByArgb32 = <int, Color>{
+    for (int i = 0; i < _greyScale.length; i++)
+      _greyScale[i].toARGB32(): _greyScale[_greyScale.length - i - 1],
+  };
+
+  Color resolve(Color lightColor) {
+    final Color darkColor;
+    if (lightColor == LxColors.warningBackground) {
+      darkColor = const Color(0xff39334d);
+    } else if (lightColor == LxColors.errorText) {
+      darkColor = const Color(0xffff8c7a);
+    } else if (lightColor == LxColors.warningText) {
+      darkColor = const Color(0xffff927e);
+    } else if (lightColor == LxColors.linkText) {
+      darkColor = const Color(0xffb69bff);
+    } else {
+      darkColor = _darkGreyByArgb32[lightColor.toARGB32()] ?? lightColor;
+    }
+
+    return Color.lerp(lightColor, darkColor, this.darkProgress)!;
+  }
+
+  @override
+  LxPalette copyWith({double? darkProgress}) =>
+      LxPalette(darkProgress: darkProgress ?? this.darkProgress);
+
+  @override
+  LxPalette lerp(covariant LxPalette? other, double t) => other == null
+      ? this
+      : LxPalette(
+          darkProgress:
+              this.darkProgress + (other.darkProgress - this.darkProgress) * t,
+        );
 }
 
 /// Lexe's color palette.

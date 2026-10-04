@@ -22,7 +22,7 @@ import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/save_file.dart' as save_file;
 import 'package:lexeapp/settings.dart' show LxSettings;
-import 'package:lexeapp/style.dart' show LxColors, Space;
+import 'package:lexeapp/style.dart' show LxColors, Space, LxTheme;
 
 class DebugPage extends StatefulWidget {
   const DebugPage({
@@ -152,12 +152,14 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Reset settings"),
-            subtitle: const Text.rich(
+            subtitle: Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
                     text: "Resets all settings to their default values.",
-                    style: TextStyle(color: LxColors.fgTertiary),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.fgTertiary),
+                    ),
                   ),
                 ],
               ),
@@ -169,9 +171,11 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Delete local payments"),
-            subtitle: const Text(
+            subtitle: Text(
               "Your app will clear all local payment info and resync from the node",
-              style: TextStyle(color: LxColors.fgTertiary),
+              style: TextStyle(
+                color: LxTheme.resolve(context, LxColors.fgTertiary),
+              ),
             ),
             onTap: this.doDeleteLocalPaymentDb,
           ),
@@ -192,17 +196,21 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Delete local secrets"),
-            subtitle: const Text.rich(
+            subtitle: Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
                     text: "WARNING: ",
-                    style: TextStyle(color: LxColors.warningText),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.warningText),
+                    ),
                   ),
                   TextSpan(
                     text:
                         "you will need to recover from backup to use this wallet again",
-                    style: TextStyle(color: LxColors.fgTertiary),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.fgTertiary),
+                    ),
                   ),
                 ],
               ),
@@ -214,18 +222,22 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Copy RootSeed to clipboard"),
-            subtitle: const Text.rich(
+            subtitle: Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
                     text: "WARNING: ",
-                    style: TextStyle(color: LxColors.warningText),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.warningText),
+                    ),
                   ),
                   TextSpan(
                     text:
                         "this is the root seed for your wallet. Anyone "
                         "with this secret also controls your funds.",
-                    style: TextStyle(color: LxColors.fgTertiary),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.fgTertiary),
+                    ),
                   ),
                 ],
               ),
@@ -237,17 +249,21 @@ class _DebugPageState extends State<DebugPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text("Dump node state from GDrive"),
-            subtitle: const Text.rich(
+            subtitle: Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
                     text: "WARNING: ",
-                    style: TextStyle(color: LxColors.warningText),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.warningText),
+                    ),
                   ),
                   TextSpan(
                     text:
                         "this contains some secrets and sensitive information about your node. Only share this with someone you trust.",
-                    style: TextStyle(color: LxColors.fgTertiary),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.fgTertiary),
+                    ),
                   ),
                 ],
               ),

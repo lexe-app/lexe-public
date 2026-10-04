@@ -32,7 +32,7 @@ import 'package:lexeapp/components.dart'
         SubheadingText;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space, LxTheme;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState, FiatAmount;
 
 @immutable
@@ -437,9 +437,9 @@ class _OpenChannelConfirmPageState extends State<OpenChannelConfirmPage> {
               onTap: this.onConfirm,
               loading: estimatingFee,
               style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-                iconColor: LxColors.grey1000,
+                backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+                iconColor: LxTheme.resolve(context, LxColors.grey1000),
               ),
             ),
           ),

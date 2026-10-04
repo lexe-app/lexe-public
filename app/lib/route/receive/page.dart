@@ -48,7 +48,7 @@ import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, Space, LxTheme;
 
 /// The viewport breakpoint at which we cap the inner page width and possibly
 /// show multiple [PaymentOfferPage]s on-screen simultaneously.
@@ -830,11 +830,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxBackButton(isLeading: true),
-        title: const Text(
+        title: Text(
           "Receive",
           // "Receive payment",
           style: TextStyle(
-            color: LxColors.foreground,
+            color: LxTheme.resolve(context, LxColors.foreground),
             fontSize: Fonts.size500,
             fontVariations: [Fonts.weightMedium],
             letterSpacing: -0.5,
@@ -997,8 +997,8 @@ class PaymentOfferPage extends StatelessWidget {
               children: [
                 Text(
                   this.paymentOffer.titleStr(),
-                  style: const TextStyle(
-                    color: LxColors.foreground,
+                  style: TextStyle(
+                    color: LxTheme.resolve(context, LxColors.foreground),
                     fontSize: Fonts.size300,
                     fontVariations: [Fonts.weightMedium],
                     letterSpacing: -0.25,
@@ -1007,8 +1007,8 @@ class PaymentOfferPage extends StatelessWidget {
                 ),
                 Text(
                   this.paymentOffer.subtitleStr(),
-                  style: const TextStyle(
-                    color: LxColors.grey600,
+                  style: TextStyle(
+                    color: LxTheme.resolve(context, LxColors.grey600),
                     fontSize: Fonts.size100,
                     height: 1.2,
                   ),
@@ -1076,8 +1076,8 @@ class PaymentOfferPage extends StatelessWidget {
                           // TextSpan(text: "."),
                         ],
                       ),
-                      style: const TextStyle(
-                        color: LxColors.grey550,
+                      style: TextStyle(
+                        color: LxTheme.resolve(context, LxColors.grey550),
                         fontSize: Fonts.size100,
                         // letterSpacing: -0.2,
                       ),
@@ -1145,7 +1145,7 @@ class CardBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: LxColors.grey1000,
+      color: LxTheme.resolve(context, LxColors.grey1000),
       borderRadius: BorderRadius.circular(LxRadius.r300),
     ),
     padding: const EdgeInsets.fromLTRB(
@@ -1178,7 +1178,7 @@ class CopyCodeButtonOrPlaceholder extends StatelessWidget {
     const double buttonPadHoriz = Space.s300;
 
     const double fontSize = Fonts.size100;
-    const Color fontColor = LxColors.grey550;
+    final Color fontColor = LxTheme.resolve(context, LxColors.grey550);
 
     final code = this.code;
 
@@ -1221,7 +1221,7 @@ class CopyCodeButtonOrPlaceholder extends StatelessWidget {
         ),
       );
     } else {
-      return const SizedBox(
+      return SizedBox(
         width: buttonWidth,
         height: buttonHeight,
         child: Center(
@@ -1252,7 +1252,7 @@ class LightningTypeToggle extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: LxColors.grey850,
+        color: LxTheme.resolve(context, LxColors.grey850),
         borderRadius: BorderRadius.circular(LxRadius.r300),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1295,12 +1295,14 @@ class LightningToggleButton extends StatelessWidget {
     final borderRadius = BorderRadius.circular(LxRadius.r300);
 
     return Material(
-      color: this.isSelected ? LxColors.grey1000 : Colors.transparent,
+      color: this.isSelected
+          ? LxTheme.resolve(context, LxColors.grey1000)
+          : Colors.transparent,
       borderRadius: borderRadius,
       child: InkWell(
         onTap: this.onTap,
         borderRadius: borderRadius,
-        splashColor: LxColors.grey925,
+        splashColor: LxTheme.resolve(context, LxColors.grey925),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             vertical: Space.s200,
@@ -1314,7 +1316,9 @@ class LightningToggleButton extends StatelessWidget {
               fontVariations: [
                 this.isSelected ? Fonts.weightMedium : Fonts.weightNormal,
               ],
-              color: this.isSelected ? LxColors.foreground : LxColors.grey550,
+              color: this.isSelected
+                  ? LxTheme.resolve(context, LxColors.foreground)
+                  : LxTheme.resolve(context, LxColors.grey550),
             ),
           ),
         ),
@@ -1557,7 +1561,7 @@ class _ReceivePaymentEditPageState extends State<ReceivePaymentEditPage> {
             child: Text(
               this.widget.descriptionHelper,
               style: Fonts.fontUI.copyWith(
-                color: LxColors.grey600,
+                color: LxTheme.resolve(context, LxColors.grey600),
                 fontSize: Fonts.size100,
               ),
             ),

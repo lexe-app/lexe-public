@@ -20,7 +20,8 @@ import 'package:lexeapp/currency_format.dart' show formatSatsAmount;
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/service/human_bitcoin_address.dart'
     show GetHumanBitcoinAddressResponseExt, HumanBitcoinAddressService;
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, Space, LxTheme;
 import 'package:lexeapp/types.dart' show BalanceState;
 
 /// A user-facing message telling the user to top up before claiming a custom
@@ -199,12 +200,12 @@ class _EditHumanBitcoinAddressPageState
               suffixText: "@lexe.app",
               suffixStyle: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size700,
-                color: LxColors.grey600,
+                color: LxTheme.resolve(context, LxColors.grey600),
                 fontVariations: [Fonts.weightMedium],
               ),
               prefixStyle: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size700,
-                color: LxColors.grey600,
+                color: LxTheme.resolve(context, LxColors.grey600),
                 fontVariations: [Fonts.weightMedium],
               ),
               errorMaxLines: 2,
@@ -271,7 +272,7 @@ class HbaSuccessPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Space.s500),
             decoration: BoxDecoration(
-              color: LxColors.grey950,
+              color: LxTheme.resolve(context, LxColors.grey950),
               borderRadius: BorderRadius.circular(12.0),
             ),
             child: Column(
@@ -281,7 +282,7 @@ class HbaSuccessPage extends StatelessWidget {
                   "Human Bitcoin Address",
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
-                    color: LxColors.grey600,
+                    color: LxTheme.resolve(context, LxColors.grey600),
                   ),
                 ),
                 const SizedBox(height: Space.s200),
@@ -290,7 +291,7 @@ class HbaSuccessPage extends StatelessWidget {
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size500,
                     fontVariations: [Fonts.weightMedium],
-                    color: LxColors.foreground,
+                    color: LxTheme.resolve(context, LxColors.foreground),
                   ),
                 ),
               ],

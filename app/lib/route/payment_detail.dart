@@ -42,7 +42,8 @@ import 'package:lexeapp/notifier_ext.dart';
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/string_ext.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, Space, LxTheme;
 import 'package:lexeapp/url.dart' as url;
 
 /// A bit of a hack so we can display "reasonable" Payment info immediately
@@ -269,7 +270,7 @@ class PaymentDetailPageInner extends StatelessWidget {
   void openBottomSheet(BuildContext context) {
     unawaited(
       showModalBottomSheet(
-        backgroundColor: LxColors.background,
+        backgroundColor: LxTheme.resolve(context, LxColors.background),
         elevation: 0.0,
         clipBehavior: Clip.hardEdge,
         enableDrag: true,
@@ -652,7 +653,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
       // by default, SnackBar's are covered by the bottomSheet, so wrap
       // everything here in a Scaffold so SnackBar's actually get displayed.
       builder: (context, scrollController) => Scaffold(
-        backgroundColor: LxColors.clearW0,
+        backgroundColor: LxTheme.resolve(context, LxColors.clearW0),
         body: Padding(
           padding: const EdgeInsets.symmetric(horizontal: pagePadding),
           child: CustomScrollView(
@@ -964,47 +965,47 @@ class PaymentDetailIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLightning = this.rail.isLightning();
     const size = Space.s700;
-    const color = LxColors.fgSecondary;
+    final color = LxTheme.resolve(context, LxColors.fgSecondary);
 
     final icon = DecoratedBox(
-      decoration: const BoxDecoration(
-        color: LxColors.grey825,
+      decoration: BoxDecoration(
+        color: LxTheme.resolve(context, LxColors.grey825),
         borderRadius: BorderRadius.all(Radius.circular(Space.s800 / 2)),
       ),
       child: SizedBox.square(
         dimension: Space.s800,
         child: (isLightning)
-            ? const Icon(
+            ? Icon(
                 LxIcons.lightning,
                 size: size,
                 color: color,
                 fill: 1.0,
                 weight: LxIcons.weightExtraLight,
               )
-            : const Icon(LxIcons.bitcoin, size: size, color: color),
+            : Icon(LxIcons.bitcoin, size: size, color: color),
       ),
     );
 
     return switch (this.status) {
       PaymentStatus.completed => PaymentDetailIconBadge(
         icon: LxIcons.completedBadge,
-        color: LxColors.background,
-        backgroundColor: LxColors.moneyGoUp,
+        color: LxTheme.resolve(context, LxColors.background),
+        backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
         child: icon,
       ),
       PaymentStatus.pending => PaymentDetailIconBadge(
         icon: LxIcons.pendingBadge,
-        color: LxColors.background,
+        color: LxTheme.resolve(context, LxColors.background),
         // Use "green" also for pending. Assume payments will generally be
         // successful. Don't scare users.
         // TODO(phlip9): use a warning yellow after several hours of pending?
-        backgroundColor: LxColors.moneyGoUp,
+        backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
         child: icon,
       ),
       PaymentStatus.failed => PaymentDetailIconBadge(
         icon: LxIcons.failedBadge,
-        color: LxColors.background,
-        backgroundColor: LxColors.errorText,
+        color: LxTheme.resolve(context, LxColors.background),
+        backgroundColor: LxTheme.resolve(context, LxColors.errorText),
         child: icon,
       ),
     };
@@ -1103,7 +1104,9 @@ class PaymentDetailDirectionTime extends StatelessWidget {
           const TextSpan(text: " · "),
           TextSpan(
             text: createdAtStr,
-            style: const TextStyle(color: LxColors.fgSecondary),
+            style: TextStyle(
+              color: LxTheme.resolve(context, LxColors.fgSecondary),
+            ),
           ),
         ],
         style: Fonts.fontBody.copyWith(
@@ -1130,7 +1133,7 @@ class PaymentDetailStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: LxColors.grey1000,
+      color: LxTheme.resolve(context, LxColors.grey1000),
       elevation: 0.0,
       margin: const EdgeInsets.all(0),
       child: Padding(
@@ -1144,7 +1147,7 @@ class PaymentDetailStatusCard extends StatelessWidget {
                 (this.status == PaymentStatus.pending) ? "pending" : "failed",
                 style: Fonts.fontBody.copyWith(
                   fontSize: Fonts.size300,
-                  color: LxColors.foreground,
+                  color: LxTheme.resolve(context, LxColors.foreground),
                   fontVariations: [Fonts.weightSemiBold],
                   height: 1.0,
                 ),
@@ -1159,7 +1162,7 @@ class PaymentDetailStatusCard extends StatelessWidget {
                 style: Fonts.fontBody.copyWith(
                   letterSpacing: -0.25,
                   fontSize: Fonts.size200,
-                  color: LxColors.fgSecondary,
+                  color: LxTheme.resolve(context, LxColors.fgSecondary),
                   fontVariations: [Fonts.weightNormal],
                   height: 1.3,
                 ),
@@ -1208,10 +1211,22 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
     final maybeAmountFiatStr = this.maybeAmountFiatStr();
 
     final amountColor = switch ((this.status, this.direction)) {
-      (PaymentStatus.failed, _) => LxColors.fgTertiary,
-      (_, PaymentDirection.info) => LxColors.fgTertiary,
-      (_, PaymentDirection.inbound) => LxColors.moneyGoUp,
-      (_, PaymentDirection.outbound) => LxColors.fgSecondary,
+      (PaymentStatus.failed, _) => LxTheme.resolve(
+        context,
+        LxColors.fgTertiary,
+      ),
+      (_, PaymentDirection.info) => LxTheme.resolve(
+        context,
+        LxColors.fgTertiary,
+      ),
+      (_, PaymentDirection.inbound) => LxTheme.resolve(
+        context,
+        LxColors.moneyGoUp,
+      ),
+      (_, PaymentDirection.outbound) => LxTheme.resolve(
+        context,
+        LxColors.fgSecondary,
+      ),
     };
 
     final fiatStyle = Fonts.fontUI.copyWith(
@@ -1219,7 +1234,7 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
       fontSize: Fonts.size500,
       fontVariations: [Fonts.weightNormal],
       fontFeatures: [Fonts.featSlashedZero],
-      color: LxColors.fgTertiary,
+      color: LxTheme.resolve(context, LxColors.fgTertiary),
     );
 
     return Column(
@@ -1321,11 +1336,11 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
           children: [
             Padding(
               padding: const EdgeInsets.only(left: bodyPadding),
-              child: const Text(
+              child: Text(
                 "Personal note",
                 style: TextStyle(
                   fontSize: Fonts.size200,
-                  color: LxColors.fgTertiary,
+                  color: LxTheme.resolve(context, LxColors.fgTertiary),
                 ),
               ),
             ),
@@ -1334,11 +1349,11 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
             // Show a small spinner while submitting.
             ValueListenableBuilder(
               valueListenable: this.isSubmitting,
-              child: const SizedBox.square(
+              child: SizedBox.square(
                 dimension: Fonts.size200,
                 child: CircularProgressIndicator(
                   strokeWidth: 1.0,
-                  color: LxColors.fgTertiary,
+                  color: LxTheme.resolve(context, LxColors.fgTertiary),
                 ),
               ),
               builder: (_context, submitting, child) => AnimatedOpacity(
@@ -1391,9 +1406,9 @@ class PaymentDetailLabeledCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const valueStyle = TextStyle(
+    final valueStyle = TextStyle(
       fontSize: Fonts.size200,
-      color: LxColors.foreground,
+      color: LxTheme.resolve(context, LxColors.foreground),
       height: 1.2,
     );
 
@@ -1403,7 +1418,7 @@ class PaymentDetailLabeledCard extends StatelessWidget {
 
     final clickableCard = Card(
       clipBehavior: Clip.hardEdge,
-      color: LxColors.grey1000,
+      color: LxTheme.resolve(context, LxColors.grey1000),
       elevation: 0.0,
       margin: const EdgeInsets.all(0),
       child: InkWell(
@@ -1428,9 +1443,9 @@ class PaymentDetailLabeledCard extends StatelessWidget {
           padding: const EdgeInsets.only(left: bodyPadding, bottom: Space.s200),
           child: Text(
             this.label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: Fonts.size200,
-              color: LxColors.fgTertiary,
+              color: LxTheme.resolve(context, LxColors.fgTertiary),
             ),
           ),
         ),

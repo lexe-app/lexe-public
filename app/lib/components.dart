@@ -20,7 +20,7 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
+    show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, LxTheme, Space;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState, FiatAmount;
 import 'package:lexeapp/url.dart' as url;
 import 'package:rxdart_ext/rxdart_ext.dart';
@@ -40,7 +40,6 @@ const int MAX_OFFER_PAYMENT_NOTE_CHARS = 200;
 typedef VoidContextCallback = void Function(BuildContext);
 
 const InputDecoration baseInputDecoration = InputDecoration(
-  hintStyle: TextStyle(color: LxColors.grey750),
   filled: true,
   fillColor: LxColors.clearB0,
   // hoverColor: LxColors.clearB50,
@@ -275,12 +274,12 @@ class _AnimatedFillButtonState extends State<AnimatedFillButton> {
           duration: const Duration(milliseconds: 150),
           child: (!loading)
               ? this.widget.label
-              : const Center(
+              : Center(
                   child: SizedBox.square(
                     dimension: Fonts.size400,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.0,
-                      color: LxColors.clearB200,
+                      color: LxTheme.resolve(context, LxColors.clearB200),
                     ),
                   ),
                 ),
@@ -321,17 +320,19 @@ class FilledPlaceholder extends StatelessWidget {
   final Widget? child;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: this.width,
-    height: this.height,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: this.color,
-        borderRadius: BorderRadius.circular(this.borderRadius),
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: this.width,
+      height: this.height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: LxTheme.resolve(context, this.color),
+          borderRadius: BorderRadius.circular(this.borderRadius),
+        ),
+        child: this.child,
       ),
-      child: this.child,
-    ),
-  );
+    );
+  }
 }
 
 /// A simple colored box that we can show while we wait for some text content to
@@ -360,21 +361,23 @@ class FilledTextPlaceholder extends StatelessWidget {
   final TextStyle? style;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: this.width,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: this.color,
-        borderRadius: BorderRadius.circular(this.borderRadius),
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: this.width,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: LxTheme.resolve(context, this.color),
+          borderRadius: BorderRadius.circular(this.borderRadius),
+        ),
+        child: Text(
+          " ",
+          style: this.style,
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+        ),
       ),
-      child: Text(
-        " ",
-        style: this.style,
-        maxLines: 1,
-        overflow: TextOverflow.clip,
-      ),
-    ),
-  );
+    );
+  }
 }
 
 /// A simple colored box that we can show while we wait for some text content to
@@ -507,11 +510,11 @@ class LxRefreshButton extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         child: (!isRefreshing)
             ? const Icon(LxIcons.refresh)
-            : const SizedBox.square(
+            : SizedBox.square(
                 dimension: Fonts.size500,
                 child: CircularProgressIndicator(
                   strokeWidth: 3.0,
-                  color: LxColors.fgTertiary,
+                  color: LxTheme.resolve(context, LxColors.fgTertiary),
                 ),
               ),
       ),
@@ -551,7 +554,7 @@ class LxFilledButton extends StatelessWidget {
     this.label,
     this.icon,
     this.style,
-  });
+  }) : variant = _LxFilledButtonVariant.standard;
 
   /// Primary emphasis button. moneyGoUp-bg, white-fg, filled button.
   LxFilledButton.tonal({
@@ -559,20 +562,8 @@ class LxFilledButton extends StatelessWidget {
     required this.onTap,
     this.label,
     this.icon,
-    ButtonStyle? style,
-  }) : this.style = ButtonStyle(
-         foregroundColor: WidgetStateProperty.resolveWith(
-           (states) => (!states.contains(WidgetState.disabled))
-               ? LxColors.grey1000
-               : null,
-         ),
-         backgroundColor: WidgetStateProperty.resolveWith(
-           (states) => (!states.contains(WidgetState.disabled))
-               ? LxColors.moneyGoUp
-               : null,
-         ),
-         iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
-       ).merge(style);
+    this.style,
+  }) : variant = _LxFilledButtonVariant.tonal;
 
   /// High emphasis button. black-bg, white-fg, filled button.
   LxFilledButton.strong({
@@ -580,36 +571,61 @@ class LxFilledButton extends StatelessWidget {
     required this.onTap,
     this.label,
     this.icon,
-    ButtonStyle? style,
-  }) : this.style = ButtonStyle(
-         foregroundColor: WidgetStateProperty.resolveWith(
-           (states) => (!states.contains(WidgetState.disabled))
-               ? LxColors.background
-               : null,
-         ),
-         backgroundColor: WidgetStateProperty.resolveWith(
-           (states) => (!states.contains(WidgetState.disabled))
-               ? LxColors.foreground
-               : null,
-         ),
-         iconColor: const WidgetStatePropertyAll(LxColors.grey1000),
-         overlayColor: const WidgetStatePropertyAll(LxColors.clearW200),
-       ).merge(style);
+    this.style,
+  }) : variant = _LxFilledButtonVariant.strong;
 
   final Widget? label;
   final Widget? icon;
   final VoidCallback? onTap;
   final ButtonStyle? style;
+  final _LxFilledButtonVariant variant;
 
   @override
   Widget build(BuildContext context) {
+    final ButtonStyle? variantStyle = switch (this.variant) {
+      _LxFilledButtonVariant.standard => null,
+      _LxFilledButtonVariant.tonal => ButtonStyle(
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => (!states.contains(WidgetState.disabled))
+              ? LxTheme.resolve(context, LxColors.grey1000)
+              : null,
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => (!states.contains(WidgetState.disabled))
+              ? LxTheme.resolve(context, LxColors.moneyGoUp)
+              : null,
+        ),
+        iconColor: WidgetStatePropertyAll(
+          LxTheme.resolve(context, LxColors.grey1000),
+        ),
+      ),
+      _LxFilledButtonVariant.strong => ButtonStyle(
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => (!states.contains(WidgetState.disabled))
+              ? LxTheme.resolve(context, LxColors.background)
+              : null,
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => (!states.contains(WidgetState.disabled))
+              ? LxTheme.resolve(context, LxColors.foreground)
+              : null,
+        ),
+        iconColor: WidgetStatePropertyAll(
+          LxTheme.resolve(context, LxColors.grey1000),
+        ),
+        overlayColor: const WidgetStatePropertyAll(LxColors.clearW200),
+      ),
+    };
+
     return FilledButton(
       onPressed: this.onTap,
-      style: this.style,
+      style: variantStyle?.merge(this.style) ?? this.style,
       child: ButtonChild(label: this.label, icon: this.icon),
     );
   }
 }
+
+enum _LxFilledButtonVariant { standard, tonal, strong }
 
 /// An outlined button with an icon. Used as a secondary action button.
 ///
@@ -685,7 +701,7 @@ class StackedButton extends StatelessWidget {
           this.label,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size300,
-            color: LxColors.foreground,
+            color: LxTheme.resolve(context, LxColors.foreground),
             fontVariations: [Fonts.weightSemiBold],
           ),
         ),
@@ -727,7 +743,7 @@ class SubheadingText extends StatelessWidget {
     return Text(
       this.text,
       style: Fonts.fontUI.copyWith(
-        color: LxColors.grey600,
+        color: LxTheme.resolve(context, LxColors.grey600),
         fontSize: Fonts.size300,
         height: 1.2,
       ),
@@ -790,7 +806,7 @@ class ItemizedAmountRow extends StatelessWidget {
 
     const satsSize = Fonts.size200;
     final satsStyle = Fonts.fontUI.copyWith(
-      color: LxColors.grey700,
+      color: LxTheme.resolve(context, LxColors.grey700),
       fontSize: satsSize,
       fontVariations: [Fonts.weightMedium],
       fontFeatures: [Fonts.featTabularNumbers],
@@ -802,7 +818,7 @@ class ItemizedAmountRow extends StatelessWidget {
 
     const fiatSize = Fonts.size300;
     final fiatStyle = Fonts.fontUI.copyWith(
-      color: LxColors.foreground,
+      color: LxTheme.resolve(context, LxColors.foreground),
       fontSize: fiatSize,
       fontVariations: [Fonts.weightMedium],
       fontFeatures: [Fonts.featTabularNumbers],
@@ -813,7 +829,7 @@ class ItemizedAmountRow extends StatelessWidget {
             amount: fiatAmount.amount,
             fiatName: fiatAmount.fiat,
             style: Fonts.fontUI.copyWith(
-              color: LxColors.foreground,
+              color: LxTheme.resolve(context, LxColors.foreground),
               fontSize: fiatSize,
               fontVariations: [Fonts.weightMedium],
               fontFeatures: [Fonts.featTabularNumbers],
@@ -851,7 +867,7 @@ class ItemizedAmountRow extends StatelessWidget {
                 this.title,
                 style: Fonts.fontUI.copyWith(
                   fontSize: fiatSize,
-                  color: LxColors.foreground,
+                  color: LxTheme.resolve(context, LxColors.foreground),
                 ),
               ),
             ),
@@ -873,7 +889,7 @@ class ItemizedAmountRow extends StatelessWidget {
               this.subtitle,
               style: Fonts.fontUI.copyWith(
                 fontSize: satsSize,
-                color: LxColors.fgTertiary,
+                color: LxTheme.resolve(context, LxColors.fgTertiary),
               ),
             ),
           ),
@@ -929,7 +945,8 @@ class SplitAmountText extends StatelessWidget {
     );
 
     final TextStyle styleFract =
-        this.styleFract ?? const TextStyle(color: LxColors.fgTertiary);
+        this.styleFract ??
+        TextStyle(color: LxTheme.resolve(context, LxColors.fgTertiary));
 
     return Text.rich(
       TextSpan(
@@ -1128,7 +1145,9 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
             if (showPrefix)
               Text(
                 "₿ ",
-                style: amountTextStyle.copyWith(color: LxColors.grey700),
+                style: amountTextStyle.copyWith(
+                  color: LxTheme.resolve(context, LxColors.grey700),
+                ),
               ),
             Flexible(
               // The text field with intrinsic width
@@ -1175,7 +1194,9 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
             if (showSuffix)
               Text(
                 " ₿",
-                style: amountTextStyle.copyWith(color: LxColors.grey700),
+                style: amountTextStyle.copyWith(
+                  color: LxTheme.resolve(context, LxColors.grey700),
+                ),
               ),
           ],
         ),
@@ -1188,7 +1209,7 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
             builder: (_, value, _) => Text(
               value ?? "",
               style: Fonts.fontUI.copyWith(
-                color: LxColors.errorText,
+                color: LxTheme.resolve(context, LxColors.errorText),
                 fontSize: Fonts.size100,
               ),
               textAlign: TextAlign.center,
@@ -1309,24 +1330,30 @@ class _PaymentNoteInputState extends State<PaymentNoteInput> {
 
                 decoration: InputDecoration(
                   contentPadding: this.widget.contentPadding,
-                  hintStyle: const TextStyle(color: LxColors.grey550),
+                  hintStyle: TextStyle(
+                    color: LxTheme.resolve(context, LxColors.grey550),
+                  ),
                   hintText: this.widget.hintText,
                   // We build the counter outside the text field, so we can
                   // center the inline submit button.
                   counterText: "",
                   border: const OutlineInputBorder(),
-                  enabledBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: LxColors.fgTertiary),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: LxTheme.resolve(context, LxColors.fgTertiary),
+                    ),
                   ),
-                  focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: LxColors.foreground),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: LxTheme.resolve(context, LxColors.foreground),
+                    ),
                   ),
                 ),
 
                 style: Fonts.fontBody.copyWith(
                   fontSize: Fonts.size200,
                   height: 1.5,
-                  color: LxColors.fgSecondary,
+                  color: LxTheme.resolve(context, LxColors.fgSecondary),
                   letterSpacing: -0.15,
                 ),
               ),
@@ -1358,9 +1385,18 @@ class _PaymentNoteInputState extends State<PaymentNoteInput> {
                                         : null,
                                     icon: const Icon(LxIcons.next, size: 20.0),
                                     style: IconButton.styleFrom(
-                                      backgroundColor: LxColors.moneyGoUp,
-                                      foregroundColor: LxColors.grey1000,
-                                      disabledBackgroundColor: LxColors.grey700,
+                                      backgroundColor: LxTheme.resolve(
+                                        context,
+                                        LxColors.moneyGoUp,
+                                      ),
+                                      foregroundColor: LxTheme.resolve(
+                                        context,
+                                        LxColors.grey1000,
+                                      ),
+                                      disabledBackgroundColor: LxTheme.resolve(
+                                        context,
+                                        LxColors.grey700,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1400,9 +1436,12 @@ class _PaymentNoteInputState extends State<PaymentNoteInput> {
                                 ),
                                 child: Text(
                                   "$currentLength/200",
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: Fonts.size100,
-                                    color: LxColors.grey550,
+                                    color: LxTheme.resolve(
+                                      context,
+                                      LxColors.grey550,
+                                    ),
                                     height: 1.0,
                                   ),
                                   textAlign: TextAlign.end,
@@ -1502,7 +1541,7 @@ class ZigZag extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomPaint(
       painter: ZigZagPainter(
-        color: this.color,
+        color: LxTheme.resolve(context, this.color),
         zigWidth: this.zigWidth,
         strokeWidth: this.strokeWidth,
       ),
@@ -1667,8 +1706,8 @@ class ChannelBalanceBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomPaint(
       painter: ChannelBalanceBarPainter(
-        color: this.color,
-        backgroundColor: this.backgroundColor,
+        color: LxTheme.resolve(context, this.color),
+        backgroundColor: LxTheme.resolve(context, this.backgroundColor),
         value: this.value,
       ),
       child: ConstrainedBox(
@@ -1993,7 +2032,7 @@ class SheetDragHandle extends StatelessWidget {
       height: 4,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: this.color,
+        color: LxTheme.resolve(context, this.color),
         borderRadius: BorderRadius.circular(2),
       ),
     ),
@@ -2237,7 +2276,7 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
           // 1. tap to expand
           // 2. long press to copy
           ? Card.filled(
-              color: LxColors.grey1000,
+              color: LxTheme.resolve(context, LxColors.grey1000),
               margin: EdgeInsets.zero,
               clipBehavior: Clip.hardEdge,
               child: LayoutBuilder(
@@ -2342,7 +2381,10 @@ class _ErrorMessageSectionState extends State<ErrorMessageSection> {
                                                       ? LxIcons.expandUpSmall
                                                       : LxIcons.expandDownSmall,
                                                   // color: LxColors.errorText,
-                                                  color: LxColors.foreground,
+                                                  color: LxTheme.resolve(
+                                                    context,
+                                                    LxColors.foreground,
+                                                  ),
                                                   weight: LxIcons.weightLight,
                                                 ),
                                       ),
@@ -2385,13 +2427,13 @@ class LoadingSpinnerModal extends StatelessWidget {
         textStyle: dialogTheme.contentTextStyle,
 
         // The actual spinner
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(Space.s600),
           child: SizedBox.square(
             dimension: Space.s700,
             child: CircularProgressIndicator(
               strokeWidth: 5.0,
-              color: LxColors.fgSecondary,
+              color: LxTheme.resolve(context, LxColors.fgSecondary),
             ),
           ),
         ),
@@ -2424,18 +2466,13 @@ class ListIcon extends StatelessWidget {
     : icon = const Icon(
         LxIcons.lightning,
         size: Space.s500,
-        color: LxColors.fgSecondary,
         fill: 1.0,
         weight: LxIcons.weightLight,
       ),
       background = LxColors.grey850;
 
   const ListIcon.bitcoin({super.key})
-    : icon = const Icon(
-        LxIcons.bitcoin,
-        size: Space.s500,
-        color: LxColors.fgSecondary,
-      ),
+    : icon = const Icon(LxIcons.bitcoin, size: Space.s500),
       background = LxColors.grey850;
 
   factory ListIcon.byBalanceKind(BalanceKind kind) => switch (kind) {
@@ -2447,8 +2484,11 @@ class ListIcon extends StatelessWidget {
   final Color background;
 
   @override
-  Widget build(BuildContext context) =>
-      FilledCircle(size: Space.s650, color: this.background, child: this.icon);
+  Widget build(BuildContext context) => FilledCircle(
+    size: Space.s650,
+    color: LxTheme.resolve(context, this.background),
+    child: this.icon,
+  );
 }
 
 /// A [Column] of [InfoRow]s, surrounded by a white rounded card. Includes
@@ -2484,8 +2524,8 @@ class InfoCard extends StatelessWidget {
                 right: this.bodyPadding,
               ),
               child: DefaultTextStyle(
-                style: const TextStyle(
-                  color: LxColors.fgTertiary,
+                style: TextStyle(
+                  color: LxTheme.resolve(context, LxColors.fgTertiary),
                   fontSize: Fonts.size200,
                 ),
                 child: header,
@@ -2500,8 +2540,8 @@ class InfoCard extends StatelessWidget {
                 right: this.bodyPadding,
               ),
               child: DefaultTextStyle(
-                style: const TextStyle(
-                  color: LxColors.fgTertiary,
+                style: TextStyle(
+                  color: LxTheme.resolve(context, LxColors.fgTertiary),
                   fontSize: Fonts.size200,
                   fontVariations: [Fonts.weightNormal],
                 ),
@@ -2524,7 +2564,7 @@ class _InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.hardEdge,
-      color: LxColors.grey1000,
+      color: LxTheme.resolve(context, LxColors.grey1000),
       elevation: 0.0,
       margin: const EdgeInsets.all(0),
       child: Padding(
@@ -2552,8 +2592,8 @@ class InfoRowButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDisabled = (this.onTap == null);
     final Color color = (!isDisabled)
-        ? LxColors.fgSecondary
-        : LxColors.fgTertiary;
+        ? LxTheme.resolve(context, LxColors.fgSecondary)
+        : LxTheme.resolve(context, LxColors.fgTertiary);
     final Widget trailingIcon =
         this.trailingIcon ??
         Icon(LxIcons.next, size: Fonts.size100, color: color);
@@ -2617,12 +2657,12 @@ class InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const valueStyle = TextStyle(
-      color: LxColors.fgSecondary,
+    final valueStyle = TextStyle(
+      color: LxTheme.resolve(context, LxColors.fgSecondary),
       fontSize: Fonts.size200,
       height: 1.2,
       fontFeatures: [Fonts.featDisambugation],
-      decorationColor: LxColors.grey500,
+      decorationColor: LxTheme.resolve(context, LxColors.grey500),
     );
     final isMobile = Platform.isAndroid || Platform.isIOS;
 
@@ -2653,8 +2693,8 @@ class InfoRow extends StatelessWidget {
             constraints: const BoxConstraints.tightFor(width: Space.s925),
             child: Text(
               this.label,
-              style: const TextStyle(
-                color: LxColors.grey550,
+              style: TextStyle(
+                color: LxTheme.resolve(context, LxColors.grey550),
                 fontSize: Fonts.size200,
                 height: 1.2,
               ),
@@ -2669,10 +2709,10 @@ class InfoRow extends StatelessWidget {
           if (linkTarget != null)
             Padding(
               padding: EdgeInsets.only(left: this.bodyPadding / 2, right: 2.0),
-              child: const Icon(
+              child: Icon(
                 LxIcons.openLink,
                 size: Fonts.size200,
-                color: LxColors.fgSecondary,
+                color: LxTheme.resolve(context, LxColors.fgSecondary),
               ),
             ),
         ],
@@ -2796,7 +2836,7 @@ class SeedWordsCard extends StatelessWidget {
         Space.s450,
       ),
       decoration: BoxDecoration(
-        color: LxColors.grey1000,
+        color: LxTheme.resolve(context, LxColors.grey1000),
         borderRadius: BorderRadius.circular(LxRadius.r300),
       ),
       child: Row(
@@ -2861,7 +2901,6 @@ class SeedWord extends StatelessWidget {
 
   static const _indexStyle = TextStyle(
     fontSize: Fonts.size200,
-    color: LxColors.fgSecondary,
     fontFeatures: [Fonts.featTabularNumbers],
     fontVariations: [Fonts.weightLight],
   );
@@ -2873,6 +2912,9 @@ class SeedWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final indexStyle = _indexStyle.copyWith(
+      color: LxTheme.resolve(context, LxColors.fgSecondary),
+    );
     // Following is an estimation of what's the max word width in our alphabet.
     // We assume that the word is a bip39 from English language. The longest word
     // is "tomorrow" with 8 chracters plus the icon. Then we assume that a chracter
@@ -2891,7 +2933,7 @@ class SeedWord extends StatelessWidget {
             child: Text(
               "${this.index + 1}.",
               textAlign: TextAlign.right,
-              style: _indexStyle,
+              style: indexStyle,
             ),
           ),
           const SizedBox(width: Space.s200),
@@ -2904,12 +2946,12 @@ class SeedWord extends StatelessWidget {
                 children: [
                   Text(word, textAlign: TextAlign.left, style: _wordStyle),
                   if (this._onRemove != null)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(left: Space.s100),
                       child: Icon(
                         LxIcons.close,
                         size: Fonts.size200,
-                        color: LxColors.fgSecondary,
+                        color: LxTheme.resolve(context, LxColors.fgSecondary),
                       ),
                     ),
                 ],
@@ -2988,7 +3030,7 @@ class PaymentQrCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: LxColors.grey1000,
+        color: LxTheme.resolve(context, LxColors.grey1000),
         borderRadius: BorderRadius.circular(LxRadius.r300),
       ),
       padding: const EdgeInsets.fromLTRB(
@@ -3031,12 +3073,15 @@ class PaymentQrCard extends StatelessWidget {
                         height: dim,
                         color: LxColors.background,
                         borderRadius: 6.0,
-                        child: const Center(
+                        child: Center(
                           child: SizedBox.square(
                             dimension: Fonts.size800,
                             child: CircularProgressIndicator(
                               strokeWidth: 3.0,
-                              color: LxColors.clearB200,
+                              color: LxTheme.resolve(
+                                context,
+                                LxColors.clearB200,
+                              ),
                             ),
                           ),
                         ),
@@ -3101,8 +3146,11 @@ class PaymentQrCard extends StatelessWidget {
                       if (description != null)
                         Text(
                           description,
-                          style: const TextStyle(
-                            color: LxColors.foreground,
+                          style: TextStyle(
+                            color: LxTheme.resolve(
+                              context,
+                              LxColors.foreground,
+                            ),
                             fontSize: Fonts.size200,
                             height: 1.25,
                             letterSpacing: -0.25,
@@ -3146,8 +3194,8 @@ class _PaymentQrCardFiatAmount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const fontSize = Fonts.size400;
-    const style = TextStyle(
-      color: LxColors.fgTertiary,
+    final style = TextStyle(
+      color: LxTheme.resolve(context, LxColors.fgTertiary),
       fontSize: fontSize,
       letterSpacing: -0.25,
       height: 1.0,
@@ -3157,7 +3205,7 @@ class _PaymentQrCardFiatAmount extends StatelessWidget {
       valueListenable: this.fiatRate,
       builder: (context, fiatRate, child) {
         if (fiatRate == null) {
-          return const FilledTextPlaceholder(
+          return FilledTextPlaceholder(
             width: Space.s900,
             color: LxColors.background,
             style: style,
@@ -3200,7 +3248,7 @@ class _PaymentQrCardEditButton extends StatelessWidget {
                 padding: WidgetStatePropertyAll(EdgeInsets.zero),
                 visualDensity: VisualDensity(horizontal: -3.0, vertical: -3.0),
               ),
-              label: const Row(
+              label: Row(
                 mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
@@ -3208,17 +3256,17 @@ class _PaymentQrCardEditButton extends StatelessWidget {
                     "Edit amount or description",
                     style: TextStyle(
                       fontSize: Fonts.size200,
-                      color: LxColors.fgSecondary,
+                      color: LxTheme.resolve(context, LxColors.fgSecondary),
                       fontVariations: [Fonts.weightNormal],
                       letterSpacing: -0.25,
                     ),
                   ),
                 ],
               ),
-              icon: const Icon(
+              icon: Icon(
                 LxIcons.edit,
                 size: Fonts.size300,
-                color: LxColors.fgSecondary,
+                color: LxTheme.resolve(context, LxColors.fgSecondary),
                 opticalSize: LxIcons.opszDense,
                 weight: LxIcons.weightNormal,
               ),
@@ -3231,18 +3279,18 @@ class _PaymentQrCardEditButton extends StatelessWidget {
     // Small "Edit" button
     return TextButton.icon(
       onPressed: this.onEdit,
-      label: const Text(
+      label: Text(
         "Edit",
         style: TextStyle(
           fontSize: Fonts.size200,
-          color: LxColors.fgSecondary,
+          color: LxTheme.resolve(context, LxColors.fgSecondary),
           letterSpacing: -0.25,
         ),
       ),
-      icon: const Icon(
+      icon: Icon(
         LxIcons.edit,
         size: Fonts.size300,
-        color: LxColors.fgSecondary,
+        color: LxTheme.resolve(context, LxColors.fgSecondary),
       ),
     );
   }
@@ -3263,7 +3311,7 @@ class _PaymentQrCardCodeRow extends StatelessWidget {
     const double buttonHeight = Space.s600;
     const double buttonPadHoriz = Space.s300;
     const double fontSize = Fonts.size100;
-    const Color fontColor = LxColors.grey550;
+    final Color fontColor = LxTheme.resolve(context, LxColors.grey550);
 
     if (code != null) {
       // Align text with QR code
@@ -3275,9 +3323,9 @@ class _PaymentQrCardCodeRow extends StatelessWidget {
             address_format.ellipsizeBtcAddress(code),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: fontSize, color: fontColor),
+            style: TextStyle(fontSize: fontSize, color: fontColor),
           ),
-          label: const Icon(
+          label: Icon(
             LxIcons.copy,
             opticalSize: LxIcons.opszDense,
             weight: LxIcons.weightNormal,
@@ -3301,7 +3349,7 @@ class _PaymentQrCardCodeRow extends StatelessWidget {
         ),
       );
     } else {
-      return const SizedBox(
+      return SizedBox(
         width: buttonWidth,
         height: buttonHeight,
         child: Center(
